@@ -11,12 +11,12 @@ import { POKEY } from "./chips/pokey";
 
 const ATARI8_KEYMATRIX_INTL_NOSHIFT = [
   Keys.VK_L, Keys.VK_J, Keys.VK_SEMICOLON, Keys.VK_F1, Keys.VK_F2, Keys.VK_K, Keys.VK_BACK_SLASH, Keys.VK_TILDE,
-  Keys.VK_O, null, Keys.VK_P, Keys.VK_U, Keys.VK_ENTER, Keys.VK_I, Keys.VK_MINUS, Keys.VK_EQUALS,
+  Keys.VK_O, null, Keys.VK_P, Keys.VK_U, Keys.VK_ENTER, Keys.VK_I, Keys.VK_MINUS2, Keys.VK_EQUALS2,
   Keys.VK_V, Keys.VK_F8, Keys.VK_C, Keys.VK_F3, Keys.VK_F4, Keys.VK_B, Keys.VK_X, Keys.VK_Z,
   Keys.VK_4, null, Keys.VK_3, Keys.VK_6, Keys.VK_ESCAPE, Keys.VK_5, Keys.VK_2, Keys.VK_1,
   Keys.VK_COMMA, Keys.VK_SPACE, Keys.VK_PERIOD, Keys.VK_N, null, Keys.VK_M, Keys.VK_SLASH, null/*invert*/,
   Keys.VK_R, null, Keys.VK_E, Keys.VK_Y, Keys.VK_TAB, Keys.VK_T, Keys.VK_W, Keys.VK_Q,
-  Keys.VK_9, null, Keys.VK_0, Keys.VK_7, Keys.VK_BACK_SPACE, Keys.VK_8, Keys.VK_LEFT, Keys.VK_RIGHT,
+  Keys.VK_9, null, Keys.VK_0, Keys.VK_7, Keys.VK_BACK_SPACE, Keys.VK_8, null, null,
   Keys.VK_F, Keys.VK_H, Keys.VK_D, null, Keys.VK_CAPS_LOCK, Keys.VK_G, Keys.VK_S, Keys.VK_A,
 ];
 
@@ -34,12 +34,10 @@ var ATARI8_KEYCODE_MAP = makeKeycodeMap([
     [Keys.P2_RIGHT, 0, 0x80],
     [Keys.P2_A, 3, 0x1],
   */
-  [Keys.START, 3, 0x1],
-  [Keys.SELECT, 3, 0x2],
-  [Keys.VK_F6, 3, 0x4],
+  [Keys.START, 3, 0x1],  // START
+  [Keys.SELECT, 3, 0x2], // SELECT
+  [Keys.OPTION, 3, 0x4], // OPTION
 ]);
-
-
 
 
 export class Atari800 extends BasicScanlineMachine {
@@ -48,10 +46,11 @@ export class Atari800 extends BasicScanlineMachine {
   cpuFrequency = 1789773;
   numTotalScanlines = 262;
   cpuCyclesPerLine = 114;
-  canvasWidth = 352; // TODO?
+  canvasWidth = 348; // TODO?
+  numVisibleScanlines = 224;
   aspectRatio = 240 / 172;
-  firstVisibleClock = 36 * 2; // TODO?
-  numVisibleScanlines = 250;
+  firstVisibleScanline = 16;
+  firstVisibleClock = 44 * 2; // ... to 215 * 2
   // TODO: for 400/800/5200
   defaultROMSize = 0x8000;
   overscan = true;
@@ -167,9 +166,11 @@ export class Atari800 extends BasicScanlineMachine {
     //if (this.cpu.isHalted()) throw new EmuHalt("CPU HALTED");
     // set GTIA switch inputs
     this.gtia.sync();
+    // TODO: trigger latching mode
     for (let i = 0; i < 4; i++)
       this.gtia.readregs[TRIG0 + i] = (~this.inputs[2] >> i) & 1;
-    this.gtia.readregs[CONSOL] = ~this.inputs[3] & this.gtia.regs[CONSOL];
+    // console switches
+    this.gtia.readregs[CONSOL] = ~this.inputs[3] & 0x7;
     // advance POKEY audio
     this.audio && this.audioadapter.generate(this.audio);
     // advance POKEY IRQ timers
@@ -178,8 +179,9 @@ export class Atari800 extends BasicScanlineMachine {
 
   drawScanline() {
     // TODO
-    if (this.antic.v < this.numVisibleScanlines) {
-      this.pixels.set(this.linergb, this.antic.v * this.canvasWidth);
+    let y = this.antic.v - this.firstVisibleScanline;
+    if (y >= 0 && y < this.numVisibleScanlines) {
+      this.pixels.set(this.linergb, y * this.canvasWidth);
     }
   }
 
@@ -193,6 +195,11 @@ export class Atari800 extends BasicScanlineMachine {
       super.advanceCPU();
     }
     // update GTIA
+    // get X coordinate within scanline
+    let xofs = this.antic.h * 4 - this.firstVisibleClock;
+    // correct for HSCROL
+    if (this.antic.dliop & 0x10) xofs += (this.antic.regs[4] & 1) << 1;
+    // GTIA tick functions
     let gtiatick1 = () => {
       this.gtia.clockPulse1();
       this.linergb[xofs++] = this.gtia.rgb;
@@ -201,7 +208,7 @@ export class Atari800 extends BasicScanlineMachine {
       this.gtia.clockPulse2();
       this.linergb[xofs++] = this.gtia.rgb;
     }
-    let xofs = this.antic.h * 4 - this.firstVisibleClock;
+    // tick 4 GTIA clocks for each CPU/ANTIC cycle
     let bp = MODE_SHIFT[this.antic.mode];
     if (bp < 8 || (xofs & 4) == 0) { this.gtia.an = this.antic.shiftout(); }
     gtiatick1();
@@ -247,6 +254,9 @@ export class Atari800 extends BasicScanlineMachine {
   getRasterScanline() {
     return this.antic.v;
   }
+  getRasterLineClock() {
+    return this.antic.h;
+  }
   getDebugCategories() {
     return ['CPU', 'Stack', 'ANTIC', 'GTIA', 'POKEY'];
   }
@@ -260,6 +270,7 @@ export class Atari800 extends BasicScanlineMachine {
   getKeyboardFunction() {
     return (o, key, code, flags) => {
       if (flags & (KeyFlags.KeyDown | KeyFlags.KeyUp)) {
+        //console.log(o, key, code, flags, hex(this.keycode));
         var keymap = ATARI8_KEYMATRIX_INTL_NOSHIFT;
         if (key == Keys.VK_F9.c) {
           this.irq_pokey.generateIRQ(0x80); // break IRQ
@@ -273,7 +284,6 @@ export class Atari800 extends BasicScanlineMachine {
             if (flags & KeyFlags.KeyDown) {
               this.keycode |= 0x100;
               this.irq_pokey.generateIRQ(0x40); // key pressed IRQ
-              console.log(o, key, code, flags, hex(this.keycode));
               return true;
             }
           }
@@ -291,6 +301,8 @@ export class Atari800 extends BasicScanlineMachine {
   }
 
   loadROM(rom: Uint8Array) {
+    if (rom.length != 0x2000 && rom.length != 0x4000 && rom.length != 0x8000)
+      throw new Error("Sorry, this platform can only load 8/16/32 KB cartridges at the moment.");
     // TODO: support other than 8 KB carts
     // support 4/8/16/32 KB carts
     let rom2 = new Uint8Array(0x8000);

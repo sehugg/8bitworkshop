@@ -1,7 +1,7 @@
 
 import { newDiv, ProjectView } from "./baseviews";
 import { Segment } from "../../common/workertypes";
-import { platform, compparams, current_project, projectWindows } from "../ui";
+import { platform, compparams, current_project, projectWindows, runToPC, setupBreakpoint } from "../ui";
 import { hex, lpad, rpad } from "../../common/util";
 import { VirtualList } from "../../common/vlist";
 import { getMousePos, getVisibleEditorLineHeight, VirtualTextLine, VirtualTextScroller } from "../../common/emu";
@@ -470,7 +470,19 @@ abstract class ProbeViewBase extends ProbeViewBaseBase {
   getTooltipText(x:number, y:number) : string {
     return null;
   }
-  
+
+  getOpAtPos(x:number, y:number, mask:number) : number {
+    x = x|0;
+    y = y|0;
+    let result = 0;
+    this.redraw( (op,addr,col,row,clk,value) => {
+      if (!result && row == y && col >= x && (op & mask) != 0) {
+        result = op | addr;
+      }
+    });
+    return result;
+  }
+
   clear() {
   }
   
@@ -546,6 +558,15 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
     return this.createCanvas(parent, 256, 256);
   }
   
+  initCanvas() {
+    super.initCanvas();
+    this.canvas.onclick = (e) => {
+      var pos = getMousePos(this.canvas, e);
+      var opaddr = Math.floor(pos.x) + Math.floor(pos.y) * 256;
+      runToPC(opaddr & 0xffff);
+    }
+  }
+
   clear() {
     for (var i=0; i<=0xffff; i++) {
       var v = platform.readAddress(i);
@@ -554,7 +575,8 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
       this.datau32[i] = rgb | OPAQUE_BLACK;
     }
   }
-  
+
+  // TODO: show current PC
   drawEvent(op, addr, col, row) {
     var rgb = this.getOpRGB(op, addr);
     if (!rgb) return;
@@ -597,6 +619,27 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
 }
 
 export class RasterPCHeatMapView extends ProbeBitmapViewBase implements ProjectView {
+
+  initCanvas() {
+    super.initCanvas();
+    // TODO: run to exact x/y position
+    this.canvas.onclick = (e) => {
+      var pos = getMousePos(this.canvas, e);
+      var x = Math.floor(pos.x);
+      var y = Math.floor(pos.y);
+      var opaddr = this.getOpAtPos(pos.x, pos.y, ProbeFlags.EXECUTE);
+      if (opaddr) {
+        //runToPC(opaddr & 0xffff);
+        setupBreakpoint("toline");
+        platform.runEval(() => {
+          let onrow = platform.getRasterScanline && platform.getRasterScanline() >= y;
+          if (onrow && platform.getRasterLineClock) {
+            return onrow && platform.getRasterLineClock() > x;
+          } else return onrow;
+        });
+      }
+    }
+  }
 
   drawEvent(op, addr, col, row) {
     var rgb = this.getOpRGB(op, addr);

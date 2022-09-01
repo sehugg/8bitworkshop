@@ -20,7 +20,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.highlightSearch = exports.reloadWorkspaceFile = exports.emulationHalted = exports.getSaveState = exports.getTestOutput = exports.setTestInput = exports.startUI = exports.getPlatformAndRepo = exports.setupSplits = exports.haltEmulation = exports.setFrameRateUI = exports.runToPC = exports.lastDebugState = exports.compparams = exports.projectWindows = exports.current_project = exports.platform = exports.repo_id = exports.store_id = exports.platform_id = exports.qs = void 0;
+exports.highlightSearch = exports.reloadWorkspaceFile = exports.emulationHalted = exports.getSaveState = exports.getTestOutput = exports.setTestInput = exports.startUI = exports.getPlatformAndRepo = exports.setupSplits = exports.haltEmulation = exports.setFrameRateUI = exports.clearBreakpoint = exports.runToPC = exports.setupBreakpoint = exports.lastDebugState = exports.compparams = exports.projectWindows = exports.current_project = exports.platform = exports.repo_id = exports.store_id = exports.platform_id = exports.qs = void 0;
 const localforage = __importStar(require("localforage"));
 const project_1 = require("./project");
 const windows_1 = require("./windows");
@@ -1436,6 +1436,7 @@ function setupBreakpoint(btnid) {
     if (btnid)
         setDebugButtonState(btnid, "active");
 }
+exports.setupBreakpoint = setupBreakpoint;
 function _pause() {
     if (exports.platform && exports.platform.isRunning()) {
         exports.platform.pause();
@@ -1537,6 +1538,7 @@ function clearBreakpoint() {
     setupDebugCallback(); // in case of BRK/trap
     showDebugInfo();
 }
+exports.clearBreakpoint = clearBreakpoint;
 function resetPlatform() {
     exports.platform.reset();
     _resetRecording();

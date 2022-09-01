@@ -55,9 +55,6 @@ lower
         iny                     ;Next character
         bne     prloop
 wait
-	lda $d40b
-        lda $d20f
-        sta COLBK
 	nop
         jmp     wait
 
@@ -81,12 +78,12 @@ dlist   .byte	$70,$70        ;16 blank scanlines
 dlistend
 
         ;Text data
-text1   .byte   "Hejjo World! "
+text1   .byte   "Hello World! "
 	.byte	$a1,$a2,$a3
-        .repeat 40
+        .repeat 16
 	.byte	32
         .repend
-        .byte   "oops!"
+        .byte   "12345"
 	.byte	0
 
 	;Cartridge footer

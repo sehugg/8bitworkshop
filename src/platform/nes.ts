@@ -295,6 +295,9 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
   getRasterScanline() : number {
     return this.nes.ppu.scanline;
   }
+  getRasterLineClock() : number {
+    return this.nes.ppu.curX;
+  }
 
   getCPUState() {
     var c = this.nes.cpu.toJSON();

@@ -164,6 +164,9 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
     getRasterScanline() {
         return this.getRasterPosition().y;
     }
+    getRasterLineClock() {
+        return this.getRasterPosition().x;
+    }
     // TODO: Clock changes this on event, so it may not be current
     isRunning() {
         //console.log(Javatari.room.console.isRunning(), Javatari.room.console.isPowerOn);

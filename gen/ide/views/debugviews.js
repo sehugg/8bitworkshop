@@ -471,6 +471,17 @@ class ProbeViewBase extends ProbeViewBaseBase {
     getTooltipText(x, y) {
         return null;
     }
+    getOpAtPos(x, y, mask) {
+        x = x | 0;
+        y = y | 0;
+        let result = 0;
+        this.redraw((op, addr, col, row, clk, value) => {
+            if (!result && row == y && col >= x && (op & mask) != 0) {
+                result = op | addr;
+            }
+        });
+        return result;
+    }
     clear() {
     }
     tick() {
@@ -541,6 +552,14 @@ class AddressHeatMapView extends ProbeBitmapViewBase {
     createDiv(parent) {
         return this.createCanvas(parent, 256, 256);
     }
+    initCanvas() {
+        super.initCanvas();
+        this.canvas.onclick = (e) => {
+            var pos = (0, emu_1.getMousePos)(this.canvas, e);
+            var opaddr = Math.floor(pos.x) + Math.floor(pos.y) * 256;
+            (0, ui_1.runToPC)(opaddr & 0xffff);
+        };
+    }
     clear() {
         for (var i = 0; i <= 0xffff; i++) {
             var v = ui_1.platform.readAddress(i);
@@ -549,6 +568,7 @@ class AddressHeatMapView extends ProbeBitmapViewBase {
             this.datau32[i] = rgb | OPAQUE_BLACK;
         }
     }
+    // TODO: show current PC
     drawEvent(op, addr, col, row) {
         var rgb = this.getOpRGB(op, addr);
         if (!rgb)
@@ -593,6 +613,28 @@ class AddressHeatMapView extends ProbeBitmapViewBase {
 }
 exports.AddressHeatMapView = AddressHeatMapView;
 class RasterPCHeatMapView extends ProbeBitmapViewBase {
+    initCanvas() {
+        super.initCanvas();
+        // TODO: run to exact x/y position
+        this.canvas.onclick = (e) => {
+            var pos = (0, emu_1.getMousePos)(this.canvas, e);
+            var x = Math.floor(pos.x);
+            var y = Math.floor(pos.y);
+            var opaddr = this.getOpAtPos(pos.x, pos.y, probe_1.ProbeFlags.EXECUTE);
+            if (opaddr) {
+                //runToPC(opaddr & 0xffff);
+                (0, ui_1.setupBreakpoint)("toline");
+                ui_1.platform.runEval(() => {
+                    let onrow = ui_1.platform.getRasterScanline && ui_1.platform.getRasterScanline() >= y;
+                    if (onrow && ui_1.platform.getRasterLineClock) {
+                        return onrow && ui_1.platform.getRasterLineClock() > x;
+                    }
+                    else
+                        return onrow;
+                });
+            }
+        };
+    }
     drawEvent(op, addr, col, row) {
         var rgb = this.getOpRGB(op, addr);
         if (!rgb)

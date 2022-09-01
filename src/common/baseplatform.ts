@@ -133,6 +133,7 @@ export interface Platform {
   resize?() : void;
 
   getRasterScanline?() : number;
+  getRasterLineClock?() : number;
   setBreakpoint?(id : string, cond : DebugCondition);
   clearBreakpoint?(id : string);
   hasBreakpoint?(id : string) : boolean;

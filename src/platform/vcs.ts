@@ -156,6 +156,9 @@ class VCSPlatform extends BasePlatform {
   getRasterScanline() : number {
     return this.getRasterPosition().y;
   }
+  getRasterLineClock() : number {
+    return this.getRasterPosition().x;
+  }
 
   // TODO: Clock changes this on event, so it may not be current
   isRunning() {

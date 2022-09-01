@@ -1491,7 +1491,7 @@ function setupDebugCallback(btnid? : DebugCommandType) {
   }
 }
 
-function setupBreakpoint(btnid? : DebugCommandType) {
+export function setupBreakpoint(btnid? : DebugCommandType) {
   if (!checkRunReady()) return;
   _disableRecording();
   setupDebugCallback(btnid);
@@ -1591,7 +1591,7 @@ function runStepBackwards() {
   platform.stepBack();
 }
 
-function clearBreakpoint() {
+export function clearBreakpoint() {
   lastDebugState = null;
   if (platform.clearDebug) platform.clearDebug();
   setupDebugCallback(); // in case of BRK/trap

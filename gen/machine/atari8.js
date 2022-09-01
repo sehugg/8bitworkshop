@@ -5,19 +5,18 @@ const audio_1 = require("../common/audio");
 const MOS6502_1 = require("../common/cpu/MOS6502");
 const devices_1 = require("../common/devices");
 const emu_1 = require("../common/emu");
-const util_1 = require("../common/util");
 const wasmplatform_1 = require("../common/wasmplatform");
 const antic_1 = require("./chips/antic");
 const gtia_1 = require("./chips/gtia");
 const pokey_1 = require("./chips/pokey");
 const ATARI8_KEYMATRIX_INTL_NOSHIFT = [
     emu_1.Keys.VK_L, emu_1.Keys.VK_J, emu_1.Keys.VK_SEMICOLON, emu_1.Keys.VK_F1, emu_1.Keys.VK_F2, emu_1.Keys.VK_K, emu_1.Keys.VK_BACK_SLASH, emu_1.Keys.VK_TILDE,
-    emu_1.Keys.VK_O, null, emu_1.Keys.VK_P, emu_1.Keys.VK_U, emu_1.Keys.VK_ENTER, emu_1.Keys.VK_I, emu_1.Keys.VK_MINUS, emu_1.Keys.VK_EQUALS,
+    emu_1.Keys.VK_O, null, emu_1.Keys.VK_P, emu_1.Keys.VK_U, emu_1.Keys.VK_ENTER, emu_1.Keys.VK_I, emu_1.Keys.VK_MINUS2, emu_1.Keys.VK_EQUALS2,
     emu_1.Keys.VK_V, emu_1.Keys.VK_F8, emu_1.Keys.VK_C, emu_1.Keys.VK_F3, emu_1.Keys.VK_F4, emu_1.Keys.VK_B, emu_1.Keys.VK_X, emu_1.Keys.VK_Z,
     emu_1.Keys.VK_4, null, emu_1.Keys.VK_3, emu_1.Keys.VK_6, emu_1.Keys.VK_ESCAPE, emu_1.Keys.VK_5, emu_1.Keys.VK_2, emu_1.Keys.VK_1,
     emu_1.Keys.VK_COMMA, emu_1.Keys.VK_SPACE, emu_1.Keys.VK_PERIOD, emu_1.Keys.VK_N, null, emu_1.Keys.VK_M, emu_1.Keys.VK_SLASH, null /*invert*/,
     emu_1.Keys.VK_R, null, emu_1.Keys.VK_E, emu_1.Keys.VK_Y, emu_1.Keys.VK_TAB, emu_1.Keys.VK_T, emu_1.Keys.VK_W, emu_1.Keys.VK_Q,
-    emu_1.Keys.VK_9, null, emu_1.Keys.VK_0, emu_1.Keys.VK_7, emu_1.Keys.VK_BACK_SPACE, emu_1.Keys.VK_8, emu_1.Keys.VK_LEFT, emu_1.Keys.VK_RIGHT,
+    emu_1.Keys.VK_9, null, emu_1.Keys.VK_0, emu_1.Keys.VK_7, emu_1.Keys.VK_BACK_SPACE, emu_1.Keys.VK_8, null, null,
     emu_1.Keys.VK_F, emu_1.Keys.VK_H, emu_1.Keys.VK_D, null, emu_1.Keys.VK_CAPS_LOCK, emu_1.Keys.VK_G, emu_1.Keys.VK_S, emu_1.Keys.VK_A,
 ];
 //TODO
@@ -36,7 +35,7 @@ var ATARI8_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
     */
     [emu_1.Keys.START, 3, 0x1],
     [emu_1.Keys.SELECT, 3, 0x2],
-    [emu_1.Keys.VK_F6, 3, 0x4],
+    [emu_1.Keys.OPTION, 3, 0x4], // OPTION
 ]);
 class Atari800 extends devices_1.BasicScanlineMachine {
     // TODO: save/load vars
@@ -46,10 +45,11 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         this.cpuFrequency = 1789773;
         this.numTotalScanlines = 262;
         this.cpuCyclesPerLine = 114;
-        this.canvasWidth = 352; // TODO?
+        this.canvasWidth = 348; // TODO?
+        this.numVisibleScanlines = 224;
         this.aspectRatio = 240 / 172;
-        this.firstVisibleClock = 36 * 2; // TODO?
-        this.numVisibleScanlines = 250;
+        this.firstVisibleScanline = 16;
+        this.firstVisibleClock = 44 * 2; // ... to 215 * 2
         // TODO: for 400/800/5200
         this.defaultROMSize = 0x8000;
         this.overscan = true;
@@ -146,9 +146,11 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         //if (this.cpu.isHalted()) throw new EmuHalt("CPU HALTED");
         // set GTIA switch inputs
         this.gtia.sync();
+        // TODO: trigger latching mode
         for (let i = 0; i < 4; i++)
             this.gtia.readregs[gtia_1.TRIG0 + i] = (~this.inputs[2] >> i) & 1;
-        this.gtia.readregs[gtia_1.CONSOL] = ~this.inputs[3] & this.gtia.regs[gtia_1.CONSOL];
+        // console switches
+        this.gtia.readregs[gtia_1.CONSOL] = ~this.inputs[3] & 0x7;
         // advance POKEY audio
         this.audio && this.audioadapter.generate(this.audio);
         // advance POKEY IRQ timers
@@ -156,8 +158,9 @@ class Atari800 extends devices_1.BasicScanlineMachine {
     }
     drawScanline() {
         // TODO
-        if (this.antic.v < this.numVisibleScanlines) {
-            this.pixels.set(this.linergb, this.antic.v * this.canvasWidth);
+        let y = this.antic.v - this.firstVisibleScanline;
+        if (y >= 0 && y < this.numVisibleScanlines) {
+            this.pixels.set(this.linergb, y * this.canvasWidth);
         }
     }
     advanceCPU() {
@@ -171,6 +174,12 @@ class Atari800 extends devices_1.BasicScanlineMachine {
             super.advanceCPU();
         }
         // update GTIA
+        // get X coordinate within scanline
+        let xofs = this.antic.h * 4 - this.firstVisibleClock;
+        // correct for HSCROL
+        if (this.antic.dliop & 0x10)
+            xofs += (this.antic.regs[4] & 1) << 1;
+        // GTIA tick functions
         let gtiatick1 = () => {
             this.gtia.clockPulse1();
             this.linergb[xofs++] = this.gtia.rgb;
@@ -179,7 +188,7 @@ class Atari800 extends devices_1.BasicScanlineMachine {
             this.gtia.clockPulse2();
             this.linergb[xofs++] = this.gtia.rgb;
         };
-        let xofs = this.antic.h * 4 - this.firstVisibleClock;
+        // tick 4 GTIA clocks for each CPU/ANTIC cycle
         let bp = antic_1.MODE_SHIFT[this.antic.mode];
         if (bp < 8 || (xofs & 4) == 0) {
             this.gtia.an = this.antic.shiftout();
@@ -232,6 +241,9 @@ class Atari800 extends devices_1.BasicScanlineMachine {
     getRasterScanline() {
         return this.antic.v;
     }
+    getRasterLineClock() {
+        return this.antic.h;
+    }
     getDebugCategories() {
         return ['CPU', 'Stack', 'ANTIC', 'GTIA', 'POKEY'];
     }
@@ -245,6 +257,7 @@ class Atari800 extends devices_1.BasicScanlineMachine {
     getKeyboardFunction() {
         return (o, key, code, flags) => {
             if (flags & (emu_1.KeyFlags.KeyDown | emu_1.KeyFlags.KeyUp)) {
+                //console.log(o, key, code, flags, hex(this.keycode));
                 var keymap = ATARI8_KEYMATRIX_INTL_NOSHIFT;
                 if (key == emu_1.Keys.VK_F9.c) {
                     this.irq_pokey.generateIRQ(0x80); // break IRQ
@@ -262,7 +275,6 @@ class Atari800 extends devices_1.BasicScanlineMachine {
                         if (flags & emu_1.KeyFlags.KeyDown) {
                             this.keycode |= 0x100;
                             this.irq_pokey.generateIRQ(0x40); // key pressed IRQ
-                            console.log(o, key, code, flags, (0, util_1.hex)(this.keycode));
                             return true;
                         }
                     }
@@ -280,6 +292,8 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         this.probe.logInterrupt(1);
     }
     loadROM(rom) {
+        if (rom.length != 0x2000 && rom.length != 0x4000 && rom.length != 0x8000)
+            throw new Error("Sorry, this platform can only load 8/16/32 KB cartridges at the moment.");
         // TODO: support other than 8 KB carts
         // support 4/8/16/32 KB carts
         let rom2 = new Uint8Array(0x8000);

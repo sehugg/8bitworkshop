@@ -11,8 +11,8 @@ const util_1 = require("../../common/util");
 // https://user.xmission.com/~trevin/atari/antic_insns.html
 // http://www.atarimuseum.com/videogames/consoles/5200/conv_to_5200.html
 // https://www.virtualdub.org/downloads/Altirra%20Hardware%20Reference%20Manual.pdf
-const PF_LEFT = [0, 26, 18, 10];
-const PF_RIGHT = [0, 26 + 64, 18 + 80, 10 + 96];
+const PF_LEFT = [0, 29, 21, 13];
+const PF_RIGHT = [0, 29 + 64, 21 + 80, 13 + 96];
 const DMACTL = 0;
 const CHACTL = 1;
 const DLISTL = 2;
@@ -35,6 +35,8 @@ const PFWIDE = 3;
 const NMIST_CYCLE = 12;
 const NMI_CYCLE = 24;
 const WSYNC_CYCLE = 212;
+const ANTIC_LEFT = 17; // gtia 34
+const ANTIC_RIGHT = 110; // gtia 221
 const MODE_LINES = [0, 0, 8, 10, 8, 16, 8, 16, 8, 4, 4, 2, 1, 2, 1, 1];
 // how many bits before DMA clock repeats?
 const MODE_PERIOD = [0, 0, 2, 2, 2, 2, 4, 4, 8, 4, 4, 4, 4, 2, 2, 2];
@@ -120,7 +122,7 @@ class ANTIC {
     }
     processDLIEntry() {
         if (this.mode == 0) { // N Blank Lines
-            this.linesleft = (this.dliop >> 4) + 1;
+            this.linesleft = ((this.dliop >> 4) & 7) + 1;
         }
         else {
             this.linesleft = MODE_LINES[this.mode];
@@ -142,7 +144,6 @@ class ANTIC {
             this.startaddr = this.scanaddr;
         }
         // horiz scroll
-        // TODO: gtia fine scroll?
         let effwidth = this.regs[DMACTL] & 3;
         let hscroll = (this.dliop & 0x10) ? (this.regs[HSCROL] & 15) >> 1 : 0;
         if ((this.dliop & 0x10) && effwidth < 3)
@@ -297,17 +298,17 @@ class ANTIC {
                 this.output = this.h >= this.left + 3 && this.h <= this.right + 2 ? 4 : 0;
             }
         }
-        if (this.h < 19 || this.h > 102)
+        if (this.h < ANTIC_LEFT || this.h > ANTIC_RIGHT)
             this.output = 2;
         this.incHorizCounter();
         if (!did_dma && this.dramrefresh) {
+            this.read(0); // to log a VRAM_READ event
             this.dramrefresh = false;
             did_dma = true;
         }
         return did_dma;
     }
     incHorizCounter() {
-        ++this.h;
         switch (this.h) {
             case 25:
             case 25 + 4 * 1:
@@ -320,13 +321,14 @@ class ANTIC {
             case 25 + 4 * 8:
                 this.dramrefresh = true;
                 break;
-            case 103:
+            case 102:
                 this.regs[WSYNC] = 0; // TODO: dram refresh delay to 106?
                 break;
-            case 114:
+            case 113:
                 this.h = 0;
-                break;
+                return;
         }
+        ++this.h;
     }
     doVBlank() {
         this.linesleft = this.mode = this.period = 0;

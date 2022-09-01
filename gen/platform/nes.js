@@ -297,6 +297,9 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
     getRasterScanline() {
         return this.nes.ppu.scanline;
     }
+    getRasterLineClock() {
+        return this.nes.ppu.curX;
+    }
     getCPUState() {
         var c = this.nes.cpu.toJSON();
         this.copy6502REGvars(c);
