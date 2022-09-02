@@ -195,6 +195,7 @@ class Atari5200Platform extends Atari800Platform {
 ///
 
 PLATFORMS['atari8-800.xlmame'] = Atari800MAMEPlatform
+PLATFORMS['atari8-800xl.mame'] = Atari800MAMEPlatform // for dithertron
 PLATFORMS['atari8-5200.mame'] = Atari5200MAMEPlatform
 PLATFORMS['atari8-800.xlwasm'] = Atari800WASMPlatform
 PLATFORMS['atari8-800'] = Atari800Platform

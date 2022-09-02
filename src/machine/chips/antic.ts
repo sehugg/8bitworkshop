@@ -10,8 +10,8 @@ import { hex, lpad, safe_extend } from "../../common/util";
 // http://www.atarimuseum.com/videogames/consoles/5200/conv_to_5200.html
 // https://www.virtualdub.org/downloads/Altirra%20Hardware%20Reference%20Manual.pdf
 
-const PF_LEFT = [0, 29, 21, 13];
-const PF_RIGHT = [0, 29 + 64, 21 + 80, 13 + 96];
+const PF_LEFT = [0, 25, 17, 9];
+const PF_RIGHT = [0, 25 + 64, 17 + 80, 9 + 96];
 
 const DMACTL = 0;
 const CHACTL = 1;
@@ -38,8 +38,9 @@ const NMIST_CYCLE = 12;
 const NMI_CYCLE = 24;
 const WSYNC_CYCLE = 212;
 
-const ANTIC_LEFT = 17; // gtia 34
-const ANTIC_RIGHT = 110; // gtia 221
+const ANTIC_LEFT = 17 - 4; // gtia 34, 4 cycle delay
+const ANTIC_RIGHT = 110 - 4; // gtia 221, 4 cycle delay
+const LAST_DMA_H = 105; // last DMA cycle
 
 const MODE_LINES = [0, 0, 8, 10, 8, 16, 8, 16, 8, 4, 4, 2, 1, 2, 1, 1];
 // how many bits before DMA clock repeats?
@@ -203,8 +204,11 @@ export class ANTIC {
 
     nextScreen(): number {
         let b = this.read(this.scanaddr);
-        this.scanaddr = ((this.scanaddr + 1) & 0xfff) | (this.scanaddr & ~0xfff);
+        this.incScanAddr();
         return b;
+    }
+    incScanAddr() {
+        this.scanaddr = ((this.scanaddr + 1) & 0xfff) | (this.scanaddr & ~0xfff);
     }
 
     dlDMAEnabled() { return this.regs[DMACTL] & 0b100000; }
@@ -216,10 +220,10 @@ export class ANTIC {
         return this.dma_enabled && !this.linesleft;
     }
     isPlayerDMAEnabled() {
-        return this.dma_enabled && this.regs[DMACTL] & 0b1000;
+        return this.regs[DMACTL] & 0b1000;
     }
     isMissileDMAEnabled() {
-        return this.dma_enabled && this.regs[DMACTL] & 0b1100;
+        return this.regs[DMACTL] & 0b1100;
     }
 
     clockPulse(): boolean {
@@ -280,7 +284,7 @@ export class ANTIC {
             }
             this.output = 0; // background color (TODO: only for blank lines)
             if (this.mode >= 2 && this.period) {
-                let candma = this.h < 106;
+                let candma = this.h <= LAST_DMA_H;
                 this.dmaclock <<= 1;
                 if (this.dmaclock & (1 << this.period)) {
                     this.dmaclock |= 1;
@@ -289,13 +293,21 @@ export class ANTIC {
                 if (this.h == this.right) { this.dmaclock &= ~1; this.dmaidx++; }
                 if (this.dmaclock & 1) {
                     if (this.mode < 8 && this.yofs == 0) { // only read chars on 1st line
-                        this.linebuf[this.dmaidx] = this.nextScreen(); // read char name
+                        if (candma) {
+                            this.linebuf[this.dmaidx] = this.nextScreen(); // read char name
+                        } else {
+                            this.incScanAddr();
+                        }
                         did_dma = candma;
                     }
                     this.dmaidx++;
                 } else if (this.dmaclock & 8) {
                     this.ch = this.linebuf[this.dmaidx - 4 / this.period]; // latch char
-                    this.readBitmapData(); // read bitmap
+                    if (candma) {
+                        this.readBitmapData(); // read bitmap
+                    } else {
+                        if (this.mode >= 8) this.incScanAddr();
+                    }
                     did_dma = candma;
                 }
                 this.output = this.h >= this.left + 3 && this.h <= this.right + 2 ? 4 : 0;

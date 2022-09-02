@@ -367,7 +367,7 @@ describe('Platform Replay', () => {
     });
   });
   it('Should run atari5200', async () => {
-    await testPlatform('atari8-5200', 'acid5200.rom', 1000, (platform, frameno) => {
+    await testPlatform('atari8-5200', 'acid5200.rom', 1100, (platform, frameno) => {
       if (frameno == 999) {
         let s = '';
         for (let i=0; i<40; i++) {
