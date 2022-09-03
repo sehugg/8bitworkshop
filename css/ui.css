@@ -591,6 +591,8 @@ div.asset_toolbar {
 }
 .control-def {
   color: #ccc;
+  white-space: nowrap;
+  line-height:2em;
 }
 .book-title {
   font-size:12pt;

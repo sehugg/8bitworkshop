@@ -4,6 +4,10 @@ import { Probeable, ProbeAll } from "./devices";
 export enum ProbeFlags {
   CLOCKS	  = 0x00000000,
   EXECUTE	  = 0x01000000,
+  INTERRUPT	= 0x08000000,
+  ILLEGAL	  = 0x09000000,
+  SP_PUSH	  = 0x0a000000,
+  SP_POP	  = 0x0b000000,
   HAS_VALUE = 0x10000000,
   MEM_READ	= 0x12000000,
   MEM_WRITE	= 0x13000000,
@@ -11,10 +15,9 @@ export enum ProbeFlags {
   IO_WRITE	= 0x15000000,
   VRAM_READ	= 0x16000000,
   VRAM_WRITE= 0x17000000,
-  INTERRUPT	= 0x08000000,
-  ILLEGAL	  = 0x09000000,
-  SP_PUSH	  = 0x0a000000,
-  SP_POP	  = 0x0b000000,
+  DMA_READ  = 0x18000000,
+  DMA_WRITE = 0x19000000,
+  WAIT      = 0x1f000000,
   SCANLINE	= 0x7e000000,
   FRAME		  = 0x7f000000,
 }
@@ -139,6 +142,15 @@ export class ProbeRecorder implements ProbeAll {
   }
   logIllegal(address:number) {
     this.log(address | ProbeFlags.ILLEGAL);
+  }
+  logWait(address:number) {
+    this.log(address | ProbeFlags.WAIT);
+  }
+  logDMARead(address:number, value:number) {
+    this.logValue(address, value, ProbeFlags.DMA_READ);
+  }
+  logDMAWrite(address:number, value:number) {
+    this.logValue(address, value, ProbeFlags.DMA_WRITE);
   }
   countEvents(op : number) : number {
     var count = 0;

@@ -367,16 +367,16 @@ describe('Platform Replay', () => {
     });
   });
   it('Should run atari5200', async () => {
-    await testPlatform('atari8-5200', 'acid5200.rom', 1100, (platform, frameno) => {
-      if (frameno == 999) {
+    await testPlatform('atari8-5200', 'acid5200.rom', 1200, (platform, frameno) => {
+      if (frameno == 1199) {
         let s = '';
         for (let i=0; i<40; i++) {
-          let c = platform.readAddress(0x722+i) & 0x7f;
+          let c = platform.readAddress(0x722+i-40) & 0x7f;
           if (c < 0x40) c += 0x20;
           s += String.fromCharCode(c);
         }
         s = s.trim();
-        assert.equal(s, "Passed: 12  Failed: 34  Skipped: 1");
+        assert.equal(s, "Passed: 13  Failed: 33  Skipped: 1");
       }
     });
   });

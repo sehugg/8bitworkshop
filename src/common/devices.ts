@@ -156,11 +156,14 @@ export interface ProbeCPU {
   logExecute(address:number, SP:number);
   logInterrupt(type:number);
   logIllegal(address:number);
+  logWait(address:number);
 }
 
 export interface ProbeBus {
   logRead(address:number, value:number);
   logWrite(address:number, value:number);
+  logDMARead(address:number, value:number);
+  logDMAWrite(address:number, value:number);
 }
 
 export interface ProbeIO {
@@ -191,6 +194,9 @@ export class NullProbe implements ProbeAll {
   logVRAMRead()		{}
   logVRAMWrite()	{}
   logIllegal()		{}
+  logWait()		{}
+  logDMARead()		{}
+  logDMAWrite()		{}
   logData()       {}
   addLogBuffer(src: Uint32Array) {}
 }
@@ -292,6 +298,19 @@ export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, P
       },
       write: (a,v) => {
         this.probe.logIOWrite(a,v);
+        iobus.write(a,v);
+      }
+    };
+  }
+  probeDMABus(iobus:Bus) : Bus {
+    return {
+      read: (a) => {
+        let val = iobus.read(a);
+        this.probe.logDMARead(a,val);
+        return val;
+      },
+      write: (a,v) => {
+        this.probe.logDMAWrite(a,v);
         iobus.write(a,v);
       }
     };
