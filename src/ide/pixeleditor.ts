@@ -1,7 +1,7 @@
 
 import { hex, rgb2bgr, rle_unpack } from "../common/util";
 import { ProjectWindows } from "./windows";
-import { Toolbar } from "../common/toolbar";
+import { Toolbar } from "./toolbar";
 import Mousetrap = require('mousetrap');
 
 export type UintArray = number[] | Uint8Array | Uint16Array | Uint32Array; //{[i:number]:number};

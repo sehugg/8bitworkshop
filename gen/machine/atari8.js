@@ -171,7 +171,8 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         // update ANTIC
         if (this.antic.clockPulse()) {
             // ANTIC DMA cycle, update GTIA
-            this.gtia.updateGfx(this.antic.h - 1, this.lastdmabyte); // HALT pin
+            if (this.antic.h < 8)
+                this.gtia.updateGfx(this.antic.h - 1, this.antic.v, this.lastdmabyte); // HALT pin
             this.probe.logClocks(1);
         }
         else {

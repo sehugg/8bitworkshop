@@ -74,6 +74,7 @@ export class GTIA {
     gtiacol = 0;
     gtiacol2 = 0;
     hbias = HOFFSET;
+    pmDebugMask = -1;
 
     reset() {
         this.regs.fill(0);
@@ -113,13 +114,19 @@ export class GTIA {
     setBias(b: number) {
         this.hbias = HOFFSET + b;
     }
-    updateGfx(h: number, data: number) {
+    updateGfx(h: number, v: number, data: number) {
         switch (h) {
             case 0:
-                if (this.regs[GRACTL] & 1) { this.regs[GRAFM] = data; }
+                if (this.regs[GRACTL] & 1) {
+                    // TODO: VDELAY
+                    this.regs[GRAFM] = data;
+                }
                 break;
             case 2: case 3: case 4: case 5:
-                if (this.regs[GRACTL] & 2) { this.regs[GRAFP0 - 2 + h] = data; }
+                if (this.regs[GRACTL] & 2) {
+                    if (!(v&1) || !(this.regs[VDELAY] & (1<<(h+2))))
+                        this.regs[GRAFP0 - 2 + h] = data;
+                }
                 break;
         }
     }
@@ -172,7 +179,6 @@ export class GTIA {
         let pfset = this.an - 4; // TODO?
         let topobj = -1;
         let ppmask = 0;
-        let ppcount = 0;
         // players
         for (let i = 0; i < 4; i++) {
             let bit = this.shiftObject(i);
@@ -181,7 +187,6 @@ export class GTIA {
                     this.readregs[P0PF + i] |= 1 << pfset;
                 }
                 ppmask |= 1 << i;
-                ppcount++;
                 let prio = PRIOR_TABLE[i + priobias];
                 if (prio < topprio) {
                     topobj = i;
@@ -205,12 +210,11 @@ export class GTIA {
             }
         }
         // set player-player collision flags
-        if (ppcount > 1) {
-            this.readregs[P0PL + 0] |= ppmask & ~1;
-            this.readregs[P0PL + 1] |= ppmask & ~2;
-            this.readregs[P0PL + 2] |= ppmask & ~4;
-            this.readregs[P0PL + 3] |= ppmask & ~8;
-        }
+        // TODO: either as a player or a GTIA mode 2 color
+        if (ppmask & 1) this.readregs[P0PL + 0] |= ppmask & ~1;
+        if (ppmask & 2) this.readregs[P0PL + 1] |= ppmask & ~2;
+        if (ppmask & 4) this.readregs[P0PL + 2] |= ppmask & ~4;
+        if (ppmask & 8) this.readregs[P0PL + 3] |= ppmask & ~8;
         this.pmcol = topobj >= 0 ? this.getObjectColor(topobj) : -1;
     }
     shiftObject(i: number) {
@@ -230,6 +234,7 @@ export class GTIA {
     }
     triggerObject(i: number) {
         let size, data;
+        if (!(this.pmDebugMask & (1<<i))) return;
         if (i < 4) {
             size = this.regs[SIZEP0 + i] & 3;
             data = this.regs[GRAFP0 + i];

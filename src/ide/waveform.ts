@@ -1,5 +1,5 @@
 
-import { Toolbar } from "../common/toolbar";
+import { Toolbar } from "./toolbar";
 import { VirtualList } from "../common/vlist";
 
 const BUILTIN_INPUT_PORTS = [

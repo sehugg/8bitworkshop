@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TwoWayMapper = exports.Viewer = exports.MapEditor = exports.CharmapEditor = exports.ImageChooser = exports.NESNametableConverter = exports.MetaspriteCompositor = exports.Compositor = exports.PaletteFormatToRGB = exports.Palettizer = exports.Mapper = exports.Compressor = exports.TextDataNode = exports.FileDataNode = exports.PixNode = exports.convertPaletteFormat = exports.getPaletteLength = exports.convertPaletteBytes = exports.convertImagesToWords = exports.convertWordsToImages = exports.replaceHexWords = exports.parseHexWords = void 0;
 const util_1 = require("../common/util");
-const toolbar_1 = require("../common/toolbar");
+const toolbar_1 = require("./toolbar");
 /////////////////
 // 0xabcd, #$abcd, 5'010101, 0b010101, etc
 var pixel_re = /([0#]?)([x$%]|\d'h)([0-9a-f]+)(?:[;].*)?|(\d'b|0b)([01]+)/gim;

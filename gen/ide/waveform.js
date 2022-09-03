@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WaveformView = void 0;
-const toolbar_1 = require("../common/toolbar");
+const toolbar_1 = require("./toolbar");
 const vlist_1 = require("../common/vlist");
 const BUILTIN_INPUT_PORTS = [
     'clk', 'reset',
