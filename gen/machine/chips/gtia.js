@@ -75,6 +75,7 @@ class GTIA {
         this.regs.fill(0);
         this.readregs.fill(0); // TODO?
         this.readregs[0x14] = 0xf; // NTSC
+        this.readregs.fill(0xf, 0x15); // default value for write-only regs
         this.count = 0;
     }
     saveState() {

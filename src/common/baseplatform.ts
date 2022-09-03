@@ -17,8 +17,6 @@ import { _MOS6502 } from "./cpu/MOS6502";
 
 ///
 
-declare var jt;
-
 export interface OpcodeMetadata {
   minCycles: number;
   maxCycles: number;

@@ -10,9 +10,9 @@ import { CONSOL, GTIA, TRIG0 } from "./chips/gtia";
 import { POKEY } from "./chips/pokey";
 
 const ATARI8_KEYMATRIX_INTL_NOSHIFT = [
-  Keys.VK_L, Keys.VK_J, Keys.VK_SEMICOLON, Keys.VK_F1, Keys.VK_F2, Keys.VK_K, Keys.VK_BACK_SLASH, Keys.VK_TILDE,
+  Keys.VK_L, Keys.VK_J, Keys.VK_SEMICOLON, Keys.VK_F4, Keys.VK_F5, Keys.VK_K, Keys.VK_BACK_SLASH, Keys.VK_TILDE,
   Keys.VK_O, null, Keys.VK_P, Keys.VK_U, Keys.VK_ENTER, Keys.VK_I, Keys.VK_MINUS2, Keys.VK_EQUALS2,
-  Keys.VK_V, Keys.VK_F8, Keys.VK_C, Keys.VK_F3, Keys.VK_F4, Keys.VK_B, Keys.VK_X, Keys.VK_Z,
+  Keys.VK_V, Keys.VK_F7, Keys.VK_C, Keys.VK_F6, Keys.VK_F4, Keys.VK_B, Keys.VK_X, Keys.VK_Z,
   Keys.VK_4, null, Keys.VK_3, Keys.VK_6, Keys.VK_ESCAPE, Keys.VK_5, Keys.VK_2, Keys.VK_1,
   Keys.VK_COMMA, Keys.VK_SPACE, Keys.VK_PERIOD, Keys.VK_N, null, Keys.VK_M, Keys.VK_SLASH, null/*invert*/,
   Keys.VK_R, null, Keys.VK_E, Keys.VK_Y, Keys.VK_TAB, Keys.VK_T, Keys.VK_W, Keys.VK_Q,
@@ -26,7 +26,7 @@ var ATARI8_KEYCODE_MAP = makeKeycodeMap([
   [Keys.DOWN, 0, 0x2],
   [Keys.LEFT, 0, 0x4],
   [Keys.RIGHT, 0, 0x8],
-  [Keys.VK_SHIFT, 2, 0x1],
+  [{c: 16,  n: "Shift", plyr:0, button:0}, 2, 0x1],
   /*
     [Keys.P2_UP, 0, 0x10],
     [Keys.P2_DOWN, 0, 0x20],
@@ -34,9 +34,9 @@ var ATARI8_KEYCODE_MAP = makeKeycodeMap([
     [Keys.P2_RIGHT, 0, 0x80],
     [Keys.P2_A, 3, 0x1],
   */
-  [Keys.START, 3, 0x1],  // START
-  [Keys.SELECT, 3, 0x2], // SELECT
-  [Keys.OPTION, 3, 0x4], // OPTION
+  [Keys.VK_F1, 3, 0x1],  // START
+  [Keys.VK_F2, 3, 0x2], // SELECT
+  [Keys.VK_F3, 3, 0x4], // OPTION
 ]);
 
 
@@ -72,6 +72,7 @@ export class Atari800 extends BasicScanlineMachine {
   cart_80 = false;
   cart_a0 = false;
   xexdata = null;
+  keyboard_active = true;
   // TODO: save/load vars
 
   constructor() {
@@ -89,7 +90,7 @@ export class Atari800 extends BasicScanlineMachine {
     this.audioadapter = new TssChannelAdapter(this.audio_pokey.pokey1, this.audioOversample, this.sampleRate);
     this.handler = newKeyboardHandler(
       this.inputs, ATARI8_KEYCODE_MAP, this.getKeyboardFunction(), true);
-  }
+    }
 
   newBus() {
     return {
@@ -134,7 +135,7 @@ export class Atari800 extends BasicScanlineMachine {
   // used by ANTIC
   readDMA(a) {
     let v = this.bus.read(a);
-    this.probe.logVRAMRead(a, v);
+    this.probe.logDMARead(a, v);
     this.lastdmabyte = v;
     return v;
   }
@@ -192,6 +193,8 @@ export class Atari800 extends BasicScanlineMachine {
       // ANTIC DMA cycle, update GTIA
       if (this.antic.h < 8)
         this.gtia.updateGfx(this.antic.h - 1, this.antic.v, this.lastdmabyte); // HALT pin
+      if (this.antic.isWSYNC())
+        this.probe.logWait(0);
       this.probe.logClocks(1);
     } else {
       super.advanceCPU();
@@ -278,8 +281,9 @@ export class Atari800 extends BasicScanlineMachine {
   }
   getKeyboardFunction() {
     return (o, key, code, flags) => {
+      if (!this.keyboard_active) return false;
       if (flags & (KeyFlags.KeyDown | KeyFlags.KeyUp)) {
-        //console.log(o, key, code, flags, hex(this.keycode));
+        console.log(o, key, code, flags, hex(this.keycode));
         var keymap = ATARI8_KEYMATRIX_INTL_NOSHIFT;
         if (key == Keys.VK_F9.c) {
           this.irq_pokey.generateIRQ(0x80); // break IRQ

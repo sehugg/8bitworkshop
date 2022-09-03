@@ -324,7 +324,7 @@ class Atari7800 extends devices_1.BasicMachine {
             [0x0000, 0xffff, 0xffff, (a, v) => { this.probe && this.probe.logIllegal(a); }],
         ]);
         this.connectCPUMemoryBus(this);
-        this.probeDMABus = this.probeIOBus(this);
+        this.dmaBus = this.probeDMABus(this);
         this.handler = (0, emu_1.newKeyboardHandler)(this.inputs, Atari7800_KEYCODE_MAP);
         this.pokey1 = new audio_1.POKEYDeviceChannel();
         this.audioadapter = new audio_1.TssChannelAdapter(this.pokey1, audioOversample, audioSampleRate);
@@ -383,7 +383,7 @@ class Atari7800 extends devices_1.BasicMachine {
             // is this scanline visible?
             if (visible) {
                 // do DMA for scanline?
-                let dmaClocks = this.maria.doDMA(this.probeDMABus);
+                let dmaClocks = this.maria.doDMA(this.dmaBus);
                 this.probe.logClocks(dmaClocks >> 2); // TODO: logDMA
                 mc += dmaClocks;
                 // copy line to frame buffer
@@ -401,6 +401,7 @@ class Atari7800 extends devices_1.BasicMachine {
             // post-DMA clocks
             while (mc < colorClocksPerLine) {
                 if (this.maria.WSYNC) {
+                    this.probe.logWait(0);
                     this.probe.logClocks((colorClocksPerLine - mc) >> 2);
                     mc = colorClocksPerLine;
                     break;

@@ -44,12 +44,10 @@ var KeyFlags;
 })(KeyFlags = exports.KeyFlags || (exports.KeyFlags = {}));
 function _setKeyboardEvents(canvas, callback) {
     canvas.onkeydown = (e) => {
-        callback(e.which, 0, KeyFlags.KeyDown | _metakeyflags(e));
-        // eat backspace, tab, escape, slash, ' keys
-        if (e.ctrlKey || e.which == 8 || e.which == 9 || e.which == 27
-            || e.which == 191 || e.which == 191 || e.which == 222) {
-            e.preventDefault();
-        }
+        let flags = _metakeyflags(e);
+        callback(e.which, 0, KeyFlags.KeyDown | flags);
+        if (!flags)
+            e.preventDefault(); // eat all keys that don't have a modifier
     };
     canvas.onkeyup = (e) => {
         callback(e.which, 0, KeyFlags.KeyUp | _metakeyflags(e));
@@ -314,7 +312,7 @@ exports.Keys = {
     GP_D: { c: 67, n: "C", plyr: 0, button: 3 },
     SELECT: { c: 220, n: "\\", plyr: 0, button: 8 },
     START: { c: 13, n: "Enter", plyr: 0, button: 9 },
-    OPTION: { c: 9, n: "Tab", plyr: 0, button: 10 },
+    OPTION: { c: 8, n: "Bcksp", plyr: 0, button: 10 },
     // gamepad and keyboard (player 1)
     P2_UP: { c: 87, n: "W", plyr: 1, yaxis: -1 },
     P2_DOWN: { c: 83, n: "S", plyr: 1, yaxis: 1 },
@@ -402,6 +400,7 @@ exports.Keys = {
     VK_SLASH: { c: 191, n: "/" },
     VK_CONTROL: { c: 17, n: "Ctrl" },
     VK_ALT: { c: 18, n: "Alt" },
+    VK_COMMAND: { c: 224, n: "Cmd" },
     VK_SPACE: { c: 32, n: "Space" },
     VK_INSERT: { c: 45, n: "Ins" },
     VK_DELETE: { c: 46, n: "Del" },

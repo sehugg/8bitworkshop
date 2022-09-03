@@ -5,6 +5,10 @@ var ProbeFlags;
 (function (ProbeFlags) {
     ProbeFlags[ProbeFlags["CLOCKS"] = 0] = "CLOCKS";
     ProbeFlags[ProbeFlags["EXECUTE"] = 16777216] = "EXECUTE";
+    ProbeFlags[ProbeFlags["INTERRUPT"] = 134217728] = "INTERRUPT";
+    ProbeFlags[ProbeFlags["ILLEGAL"] = 150994944] = "ILLEGAL";
+    ProbeFlags[ProbeFlags["SP_PUSH"] = 167772160] = "SP_PUSH";
+    ProbeFlags[ProbeFlags["SP_POP"] = 184549376] = "SP_POP";
     ProbeFlags[ProbeFlags["HAS_VALUE"] = 268435456] = "HAS_VALUE";
     ProbeFlags[ProbeFlags["MEM_READ"] = 301989888] = "MEM_READ";
     ProbeFlags[ProbeFlags["MEM_WRITE"] = 318767104] = "MEM_WRITE";
@@ -12,10 +16,9 @@ var ProbeFlags;
     ProbeFlags[ProbeFlags["IO_WRITE"] = 352321536] = "IO_WRITE";
     ProbeFlags[ProbeFlags["VRAM_READ"] = 369098752] = "VRAM_READ";
     ProbeFlags[ProbeFlags["VRAM_WRITE"] = 385875968] = "VRAM_WRITE";
-    ProbeFlags[ProbeFlags["INTERRUPT"] = 134217728] = "INTERRUPT";
-    ProbeFlags[ProbeFlags["ILLEGAL"] = 150994944] = "ILLEGAL";
-    ProbeFlags[ProbeFlags["SP_PUSH"] = 167772160] = "SP_PUSH";
-    ProbeFlags[ProbeFlags["SP_POP"] = 184549376] = "SP_POP";
+    ProbeFlags[ProbeFlags["DMA_READ"] = 402653184] = "DMA_READ";
+    ProbeFlags[ProbeFlags["DMA_WRITE"] = 419430400] = "DMA_WRITE";
+    ProbeFlags[ProbeFlags["WAIT"] = 520093696] = "WAIT";
     ProbeFlags[ProbeFlags["SCANLINE"] = 2113929216] = "SCANLINE";
     ProbeFlags[ProbeFlags["FRAME"] = 2130706432] = "FRAME";
 })(ProbeFlags = exports.ProbeFlags || (exports.ProbeFlags = {}));
@@ -135,6 +138,15 @@ class ProbeRecorder {
     }
     logIllegal(address) {
         this.log(address | ProbeFlags.ILLEGAL);
+    }
+    logWait(address) {
+        this.log(address | ProbeFlags.WAIT);
+    }
+    logDMARead(address, value) {
+        this.logValue(address, value, ProbeFlags.DMA_READ);
+    }
+    logDMAWrite(address, value) {
+        this.logValue(address, value, ProbeFlags.DMA_WRITE);
     }
     countEvents(op) {
         var count = 0;

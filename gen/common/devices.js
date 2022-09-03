@@ -14,6 +14,9 @@ class NullProbe {
     logVRAMRead() { }
     logVRAMWrite() { }
     logIllegal() { }
+    logWait() { }
+    logDMARead() { }
+    logDMAWrite() { }
     logData() { }
     addLogBuffer(src) { }
 }
@@ -98,6 +101,19 @@ class BasicHeadlessMachine {
             },
             write: (a, v) => {
                 this.probe.logIOWrite(a, v);
+                iobus.write(a, v);
+            }
+        };
+    }
+    probeDMABus(iobus) {
+        return {
+            read: (a) => {
+                let val = iobus.read(a);
+                this.probe.logDMARead(a, val);
+                return val;
+            },
+            write: (a, v) => {
+                this.probe.logDMAWrite(a, v);
                 iobus.write(a, v);
             }
         };

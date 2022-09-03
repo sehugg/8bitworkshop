@@ -95,7 +95,10 @@ class ANTIC {
         let s = "";
         s += "H: " + (0, util_1.lpad)(state.h, 3) + "  V: " + (0, util_1.lpad)(state.v, 3) + "\n";
         s += "DLIOp: " + (0, util_1.hex)(state.dliop, 2) + "  Lines: " + state.yofs + "/" + state.linesleft;
-        s += "   DMA " + (state.dma_enabled ? "ON " : "off") + "\n";
+        s += "   DMA " + (state.dma_enabled ? "ON " : "off");
+        if (state.dma_enabled)
+            s += " idx " + state.dmaidx + " clk " + (0, util_1.hex)(state.dmaclock);
+        s += "\n";
         s += "Addr: " + (0, util_1.hex)(state.scanaddr, 4) + "\n";
         s += (0, emu_1.dumpRAM)(state.regs, 0, 16).replace('$00', 'Regs');
         return s;
@@ -124,6 +127,7 @@ class ANTIC {
     processDLIEntry() {
         if (this.mode == 0) { // N Blank Lines
             this.linesleft = ((this.dliop >> 4) & 7) + 1;
+            this.dmaclock = 0;
         }
         else {
             this.linesleft = MODE_LINES[this.mode];
@@ -137,6 +141,7 @@ class ANTIC {
                     this.linesleft = 1; //(248 - this.v) & 0xff; // TODO?
                     this.dma_enabled = false;
                 }
+                this.dmaclock = 0;
             }
             else if (this.lms) {
                 this.scanaddr = this.dlarg_lo + (this.dlarg_hi << 8);
@@ -209,8 +214,11 @@ class ANTIC {
     isMissileDMAEnabled() {
         return this.regs[DMACTL] & 0b1100;
     }
+    isWSYNC() {
+        return this.regs[WSYNC] != 0;
+    }
     clockPulse() {
-        let did_dma = this.regs[WSYNC] != 0;
+        let did_dma = this.isWSYNC();
         if (!this.isVisibleScanline()) {
             this.doVBlank();
         }
@@ -275,7 +283,7 @@ class ANTIC {
             this.output = 0; // background color (TODO: only for blank lines)
             if (this.mode >= 2 && this.period) {
                 let candma = this.h <= LAST_DMA_H;
-                this.dmaclock <<= 1;
+                this.dmaclock = (this.dmaclock << 1) & 0x1ff;
                 if (this.dmaclock & (1 << this.period)) {
                     this.dmaclock |= 1;
                 }
@@ -360,6 +368,7 @@ class ANTIC {
             this.dma_enabled = this.dlDMAEnabled() != 0;
         }
         this.output = 2; // blank
+        this.dmaclock = 0;
     }
     doPlayerMissileDMA(section) {
         let oneline = this.regs[DMACTL] & 0x10;

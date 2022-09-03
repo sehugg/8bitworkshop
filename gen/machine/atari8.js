@@ -11,9 +11,9 @@ const antic_1 = require("./chips/antic");
 const gtia_1 = require("./chips/gtia");
 const pokey_1 = require("./chips/pokey");
 const ATARI8_KEYMATRIX_INTL_NOSHIFT = [
-    emu_1.Keys.VK_L, emu_1.Keys.VK_J, emu_1.Keys.VK_SEMICOLON, emu_1.Keys.VK_F1, emu_1.Keys.VK_F2, emu_1.Keys.VK_K, emu_1.Keys.VK_BACK_SLASH, emu_1.Keys.VK_TILDE,
+    emu_1.Keys.VK_L, emu_1.Keys.VK_J, emu_1.Keys.VK_SEMICOLON, emu_1.Keys.VK_F4, emu_1.Keys.VK_F5, emu_1.Keys.VK_K, emu_1.Keys.VK_BACK_SLASH, emu_1.Keys.VK_TILDE,
     emu_1.Keys.VK_O, null, emu_1.Keys.VK_P, emu_1.Keys.VK_U, emu_1.Keys.VK_ENTER, emu_1.Keys.VK_I, emu_1.Keys.VK_MINUS2, emu_1.Keys.VK_EQUALS2,
-    emu_1.Keys.VK_V, emu_1.Keys.VK_F8, emu_1.Keys.VK_C, emu_1.Keys.VK_F3, emu_1.Keys.VK_F4, emu_1.Keys.VK_B, emu_1.Keys.VK_X, emu_1.Keys.VK_Z,
+    emu_1.Keys.VK_V, emu_1.Keys.VK_F7, emu_1.Keys.VK_C, emu_1.Keys.VK_F6, emu_1.Keys.VK_F4, emu_1.Keys.VK_B, emu_1.Keys.VK_X, emu_1.Keys.VK_Z,
     emu_1.Keys.VK_4, null, emu_1.Keys.VK_3, emu_1.Keys.VK_6, emu_1.Keys.VK_ESCAPE, emu_1.Keys.VK_5, emu_1.Keys.VK_2, emu_1.Keys.VK_1,
     emu_1.Keys.VK_COMMA, emu_1.Keys.VK_SPACE, emu_1.Keys.VK_PERIOD, emu_1.Keys.VK_N, null, emu_1.Keys.VK_M, emu_1.Keys.VK_SLASH, null /*invert*/,
     emu_1.Keys.VK_R, null, emu_1.Keys.VK_E, emu_1.Keys.VK_Y, emu_1.Keys.VK_TAB, emu_1.Keys.VK_T, emu_1.Keys.VK_W, emu_1.Keys.VK_Q,
@@ -26,7 +26,7 @@ var ATARI8_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
     [emu_1.Keys.DOWN, 0, 0x2],
     [emu_1.Keys.LEFT, 0, 0x4],
     [emu_1.Keys.RIGHT, 0, 0x8],
-    [emu_1.Keys.VK_SHIFT, 2, 0x1],
+    [{ c: 16, n: "Shift", plyr: 0, button: 0 }, 2, 0x1],
     /*
       [Keys.P2_UP, 0, 0x10],
       [Keys.P2_DOWN, 0, 0x20],
@@ -34,9 +34,9 @@ var ATARI8_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
       [Keys.P2_RIGHT, 0, 0x80],
       [Keys.P2_A, 3, 0x1],
     */
-    [emu_1.Keys.START, 3, 0x1],
-    [emu_1.Keys.SELECT, 3, 0x2],
-    [emu_1.Keys.OPTION, 3, 0x4], // OPTION
+    [emu_1.Keys.VK_F1, 3, 0x1],
+    [emu_1.Keys.VK_F2, 3, 0x2],
+    [emu_1.Keys.VK_F3, 3, 0x4], // OPTION
 ]);
 class Atari800 extends devices_1.BasicScanlineMachine {
     // TODO: save/load vars
@@ -62,6 +62,7 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         this.cart_80 = false;
         this.cart_a0 = false;
         this.xexdata = null;
+        this.keyboard_active = true;
         this.cpu = new MOS6502_1.MOS6502();
         this.ram = new Uint8Array(0x10000);
         this.bios = new Uint8Array(0x2800);
@@ -116,7 +117,7 @@ class Atari800 extends devices_1.BasicScanlineMachine {
     // used by ANTIC
     readDMA(a) {
         let v = this.bus.read(a);
-        this.probe.logVRAMRead(a, v);
+        this.probe.logDMARead(a, v);
         this.lastdmabyte = v;
         return v;
     }
@@ -173,6 +174,8 @@ class Atari800 extends devices_1.BasicScanlineMachine {
             // ANTIC DMA cycle, update GTIA
             if (this.antic.h < 8)
                 this.gtia.updateGfx(this.antic.h - 1, this.antic.v, this.lastdmabyte); // HALT pin
+            if (this.antic.isWSYNC())
+                this.probe.logWait(0);
             this.probe.logClocks(1);
         }
         else {
@@ -268,8 +271,10 @@ class Atari800 extends devices_1.BasicScanlineMachine {
     }
     getKeyboardFunction() {
         return (o, key, code, flags) => {
+            if (!this.keyboard_active)
+                return false;
             if (flags & (emu_1.KeyFlags.KeyDown | emu_1.KeyFlags.KeyUp)) {
-                //console.log(o, key, code, flags, hex(this.keycode));
+                console.log(o, key, code, flags, (0, util_1.hex)(this.keycode));
                 var keymap = ATARI8_KEYMATRIX_INTL_NOSHIFT;
                 if (key == emu_1.Keys.VK_F9.c) {
                     this.irq_pokey.generateIRQ(0x80); // break IRQ

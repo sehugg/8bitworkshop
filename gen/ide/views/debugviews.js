@@ -400,11 +400,20 @@ class ProbeViewBaseBase {
             case probe_1.ProbeFlags.VRAM_WRITE:
                 s = "VRAM Write";
                 break;
+            case probe_1.ProbeFlags.DMA_READ:
+                s = "DMA Read";
+                break;
+            case probe_1.ProbeFlags.DMA_WRITE:
+                s = "DMA Write";
+                break;
             case probe_1.ProbeFlags.INTERRUPT:
                 s = "Interrupt";
                 break;
             case probe_1.ProbeFlags.ILLEGAL:
                 s = "Error";
+                break;
+            case probe_1.ProbeFlags.WAIT:
+                s = "Wait";
                 break;
             case probe_1.ProbeFlags.SP_PUSH:
                 s = "Stack Push";
@@ -427,10 +436,13 @@ class ProbeViewBaseBase {
             case probe_1.ProbeFlags.MEM_WRITE: return 0x010180;
             case probe_1.ProbeFlags.IO_READ: return 0x018080;
             case probe_1.ProbeFlags.IO_WRITE: return 0xc00180;
+            case probe_1.ProbeFlags.DMA_READ:
             case probe_1.ProbeFlags.VRAM_READ: return 0x808001;
+            case probe_1.ProbeFlags.DMA_WRITE:
             case probe_1.ProbeFlags.VRAM_WRITE: return 0x4080c0;
             case probe_1.ProbeFlags.INTERRUPT: return 0x3fbf3f;
             case probe_1.ProbeFlags.ILLEGAL: return 0x3f3fff;
+            case probe_1.ProbeFlags.WAIT: return 0xff3f3f;
             default: return 0;
         }
     }
@@ -697,8 +709,11 @@ class RasterStackMapView extends RasterPCHeatMapView {
         if (op == probe_1.ProbeFlags.IO_READ) {
             this.rgb |= 0x001f00;
         }
+        if (op == probe_1.ProbeFlags.WAIT) {
+            this.rgb = 0x008000;
+        }
         // draw pixels?
-        if (op == probe_1.ProbeFlags.ILLEGAL || op == probe_1.ProbeFlags.VRAM_READ) {
+        if (op == probe_1.ProbeFlags.ILLEGAL || op == probe_1.ProbeFlags.DMA_READ) {
             this.datau32[iofs] = 0xff0f0f0f;
         }
         else {

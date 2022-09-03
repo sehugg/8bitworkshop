@@ -323,7 +323,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
   read  : (a:number) => number;
   write : (a:number, v:number) => void;
   
-  probeDMABus : Bus; // to pass to MARIA
+  dmaBus : Bus; // to pass to MARIA
 
   constructor() {
     super();
@@ -355,7 +355,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
         [0x0000, 0xffff, 0xffff, (a,v) => { this.probe && this.probe.logIllegal(a); }],
       ]);
     this.connectCPUMemoryBus(this);
-    this.probeDMABus = this.probeIOBus(this);
+    this.dmaBus = this.probeDMABus(this);
     this.handler = newKeyboardHandler(this.inputs, Atari7800_KEYCODE_MAP);
     this.pokey1 = new POKEYDeviceChannel();
     this.audioadapter = new TssChannelAdapter(this.pokey1, audioOversample, audioSampleRate);
@@ -417,7 +417,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
       // is this scanline visible?
       if (visible) {
         // do DMA for scanline?
-        let dmaClocks = this.maria.doDMA(this.probeDMABus);
+        let dmaClocks = this.maria.doDMA(this.dmaBus);
         this.probe.logClocks(dmaClocks >> 2); // TODO: logDMA
         mc += dmaClocks;
         // copy line to frame buffer
@@ -435,6 +435,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
       // post-DMA clocks
       while (mc < colorClocksPerLine) {
         if (this.maria.WSYNC) {
+          this.probe.logWait(0);
           this.probe.logClocks((colorClocksPerLine - mc) >> 2);
           mc = colorClocksPerLine;
           break;
