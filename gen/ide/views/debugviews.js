@@ -557,7 +557,17 @@ class AddressHeatMapView extends ProbeBitmapViewBase {
         this.canvas.onclick = (e) => {
             var pos = (0, emu_1.getMousePos)(this.canvas, e);
             var opaddr = Math.floor(pos.x) + Math.floor(pos.y) * 256;
-            (0, ui_1.runToPC)(opaddr & 0xffff);
+            var lastpc = -1;
+            var runpc = -1;
+            this.redraw((op, addr) => {
+                if (runpc < 0 && lastpc >= 0 && addr == opaddr) {
+                    runpc = lastpc;
+                }
+                if (op == probe_1.ProbeFlags.EXECUTE)
+                    lastpc = addr;
+            });
+            if (runpc >= 0)
+                (0, ui_1.runToPC)(runpc);
         };
     }
     clear() {

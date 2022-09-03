@@ -671,8 +671,10 @@ function gtia_ntsc_to_rgb(val) {
     let cr = (val >> 4) & 15;
     let lm = val & 15;
     let crlv = cr ? color : 0;
-    let phase = ((cr - 1) * 25 - 38) * (2 * Math.PI / 360);
-    let y = 256 * bright * Math.pow((lm + 1) / 16, gamma);
+    if (cr)
+        lm += 1;
+    let phase = ((cr - 1) * 25 - 25) * (2 * Math.PI / 360);
+    let y = 256 * bright * Math.pow(lm / 16, gamma);
     let i = crlv * Math.cos(phase);
     let q = crlv * Math.sin(phase);
     var r = y + 0.956 * i + 0.621 * q;

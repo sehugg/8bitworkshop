@@ -112,7 +112,6 @@ class BasicMachine extends BasicHeadlessMachine {
         super(...arguments);
         this.overscan = false;
         this.rotate = 0;
-        this.aspectRatio = 1.0;
     }
     getAudioParams() {
         return { sampleRate: this.sampleRate, stereo: false };

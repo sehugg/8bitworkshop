@@ -563,7 +563,15 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
     this.canvas.onclick = (e) => {
       var pos = getMousePos(this.canvas, e);
       var opaddr = Math.floor(pos.x) + Math.floor(pos.y) * 256;
-      runToPC(opaddr & 0xffff);
+      var lastpc = -1;
+      var runpc = -1;
+      this.redraw( (op,addr) => {
+        if (runpc < 0 && lastpc >= 0 && addr == opaddr) {
+          runpc = lastpc;
+        }
+        if (op == ProbeFlags.EXECUTE) lastpc = addr;
+      });
+      if (runpc >= 0) runToPC(runpc);
     }
   }
 

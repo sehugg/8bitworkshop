@@ -213,6 +213,7 @@ class Atari5200Platform extends Atari800Platform {
 }
 ///
 emu_1.PLATFORMS['atari8-800.xlmame'] = Atari800MAMEPlatform;
+emu_1.PLATFORMS['atari8-800xl.mame'] = Atari800MAMEPlatform; // for dithertron
 emu_1.PLATFORMS['atari8-5200.mame'] = Atari5200MAMEPlatform;
 emu_1.PLATFORMS['atari8-800.xlwasm'] = Atari800WASMPlatform;
 emu_1.PLATFORMS['atari8-800'] = Atari800Platform;

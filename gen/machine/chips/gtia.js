@@ -31,6 +31,7 @@ const M0PL = 0x8;
 const P0PL = 0xc;
 exports.TRIG0 = 0x10;
 exports.CONSOL = 0x1f;
+const HOFFSET = -9; // bias to account for antic->gtia delay
 const PRIOR_TABLE = [
     0, 1, 2, 3, 7, 7, 7, 7, 8, 8, 8, 8, 4, 5, 6, 7,
     0, 1, 2, 3, 7, 7, 7, 7, 8, 8, 8, 8, 4, 5, 6, 7,
@@ -49,6 +50,12 @@ const PRIOR_TABLE = [
     2, 3, 4, 5, 7, 7, 7, 7, 8, 8, 8, 8, 0, 1, 6, 7,
     2, 3, 4, 5, 7, 7, 7, 7, 8, 8, 8, 8, 0, 1, 6, 7, // 1000
 ];
+const MODE_9_LOOKUP = [
+    COLPM0 + 0, COLPM0 + 1, COLPM0 + 2, COLPM0 + 3,
+    COLPF0 + 0, COLPF0 + 1, COLPF0 + 2, COLPF0 + 3,
+    COLBK, COLBK, COLBK, COLBK,
+    COLPF0 + 0, COLPF0 + 1, COLPF0 + 2, COLPF0 + 3,
+];
 class GTIA {
     constructor() {
         this.regs = new Uint8Array(0x20);
@@ -59,6 +66,9 @@ class GTIA {
         this.an = 0;
         this.rgb = 0;
         this.pmcol = 0;
+        this.gtiacol = 0;
+        this.gtiacol2 = 0;
+        this.hbias = HOFFSET;
     }
     reset() {
         this.regs.fill(0);
@@ -74,6 +84,17 @@ class GTIA {
     }
     setReg(a, v) {
         switch (a) {
+            case COLPM0:
+            case COLPM0 + 1:
+            case COLPM0 + 2:
+            case COLPM0 + 3:
+            case COLPF0:
+            case COLPF0 + 1:
+            case COLPF0 + 2:
+            case COLPF0 + 3:
+            case COLBK:
+                v &= 0xfe; // bit 0 unused in color regs
+                break;
             case HITCLR:
                 this.readregs.fill(0, 0, 16);
                 return;
@@ -89,6 +110,9 @@ class GTIA {
     }
     sync() {
         this.count = 0;
+    }
+    setBias(b) {
+        this.hbias = HOFFSET + b;
     }
     updateGfx(h, data) {
         switch (h) {
@@ -108,35 +132,34 @@ class GTIA {
         }
     }
     getPlayfieldColor() {
-        switch (this.an) {
+        // which GTIA mode?
+        switch (this.regs[PRIOR] >> 6) {
+            // normal mode
             case 0:
-                return COLBK;
-            case 4:
-            case 5:
-            case 6:
-            case 7:
-                return COLPF0 + this.an - 4;
-            case 8:
-                // combine PF2 hue and PF1 luminance
-                return (this.regs[COLPF2] & 0xf0) | (this.regs[COLPF1] & 0x0f) | 0x100;
+                switch (this.an) {
+                    case 0:
+                        return COLBK;
+                    case 4:
+                    case 5:
+                    case 6:
+                    case 7:
+                        return COLPF0 + this.an - 4;
+                    case 8:
+                        // combine PF2 hue and PF1 luminance
+                        return (this.regs[COLPF2] & 0xf0) | (this.regs[COLPF1] & 0x0f) | 0x100;
+                }
+                break;
+            // mode 9 -- 16 luminances
+            case 1:
+                return (this.regs[COLBK] & 0xf0) | (this.gtiacol & 0xf) | 0x100;
+            // mode 10 -- 9 colors from registers
+            case 2:
+                return MODE_9_LOOKUP[this.gtiacol];
+            // mode 11 -- 16 hues
+            case 3:
+                return (this.regs[COLBK] & 0xf) | (this.gtiacol << 4) | 0x100;
         }
         return 0x100; // black
-    }
-    clockPulse1() {
-        this.processPlayerMissile();
-        this.clockPulse2();
-        this.count++;
-    }
-    clockPulse2() {
-        var col;
-        if (this.pmcol >= 0) {
-            col = this.pmcol;
-        }
-        else {
-            let pf = this.getPlayfieldColor();
-            col = pf & 0x100 ? pf & 0xff : this.regs[pf];
-        }
-        this.rgb = COLORS_RGBA[col];
     }
     anySpriteActive() {
         return this.shiftregs[0] | this.shiftregs[1] | this.shiftregs[2]
@@ -152,6 +175,8 @@ class GTIA {
             this.pmcol = -1;
             return;
         }
+        // TODO: multiple color player enable
+        // TODO: gtia, hi-res mode collisions
         // compute gfx and collisions for players/missiles
         let priobias = (this.regs[PRIOR] & 15) << 4; // TODO
         let topprio = PRIOR_TABLE[(this.an & 7) + 8 + priobias];
@@ -183,7 +208,7 @@ class GTIA {
                     this.readregs[M0PF + i] |= 1 << pfset;
                 }
                 this.readregs[M0PL + i] |= ppmask;
-                let prio = PRIOR_TABLE[i + 4 + priobias];
+                let prio = PRIOR_TABLE[i + priobias];
                 if (prio < topprio) {
                     topobj = i + 4;
                     topprio = prio;
@@ -202,7 +227,7 @@ class GTIA {
     shiftObject(i) {
         let bit = (this.shiftregs[i] & 0x80000000) != 0;
         this.shiftregs[i] <<= 1;
-        if (this.regs[HPOSP0 + i] - 1 == this.count) {
+        if (this.regs[HPOSP0 + i] + this.hbias == this.count) {
             this.triggerObject(i);
         }
         return bit;
@@ -235,6 +260,28 @@ class GTIA {
         else
             data <<= 16;
         this.shiftregs[i] = data;
+    }
+    clockPulse1() {
+        this.processPlayerMissile();
+        this.clockPulse2();
+        this.count++;
+    }
+    clockPulse2() {
+        var col;
+        if (this.pmcol >= 0) {
+            col = this.pmcol;
+        }
+        else {
+            let pf = this.getPlayfieldColor();
+            col = pf & 0x100 ? pf & 0xff : this.regs[pf];
+        }
+        this.rgb = COLORS_RGBA[col];
+        // TODO: hires modes return 8, so other modes wont work
+        this.gtiacol2 = (this.gtiacol2 << 1) | (this.an >> 3);
+    }
+    clockPulse4() {
+        // latch GTIA buffer
+        this.gtiacol = this.gtiacol2 & 15;
     }
     static stateToLongString(state) {
         let s = '';

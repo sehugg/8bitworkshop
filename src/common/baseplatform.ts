@@ -850,7 +850,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   }
   
   loadROM(title, data) {
-    this.machine.loadROM(data);
+    this.machine.loadROM(data, title);
     this.reset();
   }
 

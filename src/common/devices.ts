@@ -308,7 +308,7 @@ export abstract class BasicMachine extends BasicHeadlessMachine implements Sampl
   abstract sampleRate : number;
   overscan : boolean = false;
   rotate : number = 0;
-  aspectRatio : number = 1.0;
+  aspectRatio : number;
   
   pixels : Uint32Array;
   audio : SampledAudioSink;
