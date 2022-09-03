@@ -55,6 +55,7 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         this.overscan = true;
         this.audioOversample = 4;
         this.sampleRate = this.numTotalScanlines * 60 * this.audioOversample;
+        this.run_address = -1;
         this.inputs = new Uint8Array(4);
         this.linergb = new Uint32Array(this.canvasWidth);
         this.lastdmabyte = 0;
@@ -63,6 +64,7 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         this.cart_a0 = false;
         this.xexdata = null;
         this.keyboard_active = true;
+        this.d500 = new Uint8Array(0x100);
         this.cpu = new MOS6502_1.MOS6502();
         this.ram = new Uint8Array(0x10000);
         this.bios = new Uint8Array(0x2800);
@@ -78,7 +80,6 @@ class Atari800 extends devices_1.BasicScanlineMachine {
     }
     newBus() {
         return {
-            // TODO: https://github.com/dmlloyd/atari800/blob/master/DOC/cart.txt
             read: (0, emu_1.newAddressDecoder)([
                 [0x0000, 0x7fff, 0xffff, (a) => { return this.ram[a]; }],
                 [0x8000, 0x9fff, 0xffff, (a) => { return this.cart_80 ? this.rom[a - 0x8000] : this.ram[a]; }],
@@ -87,6 +88,7 @@ class Atari800 extends devices_1.BasicScanlineMachine {
                 [0xd200, 0xd2ff, 0xf, (a) => { return this.readPokey(a); }],
                 [0xd300, 0xd3ff, 0xf, (a) => { return this.readPIA(a); }],
                 [0xd400, 0xd4ff, 0xf, (a) => { return this.antic.readReg(a); }],
+                [0xd500, 0xd5ff, 0xff, (a) => { return this.d500[a]; }],
                 [0xd800, 0xffff, 0xffff, (a) => { return this.bios[a - 0xd800]; }],
             ]),
             write: (0, emu_1.newAddressDecoder)([
@@ -107,8 +109,7 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         this.antic.reset();
         this.gtia.reset();
         this.keycode = 0;
-        if (this.xexdata)
-            this.cart_a0 = true; // TODO
+        //if (this.xexdata) this.cart_a0 = true; // TODO
     }
     read(a) {
         // TODO: lastdmabyte?
@@ -122,7 +123,7 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         return v;
     }
     readConst(a) {
-        return a < 0xd000 || a >= 0xe000 ? this.bus.read(a) : 0xff;
+        return a < 0xd000 || a >= 0xd500 ? this.bus.read(a) : 0xff;
     }
     write(a, v) {
         this.bus.write(a, v);
@@ -232,6 +233,8 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         this.irq_pokey.loadState(state.pokey);
         this.lastdmabyte = state.lastdmabyte;
         this.keycode = state.keycode;
+        this.cart_80 = state.cart_80;
+        this.cart_a0 = state.cart_a0;
     }
     saveState() {
         return {
@@ -243,6 +246,8 @@ class Atari800 extends devices_1.BasicScanlineMachine {
             inputs: this.inputs.slice(0),
             lastdmabyte: this.lastdmabyte,
             keycode: this.keycode,
+            cart_80: this.cart_80,
+            cart_a0: this.cart_a0,
         };
     }
     loadControlsState(state) {
@@ -274,7 +279,7 @@ class Atari800 extends devices_1.BasicScanlineMachine {
             if (!this.keyboard_active)
                 return false;
             if (flags & (emu_1.KeyFlags.KeyDown | emu_1.KeyFlags.KeyUp)) {
-                console.log(o, key, code, flags, (0, util_1.hex)(this.keycode));
+                //console.log(o, key, code, flags, hex(this.keycode));
                 var keymap = ATARI8_KEYMATRIX_INTL_NOSHIFT;
                 if (key == emu_1.Keys.VK_F9.c) {
                     this.irq_pokey.generateIRQ(0x80); // break IRQ
@@ -309,19 +314,16 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         this.probe.logInterrupt(1);
     }
     loadROM(rom, title) {
-        // XEX file?
-        if (title && title.toLowerCase().endsWith('.xex') && rom[0] == 0xff && rom[1] == 0xff) {
-            // TODO: we fake a cartridge
+        if ((rom[0] == 0xff && rom[1] == 0xff) && !(title === null || title === void 0 ? void 0 : title.endsWith('.rom'))) {
+            // XEX file, chill out and wait for BIOS hook
             this.xexdata = rom;
-            let cart = new Uint8Array(0x1000);
-            cart.set([0x00, 0x01, 0x00, 0x04, 0x00, 0x01], 0xffa);
-            this.loadCartridge(cart);
         }
         else {
             this.loadCartridge(rom);
         }
     }
     loadCartridge(rom) {
+        // TODO: https://github.com/dmlloyd/atari800/blob/master/DOC/cart.txt
         // strip off header
         if (rom[0] == 0x43 && rom[1] == 0x41 && rom[2] == 0x52 && rom[3] == 0x54) {
             rom = rom.slice(16);
@@ -334,11 +336,13 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         for (let i = 0; i <= rom2.length - rom.length; i += rom.length) {
             rom2.set(rom, i);
         }
+        this.run_address = rom2[0x7ffe] + rom2[0x7fff] * 256;
         this.cart_a0 = true; // TODO
         this.cart_80 = rom.length == 0x4000;
         super.loadROM(rom2);
     }
     writeMapper(addr, value) {
+        // TODO
         if (addr == 0xff) {
             if (value == 0x80)
                 this.cart_80 = false;
@@ -346,49 +350,53 @@ class Atari800 extends devices_1.BasicScanlineMachine {
                 this.cart_a0 = false;
         }
     }
-    // TODO
     loadXEX(rom) {
         let ofs = 2;
-        let cart = this.ram;
-        let cartofs = 0x100; // stub routine in stack page
+        let stub = this.d500;
+        let stubofs = 0; // stub routine 
+        var runaddr = -1;
+        // load segments into RAM
         while (ofs < rom.length) {
             let start = rom[ofs + 0] + rom[ofs + 1] * 256;
             let end = rom[ofs + 2] + rom[ofs + 3] * 256;
-            console.log('XEX', ofs, (0, util_1.hex)(start), (0, util_1.hex)(end));
+            console.log('XEX', (0, util_1.hex)(ofs), (0, util_1.hex)(start), (0, util_1.hex)(end));
             ofs += 4;
             for (let i = start; i <= end; i++) {
                 this.ram[i] = rom[ofs++];
             }
-            var runaddr = this.ram[0x2e0] + this.ram[0x2e1] * 256;
-            var initaddr = this.ram[0x2e2] + this.ram[0x2e3] * 256;
-            console.log('XEX run', (0, util_1.hex)(runaddr), 'init', (0, util_1.hex)(initaddr));
-            if (initaddr) {
-                cart[cartofs++] = 0x20;
-                cart[cartofs++] = initaddr & 0xff;
-                cart[cartofs++] = initaddr >> 8;
+            if (start == 0x2e0 && end == 0x2e1) {
+                runaddr = this.ram[0x2e0] + this.ram[0x2e1] * 256;
+                console.log('XEX run', (0, util_1.hex)(runaddr));
+            }
+            if (start == 0x2e2 && end == 0x2e3) {
+                var initaddr = this.ram[0x2e2] + this.ram[0x2e3] * 256;
+                console.log('XEX init', (0, util_1.hex)(initaddr));
+                stub[stubofs++] = 0x20;
+                stub[stubofs++] = initaddr & 0xff;
+                stub[stubofs++] = initaddr >> 8;
             }
             if (ofs > rom.length)
                 throw new Error("Bad .XEX file format");
         }
-        if (runaddr) {
-            cart[cartofs++] = 0xa9; // lda #$a0
-            cart[cartofs++] = 0xa0;
-            cart[cartofs++] = 0x8d; // sta $d5ff (disable cart)
-            cart[cartofs++] = 0xff;
-            cart[cartofs++] = 0xd5;
-            cart[cartofs++] = 0x4c; // jmp runaddr
-            cart[cartofs++] = runaddr & 0xff;
-            cart[cartofs++] = runaddr >> 8;
+        if (runaddr >= 0) {
+            // build stub routine at 0xd500
+            stub[stubofs++] = 0xa9; // lda #$a0
+            stub[stubofs++] = 0xa0;
+            stub[stubofs++] = 0x8d; // sta $d5ff (disable cart)
+            stub[stubofs++] = 0xff;
+            stub[stubofs++] = 0xd5;
+            stub[stubofs++] = 0x4c; // jmp runaddr
+            stub[stubofs++] = runaddr & 0xff;
+            stub[stubofs++] = runaddr >> 8;
+            // set DOSVEC to 0xd500
+            this.ram[0xa] = 0x00;
+            this.ram[0xb] = 0xd5;
+            this.run_address = 0xd500;
         }
     }
     initCartA() {
-        //console.log('init', hex(this.cpu.getPC()));
-        // disable cartridges and load XEX
-        if (this.cpu.getPC() == 0xf17f) {
-            if (this.xexdata) {
-                this.loadXEX(this.xexdata);
-            }
-            //this.cart_80 = this.cart_a0 = false;
+        if (this.cpu.getPC() == 0xf17f && this.xexdata) {
+            this.loadXEX(this.xexdata);
         }
     }
 }

@@ -459,6 +459,14 @@ class ANTIC {
                     }
                 case 4:
                 case 5:
+                    {
+                        let v = (this.pfbyte >> 6) & 3;
+                        this.pfbyte <<= 2;
+                        if (this.ch & 0x80)
+                            return [0, 4, 5, 7][v];
+                        else
+                            return [0, 4, 5, 6][v];
+                    }
                 case 8:
                 case 10:
                 case 13:
@@ -466,7 +474,7 @@ class ANTIC {
                     {
                         let v = (this.pfbyte >> 6) & 3;
                         this.pfbyte <<= 2;
-                        return [0, 4, 5, 6][v]; // TODO: 5th color
+                        return [0, 4, 5, 6][v];
                     }
             }
         }

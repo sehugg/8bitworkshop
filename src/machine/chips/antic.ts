@@ -434,12 +434,20 @@ export class ANTIC {
                         return v ? 4 : 0;
                     }
                 case 4: case 5:
+                    {
+                        let v = (this.pfbyte >> 6) & 3;
+                        this.pfbyte <<= 2;
+                        if (this.ch & 0x80)
+                            return [0, 4, 5, 7][v];
+                        else
+                            return [0, 4, 5, 6][v];
+                    }
                 case 8: case 10:
                 case 13: case 14:
                     {
                         let v = (this.pfbyte >> 6) & 3;
                         this.pfbyte <<= 2;
-                        return [0, 4, 5, 6][v]; // TODO: 5th color
+                        return [0, 4, 5, 6][v];
                     }
             }
         }
