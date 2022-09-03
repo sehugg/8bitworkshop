@@ -7,7 +7,7 @@ import { WorkerResult, WorkerOutputResult, WorkerError, FileData, WorkerErrorRes
 import { ProjectWindows } from "./windows";
 import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuState } from "../common/baseplatform";
 import { PLATFORMS, EmuHalt } from "../common/emu";
-import { Toolbar } from "../common/toolbar";
+import { Toolbar } from "./toolbar";
 import { getFilenameForPath, getFilenamePrefix, highlightDifferences, byteArrayToString, compressLZG, stringToByteArray,
          byteArrayToUTF8, isProbablyBinary, getWithBinary, getBasePlatform, getRootBasePlatform, hex, loadScript, decodeQueryString, parseBool } from "../common/util";
 import { StateRecorderImpl } from "../common/recorder";
