@@ -61,7 +61,7 @@ const linesPerFrame = 262;
 const numVisibleLines = 258-16;
 const colorClocksPerLine = 454; // 456?
 const colorClocksPreDMA = 28;
-const audioOversample = 4;
+const audioOversample = 2;
 const audioSampleRate = linesPerFrame*60*audioOversample;
 
 // TIA chip

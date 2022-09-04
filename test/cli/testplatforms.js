@@ -369,14 +369,17 @@ describe('Platform Replay', () => {
   it('Should run atari5200', async () => {
     await testPlatform('atari8-5200', 'acid5200.rom', 1200, (platform, frameno) => {
       if (frameno == 1199) {
-        let s = '';
-        for (let i=0; i<40; i++) {
-          let c = platform.readAddress(0x722+i-40) & 0x7f;
-          if (c < 0x40) c += 0x20;
-          s += String.fromCharCode(c);
+        for (let j=0; j<1024; j+=40) {
+          var s = '';
+          for (let i=0; i<38; i++) {
+            let c = platform.readAddress(0x402+j+i) & 0x7f;
+            if (c < 0x40) c += 0x20;
+            s += String.fromCharCode(c);
+          }
+          s = s.trim();
+          if (s.startsWith("Passed:")) break;
         }
-        s = s.trim();
-        assert.equal(s, "Passed: 13  Failed: 33  Skipped: 1");
+        assert.equal(s, "Passed: 14  Failed: 32  Skipped: 1");
       }
     });
   });
