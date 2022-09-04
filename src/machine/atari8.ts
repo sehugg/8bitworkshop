@@ -53,7 +53,7 @@ export class Atari800 extends BasicScanlineMachine {
   firstVisibleClock = (44 - 6) * 2; // ... to 215 * 2
   defaultROMSize = 0x8000;
   overscan = true;
-  audioOversample = 4;
+  audioOversample = 2;
   sampleRate = this.numTotalScanlines * 60 * this.audioOversample;
   run_address = -1;
 

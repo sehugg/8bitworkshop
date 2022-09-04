@@ -62,6 +62,7 @@ class ANTIC {
         this.ch = 0; // char read
         this.linesleft = 0; // # of lines left in mode
         this.yofs = 0; // yofs fine
+        this.isfirstline = false;
         this.v = 0; // vertical scanline #
         this.h = 0; // horizontal color clock
         this.linebuf = new Uint8Array(48);
@@ -69,7 +70,7 @@ class ANTIC {
         this.dmaidx = 0;
         this.output = 0;
         this.dramrefresh = false;
-        this.vscroll = 0;
+        this.in_vscroll = 0;
         this.read = readfn; // bus read function
         this.nmi = nmifn; // NMI function
     }
@@ -148,31 +149,33 @@ class ANTIC {
                 //console.log('scanaddr', hex(this.scanaddr));
             }
             this.startaddr = this.scanaddr;
-        }
-        // horiz scroll
-        let effwidth = this.regs[DMACTL] & 3;
-        let hscroll = (this.dliop & 0x10) ? (this.regs[HSCROL] & 15) >> 1 : 0;
-        if ((this.dliop & 0x10) && effwidth < 3)
-            effwidth++;
-        this.left = PF_LEFT[effwidth] + hscroll;
-        this.right = PF_RIGHT[effwidth] + hscroll;
-        // vertical scroll
-        let vscrol = this.regs[VSCROL] & 0xf;
-        if ((this.dliop & 0x20) ^ this.vscroll) {
-            if (this.vscroll) {
-                this.linesleft -= vscrol;
+            // horiz scroll
+            let effwidth = this.regs[DMACTL] & 3;
+            let hscroll = (this.dliop & 0x10) ? (this.regs[HSCROL] & 15) >> 1 : 0;
+            if ((this.dliop & 0x10) && effwidth < 3)
+                effwidth++;
+            this.left = PF_LEFT[effwidth] + hscroll;
+            this.right = PF_RIGHT[effwidth] + hscroll;
+            // vertical scroll
+            let vscrol = this.regs[VSCROL] & 0xf;
+            if ((this.dliop & 0x20) ^ this.in_vscroll) {
+                if (this.in_vscroll) {
+                    this.linesleft = vscrol + 1; // exiting
+                }
+                else {
+                    this.linesleft -= vscrol; // entering
+                    this.yofs += vscrol;
+                }
+                this.linesleft &= 0xf;
+                this.in_vscroll ^= 0x20;
             }
-            else {
-                this.linesleft -= vscrol;
-                this.yofs += vscrol;
-            }
-            this.vscroll ^= 0x20;
         }
     }
     nextLine() {
         if (this.linesleft > 0) {
             this.linesleft--;
             this.yofs++;
+            this.isfirstline = false;
             if (this.mode >= 8 && this.linesleft) {
                 this.scanaddr = this.startaddr; // reset line addr
             }
@@ -239,6 +242,7 @@ class ANTIC {
                         this.mode = op & 0xf;
                         this.dliop = op;
                         this.yofs = 0;
+                        this.isfirstline = true;
                         did_dma = true;
                     }
                     break;
@@ -253,7 +257,7 @@ class ANTIC {
                     break;
                 case 6:
                 case 7:
-                    if (this.isPlayfieldDMAEnabled() && this.yofs == 0 && (this.jmp || this.lms)) {
+                    if (this.isPlayfieldDMAEnabled() && this.isfirstline && (this.jmp || this.lms)) {
                         if (this.h == 6)
                             this.dlarg_lo = this.nextInsn();
                         if (this.h == 7)
@@ -263,7 +267,7 @@ class ANTIC {
                     break;
                 case 8:
                     // TODO? is this at cycle 8?
-                    if (this.yofs == 0) {
+                    if (this.isfirstline) {
                         this.processDLIEntry();
                     }
                     if (this.dliop & 0x80) { // TODO: what if DLI disabled?
@@ -296,7 +300,7 @@ class ANTIC {
                     this.dmaidx++;
                 }
                 if (this.dmaclock & 1) {
-                    if (this.mode < 8 && this.yofs == 0) { // only read chars on 1st line
+                    if (this.mode < 8 && this.isfirstline) { // only read chars on 1st line
                         if (candma) {
                             this.linebuf[this.dmaidx] = this.nextScreen(); // read char name
                         }

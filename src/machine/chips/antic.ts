@@ -73,6 +73,7 @@ export class ANTIC {
     ch: number = 0;				// char read
     linesleft: number = 0; // # of lines left in mode
     yofs: number = 0;			// yofs fine
+    isfirstline: boolean = false;
     v: number = 0;					// vertical scanline #
     h: number = 0;					// horizontal color clock
 
@@ -81,7 +82,7 @@ export class ANTIC {
     dmaidx: number = 0;
     output: number = 0;
     dramrefresh = false;
-    vscroll = 0;
+    in_vscroll = 0;
 
     constructor(readfn, nmifn) {
         this.read = readfn; // bus read function
@@ -159,23 +160,24 @@ export class ANTIC {
                 //console.log('scanaddr', hex(this.scanaddr));
             }
             this.startaddr = this.scanaddr;
-        }
-        // horiz scroll
-        let effwidth = this.regs[DMACTL] & 3;
-        let hscroll = (this.dliop & 0x10) ? (this.regs[HSCROL] & 15) >> 1 : 0;
-        if ((this.dliop & 0x10) && effwidth < 3) effwidth++;
-        this.left = PF_LEFT[effwidth] + hscroll;
-        this.right = PF_RIGHT[effwidth] + hscroll;
-        // vertical scroll
-        let vscrol = this.regs[VSCROL] & 0xf;
-        if ((this.dliop & 0x20) ^ this.vscroll) {
-            if (this.vscroll) {
-                this.linesleft -= vscrol;
-            } else {
-                this.linesleft -= vscrol;
-                this.yofs += vscrol;
+            // horiz scroll
+            let effwidth = this.regs[DMACTL] & 3;
+            let hscroll = (this.dliop & 0x10) ? (this.regs[HSCROL] & 15) >> 1 : 0;
+            if ((this.dliop & 0x10) && effwidth < 3) effwidth++;
+            this.left = PF_LEFT[effwidth] + hscroll;
+            this.right = PF_RIGHT[effwidth] + hscroll;
+            // vertical scroll
+            let vscrol = this.regs[VSCROL] & 0xf;
+            if ((this.dliop & 0x20) ^ this.in_vscroll) {
+                if (this.in_vscroll) {
+                    this.linesleft = vscrol+1; // exiting
+                } else {
+                    this.linesleft -= vscrol; // entering
+                    this.yofs += vscrol;
+                }
+                this.linesleft &= 0xf;
+                this.in_vscroll ^= 0x20;
             }
-            this.vscroll ^= 0x20;
         }
     }
 
@@ -183,6 +185,7 @@ export class ANTIC {
         if (this.linesleft > 0) {
             this.linesleft--;
             this.yofs++;
+            this.isfirstline = false;
             if (this.mode >= 8 && this.linesleft) {
                 this.scanaddr = this.startaddr; // reset line addr
             }
@@ -254,6 +257,7 @@ export class ANTIC {
                         this.mode = op & 0xf;
                         this.dliop = op;
                         this.yofs = 0;
+                        this.isfirstline = true;
                         did_dma = true;
                     }
                     break;
@@ -265,7 +269,7 @@ export class ANTIC {
                     break;
                 case 6:
                 case 7:
-                    if (this.isPlayfieldDMAEnabled() && this.yofs == 0 && (this.jmp || this.lms)) {
+                    if (this.isPlayfieldDMAEnabled() && this.isfirstline && (this.jmp || this.lms)) {
                         if (this.h == 6) this.dlarg_lo = this.nextInsn();
                         if (this.h == 7) this.dlarg_hi = this.nextInsn();
                         did_dma = true;
@@ -273,7 +277,7 @@ export class ANTIC {
                     break;
                 case 8:
                     // TODO? is this at cycle 8?
-                    if (this.yofs == 0) {
+                    if (this.isfirstline) {
                         this.processDLIEntry();
                     }
                     if (this.dliop & 0x80) { // TODO: what if DLI disabled?
@@ -299,7 +303,7 @@ export class ANTIC {
                 if (this.h == this.left) { this.dmaclock |= 1; this.dmaidx = 0; }
                 if (this.h == this.right) { this.dmaclock &= ~1; this.dmaidx++; }
                 if (this.dmaclock & 1) {
-                    if (this.mode < 8 && this.yofs == 0) { // only read chars on 1st line
+                    if (this.mode < 8 && this.isfirstline) { // only read chars on 1st line
                         if (candma) {
                             this.linebuf[this.dmaidx] = this.nextScreen(); // read char name
                         } else {

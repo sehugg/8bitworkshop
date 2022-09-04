@@ -53,7 +53,7 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         this.firstVisibleClock = (44 - 6) * 2; // ... to 215 * 2
         this.defaultROMSize = 0x8000;
         this.overscan = true;
-        this.audioOversample = 4;
+        this.audioOversample = 2;
         this.sampleRate = this.numTotalScanlines * 60 * this.audioOversample;
         this.run_address = -1;
         this.inputs = new Uint8Array(4);

@@ -65,7 +65,6 @@ export class GTIA {
     regs = new Uint8Array(0x20);
     readregs = new Uint8Array(0x20);
     shiftregs = new Uint32Array(8);
-    priortab = new Uint8Array(12);
 
     count = 0;
     an = 0;
@@ -159,20 +158,37 @@ export class GTIA {
         return 0x100; // black
     }
     anySpriteActive() {
-        return this.shiftregs[0] | this.shiftregs[1] | this.shiftregs[2]
-          | this.shiftregs[3] | this.shiftregs[4] | this.shiftregs[5]
-          | this.shiftregs[6] | this.shiftregs[7];
+        return this.shiftregs[0] || this.shiftregs[1] || this.shiftregs[2]
+          || this.shiftregs[3] || this.shiftregs[4] || this.shiftregs[5]
+          || this.shiftregs[6] || this.shiftregs[7];
     }
     processPlayerMissile() {
-        // no p/m gfx, no collisions in blank area, but shift and trigger anyway
-        if (this.an == 2 || !this.anySpriteActive()) {
-            for (let i = 0; i < 8; i++) {
-                this.shiftObject(i);
-            }
+        // no p/m gfx, just evaluate horiz. triggers
+        if (!this.anySpriteActive()) {
+            this.evalTrigger(0);
+            this.evalTrigger(1);
+            this.evalTrigger(2);
+            this.evalTrigger(3);
+            this.evalTrigger(4);
+            this.evalTrigger(5);
+            this.evalTrigger(6);
+            this.evalTrigger(7);
             this.pmcol = -1;
             return;
         }
-        // TODO: multiple color player enable
+        // no collisions in blank area, but shift and trigger anyway
+        if (this.an == 2) {
+            this.shiftObject(0);
+            this.shiftObject(1);
+            this.shiftObject(2);
+            this.shiftObject(3);
+            this.shiftObject(4);
+            this.shiftObject(5);
+            this.shiftObject(6);
+            this.shiftObject(7);
+            this.pmcol = -1;
+            return;
+        }
         // TODO: gtia, hi-res mode collisions
         // compute gfx and collisions for players/missiles
         let priobias = (this.regs[PRIOR] & 15) << 4; // TODO
@@ -203,7 +219,9 @@ export class GTIA {
                     this.readregs[M0PF + i] |= 1 << pfset;
                 }
                 this.readregs[M0PL + i] |= ppmask;
-                let prio = PRIOR_TABLE[i + priobias];
+                let prio = (this.regs[PRIOR] & 0x10) 
+                    ? PRIOR_TABLE[priobias + 15]
+                    : PRIOR_TABLE[i + priobias];
                 if (prio < topprio) {
                     topobj = i + 4;
                     topprio = prio;
@@ -221,9 +239,7 @@ export class GTIA {
     shiftObject(i: number) {
         let bit = (this.shiftregs[i] & 0x80000000) != 0;
         this.shiftregs[i] <<= 1;
-        if (this.regs[HPOSP0 + i] + this.hbias == this.count) {
-            this.triggerObject(i);
-        }
+        this.evalTrigger(i);
         return bit;
     }
     getObjectColor(i: number) {
@@ -231,6 +247,11 @@ export class GTIA {
             return this.regs[COLPF3];
         } else {
             return this.regs[COLPM0 + (i & 3)];
+        }
+    }
+    evalTrigger(i: number) {
+        if (this.regs[HPOSP0 + i] + this.hbias == this.count) {
+            this.triggerObject(i);
         }
     }
     triggerObject(i: number) {
@@ -246,7 +267,7 @@ export class GTIA {
         }
         if (size & 1) data = expandBits(data); else data <<= 8;
         if (size == 3) data = expandBits(data); else data <<= 16;
-        this.shiftregs[i] = data;
+        this.shiftregs[i] |= data;
     }
 
     clockPulse1(): void {

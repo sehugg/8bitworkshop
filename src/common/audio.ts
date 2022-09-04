@@ -202,7 +202,7 @@ export var POKEYDeviceChannel = function() {
 
   this.setSampleRate = function (rate) {
     sampleRate = rate;
-    baseDelta = FREQ_17_EXACT / rate / 1.2; // TODO?
+    baseDelta = FREQ_17_EXACT / rate;
   };
 
   function updateValues(addr) {
