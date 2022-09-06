@@ -6,18 +6,23 @@ import { BaseMAME6502Platform } from "../common/mameplatform";
 
 const VIC20_PRESETS = [
   {id:'hello.dasm', name:'Hello World (ASM)'},
+  {id:'hellocart.dasm', name:'Hello Cartridge (ASM)'},
   {id:'siegegame.c', name:'Siege Game (C)'},
 ];
 
 const VIC20_MEMORY_MAP = { main:[
   {name:'RAM',          start:0x0000,size:0x0400,type:'ram'},
   {name:'RAM',          start:0x1000,size:0x1000,type:'ram'},
-  {name:'Cartridge ROM',start:0x8000,size:0x2000,type:'rom'},
-  {name:'BASIC ROM',    start:0xc000,size:0x2000,type:'rom'},
+  {name:'BLK1 Cart ROM',start:0x2000,size:0x2000,type:'rom'},
+  {name:'BLK2 Cart ROM',start:0x4000,size:0x2000,type:'rom'},
+  {name:'BLK3 Cart ROM',start:0x6000,size:0x2000,type:'rom'},
+  {name:'Character ROM',start:0x8000,size:0x1000,type:'rom'},
   {name:'I/O 1',        start:0x9000,size:0x0400,type:'io'},
   {name:'Color RAM',    start:0x9400,size:0x0400,type:'io'},
   {name:'I/O 2',        start:0x9800,size:0x0400,type:'io'},
   {name:'I/O 3',        start:0x9c00,size:0x0400,type:'io'},
+  {name:'BLK5 Autostart',start:0xa000,size:0x2000,type:'rom'},
+  {name:'BASIC ROM',    start:0xc000,size:0x2000,type:'rom'},
   {name:'KERNAL ROM',   start:0xe000,size:0x2000,type:'rom'},
 ] }
 

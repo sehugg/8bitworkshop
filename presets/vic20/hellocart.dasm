@@ -1,0 +1,16 @@
+ processor 6502
+ 
+ org $a000-2	; so we can write the ...
+ .word $a000	; cartridge 2-byte header
+ .word Start	; start vector
+ .word Start	; RESTORE vector
+ .byte $41, $30, $c3, $c2, $cd ; "A0CBM"
+  
+Start:
+ lda $9004
+WaitLine;
+ cmp $9004
+ beq WaitLine
+ sta $900f
+ jmp Start
+ 

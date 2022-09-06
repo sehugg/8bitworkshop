@@ -205,6 +205,7 @@ void declare_winner(byte winner) {
 void play_round() {
   reset_players();
   clrscr();
+  bgcolor(COLOR_BLUE);
   textcolor(COLOR_WHITE);
   draw_playfield();
   while (1) {
