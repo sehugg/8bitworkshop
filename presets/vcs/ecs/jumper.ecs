@@ -369,17 +369,17 @@ x................... .. .. ..
         const activity = Standing
         decode vcs_sprite
         --- 
-        ..xxx... f8
-        .xxxxx.. f8
+        ..xxx... f4
+        .xxxxx.. f6
         x.xxxx.. f8
-        .xxx.x.. f8
+        .xxx.x.. 0c
         x.xxxxx. f8
         x.xxxx.. f8
         ..xx.... f8
         ..xxxx.. f8
         ...xxx.. f8
-        ...xx... f8
-        ...xx... f8
+        ...xx... f6
+        ...xx... f6
         ..xxx... 38
         ..xxx... 48
         .x.xxx.. 58

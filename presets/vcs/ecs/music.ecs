@@ -42,14 +42,6 @@ system MusicPlayer
   {{!musicpulse}}	; update song
   {{!musicframe}}	; update registers
   ---
-  on prekernel do once
-  ---
-  {{!musicframe}}	; update registers
-  ---
-  on postkernel do once
-  ---
-  {{!musicframe}}	; update registers
-  ---
   on postframe do once
   ---
   {{!musicframe}}	; update registers
