@@ -194,6 +194,21 @@ async function testPlatform(platid, romname, maxframes, callback) {
       }
       assert.equal(clks, proberec.countClocks());
     }
+    // debugging
+    let bpState = null;
+    if (platform.setupDebug) {
+      let stated1 = platform.saveState();
+      platform.setupDebug((state,msg) => {
+        bpState = state;
+      });
+      if (platform.step) platform.step();
+      platform.nextFrame();
+      platform.clearDebug();
+      let stated3 = platform.saveState();
+      assert.ok(bpState);
+      console.log(stated1.c.PC, bpState.c.PC, stated3.c.PC);
+      assert.equal(stated1.c.PC, stated3.c.PC);
+    }
     // debug tree
     if (platform.getDebugTree != null) {
       var dbgtree = platform.getDebugTree();
