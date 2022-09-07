@@ -792,11 +792,11 @@ class VectrexPlatform extends baseplatform_1.Base6809Platform {
         var frameCycles = 1500000 / 60;
         var cycles = 0;
         while (cycles < frameCycles) {
-            cycles += this.step();
+            cycles += this.nextCycle();
         }
         return cycles;
     }
-    step() {
+    nextCycle() {
         this.probe.logExecute(this.getPC(), this.getSP());
         if (this.via.ifr & 0x80) {
             this._cpu.interrupt();

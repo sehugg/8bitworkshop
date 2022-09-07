@@ -1,8 +1,8 @@
 
 import { Platform, getOpcodeMetadata_6502, getToolForFilename_6502, Base6502MachinePlatform } from "../common/baseplatform";
-import { PLATFORMS, Keys, makeKeycodeMap } from "../common/emu";
+import { PLATFORMS } from "../common/emu";
 import { BaseMAME6502Platform } from "../common/mameplatform";
-import { Atari5200, Atari800, Atari8_WASMMachine } from "../machine/atari8";
+import { Atari5200, Atari800 } from "../machine/atari8";
 
 declare var jt; // for 6502
 
@@ -19,11 +19,6 @@ var Atari800_PRESETS = Atari8_PRESETS.concat([
   {id:'pmtest.bas', name:'Sprites Test (FastBasic)'},
   {id:'dli.bas', name:'DLI Test (FastBasic)'},
   {id:'joyas.bas', name:'Match-3 Game (FastBasic)'},
-]);
-
-const ATARI8_KEYCODE_MAP = makeKeycodeMap([
-  [Keys.VK_SPACE, 0, 0],
-  [Keys.VK_ENTER, 0, 0],
 ]);
 
 const Atari800_MemoryMap = { main:[
@@ -44,22 +39,40 @@ function getToolForFilename_Atari8(fn:string) {
   else return getToolForFilename_6502(fn);
 }
 
-/// MAME support
-
-abstract class Atari8MAMEPlatform extends BaseMAME6502Platform {
-  getPresets() { return Atari8_PRESETS; }
+class Atari800Platform extends Base6502MachinePlatform<Atari800> {
+  newMachine()          { return new Atari800(); }
+  getPresets()          { return Atari800_PRESETS; }
+  getDefaultExtension() { return ".c"; };
   getToolForFilename = getToolForFilename_Atari8;
-  getOpcodeMetadata = getOpcodeMetadata_6502;
-  getDefaultExtension() { return ".asm"; };
-  showHelp(tool:string, ident:string) {
-    if (tool == 'fastbasic')
-      window.open("https://github.com/dmsc/fastbasic/blob/master/manual.md", "_help");
-    else
-      window.open("https://atariwiki.org/wiki/Wiki.jsp?page=Assembler", "_help"); // TODO
+  readAddress(a)        { return this.machine.readConst(a); }
+  getMemoryMap()        { return Atari800_MemoryMap; }
+  showHelp = atari8_showHelp;
+  getROMExtension = atari8_getROMExtension;
+  
+  async start() {
+    let bios = await this.loadKernel();
+    await super.start();
+    this.machine.loadBIOS(bios);
+  }
+  biosPath = 'res/altirra/kernel.rom';
+  async loadKernel() {
+    var biosResponse = await fetch(this.biosPath);
+    if (biosResponse.status == 200 || (biosResponse as any as Blob).size) {
+      var biosBinary = await biosResponse.arrayBuffer();
+      return new Uint8Array(biosBinary);
+    } else throw new Error('could not load BIOS file');
   }
 }
 
-abstract class Atari8WASIMAMEPlatform extends BaseMAME6502Platform {
+class Atari5200Platform extends Atari800Platform {
+  newMachine() { return new Atari5200(); }
+  biosPath = 'res/altirra/superkernel.rom';
+}
+
+
+/// MAME support
+
+abstract class Atari8MAMEPlatform extends BaseMAME6502Platform {
   getPresets() { return Atari8_PRESETS; }
   getToolForFilename = getToolForFilename_Atari8;
   getOpcodeMetadata = getOpcodeMetadata_6502;
@@ -133,63 +146,14 @@ class Atari5200MAMEPlatform extends Atari8MAMEPlatform implements Platform {
   ] } };
 }
 
-/// WASM Atari8 platform
-class Atari8WASMPlatform extends Base6502MachinePlatform<Atari8_WASMMachine> implements Platform {
-
-  newMachine()          { return new Atari8_WASMMachine('atari8'); }
-  getPresets()          { return Atari800_PRESETS; }
-  getDefaultExtension() { return ".c"; };
-  getToolForFilename = getToolForFilename_Atari8;
-  readAddress(a)        { return this.machine.readConst(a); }
-  getMemoryMap()        { return Atari800_MemoryMap; }
-  showHelp() {
-    // TODO
-  }
-  getROMExtension(rom:Uint8Array) { 
-    // TODO
-    if (rom && rom[0] == 0x01 && rom[1] == 0x08) return ".prg";
-    else return ".bin";
-  }
+function atari8_getROMExtension(rom: Uint8Array) {
+  if (rom == null) return ".bin";
+  if (rom[0] == 0xff && rom[1] == 0xff) return ".xex";
+  else return ".rom";
 }
 
-class Atari800WASMPlatform extends Atari8WASMPlatform {  
-}
-
-////
-
-class Atari800Platform extends Base6502MachinePlatform<Atari800> {
-  newMachine()          { return new Atari800(); }
-  getPresets()          { return Atari800_PRESETS; }
-  getDefaultExtension() { return ".c"; };
-  getToolForFilename = getToolForFilename_Atari8;
-  readAddress(a)        { return this.machine.readConst(a); }
-  getMemoryMap()        { return Atari800_MemoryMap; }
-  showHelp() {
-    // TODO
-  }
-  getROMExtension(rom:Uint8Array) { 
-    // TODO
-    if (rom && rom[0] == 0x01 && rom[1] == 0x08) return ".prg";
-    else return ".bin";
-  }
-  async start() {
-    let bios = await this.loadKernel();
-    await super.start();
-    this.machine.loadBIOS(bios);
-  }
-  biosPath = 'res/altirra/kernel.rom';
-  async loadKernel() {
-    var biosResponse = await fetch(this.biosPath);
-    if (biosResponse.status == 200 || (biosResponse as any as Blob).size) {
-      var biosBinary = await biosResponse.arrayBuffer();
-      return new Uint8Array(biosBinary);
-    } else throw new Error('could not load BIOS file');
-  }
-}
-
-class Atari5200Platform extends Atari800Platform {
-  newMachine()          { return new Atari5200(); }
-  biosPath = 'res/altirra/superkernel.rom';
+function atari8_showHelp() {
+  return "https://8bitworkshop.com/docs/platforms/atari8/";
 }
 
 ///
@@ -197,6 +161,5 @@ class Atari5200Platform extends Atari800Platform {
 PLATFORMS['atari8-800.xlmame'] = Atari800MAMEPlatform
 PLATFORMS['atari8-800xl.mame'] = Atari800MAMEPlatform // for dithertron
 PLATFORMS['atari8-5200.mame'] = Atari5200MAMEPlatform
-PLATFORMS['atari8-800.xlwasm'] = Atari800WASMPlatform
 PLATFORMS['atari8-800'] = Atari800Platform
 PLATFORMS['atari8-5200'] = Atari5200Platform

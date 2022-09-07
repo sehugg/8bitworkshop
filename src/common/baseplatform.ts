@@ -270,6 +270,9 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     this.onBreakpointHit = callback;
   }
   clearDebug() {
+    if (this.debugBreakState != null) {
+      this.loadState(this.debugSavedState);
+    }
     this.debugSavedState = null;
     this.debugBreakState = null;
     this.debugTargetClock = -1;

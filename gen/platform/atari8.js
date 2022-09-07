@@ -17,10 +17,6 @@ var Atari800_PRESETS = Atari8_PRESETS.concat([
     { id: 'dli.bas', name: 'DLI Test (FastBasic)' },
     { id: 'joyas.bas', name: 'Match-3 Game (FastBasic)' },
 ]);
-const ATARI8_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
-    [emu_1.Keys.VK_SPACE, 0, 0],
-    [emu_1.Keys.VK_ENTER, 0, 0],
-]);
 const Atari800_MemoryMap = { main: [
         { name: 'RAM', start: 0x0, size: 0xc000, type: 'ram' },
         { name: 'Left Cartridge ROM', start: 0xa000, size: 0x2000, type: 'rom' },
@@ -39,24 +35,44 @@ function getToolForFilename_Atari8(fn) {
     else
         return (0, baseplatform_1.getToolForFilename_6502)(fn);
 }
-/// MAME support
-class Atari8MAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
+class Atari800Platform extends baseplatform_1.Base6502MachinePlatform {
     constructor() {
         super(...arguments);
         this.getToolForFilename = getToolForFilename_Atari8;
-        this.getOpcodeMetadata = baseplatform_1.getOpcodeMetadata_6502;
+        this.showHelp = atari8_showHelp;
+        this.getROMExtension = atari8_getROMExtension;
+        this.biosPath = 'res/altirra/kernel.rom';
     }
-    getPresets() { return Atari8_PRESETS; }
-    getDefaultExtension() { return ".asm"; }
+    newMachine() { return new atari8_1.Atari800(); }
+    getPresets() { return Atari800_PRESETS; }
+    getDefaultExtension() { return ".c"; }
     ;
-    showHelp(tool, ident) {
-        if (tool == 'fastbasic')
-            window.open("https://github.com/dmsc/fastbasic/blob/master/manual.md", "_help");
+    readAddress(a) { return this.machine.readConst(a); }
+    getMemoryMap() { return Atari800_MemoryMap; }
+    async start() {
+        let bios = await this.loadKernel();
+        await super.start();
+        this.machine.loadBIOS(bios);
+    }
+    async loadKernel() {
+        var biosResponse = await fetch(this.biosPath);
+        if (biosResponse.status == 200 || biosResponse.size) {
+            var biosBinary = await biosResponse.arrayBuffer();
+            return new Uint8Array(biosBinary);
+        }
         else
-            window.open("https://atariwiki.org/wiki/Wiki.jsp?page=Assembler", "_help"); // TODO
+            throw new Error('could not load BIOS file');
     }
 }
-class Atari8WASIMAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
+class Atari5200Platform extends Atari800Platform {
+    constructor() {
+        super(...arguments);
+        this.biosPath = 'res/altirra/superkernel.rom';
+    }
+    newMachine() { return new atari8_1.Atari5200(); }
+}
+/// MAME support
+class Atari8MAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
     constructor() {
         super(...arguments);
         this.getToolForFilename = getToolForFilename_Atari8;
@@ -141,81 +157,21 @@ class Atari5200MAMEPlatform extends Atari8MAMEPlatform {
     start() {
     }
 }
-/// WASM Atari8 platform
-class Atari8WASMPlatform extends baseplatform_1.Base6502MachinePlatform {
-    constructor() {
-        super(...arguments);
-        this.getToolForFilename = getToolForFilename_Atari8;
-    }
-    newMachine() { return new atari8_1.Atari8_WASMMachine('atari8'); }
-    getPresets() { return Atari800_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
-    readAddress(a) { return this.machine.readConst(a); }
-    getMemoryMap() { return Atari800_MemoryMap; }
-    showHelp() {
-        // TODO
-    }
-    getROMExtension(rom) {
-        // TODO
-        if (rom && rom[0] == 0x01 && rom[1] == 0x08)
-            return ".prg";
-        else
-            return ".bin";
-    }
+function atari8_getROMExtension(rom) {
+    if (rom == null)
+        return ".bin";
+    if (rom[0] == 0xff && rom[1] == 0xff)
+        return ".xex";
+    else
+        return ".rom";
 }
-class Atari800WASMPlatform extends Atari8WASMPlatform {
-}
-////
-class Atari800Platform extends baseplatform_1.Base6502MachinePlatform {
-    constructor() {
-        super(...arguments);
-        this.getToolForFilename = getToolForFilename_Atari8;
-        this.biosPath = 'res/altirra/kernel.rom';
-    }
-    newMachine() { return new atari8_1.Atari800(); }
-    getPresets() { return Atari800_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
-    readAddress(a) { return this.machine.readConst(a); }
-    getMemoryMap() { return Atari800_MemoryMap; }
-    showHelp() {
-        // TODO
-    }
-    getROMExtension(rom) {
-        // TODO
-        if (rom && rom[0] == 0x01 && rom[1] == 0x08)
-            return ".prg";
-        else
-            return ".bin";
-    }
-    async start() {
-        let bios = await this.loadKernel();
-        await super.start();
-        this.machine.loadBIOS(bios);
-    }
-    async loadKernel() {
-        var biosResponse = await fetch(this.biosPath);
-        if (biosResponse.status == 200 || biosResponse.size) {
-            var biosBinary = await biosResponse.arrayBuffer();
-            return new Uint8Array(biosBinary);
-        }
-        else
-            throw new Error('could not load BIOS file');
-    }
-}
-class Atari5200Platform extends Atari800Platform {
-    constructor() {
-        super(...arguments);
-        this.biosPath = 'res/altirra/superkernel.rom';
-    }
-    newMachine() { return new atari8_1.Atari5200(); }
+function atari8_showHelp() {
+    return "https://8bitworkshop.com/docs/platforms/atari8/";
 }
 ///
 emu_1.PLATFORMS['atari8-800.xlmame'] = Atari800MAMEPlatform;
 emu_1.PLATFORMS['atari8-800xl.mame'] = Atari800MAMEPlatform; // for dithertron
 emu_1.PLATFORMS['atari8-5200.mame'] = Atari5200MAMEPlatform;
-emu_1.PLATFORMS['atari8-800.xlwasm'] = Atari800WASMPlatform;
 emu_1.PLATFORMS['atari8-800'] = Atari800Platform;
 emu_1.PLATFORMS['atari8-5200'] = Atari5200Platform;
 //# sourceMappingURL=atari8.js.map

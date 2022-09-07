@@ -232,7 +232,6 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         this.gtia.loadState(state.gtia);
         this.irq_pokey.loadState(state.pokey);
         this.lastdmabyte = state.lastdmabyte;
-        this.keycode = state.keycode;
         this.cart_80 = state.cart_80;
         this.cart_a0 = state.cart_a0;
     }
@@ -252,10 +251,12 @@ class Atari800 extends devices_1.BasicScanlineMachine {
     }
     loadControlsState(state) {
         this.inputs.set(state.inputs);
+        this.keycode = state.keycode;
     }
     saveControlsState() {
         return {
-            inputs: this.inputs.slice(0)
+            inputs: this.inputs.slice(0),
+            keycode: this.keycode,
         };
     }
     getRasterScanline() {

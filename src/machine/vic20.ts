@@ -1,6 +1,10 @@
 
 //// WASM Machine
 
+// http://www.zimmers.net/anonftp/pub/cbm/documents/chipdata/VIC-I.txt
+// http://www.zimmers.net/anonftp/pub/cbm/maps/Vic20.MemoryMap.txt
+// http://sleepingelephant.com/denial/wiki/index.php/Autostart
+
 import { Machine } from "../common/baseplatform";
 import { Probeable, TrapCondition } from "../common/devices";
 import { KeyFlags } from "../common/emu";
@@ -10,7 +14,7 @@ import { BaseWASMMachine } from "../common/wasmplatform";
 export class VIC20_WASMMachine extends BaseWASMMachine implements Machine, Probeable {
 
   numTotalScanlines = 312;
-  cpuCyclesPerLine = 63;
+  cpuCyclesPerLine = 71;
   videoOffsetBytes = -24 * 4;
 
   prgstart : number;
@@ -30,42 +34,47 @@ export class VIC20_WASMMachine extends BaseWASMMachine implements Machine, Probe
     }
     // load rom
     if (this.romptr && this.romlen) {
+      let rom = this.romarr;
       this.exports.machine_load_rom(this.sys, this.romptr, this.romlen);
-      this.prgstart = this.romarr[0] + (this.romarr[1]<<8); // get load address
-      // look for BASIC program start
-      if (this.prgstart == 0x1001) {
-        this.prgstart = this.romarr[2] + (this.romarr[3]<<8) + 2; // point to after BASIC program
-        console.log("prgstart", hex(this.prgstart));
-      }
-      // is program loaded into RAM?
-      if (this.prgstart < 0x8000) {
-        // advance BIOS a few frames
-        this.exports.machine_exec(this.sys, 400000);
-        // type in command (SYS 2061)
-        var cmd = "SYS "+this.prgstart+"\r";
-        console.log(cmd);
-        for (var i=0; i<cmd.length; i++) {
-          var key = cmd.charCodeAt(i);
-          this.exports.machine_exec(this.sys, 20000);
-          this.exports.machine_exec(this.sys, 20000);
-          this.exports.machine_key_down(this.sys, key);
-          this.exports.machine_exec(this.sys, 20000);
-          this.exports.machine_exec(this.sys, 20000);
-          this.exports.machine_key_up(this.sys, key);
+      let iscart = rom[4+2]==0x41 && rom[5+2]==0x30 && rom[6+2]==0xC3 && rom[7+2]==0xC2 && rom[8+2]==0xCD;
+      if (!iscart) {
+        this.prgstart = rom[0] + (rom[1]<<8); // get load address
+        // look for BASIC program start
+        if (this.prgstart == 0x1001) {
+          this.prgstart = rom[2] + (rom[3]<<8) + 2; // point to after BASIC program
+          console.log("prgstart", hex(this.prgstart));
         }
-        // advance clock until program starts
-        for (var i=0; i<10000 && this.getPC() != this.prgstart; i++) {
-          //this.exports.machine_tick(this.sys);
+        // is program loaded into RAM?
+        if (this.prgstart < 0x8000) {
+          // advance BIOS a few frames
+          this.exports.machine_exec(this.sys, 500000);
+          // type in command (SYS 2061)
+          var cmd = "SYS "+this.prgstart+"\r";
+          console.log(cmd);
+          for (var i=0; i<cmd.length; i++) {
+            var key = cmd.charCodeAt(i);
+            this.exports.machine_exec(this.sys, 10000);
+            this.exports.machine_exec(this.sys, 10000);
+            this.exports.machine_key_down(this.sys, key);
+            this.exports.machine_exec(this.sys, 10000);
+            this.exports.machine_exec(this.sys, 10000);
+            this.exports.machine_key_up(this.sys, key);
+          }
+          // advance clock until program starts
+          for (var i=0; i<10000 && this.getPC() != this.prgstart; i++) {
+            this.exports.machine_tick(this.sys);
+          }
         }
       } else {
         // get out of reset
-        this.exports.machine_exec(this.sys, 100);
+        //this.exports.machine_exec(this.sys, 100);
         // wait until cartridge start
         // TODO: detect ROM cartridge
-        var warmstart = this.romarr[0x4] + this.romarr[0x5]*256;
-        for (var i=0; i<150000 && this.getPC() != warmstart; i++) {
+        var warmstart = this.romarr[0x2+2] + this.romarr[0x3+2]*256;
+        for (var i=0; i<10000 && this.getPC() != warmstart; i++) {
           this.exports.machine_tick(this.sys);
         }
+        console.log('cart', i, hex(warmstart));
       }
       // TODO: shouldn't we return here @ start of frame?
       // and stop probing
@@ -74,7 +83,7 @@ export class VIC20_WASMMachine extends BaseWASMMachine implements Machine, Probe
   advanceFrame(trap: TrapCondition) : number {
     // TODO: does this sync with VSYNC?
     var scanline = this.getRasterY();
-    var clocks = Math.floor((this.numTotalScanlines - scanline) * 19656 / this.numTotalScanlines);
+    var clocks = Math.floor((this.numTotalScanlines - scanline) * 22152 / this.numTotalScanlines);
     var probing = this.probe != null;
     if (probing) this.exports.machine_reset_probe_buffer();
     clocks = super.advanceFrameClock(trap, clocks);
