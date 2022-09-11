@@ -227,7 +227,7 @@ describe('Platform Replay', () => {
   it('Should run apple2', async () => {
     var platform = await testPlatform('apple2', 'cosmic.c.rom', 72, (platform, frameno) => {
       if (frameno == 62) {
-        keycallback(32, 32, 128); // space bar
+        keycallback(32, 32, 1); // space bar
       }
     });
     assert.equal(platform.saveState().kbdlatch, 0x20); // strobe cleared

@@ -183,7 +183,7 @@ var VerilogPlatform = function(mainElement, options) {
     video = new RasterVideo(mainElement,videoWidth,videoHeight,{overscan:true});
     video.create();
     poller = setKeyboardFromMap(video, switches, VERILOG_KEYCODE_MAP, (o,key,code,flags) => {
-      if (flags & KeyFlags.KeyPress) {
+      if (flags & KeyFlags.KeyDown) {
         keycode = code | 0x80;
       }
     }, true); // true = always send function

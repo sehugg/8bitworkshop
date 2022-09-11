@@ -325,23 +325,14 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
   }
 
   setKeyInput(key:number, code:number, flags:number) : void {
-    if (flags & KeyFlags.KeyPress) {
-      // convert to uppercase for Apple ][
-      if (code >= 0x61 && code <= 0x7a)
-         code -= 32; 
-      if (code >= 32) {
-        if (code >= 65 && code < 65+26) {
-          if (flags & KeyFlags.Ctrl)
-            code -= 64; // ctrl
-        }
-        this.kbdlatch = (code | 0x80) & 0xff;
-      }
-    } else if (flags & KeyFlags.KeyDown) {
+   if (flags & KeyFlags.KeyDown) {
       code = 0;
       switch (key) {
+         case 16: case 17: case 18:
+            break; // ignore shift/ctrl/etc
         case 8:
           code=8; // left
-          if (flags & KeyFlags.Ctrl) {
+          if (flags & KeyFlags.Shift) {
             // (possibly) soft reset
             this.cpu.reset();
             return;
@@ -354,20 +345,19 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
         case 38: code=11; break; // up
         case 40: code=10; break; // down
         default:
-          if (flags & KeyFlags.Ctrl) {
-            code = key;
-            if (code >= 0x61 && code <= 0x7a)
-              code -= 32;
-            if (key >= 65 && code < 65+26) {
-                code -= 64; // ctrl
+         code = key;
+         // convert to uppercase for Apple ][
+         if (code >= 0x61 && code <= 0x7a) code -= 32;
+         if (code >= 32) {
+            if (code >= 65 && code < 65+26) {
+               if (flags & KeyFlags.Ctrl)
+                  code -= 64; // ctrl
             }
-            else {
-              code = 0;
-            }
-          }
+         }
       }
-      if (code)
+      if (code) {
         this.kbdlatch = (code | 0x80) & 0xff;
+      }
     }
   }
   
