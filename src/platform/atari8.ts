@@ -77,12 +77,7 @@ abstract class Atari8MAMEPlatform extends BaseMAME6502Platform {
   getToolForFilename = getToolForFilename_Atari8;
   getOpcodeMetadata = getOpcodeMetadata_6502;
   getDefaultExtension() { return ".asm"; };
-  showHelp(tool:string, ident:string) {
-    if (tool == 'fastbasic')
-      window.open("https://github.com/dmsc/fastbasic/blob/master/manual.md", "_help");
-    else
-      window.open("https://atariwiki.org/wiki/Wiki.jsp?page=Assembler", "_help"); // TODO
-  }
+  showHelp = atari8_showHelp;
 }
 
 class Atari800MAMEPlatform extends Atari8MAMEPlatform implements Platform {
@@ -152,8 +147,11 @@ function atari8_getROMExtension(rom: Uint8Array) {
   else return ".rom";
 }
 
-function atari8_showHelp() {
-  return "https://8bitworkshop.com/docs/platforms/atari8/";
+function atari8_showHelp(tool: string, ident: string) {
+  if (tool == 'fastbasic')
+    window.open("https://github.com/dmsc/fastbasic/blob/master/manual.md", "_help");
+  else
+    window.open("https://8bitworkshop.com/docs/platforms/atari8/", "_help");
 }
 
 ///
