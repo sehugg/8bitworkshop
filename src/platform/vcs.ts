@@ -107,24 +107,8 @@ class VCSPlatform extends BasePlatform {
       self.probe.logNewScanline();
       return this.oldNextLine(pixels, vsync);
     }
-    // setup mouse events
-    var rasterPosBreakFn = (e) => {
-      if (e.ctrlKey) {
-        console.resetDebug();
-        var vcanvas = $(e.target);
-        var x = e.pageX - vcanvas.offset().left;
-        var y = e.pageY - vcanvas.offset().top;
-        var new_x = Math.floor(x * 152 / vcanvas.width());
-        var new_y = Math.floor((y-10) * (192+37+30) / vcanvas.height());
-        this.runEval( (c) => {
-          var pos = this.getRasterPosition();
-          return (pos.x >= new_x) && (pos.y >= new_y);
-        });
-      }
-    };
-    var jacanvas = $("#javatari-screen").find("canvas");
-    jacanvas.mousedown(rasterPosBreakFn);
     // resize after added to dom tree
+    var jacanvas = $("#javatari-screen").find("canvas");
     const resizeObserver = new ResizeObserver(entries => {
       this.resize();
     });
@@ -149,8 +133,8 @@ class VCSPlatform extends BasePlatform {
     var clkfs = Javatari.room.console.getClocksFromFrameStart() - 1;
     var row = Math.floor(clkfs/76);
     var col = clkfs - row*76;
-    var xpos = col*3-68;
-    var ypos = row-39;
+    var xpos = col*3;
+    var ypos = row;
     return {x:xpos, y:ypos, clk:clkfs%76};
   }
   getRasterScanline() : number {
