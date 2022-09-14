@@ -1,6 +1,7 @@
 
 import { Toolbar } from "./toolbar";
 import { VirtualList } from "../common/vlist";
+import DOMPurify from "dompurify";
 
 const BUILTIN_INPUT_PORTS = [
   'clk', 'reset',
@@ -359,7 +360,7 @@ export class WaveformView {
         //min: 0,
         //max: meta.len-1,
         //placeholder: rangestr,
-        title: `Enter new value for "${meta.label}" (${rangestr}):`,
+        title: `Enter new value for "${DOMPurify.sanitize(meta.label)}" (${rangestr}):`,
         callback: (result) => { 
           if (result != null) {
             var value = parseInt(result);

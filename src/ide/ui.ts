@@ -20,6 +20,7 @@ import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
 import { CallStackView, DebugBrowserView } from "./views/treeviews";
 import { saveAs } from "file-saver";
+import DOMPurify = require("dompurify");
 
 // external libs (TODO)
 declare var Tour, GIF, Octokat;
@@ -141,12 +142,12 @@ function alertError(s:string) {
   setWaitDialog(false);
   bootbox.alert({
     title: '<span class="glyphicon glyphicon-alert" aria-hidden="true"></span> Alert',
-    message: s
+    message: DOMPurify.sanitize(s)
   });
 }
 function alertInfo(s:string) {
   setWaitDialog(false);
-  bootbox.alert(s);
+  bootbox.alert(DOMPurify.sanitize(s));
 }
 function fatalError(s:string) {
   alertError(s);
@@ -518,7 +519,7 @@ function handleFileUpload(files: FileList) {
       } else {
         qs.file = files[0].name;
         bootbox.confirm({
-          message: "Open '" + qs.file + "' as main project file?",
+          message: "Open '" + DOMPurify.sanitize(qs.file) + "' as main project file?",
           buttons: {
             confirm: { label: "Open As New Project" },
             cancel: { label: "Include/Link With Project Later" },
@@ -558,7 +559,7 @@ function handleFileUpload(files: FileList) {
 async function _openLocalDirectory(e) {
   var pickerfn = window['showDirectoryPicker'];
   if (!pickerfn) {
-    bootbox.alert(`This browser can't open local files on your computer, yet. Try Chrome.`);
+    alertError(`This browser can't open local files on your computer, yet. Try Chrome.`);
   }
   var dirHandle = await pickerfn();
   var repoid = dirHandle.name;
@@ -577,7 +578,7 @@ async function _openLocalDirectory(e) {
 
 async function promptUser(message: string) : Promise<string> {
   return new Promise( (resolve, reject) => {
-    bootbox.prompt(message, (result) => {
+    bootbox.prompt(DOMPurify.sanitize(message), (result) => {
       resolve(result);
     });
   });
@@ -600,7 +601,7 @@ async function getLocalFilesystem(repoid: string) : Promise<ProjectFilesystem> {
     granted = await dirHandle.requestPermission(options);
   }
   if (granted !== 'granted') {
-      bootbox.alert(`Could not get permission to access filesystem.`);
+      alertError(`Could not get permission to access filesystem.`);
       return;
   }
   return {
@@ -663,7 +664,7 @@ async function getGithubService() {
 function getBoundGithubURL() : string {
   var toks = (repo_id||'').split('/');
   if (toks.length != 2) {
-    alertError("<p>You are not in a GitHub repository.</p><p>Choose one from the pulldown, or Import or Publish one.</p>");
+    alertError("You are not in a GitHub repository. Choose one from the pulldown, or Import or Publish one.");
     return null;
   }
   return 'https://github.com/' + toks[0] + '/' + toks[1];
@@ -701,7 +702,7 @@ async function importProjectFromGithub(githuburl:string, replaceURL:boolean) {
   }).catch( (e) => {
     setWaitDialog(false);
     console.log(e);
-    alertError("<p>Could not import " + githuburl + ".</p>" + e);
+    alertError("Could not import " + githuburl + "." + e);
   });
 }
 
@@ -710,7 +711,7 @@ async function _loginToGithub(e) {
   gh.login().then(() => {
     alertInfo("You are signed in to Github.");
   }).catch( (e) => {
-    alertError("<p>Could not sign in.</p>" + e);
+    alertError("Could not sign in." + e);
   });
 }
 
@@ -809,13 +810,13 @@ function confirmCommit(sess) : Promise<GHSession> {
     // anything changed?
     if (files.length == 0) {
       setWaitDialog(false);
-      bootbox.alert("No files changed.");
+      alertInfo("No files changed.");
       return;
     }
     // build commit confirm message
     var msg = "";
     for (var f of files) {
-      msg += f.filename + ": " + f.status;
+      msg += DOMPurify.sanitize(f.filename) + ": " + f.status;
       if (f.additions || f.deletions || f.changes) {
         msg += " (" + f.additions + " additions, " + f.deletions + " deletions, " + f.changes + " changes)";
       };
@@ -873,7 +874,7 @@ async function pushChangesToGithub(message:string) {
 function _deleteRepository() {
   var ghurl = getBoundGithubURL();
   if (!ghurl) return;
-  bootbox.prompt("<p>Are you sure you want to delete this repository (" + ghurl + ") from browser storage?</p><p>All changes since last commit will be lost.</p><p>Type DELETE to proceed.<p>", (yes) => {
+  bootbox.prompt("<p>Are you sure you want to delete this repository (" + DOMPurify.sanitize(ghurl) + ") from browser storage?</p><p>All changes since last commit will be lost.</p><p>Type DELETE to proceed.<p>", (yes) => {
     if (yes.trim().toUpperCase() == "DELETE") {
       deleteRepository();
     }
@@ -976,7 +977,7 @@ function _downloadCassetteFile_apple2(e) {
       var blob = new Blob([audout], {type: "audio/wav"});
       saveAs(blob, audpath);
       stdout += "Then connect your audio output to the cassette input, turn up the volume, and play the audio file.";
-      alertInfo('<pre style="white-space: pre-wrap">'+stdout+'</pre>');
+      alertInfo(stdout);
     }
   });
 }
@@ -1008,7 +1009,7 @@ function _downloadCassetteFile_vcs(e) {
         let blob = new Blob([audout], {type: "audio/wav"});
         saveAs(blob, audpath);
         stdout += "\nConnect your audio output to the SuperCharger input, turn up the volume, and play the audio file.";
-        alertInfo('<pre style="white-space: pre-wrap">'+stdout+'</pre>');
+        alertInfo(stdout);
       }
     });
   });
@@ -1037,7 +1038,7 @@ function _revertFile(e) {
   if (wnd && wnd.setText) {
     var fn = projectWindows.getActiveID();
     $.get( "presets/"+getBasePlatform(platform_id)+"/"+fn, (text) => {
-      bootbox.confirm("Reset '" + fn + "' to default?", (ok) => {
+      bootbox.confirm("Reset '" + DOMPurify.sanitize(fn) + "' to default?", (ok) => {
         if (ok) {
           wnd.setText(text);
         }
@@ -1056,7 +1057,7 @@ function _deleteFile(e) {
   var wnd = projectWindows.getActive();
   if (wnd && wnd.getPath) {
     var fn = projectWindows.getActiveID();
-    bootbox.confirm("Delete '" + fn + "'?", (ok) => {
+    bootbox.confirm("Delete '" + DOMPurify.sanitize(fn) + "'?", (ok) => {
       if (ok) {
         store.removeItem(fn).then( () => {
           // if we delete what is selected
@@ -1080,7 +1081,7 @@ function _renameFile(e) {
   if (wnd && wnd.getPath && current_project.getFile(wnd.getPath())) {
     var fn = projectWindows.getActiveID();
     bootbox.prompt({
-      title: "Rename '" + fn + "' to?", 
+      title: "Rename '" + DOMPurify.sanitize(fn) + "' to?", 
       value: fn,
       callback: (newfn) => {
         var data = current_project.getFile(wnd.getPath());
@@ -1823,8 +1824,8 @@ function addFileToProject(type, ext, linefn) {
   var wnd = projectWindows.getActive();
   if (wnd && wnd.insertText) {
     bootbox.prompt({
-      title:"Add "+type+" File to Project",
-      value:"filename"+ext,
+      title:"Add "+DOMPurify.sanitize(type)+" File to Project",
+      value:"filename"+DOMPurify.sanitize(ext),
       callback:(filename:string) => {
         if (filename && filename.trim().length > 0) {
           if (!checkEnteredFilename(filename)) return;
