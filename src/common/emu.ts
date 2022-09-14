@@ -47,17 +47,15 @@ export enum KeyFlags {
   KeyPress = 128,
 }
 
+// TODO: don't use which/keyCode anymore?
 export function _setKeyboardEvents(canvas:HTMLElement, callback:KeyboardCallback) {
   canvas.onkeydown = (e) => {
     let flags = _metakeyflags(e);
-    callback(e.which, 0, KeyFlags.KeyDown|flags);
+    callback(e.which, e.keyCode, KeyFlags.KeyDown|flags);
     if (!flags) e.preventDefault(); // eat all keys that don't have a modifier
   };
   canvas.onkeyup = (e) => {
-    callback(e.which, 0, KeyFlags.KeyUp|_metakeyflags(e));
-  };
-  canvas.onkeypress = (e) => {
-    callback(e.which, e.charCode, KeyFlags.KeyPress|_metakeyflags(e));
+    callback(e.which, e.keyCode, KeyFlags.KeyUp|_metakeyflags(e));
   };
 };
 
