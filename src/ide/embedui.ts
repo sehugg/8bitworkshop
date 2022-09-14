@@ -5,6 +5,8 @@ import { Platform } from "../common/baseplatform";
 import { stringToByteArray, getWithBinary, loadScript, getRootBasePlatform } from "../common/util";
 import { StateRecorderImpl } from "../common/recorder";
 import { importPlatform } from "../platform/_index";
+import { saveAs } from "file-saver";
+
 
 export var platform_id : string;	// platform ID string
 export var platform : Platform;	// platform object
