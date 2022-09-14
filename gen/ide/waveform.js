@@ -1,8 +1,12 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WaveformView = void 0;
 const toolbar_1 = require("./toolbar");
 const vlist_1 = require("../common/vlist");
+const dompurify_1 = __importDefault(require("dompurify"));
 const BUILTIN_INPUT_PORTS = [
     'clk', 'reset',
 ];
@@ -329,7 +333,7 @@ class WaveformView {
                 //min: 0,
                 //max: meta.len-1,
                 //placeholder: rangestr,
-                title: `Enter new value for "${meta.label}" (${rangestr}):`,
+                title: `Enter new value for "${dompurify_1.default.sanitize(meta.label)}" (${rangestr}):`,
                 callback: (result) => {
                     if (result != null) {
                         var value = parseInt(result);
