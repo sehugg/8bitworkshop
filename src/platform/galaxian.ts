@@ -22,6 +22,7 @@ class GalaxianPlatform extends BaseZ80MachinePlatform<GalaxianMachine> implement
     {name:'Sprite RAM',start:0x5800,size:0x100,type:'ram'},
     {name:'I/O Registers',start:0x6000,size:0x2000,type:'io'},
   ] } };
+  showHelp() { return "https://8bitworkshop.com/docs/platforms/arcade/index.html#galaxian-scramble" }
 }
 
 class GalaxianScramblePlatform extends GalaxianPlatform implements Platform {

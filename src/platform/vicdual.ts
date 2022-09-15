@@ -25,6 +25,7 @@ class VicDualPlatform extends BaseZ80MachinePlatform<VicDual> implements Platfor
       {name:'Cell RAM',start:0xe000,size:32*32,type:'ram'},
       {name:'Tile RAM',start:0xe800,size:256*8,type:'ram'},
   ] } };
+  showHelp() { return "https://8bitworkshop.com/docs/platforms/arcade/index.html#vic-dual" }
 }
 
 PLATFORMS['vicdual'] = VicDualPlatform;

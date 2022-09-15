@@ -709,10 +709,8 @@ class ZmachinePlatform implements Platform {
     getDefaultExtension(): string {
         return ".inf";
     }
-    showHelp(tool: string, ident?: string) {
-        switch (tool) {
-            case 'inform6': window.open("https://www.inform-fiction.org/manual/html/contents.html"); break;
-        }
+    showHelp() {
+        return "https://www.inform-fiction.org/manual/html/contents.html";
     }
     getPresets(): Preset[] {
         return ZMACHINE_PRESETS;

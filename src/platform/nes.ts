@@ -487,8 +487,8 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
       {name:'Optional Cartridge RAM',start:0x6000,size:0x2000,type:'ram'},
   ] } };
 
-  showHelp(tool:string, ident:string) {
-    window.open("https://8bitworkshop.com/docs/platforms/nes/", "_help"); // TODO
+  showHelp() {
+    return "https://8bitworkshop.com/docs/platforms/nes/";
   }
 
   getDebugSymbolFile() {

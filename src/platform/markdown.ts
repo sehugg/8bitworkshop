@@ -42,7 +42,7 @@ class MarkdownPlatform implements Platform {
     ];
   }
   showHelp() {
-    window.open("https://github.com/showdownjs/showdown/wiki/Showdown's-Markdown-syntax", "_help");
+    return "https://github.com/showdownjs/showdown/wiki/Showdown's-Markdown-syntax";
   }
 }
 

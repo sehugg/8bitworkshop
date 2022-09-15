@@ -55,6 +55,10 @@ var AtariVectorPlatform = function(mainElement) {
 
   this.__proto__ = new (Base6502Platform as any)();
 
+  this.showHelp = function() {
+    return "https://8bitworkshop.com/docs/platforms/arcade/index.html#vector-games"
+  }
+
   this.getPresets = function() {
     return VECTOR_PRESETS;
   }

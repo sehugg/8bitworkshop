@@ -21,7 +21,7 @@ class Midway8080BWPlatform extends BaseZ80MachinePlatform<Midway8080> implements
   getMemoryMap = function() { return { main:[
       {name:'Frame Buffer',start:0x2400,size:7168,type:'ram'},
   ] } };
-
+  showHelp() { return "https://8bitworkshop.com/docs/platforms/arcade/index.html#midway-8080" }
 }
 
 

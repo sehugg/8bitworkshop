@@ -33,8 +33,8 @@ class ColecoVisionPlatform extends BaseZ80MachinePlatform<ColecoVision> implemen
       {name:'BIOS',start:0x0,size:0x2000,type:'rom'},
       {name:'Cartridge Header',start:0x8000,size:0x100,type:'rom'},
   ] } };
-  showHelp(tool:string, ident:string) {
-    window.open("https://8bitworkshop.com/docs/platforms/coleco/", "_help");
+  showHelp() {
+    return "https://8bitworkshop.com/docs/platforms/coleco/";
   }
 }
 

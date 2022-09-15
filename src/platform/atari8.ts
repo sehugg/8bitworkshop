@@ -147,11 +147,8 @@ function atari8_getROMExtension(rom: Uint8Array) {
   else return ".rom";
 }
 
-function atari8_showHelp(tool: string, ident: string) {
-  if (tool == 'fastbasic')
-    window.open("https://github.com/dmsc/fastbasic/blob/master/manual.md", "_help");
-  else
-    window.open("https://8bitworkshop.com/docs/platforms/atari8/", "_help");
+function atari8_showHelp() {
+  return "https://8bitworkshop.com/docs/platforms/atari8/";
 }
 
 ///

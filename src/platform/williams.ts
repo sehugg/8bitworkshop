@@ -436,6 +436,9 @@ var WilliamsPlatform = function(mainElement, proto, options) {
       {name:'Video RAM',start:0x0000,size:0xc000,type:'ram'},
       {name:'I/O Registers',start:0xc000,size:0x1000,type:'io'},
   ] } };
+  this.showHelp = function() {
+    return "https://8bitworkshop.com/docs/platforms/arcade/#williams-hardware"
+  }
 }
 
 var Williams6809Platform = function(mainElement, options) {

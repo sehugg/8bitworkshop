@@ -28,7 +28,7 @@ class ZXWASMPlatform extends BaseZ80MachinePlatform<ZX_WASMMachine> implements P
   readAddress(a)        { return this.machine.readConst(a); }
   getMemoryMap()        { return ZX_MEMORY_MAP; }
   showHelp() {
-    window.open("https://worldofspectrum.org/faq/reference/reference.htm", "_help");
+    return "https://worldofspectrum.org/faq/reference/reference.htm"; // TODO
   }
 }
 
