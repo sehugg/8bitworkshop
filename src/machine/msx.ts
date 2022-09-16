@@ -97,6 +97,9 @@ export class MSX1 extends BaseZ80VDPBasedMachine {
     ];
   }
   
+  loadBIOS(bios: Uint8Array) {
+    this.bios = bios;
+  }
   
   getKeyboardMap() { return MSX_KEYCODE_MAP; }
 
