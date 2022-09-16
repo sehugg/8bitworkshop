@@ -332,13 +332,8 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
     disassemble(pc, read) {
         return (0, disasm6502_1.disassemble6502)(pc, read(pc), read(pc + 1), read(pc + 2));
     }
-    showHelp(tool, ident) {
-        if (tool == 'bataribasic')
-            window.open("help/bataribasic/manual.html", "_help");
-        else if (tool == 'wiz')
-            window.open("https://github.com/wiz-lang/wiz/blob/master/readme.md#wiz", "_help");
-        else
-            window.open("https://8bitworkshop.com/docs/platforms/vcs/", "_help"); // TODO
+    showHelp() {
+        return "https://8bitworkshop.com/docs/platforms/vcs/";
     }
     startProbing() {
         var self = this;

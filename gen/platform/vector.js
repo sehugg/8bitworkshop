@@ -48,6 +48,9 @@ var AtariVectorPlatform = function (mainElement) {
     var switches = new emu_1.RAM(16).mem;
     var nmicount = cpuCyclesPerNMI;
     this.__proto__ = new baseplatform_1.Base6502Platform();
+    this.showHelp = function () {
+        return "https://8bitworkshop.com/docs/platforms/arcade/index.html#vector-games";
+    };
     this.getPresets = function () {
         return VECTOR_PRESETS;
     };

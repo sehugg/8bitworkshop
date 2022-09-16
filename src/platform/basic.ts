@@ -207,8 +207,8 @@ class BASICPlatform implements Platform {
         let o = this.runtime.vars[sym];
         if (o != null) return `${sym} = ${o}`;
     }
-    showHelp(tool:string, ident:string) {
-        window.open("https://8bitworkshop.com/docs/platforms/basic/#basicreference", "_help");
+    showHelp() {
+        return "https://8bitworkshop.com/docs/platforms/basic/";
     }
 
     getDebugCategories() {

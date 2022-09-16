@@ -127,7 +127,7 @@ export interface Platform {
   setRecorder?(recorder : EmuRecorder) : void;
   advance?(novideo? : boolean) : number;
   advanceFrameClock?(trap:DebugCondition, step:number) : number;
-  showHelp?(tool:string, ident?:string) : void;
+  showHelp?() : string;
   resize?() : void;
 
   getRasterScanline?() : number;

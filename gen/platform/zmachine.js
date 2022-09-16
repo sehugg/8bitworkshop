@@ -619,12 +619,8 @@ class ZmachinePlatform {
     getDefaultExtension() {
         return ".inf";
     }
-    showHelp(tool, ident) {
-        switch (tool) {
-            case 'inform6':
-                window.open("https://www.inform-fiction.org/manual/html/contents.html");
-                break;
-        }
+    showHelp() {
+        return "https://www.inform-fiction.org/manual/html/contents.html";
     }
     getPresets() {
         return ZMACHINE_PRESETS;

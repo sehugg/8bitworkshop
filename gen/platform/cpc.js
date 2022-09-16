@@ -28,7 +28,7 @@ class CPCWASMPlatform extends baseplatform_1.BaseZ80MachinePlatform {
     readAddress(a) { return this.machine.readConst(a); }
     getMemoryMap() { return CPC_MEMORY_MAP; }
     showHelp() {
-        window.open("http://lronaldo.github.io/cpctelera/files/readme-txt.html", "_help");
+        return "http://lronaldo.github.io/cpctelera/files/readme-txt.html"; // TODO
     }
 }
 // TODO: make different cpc_init() types for different platforms

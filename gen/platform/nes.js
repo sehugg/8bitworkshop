@@ -469,8 +469,8 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
     connectProbe(probe) {
         this.probe = probe || this.nullProbe;
     }
-    showHelp(tool, ident) {
-        window.open("https://8bitworkshop.com/docs/platforms/nes/", "_help"); // TODO
+    showHelp() {
+        return "https://8bitworkshop.com/docs/platforms/nes/";
     }
     getDebugSymbolFile() {
         var sym = this.debugSymbols.addr2symbol;

@@ -160,11 +160,8 @@ function atari8_getROMExtension(rom) {
     else
         return ".rom";
 }
-function atari8_showHelp(tool, ident) {
-    if (tool == 'fastbasic')
-        window.open("https://github.com/dmsc/fastbasic/blob/master/manual.md", "_help");
-    else
-        window.open("https://8bitworkshop.com/docs/platforms/atari8/", "_help");
+function atari8_showHelp() {
+    return "https://8bitworkshop.com/docs/platforms/atari8/";
 }
 ///
 emu_1.PLATFORMS['atari8-800.xlmame'] = Atari800MAMEPlatform;

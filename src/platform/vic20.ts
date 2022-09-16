@@ -36,7 +36,7 @@ class VIC20WASMPlatform extends Base6502MachinePlatform<VIC20_WASMMachine> imple
   readAddress(a)        { return this.machine.readConst(a); }
   getMemoryMap()        { return VIC20_MEMORY_MAP; }
   showHelp() {
-    window.open("https://8bitworkshop.com/docs/platforms/vic20/", "_help");
+    return "https://8bitworkshop.com/docs/platforms/vic20/";
   }
   getROMExtension(rom:Uint8Array) { 
     /*

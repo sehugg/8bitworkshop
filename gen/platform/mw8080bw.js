@@ -23,6 +23,7 @@ class Midway8080BWPlatform extends baseplatform_1.BaseZ80MachinePlatform {
     getDefaultExtension() { return ".c"; }
     ;
     readAddress(a) { return this.machine.read(a); }
+    showHelp() { return "https://8bitworkshop.com/docs/platforms/arcade/index.html#midway-8080"; }
 }
 emu_1.PLATFORMS['mw8080bw'] = Midway8080BWPlatform;
 //# sourceMappingURL=mw8080bw.js.map

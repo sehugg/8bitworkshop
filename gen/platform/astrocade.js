@@ -40,9 +40,7 @@ class BallyAstrocadePlatform extends baseplatform_1.BaseZ80MachinePlatform {
     getDefaultExtension() { return ".c"; }
     ;
     readAddress(a) { return this.machine.read(a); }
-    showHelp(tool, ident) {
-        window.open("https://8bitworkshop.com/docs/platforms/astrocade/", "_help"); // TODO
-    }
+    showHelp() { return "https://8bitworkshop.com/docs/platforms/astrocade/"; }
 }
 class BallyAstrocadeBIOSPlatform extends BallyAstrocadePlatform {
     getPresets() { return ASTROCADE_BIOS_PRESETS; }

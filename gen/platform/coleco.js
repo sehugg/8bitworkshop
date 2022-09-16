@@ -38,8 +38,8 @@ class ColecoVisionPlatform extends baseplatform_1.BaseZ80MachinePlatform {
     ;
     readAddress(a) { return this.machine.read(a); }
     readVRAMAddress(a) { return this.machine.readVRAMAddress(a); }
-    showHelp(tool, ident) {
-        window.open("https://8bitworkshop.com/docs/platforms/coleco/", "_help");
+    showHelp() {
+        return "https://8bitworkshop.com/docs/platforms/coleco/";
     }
 }
 /// MAME support

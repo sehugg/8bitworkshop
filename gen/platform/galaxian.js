@@ -25,6 +25,7 @@ class GalaxianPlatform extends baseplatform_1.BaseZ80MachinePlatform {
     ;
     readAddress(a) { return this.machine.readConst(a); }
     readVRAMAddress(a) { return (a < 0x800) ? this.machine.vram[a] : this.machine.oram[a - 0x800]; }
+    showHelp() { return "https://8bitworkshop.com/docs/platforms/arcade/index.html#galaxian-scramble"; }
 }
 class GalaxianScramblePlatform extends GalaxianPlatform {
     newMachine() { return new galaxian_1.GalaxianScrambleMachine(); }

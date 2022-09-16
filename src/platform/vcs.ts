@@ -331,13 +331,8 @@ class VCSPlatform extends BasePlatform {
     return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));
   }
 
-  showHelp(tool:string, ident:string) {
-    if (tool == 'bataribasic')
-      window.open("help/bataribasic/manual.html", "_help");
-    else if (tool == 'wiz')
-      window.open("https://github.com/wiz-lang/wiz/blob/master/readme.md#wiz", "_help");
-    else
-      window.open("https://8bitworkshop.com/docs/platforms/vcs/", "_help"); // TODO
+  showHelp() {
+    return "https://8bitworkshop.com/docs/platforms/vcs/";
   }
 
   getMemoryMap = function() { return {main:[

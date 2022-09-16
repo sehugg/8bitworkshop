@@ -55,9 +55,7 @@ class C64WASMPlatform extends baseplatform_1.Base6502MachinePlatform {
     ;
     readAddress(a) { return this.machine.readConst(a); }
     getMemoryMap() { return C64_MEMORY_MAP; }
-    showHelp() {
-        window.open("https://8bitworkshop.com/docs/platforms/c64/", "_help");
-    }
+    showHelp() { return "https://8bitworkshop.com/docs/platforms/c64/"; }
     getROMExtension(rom) {
         /*
         if (rom && rom[0] == 0x00 && rom[1] == 0x80 && rom[2+4] == 0xc3 && rom[2+5] == 0xc2) return ".crt";

@@ -44,6 +44,7 @@ const isElectron = (0, util_1.parseBool)(exports.qs.electron);
 const isEmbed = (0, util_1.parseBool)(exports.qs.embed);
 /// GLOBALS (TODO: remove)
 var PRESETS; // presets array
+var platform_name; // platform name (after setPlatformUI)
 var toolbar = $("#controls_top");
 var uitoolbar;
 var stateRecorder;
@@ -90,12 +91,17 @@ const TOOL_TO_SOURCE_STYLE = {
     'ecs': 'ecs',
 };
 const TOOL_TO_HELPURL = {
-    'dasm': 'https://github.com/dasm-assembler/dasm/blob/master/docs/dasm.pdf',
+    'dasm': 'https://raw.githubusercontent.com/sehugg/dasm/master/doc/dasm.txt',
     'cc65': 'https://cc65.github.io/doc/cc65.html',
     'ca65': 'https://cc65.github.io/doc/ca65.html',
     'sdcc': 'http://sdcc.sourceforge.net/doc/sdccman.pdf',
     'verilator': 'https://www.veripool.org/ftp/verilator_doc.pdf',
-    'fastbasic': 'https://github.com/dmsc/fastbasic/blob/master/manual.md'
+    'fastbasic': 'https://github.com/dmsc/fastbasic/blob/master/manual.md',
+    'bataribasic': "help/bataribasic/manual.html",
+    'wiz': "https://github.com/wiz-lang/wiz/blob/master/readme.md#wiz",
+    'silice': "https://github.com/sylefeb/Silice",
+    'zmac': "https://raw.githubusercontent.com/sehugg/zmac/master/doc.txt",
+    'cmoc': "http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html",
 };
 function gaEvent(category, action, label, value) {
     if (window['ga'])
@@ -224,6 +230,18 @@ function setBusyStatus(busy) {
     }
     $('#compile_spinner').css('visibility', busy ? 'visible' : 'hidden');
 }
+function newDropdownListItem(id, text) {
+    var li = document.createElement("li");
+    var a = document.createElement("a");
+    a.setAttribute("class", "dropdown-item");
+    a.setAttribute("href", "#");
+    a.setAttribute("data-wndid", id);
+    if (id == exports.projectWindows.getActiveID())
+        $(a).addClass("dropdown-item-checked");
+    a.appendChild(document.createTextNode(text));
+    li.appendChild(a);
+    return { li, a };
+}
 function refreshWindowList() {
     var ul = $("#windowMenuList").empty();
     var separate = false;
@@ -232,15 +250,7 @@ function refreshWindowList() {
             ul.append(document.createElement("hr"));
             separate = false;
         }
-        var li = document.createElement("li");
-        var a = document.createElement("a");
-        a.setAttribute("class", "dropdown-item");
-        a.setAttribute("href", "#");
-        a.setAttribute("data-wndid", id);
-        if (id == exports.projectWindows.getActiveID())
-            $(a).addClass("dropdown-item-checked");
-        a.appendChild(document.createTextNode(name));
-        li.appendChild(a);
+        let { li, a } = newDropdownListItem(id, name);
         ul.append(li);
         if (createfn) {
             var onopen = (id, wnd) => {
@@ -1751,12 +1761,6 @@ function _toggleRecording() {
         _enableRecording();
     }
 }
-function _lookupHelp() {
-    if (exports.platform.showHelp) {
-        let tool = exports.platform.getToolForFilename(exports.current_project.mainPath);
-        exports.platform.showHelp(tool); // TODO: tool, identifier
-    }
-}
 function addFileToProject(type, ext, linefn) {
     var wnd = exports.projectWindows.getActive();
     if (wnd && wnd.insertText) {
@@ -1892,16 +1896,27 @@ function setupDebugControls() {
     $("#item_addfile_link").click(_addLinkFile);
     $("#item_request_persist").click(() => requestPersistPermission(true, false));
     updateDebugWindows();
-    // show help button?
-    if (exports.platform.showHelp) {
-        uitoolbar.add('ctrl+alt+?', 'Show Help', 'glyphicon-question-sign', _lookupHelp);
-    }
+    // code analyzer?
     if (exports.platform.newCodeAnalyzer) {
         uitoolbar.add(null, 'Analyze CPU Timing', 'glyphicon-time', traceTiming);
     }
     // setup replay slider
     if (exports.platform.setRecorder && exports.platform.advance) {
         setupReplaySlider();
+    }
+    // help menu items
+    if (exports.platform.showHelp) {
+        let { li, a } = newDropdownListItem('help__' + exports.platform_id, platform_name + ' Help');
+        $("#help_menu").append(li);
+        $(a).click(() => window.open(exports.platform.showHelp(), '_8bws_help'));
+    }
+    // tool help
+    let tool = exports.platform.getToolForFilename(getCurrentMainFilename());
+    let toolhelpurl = TOOL_TO_HELPURL[tool];
+    if (toolhelpurl) {
+        let { li, a } = newDropdownListItem('help__' + tool, tool + ' Help');
+        $("#help_menu").append(li);
+        $(a).click(() => window.open(toolhelpurl, '_8bws_help'));
     }
 }
 function setupReplaySlider() {
@@ -2355,7 +2370,8 @@ function setPlatformUI() {
         menuitem.addClass("dropdown-item-checked");
         name = name || menuitem.text() || name;
     }
-    $(".platform_name").text(name || exports.platform_id);
+    platform_name = name || exports.platform_id;
+    $(".platform_name").text(platform_name);
 }
 function getPlatformAndRepo() {
     // lookup repository for this platform (TODO: enable cross-platform repos)
