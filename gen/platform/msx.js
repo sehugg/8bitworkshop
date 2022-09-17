@@ -37,7 +37,6 @@ var LIBCV_PRESETS = [
 class MSXPlatform extends baseplatform_1.BaseZ80MachinePlatform {
     constructor() {
         super(...arguments);
-        // TODO loadBIOS(bios)	{ this.machine.loadBIOS(a); }
         this.getMemoryMap = function () {
             return { main: [
                     { name: 'BIOS', start: 0x0, size: 0x4000, type: 'rom' },

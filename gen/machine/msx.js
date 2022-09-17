@@ -88,6 +88,9 @@ class MSX1 extends vdp_z80_1.BaseZ80VDPBasedMachine {
             },
         ];
     }
+    loadBIOS(bios) {
+        this.bios = bios;
+    }
     getKeyboardMap() { return MSX_KEYCODE_MAP; }
     // http://map.grauw.nl/articles/keymatrix.php
     getKeyboardFunction() {
