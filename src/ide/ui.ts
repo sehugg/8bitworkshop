@@ -1941,7 +1941,11 @@ function setupDebugControls() {
   $("#item_download_rom").click(_downloadROMImage);
   $("#item_download_file").click(_downloadSourceFile);
   $("#item_download_zip").click(_downloadProjectZipFile);
-  $("#item_download_sym").click(_downloadSymFile);
+  if (platform.getDebugSymbolFile) {
+    $("#item_download_sym").click(_downloadSymFile);
+  } else {
+    $("#item_download_sym").hide();
+  }
   $("#item_download_allzip").click(_downloadAllFilesZipFile);
   $("#item_record_video").click(_recordVideo);
   if (platform_id.startsWith('apple2') || platform_id.startsWith('vcs')) // TODO: look for function
