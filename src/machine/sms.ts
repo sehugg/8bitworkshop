@@ -153,7 +153,7 @@ export class SMS extends SG1000 {
 
  read = newAddressDecoder([
    [0xc000, 0xffff, 0x1fff, (a) => { return this.ram[a]; }],
-   [0x0000, 0x03ff,  0x3ff, (a) => { return this.rom[a]; }],
+   [0x0000, 0x03ff,  0x3ff, (a) => { return this.rom && this.rom[a]; }],
    [0x0400, 0x3fff, 0x3fff, (a) => { return this.getPagedROM(a,1); }],
    [0x4000, 0x7fff, 0x3fff, (a) => { return this.getPagedROM(a,2); }],
    [0x8000, 0xbfff, 0x3fff, (a) => {

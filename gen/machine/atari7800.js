@@ -429,7 +429,7 @@ class Atari7800 extends devices_1.BasicMachine {
         return steps;
     }
     getRasterX() { return this.lastFrameCycles % colorClocksPerLine; }
-    getRasterY() { return Math.floor(this.lastFrameCycles / colorClocksPerLine); }
+    getRasterY() { return this.scanline; }
     loadROM(data) {
         if (data.length == 0xc080)
             data = data.slice(0x80); // strip header
