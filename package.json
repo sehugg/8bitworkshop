@@ -46,7 +46,7 @@
     "btoa": "^1.2.x",
     "command-exists": "^1.2.9",
     "esbuild": "^0.12.16",
-    "jsdom": "^12.2.0",
+    "jsdom": "^16.5.0",
     "lzg": "^1.0.x",
     "mocha": "^9.2.0",
     "mocha-simple-html-reporter": "^2.0.0",
