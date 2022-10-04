@@ -40,13 +40,13 @@ exports['test embed IDE in iframe'] = function(browser) {
     .waitForElementVisible('#emuscreen')
     .waitForElementVisible('.emuvideo')
 
-  browser.url(IDEURL + "?embed=1&platform=c64&importURL=/presets/c64/hello.dasm")
+  browser.url(IDEURL + "?embed=1&platform=c64&importURL=/presets/c64/hellobasic.dasm")
     .waitForElementNotVisible('#compile_spinner', time=10000)
     .waitForElementNotVisible('#error_alert')
     .waitForElementVisible('#emuscreen')
     .waitForElementVisible('.emuvideo')
 
-  browser.url(IDEURL + "?embed=1&platform=c64&importURL=/presets/c64/hello.dasm")
+  browser.url(IDEURL + "?embed=1&platform=c64&importURL=/presets/c64/hellobasic.dasm")
     .waitForElementNotVisible('#compile_spinner', time=10000)
     .waitForElementNotVisible('#error_alert')
     .waitForElementVisible('#emuscreen')
