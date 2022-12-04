@@ -15,9 +15,9 @@ void vec_mat_transform(Vector16* dest, const Vector8* v, const Matrix* m) {
   int* result = &dest->x;
   const sbyte* mval = &m->m[0][0];
   for (i=0; i<3; i++) {
-    *result++ = cc65_imul8x8r16(*mval++, v->x)
-              + cc65_imul8x8r16(*mval++, v->y)
-              + cc65_imul8x8r16(*mval++, v->z);
+    *result++ = imul8x8r16(*mval++, v->x)
+              + imul8x8r16(*mval++, v->y)
+              + imul8x8r16(*mval++, v->z);
   }
 }
 
