@@ -4,7 +4,7 @@
 
 #include "vecops.h"
 
-const word* const VECFONT[];
+extern const word* const VECFONT[];
 
 void draw_char(char ch);
 void draw_string(const char* str, byte spacing);

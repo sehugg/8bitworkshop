@@ -187,7 +187,7 @@ void draw_actor_rect(Actor* a) {
 }
 
 word get_distance_squared(byte dx, byte dy) {
-  return cc65_imul8x8r16(dx,dx) + cc65_imul8x8r16(dy,dy);
+  return imul8x8r16(dx,dx) + imul8x8r16(dy,dy);
 }
 
 typedef void ActorCollisionFn(struct Actor*, struct Actor*);
@@ -248,16 +248,16 @@ void explosion_update_fn(struct Actor* a) {
 }
 
 const Actor ship_actor = {
-  ship_shapes, NULL, 3, 0xb0, WHITE, 7, 0x1,
+  ship_shapes, NULL, 3, 0xb0, WHITE, 7, 0x1
 };
 const Actor tetra_actor = {
-  tetra_shapes, obstacle_update_fn, 3, 0x80, CYAN, 7, 0x2,
+  tetra_shapes, obstacle_update_fn, 3, 0x80, CYAN, 7, 0x2
 };
 const Actor torpedo_actor = {
-  torpedo_shapes, torpedo_update_fn, 4, 0xe0, YELLOW, 15, 0x4,
+  torpedo_shapes, torpedo_update_fn, 4, 0xe0, YELLOW, 15, 0x4
 };
 const Actor explosion_actor = {
-  explosion_shape, explosion_update_fn, 8, 0xa0, WHITE, 15, 0,
+  explosion_shape, explosion_update_fn, 8, 0xa0, WHITE, 15, 0
 };
 
 void create_obstacle() {
