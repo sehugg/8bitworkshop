@@ -70,6 +70,7 @@ class Atari5200Platform extends Atari800Platform {
         super(...arguments);
         this.biosPath = 'res/altirra/superkernel.rom';
     }
+    getPresets() { return Atari8_PRESETS; }
     newMachine() { return new atari8_1.Atari5200(); }
 }
 /// MAME support

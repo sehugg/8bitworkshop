@@ -219,12 +219,13 @@ export class GithubService {
       }
       // check README for proper platform
       // unless we use githubURL=
+      // TODO: cannot handle multiple URLs in README
       const re8plat = /8bitworkshop.com[^)]+platform=([A-Za-z0-9._\-]+)/;
       m = re8plat.exec(readme);
       if (m) {
         console.log("platform id: '" + m[1] + "'");
         if (sess.platform_id && !sess.platform_id.startsWith(m[1]))
-          throw Error("Platform mismatch: Repository is " + m[1] + ", you have " + this.project.platform_id + " selected.");
+          throw Error("Platform mismatch: Repository is " + m[1] + ", you have " + sess.platform_id + " selected.");
         sess.platform_id = m[1];
       }
       // bind to repository

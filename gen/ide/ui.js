@@ -821,37 +821,32 @@ async function pushChangesToGithub(message) {
         alertError("Could not push GitHub repository: " + e);
     });
 }
-function _deleteRepository() {
+function _removeRepository() {
     var ghurl = getBoundGithubURL();
     if (!ghurl)
         return;
     bootbox.prompt("<p>Are you sure you want to delete this repository (" + DOMPurify.sanitize(ghurl) + ") from browser storage?</p><p>All changes since last commit will be lost.</p><p>Type DELETE to proceed.<p>", (yes) => {
         if (yes.trim().toUpperCase() == "DELETE") {
-            deleteRepository();
+            removeRepository();
         }
     });
 }
-function deleteRepository() {
+async function removeRepository() {
     var ghurl = getBoundGithubURL();
-    var gh;
     setWaitDialog(true);
-    // delete all keys in storage
-    store.keys().then((keys) => {
+    let gh = await getGithubService();
+    let sess = await gh.getGithubSession(ghurl);
+    gh.bind(sess, false);
+    // delete all keys in (repo) storage
+    await store.keys().then((keys) => {
         return Promise.all(keys.map((key) => {
             return store.removeItem(key);
         }));
-    }).then(() => {
-        gh = getGithubService();
-        return gh.getGithubSession(ghurl);
-    }).then((sess) => {
-        // un-bind repo from list
-        gh.bind(sess, false);
-    }).then(() => {
-        setWaitDialog(false);
-        // leave repository
-        exports.qs = { repo: '/' };
-        gotoNewLocation();
     });
+    setWaitDialog(false);
+    // leave repository
+    exports.qs = { repo: '/' };
+    gotoNewLocation();
 }
 function _shareEmbedLink(e) {
     if (current_output == null) {
@@ -1867,7 +1862,7 @@ function setupDebugControls() {
     $("#item_github_publish").click(_publishProjectToGithub);
     $("#item_github_push").click(_pushProjectToGithub);
     $("#item_github_pull").click(_pullProjectFromGithub);
-    $("#item_repo_delete").click(_deleteRepository);
+    $("#item_repo_delete").click(_removeRepository);
     $("#item_share_file").click(_shareEmbedLink);
     $("#item_reset_file").click(_revertFile);
     $("#item_rename_file").click(_renameFile);
