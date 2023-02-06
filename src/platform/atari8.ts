@@ -66,6 +66,7 @@ class Atari800Platform extends Base6502MachinePlatform<Atari800> {
 }
 
 class Atari5200Platform extends Atari800Platform {
+  getPresets() { return Atari8_PRESETS; }
   newMachine() { return new Atari5200(); }
   biosPath = 'res/altirra/superkernel.rom';
 }
