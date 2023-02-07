@@ -40,7 +40,7 @@ var ATARI8_KEYCODE_MAP = makeKeycodeMap([
 ]);
 
 
-export class Atari800 extends BasicScanlineMachine {
+export class Atari800 extends BasicScanlineMachine implements AcceptsPaddleInput {
 
   // http://www.ataripreservation.org/websites/freddy.offenga/megazine/ISSUE5-PALNTSC.html
   cpuFrequency = 1789773;
@@ -93,7 +93,6 @@ export class Atari800 extends BasicScanlineMachine {
     this.handler = newKeyboardHandler(
       this.inputs, ATARI8_KEYCODE_MAP, this.getKeyboardFunction(), true);
   }
-
   newBus() {
     return {
       read: newAddressDecoder([
@@ -405,6 +404,10 @@ export class Atari800 extends BasicScanlineMachine {
     if (this.cpu.getPC() == 0xf17f && this.xexdata) {
       this.loadXEX(this.xexdata);
     }
+  }
+
+  setPaddleInput(controller: number, value: number): void {
+    this.irq_pokey.pot_inputs[controller] = 255 - value;
   }
 
 }

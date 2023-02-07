@@ -399,6 +399,9 @@ class Atari800 extends devices_1.BasicScanlineMachine {
             this.loadXEX(this.xexdata);
         }
     }
+    setPaddleInput(controller, value) {
+        this.irq_pokey.pot_inputs[controller] = 255 - value;
+    }
 }
 exports.Atari800 = Atari800;
 class Atari5200 extends Atari800 {
