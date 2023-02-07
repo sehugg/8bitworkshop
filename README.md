@@ -13,7 +13,7 @@
 To clone just the main branch:
 
 ```sh
-git clone -b master --single-branch git://github.com/sehugg/8bitworkshop.git
+git clone -b master --single-branch git@github.com:sehugg/8bitworkshop.git
 ```
 
 To build the 8bitworkshop IDE:
