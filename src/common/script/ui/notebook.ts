@@ -349,7 +349,8 @@ class UISliderComponent extends Component<UIComponentProps> {
                 max: slider.max / slider.step,
                 value: slider.value / slider.step,
                 onInput: (ev) => {
-                    let newUIValue = { value: parseFloat(ev.target.value) * slider.step };
+                    let target = ev.target as HTMLInputElement; // TODO
+                    let newUIValue = { value: parseFloat(target.value) * slider.step };
                     this.setState(this.state);
                     current_project.updateDataItems([{key: this.props.iokey, value: newUIValue}]);
                 }
