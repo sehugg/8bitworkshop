@@ -2183,6 +2183,7 @@ function showInstructions() {
             if (exports.platform.isRunning()) {
                 div.fadeIn(200);
                 // toggle sound for browser autoplay
+                exports.platform.pause();
                 exports.platform.resume();
             }
         });
