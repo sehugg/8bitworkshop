@@ -2240,6 +2240,7 @@ function showInstructions() {
       if (platform.isRunning()) {
         div.fadeIn(200);
         // toggle sound for browser autoplay
+        platform.pause();
         platform.resume();
       }
     });
