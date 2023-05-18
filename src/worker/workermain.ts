@@ -516,8 +516,14 @@ class Builder {
     while (this.steps.length) {
       var step = this.steps.shift(); // get top of array
       var platform = step.platform;
-      var toolfn = TOOLS[step.tool];
-      if (!toolfn) throw Error("no tool named " + step.tool);
+      var [tool, remoteTool] = step.tool.split(':', 2);
+      var toolfn = TOOLS[tool];
+      if (!toolfn) {
+        throw Error(`no tool named "${tool}"`);
+      }
+      if (remoteTool) {
+        step.tool = remoteTool;
+      }
       step.params = PLATFORM_PARAMS[getBasePlatform(platform)];
       try {
         step.result = await toolfn(step);
@@ -1121,6 +1127,7 @@ import * as x86 from './tools/x86'
 import * as arm from './tools/arm'
 import * as script from './tools/script'
 import * as ecs from './tools/ecs'
+import * as remote from './tools/remote'
 
 var TOOLS = {
   'dasm': dasm.assembleDASM,
@@ -1158,6 +1165,7 @@ var TOOLS = {
   'vasmarm': arm.assembleVASMARM,
   //'js': script.runJavascript,
   'ecs': ecs.assembleECS,
+  'remote': remote.buildRemote
 }
 
 var TOOL_PRELOADFS = {

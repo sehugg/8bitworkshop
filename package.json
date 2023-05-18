@@ -30,6 +30,8 @@
     "octokat": "^0.10.0",
     "preact": "^10.5.14",
     "split.js": "^1.6.2",
+    "atob": "^2.1.x",
+    "btoa": "^1.2.x",
     "yufka": "^2.0.1"
   },
   "devDependencies": {
@@ -40,11 +42,11 @@
     "@types/jquery": "^3.5.5",
     "@types/mocha": "^9.1.0",
     "@types/node": "^14.14.20",
-    "atob": "^2.1.x",
     "bootstrap": "^3.4.1",
     "bootstrap-tourist": "^0.2.1",
-    "btoa": "^1.2.x",
     "command-exists": "^1.2.9",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
     "esbuild": "^0.12.29",
     "jsdom": "^21.1.0",
     "lzg": "^1.0.x",
@@ -68,8 +70,10 @@
     "tsbuild": "tsc --build tsconfig.json",
     "esbuild": "npm run esbuild-worker && npm run esbuild-ui",
     "esbuild-clean": "rm -f ./gen/*.*",
+    "esbuild-server": "esbuild src/worker/server/server.ts --platform=node --bundle --sourcemap --target=es2020 --outfile=./gen/server/server.js",
     "esbuild-worker": "esbuild src/worker/workermain.ts --bundle --sourcemap --target=es2017 --outfile=./gen/worker/bundle.js",
     "esbuild-ui": "esbuild src/ide/ui.ts src/ide/embedui.ts --splitting --format=esm --bundle --minify --sourcemap --target=es2017 --outdir=./gen/ --external:path --external:fs",
+    "server": "npm run esbuild-server && rm -fr ./server-root/sessions && node gen/server/server.js",
     "test-one": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000",
     "test-node": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 test/cli gen/test",
     "test-profile": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 --prof test/cli gen/test",
@@ -97,7 +101,7 @@
   "build": {
     "appId": "com.8bitworkshop.ide",
     "icon": "meta/icons/8bitworkshop-icon-1024.png",
-    "copyright": "Copyright (c) 2021 Puzzling Plans LLC",
+    "copyright": "Copyright (c) 2023 Puzzling Plans LLC",
     "linux": {
       "category": "Development"
     }
