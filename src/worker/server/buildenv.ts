@@ -2,9 +2,10 @@
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
-import { WorkerBuildStep, WorkerError, WorkerFileUpdate, WorkerResult } from '../../common/workertypes';
+import { CodeListingMap, WorkerBuildStep, WorkerError, WorkerErrorResult, WorkerFileUpdate, WorkerResult, isOutputResult } from '../../common/workertypes';
 import { getBasePlatform, getRootBasePlatform } from '../../common/util';
 import { BuildStep, makeErrorMatcher } from '../workermain';
+import { parseObjDumpListing, parseObjDumpSymbolTable } from './clang';
 
 
 const LLVM_MOS_TOOL: ServerBuildTool = {
@@ -14,16 +15,26 @@ const LLVM_MOS_TOOL: ServerBuildTool = {
     archs: ['6502'],
     platforms: ['atari8', 'c64', 'nes'],
     platform_configs: {
-        c64: {
+        default: {
             binpath: 'llvm-mos/bin',
-            command: 'mos-c64-clang',
-            args: ['-Os', '-g', '-o', '$OUTFILE', '$INFILES']
+            command: 'mos-clang',
+            args: ['-Os', '-g', '-o', '$OUTFILE', '$INFILES'],
         },
         debug: { // TODO
             binpath: 'llvm-mos/bin',
             command: 'llvm-objdump',
-            args: ['-l', '-t', '$ELFFILE']
-        }
+            args: ['-l', '-t', '$WORKDIR/a.out.elf', '>$WORKDIR/debug.out']
+        },
+        c64: {
+            command: 'mos-c64-clang',
+        },
+        atari8: {
+            command: 'mos-atari8-clang',
+        },
+        nes: {
+            command: 'mos-nes-nrom-clang', // TODO
+            libargs: ['-lneslib']
+        },
     }
 }
 
@@ -52,10 +63,12 @@ interface ServerBuildTool {
 }
 
 interface ServerBuildToolPlatformConfig {
-    binpath: string;
-    command: string;
-    args: string[];
+    binpath?: string;
+    command?: string;
+    args?: string[];
+    libargs?: string[];
 }
+
 
 
 export class ServerBuildEnv {
@@ -64,10 +77,9 @@ export class ServerBuildEnv {
     sessionID: string;
     tool: ServerBuildTool;
     sessionDir: string;
-    errors: WorkerError[] = [];
 
     constructor(rootdir: string, sessionID: string, tool: ServerBuildTool) {
-        this.rootdir = rootdir;
+        this.rootdir = path.resolve(rootdir);
         this.sessionID = sessionID;
         this.tool = tool;
         // make sure sessionID is well-formed
@@ -75,7 +87,7 @@ export class ServerBuildEnv {
             throw new Error(`Invalid sessionID: ${sessionID}`);
         }
         // create sessionID directory if it doesn't exist
-        this.sessionDir = path.join(rootdir, 'sessions', sessionID);
+        this.sessionDir = path.join(this.rootdir, 'sessions', sessionID);
         if (!fs.existsSync(this.sessionDir)) {
             fs.mkdirSync(this.sessionDir);
         }
@@ -89,20 +101,26 @@ export class ServerBuildEnv {
         await fs.promises.writeFile(path.join(this.sessionDir, file.path), file.data);
     }
 
-    async build(step: WorkerBuildStep): Promise<void> {
-        let platformID = getRootBasePlatform(step.platform);
+    async build(step: WorkerBuildStep, platform?: string): Promise<WorkerResult> {
+        // build config
+        let platformID = platform || getRootBasePlatform(step.platform);
         let config = this.tool.platform_configs[platformID];
         if (!config) {
             throw new Error(`No config for platform ${platformID}`);
         }
+        let defaultConfig = this.tool.platform_configs.default;
+        if (!defaultConfig) {
+            throw new Error(`No default config for tool ${this.tool.name}`);
+        }
+        config = Object.assign({}, defaultConfig, config); // combine configs
+        // copy args
         let args = config.args.slice(0); //copy array
         let command = config.command;
         // replace $OUTFILE
-        let outfile = path.join(this.sessionDir, 'a.out');
+        let outfile = path.join(this.sessionDir, 'a.out'); // TODO? a.out
         for (let i = 0; i < args.length; i++) {
-            if (args[i] === '$OUTFILE') {
-                args[i] = outfile;
-            }
+            args[i] = args[i].replace(/\$OUTFILE/g, outfile);
+            args[i] = args[i].replace(/\$WORKDIR/g, this.sessionDir);
         }
         // replace $INFILES with the list of input files
         // TODO
@@ -119,44 +137,87 @@ export class ServerBuildEnv {
                 break;
             }
         }
+        if (config.libargs) {
+            args = args.concat(config.libargs);
+        }
         console.log(`Running: ${command} ${args.join(' ')}`);
         // spawn after setting PATH env var
         // TODO
-        let childProcess = spawn(command, args, { shell: true, env: { PATH: path.join(this.rootdir, config.binpath) } });
+        let childProcess = spawn(command, args, {
+            shell: true,
+            cwd: this.rootdir,
+            env: { PATH: path.join(this.rootdir, config.binpath)
+        } });
         let outputData = '';
         let errorData = '';
-        let errors = [];
-        let errorMatcher = makeErrorMatcher(errors, /([^:/]+):(\d+):(\d+):\s*(.+)/, 2, 4, step.path, 1);
+        // TODO?
         childProcess.stdout.on('data', (data) => {
             outputData += data.toString();
         });
         childProcess.stderr.on('data', (data) => {
             errorData += data.toString();
         });
-        await new Promise((resolve, reject) => {
-            childProcess.on('close', (code) => {
-                // split errorData into lines
-                for (let line of errorData.split('\n')) {
-                    errorMatcher(line);
-                }
+        return new Promise((resolve, reject) => {
+            childProcess.on('close', async (code) => {
                 if (code === 0) {
-                    this.errors = [];
-                    resolve(0);
+                    if (platform === 'debug') {
+                        resolve(this.processDebugInfo(step));
+                    } else {
+                        resolve(this.processOutput(step));
+                    }
                 } else {
-                    this.errors = errors;
-                    resolve(0);
+                    let errorResult = await this.processErrors(step, errorData);
+                    if (errorResult.errors.length === 0) {
+                        errorResult.errors.push({ line: 0, msg: `Build failed.\n\n${errorData}` });
+                    }
+                    resolve(errorResult);
                 }
             });
         });
     }
 
-    async processResult(): Promise<WorkerResult> {
-        if (this.errors.length) {
-            return { errors: this.errors };
-        } else {
-            let outfile = path.join(this.sessionDir, 'a.out');
-            let output = await fs.promises.readFile(outfile, { encoding: 'base64' });
-            return { output };
+    async processErrors(step: WorkerBuildStep, errorData: string): Promise<WorkerErrorResult> {
+        let errors = [];
+        // split errorData into lines
+        let errorMatcher = makeErrorMatcher(errors, /([^:/]+):(\d+):(\d+):\s*(.+)/, 2, 4, step.path, 1);
+        for (let line of errorData.split('\n')) {
+            errorMatcher(line);
+        }
+        return { errors };
+    }
+
+    async processOutput(step: WorkerBuildStep): Promise<WorkerResult> {
+        let outfile = path.join(this.sessionDir, 'a.out');
+        let output = await fs.promises.readFile(outfile, { encoding: 'base64' });
+        return { output };
+    }
+
+    async processDebugInfo(step: WorkerBuildStep): Promise<WorkerResult> {
+        let dbgfile = path.join(this.sessionDir, 'debug.out');
+        let dbglist = await fs.promises.readFile(dbgfile);
+        let listings = parseObjDumpListing(dbglist.toString());
+        let symbolmap = parseObjDumpSymbolTable(dbglist.toString());
+        return { output: [], listings, symbolmap };
+    }
+
+    async compileAndLink(step: WorkerBuildStep, updates: WorkerFileUpdate[]): Promise<WorkerResult> {
+        for (let file of updates) {
+            await this.addFileUpdate(file);
+        }
+        try {
+            let result = await this.build(step);
+            // did we succeed?
+            if (isOutputResult(result)) {
+                // do the debug info
+                const debugInfo = await this.build(step, 'debug');
+                if (isOutputResult(debugInfo)) {
+                    result.listings = debugInfo.listings;
+                    result.symbolmap = debugInfo.symbolmap;
+                }
+            }
+            return result;
+        } catch (err) {
+            return { errors: [{line:0, msg: err.toString()}] };
         }
     }
 }
