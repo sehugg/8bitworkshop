@@ -64,6 +64,11 @@
     "rgbquant": "^1.1.2",
     "typedoc": "^0.22.11"
   },
+  "overrides": {
+    "fetch-vcr": {
+      "node-fetch": "2.6.7"
+    }
+  },
   "scripts": {
     "build": "make prepare",
     "test": "npm run test-node",
