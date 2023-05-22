@@ -46,6 +46,7 @@ interface UIQueryString {
   file0_name? : string;
   file0_data? : string;
   file0_type? : string;
+  tool?: string;
 }
 
 export var qs : UIQueryString = decodeQueryString(window.location.search||'?') as UIQueryString;
@@ -252,6 +253,7 @@ async function newFilesystem() {
 async function initProject() {
   var filesystem = await newFilesystem();
   current_project = new CodeProject(newWorker(), platform_id, platform, filesystem);
+  current_project.remoteTool = qs.tool || null;
   projectWindows = new ProjectWindows($("#workspace")[0] as HTMLElement, current_project);
   current_project.callbackBuildResult = (result:WorkerResult) => {
     setCompileOutput(result);

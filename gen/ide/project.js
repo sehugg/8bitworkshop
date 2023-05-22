@@ -118,8 +118,16 @@ class CodeProject {
         }
         this.callbackBuildResult(data);
     }
+    getToolForFilename(path) {
+        if (this.remoteTool) {
+            return "remote:" + this.remoteTool;
+        }
+        else {
+            return this.platform.getToolForFilename(path);
+        }
+    }
     preloadWorker(path) {
-        var tool = this.platform.getToolForFilename(path);
+        var tool = this.getToolForFilename(path);
         if (tool && !this.tools_preloaded[tool]) {
             this.worker.postMessage({ preload: tool, platform: this.platform_id });
             this.tools_preloaded[tool] = true;
@@ -256,7 +264,7 @@ class CodeProject {
             path: mainfilename,
             files: [mainfilename].concat(depfiles),
             platform: this.platform_id,
-            tool: this.platform.getToolForFilename(this.mainPath),
+            tool: this.getToolForFilename(this.mainPath),
             mainfile: true
         });
         for (var dep of depends) {
@@ -267,7 +275,7 @@ class CodeProject {
                     path: dep.filename,
                     files: [dep.filename].concat(depfiles),
                     platform: this.platform_id,
-                    tool: this.platform.getToolForFilename(dep.path)
+                    tool: this.getToolForFilename(dep.path)
                 });
             }
         }

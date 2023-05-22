@@ -36,6 +36,24 @@
       return v + "";
     }
   }
+  function stringToByteArray(s) {
+    var a = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++)
+      a[i] = s.charCodeAt(i);
+    return a;
+  }
+  function byteArrayToString(data) {
+    var str = "";
+    if (data != null) {
+      var charLUT = new Array();
+      for (var i = 0; i < 256; ++i)
+        charLUT[i] = String.fromCharCode(i);
+      var len = data.length;
+      for (var i = 0; i < len; i++)
+        str += charLUT[data[i]];
+    }
+    return str;
+  }
   function getBasePlatform(platform) {
     return platform.split(".")[0];
   }
@@ -8733,6 +8751,54 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     }
   }
 
+  // src/common/workertypes.ts
+  function isUnchanged(result) {
+    return "unchanged" in result;
+  }
+  function isErrorResult(result) {
+    return "errors" in result;
+  }
+  function isOutputResult(result) {
+    return "output" in result;
+  }
+
+  // src/worker/tools/remote.ts
+  var REMOTE_URL = "http://localhost:3009/build";
+  var sessionID = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  async function buildRemote(step) {
+    gatherFiles(step);
+    var binpath = "a.out";
+    if (staleFiles(step, [binpath])) {
+      let updates = [];
+      for (var i = 0; i < step.files.length; i++) {
+        let path = step.files[i];
+        let entry = store.workfs[path];
+        let data = typeof entry.data === "string" ? entry.data : btoa(byteArrayToString(entry.data));
+        updates.push({ path, data });
+      }
+      let cmd = { buildStep: step, updates, sessionID };
+      console.log("POST", cmd);
+      let result = await fetch(REMOTE_URL, {
+        method: "POST",
+        mode: "cors",
+        body: JSON.stringify(cmd),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      let json = await result.json();
+      if (isUnchanged(json))
+        return json;
+      if (isErrorResult(json))
+        return json;
+      if (isOutputResult(json)) {
+        json.output = stringToByteArray(atob(json.output));
+        return json;
+      }
+      throw new Error(`Unexpected result from remote build: ${JSON.stringify(json)}`);
+    }
+  }
+
   // src/worker/workermain.ts
   var ENVIRONMENT_IS_WEB = typeof window === "object";
   var ENVIRONMENT_IS_WORKER = typeof importScripts === "function";
@@ -9181,9 +9247,14 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       while (this.steps.length) {
         var step = this.steps.shift();
         var platform = step.platform;
-        var toolfn = TOOLS[step.tool];
-        if (!toolfn)
-          throw Error("no tool named " + step.tool);
+        var [tool, remoteTool] = step.tool.split(":", 2);
+        var toolfn = TOOLS[tool];
+        if (!toolfn) {
+          throw Error(`no tool named "${tool}"`);
+        }
+        if (remoteTool) {
+          step.tool = remoteTool;
+        }
         step.params = PLATFORM_PARAMS[getBasePlatform(platform)];
         try {
           step.result = await toolfn(step);
@@ -9755,7 +9826,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     "wiz": compileWiz,
     "armips": assembleARMIPS,
     "vasmarm": assembleVASMARM,
-    "ecs": assembleECS
+    "ecs": assembleECS,
+    "remote": buildRemote
   };
   var TOOL_PRELOADFS = {
     "cc65-apple2": "65-apple2",

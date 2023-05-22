@@ -101,6 +101,7 @@ export class CodeProject {
   filename2path = {}; // map stripped paths to full paths
   filesystem : ProjectFilesystem;
   dataItems : WorkerItemUpdate[];
+  remoteTool? : string;
 
   callbackBuildResult : BuildResultCallback;
   callbackBuildStatus : BuildStatusCallback;
@@ -135,8 +136,16 @@ export class CodeProject {
     this.callbackBuildResult(data);
   }
 
+  getToolForFilename(path) {
+    if (this.remoteTool) {
+      return "remote:" + this.remoteTool;
+    } else {
+      return this.platform.getToolForFilename(path);
+    }
+  }
+
   preloadWorker(path:string) {
-    var tool = this.platform.getToolForFilename(path);
+    var tool = this.getToolForFilename(path);
     if (tool && !this.tools_preloaded[tool]) {
       this.worker.postMessage({preload:tool, platform:this.platform_id});
       this.tools_preloaded[tool] = true;
@@ -277,7 +286,7 @@ export class CodeProject {
       path:mainfilename,
       files:[mainfilename].concat(depfiles),
       platform:this.platform_id,
-      tool:this.platform.getToolForFilename(this.mainPath),
+      tool:this.getToolForFilename(this.mainPath),
       mainfile:true});
     for (var dep of depends) {
       if (dep.data && dep.link) {
@@ -287,7 +296,7 @@ export class CodeProject {
           path:dep.filename,
           files:[dep.filename].concat(depfiles),
           platform:this.platform_id,
-          tool:this.platform.getToolForFilename(dep.path)});
+          tool:this.getToolForFilename(dep.path)});
       }
     }
     if (this.dataItems) msg.setitems = this.dataItems;

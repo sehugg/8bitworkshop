@@ -217,6 +217,7 @@ async function newFilesystem() {
 async function initProject() {
     var filesystem = await newFilesystem();
     exports.current_project = new project_1.CodeProject(newWorker(), exports.platform_id, exports.platform, filesystem);
+    exports.current_project.remoteTool = exports.qs.tool || null;
     exports.projectWindows = new windows_1.ProjectWindows($("#workspace")[0], exports.current_project);
     exports.current_project.callbackBuildResult = (result) => {
         setCompileOutput(result);

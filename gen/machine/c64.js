@@ -31,23 +31,40 @@ class C64_WASMMachine extends wasmplatform_1.BaseWASMMachine {
             this.prgstart = this.romarr[0] + (this.romarr[1] << 8); // get load address
             // look for BASIC program start
             if (this.prgstart == 0x801) {
-                this.prgstart = this.romarr[2] + (this.romarr[3] << 8) + 2; // point to after BASIC program
-                console.log("prgstart", (0, util_1.hex)(this.prgstart));
+                // decode SYS address from decimal?
+                if (this.romarr[6] == 0x9e) {
+                    var addr = 0;
+                    for (var i = 0; i < 5; i++) {
+                        var ch = this.romarr[7 + i];
+                        if (ch == 0x9b || ch == 0)
+                            break;
+                        addr = addr * 10 + (ch & 0xf);
+                    }
+                    this.prgstart = addr;
+                    console.log("SYS", addr, (0, util_1.hex)(addr));
+                }
+                else {
+                    this.prgstart = this.romarr[2] + (this.romarr[3] << 8) + 2; // point to after BASIC program
+                    console.log("RUN", this.prgstart, (0, util_1.hex)(this.prgstart));
+                }
             }
             // is program loaded into RAM?
             if (this.prgstart < 0x8000) {
                 // advance BIOS a few frames
                 this.exports.machine_exec(this.sys, 250000);
                 // type in command (SYS 2061)
-                var cmd = "\rSYS " + this.prgstart + "\r";
+                var cmd = "\rSYS " + this.prgstart;
                 for (var i = 0; i < cmd.length; i++) {
                     var key = cmd.charCodeAt(i);
-                    this.exports.machine_exec(this.sys, 20000);
+                    this.exports.machine_exec(this.sys, 30000);
                     this.exports.machine_key_down(this.sys, key);
-                    this.exports.machine_exec(this.sys, 5000);
+                    this.exports.machine_exec(this.sys, 30000);
                     this.exports.machine_key_up(this.sys, key);
+                    this.exports.machine_exec(this.sys, 1); // chips/kbd.c has a "sticky counter"
                 }
                 // advance clock until program starts
+                this.exports.machine_key_down(this.sys, 13);
+                this.exports.machine_exec(this.sys, 1); // chips/kbd.c has a "sticky counter"
                 for (var i = 0; i < 100000 && this.getPC() != this.prgstart; i++) {
                     this.exports.machine_tick(this.sys);
                 }

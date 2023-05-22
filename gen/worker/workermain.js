@@ -481,9 +481,14 @@ class Builder {
         while (this.steps.length) {
             var step = this.steps.shift(); // get top of array
             var platform = step.platform;
-            var toolfn = TOOLS[step.tool];
-            if (!toolfn)
-                throw Error("no tool named " + step.tool);
+            var [tool, remoteTool] = step.tool.split(':', 2);
+            var toolfn = TOOLS[tool];
+            if (!toolfn) {
+                throw Error(`no tool named "${tool}"`);
+            }
+            if (remoteTool) {
+                step.tool = remoteTool;
+            }
             step.params = PLATFORM_PARAMS[(0, util_1.getBasePlatform)(platform)];
             try {
                 step.result = await toolfn(step);
@@ -1108,6 +1113,7 @@ const z80 = __importStar(require("./tools/z80"));
 const x86 = __importStar(require("./tools/x86"));
 const arm = __importStar(require("./tools/arm"));
 const ecs = __importStar(require("./tools/ecs"));
+const remote = __importStar(require("./tools/remote"));
 var TOOLS = {
     'dasm': dasm.assembleDASM,
     //'acme': assembleACME,
@@ -1144,6 +1150,7 @@ var TOOLS = {
     'vasmarm': arm.assembleVASMARM,
     //'js': script.runJavascript,
     'ecs': ecs.assembleECS,
+    'remote': remote.buildRemote
 };
 var TOOL_PRELOADFS = {
     'cc65-apple2': '65-apple2',
