@@ -367,6 +367,22 @@ Programmatic Asset Language
 - RLE compression
 - check constraints
 
+https://github.com/endojs/endo/blob/master/packages/ses/README.md
+
+- CPU-independent IR
+- structured assembler IR
+- ECS/macros module
+- HLL
+- static analysis module
+- linker/placement module
+  - inlining, data reuse
+  - nested tag for segments
+- binary generation module
+- remote fetch module
+- asset module (bitmaps, sprites, tiles, palettes, compression...)
+- asset editor UI
+- debugging API (custom state, per-cycle watchpoints)
+
 
 ---
 
@@ -540,7 +556,6 @@ Should call trap() every cycle or insn of frame, or exit when returns true?
 
 BETTER DEBUGGING
 
-Need to mark start/end columns, not just line number
 Know if we are actively debugging or trap occurred
 isRunning() = stopped, running, waiting, debugging...
 Showing running PC may be distracting, maybe lines visited?
@@ -561,3 +576,4 @@ preprocessor differences (#define FOO 1 so #if works)
 extern void do_func(void)
 #pragma warnings
 CFG files
+
