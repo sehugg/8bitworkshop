@@ -106,6 +106,7 @@ class MARIA {
   dli : boolean = false;
   h16 : boolean = false;
   h8 : boolean = false;
+  indirect : boolean = false;
   pixels = new Uint8Array(320);
   WSYNC : number = 0;
 
@@ -130,6 +131,7 @@ class MARIA {
       dli: this.dli,
       h16: this.h16,
       h8: this.h8,
+      indirect: this.indirect,
     };
   }
   loadState(s) {
@@ -141,6 +143,7 @@ class MARIA {
     this.dli = !!s.dli;
     this.h16 = !!s.h16;
     this.h8 = !!s.h8;
+    this.indirect = !!s.indirect;
   }
   isDMAEnabled() {
     return (this.regs[0x1c] & 0x60) == 0x40;
@@ -174,6 +177,7 @@ class MARIA {
     this.dli = (bus.read(this.dll) & 0x80) != 0; // DLI flag is from next DLL entry
   }
   isHoley(a : number) : boolean {
+    if (this.indirect) return false;
     if (a & 0x8000) {
       if (this.h16 && (a & 0x1000)) return true;
       if (this.h8  && (a & 0x800))  return true;
@@ -229,6 +233,7 @@ class MARIA {
           dlofs += 4;
           this.cycles += 8;
         }
+        this.indirect = indirect;
         let gfxadr = b0 + (((b2 + (indirect?0:this.offset)) & 0xff) << 8);
         xpos *= 2;
         // copy graphics data (direct)
@@ -521,6 +526,75 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
       case 'MARIA': return MARIA.stateToLongString(state.maria) + "\nScanline: " + this.scanline;
       //default: return super.getDebugInfo(category, state);
     }
+  }
+  getDebugDisplayLists() {
+    // return display list in human-readable JSON object
+    let display_lists = {};
+    let dll_ofs = this.maria.getDLLStart();
+    // read the address of each DLL entry
+    let y = 0;
+    while (y < 240) {
+      let x = this.readConst(dll_ofs);
+      let offset = (x & 0xf);
+      let h16 = (x & 0x40) != 0;
+      let h8  = (x & 0x20) != 0;
+      let dlstart = (this.readConst(dll_ofs+1)<<8) + this.readConst(dll_ofs+2);
+      dll_ofs = (dll_ofs + 3) & 0xffff; // TODO: can also only cross 1 page?
+      let dli = (this.readConst(dll_ofs) & 0x80) != 0; // DLI flag is from next DLL entry
+      let title = "DL $" + hex(dlstart,4) + " " + y + "-" + (y+offset);
+      if (h16) title += " H16";
+      if (h8) title += " H8";
+      if (dli) title += " DLI";
+      display_lists[title] = { "$$": this._readDebugDisplayList(dlstart) };
+      y += offset + 1;
+    }
+    return display_lists;
+  }
+  _readDebugDisplayList(dlstart: number) {
+    return () => this.readDebugDisplayList(dlstart);
+  }
+  readDebugDisplayList(dlstart: number) {
+    let display_list = [];
+    let dlhi = dlstart & 0xff00;
+    let dlofs = dlstart & 0xff;
+    do {
+      // read DL entry
+      let b0 = this.readConst(dlhi + ((dlofs+0) & 0x1ff));
+      let b1 = this.readConst(dlhi + ((dlofs+1) & 0x1ff));
+      if (b1 == 0) break; // end of DL
+      // display lists must be in RAM (TODO: probe?)
+      let b2 = this.readConst(dlhi + ((dlofs+2) & 0x1ff));
+      let b3 = this.readConst(dlhi + ((dlofs+3) & 0x1ff));
+      // extended header?
+      let indirect = false;
+      let description = "";
+      if ((b1 & 31) == 0) {
+        var pal = b3 >> 5;
+        var width = 32 - (b3 & 31);
+        var xpos = this.readConst(dlhi + ((dlofs+4) & 0x1ff));
+        var writemode = b1 & 0x80;
+        indirect = (b1 & 0x20) != 0;
+        dlofs += 5;
+        description += "X=" + xpos + " W=" + width + " P=" + pal + " " + (writemode?"WRITE":"");
+      } else {
+        // direct mode
+        var xpos = b3;
+        var pal = b1 >> 5;
+        var width = 32 - (b1 & 31);
+        var writemode = 0;
+        dlofs += 4;
+        description += "X=" + xpos + " W=" + width + " P=" + pal;
+      }
+      let gfxadr = b0 + (((b2 + (indirect?0:this.maria.offset)) & 0xff) << 8);
+      let readmode = (this.maria.regs[0x1c] & 0x3) + (writemode?4:0);
+      let dbl = indirect && (this.maria.regs[0x1c] & 0x10) != 0;
+      if (readmode) description += " READMODE=" + readmode;
+      if (dbl) description += " DBL";
+      if (indirect) description += " CHR=$" + hex((this.maria.regs[0x14] + this.maria.offset) & 0xff) + "xx";
+      description = " $" + hex(gfxadr,4) + " " + description;
+      display_list.push(description);
+    } while (dlofs < 0x200);
+    return display_list;
   }
 }
 
