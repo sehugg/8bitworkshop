@@ -42,7 +42,7 @@ const ANTIC_LEFT = 17 - 4; // gtia 34, 4 cycle delay
 const ANTIC_RIGHT = 110 - 4; // gtia 221, 4 cycle delay
 const LAST_DMA_H = 105; // last DMA cycle
 
-const MODE_LINES = [0, 0, 8, 10, 8, 16, 8, 16, 8, 4, 4, 2, 1, 2, 1, 1];
+export const MODE_LINES = [0, 0, 8, 10, 8, 16, 8, 16, 8, 4, 4, 2, 1, 2, 1, 1];
 // how many bits before DMA clock repeats?
 const MODE_PERIOD = [0, 0, 2, 2, 2, 2, 4, 4, 8, 4, 4, 4, 4, 2, 2, 2];
 const MODE_YPERIOD = [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 1, 0, 0, 0, 0];
@@ -199,8 +199,12 @@ export class ANTIC {
         }
     }
 
+    getDlistAddr() {
+        return this.regs[DLISTL] + (this.regs[DLISTH] << 8);
+    }
+
     nextInsn(): number {
-        let pc = this.regs[DLISTL] + (this.regs[DLISTH] << 8);
+        let pc = this.getDlistAddr();
         let b = this.read(pc);
         //console.log('nextInsn', hex(pc), hex(b), this.v);
         pc = ((pc + 1) & 0x3ff) | (pc & ~0x3ff);
