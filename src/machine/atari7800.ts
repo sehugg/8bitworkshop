@@ -28,6 +28,10 @@ interface Atari7800State extends Atari7800StateBase, Atari7800ControlsState {
     offset,dll,dlstart : number;
     dli,h16,h8 : boolean;
   };
+  pia : {
+    timer: number;
+    interval: number;
+  }
 }
 
 const SWCHA = 0;
@@ -56,11 +60,14 @@ const Atari7800_KEYCODE_MAP = makeKeycodeMap([
 
 // http://www.ataripreservation.org/websites/freddy.offenga/megazine/ISSUE5-PALNTSC.html
 // http://7800.8bitdev.org/index.php/7800_Software_Guide#APPENDIX_4:_FRAME_TIMING
+// https://forums.atariage.com/topic/224025-7800-hardware-facts/
 const CLK = 3579545;
-const linesPerFrame = 262;
+const linesPerFrame = 263;
 const numVisibleLines = 258-16;
-const colorClocksPerLine = 454; // 456?
+const colorClocksPerLine = 451; // 451? 452? 456?
 const colorClocksPreDMA = 28;
+const colorClocksShutdownOther = 16;
+const colorClocksShutdownLast = 24;
 const audioOversample = 2;
 const audioSampleRate = linesPerFrame*60*audioOversample;
 
@@ -185,9 +192,9 @@ class MARIA {
     return false;
   }
   readDMA(a : number) : number {
-    if (this.isHoley(a))
+    if (this.isHoley(a)) {
       return 0;
-    else {
+    } else {
       this.cycles += 3;
       return this.bus.read(a);
     }
@@ -197,7 +204,8 @@ class MARIA {
     this.cycles = 0;
     this.pixels.fill(this.regs[0x0]);
     if (this.isDMAEnabled()) {
-      this.cycles += 16; // TODO: last line in zone gets additional 8 cycles
+      // last line in zone gets additional 8 cycles
+      this.cycles += this.offset == 0 ? colorClocksShutdownLast : colorClocksShutdownOther;
       // time for a new DLL entry?
       if (this.offset < 0) {
         this.readDLLEntry(bus);
@@ -317,6 +325,8 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
   cpu : MOS6502;
   ram : Uint8Array = new Uint8Array(0x1000);
   regs6532 = new Uint8Array(4);
+  piatimer : number = 0;
+  timerinterval : number = 1;
   tia : TIA = new TIA();
   maria : MARIA = new MARIA();
   pokey1; //TODO: type
@@ -340,7 +350,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
         [0x0040, 0x00ff,   0xff, (a) => { return this.ram[a + 0x800]; }],
         [0x0100, 0x013f,   0xff, (a) => { return this.read(a); }], // shadow
         [0x0140, 0x01ff,  0x1ff, (a) => { return this.ram[a + 0x800]; }],
-        [0x0280, 0x02ff,    0x3, (a) => { this.xtracyc++; return this.inputs[a]; }],
+        [0x0280, 0x02ff,   0x7f, (a) => { this.xtracyc++; return this.readPIA(a); }],
         [0x1800, 0x27ff, 0xffff, (a) => { return this.ram[a - 0x1800]; }],
         [0x2800, 0x3fff,  0x7ff, (a) => { return this.read(a | 0x2000); }], // shadow
         [0x4000, 0xffff, 0xffff, (a) => { return this.rom ? this.rom[a - 0x4000] : 0; }],
@@ -353,7 +363,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
         [0x0040, 0x00ff,   0xff, (a,v) => { this.ram[a + 0x800] = v; }],
         [0x0100, 0x013f,   0xff, (a,v) => { this.write(a,v); }], // shadow
         [0x0140, 0x01ff,  0x1ff, (a,v) => { this.ram[a + 0x800] = v; }],
-        [0x0280, 0x02ff,    0x3, (a,v) => { this.xtracyc++; this.regs6532[a] = v; /*TODO*/ }],
+        [0x0280, 0x02ff,   0x7f, (a,v) => { this.xtracyc++; this.writePIA(a,v) }],
         [0x1800, 0x27ff, 0xffff, (a,v) => { this.ram[a - 0x1800] = v; }],
         [0x2800, 0x3fff,  0x7ff, (a,v) => { this.write(a | 0x2000, v); }], // shadow
         [0xbfff, 0xbfff, 0xffff, (a,v) => { }], // TODO: bank switching?
@@ -383,14 +393,68 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
     }
   }
 
+  readPIA(a:number) : number {
+    switch (a) {
+      case 0x0:
+      case 0x2:
+        return this.inputs[a]; // SWCHA, SWCHB
+      case 0x1:
+      case 0x3:
+        return this.regs6532[a]; // CTLSWA, CTLSWB
+      case 0x4:
+        return this.getPIATimerValue(); // INTIM
+      default:
+        return 0;
+    }
+  }
+
+  writePIA(a:number, v:number) : void {
+    switch (a) {
+      case 0x0:
+      case 0x1:
+      case 0x2:
+      case 0x3:
+        this.regs6532[a] = v;
+        return;
+      case 0x14: this.setPIATimer(v, 0); return; // TIM1T
+      case 0x15: this.setPIATimer(v, 3); return; // TIM8T
+      case 0x16: this.setPIATimer(v, 6); return; // TIM64T
+      case 0x17: this.setPIATimer(v, 10); return; // T1024T
+      case 0x18: this.setPIATimer(v, 6); return; // TIM64TI (TODO)
+    }
+  }
+
+  setPIATimer(v:number, shift:number) : void {
+    this.piatimer = (v + 1) << shift;
+    this.timerinterval = shift;
+  }
+
+  getPIATimerValue() : number {
+    let t = this.piatimer;
+    if (t > 0) {
+      return t >> this.timerinterval;
+    } else {
+      return t & 0xff;
+    }
+  }
+
   advanceCPU() : number {
     var clk = super.advanceCPU();
+    this.tickPIATimer(clk); // TODO?
     if (this.xtracyc) {
       clk += this.xtracyc;
-      this.probe.logClocks(this.xtracyc);
+      this.tickClocks(this.xtracyc);
       this.xtracyc = 0;
     }
     return clk;
+  }
+
+  tickClocks(clocks:number) {
+    this.probe.logClocks(clocks);
+    this.tickPIATimer(clocks);
+  }
+  tickPIATimer(clocks:number) {
+    this.piatimer = Math.max(-256, this.piatimer - clocks);
   }
 
   advanceFrame(trap) : number {
@@ -423,7 +487,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
       if (visible) {
         // do DMA for scanline?
         let dmaClocks = this.maria.doDMA(this.dmaBus);
-        this.probe.logClocks(dmaClocks >> 2); // TODO: logDMA
+        this.tickClocks(dmaClocks >> 2); // TODO: logDMA
         mc += dmaClocks;
         // copy line to frame buffer
         if (idata) {
@@ -441,7 +505,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
       while (mc < colorClocksPerLine) {
         if (this.maria.WSYNC) {
           this.probe.logWait(0);
-          this.probe.logClocks((colorClocksPerLine - mc) >> 2);
+          this.tickClocks((colorClocksPerLine - mc) >> 2);
           mc = colorClocksPerLine;
           break;
         }
@@ -496,6 +560,8 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
     this.tia.loadState(state.tia);
     this.maria.loadState(state.maria);
     this.regs6532.set(state.regs6532);
+    this.piatimer = state.pia.timer;
+    this.timerinterval = state.pia.interval;
     this.loadControlsState(state);
   }
   saveState() : Atari7800State {
@@ -505,7 +571,8 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
       tia:this.tia.saveState(),
       maria:this.maria.saveState(),
       regs6532:this.regs6532.slice(0),
-      inputs:this.inputs.slice(0)
+      inputs:this.inputs.slice(0),
+      pia:{timer:this.piatimer, interval: this.timerinterval}
     };
   }
   loadControlsState(state:Atari7800ControlsState) : void {
