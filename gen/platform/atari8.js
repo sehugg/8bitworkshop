@@ -64,6 +64,11 @@ class Atari800Platform extends baseplatform_1.Base6502MachinePlatform {
         else
             throw new Error('could not load BIOS file');
     }
+    getDebugTree() {
+        let tree = super.getDebugTree();
+        tree['display_list'] = this.machine.getDebugDisplayList();
+        return tree;
+    }
 }
 class Atari5200Platform extends Atari800Platform {
     constructor() {

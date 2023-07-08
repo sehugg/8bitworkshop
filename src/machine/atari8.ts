@@ -5,7 +5,7 @@ import { AcceptsKeyInput, AcceptsPaddleInput, AcceptsROM, BasicScanlineMachine, 
 import { KeyFlags, Keys, makeKeycodeMap, newAddressDecoder, newKeyboardHandler } from "../common/emu";
 import { hex } from "../common/util";
 import { BaseWASIMachine } from "../common/wasmplatform";
-import { ANTIC, MODE_SHIFT } from "./chips/antic";
+import { ANTIC, MODE_LINES, MODE_SHIFT } from "./chips/antic";
 import { CONSOL, GTIA, TRIG0 } from "./chips/gtia";
 import { POKEY } from "./chips/pokey";
 
@@ -408,6 +408,49 @@ export class Atari800 extends BasicScanlineMachine implements AcceptsPaddleInput
 
   setPaddleInput(controller: number, value: number): void {
     this.irq_pokey.pot_inputs[controller] = 255 - value;
+  }
+
+  getDebugDisplayList() {
+    let pc = this.antic.getDlistAddr();
+    const nextInsn = () => {
+      let b = this.read(pc);
+      pc = ((pc + 1) & 0x3ff) | (pc & ~0x3ff);
+      return b;
+    }
+    let dlist = {};
+    let y = 0;
+    for (let i=0; i<256 && y<240; i++) {
+      let pc0 = pc;
+      let op = nextInsn(); // get mode
+      let mode = op & 0xf;
+      let debugmsg = ""; // op=" + hex(op);
+      let jmp = false;
+      let lines;
+      if (mode == 0) {
+        lines = (((op >> 4) & 7) + 1);
+        debugmsg += " blank=" + lines;
+      } else {
+        lines = MODE_LINES[mode];
+        debugmsg += " mode=" + hex(mode);
+        debugmsg += " lines=" + lines;
+        jmp = (op & ~0x40) == 0x01; // JMP insn?
+        let lms = (op & 0x40) != 0 && (op & 0xf) != 0; // LMS insn?
+        if (jmp && (op & 0x40)) { debugmsg += " JVB"; }
+        else if (jmp) debugmsg += " JMP";
+        else if (lms) debugmsg += " LMS";
+        if (this.antic.isPlayfieldDMAEnabled() && (jmp || lms)) {
+          let dlarg_lo = nextInsn();
+          let dlarg_hi = nextInsn();
+          debugmsg += " $" + hex(dlarg_hi) + "" + hex(dlarg_lo);
+        }
+        if (op & 0x10) { debugmsg += " HSCROL"; }
+        if (op & 0x20) { debugmsg += " VSCROL"; }
+      }
+      dlist["$"+hex(pc0) + " y=" + y] = debugmsg;
+      if (jmp) break;
+      y += lines;
+    }
+    return dlist;
   }
 
 }

@@ -28,6 +28,10 @@ interface Atari7800State extends Atari7800StateBase, Atari7800ControlsState {
     offset,dll,dlstart : number;
     dli,h16,h8 : boolean;
   };
+  pia : {
+    timer: number;
+    interval: number;
+  }
 }
 
 const SWCHA = 0;
@@ -56,11 +60,14 @@ const Atari7800_KEYCODE_MAP = makeKeycodeMap([
 
 // http://www.ataripreservation.org/websites/freddy.offenga/megazine/ISSUE5-PALNTSC.html
 // http://7800.8bitdev.org/index.php/7800_Software_Guide#APPENDIX_4:_FRAME_TIMING
+// https://forums.atariage.com/topic/224025-7800-hardware-facts/
 const CLK = 3579545;
-const linesPerFrame = 262;
+const linesPerFrame = 263;
 const numVisibleLines = 258-16;
-const colorClocksPerLine = 454; // 456?
+const colorClocksPerLine = 451; // 451? 452? 456?
 const colorClocksPreDMA = 28;
+const colorClocksShutdownOther = 16;
+const colorClocksShutdownLast = 24;
 const audioOversample = 2;
 const audioSampleRate = linesPerFrame*60*audioOversample;
 
@@ -106,6 +113,7 @@ class MARIA {
   dli : boolean = false;
   h16 : boolean = false;
   h8 : boolean = false;
+  indirect : boolean = false;
   pixels = new Uint8Array(320);
   WSYNC : number = 0;
 
@@ -130,6 +138,7 @@ class MARIA {
       dli: this.dli,
       h16: this.h16,
       h8: this.h8,
+      indirect: this.indirect,
     };
   }
   loadState(s) {
@@ -141,6 +150,7 @@ class MARIA {
     this.dli = !!s.dli;
     this.h16 = !!s.h16;
     this.h8 = !!s.h8;
+    this.indirect = !!s.indirect;
   }
   isDMAEnabled() {
     return (this.regs[0x1c] & 0x60) == 0x40;
@@ -174,6 +184,7 @@ class MARIA {
     this.dli = (bus.read(this.dll) & 0x80) != 0; // DLI flag is from next DLL entry
   }
   isHoley(a : number) : boolean {
+    if (this.indirect) return false;
     if (a & 0x8000) {
       if (this.h16 && (a & 0x1000)) return true;
       if (this.h8  && (a & 0x800))  return true;
@@ -181,9 +192,9 @@ class MARIA {
     return false;
   }
   readDMA(a : number) : number {
-    if (this.isHoley(a))
+    if (this.isHoley(a)) {
       return 0;
-    else {
+    } else {
       this.cycles += 3;
       return this.bus.read(a);
     }
@@ -193,7 +204,8 @@ class MARIA {
     this.cycles = 0;
     this.pixels.fill(this.regs[0x0]);
     if (this.isDMAEnabled()) {
-      this.cycles += 16; // TODO: last line in zone gets additional 8 cycles
+      // last line in zone gets additional 8 cycles
+      this.cycles += this.offset == 0 ? colorClocksShutdownLast : colorClocksShutdownOther;
       // time for a new DLL entry?
       if (this.offset < 0) {
         this.readDLLEntry(bus);
@@ -229,6 +241,7 @@ class MARIA {
           dlofs += 4;
           this.cycles += 8;
         }
+        this.indirect = indirect;
         let gfxadr = b0 + (((b2 + (indirect?0:this.offset)) & 0xff) << 8);
         xpos *= 2;
         // copy graphics data (direct)
@@ -312,6 +325,8 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
   cpu : MOS6502;
   ram : Uint8Array = new Uint8Array(0x1000);
   regs6532 = new Uint8Array(4);
+  piatimer : number = 0;
+  timerinterval : number = 1;
   tia : TIA = new TIA();
   maria : MARIA = new MARIA();
   pokey1; //TODO: type
@@ -335,7 +350,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
         [0x0040, 0x00ff,   0xff, (a) => { return this.ram[a + 0x800]; }],
         [0x0100, 0x013f,   0xff, (a) => { return this.read(a); }], // shadow
         [0x0140, 0x01ff,  0x1ff, (a) => { return this.ram[a + 0x800]; }],
-        [0x0280, 0x02ff,    0x3, (a) => { this.xtracyc++; return this.inputs[a]; }],
+        [0x0280, 0x02ff,   0x7f, (a) => { this.xtracyc++; return this.readPIA(a); }],
         [0x1800, 0x27ff, 0xffff, (a) => { return this.ram[a - 0x1800]; }],
         [0x2800, 0x3fff,  0x7ff, (a) => { return this.read(a | 0x2000); }], // shadow
         [0x4000, 0xffff, 0xffff, (a) => { return this.rom ? this.rom[a - 0x4000] : 0; }],
@@ -348,7 +363,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
         [0x0040, 0x00ff,   0xff, (a,v) => { this.ram[a + 0x800] = v; }],
         [0x0100, 0x013f,   0xff, (a,v) => { this.write(a,v); }], // shadow
         [0x0140, 0x01ff,  0x1ff, (a,v) => { this.ram[a + 0x800] = v; }],
-        [0x0280, 0x02ff,    0x3, (a,v) => { this.xtracyc++; this.regs6532[a] = v; /*TODO*/ }],
+        [0x0280, 0x02ff,   0x7f, (a,v) => { this.xtracyc++; this.writePIA(a,v) }],
         [0x1800, 0x27ff, 0xffff, (a,v) => { this.ram[a - 0x1800] = v; }],
         [0x2800, 0x3fff,  0x7ff, (a,v) => { this.write(a | 0x2000, v); }], // shadow
         [0xbfff, 0xbfff, 0xffff, (a,v) => { }], // TODO: bank switching?
@@ -378,14 +393,68 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
     }
   }
 
+  readPIA(a:number) : number {
+    switch (a) {
+      case 0x0:
+      case 0x2:
+        return this.inputs[a]; // SWCHA, SWCHB
+      case 0x1:
+      case 0x3:
+        return this.regs6532[a]; // CTLSWA, CTLSWB
+      case 0x4:
+        return this.getPIATimerValue(); // INTIM
+      default:
+        return 0;
+    }
+  }
+
+  writePIA(a:number, v:number) : void {
+    switch (a) {
+      case 0x0:
+      case 0x1:
+      case 0x2:
+      case 0x3:
+        this.regs6532[a] = v;
+        return;
+      case 0x14: this.setPIATimer(v, 0); return; // TIM1T
+      case 0x15: this.setPIATimer(v, 3); return; // TIM8T
+      case 0x16: this.setPIATimer(v, 6); return; // TIM64T
+      case 0x17: this.setPIATimer(v, 10); return; // T1024T
+      case 0x18: this.setPIATimer(v, 6); return; // TIM64TI (TODO)
+    }
+  }
+
+  setPIATimer(v:number, shift:number) : void {
+    this.piatimer = (v + 1) << shift;
+    this.timerinterval = shift;
+  }
+
+  getPIATimerValue() : number {
+    let t = this.piatimer;
+    if (t > 0) {
+      return t >> this.timerinterval;
+    } else {
+      return t & 0xff;
+    }
+  }
+
   advanceCPU() : number {
     var clk = super.advanceCPU();
+    this.tickPIATimer(clk); // TODO?
     if (this.xtracyc) {
       clk += this.xtracyc;
-      this.probe.logClocks(this.xtracyc);
+      this.tickClocks(this.xtracyc);
       this.xtracyc = 0;
     }
     return clk;
+  }
+
+  tickClocks(clocks:number) {
+    this.probe.logClocks(clocks);
+    this.tickPIATimer(clocks);
+  }
+  tickPIATimer(clocks:number) {
+    this.piatimer = Math.max(-256, this.piatimer - clocks);
   }
 
   advanceFrame(trap) : number {
@@ -418,7 +487,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
       if (visible) {
         // do DMA for scanline?
         let dmaClocks = this.maria.doDMA(this.dmaBus);
-        this.probe.logClocks(dmaClocks >> 2); // TODO: logDMA
+        this.tickClocks(dmaClocks >> 2); // TODO: logDMA
         mc += dmaClocks;
         // copy line to frame buffer
         if (idata) {
@@ -436,7 +505,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
       while (mc < colorClocksPerLine) {
         if (this.maria.WSYNC) {
           this.probe.logWait(0);
-          this.probe.logClocks((colorClocksPerLine - mc) >> 2);
+          this.tickClocks((colorClocksPerLine - mc) >> 2);
           mc = colorClocksPerLine;
           break;
         }
@@ -491,6 +560,8 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
     this.tia.loadState(state.tia);
     this.maria.loadState(state.maria);
     this.regs6532.set(state.regs6532);
+    this.piatimer = state.pia.timer;
+    this.timerinterval = state.pia.interval;
     this.loadControlsState(state);
   }
   saveState() : Atari7800State {
@@ -500,7 +571,8 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
       tia:this.tia.saveState(),
       maria:this.maria.saveState(),
       regs6532:this.regs6532.slice(0),
-      inputs:this.inputs.slice(0)
+      inputs:this.inputs.slice(0),
+      pia:{timer:this.piatimer, interval: this.timerinterval}
     };
   }
   loadControlsState(state:Atari7800ControlsState) : void {
@@ -521,6 +593,75 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
       case 'MARIA': return MARIA.stateToLongString(state.maria) + "\nScanline: " + this.scanline;
       //default: return super.getDebugInfo(category, state);
     }
+  }
+  getDebugDisplayLists() {
+    // return display list in human-readable JSON object
+    let display_lists = {};
+    let dll_ofs = this.maria.getDLLStart();
+    // read the address of each DLL entry
+    let y = 0;
+    while (y < 240) {
+      let x = this.readConst(dll_ofs);
+      let offset = (x & 0xf);
+      let h16 = (x & 0x40) != 0;
+      let h8  = (x & 0x20) != 0;
+      let dlstart = (this.readConst(dll_ofs+1)<<8) + this.readConst(dll_ofs+2);
+      dll_ofs = (dll_ofs + 3) & 0xffff; // TODO: can also only cross 1 page?
+      let dli = (this.readConst(dll_ofs) & 0x80) != 0; // DLI flag is from next DLL entry
+      let title = "DL $" + hex(dlstart,4) + " " + y + "-" + (y+offset);
+      if (h16) title += " H16";
+      if (h8) title += " H8";
+      if (dli) title += " DLI";
+      display_lists[title] = { "$$": this._readDebugDisplayList(dlstart) };
+      y += offset + 1;
+    }
+    return display_lists;
+  }
+  _readDebugDisplayList(dlstart: number) {
+    return () => this.readDebugDisplayList(dlstart);
+  }
+  readDebugDisplayList(dlstart: number) {
+    let display_list = [];
+    let dlhi = dlstart & 0xff00;
+    let dlofs = dlstart & 0xff;
+    do {
+      // read DL entry
+      let b0 = this.readConst(dlhi + ((dlofs+0) & 0x1ff));
+      let b1 = this.readConst(dlhi + ((dlofs+1) & 0x1ff));
+      if (b1 == 0) break; // end of DL
+      // display lists must be in RAM (TODO: probe?)
+      let b2 = this.readConst(dlhi + ((dlofs+2) & 0x1ff));
+      let b3 = this.readConst(dlhi + ((dlofs+3) & 0x1ff));
+      // extended header?
+      let indirect = false;
+      let description = "";
+      if ((b1 & 31) == 0) {
+        var pal = b3 >> 5;
+        var width = 32 - (b3 & 31);
+        var xpos = this.readConst(dlhi + ((dlofs+4) & 0x1ff));
+        var writemode = b1 & 0x80;
+        indirect = (b1 & 0x20) != 0;
+        dlofs += 5;
+        description += "X=" + xpos + " W=" + width + " P=" + pal + " " + (writemode?"WRITE":"");
+      } else {
+        // direct mode
+        var xpos = b3;
+        var pal = b1 >> 5;
+        var width = 32 - (b1 & 31);
+        var writemode = 0;
+        dlofs += 4;
+        description += "X=" + xpos + " W=" + width + " P=" + pal;
+      }
+      let gfxadr = b0 + (((b2 + (indirect?0:this.maria.offset)) & 0xff) << 8);
+      let readmode = (this.maria.regs[0x1c] & 0x3) + (writemode?4:0);
+      let dbl = indirect && (this.maria.regs[0x1c] & 0x10) != 0;
+      if (readmode) description += " READMODE=" + readmode;
+      if (dbl) description += " DBL";
+      if (indirect) description += " CHR=$" + hex((this.maria.regs[0x14] + this.maria.offset) & 0xff) + "xx";
+      description = " $" + hex(gfxadr,4) + " " + description;
+      display_list.push(description);
+    } while (dlofs < 0x200);
+    return display_list;
   }
 }
 

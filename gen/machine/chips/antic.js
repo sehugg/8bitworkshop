@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ANTIC = exports.MODE_SHIFT = void 0;
+exports.ANTIC = exports.MODE_SHIFT = exports.MODE_LINES = void 0;
 const emu_1 = require("../../common/emu");
 const util_1 = require("../../common/util");
 // ANTIC
@@ -38,7 +38,7 @@ const WSYNC_CYCLE = 212;
 const ANTIC_LEFT = 17 - 4; // gtia 34, 4 cycle delay
 const ANTIC_RIGHT = 110 - 4; // gtia 221, 4 cycle delay
 const LAST_DMA_H = 105; // last DMA cycle
-const MODE_LINES = [0, 0, 8, 10, 8, 16, 8, 16, 8, 4, 4, 2, 1, 2, 1, 1];
+exports.MODE_LINES = [0, 0, 8, 10, 8, 16, 8, 16, 8, 4, 4, 2, 1, 2, 1, 1];
 // how many bits before DMA clock repeats?
 const MODE_PERIOD = [0, 0, 2, 2, 2, 2, 4, 4, 8, 4, 4, 4, 4, 2, 2, 2];
 const MODE_YPERIOD = [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 1, 0, 0, 0, 0];
@@ -131,7 +131,7 @@ class ANTIC {
             this.dmaclock = 0;
         }
         else {
-            this.linesleft = MODE_LINES[this.mode];
+            this.linesleft = exports.MODE_LINES[this.mode];
             this.period = MODE_PERIOD[this.mode];
             if (this.jmp) {
                 this.regs[DLISTL] = this.dlarg_lo;
@@ -187,8 +187,11 @@ class ANTIC {
             this.nmi();
         }
     }
+    getDlistAddr() {
+        return this.regs[DLISTL] + (this.regs[DLISTH] << 8);
+    }
     nextInsn() {
-        let pc = this.regs[DLISTL] + (this.regs[DLISTH] << 8);
+        let pc = this.getDlistAddr();
         let b = this.read(pc);
         //console.log('nextInsn', hex(pc), hex(b), this.v);
         pc = ((pc + 1) & 0x3ff) | (pc & ~0x3ff);

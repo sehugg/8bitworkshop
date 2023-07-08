@@ -27,6 +27,11 @@ class Atari7800Platform extends Base6502MachinePlatform<Atari7800> implements Pl
       {name:'Cartridge ROM',start:0x4000,size:0xc000,type:'rom'},
   ] } };
   getROMExtension() { return ".a78"; }
+  getDebugTree() {
+    let tree = super.getDebugTree();
+    tree['display_list'] = this.machine.getDebugDisplayLists();
+    return tree;
+  }
 }
 
 ///

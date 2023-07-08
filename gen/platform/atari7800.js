@@ -31,6 +31,11 @@ class Atari7800Platform extends baseplatform_1.Base6502MachinePlatform {
     ;
     readAddress(a) { return this.machine.readConst(a); }
     getROMExtension() { return ".a78"; }
+    getDebugTree() {
+        let tree = super.getDebugTree();
+        tree['display_list'] = this.machine.getDebugDisplayLists();
+        return tree;
+    }
 }
 ///
 emu_1.PLATFORMS['atari7800'] = Atari7800Platform;
