@@ -409,13 +409,13 @@ class Atari800 extends devices_1.BasicScanlineMachine {
             pc = ((pc + 1) & 0x3ff) | (pc & ~0x3ff);
             return b;
         };
-        let dlist = {};
+        let dlist = [];
         let y = 0;
         for (let i = 0; i < 256 && y < 240; i++) {
             let pc0 = pc;
             let op = nextInsn(); // get mode
             let mode = op & 0xf;
-            let debugmsg = ""; // op=" + hex(op);
+            let debugmsg = ""; // "op=" + hex(op);
             let jmp = false;
             let lines;
             if (mode == 0) {
@@ -428,6 +428,15 @@ class Atari800 extends devices_1.BasicScanlineMachine {
                 debugmsg += " lines=" + lines;
                 jmp = (op & ~0x40) == 0x01; // JMP insn?
                 let lms = (op & 0x40) != 0 && (op & 0xf) != 0; // LMS insn?
+                if (op & 0x10) {
+                    debugmsg += " HSCROL";
+                }
+                if (op & 0x20) {
+                    debugmsg += " VSCROL";
+                }
+                if (op & 0x80) {
+                    debugmsg += " DLI";
+                }
                 if (jmp && (op & 0x40)) {
                     debugmsg += " JVB";
                 }
@@ -435,19 +444,13 @@ class Atari800 extends devices_1.BasicScanlineMachine {
                     debugmsg += " JMP";
                 else if (lms)
                     debugmsg += " LMS";
-                if (this.antic.isPlayfieldDMAEnabled() && (jmp || lms)) {
+                if (jmp || lms) {
                     let dlarg_lo = nextInsn();
                     let dlarg_hi = nextInsn();
                     debugmsg += " $" + (0, util_1.hex)(dlarg_hi) + "" + (0, util_1.hex)(dlarg_lo);
                 }
-                if (op & 0x10) {
-                    debugmsg += " HSCROL";
-                }
-                if (op & 0x20) {
-                    debugmsg += " VSCROL";
-                }
             }
-            dlist["$" + (0, util_1.hex)(pc0) + " y=" + y] = debugmsg;
+            dlist.push("$" + (0, util_1.hex)(pc0) + " y=" + y + " " + debugmsg);
             if (jmp)
                 break;
             y += lines;

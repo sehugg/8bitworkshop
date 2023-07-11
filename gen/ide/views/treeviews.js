@@ -103,6 +103,14 @@ class TreeNode {
                     }
                     obj = newobj;
                 }
+                // is it a Map? if so, convert to dictionary
+                if (obj instanceof Map) {
+                    let newobj = {};
+                    for (let [key, value] of obj.entries()) {
+                        newobj[key] = value;
+                    }
+                    obj = newobj;
+                }
                 // get object keys
                 let names = obj instanceof Array ? Array.from(obj.keys()) : Object.getOwnPropertyNames(obj);
                 if (names.length > MAX_CHILDREN) { // max # of child objects
