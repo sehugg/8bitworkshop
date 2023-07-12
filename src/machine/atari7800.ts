@@ -676,6 +676,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
     let dlhi = dlstart & 0xff00;
     let dlofs = dlstart & 0xff;
     do {
+      const ctrlreg = this.maria.regs[0x1c];
       // read DL entry
       let b0 = this.readConst(dlhi + ((dlofs+0) & 0x1ff));
       let b1 = this.readConst(dlhi + ((dlofs+1) & 0x1ff));
@@ -686,30 +687,25 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
       // extended header?
       let indirect = false;
       let description = "";
+      const grmode = (ctrlreg & 0x3) + ((b1 & 0x80) ? 4 : 0);
       if ((b1 & 31) == 0) {
         var pal = b3 >> 5;
         var width = 32 - (b3 & 31);
         var xpos = this.readConst(dlhi + ((dlofs+4) & 0x1ff));
-        var writemode = b1 & 0x80;
         indirect = (b1 & 0x20) != 0;
         dlofs += 5;
-        description += "X=" + xpos + " W=" + width + " P=" + pal + " " + (writemode?"WRITE":"");
       } else {
         // direct mode
         var xpos = b3;
         var pal = b1 >> 5;
         var width = 32 - (b1 & 31);
-        var writemode = 0;
         dlofs += 4;
-        description += "X=" + xpos + " W=" + width + " P=" + pal;
       }
-      let gfxadr = b0 + (((b2 + (indirect?0:this.maria.offset)) & 0xff) << 8);
-      let readmode = (this.maria.regs[0x1c] & 0x3) + (writemode?4:0);
-      let dbl = indirect && (this.maria.regs[0x1c] & 0x10) != 0;
-      if (readmode) description += " READMODE=" + readmode;
-      if (dbl) description += " DBL";
+      description += "X=" + xpos + " W=" + width + " P=" + pal;
       if (indirect) description += " CHR=$" + hex((this.maria.regs[0x14] + this.maria.offset) & 0xff) + "xx";
+      let gfxadr = b0 + (((b2 + (indirect?0:this.maria.offset)) & 0xff) << 8);
       description = " $" + hex(gfxadr,4) + " " + description;
+      description = ["160A","?","320D","320A","160B","?","320B","320C"][grmode] + ' ' + description;
       display_list.push(description);
     } while (dlofs < 0x200);
     return display_list;
