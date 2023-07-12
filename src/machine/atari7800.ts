@@ -7,6 +7,7 @@ import { hex, rgb2bgr } from "../common/util";
 
 // https://atarihq.com/danb/a7800.shtml
 // https://atarihq.com/danb/files/maria_r1.txt
+// https://atarihq.com/danb/files/7800vid.txt
 // https://sites.google.com/site/atari7800wiki/
 
 interface Atari7800StateBase {
@@ -202,7 +203,8 @@ class MARIA {
   doDMA(bus : Bus) {
     this.bus = bus;
     this.cycles = 0;
-    this.pixels.fill(this.regs[0x0]);
+    const pix = this.pixels;
+    pix.fill(this.regs[0x0]); // background color
     if (this.isDMAEnabled()) {
       // last line in zone gets additional 8 cycles
       this.cycles += this.offset == 0 ? colorClocksShutdownLast : colorClocksShutdownOther;
@@ -223,12 +225,12 @@ class MARIA {
         let b2 = bus.read(dlhi + ((dlofs+2) & 0x1ff));
         let b3 = bus.read(dlhi + ((dlofs+3) & 0x1ff));
         let indirect = false;
+        const writemode = b1 & 0x80;
         // extended header?
         if ((b1 & 31) == 0) {
           var pal = b3 >> 5;
           var width = 32 - (b3 & 31);
           var xpos = bus.read(dlhi + ((dlofs+4) & 0x1ff));
-          var writemode = b1 & 0x80;
           indirect = (b1 & 0x20) != 0;
           dlofs += 5;
           this.cycles += 10;
@@ -237,17 +239,19 @@ class MARIA {
           var xpos = b3;
           var pal = b1 >> 5;
           var width = 32 - (b1 & 31);
-          var writemode = 0;
           dlofs += 4;
           this.cycles += 8;
         }
         this.indirect = indirect;
-        let gfxadr = b0 + (((b2 + (indirect?0:this.offset)) & 0xff) << 8);
+        const gfxadr = b0 + (((b2 + (indirect?0:this.offset)) & 0xff) << 8);
         xpos *= 2;
-        // copy graphics data (direct)
-        let readmode = (this.regs[0x1c] & 0x3) + (writemode?4:0);
+        const ctrlreg = this.regs[0x1c];
+        // gfx mode (readmode + writemode * 4)
+        const grmode = (ctrlreg & 0x3) + (writemode ? 4 : 0);
+        // kangaroo mode
+        const kangaroo = (ctrlreg & 0x4) != 0;
         // double bytes?
-        let dbl = indirect && (this.regs[0x1c] & 0x10) != 0;
+        const dbl = indirect && (ctrlreg & 0x10) != 0;
         if (dbl) { width *= 2; }
         //if (this.offset == 0) console.log(hex(dla,4), hex(gfxadr,4), xpos, width, pal, readmode);
         for (var i=0; i<width; i++) {
@@ -261,23 +265,66 @@ class MARIA {
             data = this.readDMA(indadr);
           }
           // TODO: more modes (https://github.com/gstanton/ProSystem1_3/blob/master/Core/Maria.cpp)
-          switch (readmode) {
-            case 0:	// 160 A/B
+          switch (grmode) {
+            case 0:	// 160A
               for (let j=0; j<4; j++) {
-                var col = (data >> 6) & 3;
-                if (col > 0) {
-                  this.pixels[xpos] = this.pixels[xpos+1] = this.regs[(pal<<2) + col];
+                let col = (data >> 6) & 3;
+                if (col || kangaroo) {
+                  pix[xpos] = pix[xpos+1] = this.regs[(pal<<2) + col];
                 }
                 data <<= 2;
                 xpos = (xpos + 2) & 0x1ff;
               }
               break;
-            case 2:	// 320 B/D (TODO?)
-            case 3:	// 320 A/C
+            case 3:	// 320A
               for (let j=0; j<8; j++) {
-                var col = (data & 128) ? 1 : 0;
-                if (col > 0) {
-                  this.pixels[xpos] = this.regs[(pal<<2) + col];
+                let col = (data & 0x80) >> 6;
+                if (col || kangaroo) {
+                  pix[xpos] = this.regs[(pal<<2) + col];
+                }
+                data <<= 1;
+                xpos = (xpos + 1) & 0x1ff;
+              }
+              break;
+            case 4: // 160B
+              for (let j=0; j<2; j++) {
+                let col = ((data >> 6) & 0b0011) + (data & 0b1100);
+                if ((col & 3) || kangaroo) {
+                  pix[xpos] = pix[xpos+1] = pix[xpos+2] = pix[xpos+3] = this.regs[((pal&4)<<2) + col];
+                }
+                data <<= 2;
+                xpos = (xpos + 2) & 0x1ff;
+              }
+              break;
+            case 6: // 320B
+              for (let j=0; j<4; j++) {
+                let col = ((data & 0x80) >> 6) | ((data & 0x08) >> 3);
+                if (col || kangaroo) {
+                  pix[xpos] = this.regs[(pal<<2) + col];
+                }
+                data <<= 1;
+                xpos = (xpos + 1) & 0x1ff;
+              }
+              break;
+            case 2: // 320D
+              for (let j=0; j<8; j++) {
+                let col = ((data & 0x80) >> 6);
+                col += (j & 1) ? (pal & 1) : ((pal >> 1) & 1);
+                if (col || kangaroo) {
+                  pix[xpos] = this.regs[(pal<<2) + col];
+                }
+                data <<= 1;
+                xpos = (xpos + 1) & 0x1ff;
+              }
+              break;
+            case 7: // 320C
+              let data0 = data;
+              for (let j=0; j<4; j++) {
+                if (j == 2) data0 <<= 2;
+                let col = (data & 0x80) >> 6;
+                let ppal = (pal & 4) | ((data0 >> 2) & 3);
+                if (col || kangaroo) {
+                  pix[xpos] = this.regs[(ppal<<2) + col];
                 }
                 data <<= 1;
                 xpos = (xpos + 1) & 0x1ff;
@@ -491,8 +538,11 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
         mc += dmaClocks;
         // copy line to frame buffer
         if (idata) {
+          const ctrlreg = this.maria.regs[0x1c];
+          const colorkill = (ctrlreg & 0x80) != 0;
+          const mask = colorkill ? 0x0f : 0xff;
           for (var i=0; i<320; i++) {
-            idata[iofs++] = COLORS_RGBA[this.maria.pixels[i]];
+            idata[iofs++] = COLORS_RGBA[this.maria.pixels[i] & mask];
           }
         }
       }
