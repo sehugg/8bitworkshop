@@ -515,6 +515,7 @@ class Atari7800 extends devices_1.BasicMachine {
         this.inputs.fill(0x0);
         this.inputs[SWCHA] = 0xff;
         this.inputs[SWCHB] = 1 + 2 + 8;
+        this.setPIATimer(0, 0); // TODO?
         //this.cpu.advanceClock(); // needed for test to pass?
     }
     readAddress(addr) {

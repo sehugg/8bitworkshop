@@ -6,66 +6,11 @@
 ;
 
 	processor 6502
-
-; ************ Hardware Adresses ***************************
-
-INPTCTRL        equ     $01     ;Input control
-AUDC0           equ     $15     ;Audio Control Channel 0
-AUDC1           equ     $16     ;Audio Control Channel 1
-AUDF0           equ     $17     ;Audio Frequency Channel 0
-AUDF1           equ     $18     ;Audio Frequency Channel 1
-AUDV0           equ     $19     ;Audio Volume Channel 0
-AUDV1           equ     $1A     ;Audio Volume Channel 1
-INPT0           equ     $08     ;Paddle Control Input 0
-INPT1           equ     $09     ;Paddle Control Input 1
-INPT2           equ     $0A     ;Paddle Control Input 2
-INPT3           equ     $0B     ;Paddle Control Input 3
-INPT4           equ     $0C     ;Player 0 Fire Button Input
-INPT5           equ     $0D     ;Player 1 Fire Button Input
-
-BACKGRND        equ     $20     ;Background Color
-P0C1            equ     $21     ;Palette 0 - Color 1
-P0C2            equ     $22     ;Palette 0 - Color 2
-P0C3            equ     $23     ;Palette 0 - Color 3
-WSYNC           equ     $24     ;Wait For Sync
-P1C1            equ     $25     ;Palette 1 - Color 1
-P1C2            equ     $26     ;Palette 1 - Color 2
-P1C3            equ     $27     ;Palette 1 - Color 3
-MSTAT           equ     $28     ;Maria Status
-P2C1            equ     $29     ;Palette 2 - Color 1
-P2C2            equ     $2A     ;Palette 2 - Color 2
-P2C3            equ     $2B     ;Palette 2 - Color 3
-DPPH            equ     $2C     ;Display List List Pointer High
-P3C1            equ     $2D     ;Palette 3 - Color 1
-P3C2            equ     $2E     ;Palette 3 - Color 2
-P3C3            equ     $2F     ;Palette 3 - Color 3
-DPPL            equ     $30     ;Display List List Pointer Low
-P4C1            equ     $31     ;Palette 4 - Color 1
-P4C2            equ     $32     ;Palette 4 - Color 2
-P4C3            equ     $33     ;Palette 4 - Color 3
-CHARBASE        equ     $34     ;Character Base Address
-P5C1            equ     $35     ;Palette 5 - Color 1
-P5C2            equ     $36     ;Palette 5 - Color 2
-P5C3            equ     $37     ;Palette 5 - Color 3
-OFFSET          equ     $38     ;Unused - Store zero here
-P6C1            equ     $39     ;Palette 6 - Color 1
-P6C2            equ     $3A     ;Palette 6 - Color 2
-P6C3            equ     $3B     ;Palette 6 - Color 3
-CTRL            equ     $3C     ;Maria Control Register
-P7C1            equ     $3D     ;Palette 7 - Color 1
-P7C2            equ     $3E     ;Palette 7 - Color 2
-P7C3            equ     $3F     ;Palette 7 - Color 3
-
-SWCHA           equ     $280    ;P0, P1 Joystick Directional Input
-SWCHB           equ     $282    ;Console Switches
-CTLSWA          equ     $281    ;I/O Control for SCHWA
-CTLSWB          equ     $283    ;I/O Control for SCHWB
-
-	SEG.U data
-
+        include "7800.h"
 
 ;******* Vairables ********************************
 
+	SEG.U data
 	org $40
 
 xpos	ds.b	1	      	;X Position of sprite
@@ -75,12 +20,9 @@ dlpnt	ds.w	1
 dlend	ds.b	12		;Index of end of each DL
 
 
-
-
 ;**********************************************************
  	
- 	SEG code
- 	
+ 	SEG code 	
         org     $4000           ;Start of code
         
 START
