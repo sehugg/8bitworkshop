@@ -48,6 +48,8 @@ export enum KeyFlags {
 }
 
 // TODO: don't use which/keyCode anymore?
+// TODO: let keycode = e.key ? e.key.charCodeAt(0) : e.keyCode;
+// TODO: let charCode = e.key ? e.key.charCodeAt(0) : e.charCode;
 export function _setKeyboardEvents(canvas:HTMLElement, callback:KeyboardCallback) {
   canvas.onkeydown = (e) => {
     let flags = _metakeyflags(e);
