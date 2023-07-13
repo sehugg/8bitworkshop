@@ -325,6 +325,7 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
   }
 
   setKeyInput(key:number, code:number, flags:number) : void {
+   //console.log(`setKeyInput: ${key} ${code} ${flags}`);
    if (flags & KeyFlags.KeyDown) {
       code = 0;
       switch (key) {
@@ -344,15 +345,30 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
         case 39: code=21; break; // right
         case 38: code=11; break; // up
         case 40: code=10; break; // down
-        default:
+        case 48: if (flags & KeyFlags.Shift) code = 0x29; break; // )
+        case 49: if (flags & KeyFlags.Shift) code = 0x21; break; // !
+        case 50: if (flags & KeyFlags.Shift) code = 0x40; break; // @
+        case 51: if (flags & KeyFlags.Shift) code = 0x23; break; // #
+        case 52: if (flags & KeyFlags.Shift) code = 0x24; break; // $
+        case 53: if (flags & KeyFlags.Shift) code = 0x25; break; // %
+        case 54: if (flags & KeyFlags.Shift) code = 0x5e; break; // ^
+        case 55: if (flags & KeyFlags.Shift) code = 0x26; break; // &
+        case 56: if (flags & KeyFlags.Shift) code = 0x2a; break; // *
+        case 57: if (flags & KeyFlags.Shift) code = 0x28; break; // (
+        case 61: code = (flags & KeyFlags.Shift) ? 0x2b : 0x3d; break; // +
+        case 173: code = (flags & KeyFlags.Shift) ? 0x5f : 0x2d; break; // _
+        case 59: code = (flags & KeyFlags.Shift) ? 0x3a : 0x3b; break;
+        case 188: code = (flags & KeyFlags.Shift) ? 0x3c : 0x2c; break;
+        case 190: code = (flags & KeyFlags.Shift) ? 0x3e : 0x2e; break;
+        case 191: code = (flags & KeyFlags.Shift) ? 0x3f : 0x2f; break;
+        case 222: code = (flags & KeyFlags.Shift) ? 0x22 : 0x27; break;
+      default:
          code = key;
          // convert to uppercase for Apple ][
          if (code >= 0x61 && code <= 0x7a) code -= 32;
-         if (code >= 32) {
-            if (code >= 65 && code < 65+26) {
-               if (flags & KeyFlags.Ctrl)
-                  code -= 64; // ctrl
-            }
+         // convert to control codes if Ctrl pressed
+         if (code >= 65 && code < 65+26) {
+            if (flags & KeyFlags.Ctrl) code -= 64; // ctrl
          }
       }
       if (code) {

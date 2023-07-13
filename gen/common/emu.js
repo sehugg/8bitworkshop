@@ -43,6 +43,8 @@ var KeyFlags;
     KeyFlags[KeyFlags["KeyPress"] = 128] = "KeyPress";
 })(KeyFlags = exports.KeyFlags || (exports.KeyFlags = {}));
 // TODO: don't use which/keyCode anymore?
+// TODO: let keycode = e.key ? e.key.charCodeAt(0) : e.keyCode;
+// TODO: let charCode = e.key ? e.key.charCodeAt(0) : e.charCode;
 function _setKeyboardEvents(canvas, callback) {
     canvas.onkeydown = (e) => {
         let flags = _metakeyflags(e);
