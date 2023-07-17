@@ -79,6 +79,7 @@ class MARIA {
         this.dli = false;
         this.h16 = false;
         this.h8 = false;
+        this.writemode = 0;
         this.indirect = false;
         this.pixels = new Uint8Array(320);
         this.WSYNC = 0;
@@ -106,6 +107,7 @@ class MARIA {
             h16: this.h16,
             h8: this.h8,
             indirect: this.indirect,
+            writemode: this.writemode,
         };
     }
     loadState(s) {
@@ -118,6 +120,7 @@ class MARIA {
         this.h16 = !!s.h16;
         this.h8 = !!s.h8;
         this.indirect = !!s.indirect;
+        this.writemode = s.writemode | 0;
     }
     isDMAEnabled() {
         return (this.regs[0x1c] & 0x60) == 0x40;
@@ -201,7 +204,6 @@ class MARIA {
                 let b2 = bus.read(dlhi + ((dlofs + 2) & 0x1ff));
                 let b3 = bus.read(dlhi + ((dlofs + 3) & 0x1ff));
                 let indirect = false;
-                const writemode = b1 & 0x80;
                 // extended header?
                 if ((b1 & 31) == 0) {
                     var pal = b3 >> 5;
@@ -210,6 +212,7 @@ class MARIA {
                     indirect = (b1 & 0x20) != 0;
                     dlofs += 5;
                     this.cycles += 10;
+                    this.writemode = b1 & 0x80;
                 }
                 else {
                     // direct mode
@@ -224,7 +227,7 @@ class MARIA {
                 xpos *= 2;
                 const ctrlreg = this.regs[0x1c];
                 // gfx mode (readmode + writemode * 4)
-                const grmode = (ctrlreg & 0x3) + (writemode ? 4 : 0);
+                const grmode = (ctrlreg & 0x3) + (this.writemode ? 4 : 0);
                 // kangaroo mode
                 const kangaroo = (ctrlreg & 0x4) != 0;
                 // double bytes?
@@ -656,12 +659,14 @@ class Atari7800 extends devices_1.BasicMachine {
             // extended header?
             let indirect = false;
             let description = "";
+            let writemode;
             const grmode = (ctrlreg & 0x3) + ((b1 & 0x80) ? 4 : 0);
             if ((b1 & 31) == 0) {
                 var pal = b3 >> 5;
                 var width = 32 - (b3 & 31);
                 var xpos = this.readConst(dlhi + ((dlofs + 4) & 0x1ff));
                 indirect = (b1 & 0x20) != 0;
+                writemode = b1 & 0x80;
                 dlofs += 5;
             }
             else {
@@ -672,6 +677,8 @@ class Atari7800 extends devices_1.BasicMachine {
                 dlofs += 4;
             }
             description += "X=" + xpos + " W=" + width + " P=" + pal;
+            if (writemode)
+                description += " WM=1";
             if (indirect)
                 description += " CHR=$" + (0, util_1.hex)((this.maria.regs[0x14] + this.maria.offset) & 0xff) + "xx";
             let gfxadr = b0 + (((b2 + (indirect ? 0 : this.maria.offset)) & 0xff) << 8);
