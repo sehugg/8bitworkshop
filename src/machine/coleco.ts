@@ -32,6 +32,8 @@ var COLECOVISION_KEYCODE_MAP = makeKeycodeMap([
   [Keys.RIGHT, 0, 0x2],
   [Keys.A, 0, 0x40],
   [Keys.B, 1, 0x40],
+  [Keys.GP_A, 0, 0x40],
+  [Keys.GP_B, 1, 0x40],
 
   [Keys.P2_UP, 2, 0x1],
   [Keys.P2_DOWN, 2, 0x4],

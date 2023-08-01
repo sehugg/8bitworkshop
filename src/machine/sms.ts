@@ -18,6 +18,8 @@ var SG1000_KEYCODE_MAP = makeKeycodeMap([
   [Keys.RIGHT, 0, 0x8],
   [Keys.A,     0, 0x10],
   [Keys.B,     0, 0x20],
+  [Keys.GP_A,  0, 0x10],
+  [Keys.GP_B,  0, 0x20],
 
   [Keys.P2_UP,    0, 0x40],
   [Keys.P2_DOWN,  0, 0x80],

@@ -8,6 +8,8 @@ import { hex, lpad } from "../common/util";
 var GBA_KEYCODE_MAP = makeKeycodeMap([
   [Keys.A,     0, 0x1],
   [Keys.B,     0, 0x2],
+  [Keys.GP_A,  0, 0x1],
+  [Keys.GP_B,  0, 0x2],
   [Keys.SELECT,0, 0x4],
   [Keys.START ,0, 0x8],
   [Keys.RIGHT, 0, 0x10],

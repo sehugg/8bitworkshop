@@ -50,6 +50,8 @@ const JSNES_PRESETS = [
 const JSNES_KEYCODE_MAP = makeKeycodeMap([
   [Keys.A,        0, 0],
   [Keys.B,        0, 1],
+  [Keys.GP_A,     0, 0],
+  [Keys.GP_B,     0, 1],
   [Keys.SELECT,   0, 2],
   [Keys.START,    0, 3],
   [Keys.UP,       0, 4],
