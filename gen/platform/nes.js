@@ -48,6 +48,8 @@ const JSNES_PRESETS = [
 const JSNES_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
     [emu_1.Keys.A, 0, 0],
     [emu_1.Keys.B, 0, 1],
+    [emu_1.Keys.GP_A, 0, 0],
+    [emu_1.Keys.GP_B, 0, 1],
     [emu_1.Keys.SELECT, 0, 2],
     [emu_1.Keys.START, 0, 3],
     [emu_1.Keys.UP, 0, 4],

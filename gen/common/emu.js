@@ -299,11 +299,12 @@ exports.dumpRAM = dumpRAM;
 ;
 exports.Keys = {
     ANYKEY: { c: 0, n: "?" },
+    // https://w3c.github.io/gamepad/#remapping
     // gamepad and keyboard (player 0)
-    UP: { c: 38, n: "Up", plyr: 0, yaxis: -1 },
-    DOWN: { c: 40, n: "Down", plyr: 0, yaxis: 1 },
-    LEFT: { c: 37, n: "Left", plyr: 0, xaxis: -1 },
-    RIGHT: { c: 39, n: "Right", plyr: 0, xaxis: 1 },
+    UP: { c: 38, n: "Up", plyr: 0, button: 12, yaxis: -1 },
+    DOWN: { c: 40, n: "Down", plyr: 0, button: 13, yaxis: 1 },
+    LEFT: { c: 37, n: "Left", plyr: 0, button: 14, xaxis: -1 },
+    RIGHT: { c: 39, n: "Right", plyr: 0, button: 15, xaxis: 1 },
     A: { c: 32, n: "Space", plyr: 0, button: 0 },
     B: { c: 16, n: "Shift", plyr: 0, button: 1 },
     GP_A: { c: 88, n: "X", plyr: 0, button: 0 },
@@ -314,10 +315,10 @@ exports.Keys = {
     START: { c: 13, n: "Enter", plyr: 0, button: 9 },
     OPTION: { c: 8, n: "Bcksp", plyr: 0, button: 10 },
     // gamepad and keyboard (player 1)
-    P2_UP: { c: 87, n: "W", plyr: 1, yaxis: -1 },
-    P2_DOWN: { c: 83, n: "S", plyr: 1, yaxis: 1 },
-    P2_LEFT: { c: 65, n: "A", plyr: 1, xaxis: -1 },
-    P2_RIGHT: { c: 68, n: "D", plyr: 1, xaxis: 1 },
+    P2_UP: { c: 87, n: "W", plyr: 1, button: 12, yaxis: -1 },
+    P2_DOWN: { c: 83, n: "S", plyr: 1, button: 13, yaxis: 1 },
+    P2_LEFT: { c: 65, n: "A", plyr: 1, button: 14, xaxis: -1 },
+    P2_RIGHT: { c: 68, n: "D", plyr: 1, button: 15, xaxis: 1 },
     P2_A: { c: 84, n: "T", plyr: 1, button: 0 },
     P2_B: { c: 82, n: "R", plyr: 1, button: 1 },
     P2_GP_A: { c: 69, n: "E", plyr: 1, button: 0 },

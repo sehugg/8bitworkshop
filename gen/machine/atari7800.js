@@ -12,6 +12,8 @@ const INPT0 = 8;
 const Atari7800_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
     [emu_1.Keys.A, INPT0 + 0, 0x80],
     [emu_1.Keys.B, INPT0 + 1, 0x80],
+    [emu_1.Keys.GP_A, INPT0 + 0, 0x80],
+    [emu_1.Keys.GP_B, INPT0 + 1, 0x80],
     [emu_1.Keys.SELECT, SWCHB, -0x02],
     [emu_1.Keys.START, SWCHB, -0x01],
     [emu_1.Keys.UP, SWCHA, -0x10],

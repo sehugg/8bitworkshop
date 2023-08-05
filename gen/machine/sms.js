@@ -18,6 +18,8 @@ var SG1000_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
     [emu_1.Keys.RIGHT, 0, 0x8],
     [emu_1.Keys.A, 0, 0x10],
     [emu_1.Keys.B, 0, 0x20],
+    [emu_1.Keys.GP_A, 0, 0x10],
+    [emu_1.Keys.GP_B, 0, 0x20],
     [emu_1.Keys.P2_UP, 0, 0x40],
     [emu_1.Keys.P2_DOWN, 0, 0x80],
     [emu_1.Keys.P2_LEFT, 1, 0x1],

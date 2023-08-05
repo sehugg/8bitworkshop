@@ -8,6 +8,8 @@ const util_1 = require("../common/util");
 var GBA_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
     [emu_1.Keys.A, 0, 0x1],
     [emu_1.Keys.B, 0, 0x2],
+    [emu_1.Keys.GP_A, 0, 0x1],
+    [emu_1.Keys.GP_B, 0, 0x2],
     [emu_1.Keys.SELECT, 0, 0x4],
     [emu_1.Keys.START, 0, 0x8],
     [emu_1.Keys.RIGHT, 0, 0x10],
