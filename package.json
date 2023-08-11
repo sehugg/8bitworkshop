@@ -14,8 +14,6 @@
     "@types/dompurify": "^2.3.4",
     "@types/emscripten": "^1.39.5",
     "@types/js-yaml": "^4.0.5",
-    "@wasmer/wasi": "^0.12.0",
-    "@wasmer/wasmfs": "^0.12.0",
     "binaryen": "^101.0.0",
     "chroma-js": "^2.1.2",
     "clipboard": "^2.0.6",

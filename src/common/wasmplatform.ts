@@ -1,5 +1,4 @@
 
-import { WasmFs } from "@wasmer/wasmfs";
 import { CpuState, EmuState } from "./baseplatform";
 import { CPU, SampledAudioSink, ProbeAll, NullProbe } from "./devices";
 import { EmuHalt } from "./emu";
@@ -216,58 +215,5 @@ export abstract class BaseWASMMachine {
   }
   getDebugTree() {
     return this.saveState();
-  }
-}
-
-let stub = function() { console.log(arguments); return 0 }
-
-export abstract class BaseWASIMachine extends BaseWASMMachine {
-  m_wasi;
-  wasiInstance;
-  wasmFs : WasmFs;
-  
-  constructor(prefix: string) {
-    super(prefix);
-  }
-  getImports(wmod: WebAssembly.Module) {
-    var imports = this.wasiInstance.getImports(wmod);
-    // TODO: eliminate these imports
-    imports.env = {
-      system: stub,
-      __sys_mkdir: stub,
-      __sys_chmod: stub,
-      __sys_stat64: stub,
-      __sys_unlink: stub,
-      __sys_rename: stub,
-      __sys_getdents64: stub,
-      __sys_getcwd: stub,
-      __sys_rmdir: stub,
-      emscripten_thread_sleep: stub,
-    }
-    return imports;
-  }
-  stdoutWrite(buffer) {
-    console.log('>>>', buffer.toString());
-    return buffer.length;
-  }
-  async loadWASM() {
-    let WASI = await import('@wasmer/wasi');
-    let WasmFs = await import('@wasmer/wasmfs');
-    this.wasmFs = new WasmFs.WasmFs();
-    let bindings = WASI.WASI.defaultBindings;
-    bindings.fs = this.wasmFs.fs;
-    bindings.fs.mkdirSync('/tmp');
-    bindings.path = bindings.path.default;
-    this.wasiInstance = new WASI.WASI({
-      preopenDirectories: {'/tmp':'/tmp'},
-      env: {},
-      args: [],
-      bindings: bindings
-    });
-    this.wasmFs.volume.fds[1].write = this.stdoutWrite.bind(this);
-    this.wasmFs.volume.fds[2].write = this.stdoutWrite.bind(this);
-    await this.fetchWASM();
-    this.wasiInstance.start(this.instance);
-    await this.initWASM();
   }
 }

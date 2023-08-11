@@ -1,10 +1,8 @@
 import { newPOKEYAudio, TssChannelAdapter } from "../common/audio";
-import { Machine } from "../common/baseplatform";
 import { MOS6502 } from "../common/cpu/MOS6502";
-import { AcceptsKeyInput, AcceptsPaddleInput, AcceptsROM, BasicScanlineMachine, FrameBased, Probeable, TrapCondition, VideoSource } from "../common/devices";
+import { AcceptsPaddleInput, BasicScanlineMachine } from "../common/devices";
 import { KeyFlags, Keys, makeKeycodeMap, newAddressDecoder, newKeyboardHandler } from "../common/emu";
 import { hex } from "../common/util";
-import { BaseWASIMachine } from "../common/wasmplatform";
 import { ANTIC, MODE_LINES, MODE_SHIFT } from "./chips/antic";
 import { CONSOL, GTIA, TRIG0 } from "./chips/gtia";
 import { POKEY } from "./chips/pokey";
