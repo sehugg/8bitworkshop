@@ -19,6 +19,9 @@ function isUnOp(arg) {
 class ExprOptions {
 }
 class RNG {
+    randomize() {
+        this.seed(Math.random() * 0x7fffffff, Math.random() * 0x7fffffff, Math.random() * 0x7fffffff, Math.random() * 0x7fffffff);
+    }
     constructor() {
         let f = () => {
             var a, b, c, d;
@@ -52,9 +55,6 @@ class RNG {
         };
         f();
         this.seedfloat(-1);
-    }
-    randomize() {
-        this.seed(Math.random() * 0x7fffffff, Math.random() * 0x7fffffff, Math.random() * 0x7fffffff, Math.random() * 0x7fffffff);
     }
 }
 ;

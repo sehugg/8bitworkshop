@@ -94,7 +94,7 @@ class MachineRunner {
 }
 exports.MachineRunner = MachineRunner;
 async function loadMachine(modname, clsname) {
-    var mod = await Promise.resolve().then(() => __importStar(require('../machine/' + modname)));
+    var mod = await Promise.resolve(`${'../machine/' + modname}`).then(s => __importStar(require(s)));
     var cls = mod[clsname];
     var machine = new cls();
     return machine;

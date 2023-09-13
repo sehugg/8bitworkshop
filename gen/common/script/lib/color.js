@@ -160,5 +160,5 @@ var palette;
     }
     palette.factors = factors;
     // TODO: https://www.iquilezles.org/www/articles/palettes/palettes.htm
-})(palette = exports.palette || (exports.palette = {}));
+})(palette || (exports.palette = palette = {}));
 //# sourceMappingURL=color.js.map

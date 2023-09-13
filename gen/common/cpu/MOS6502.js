@@ -2043,7 +2043,7 @@ var MOS6502Interrupts;
     MOS6502Interrupts[MOS6502Interrupts["None"] = 0] = "None";
     MOS6502Interrupts[MOS6502Interrupts["NMI"] = 1] = "NMI";
     MOS6502Interrupts[MOS6502Interrupts["IRQ"] = 2] = "IRQ";
-})(MOS6502Interrupts = exports.MOS6502Interrupts || (exports.MOS6502Interrupts = {}));
+})(MOS6502Interrupts || (exports.MOS6502Interrupts = MOS6502Interrupts = {}));
 ;
 class MOS6502 {
     constructor() {

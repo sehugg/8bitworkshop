@@ -186,7 +186,7 @@ function compileWiz(step) {
         const FWDIR = '/share/common';
         var args = [
             '-o', destpath,
-            '-I', FWDIR + '/' + (params.wiz_inc_dir || step.platform),
+            '-I', FWDIR + '/' + (params.wiz_inc_dir || (0, util_1.getRootBasePlatform)(step.platform)),
             '-s', 'wla',
             '--color=none',
             step.path

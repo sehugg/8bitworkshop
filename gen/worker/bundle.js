@@ -941,7 +941,7 @@
         for (var arrdim of arr.args) {
           if (arrdim.valtype != "number")
             this.compileError(`Array dimensions must be numeric.`, arrdim.$loc);
-          if (isLiteral(arrdim) && arrdim.value < this.opts.defaultArrayBase)
+          if (isLiteral(arrdim) && typeof arrdim.value === "number" && arrdim.value < this.opts.defaultArrayBase)
             this.compileError(`An array dimension cannot be less than ${this.opts.defaultArrayBase}.`, arrdim.$loc);
         }
       });
@@ -2602,7 +2602,7 @@
         "-o",
         destpath,
         "-I",
-        FWDIR + "/" + (params.wiz_inc_dir || step.platform),
+        FWDIR + "/" + (params.wiz_inc_dir || getRootBasePlatform(step.platform)),
         "-s",
         "wla",
         "--color=none",

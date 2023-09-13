@@ -1,29 +1,6 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BaseWASIMachine = exports.BaseWASMMachine = void 0;
+exports.BaseWASMMachine = void 0;
 const devices_1 = require("./devices");
 const emu_1 = require("./emu");
 // WASM Support
@@ -220,52 +197,4 @@ class BaseWASMMachine {
     }
 }
 exports.BaseWASMMachine = BaseWASMMachine;
-let stub = function () { console.log(arguments); return 0; };
-class BaseWASIMachine extends BaseWASMMachine {
-    constructor(prefix) {
-        super(prefix);
-    }
-    getImports(wmod) {
-        var imports = this.wasiInstance.getImports(wmod);
-        // TODO: eliminate these imports
-        imports.env = {
-            system: stub,
-            __sys_mkdir: stub,
-            __sys_chmod: stub,
-            __sys_stat64: stub,
-            __sys_unlink: stub,
-            __sys_rename: stub,
-            __sys_getdents64: stub,
-            __sys_getcwd: stub,
-            __sys_rmdir: stub,
-            emscripten_thread_sleep: stub,
-        };
-        return imports;
-    }
-    stdoutWrite(buffer) {
-        console.log('>>>', buffer.toString());
-        return buffer.length;
-    }
-    async loadWASM() {
-        let WASI = await Promise.resolve().then(() => __importStar(require('@wasmer/wasi')));
-        let WasmFs = await Promise.resolve().then(() => __importStar(require('@wasmer/wasmfs')));
-        this.wasmFs = new WasmFs.WasmFs();
-        let bindings = WASI.WASI.defaultBindings;
-        bindings.fs = this.wasmFs.fs;
-        bindings.fs.mkdirSync('/tmp');
-        bindings.path = bindings.path.default;
-        this.wasiInstance = new WASI.WASI({
-            preopenDirectories: { '/tmp': '/tmp' },
-            env: {},
-            args: [],
-            bindings: bindings
-        });
-        this.wasmFs.volume.fds[1].write = this.stdoutWrite.bind(this);
-        this.wasmFs.volume.fds[2].write = this.stdoutWrite.bind(this);
-        await this.fetchWASM();
-        this.wasiInstance.start(this.instance);
-        await this.initWASM();
-    }
-}
-exports.BaseWASIMachine = BaseWASIMachine;
 //# sourceMappingURL=wasmplatform.js.map

@@ -286,7 +286,7 @@ var png;
         // TODO: aspect etc
         return bitmap;
     }
-})(png = exports.png || (exports.png = {}));
+})(png || (exports.png = png = {}));
 var font;
 (function (font) {
     class Glyph extends IndexedBitmap {
@@ -397,7 +397,7 @@ var font;
         return { maxheight, properties, glyphs };
     }
     font.decodedrawlines = decodedrawlines;
-})(font = exports.font || (exports.font = {}));
+})(font || (exports.font = font = {}));
 function remapBits(x, arr) {
     if (!arr)
         return x;

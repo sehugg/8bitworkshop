@@ -13,7 +13,7 @@ var ECSTokenType;
     ECSTokenType["Integer"] = "integer";
     ECSTokenType["CodeFragment"] = "code-fragment";
     ECSTokenType["Placeholder"] = "placeholder";
-})(ECSTokenType = exports.ECSTokenType || (exports.ECSTokenType = {}));
+})(ECSTokenType || (exports.ECSTokenType = ECSTokenType = {}));
 const OPERATORS = {
     'IMP': { f: 'bimp', p: 4 },
     'EQV': { f: 'beqv', p: 5 },

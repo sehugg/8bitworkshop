@@ -54,7 +54,7 @@ var data;
         }
     }
     data.set = set;
-})(data = exports.data || (exports.data = {}));
+})(data || (exports.data = data = {}));
 class IOWaitError extends Error {
 }
 exports.IOWaitError = IOWaitError;

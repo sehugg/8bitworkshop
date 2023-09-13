@@ -41,7 +41,7 @@ var KeyFlags;
     KeyFlags[KeyFlags["Meta"] = 16] = "Meta";
     KeyFlags[KeyFlags["KeyUp"] = 64] = "KeyUp";
     KeyFlags[KeyFlags["KeyPress"] = 128] = "KeyPress";
-})(KeyFlags = exports.KeyFlags || (exports.KeyFlags = {}));
+})(KeyFlags || (exports.KeyFlags = KeyFlags = {}));
 // TODO: don't use which/keyCode anymore?
 // TODO: let keycode = e.key ? e.key.charCodeAt(0) : e.keyCode;
 // TODO: let charCode = e.key ? e.key.charCodeAt(0) : e.charCode;

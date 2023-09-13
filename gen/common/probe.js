@@ -21,7 +21,7 @@ var ProbeFlags;
     ProbeFlags[ProbeFlags["WAIT"] = 520093696] = "WAIT";
     ProbeFlags[ProbeFlags["SCANLINE"] = 2113929216] = "SCANLINE";
     ProbeFlags[ProbeFlags["FRAME"] = 2130706432] = "FRAME";
-})(ProbeFlags = exports.ProbeFlags || (exports.ProbeFlags = {}));
+})(ProbeFlags || (exports.ProbeFlags = ProbeFlags = {}));
 class ProbeFrame {
 }
 class ProbeRecorder {

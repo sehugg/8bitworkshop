@@ -41,13 +41,13 @@ var ARMMode;
     ARMMode[ARMMode["MODE_ABORT"] = 23] = "MODE_ABORT";
     ARMMode[ARMMode["MODE_UNDEFINED"] = 27] = "MODE_UNDEFINED";
     ARMMode[ARMMode["MODE_SYSTEM"] = 31] = "MODE_SYSTEM";
-})(ARMMode = exports.ARMMode || (exports.ARMMode = {}));
+})(ARMMode || (exports.ARMMode = ARMMode = {}));
 var ARMRegs;
 (function (ARMRegs) {
     ARMRegs[ARMRegs["SP"] = 13] = "SP";
     ARMRegs[ARMRegs["LR"] = 14] = "LR";
     ARMRegs[ARMRegs["PC"] = 15] = "PC";
-})(ARMRegs = exports.ARMRegs || (exports.ARMRegs = {}));
+})(ARMRegs || (exports.ARMRegs = ARMRegs = {}));
 var ARMConstants;
 (function (ARMConstants) {
     ARMConstants[ARMConstants["BANK_NONE"] = 0] = "BANK_NONE";
@@ -65,7 +65,7 @@ var ARMConstants;
     ARMConstants[ARMConstants["BASE_DABT"] = 16] = "BASE_DABT";
     ARMConstants[ARMConstants["BASE_IRQ"] = 24] = "BASE_IRQ";
     ARMConstants[ARMConstants["BASE_FIQ"] = 28] = "BASE_FIQ";
-})(ARMConstants = exports.ARMConstants || (exports.ARMConstants = {}));
+})(ARMConstants || (exports.ARMConstants = ARMConstants = {}));
 const UNALLOC_MASK = 0x0FFFFF00;
 const USER_MASK = 0xF0000000;
 const PRIV_MASK = 0x000000DF; // This is out of spec? (SEH)

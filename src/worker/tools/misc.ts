@@ -2,7 +2,7 @@ import { Segment, CodeListingMap, WorkerResult, WorkerError } from "../../common
 import { BuildStep, BuildStepResult, setupRequireFunction, load, emglobal, getWorkFileAsString, loadNative, gatherFiles, staleFiles, msvcErrorMatcher, moduleInstFn, setupFS, populateFiles, execMain, putWorkFile, anyTargetChanged, parseListing, print_fn, makeErrorMatcher, populateExtraFiles } from "../workermain";
 import { EmscriptenModule } from "../workermain"
 import * as basic_compiler from '../../common/basic/compiler';
-import { parseXMLPoorly } from "../../common/util";
+import { getRootBasePlatform, parseXMLPoorly } from "../../common/util";
 
 export function translateShowdown(step: BuildStep): BuildStepResult {
     setupRequireFunction();
@@ -159,7 +159,7 @@ export function compileWiz(step: BuildStep): WorkerResult {
         const FWDIR = '/share/common';
         var args = [
             '-o', destpath,
-            '-I', FWDIR + '/' + (params.wiz_inc_dir || step.platform),
+            '-I', FWDIR + '/' + (params.wiz_inc_dir || getRootBasePlatform(step.platform)),
             '-s', 'wla',
             '--color=none',
             step.path];

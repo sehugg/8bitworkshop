@@ -27,7 +27,7 @@ var TokenType;
     TokenType["Comment"] = "comment";
     TokenType["Ignore"] = "ignore";
     TokenType["CatchAll"] = "catch-all";
-})(TokenType = exports.TokenType || (exports.TokenType = {}));
+})(TokenType || (exports.TokenType = TokenType = {}));
 class Token {
 }
 exports.Token = Token;
