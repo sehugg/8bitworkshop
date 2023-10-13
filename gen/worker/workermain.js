@@ -98,6 +98,8 @@ var PLATFORM_PARAMS = {
         wiz_inc_dir: '2600',
         extra_link_files: ['atari2600.cfg'],
         cfgfile: 'atari2600.cfg',
+        libargs: ['atari2600.lib'],
+        define: ['__ATARI2600__'],
     },
     'mw8080bw': {
         arch: 'z80',
@@ -807,7 +809,7 @@ function setupFS(FS, name) {
     if (name === '65-devel')
         name = '65-none'; // TODO
     if (name === '65-vcs')
-        name = '65-none'; // TODO
+        name = '65-atari2600'; // TODO
     if (!fsMeta[name])
         throw Error("No filesystem for '" + name + "'");
     FS.mkdir('/share');
@@ -1169,7 +1171,8 @@ var TOOL_PRELOADFS = {
     'ca65-atari7800': '65-none',
     'cc65-devel': '65-none',
     'ca65-devel': '65-none',
-    'ca65-vcs': '65-none',
+    'cc65-vcs': '65-atari2600',
+    'ca65-vcs': '65-atari2600',
     'sdasz80': 'sdcc',
     'sdcc': 'sdcc',
     'sccz80': 'sccz80',
@@ -1178,7 +1181,7 @@ var TOOL_PRELOADFS = {
     'fastbasic': '65-atari8',
     'silice': 'Silice',
     'wiz': 'wiz',
-    'ecs-vcs': '65-none',
+    'ecs-vcs': '65-atari2600',
     'ecs-nes': '65-nes',
     'ecs-c64': '65-c64', // TODO: support multiple platforms
 };
