@@ -1,0 +1,147 @@
+
+//#resource "vcs-ca65.h"
+
+import "vcslib.ecs"
+import "sprites.ecs"
+
+system Kernel1Sprite
+    locals 7
+
+    on kernelsetup do with [Sprite]
+---
+; set player object flags
+    lda {{<plyrflags}}
+    sta NUSIZ0
+    sta REFP0
+---
+
+    on kernelsetup do with
+    [Sprite,HasBitmap,HasColormap,HasYpos]
+---
+; calculate screen height - ypos
+    lda {{<lines}}
+    clc
+    adc #32
+    sec
+    sbc {{<ypos}}
+    sta {{$5}}
+; calculate bitmap pointer
+    stx {{$6}}		; save X (Sprite index)
+    lda {{<bitmap}}     ; deref bitmap
+    tax
+    lda {{<Bitmap:bitmapdata}},x
+    sec
+    sbc {{$5}}
+    sta {{$0}}	; Y = sprite slot index
+    lda {{>Bitmap:bitmapdata}},x
+    sbc #0
+    sta {{$1}}
+; get bitmap height
+    lda {{<Bitmap:height}},x
+    sta {{$4}}
+; calculate colormap pointer
+    ldx {{$6}}		; restore X
+    lda {{<colormap}}	; deref colormap
+    tax
+    lda {{<Colormap:colormapdata}},x
+    sec
+    sbc {{$5}}
+    sta {{$2}}
+    lda {{>Colormap:colormapdata}},x
+    sbc #0
+    sta {{$3}}
+; save ypos
+    ldx {{$6}}		; restore X
+    lda {{<ypos}}
+    sta {{$5}}
+@nosprite:
+---
+
+// TODO: what if > 1 player? or missile?
+    on kernelsetup do with [Sprite,HasXpos]
+---
+    ldy #0
+    lda {{<xpos}}
+    {{!SetHorizPos}}
+    sta HMOVE
+---
+    on prescanline do once
+---
+; draw player 0
+    lda {{$4}} ; height
+    dcp {{$5}} ; ypos
+    bcs @DoDraw1
+    lda #0
+    .byte $2C
+@DoDraw1:
+    lda ({{$0}}),y
+---
+    on scanline do once
+---
+    sta GRP0
+    lda ({{$2}}),y
+    sta COLUP0
+---
+    on kerneldone do once
+---
+    lda #0
+    sta GRP0
+    sta GRP1
+    sta GRP0
+    sta GRP1
+---
+end
+
+system KernelMissile
+    locals 1
+// TODO: unroll loops
+    on preframe do foreach [Missile,HasYpos] limit 1
+---
+    lda {{<ypos}}
+    sta {{$0}}
+---
+    on scanline do foreach [Missile,HasYpos] limit 1
+---
+    dec {{$0}}
+    php
+    pla
+    sta ENAM0+{{const index}}-2
+---
+    on kerneldone do foreach [Missile,HasYpos] limit 1
+---
+; skip 3 lines each kernel section
+    lda #0
+    sta ENAM0+{{const index}}-2
+    dec {{$0}}
+    dec {{$0}}
+    dec {{$0}}
+---
+end
+
+system KernelCollide
+    locals 1
+    on preframe do once
+    ---
+    lda #$ff
+    sta {{$0}}		; object index if collision
+    ---
+    on kernelsetup do once
+    ---
+    sta CXCLR		; clear collision flags
+    --- 
+    on kerneldone do with [Sprite]
+    ---
+    lda CXM1P
+    bpl @nocollide	; missile 1 <-> player 0?
+    stx {{$0}}		; save object index
+@nocollide:
+    ---
+// TODO: somehow avoid select? pass arg to explode?
+    on postframe do select [Sprite]
+    ---
+    ldx {{$0}}  	; get object index
+    bmi @noexplode	; was there collision?
+    {{!explode}}
+@noexplode:
+    ---
+end

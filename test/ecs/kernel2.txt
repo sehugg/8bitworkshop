@@ -135,6 +135,7 @@ __Start:
 .include "vcs-ca65.h"
 .macpack longbranch
 .define PAL 0
+.segment "STARTUP"
 __NMI:
 __Reset:
 __BRK:
