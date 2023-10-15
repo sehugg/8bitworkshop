@@ -18,7 +18,7 @@ import { EmscriptenModule } from "../workermain"
 00B726  1  xx xx        IBSECSZ: .res 2
 00BA2F  1  2A 2B E8 2C   HEX "2A2BE82C2D2E2F303132F0F133343536"
 */
-function parseCA65Listing(code: string, symbols, segments, params, dbg: boolean, listings?: CodeListingMap) {
+function parseCA65Listing(asmfn: string, code: string, symbols, segments, params, dbg: boolean, listings?: CodeListingMap) {
     var segofs = 0;
     var offset = 0;
     var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+(\w+), "([^"]+)", (.+)/;
@@ -28,7 +28,7 @@ function parseCA65Listing(code: string, symbols, segments, params, dbg: boolean,
     var origlines = [];
     var lines = origlines;
     var linenum = 0;
-    let curpath = '';
+    let curpath = asmfn || '';
     // TODO: only does .c functions, not all .s files
     for (var line of code.split(re_crlf)) {
         var dbgm = dbgLineMatch.exec(line);
@@ -62,13 +62,14 @@ function parseCA65Listing(code: string, symbols, segments, params, dbg: boolean,
                 insns: null
             });
         }
-        linenum++;
         var linem = insnLineMatch.exec(line);
         var topfile = linem && linem[3] == '1';
+        if (topfile) linenum++;
         if (topfile && linem[1]) {
             var offset = parseInt(linem[1], 16);
             var insns = linem[4].trim();
             if (insns.length) {
+                //console.log(curpath, linenum, offset, segofs, insns);
                 if (!dbg) {
                     lines.push({
                         path: curpath,
@@ -222,18 +223,18 @@ export function linkLD65(step: BuildStep): BuildStepResult {
                 var lstout = FS.readFile(fn, { encoding: 'utf8' });
                 lstout = lstout.split('\n\n')[1] || lstout; // remove header
                 putWorkFile(fn, lstout);
-                console.log(step);
+                //const asmpath = fn.replace(/\.lst$/, '.ca65'); // TODO! could be .s
                 let isECS = step.debuginfo?.entities != null; // TODO
                 if (isECS) {
                     var asmlines = [];
-                    var srclines = parseCA65Listing(lstout, symbolmap, segments, params, true, listings);
+                    var srclines = parseCA65Listing(fn, lstout, symbolmap, segments, params, true, listings);
                     listings[fn] = {
                         lines: [],
                         text: lstout
                     }
                 } else {
-                    var asmlines = parseCA65Listing(lstout, symbolmap, segments, params, false);
-                    var srclines = parseCA65Listing(lstout, symbolmap, segments, params, true); // TODO: listings param for ecs
+                    var asmlines = parseCA65Listing(fn, lstout, symbolmap, segments, params, false);
+                    var srclines = parseCA65Listing('', lstout, symbolmap, segments, params, true);
                     listings[fn] = {
                         asmlines: srclines.length ? asmlines : null,
                         lines: srclines.length ? srclines : asmlines,
