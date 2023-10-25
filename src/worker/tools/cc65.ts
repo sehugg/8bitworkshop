@@ -62,30 +62,41 @@ function parseCA65Listing(asmfn: string, code: string, symbols, segments, params
                 insns: null
             });
         }
-        var linem = insnLineMatch.exec(line);
-        var topfile = linem && linem[3] == '1';
-        if (topfile) linenum++;
-        if (topfile && linem[1]) {
-            var offset = parseInt(linem[1], 16);
-            var insns = linem[4].trim();
-            if (insns.length) {
-                //console.log(curpath, linenum, offset, segofs, insns);
-                if (!dbg) {
-                    lines.push({
-                        path: curpath,
-                        line: linenum,
-                        offset: offset + segofs,
-                        insns: insns,
-                        iscode: true // TODO: can't really tell unless we parse it
-                    });
-                }
-            } else {
-                var sym = linem[5];
-                if (sym.endsWith(':') && !sym.startsWith('@')) {
-                    var symofs = symbols[sym.substring(0, sym.length - 1)];
-                    if (typeof symofs === 'number') {
-                        segofs = symofs - offset;
-                        //console.log(sym, segofs, symofs, '-', offset);
+        let linem = insnLineMatch.exec(line);
+        let topfile = linem && linem[3] == '1';
+        if (topfile) {
+            let insns = linem[4]?.trim() || '';
+            // skip extra insns for macro expansions
+            if (!(insns != '' && linem[5] == '')) {
+                linenum++;
+            }
+            if (linem[1]) {
+                var offset = parseInt(linem[1], 16);
+                if (insns.length) {
+                    //console.log(dbg, curpath, linenum, offset, segofs, insns);
+                    if (!dbg) {
+                        lines.push({
+                            path: curpath,
+                            line: linenum,
+                            offset: offset + segofs,
+                            insns: insns,
+                            iscode: true // TODO: can't really tell unless we parse it
+                        });
+                    }
+                } else {
+                    var sym = null;
+                    var label = linem[5];
+                    if (label?.endsWith(':')) {
+                        sym = label.substring(0, label.length-1);
+                    } else if (label?.toLowerCase().startsWith('.proc')) {
+                        sym = label.split(' ')[1];
+                    }
+                    if (sym && !sym.startsWith('@')) {
+                        var symofs = symbols[sym];
+                        if (typeof symofs === 'number') {
+                            segofs = symofs - offset;
+                            //console.log(sym, segofs, symofs, '-', offset);
+                        }
                     }
                 }
             }
@@ -224,7 +235,7 @@ export function linkLD65(step: BuildStep): BuildStepResult {
                 lstout = lstout.split('\n\n')[1] || lstout; // remove header
                 putWorkFile(fn, lstout);
                 //const asmpath = fn.replace(/\.lst$/, '.ca65'); // TODO! could be .s
-                let isECS = step.debuginfo?.entities != null; // TODO
+                let isECS = step.debuginfo?.systems?.Init != null; // TODO
                 if (isECS) {
                     var asmlines = [];
                     var srclines = parseCA65Listing(fn, lstout, symbolmap, segments, params, true, listings);
