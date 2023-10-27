@@ -417,6 +417,9 @@ export class Dialect_CA65 {
     label(sym: string) {
         return `${sym}:`;
     }
+    export(sym: string) {
+        return `.export _${sym} = ${sym}`;
+    }
     byte(b: number | ConstByte | undefined) {
         if (b === undefined) {
             return `.res 1`
@@ -523,13 +526,15 @@ class DataSegment {
             }
         }
     }
-    dump(file: SourceFileExport, dialect: Dialect_CA65) {
+    dump(file: SourceFileExport, dialect: Dialect_CA65, doExport: boolean) {
         // TODO: fewer lines
         for (let i = 0; i < this.size; i++) {
             let syms = this.ofs2sym.get(i);
             if (syms) {
-                for (let sym of syms)
+                for (let sym of syms) {
+                    if (doExport) file.line(dialect.export(sym)); // TODO: this is a hack for C export
                     file.line(dialect.label(sym));
+                }
             }
             file.line(dialect.byte(this.initdata[i]));
         }
@@ -1683,13 +1688,15 @@ export class EntityScope implements SourceLocated {
         this.allocateSegment(this.rodata, false, 'const'); // constants
         this.allocateROData(this.rodata);
     }
+    private isMainScope() {
+        return this.parent == null;
+    }
     private generateCode() {
         this.eventSeq = 0;
         this.eventCodeStats = {};
-        let isMainScope = this.parent == null;
         let start;
         let initsys = this.em.getSystemByName('Init');
-        if (isMainScope && initsys) {
+        if (this.isMainScope() && initsys) {
             this.newSystemInstanceWithDefaults(initsys); //TODO: what if none?
             start = this.generateCodeForEvent('main_init');
         } else {
@@ -1759,12 +1766,13 @@ export class EntityScope implements SourceLocated {
         }
     }
     private dumpCodeTo(file: SourceFileExport) {
+        let shouldExport = this.instances.length == 0;
         let dialect = this.dialect;
         file.line(dialect.startScope(this.name));
         file.line(dialect.segment('bss'));
-        this.bss.dump(file, dialect);
+        this.bss.dump(file, dialect, shouldExport);
         file.line(dialect.segment('code')); // TODO: rodata for aligned?
-        this.rodata.dump(file, dialect);
+        this.rodata.dump(file, dialect, shouldExport);
         //file.segment(`${this.name}_CODE`, 'code');
         file.line(dialect.label('__Start'));
         this.code.dump(file);

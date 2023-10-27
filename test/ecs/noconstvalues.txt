@@ -1,21 +1,27 @@
 .scope Main
 .zeropage
 .code
+.export _Room_fgcolor_b0 = Room_fgcolor_b0
 Room_fgcolor_b0:
 .byte 12
 .byte 12
+.export _Room_bgcolor_b0 = Room_bgcolor_b0
 Room_bgcolor_b0:
 .byte 18
 .byte 18
+.export _Room_north_b0 = Room_north_b0
 Room_north_b0:
 .byte 0
 .byte 0
+.export _Room_east_b0 = Room_east_b0
 Room_east_b0:
 .byte 1
 .byte 0
+.export _Room_south_b0 = Room_south_b0
 Room_south_b0:
 .byte 0
 .byte 0
+.export _Room_west_b0 = Room_west_b0
 Room_west_b0:
 .byte 0
 .byte 1
