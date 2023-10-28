@@ -1,0 +1,121 @@
+
+.include "vcs-ca65.inc"
+
+.global _scorepf_build
+.global _scorepf_kernel
+.importzp _bcd_score
+.importzp tmp1
+.import _reset_gfx
+.import Return
+
+.zeropage
+digit_ofs:	.res 4
+;pftmp:		.res 2
+; no one is using this, right??
+pftmp = tmp1
+
+.segment "ROM1"
+; calculate the byte offsets for each digit
+; basically (digit * 5)
+.proc _scorepf_build
+  ldx #0
+  lda _bcd_score+0
+  jsr calc_bcd_pair
+  lda _bcd_score+1
+  jsr calc_bcd_pair
+  rts
+.endproc
+
+.proc calc_bcd_pair
+  pha
+  and #$0f
+  sta pftmp
+  jsr mul5store		; (clever inlining)
+  pla
+  and #$f0
+  lsr
+  lsr
+  lsr
+  lsr
+mul5store:
+  sta pftmp
+  asl
+  asl
+  adc pftmp		; mul by 5
+  sta digit_ofs,x
+  inx
+  rts
+.endproc
+
+.proc _scorepf_kernel
+  jsr _reset_gfx	; returns A=0
+  sta pftmp+0
+  sta pftmp+1
+  tax
+; render the digits
+  ldx #0
+@loop:
+; first digit pair
+  sta WSYNC
+  ldy digit_ofs+0
+  inc digit_ofs+0
+  lda DigitsBitmap,y
+  and #$0f
+  ldy pftmp+0		; load old value digits 0/1
+  sta pftmp+0
+  sty PF1		; store in PF1
+  ldy digit_ofs+1
+  inc digit_ofs+1
+  lda DigitsBitmap,y
+  and #$f0
+  ora pftmp+0
+  sta pftmp+0
+; second digit pair
+  ldy pftmp+1		; load old value digits 2/3
+  sty PF1		; store in PF1
+  ldy digit_ofs+2
+  inc digit_ofs+2
+  lda DigitsBitmap,y
+  and #$0f
+  sta pftmp+1
+  sta WSYNC
+  ldy digit_ofs+3
+  inc digit_ofs+3
+  lda DigitsBitmap,y
+  and #$f0
+  ora pftmp+1
+  sta pftmp+1
+; one more line
+  lda pftmp+0
+  sta PF1
+  SLEEPR 6
+  lda pftmp+1
+  sta PF1
+; loop over 5 lines
+  inx
+  cpx #5
+  bne @loop
+; one more line
+  sta WSYNC
+  lda pftmp+0
+  sta PF1
+  SLEEPR 24
+  lda pftmp+1
+  sta PF1
+  sta WSYNC
+  jmp _reset_gfx
+.endproc
+
+; Bitmap pattern for digits
+DigitsBitmap: ;;{w:8,h:5,count:10,brev:1};;
+.byte $EE,$AA,$AA,$AA,$EE
+.byte $22,$22,$22,$22,$22
+.byte $EE,$22,$EE,$88,$EE
+.byte $EE,$22,$66,$22,$EE
+.byte $AA,$AA,$EE,$22,$22
+.byte $EE,$88,$EE,$22,$EE
+.byte $EE,$88,$EE,$AA,$EE
+.byte $EE,$22,$22,$22,$22
+.byte $EE,$AA,$EE,$AA,$EE
+.byte $EE,$AA,$EE,$22,$EE
+;;end

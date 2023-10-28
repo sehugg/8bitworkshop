@@ -1,0 +1,50 @@
+
+.include "vcs-ca65.inc"
+
+.global _set_horiz_pos
+.export _reset_gfx
+.export _reset_sprites
+.export Return
+
+;;;
+
+; SetHorizPos routine
+; A = X coordinate
+; X = player number (0 or 1)
+; must be in rodata segment because of alignment
+.rodata
+.align $10
+.proc _set_horiz_pos
+    sec                 ; set carry flag
+    sta WSYNC           ; start a new line
+:
+    sbc #15             ; subtract 15
+    bcs :-              ; branch until negative
+    eor #7              ; calculate fine offset
+    asl
+    asl
+    asl
+    asl
+    sta HMP0,x  ; set fine offset
+    sta RESP0,x ; fix coarse position
+    sta WSYNC   ; won't overrun if X < 150
+    rts
+.endproc
+.code
+
+;;;
+
+_reset_gfx:
+  lda #0
+  sta PF0
+  sta PF1
+  sta PF2
+_reset_sprites:
+  lda #0
+  sta GRP0
+  sta GRP1
+  sta GRP0
+  sta GRP1
+Return:
+  rts
+

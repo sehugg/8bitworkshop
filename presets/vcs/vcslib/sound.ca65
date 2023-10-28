@@ -1,0 +1,79 @@
+
+.include "vcs-ca65.inc"
+
+.export _sound_update
+.export _sound_play
+
+.import _sound_duration
+.import _sound_data
+
+.zeropage
+
+_sndchan_sfx:   .res 2
+_sndchan_timer: .res 2
+
+.exportzp _sndchan_sfx
+.exportzp _sndchan_timer
+
+.importzp ptr3
+sounddata = ptr3
+
+.segment "ROM3"
+
+; 00-1F:	set frequency
+; 81-9F odd:	set volume
+; 80-9E even:	set control register
+
+.proc _sound_update
+  ldx #0
+  jsr _sound_update_channel
+  ldx #1
+.endproc
+.proc _sound_update_channel
+; decrement timer
+  lda _sndchan_timer,x
+  beq @done
+  dec _sndchan_timer,x
+  beq @killsound
+; get sound data address
+  lda _sndchan_sfx,x
+  asl
+  tay
+  lda _sound_data+0,y
+  sta sounddata+0
+  lda _sound_data+1,y
+  sta sounddata+1
+; get next sound data byte
+  ldy _sndchan_timer,x
+  lda (sounddata),y	; get sound data
+  bpl @setfreq          ; hi bit clear = just freq
+  lsr                   ; right shift (/ 2)
+  bcs @setvol           ; lo bit set = volume
+  sta AUDC0,x           ; lo bit clear = control
+  lsr                   ; also set freq (/ 2)
+@setfreq:
+  sta AUDF0,x           ; set frequency
+  rts
+@killsound:
+  lda #0
+@setvol:
+  sta AUDV0,x           ; set volume
+@done:
+  rts
+.endproc
+
+.proc _sound_play
+; but which channel to use?
+; whichever has the lower timer counter
+  ldx #0
+  ldy _sndchan_timer+0
+  cpy _sndchan_timer+1
+  bcc @Chan0Free  ; timer0 < timer 1?
+  inx
+@Chan0Free:
+  sta _sndchan_sfx,x
+  tay
+  lda _sound_duration,y
+  sta _sndchan_timer,x
+  rts
+.endproc

@@ -1,0 +1,81 @@
+
+.include "vcs-ca65.inc"
+
+.setcpu "6502x"
+.macpack longbranch
+
+.global _kernel_2pp_4pfa
+.global _kernel_2pfasync
+
+.importzp _k_height
+.importzp _k_ypos
+.importzp _k_bitmap
+.importzp _k_colormap
+.importzp _k_playfield
+.importzp tmp1
+.import _k_asyncpf
+.import _reset_gfx
+
+_k_pftmp = tmp1 ; no one's using this just now, right?
+
+.include "kernel.inc"
+
+.code
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Display Kernel
+; - two double-line players w/ colormap
+; - two missiles, variable height
+; - versatile playfield, 4 lines per change (no cross page)
+; Modifies: _k_ypos, _k_playfield
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.proc _kernel_2pp_4pfa
+  tay
+  ldx #0
+@loop:
+; first two lines, fetch PF0 and PF1
+  DO_PCOLOR 0
+  DO_PCOLOR 1
+  DO_DRAW 0,1
+  DO_DRAW 1,0
+  DO_MISSILE 2
+  DO_MISSILE_NOP 3
+  DO_VERSATILE_PF_1
+  dey
+; second two lines, fetch PF2 and write PF registers
+  DO_PCOLOR 0
+  DO_PCOLOR 1
+  DO_DRAW 0,1
+  DO_DRAW 1,0
+  DO_MISSILE_NOP 2
+  DO_MISSILE 3
+  DO_VERSATILE_PF_2
+  dey
+  jne @loop
+  jmp _reset_gfx
+.endproc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Display Kernel
+; - async playfield, 6 lines per change
+; - playfield data should be page-aligned
+; Modifies: _k_playfield
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+.proc _kernel_2pfasync
+  tay
+loop2:
+  dey
+  ldx #5
+loop:
+  DO_PFWRITE_2
+  DO_WSYNC
+  lda _k_asyncpf,y
+  sta _k_pftmp,x
+  DO_PFWRITE
+  stx COLUPF	; fun vfx rainbow
+  dex
+  bmi loop2
+  dey
+  jne loop
+  jmp _reset_gfx
+.endproc

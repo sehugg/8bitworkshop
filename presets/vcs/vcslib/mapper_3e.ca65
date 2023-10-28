@@ -1,0 +1,92 @@
+
+.importzp tmp4, ptr3, ptr4
+.import callax
+
+.export _bankselect
+.export _ramselect
+.export _xramset
+.export _xramwrite
+.export _xramread
+
+.zeropage
+
+; current ROM bank index (not used for RAM)
+_currbank: .res 1
+
+; must be in shared ROM bank
+.code
+
+;extern void bankselect(char index);
+;#pragma wrapped-call (push, bankselect, 0)
+;#pragma code-name (push, "ROM0")
+;
+; Wrapper function for selecting a ROM bank
+;NOTE: this does not preserve Y
+_bankselect:
+  tay
+; save the old bank index
+  lda _currbank
+  pha
+; select the new bank
+  lda tmp4
+  sta _currbank
+  sta $3F
+  tya
+; call the wrapped function
+call_wrapped_and_exit:
+  jsr call_wrapped_func
+; restore the previous bank
+  pla
+  sta _currbank
+  sta $3F
+  rts
+
+; Wrapper function for selecting the RAM bank
+; This must be called from a ROM bank, because it
+; will always exit into the last selected ROM bank
+;NOTE: this does not preserve Y
+_ramselect:
+  tay
+; save the old bank index
+  lda _currbank
+  pha
+; select the RAM bank
+  lda tmp4
+  sta $3E
+  lda #0	; needed for Stella signature?
+  tya
+  jmp call_wrapped_and_exit
+
+; Used to do: jsr (ptr4)
+call_wrapped_func:
+  jmp (ptr4)
+
+; Write a byte to address (ptr3) in RAM bank 0
+_xramwrite:
+; select the RAM bank
+  ldx #0
+  stx $3E
+  sta (ptr3,x)
+restore_bank:
+  ldx _currbank
+  stx $3F
+  rts
+
+; Read a byte to address (ptr4) in RAM bank 0
+_xramread:
+; modify the ptr4
+; select the RAM bank
+  ldx #0
+  stx $3E
+  lda (ptr4,x)
+  jmp restore_bank
+
+; Set the xram read/write address (in ptr3/ptr4)
+_xramset:
+  sta ptr4+0
+  sta ptr3+0
+  stx ptr4+1	; read
+  txa
+  ora #%00000100
+  sta ptr3+1	; write
+  rts

@@ -54,6 +54,7 @@ const VCS_PRESETS = [
   {id:'bb/duck_chase.bas', name:'Duck Chase (batariBASIC)'},
   {id:'wiz/finalduck.wiz', name:'Final Duck (Wiz)'},
 //  {id:'bb/rblast106.bas', name:'Road Blasters (batariBASIC)'},
+  {id:'vcslib/demo_vcslib.c', name:'VCSLib Demo (C)'},
 ];
 
 function getToolForFilename_vcs(fn: string) {
@@ -226,8 +227,8 @@ class VCSPlatform extends BasePlatform {
   fixState(state) {
     // TODO: DASM listing prevents us from using RORG offset
     // TODO: how to handle 1000/3000/etc vs overlapping addresses?
-    if (state.ca.f != '3E' && state.ca.f != '3F')  {
-      var ofs = (state.ca && state.ca.bo) || 0;
+    if (state.ca?.f != '3E' && state.ca?.f != '3F')  {
+      var ofs = (state.ca?.bo) || 0;
       // TODO: for batari BASIC
       state.c.EPC = state.c.PC + ofs; // EPC = effective PC for ROM
     }

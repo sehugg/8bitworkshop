@@ -1,0 +1,36 @@
+
+.include "vcs-ca65.inc"
+
+.global _randseed8
+.global _initrand8
+.global _nextrand8
+.global _prevrand8
+
+_randseed8: .res 1
+
+.proc _initrand8
+  lda INTIM
+  ora #1
+  sta _randseed8
+  rts
+.endproc
+
+.proc _nextrand8
+  lda _randseed8
+  lsr
+  bcc :+
+  eor #$d4
+:
+  sta _randseed8
+  rts
+.endproc
+
+.proc _prevrand8
+  lda _randseed8
+  asl
+  bcc :+
+  eor #$a9
+:
+  sta _randseed8
+  rts
+.endproc
