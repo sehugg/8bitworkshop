@@ -1,0 +1,308 @@
+
+//#resource "vcs-ca65.h"
+
+import "vcslib.ecs"
+import "sprites.ecs"
+import "score.ecs"
+import "sound.ecs"
+import "velocity.ecs"
+import "kernel1.ecs"
+import "random.ecs"
+
+demo Main
+
+    using FrameLoop
+    using Kernel2Digit, BCDMath
+    using StandardKernel, Kernel1Sprite
+    using KernelMissile, KernelCollide
+    using SetXPos, SetHorizPos
+
+    entity Blank [Bitmap,Colormap]
+        decode vcs_sprite
+        ---
+        ........ 00
+        ---
+    end
+    entity Explode1 [Bitmap,Colormap]
+        decode vcs_sprite
+        ---
+        x......x 08
+        .x....x. 0a
+        ..x..x.. 0c
+        ........ 0e
+        xx....xx 0e
+        ........ 0e
+        ..x..x.. 0c
+        .x....x. 0a
+        x......x 08
+        ---
+    end
+    entity Explode2 [Bitmap,Colormap]
+        decode vcs_sprite
+        ---
+        ..x..x.. 08
+        .x....x. 0a
+        x......x 0c
+        ...xx... 0e
+        ..x..x.. 0e
+        ...xx... 0e
+        x......x 0c
+        .x....x. 0a
+        ..x..x.. 08
+        ---
+    end
+    entity Explode3 [Bitmap,Colormap]
+        decode vcs_sprite
+        ---
+        x..xx..x 08
+        ..x..x.. 0a
+        .x....x. 0c
+        ..x..x.. 0e
+        x......x 0e
+        ..x..x.. 0e
+        .x....x. 0c
+        ..x..x.. 0a
+        x..xx..x 08
+        ---
+    end
+
+    entity Weird [Bitmap,Colormap]
+        decode vcs_sprite
+        ---
+        .x...... 12
+        .xx..... 14
+        .xxx.... 16
+        .x.xx... 18
+        .xx.xx.. 1a
+        .xxx.xx. 1c
+        .x.x.x.x 1e
+        .x.x.x.x 18
+        ---
+    end
+
+    entity Cool [Bitmap,Colormap]
+        decode vcs_sprite
+        ---
+        ...xx... 48
+        ..xxxx.. 4a
+        .xxxxxx. 4c
+        xxxxxxxx 4e
+        x..xx..x 4e
+        x.xxx.xx 4e
+        xxxxxxxx 4e
+        xxxxxxxx 4e
+        xxxxxxxx 4e
+        xx....xx 4e
+        xxxxxxxx 4e
+        .xxxxxx. 4c
+        ..xxxx.. 4a
+        ---
+    end
+
+    entity PlayerBC [Bitmap,Colormap]
+        decode vcs_sprite
+        ---
+        ..xxxx.. 1a
+        ...xx... 1c
+        ...xx... 2e
+        ..xxxx.. 3c
+        .xxxxxx. 4e
+        xx.xx.xx 5e
+        xxx..xxx 6e
+        xx.xx.xx 7e
+        xxxxxxxx 8e
+        .xxxxxx. 9e
+        ---
+    end
+
+    entity [BCDScore2]
+        init scorecolor = $4e
+    end
+    /*
+    entity [BCDScore2]
+        init scorecolor = $ce
+    end
+    */
+
+// TODO
+  entity [KernelSection,BGColor,Sprite,HasBitmap,HasXpos,HasColormap,HasYpos,TinyVelX]
+    const lines = 30
+    const bgcolor = $72
+    var plyrflags = 0
+    var xpos = 120
+    var ypos = 22
+    var bitmap = #Cool
+    var colormap = #Cool
+    var xvel = 11
+  end
+  entity [KernelSection,BGColor,Sprite,HasBitmap,HasXpos,HasColormap,HasYpos,TinyVelX]
+    const lines = 35
+    const bgcolor = $74
+    var plyrflags = 3
+    var xpos = 60
+    var ypos = 10
+    var bitmap = #Weird
+    var colormap = #Weird
+    var xvel = 5
+  end
+  entity [KernelSection,BGColor,Sprite,HasBitmap,HasXpos,HasColormap,HasYpos,TinyVelX]
+    const lines = 40
+    const bgcolor = $76
+    var plyrflags = 0
+    var xpos = 20
+    var ypos = 15
+    var bitmap = #Weird
+    var colormap = #Cool
+    var xvel = 9
+  end
+  entity Player1 [KernelSection,BGColor,Sprite,HasBitmap,HasColormap,HasXpos,HasYpos,Player]
+    const lines = 45
+    const bgcolor = $78
+    var plyrflags = 0
+    var xpos = 70
+    var ypos = 35
+    var bitmap = #PlayerBC
+    var colormap = #PlayerBC
+  end
+  entity PlayerMissile [HasXpos,HasYpos,Missile,FGColor]
+    var xpos = 75
+    var ypos = 100
+    const fgcolor = $fe
+    const index = 3
+  end
+  
+  system ShootingStuff
+  // TODO
+  on kernelsetup do foreach [Missile,FGColor] 
+  ---
+  lda {{<fgcolor}}
+  ldy {{<index}}
+  sta COLUP0-2,y
+  ---
+  on postframe do foreach [Missile] 
+  ---
+  lda {{<ypos}}
+  beq @nomissile
+  dec {{<ypos}}
+@nomissile:
+  ---
+  // TODO: nice to have constants here
+  on joybutton do once
+  ---
+  lda #138
+  sta {{<PlayerMissile.ypos}}
+  lda {{<Player1.xpos}}
+  clc
+  adc #4
+  sta {{<PlayerMissile.xpos}}
+    {{!playsound 0 2 5}}
+  ---
+  // TODO: nice if we could do "with"
+  on explode do select [Sprite,HasBitmap,HasColormap]
+  ---
+    lda #{{eid Explode3}}-{{eid Blank}}
+    sta {{base bitmap}},x
+    sta {{base colormap}},x
+  ---
+  // TODO: need to limit to cur player
+  on explode do foreach [BCDScore2]
+  ---
+    {{!AddBCD2 1}}
+  ---
+  // TODO: nice if we could do "with"
+  on explode do with [Missile]
+  ---
+    lda #0
+    sta {{<ypos}}
+    {{!playsound 0 1 10}}
+  ---
+  on preframeloop do once 
+  ---
+    nop
+  ---
+  end
+  
+  system BounceEnemies
+  // TODO: event1, event2 in handler?
+   on xlimit_right do with [TinyVelX]
+   ---
+   lda {{<xvel}}
+   eor #$0f
+   sta {{<xvel}}
+   ---
+   on xlimit_left do with [TinyVelX]
+   ---
+   lda {{<xvel}}
+   eor #$0f
+   sta {{<xvel}}
+   ---
+  end
+  
+  system ExplodingAnimation
+   on postframe do with [FrameCount]
+   ---
+   lda {{<frame}}
+   and #$0f
+   bne @noframe16
+   {{!frame16}}
+@noframe16:
+   and #$07
+   bne @noframe8
+   {{!frame8}}
+@noframe8:
+   ---
+   // TODO: forward jump conversion
+   on frame16 do foreach [Sprite,-Player]
+   //if bitmap > 0 and bitmap < #Blank then bitmap--
+   ---
+   lda {{<bitmap}}
+   beq @noinc
+   cmp #{{eid Explode3}}-{{eid Blank}}+1
+   bcs @noinc
+   dec {{<bitmap}}
+@noinc:
+   ---
+  end
+
+  using Random
+  entity [Random8]
+    var seed = 1
+  end
+
+  system SpawnEnemies
+  on preframeloop do foreach [Sprite,-Player]
+  ---
+  {{!nextrand8}}
+  and #15
+  ;sta {{<xvel}}
+  ---
+  end
+  
+  entity [FrameCount]
+  end
+  using FrameCounter, TinyMover
+
+    using Joystick, JoyButton, MoveJoyX with [Player]
+
+  using SoundEngine
+
+  entity SFXNull [SoundEffect]
+    const duration = 0
+    const sounddata = [0]
+  end
+  entity SFXExplode [SoundEffect]
+    const duration = 10
+    const sounddata = [$02,$03,$04,$08,$10,$20,$40,$20,$10,$a4]
+  end
+  entity SFXFire [SoundEffect]
+    const duration = 10
+    const sounddata = [$70,$60,$50,$40,$20,$10,$00,$50,$a4,$84]
+  end
+
+  entity SFX1 [SoundChannel]
+  end
+  entity SFX2 [SoundChannel]
+  end
+
+end demo
+
