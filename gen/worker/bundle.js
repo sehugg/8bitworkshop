@@ -2634,7 +2634,8 @@
   }
 
   // src/worker/tools/cc65.ts
-  function parseCA65Listing(code, symbols, segments, params, dbg, listings) {
+  function parseCA65Listing(asmfn, code, symbols, segments, params, dbg, listings) {
+    var _a;
     var segofs = 0;
     var offset = 0;
     var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+(\w+), "([^"]+)", (.+)/;
@@ -2644,7 +2645,7 @@
     var origlines = [];
     var lines = origlines;
     var linenum = 0;
-    let curpath = "";
+    let curpath = asmfn || "";
     for (var line of code.split(re_crlf)) {
       var dbgm = dbgLineMatch.exec(line);
       if (dbgm && dbgm[1]) {
@@ -2675,28 +2676,38 @@
           insns: null
         });
       }
-      linenum++;
-      var linem = insnLineMatch.exec(line);
-      var topfile = linem && linem[3] == "1";
-      if (topfile && linem[1]) {
-        var offset = parseInt(linem[1], 16);
-        var insns = linem[4].trim();
-        if (insns.length) {
-          if (!dbg) {
-            lines.push({
-              path: curpath,
-              line: linenum,
-              offset: offset + segofs,
-              insns,
-              iscode: true
-            });
-          }
-        } else {
-          var sym = linem[5];
-          if (sym.endsWith(":") && !sym.startsWith("@")) {
-            var symofs = symbols[sym.substring(0, sym.length - 1)];
-            if (typeof symofs === "number") {
-              segofs = symofs - offset;
+      let linem = insnLineMatch.exec(line);
+      let topfile = linem && linem[3] == "1";
+      if (topfile) {
+        let insns = ((_a = linem[4]) == null ? void 0 : _a.trim()) || "";
+        if (!(insns != "" && linem[5] == "")) {
+          linenum++;
+        }
+        if (linem[1]) {
+          var offset = parseInt(linem[1], 16);
+          if (insns.length) {
+            if (!dbg) {
+              lines.push({
+                path: curpath,
+                line: linenum,
+                offset: offset + segofs,
+                insns,
+                iscode: true
+              });
+            }
+          } else {
+            var sym = null;
+            var label = linem[5];
+            if (label == null ? void 0 : label.endsWith(":")) {
+              sym = label.substring(0, label.length - 1);
+            } else if (label == null ? void 0 : label.toLowerCase().startsWith(".proc")) {
+              sym = label.split(" ")[1];
+            }
+            if (sym && !sym.startsWith("@")) {
+              var symofs = symbols[sym];
+              if (typeof symofs === "number") {
+                segofs = symofs - offset;
+              }
             }
           }
         }
@@ -2744,7 +2755,7 @@
     };
   }
   function linkLD65(step) {
-    var _a;
+    var _a, _b;
     loadNative("ld65");
     var params = step.params;
     gatherFiles(step);
@@ -2833,18 +2844,17 @@
           var lstout = FS.readFile(fn, { encoding: "utf8" });
           lstout = lstout.split("\n\n")[1] || lstout;
           putWorkFile(fn, lstout);
-          console.log(step);
-          let isECS = ((_a = step.debuginfo) == null ? void 0 : _a.entities) != null;
+          let isECS = ((_b = (_a = step.debuginfo) == null ? void 0 : _a.systems) == null ? void 0 : _b.Init) != null;
           if (isECS) {
             var asmlines = [];
-            var srclines = parseCA65Listing(lstout, symbolmap, segments, params, true, listings);
+            var srclines = parseCA65Listing(fn, lstout, symbolmap, segments, params, true, listings);
             listings[fn] = {
               lines: [],
               text: lstout
             };
           } else {
-            var asmlines = parseCA65Listing(lstout, symbolmap, segments, params, false);
-            var srclines = parseCA65Listing(lstout, symbolmap, segments, params, true);
+            var asmlines = parseCA65Listing(fn, lstout, symbolmap, segments, params, false);
+            var srclines = parseCA65Listing("", lstout, symbolmap, segments, params, true);
             listings[fn] = {
               asmlines: srclines.length ? asmlines : null,
               lines: srclines.length ? srclines : asmlines,
@@ -6277,6 +6287,9 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     label(sym) {
       return `${sym}:`;
     }
+    export(sym) {
+      return `.export _${sym} = ${sym}`;
+    }
     byte(b) {
       if (b === void 0) {
         return `.res 1`;
@@ -6390,12 +6403,15 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
         }
       }
     }
-    dump(file, dialect) {
+    dump(file, dialect, doExport) {
       for (let i = 0; i < this.size; i++) {
         let syms = this.ofs2sym.get(i);
         if (syms) {
-          for (let sym of syms)
+          for (let sym of syms) {
+            if (doExport)
+              file.line(dialect.export(sym));
             file.line(dialect.label(sym));
+          }
         }
         file.line(dialect.byte(this.initdata[i]));
       }
@@ -7423,13 +7439,15 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       this.allocateSegment(this.rodata, false, "const");
       this.allocateROData(this.rodata);
     }
+    isMainScope() {
+      return this.parent == null;
+    }
     generateCode() {
       this.eventSeq = 0;
       this.eventCodeStats = {};
-      let isMainScope = this.parent == null;
       let start;
       let initsys = this.em.getSystemByName("Init");
-      if (isMainScope && initsys) {
+      if (this.isMainScope() && initsys) {
         this.newSystemInstanceWithDefaults(initsys);
         start = this.generateCodeForEvent("main_init");
       } else {
@@ -7495,12 +7513,13 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       }
     }
     dumpCodeTo(file) {
+      let shouldExport = this.instances.length == 0;
       let dialect = this.dialect;
       file.line(dialect.startScope(this.name));
       file.line(dialect.segment("bss"));
-      this.bss.dump(file, dialect);
+      this.bss.dump(file, dialect, shouldExport);
       file.line(dialect.segment("code"));
-      this.rodata.dump(file, dialect);
+      this.rodata.dump(file, dialect, shouldExport);
       file.line(dialect.label("__Start"));
       this.code.dump(file);
       for (let subscope of this.childScopes) {
@@ -8862,9 +8881,9 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       data_size: 128,
       wiz_rom_ext: ".a26",
       wiz_inc_dir: "2600",
-      extra_link_files: ["atari2600.cfg"],
       cfgfile: "atari2600.cfg",
-      libargs: ["atari2600.lib"],
+      libargs: ["crt0.o", "atari2600.lib"],
+      extra_link_files: ["crt0.o", "atari2600.cfg"],
       define: ["__ATARI2600__"]
     },
     "mw8080bw": {

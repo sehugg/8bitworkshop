@@ -707,7 +707,7 @@ class CharmapEditor extends PixNode {
         chooser.width = this.fmt.w || 1;
         chooser.height = this.fmt.h || 1;
         chooser.recreate(agrid, (index, viewer) => {
-            var yscale = Math.ceil(192 / this.fmt.w);
+            var yscale = Math.ceil(256 / this.fmt.w); // TODO: variable scale?
             var xscale = yscale * (this.fmt.aspect || 1.0);
             var editview = this.createEditor(aeditor, viewer, xscale, yscale);
             this.context.setCurrentEditor(aeditor, $(viewer.canvas), this);

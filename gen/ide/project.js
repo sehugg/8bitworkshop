@@ -420,7 +420,8 @@ class CodeProject {
     stripLocalPath(path) {
         if (this.mainPath) {
             var folder = (0, util_1.getFolderForPath)(this.mainPath);
-            if (folder != '' && path.startsWith(folder)) {
+            // TODO: kinda weird if folder is same name as file prefix
+            if (folder != '' && path.startsWith(folder + '/')) {
                 path = path.substring(folder.length + 1);
             }
         }

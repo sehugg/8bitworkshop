@@ -312,6 +312,10 @@ function refreshWindowList() {
 
   function loadEditor(path:string) {
     var tool = platform.getToolForFilename(path);
+    // hack because .h files can be DASM or CC65
+    if (tool == 'dasm' && path.endsWith(".h") && getCurrentMainFilename().endsWith(".c")) {
+      tool = 'cc65';
+    }
     var mode = tool && TOOL_TO_SOURCE_STYLE[tool];
     return new SourceEditor(path, mode);
   }
@@ -2442,8 +2446,9 @@ export function getPlatformAndRepo() {
       qs.repo = repo_id;
       if (repo.platform_id && !qs.platform)
         qs.platform = platform_id = repo.platform_id;
-      if (!qs.file && repo.mainPath)
+      if (repo.mainPath && !qs.file)
         qs.file = repo.mainPath;
+      // TODO: update repo definition if new main file compiles successfully
       //requestPersistPermission(true, true);
     }
   } else {

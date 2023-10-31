@@ -212,6 +212,9 @@ class Dialect_CA65 {
     label(sym) {
         return `${sym}:`;
     }
+    export(sym) {
+        return `.export _${sym} = ${sym}`;
+    }
     byte(b) {
         if (b === undefined) {
             return `.res 1`;
@@ -332,13 +335,16 @@ class DataSegment {
             }
         }
     }
-    dump(file, dialect) {
+    dump(file, dialect, doExport) {
         // TODO: fewer lines
         for (let i = 0; i < this.size; i++) {
             let syms = this.ofs2sym.get(i);
             if (syms) {
-                for (let sym of syms)
+                for (let sym of syms) {
+                    if (doExport)
+                        file.line(dialect.export(sym)); // TODO: this is a hack for C export
                     file.line(dialect.label(sym));
+                }
             }
             file.line(dialect.byte(this.initdata[i]));
         }
@@ -1535,13 +1541,15 @@ class EntityScope {
         this.allocateSegment(this.rodata, false, 'const'); // constants
         this.allocateROData(this.rodata);
     }
+    isMainScope() {
+        return this.parent == null;
+    }
     generateCode() {
         this.eventSeq = 0;
         this.eventCodeStats = {};
-        let isMainScope = this.parent == null;
         let start;
         let initsys = this.em.getSystemByName('Init');
-        if (isMainScope && initsys) {
+        if (this.isMainScope() && initsys) {
             this.newSystemInstanceWithDefaults(initsys); //TODO: what if none?
             start = this.generateCodeForEvent('main_init');
         }
@@ -1614,12 +1622,13 @@ class EntityScope {
         }
     }
     dumpCodeTo(file) {
+        let shouldExport = this.instances.length == 0;
         let dialect = this.dialect;
         file.line(dialect.startScope(this.name));
         file.line(dialect.segment('bss'));
-        this.bss.dump(file, dialect);
+        this.bss.dump(file, dialect, shouldExport);
         file.line(dialect.segment('code')); // TODO: rodata for aligned?
-        this.rodata.dump(file, dialect);
+        this.rodata.dump(file, dialect, shouldExport);
         //file.segment(`${this.name}_CODE`, 'code');
         file.line(dialect.label('__Start'));
         this.code.dump(file);

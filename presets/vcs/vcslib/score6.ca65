@@ -1,0 +1,71 @@
+
+.export _score6_build
+.export _score6_add
+.importzp _bcd_score
+.import _bitmap48_ptr_0, _bitmap48_ptr_1, _bitmap48_ptr_2, _bitmap48_ptr_3, _bitmap48_ptr_4, _bitmap48_ptr_5
+
+.proc _score6_add
+	sed
+	clc
+        adc _bcd_score+0
+        sta _bcd_score+0
+        txa
+        adc _bcd_score+1
+        sta _bcd_score+1
+        lda #0
+        adc _bcd_score+2
+        sta _bcd_score+2
+        cld
+        rts
+.endproc
+
+; needs to have XRAM active
+.proc _score6_build
+	lda #>FontTable09
+        sta _bitmap48_ptr_0+$400+1
+        sta _bitmap48_ptr_1+$400+1
+        sta _bitmap48_ptr_2+$400+1
+        sta _bitmap48_ptr_3+$400+1
+        sta _bitmap48_ptr_4+$400+1
+        sta _bitmap48_ptr_5+$400+1
+        ldy #2	; start from most-sigificant BCD value
+	jsr score6_getbcd
+        stx _bitmap48_ptr_0+$400
+        sta _bitmap48_ptr_1+$400
+        dey
+	jsr score6_getbcd
+        stx _bitmap48_ptr_2+$400
+        sta _bitmap48_ptr_3+$400
+        dey
+	jsr score6_getbcd
+        stx _bitmap48_ptr_4+$400
+        sta _bitmap48_ptr_5+$400
+	rts
+score6_getbcd:
+        lda _bcd_score,y	; get BCD value
+        and #$f0	; isolate high nibble (* 16)
+        lsr		; shift right 1 bit (* 8)
+        ora #<FontTable09
+        tax		; lo ptr 0 -> X
+        lda _bcd_score,y	; get BCD value (again)
+        and #$f		; isolate low nibble
+        asl
+        asl
+        asl		; * 8
+        ora #<FontTable09
+        rts		; lo ptr 1 -> A
+.endproc
+
+; needs to be in PERM rom
+.rodata
+.align $80
+; Font table for digits 0-9 (8x8 pixels)
+;;{w:8,h:8,count:12,brev:1,flip:1};;
+FontTable09:
+	.byte $00,$3C,$66,$66,$76,$6E,$66,$3C,$00,$7E,$18,$18,$18,$38,$18,$18
+        .byte $00,$7E,$60,$30,$0C,$06,$66,$3C,$00,$3C,$66,$06,$1C,$06,$66,$3C
+        .byte $00,$06,$06,$7F,$66,$1E,$0E,$06,$00,$3C,$66,$06,$06,$7C,$60,$7E
+        .byte $00,$3C,$66,$66,$7C,$60,$66,$3C,$00,$18,$18,$18,$18,$0C,$66,$7E
+        .byte $00,$3C,$66,$66,$3C,$66,$66,$3C,$00,$3C,$66,$06,$3E,$66,$66,$3C
+        .byte $00,$18,$00,$00,$00,$00,$00,$00,$00,$10,$7C,$12,$7C,$90,$7C,$10
+;;

@@ -1,0 +1,89 @@
+
+.include "vcs-ca65.inc"
+
+.export _music_update
+.exportzp _music_ptr
+
+.import _sound_duration
+.import _sound_play
+
+.zeropage
+
+_music_ptr:   .res 2
+_music_timer: .res 1
+
+.importzp _sndchan_sfx
+.importzp _sndchan_timer
+
+.importzp ptr3
+musicdata = ptr3
+
+.segment "ROM3"
+
+; 00-3f:	play note
+; 40-7f:	play sound effect
+; 80-fe:	set duration until next note
+; ff:		stop music
+
+.proc _music_update
+; is music timer up?
+  lda _music_timer
+  bmi @Done
+  beq @NextData
+  dec _music_timer
+  jmp @Done
+; Timer ran out, so fetch next note
+@NextData:
+  ldx #0
+  lda (_music_ptr,x)
+  bmi @LoadDuration
+; >= $40, play sound effect
+  cmp #$40
+  bcs @PlaySound
+; < $80, play next note
+; but which channel to use?
+; whichever has the lower timer counter
+  tay
+  ldx #0
+  ldy _sndchan_timer+0
+  cpy _sndchan_timer+1
+  bcc @Chan0Free  ; timer0 < timer 1?
+  inx
+@Chan0Free:
+; set the sound channels
+  tay
+  lda FREQZ,y
+  sta AUDF0,x
+  lda TONEZ,y
+  sta AUDC0,x
+; set the sound channel
+  lda #0
+  sta _sndchan_sfx,x	; sound 0 = envelope
+  lda _sound_duration+0
+  sta _sndchan_timer,x	; set channel timer
+  jmp @IncMusic
+@LoadDuration:
+  cmp #$ff
+  beq @Done		; end of sound
+  and #$7f
+  sta _music_timer	; set music timer
+@IncMusic:
+  inc _music_ptr
+  bne @Done
+  inc _music_ptr+1
+@Done:
+  rts
+@PlaySound:
+  sec
+  sbc #$40
+  jsr _sound_play
+  jmp @IncMusic
+.endproc
+
+; Table of AUDF base values for each note
+FREQZ:
+  .byte 31, 31, 31, 31, 30, 28, 27, 25, 24, 22, 21, 20, 19, 17, 17, 15, 15, 14, 13, 12, 11, 11, 10, 9, 9, 8, 8, 7, 7, 6, 6, 5, 31, 29, 27, 26, 24, 23, 22, 20, 19, 18, 17, 16, 15, 14, 13, 12, 12, 11, 10, 31, 29, 27, 26, 24, 23, 22, 20, 19, 18, 17, 16, 15
+
+; Table of AUDC values for each note
+TONEZ:
+  .byte 0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4

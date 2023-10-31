@@ -51,6 +51,7 @@ const VCS_PRESETS = [
     { id: 'bb/duck_chase.bas', name: 'Duck Chase (batariBASIC)' },
     { id: 'wiz/finalduck.wiz', name: 'Final Duck (Wiz)' },
     //  {id:'bb/rblast106.bas', name:'Road Blasters (batariBASIC)'},
+    { id: 'vcslib/demo_vcslib.c', name: 'VCSLib Demo (C)' },
 ];
 function getToolForFilename_vcs(fn) {
     if (fn.endsWith(".wiz"))
@@ -59,8 +60,10 @@ function getToolForFilename_vcs(fn) {
         return "bataribasic";
     if (fn.endsWith(".ca65"))
         return "ca65";
+    //if (fn.endsWith(".inc")) return "ca65";
     if (fn.endsWith(".c"))
         return "cc65";
+    //if (fn.endsWith(".h")) return "cc65";
     if (fn.endsWith(".ecs"))
         return "ecs";
     return "dasm";
@@ -228,11 +231,14 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
         return state;
     }
     fixState(state) {
-        var ofs = (state.ca && state.ca.bo) || 0;
-        if (state.ca && state.ca.fo && (state.c.PC & 0xfff) >= 2048)
-            ofs = state.ca.fo; // 3E/3F fixed-slice formats
-        // TODO: for batari BASIC
-        state.c.EPC = state.c.PC + ofs; // EPC = effective PC for ROM
+        var _a, _b, _c;
+        // TODO: DASM listing prevents us from using RORG offset
+        // TODO: how to handle 1000/3000/etc vs overlapping addresses?
+        if (((_a = state.ca) === null || _a === void 0 ? void 0 : _a.f) != '3E' && ((_b = state.ca) === null || _b === void 0 ? void 0 : _b.f) != '3F') {
+            var ofs = ((_c = state.ca) === null || _c === void 0 ? void 0 : _c.bo) || 0;
+            // TODO: for batari BASIC
+            state.c.EPC = state.c.PC + ofs; // EPC = effective PC for ROM
+        }
     }
     loadState(state) {
         return Javatari.room.console.loadState(state);
@@ -298,7 +304,10 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
         }
     }
     bankSwitchStateToString(state) {
-        return (state.ca && state.ca.bo !== undefined) ? "BankOffset " + (0, util_1.hex)(state.ca.bo, 4) + "\n" : "";
+        var _a, _b;
+        if (((_a = state.ca) === null || _a === void 0 ? void 0 : _a.ro) >= 0)
+            return "RAMOffset " + (0, util_1.hex)(state.ca.ro, 4) + "\n";
+        return (((_b = state.ca) === null || _b === void 0 ? void 0 : _b.bo) >= 0) ? "BankOffset " + (0, util_1.hex)(state.ca.bo, 4) + "\n" : "";
     }
     piaStateToLongString(p) {
         return "Timer  " + p.t + "/" + p.c + "\nINTIM  $" + (0, util_1.hex)(p.IT, 2) + " (" + p.IT + ")\nINSTAT $" + (0, util_1.hex)(p.IS, 2) + "\n";

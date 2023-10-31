@@ -16,7 +16,8 @@ const workermain_1 = require("../workermain");
 00B726  1  xx xx        IBSECSZ: .res 2
 00BA2F  1  2A 2B E8 2C   HEX "2A2BE82C2D2E2F303132F0F133343536"
 */
-function parseCA65Listing(code, symbols, segments, params, dbg, listings) {
+function parseCA65Listing(asmfn, code, symbols, segments, params, dbg, listings) {
+    var _a;
     var segofs = 0;
     var offset = 0;
     var dbgLineMatch = /^([0-9A-F]+)([r]?)\s+(\d+)\s+[.]dbg\s+(\w+), "([^"]+)", (.+)/;
@@ -26,7 +27,7 @@ function parseCA65Listing(code, symbols, segments, params, dbg, listings) {
     var origlines = [];
     var lines = origlines;
     var linenum = 0;
-    let curpath = '';
+    let curpath = asmfn || '';
     // TODO: only does .c functions, not all .s files
     for (var line of code.split(workermain_1.re_crlf)) {
         var dbgm = dbgLineMatch.exec(line);
@@ -61,30 +62,43 @@ function parseCA65Listing(code, symbols, segments, params, dbg, listings) {
                 insns: null
             });
         }
-        linenum++;
-        var linem = insnLineMatch.exec(line);
-        var topfile = linem && linem[3] == '1';
-        if (topfile && linem[1]) {
-            var offset = parseInt(linem[1], 16);
-            var insns = linem[4].trim();
-            if (insns.length) {
-                if (!dbg) {
-                    lines.push({
-                        path: curpath,
-                        line: linenum,
-                        offset: offset + segofs,
-                        insns: insns,
-                        iscode: true // TODO: can't really tell unless we parse it
-                    });
-                }
+        let linem = insnLineMatch.exec(line);
+        let topfile = linem && linem[3] == '1';
+        if (topfile) {
+            let insns = ((_a = linem[4]) === null || _a === void 0 ? void 0 : _a.trim()) || '';
+            // skip extra insns for macro expansions
+            if (!(insns != '' && linem[5] == '')) {
+                linenum++;
             }
-            else {
-                var sym = linem[5];
-                if (sym.endsWith(':') && !sym.startsWith('@')) {
-                    var symofs = symbols[sym.substring(0, sym.length - 1)];
-                    if (typeof symofs === 'number') {
-                        segofs = symofs - offset;
-                        //console.log(sym, segofs, symofs, '-', offset);
+            if (linem[1]) {
+                var offset = parseInt(linem[1], 16);
+                if (insns.length) {
+                    //console.log(dbg, curpath, linenum, offset, segofs, insns);
+                    if (!dbg) {
+                        lines.push({
+                            path: curpath,
+                            line: linenum,
+                            offset: offset + segofs,
+                            insns: insns,
+                            iscode: true // TODO: can't really tell unless we parse it
+                        });
+                    }
+                }
+                else {
+                    var sym = null;
+                    var label = linem[5];
+                    if (label === null || label === void 0 ? void 0 : label.endsWith(':')) {
+                        sym = label.substring(0, label.length - 1);
+                    }
+                    else if (label === null || label === void 0 ? void 0 : label.toLowerCase().startsWith('.proc')) {
+                        sym = label.split(' ')[1];
+                    }
+                    if (sym && !sym.startsWith('@')) {
+                        var symofs = symbols[sym];
+                        if (typeof symofs === 'number') {
+                            segofs = symofs - offset;
+                            //console.log(sym, segofs, symofs, '-', offset);
+                        }
                     }
                 }
             }
@@ -136,7 +150,7 @@ function assembleCA65(step) {
 }
 exports.assembleCA65 = assembleCA65;
 function linkLD65(step) {
-    var _a;
+    var _a, _b;
     (0, workermain_1.loadNative)("ld65");
     var params = step.params;
     (0, workermain_1.gatherFiles)(step);
@@ -226,19 +240,19 @@ function linkLD65(step) {
                 var lstout = FS.readFile(fn, { encoding: 'utf8' });
                 lstout = lstout.split('\n\n')[1] || lstout; // remove header
                 (0, workermain_1.putWorkFile)(fn, lstout);
-                console.log(step);
-                let isECS = ((_a = step.debuginfo) === null || _a === void 0 ? void 0 : _a.entities) != null; // TODO
+                //const asmpath = fn.replace(/\.lst$/, '.ca65'); // TODO! could be .s
+                let isECS = ((_b = (_a = step.debuginfo) === null || _a === void 0 ? void 0 : _a.systems) === null || _b === void 0 ? void 0 : _b.Init) != null; // TODO
                 if (isECS) {
                     var asmlines = [];
-                    var srclines = parseCA65Listing(lstout, symbolmap, segments, params, true, listings);
+                    var srclines = parseCA65Listing(fn, lstout, symbolmap, segments, params, true, listings);
                     listings[fn] = {
                         lines: [],
                         text: lstout
                     };
                 }
                 else {
-                    var asmlines = parseCA65Listing(lstout, symbolmap, segments, params, false);
-                    var srclines = parseCA65Listing(lstout, symbolmap, segments, params, true); // TODO: listings param for ecs
+                    var asmlines = parseCA65Listing(fn, lstout, symbolmap, segments, params, false);
+                    var srclines = parseCA65Listing('', lstout, symbolmap, segments, params, true);
                     listings[fn] = {
                         asmlines: srclines.length ? asmlines : null,
                         lines: srclines.length ? srclines : asmlines,

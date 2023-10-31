@@ -54,13 +54,16 @@ const VCS_PRESETS = [
   {id:'bb/duck_chase.bas', name:'Duck Chase (batariBASIC)'},
   {id:'wiz/finalduck.wiz', name:'Final Duck (Wiz)'},
 //  {id:'bb/rblast106.bas', name:'Road Blasters (batariBASIC)'},
+  {id:'vcslib/demo_vcslib.c', name:'VCSLib Demo (C)'},
 ];
 
 function getToolForFilename_vcs(fn: string) {
   if (fn.endsWith(".wiz")) return "wiz";
   if (fn.endsWith(".bb") || fn.endsWith(".bas")) return "bataribasic";
   if (fn.endsWith(".ca65")) return "ca65";
+  //if (fn.endsWith(".inc")) return "ca65";
   if (fn.endsWith(".c")) return "cc65";
+  //if (fn.endsWith(".h")) return "cc65";
   if (fn.endsWith(".ecs")) return "ecs";
   return "dasm";
 }
@@ -222,11 +225,13 @@ class VCSPlatform extends BasePlatform {
     return state;
   }
   fixState(state) {
-    var ofs = (state.ca && state.ca.bo) || 0;
-    if (state.ca && state.ca.fo && (state.c.PC & 0xfff) >= 2048)
-      ofs = state.ca.fo; // 3E/3F fixed-slice formats
-    // TODO: for batari BASIC
-    state.c.EPC = state.c.PC + ofs; // EPC = effective PC for ROM
+    // TODO: DASM listing prevents us from using RORG offset
+    // TODO: how to handle 1000/3000/etc vs overlapping addresses?
+    if (state.ca?.f != '3E' && state.ca?.f != '3F')  {
+      var ofs = (state.ca?.bo) || 0;
+      // TODO: for batari BASIC
+      state.c.EPC = state.c.PC + ofs; // EPC = effective PC for ROM
+    }
   }
   loadState(state) {
     return Javatari.room.console.loadState(state);
@@ -294,7 +299,8 @@ class VCSPlatform extends BasePlatform {
     }
   }
   bankSwitchStateToString(state) {
-    return (state.ca && state.ca.bo !== undefined) ? "BankOffset "+hex(state.ca.bo,4)+"\n" : "";
+    if (state.ca?.ro >= 0) return "RAMOffset "+hex(state.ca.ro,4)+"\n";
+    return (state.ca?.bo >= 0) ? "BankOffset "+hex(state.ca.bo,4)+"\n" : "";
   }
   piaStateToLongString(p) {
     return "Timer  " + p.t + "/" + p.c + "\nINTIM  $" + hex(p.IT,2) + " (" + p.IT + ")\nINSTAT $" + hex(p.IS,2) + "\n";

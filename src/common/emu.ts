@@ -545,39 +545,55 @@ const DEFAULT_CONTROLLER_KEYS : KeyDef[] = [
 export class ControllerPoller {
   active = false;
   handler;
-  state = new Int8Array(32);
-  lastState = new Int8Array(32);
+  state : Int32Array[];
+  lastState : Int32Array[];
   AXIS0 = 24; // first joystick axis index
   constructor(handler:(key,code,flags) => void) {
     this.handler = handler;
     window.addEventListener("gamepadconnected", (event) => {
       console.log("Gamepad connected:", event);
-      this.active = typeof navigator.getGamepads === 'function';
+      this.reset();
     });
     window.addEventListener("gamepaddisconnected", (event) => {
       console.log("Gamepad disconnected:", event);
+      this.reset();
     });
+  }
+  reset() {
+    this.active = typeof navigator.getGamepads === 'function';
+    if (this.active) {
+      let numGamepads = navigator.getGamepads().length;
+      this.state = new Array(numGamepads);
+      this.lastState = new Array(numGamepads);
+      for (var i=0; i<numGamepads; i++) {
+        this.state[i] = new Int32Array(64);
+        this.lastState[i] = new Int32Array(64);
+      }
+      console.log(this);
+    }
   }
   poll() {
     if (!this.active) return;
     var gamepads = navigator.getGamepads();
     for (var gpi=0; gpi<gamepads.length; gpi++) {
+      let state = this.state[gpi];
+      let lastState = this.lastState[gpi];
       var gp = gamepads[gpi];
       if (gp) {
         for (var i=0; i<gp.axes.length; i++) {
           var k = i + this.AXIS0;
-          this.state[k] = Math.round(gp.axes[i]);
-          if (this.state[k] != this.lastState[k]) {
+          state[k] = Math.round(gp.axes[i]);
+          if (state[k] != lastState[k]) {
             this.handleStateChange(gpi,k);
           }
         }
         for (var i=0; i<gp.buttons.length; i++) {
-          this.state[i] = gp.buttons[i].pressed ? 1 : 0;
-          if (this.state[i] != this.lastState[i]) {
+          state[i] = gp.buttons[i].pressed ? 1 : 0;
+          if (state[i] != lastState[i]) {
             this.handleStateChange(gpi,i);
           }
         }
-        this.lastState.set(this.state);
+        lastState.set(state);
       }
     }
   }
@@ -588,11 +604,11 @@ export class ControllerPoller {
       // is this a gamepad entry? same player #?
       if (def && def.plyr == gpi) {
         var code = def.c;
-        var state = this.state[k];
-        var lastState = this.lastState[k];
+        var state = this.state[gpi][k];
+        var lastState = this.lastState[gpi][k];
         // check for button/axis match
         if (k == def.button || (axis == 0 && def.xaxis == state) || (axis == 1 && def.yaxis == state)) {
-          //console.log(gpi,k,state,entry);
+          //console.log("Gamepad", gpi, code, state);
           if (state != 0) {
             this.handler(code, 0, KeyFlags.KeyDown);
           } else {

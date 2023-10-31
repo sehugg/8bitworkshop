@@ -96,9 +96,9 @@ var PLATFORM_PARAMS = {
         data_size: 0x80,
         wiz_rom_ext: '.a26',
         wiz_inc_dir: '2600',
-        extra_link_files: ['atari2600.cfg'],
         cfgfile: 'atari2600.cfg',
-        libargs: ['atari2600.lib'],
+        libargs: ['crt0.o', 'atari2600.lib'],
+        extra_link_files: ['crt0.o', 'atari2600.cfg'],
         define: ['__ATARI2600__'],
     },
     'mw8080bw': {
