@@ -398,7 +398,7 @@ var PLATFORM_PARAMS = {
     arch: 'huc6280',
     define: ['__PCE__'],
     cfgfile: 'pce.cfg',
-    libargs: ['pce.lib'],
+    libargs: ['pce.lib', '-D', '__CARTSIZE__=0x8000'],
   },
 };
 
