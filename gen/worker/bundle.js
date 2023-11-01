@@ -2799,6 +2799,12 @@
       var aout = FS.readFile("main", { encoding: "binary" });
       var mapout = FS.readFile("main.map", { encoding: "utf8" });
       var viceout = FS.readFile("main.vice", { encoding: "utf8" });
+      if (step.platform == "pce" && aout.length > 8192) {
+        let newrom = new Uint8Array(aout.length);
+        newrom.set(aout.slice(aout.length - 8192), 0);
+        newrom.set(aout.slice(0, aout.length - 8192), 8192);
+        aout = newrom;
+      }
       putWorkFile("main", aout);
       putWorkFile("main.map", mapout);
       putWorkFile("main.vice", viceout);
@@ -9191,6 +9197,12 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       extra_compile_files: ["cpctelera.h"],
       extra_link_args: ["crt0-cpc.rel", "cpctelera.lib"],
       extra_link_files: ["crt0-cpc.rel", "crt0-cpc.lst", "cpctelera.lib", "cpctelera.lst"]
+    },
+    "pce": {
+      arch: "huc6280",
+      define: ["__PCE__"],
+      cfgfile: "pce.cfg",
+      libargs: ["pce.lib", "-D", "__CARTSIZE__=0x8000"]
     }
   };
   PLATFORM_PARAMS["sms-sms-libcv"] = PLATFORM_PARAMS["sms-sg1000-libcv"];
@@ -9869,6 +9881,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     "ca65-devel": "65-none",
     "cc65-vcs": "65-atari2600",
     "ca65-vcs": "65-atari2600",
+    "cc65-pce": "65-pce",
+    "ca65-pce": "65-pce",
     "sdasz80": "sdcc",
     "sdcc": "sdcc",
     "sccz80": "sccz80",

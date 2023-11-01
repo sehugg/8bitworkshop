@@ -405,6 +405,12 @@ var PLATFORM_PARAMS = {
         extra_link_args: ['crt0-cpc.rel', 'cpctelera.lib'],
         extra_link_files: ['crt0-cpc.rel', 'crt0-cpc.lst', 'cpctelera.lib', 'cpctelera.lst'],
     },
+    'pce': {
+        arch: 'huc6280',
+        define: ['__PCE__'],
+        cfgfile: 'pce.cfg',
+        libargs: ['pce.lib', '-D', '__CARTSIZE__=0x8000'],
+    },
 };
 PLATFORM_PARAMS['sms-sms-libcv'] = PLATFORM_PARAMS['sms-sg1000-libcv'];
 PLATFORM_PARAMS['sms-gg-libcv'] = PLATFORM_PARAMS['sms-sms-libcv'];
@@ -1173,6 +1179,8 @@ var TOOL_PRELOADFS = {
     'ca65-devel': '65-none',
     'cc65-vcs': '65-atari2600',
     'ca65-vcs': '65-atari2600',
+    'cc65-pce': '65-pce',
+    'ca65-pce': '65-pce',
     'sdasz80': 'sdcc',
     'sdcc': 'sdcc',
     'sccz80': 'sccz80',

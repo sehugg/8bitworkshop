@@ -188,6 +188,14 @@ function linkLD65(step) {
         var aout = FS.readFile("main", { encoding: 'binary' });
         var mapout = FS.readFile("main.map", { encoding: 'utf8' });
         var viceout = FS.readFile("main.vice", { encoding: 'utf8' });
+        // correct binary for PCEngine
+        if (step.platform == 'pce' && aout.length > 0x2000) {
+            // move 8 KB from end to front
+            let newrom = new Uint8Array(aout.length);
+            newrom.set(aout.slice(aout.length - 0x2000), 0);
+            newrom.set(aout.slice(0, aout.length - 0x2000), 0x2000);
+            aout = newrom;
+        }
         //var dbgout = FS.readFile("main.dbg", {encoding:'utf8'});
         (0, workermain_1.putWorkFile)("main", aout);
         (0, workermain_1.putWorkFile)("main.map", mapout);
