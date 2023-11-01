@@ -21,6 +21,7 @@ import { isMobileDevice } from "./views/baseviews";
 import { CallStackView, DebugBrowserView } from "./views/treeviews";
 import { saveAs } from "file-saver";
 import DOMPurify = require("dompurify");
+import { OutputSoundFile, TAPFile } from "../common/audio/CommodoreTape";
 
 // external libs (TODO)
 declare var Tour, GIF, Octokat;
@@ -1027,16 +1028,39 @@ function _downloadCassetteFile_vcs(e) {
   });
 }
 
+function _downloadCassetteFile_c64(e) {
+  var prefix = getFilenamePrefix(getCurrentMainFilename());
+  let audpath = prefix + ".tap";
+  let tapmaker = new TAPFile(prefix);
+  let outfile = new OutputSoundFile({sine_wave:true});
+  let data = current_output;
+  let startAddress = data[0] + data[1]*256;
+  data = data.slice(2); // remove header
+  tapmaker.setContent({ data, startAddress, type: TAPFile.FILE_TYPE_NON_RELOCATABLE });
+  tapmaker.generateSound(outfile);
+  let tapout = outfile.getTAPData();
+  //let audout = outfile.getSoundData();
+  if (tapout) {
+    //let blob = new Blob([audout], { type: "audio/wav" });
+    let blob = new Blob([tapout], { type: "application/octet-stream" });
+    saveAs(blob, audpath);
+  }
+}
+
+function _getCassetteFunction() {
+  switch (getBasePlatform(platform_id)) {
+    case 'vcs': return _downloadCassetteFile_vcs;
+    case 'apple2': return _downloadCassetteFile_apple2;
+    case 'c64': return _downloadCassetteFile_c64;
+  }
+}
+
 function _downloadCassetteFile(e) {
   if (current_output == null) {
     alertError("Please fix errors before exporting.");
     return true;
   }
-  var fn;
-  switch (getBasePlatform(platform_id)) {
-    case 'vcs': fn = _downloadCassetteFile_vcs; break;
-    case 'apple2': fn = _downloadCassetteFile_apple2; break;
-  }
+  var fn = _getCassetteFunction();
   if (fn === undefined) {
     alertError("Cassette export is not supported on this platform.");
     return true;
@@ -1949,7 +1973,7 @@ function setupDebugControls() {
   }
   $("#item_download_allzip").click(_downloadAllFilesZipFile);
   $("#item_record_video").click(_recordVideo);
-  if (platform_id.startsWith('apple2') || platform_id.startsWith('vcs')) // TODO: look for function
+  if (_getCassetteFunction())
     $("#item_export_cassette").click(_downloadCassetteFile);
   else
     $("#item_export_cassette").hide();
