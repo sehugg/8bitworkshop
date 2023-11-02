@@ -43,6 +43,7 @@ const baseviews_1 = require("./views/baseviews");
 const treeviews_1 = require("./views/treeviews");
 const file_saver_1 = require("file-saver");
 const DOMPurify = require("dompurify");
+const CommodoreTape_1 = require("../common/audio/CommodoreTape");
 exports.qs = (0, util_1.decodeQueryString)(window.location.search || '?');
 const isElectron = (0, util_1.parseBool)(exports.qs.electron);
 const isEmbed = (0, util_1.parseBool)(exports.qs.embed);
@@ -965,20 +966,37 @@ function _downloadCassetteFile_vcs(e) {
         });
     });
 }
+function _downloadCassetteFile_c64(e) {
+    var prefix = (0, util_1.getFilenamePrefix)(getCurrentMainFilename());
+    let audpath = prefix + ".tap";
+    let tapmaker = new CommodoreTape_1.TAPFile(prefix);
+    let outfile = new CommodoreTape_1.OutputSoundFile({ sine_wave: true });
+    let data = current_output;
+    let startAddress = data[0] + data[1] * 256;
+    data = data.slice(2); // remove header
+    tapmaker.setContent({ data, startAddress, type: CommodoreTape_1.TAPFile.FILE_TYPE_NON_RELOCATABLE });
+    tapmaker.generateSound(outfile);
+    let tapout = outfile.getTAPData();
+    //let audout = outfile.getSoundData();
+    if (tapout) {
+        //let blob = new Blob([audout], { type: "audio/wav" });
+        let blob = new Blob([tapout], { type: "application/octet-stream" });
+        (0, file_saver_1.saveAs)(blob, audpath);
+    }
+}
+function _getCassetteFunction() {
+    switch ((0, util_1.getBasePlatform)(exports.platform_id)) {
+        case 'vcs': return _downloadCassetteFile_vcs;
+        case 'apple2': return _downloadCassetteFile_apple2;
+        case 'c64': return _downloadCassetteFile_c64;
+    }
+}
 function _downloadCassetteFile(e) {
     if (current_output == null) {
         alertError("Please fix errors before exporting.");
         return true;
     }
-    var fn;
-    switch ((0, util_1.getBasePlatform)(exports.platform_id)) {
-        case 'vcs':
-            fn = _downloadCassetteFile_vcs;
-            break;
-        case 'apple2':
-            fn = _downloadCassetteFile_apple2;
-            break;
-    }
+    var fn = _getCassetteFunction();
     if (fn === undefined) {
         alertError("Cassette export is not supported on this platform.");
         return true;
@@ -1891,7 +1909,7 @@ function setupDebugControls() {
     }
     $("#item_download_allzip").click(_downloadAllFilesZipFile);
     $("#item_record_video").click(_recordVideo);
-    if (exports.platform_id.startsWith('apple2') || exports.platform_id.startsWith('vcs')) // TODO: look for function
+    if (_getCassetteFunction())
         $("#item_export_cassette").click(_downloadCassetteFile);
     else
         $("#item_export_cassette").hide();

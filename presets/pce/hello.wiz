@@ -1,0 +1,130 @@
+import "pce";
+
+bank zeropage @ 0x2000 : [vardata; 256];
+bank stack @ 0x2100 : [vardata; 256];
+bank prg @ 0xE000 : [constdata; 0x2000];
+bank chr @ 0x8000 : [constdata; 0x4000];
+
+in zeropage {
+    var b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15 : u8;
+    var w0 @ &b0, w2 @ &b2, w4 @ &b4, w6 @ &b6, w8 @ &b8 : u16;
+    var mosaic : u8;
+    var timer : u8;
+}
+
+in prg {
+    #[fallthrough] func main() {
+        // Disable decimal arithmetic.
+        decimal = false;
+        // Disable interrupts.
+        nointerrupt = true;
+        // Enable turbo mode on CPU.
+        turbo_speed = true;
+        // mpr7 = a = 0; by power-on
+        // MPR0 = I/O page
+        mpr0 = a = 0xFF;
+        // MPR1 = RAM
+        mpr1 = a = 0xF8;
+        // MPR4/5 = data bank
+        mpr4 = a = 1;
+        mpr5 = a = 2;
+        // Prepare stack.
+        s = x = 0xFF;
+
+        a = pce.vdc.status;
+        pce.irq.disable = a = pce.irq.INTERRUPT_ALL;
+        pce.irq.acknowledge = a;
+        pce.timer.control = 0;
+
+        vdc_select = pce.vdc.SELECT_CONTROL;
+        vdc_data_l = 0;
+        vdc_data_h = 0;
+        vdc_select = pce.vdc.SELECT_SCANLINE_COMPARE;
+        vdc_data_l = 0;
+        vdc_data_h = 0;
+        vdc_select = pce.vdc.SELECT_SCROLL_X;
+        vdc_data_l = 0;
+        vdc_data_h = 0;
+        vdc_select = pce.vdc.SELECT_SCROLL_Y;
+        vdc_data_l = 0;
+        vdc_data_h = 0;
+        vdc_select = pce.vdc.SELECT_MEMORY_SIZE;
+        vdc_data_l = pce.vdc.DATA_L_MEMORY_SIZE_TILEMAP_32x32;
+        vdc_data_h = 0;
+        vdc_select = pce.vdc.SELECT_HSYNC_SETTING;
+        vdc_data_l = 0x02;
+        vdc_data_h = 0x02;
+        vdc_select = pce.vdc.SELECT_HDISP_SETTING;
+        vdc_data_l = 0x1F;
+        vdc_data_h = 0x04;
+        vdc_select = pce.vdc.SELECT_VSYNC_SETTING;
+        vdc_data_l = 0x07;
+        vdc_data_h = 0x0D;
+        vdc_select = pce.vdc.SELECT_VDISP_HEIGHT;
+        vdc_data_l = 0xDF;
+        vdc_data_h = 0x00;
+        vdc_select = pce.vdc.SELECT_VDISP_END;
+        vdc_data_l = 0x03;
+        vdc_data_h = 0x00;
+        vdc_select = pce.vdc.SELECT_DMA_CONTROL;
+        vdc_data_l = pce.vdc.DATA_L_DMA_CONTROL_SATB_AUTO_TRANSFER;
+        vdc_data_h = 0x00;
+        vdc_select = pce.vdc.SELECT_SATB_SOURCE_ADDRESS;
+        vdc_data_l = 0x00;
+        vdc_data_h = 0x7F;
+
+        pce.vce.control = a = pce.vce.CONTROL_FIELD_EXTRA_LINE;
+        pce.vce.address_l = a = 0;
+        pce.vce.address_h = a = 0;
+        load_alt_inc_repeat(&pce.vce.data_l as u16, &bkg_palette_data as u16, sizeof(typeof(bkg_palette_data)));
+
+        let TILESET_DEST_ADDRESS = 0x1000;
+        vdc_select = pce.vdc.SELECT_VRAM_WRITE_ADDRESS;
+        vdc_data_l = <:TILESET_DEST_ADDRESS;
+        vdc_data_h = >:TILESET_DEST_ADDRESS;
+        vdc_select = pce.vdc.SELECT_VRAM_DATA;
+        load_alt_inc_repeat(&pce.vdc.data_l as u16, &hello_tiles_chr as u16, sizeof(typeof(hello_tiles_chr)));
+
+        let START_X = 10;
+        let START_Y = 13;
+        let TILEMAP_ADDRESS = pce.vdc.DATA_VRAM_ADDRESS_TILEMAP + START_Y * 32 + START_X;
+        let TILE_BASE_INDEX = TILESET_DEST_ADDRESS / 16;
+
+        vdc_select = pce.vdc.SELECT_VRAM_WRITE_ADDRESS;
+        vdc_data_l = <:TILEMAP_ADDRESS;
+        vdc_data_h = >:TILEMAP_ADDRESS;
+        vdc_select = pce.vdc.SELECT_VRAM_DATA;
+
+        x = 0;
+        do {            
+            pce.vdc.data_l = a = <:TILE_BASE_INDEX + message[x];
+            pce.vdc.data_h = a = >:TILE_BASE_INDEX +# 0;
+            x++;
+        } while x != message.len;
+
+        vdc_select = pce.vdc.SELECT_CONTROL;
+        vdc_data_l = pce.vdc.DATA_L_CONTROL_ENABLE_BG;
+        vdc_data_h = 0x00;
+
+        while true {}
+    }
+
+    let rgb_pack(r, g, b) = ((r & 0x7) << 3) | ((g & 0x7) << 6) | (b & 0x7);
+
+    const bkg_palette_data : [u16] = [
+        rgb_pack(6, 3, 4), rgb_pack(1, 1, 3), rgb_pack(0, 0, 0), rgb_pack(0, 0, 0),
+        rgb_pack(0, 0, 0), rgb_pack(0, 0, 0), rgb_pack(0, 0, 0), rgb_pack(0, 0, 0),
+        rgb_pack(0, 0, 0), rgb_pack(0, 0, 0), rgb_pack(0, 0, 0), rgb_pack(0, 0, 0),
+        rgb_pack(0, 0, 0), rgb_pack(0, 0, 0), rgb_pack(0, 0, 0), rgb_pack(7, 7, 7),
+    ];
+
+    const message = "HELLO  WORLD";
+
+    const @ 0xFFFE = main;
+}
+
+in chr {
+    const hello_tiles_chr = embed "hello_tiles.chr";
+    const minirpg_sprites_chr = embed "minirpg_sprites.chr";
+}
+

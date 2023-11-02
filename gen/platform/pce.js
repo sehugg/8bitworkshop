@@ -5,6 +5,7 @@ const emu_1 = require("../common/emu");
 const PCE_PRESETS = [
     { id: 'test_conio.c', name: 'Hello World (conio)' },
     { id: 'siegegame.c', name: 'Siege Game (conio)' },
+    { id: 'hello.wiz', name: 'Hello World (Wiz)' },
 ];
 class PCEnginePlatform {
     constructor(mainElement) {

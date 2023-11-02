@@ -4,6 +4,7 @@ import { Keys, PLATFORMS, RasterVideo } from "../common/emu";
 const PCE_PRESETS = [
     { id: 'test_conio.c', name: 'Hello World (conio)' },
     { id: 'siegegame.c', name: 'Siege Game (conio)' },
+    { id: 'hello.wiz', name: 'Hello World (Wiz)' },
 ]
 
 class PCEnginePlatform implements Platform {
