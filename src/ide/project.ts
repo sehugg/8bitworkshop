@@ -200,9 +200,9 @@ export class CodeProject {
         this.pushAllFiles(files, m[2]);
       }
       // for .c -- //#resource "file" (or ;resource or #resource)
-      let re3 = /^\s*([;']|[/][/])#resource\s+"(.+?)"/gm;
+      let re3 = /^\s*([;']|[/][/])#(resource|incbin)\s+"(.+?)"/gm;
       while (m = re3.exec(text)) {
-        this.pushAllFiles(files, m[2]);
+        this.pushAllFiles(files, m[3]);
       }
       // for XASM only (USE include.ext)
       // for merlin32 (ASM include.ext)

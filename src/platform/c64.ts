@@ -23,6 +23,7 @@ const C64_PRESETS = [
   {id:'test_multispritelib.c', name:'Sprite Multiplexing Library'},
   {id:'scrolling_text.c', name:'Big Scrolling Text'},
   {id:'mcbitmap.c', name:'Multicolor Bitmap Mode'},
+  {id:'testlz4.c', name:'LZ4 Bitmap Compression'},
   //{id:'mandel.c', name:'Mandelbrot Fractal'},
   {id:'musicplayer.c', name:'Music Player'},
   //{id:'sidtune.dasm', name:'Tiny SID Tune (ASM)'},

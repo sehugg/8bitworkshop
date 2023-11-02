@@ -1,5 +1,5 @@
 
-import { getFilenamePrefix, getRootBasePlatform } from "../../common/util";
+import { convertDataToUint8Array, getFilenamePrefix, getRootBasePlatform, safeident } from "../../common/util";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
 import { re_crlf, BuildStepResult, anyTargetChanged, execMain, gatherFiles, msvcErrorMatcher, populateEntry, populateExtraFiles, populateFiles, print_fn, putWorkFile, setupFS, staleFiles, BuildStep, emglobal, loadNative, moduleInstFn, fixParamsWithDefines, store, makeErrorMatcher, getWorkFileAsString } from "../workermain";
 import { EmscriptenModule } from "../workermain"
@@ -272,6 +272,27 @@ export function linkLD65(step: BuildStep): BuildStepResult {
     }
 }
 
+function processIncbin(code: string) {
+    let re3 = /^\s*([;']|[/][/])#incbin\s+"(.+?)"/gm;
+    // find #incbin "filename.bin" and replace with C array declaration
+    return code.replace(re3, (m, m1, m2) => {
+        let filename = m2;
+        let filedata = store.getFileData(filename);
+        let bytes = convertDataToUint8Array(filedata);
+        if (!bytes) throw new Error('#incbin: file not found: "' + filename + '"');
+        let out = '';
+        let ident = safeident(filename);
+        console.log('#incbin', filename, ident, bytes.length);
+        out += 'const unsigned char ' + ident + '[' + bytes.length + '] = {';
+        for (let i = 0; i < bytes.length; i++) {
+            out += bytes[i].toString() + ',';
+        }
+        out += '};';
+        console.log('incbin', out);
+        return out;
+    });
+}
+
 export function compileCC65(step: BuildStep): BuildStepResult {
     loadNative("cc65");
     var params = step.params;
@@ -303,7 +324,15 @@ export function compileCC65(step: BuildStep): BuildStepResult {
         });
         var FS = CC65.FS;
         setupFS(FS, '65-' + getRootBasePlatform(step.platform));
-        populateFiles(step, FS);
+        populateFiles(step, FS, {
+            mainFilePath: step.path,
+            processFn: (path, code) => {
+                if (typeof code === 'string') {
+                    code = processIncbin(code);
+                }
+                return code;
+            }
+        });
         fixParamsWithDefines(step.path, params);
         var args = [
             '-I', '/share/include',
