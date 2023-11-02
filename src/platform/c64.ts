@@ -28,6 +28,7 @@ const C64_PRESETS = [
   //{id:'sidtune.dasm', name:'Tiny SID Tune (ASM)'},
   {id:'siddemo.c', name:'SID Player Demo'},
   {id:'climber.c', name:'Climber Game'},
+  {id:'hello.wiz', name:'Hello Wiz (Wiz)'},
 ];
 
 const C64_MEMORY_MAP = { main:[

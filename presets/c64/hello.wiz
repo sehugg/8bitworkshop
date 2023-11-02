@@ -1,0 +1,181 @@
+
+
+import "c64.wiz";
+
+bank zeropage @ 0x02 : [vardata; 254];
+bank stackpage @ 0x100 : [vardata; 256];
+bank textscrn @ 0x400 : [vardata; 0x400];
+bank ram @ 0x2000 : [vardata; 0x7800];
+bank prghdr @ 0x7ff : [prgdata; 0x2];
+bank prg @ 0x801 : [varinitdata; 0x7000];
+
+in textscrn {
+  var scrn: [u8; 40*25];
+  var _unused: [u8; 16];
+  var spriteptr: [u8; 8];
+}
+
+extern var vicbank @ 0x0000 : VICBank;
+
+// PRG file header
+in prghdr {
+  const prgstart : u16 = 0x801;
+}
+
+// BASIC header
+in prg {
+  namespace prgheader {
+    const nextline = &BASIC_END;
+    const linenum : u16 = 10;
+    const sysstmt = "\x9e 2062\0";
+BASIC_END:
+    const hdrend : u16 = 0;
+  }
+PRG_START:
+  /*
+  c64.kernal.ioinit();
+  c64.kernal.rantam();
+  c64.kernal.restor();
+  c64.kernal.cint();
+  */
+  c64.vic.bordercolor = a = c64.color.ORANGE;
+  c64.kernal.chrout('A');
+  for x in 0..250 {
+//    scrn[x] = a = x;
+//    (&scrn[40*8])[x] = a = x;
+//    (0x600 as *u8)[x] = a = x;
+    (&scrn[40*12])[x] = a = message[x] + 0xc0;
+  }
+  for x in 0..255 {
+    a = message[x];
+    break if zero;
+    a += 0xc0;
+    (&scrn[40*20])[x] = a;
+  }
+  upandaway();
+  return;
+  
+  const message = "HELLO WORLD!\0";
+  
+  const SPRITE : [u8; 3*21] = [
+    /*{w:24,h:21,bpp:1,brev:1}*/
+    0x00,0x7F,0x00,0x01,0xFF,0xC0,0x03,0xFF,0xE0,
+    0x03,0xE7,0xE0,0x07,0xD9,0xF0,0x07,0xDF,0xF0,
+    0x07,0xD9,0xF0,0x03,0xE7,0xE0,0x03,0xFF,0xE0,
+    0x03,0xFF,0xE0,0x02,0xFF,0xA0,0x01,0x7F,0x40,
+    0x01,0x3E,0x40,0x00,0x9C,0x80,0x00,0x9C,0x80,
+    0x00,0x49,0x00,0x00,0x49,0x00,0x00,0x3E,0x00,
+    0x00,0x3E,0x00,0x00,0x3E,0x00,0x00,0x1C,0x00
+  ];
+
+  const yValues : [u8] = [
+    32, 35, 38, 41, 44, 47, 49, 52, 
+    54, 56, 58, 60, 61, 62, 63, 63, 
+    64, 63, 63, 62, 61, 60, 58, 56, 
+    54, 52, 49, 47, 44, 41, 38, 35, 
+    32, 28, 25, 22, 19, 16, 14, 11, 
+    9, 7, 5, 3, 2, 1, 0, 0, 
+    0, 0, 0, 1, 2, 3, 5, 7, 
+    9, 11, 14, 16, 19, 22, 25, 28
+  ];
+  
+  const pwr2 : [u8] = [
+    0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80
+  ];
+
+  in zeropage {
+    var b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15 : u8;
+    var w0 @ &b0, w2 @ &b2, w4 @ &b4, w6 @ &b6, w8 @ &b8, w10 @ &b10 : u16;
+    var ptr0 @ &b0, ptr2 @ &b2, ptr4 @ &b4, ptr6 @ &b6, ptr8 @ &b8, ptr10 @ &b10 : *u8;
+  }
+
+  inline func rasterWait(line : u8 in a) {
+    while (c64.vic.rasterline < line) { }
+  }
+  
+  func upandaway() {
+    //unsigned char n, t;
+    //int rx, x;
+    //char sx, msb;
+    var xp : u16 in w0;
+    var rx : u16 in w2;
+    var msb : u8 in b4;
+    let sprdata = &vicbank.spritedata[13] as *u8;
+
+    c64.vic.bgcolor[0] = a = 3;
+    nointerrupt = true; // clear interrupts to avoid glitching
+
+    for y in 0..(sizeof(typeof(SPRITE)) - 1) {
+      sprdata[y] = a = SPRITE[y];
+      //POKE(832 + n, sprite[n]);
+    }
+    c64.vic.sprite.enable = a = 255;
+    for x in 0..7 {
+      spriteptr[x] = a = 13;
+      y = a = x<<1;
+      c64.vic.sprite.coord[y] = a = 50;
+      y ++;
+      c64.vic.sprite.coord[y] = a = 50;
+      //POKE(2040 + t, 13); // Set sprite x data from 13th block for all sprites
+    }
+    do {
+      <:xp = a = 0;
+      >:xp = a = 0;
+      //while (xp < 550) {
+      while (true) {
+        <:xp = a = <:xp + 1;
+        >:xp = a = >:xp +# 0;
+        msb = a = 0; // MSB of X coordinates
+        // Wait until raster hits position 250 before drawing upper sprites
+        rasterWait(250);
+        // Set border color, which indicates the raster position
+        c64.vic.bordercolor = a = 1;
+        <:rx = a = <:xp;
+        >:rx = a = >:xp;
+        for x in 0..7 {
+          <:rx = a = <:rx - 24;
+          >:rx = a = >:rx -# 0;
+          //if (rx >= 0 && rx < 366) 
+          if (true) {
+            // if (rx > 255)
+            a = >:rx;
+            if (!zero) {
+              // Set MSB of x coordinate for sprite if x position > 255
+              a = msb;
+              a |= pwr2[x];
+              msb = a;
+            }
+            y = a = x<<1;
+            c64.vic.sprite.coord[y] = a = <:rx;
+            // Y position is an indirect Sinus function of X, using array
+            // index for retrieving the Y value
+            y = a = <:rx & 63;
+            a = yValues[y] + 40;
+            push(a);
+            y = a = (x<<1) + 1;
+            a = pop();
+            c64.vic.sprite.coord[y] = a;
+          } else {
+            c64.vic.sprite.pos[y].x = 0;
+          }
+        }
+        c64.vic.sprite.hi_x = a = msb; // Set MSB of x coordinate
+        // Wait until raster hits position 135 before drawing lower sprites
+        rasterWait(135);
+        c64.vic.bordercolor = a = 2; // Set border color
+        for x in 0..7 {
+          // Add 128 to current sprite Y position
+          y = a = (x<<1) + 1;
+          c64.vic.sprite.coord[y] = a = c64.vic.sprite.coord[y]+128;
+        }
+        cmp(a = >:xp, >:550);
+        if (zero) {
+          cmp(a = <:xp, <:550);
+          break if zero;
+        }
+      }
+    } while (true);
+    return;
+  }
+  
+}
