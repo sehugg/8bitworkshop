@@ -18,12 +18,12 @@
    SID.amp = (volume) | ((filters)<<4);
 
 // stop voice
-#define SID_STOP(voice) \
-  SID.voice.ctrl &= ~SID_GATE;
+#define SID_STOP(voice, options) \
+  SID.voice.ctrl = options & ~SID_GATE;
 
 // start voice
-#define SID_START(voice) \
-  SID.voice.ctrl |= SID_GATE;
+#define SID_START(voice, options) \
+  SID.voice.ctrl = options | SID_GATE;
 
 // set ADSR envelope
 #define SID_ADSR(voice,attack,decay,sustain,release) \
@@ -37,10 +37,6 @@
 // set pulse width (0 - 4095)
 #define SID_PULSEWIDTH(voice,_pw) \
   SID.voice.pw = (_pw);
-
-// set wave shape and options
-#define SID_WAVE(voice,options) \
-  SID.voice.ctrl = (SID.voice.ctrl & 1) | (options)
 
 // play a quick square wave pulse
 #define SID_PULSE_DECAY(voice, freq) \

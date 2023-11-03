@@ -29,7 +29,7 @@ export class C64_WASMMachine extends BaseWASMMachine
 
   loadBIOS(srcArray: Uint8Array) {
     var patch1ofs = 0xea24 - 0xe000 + 0x3000;
-    /*if (srcArray[patch1ofs] == 0x02)*/ srcArray[patch1ofs] = 0x60; // cursor move, KIL -> RTS
+    if (srcArray[patch1ofs] == 0xc4) srcArray[patch1ofs] = 0x60; // cursor move, KIL -> RTS
     super.loadBIOS(srcArray);
   }
   reset() {
