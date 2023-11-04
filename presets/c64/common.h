@@ -1,14 +1,17 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
-#include <conio.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <peekpoke.h>
 #include <string.h>
 #include <c64.h>
+
+#ifdef __CC65__
+#include <conio.h>
 #include <joystick.h>
+#endif
 
 typedef uint8_t byte;	// 8-bit unsigned
 typedef int8_t sbyte;	// 8-bit signed
@@ -74,7 +77,18 @@ char* get_vic_bank_start();
 // get current screen memory address
 char* get_screen_memory();
 
+#ifdef __CC65__
 // return key in buffer, or 0 if none (BIOS call)
 char __fastcall__ poll_keyboard();
+#endif
+
+#ifndef __CC65__
+inline void clrscr() {
+    __asm__ volatile ("jsr $E544" : : : "a","x","y"); // regs clobbered
+}
+inline void waitvsync() {
+  raster_wait(255);
+}
+#endif
 
 #endif

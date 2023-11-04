@@ -8,6 +8,7 @@ const REMOTE_URL = "http://localhost:3009/build";
 // create random UID
 const sessionID = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
+// TODO: #include links but #link doesnt link
 export async function buildRemote(step: BuildStep): Promise<BuildStepResult> {
     gatherFiles(step); // TODO?
     var binpath = "a.out"; // TODO?

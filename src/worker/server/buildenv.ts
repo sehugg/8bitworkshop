@@ -11,9 +11,9 @@ import { parseObjDumpListing, parseObjDumpSymbolTable } from './clang';
 const LLVM_MOS_TOOL: ServerBuildTool = {
     name: 'llvm-mos',
     version: '',
-    extensions: ['.c'],
+    extensions: ['.c', '.cpp', '.s'],
     archs: ['6502'],
-    platforms: ['atari8', 'c64', 'nes'],
+    platforms: ['atari8', 'c64', 'nes', 'pce', 'vcs'],
     platform_configs: {
         default: {
             binpath: 'llvm-mos/bin',
@@ -27,13 +27,19 @@ const LLVM_MOS_TOOL: ServerBuildTool = {
         },
         c64: {
             command: 'mos-c64-clang',
+            libargs: ['-D', '__C64__']
         },
         atari8: {
             command: 'mos-atari8-clang',
+            libargs: ['-D', '__ATARI__']
         },
         nes: {
             command: 'mos-nes-nrom-clang', // TODO
-            libargs: ['-lneslib']
+            libargs: ['-lneslib', '-lfamitone2']
+        },
+        pce: {
+            command: 'mos-pce-clang', // TODO
+            libargs: ['-lpce', '-D', '__PCE__']
         },
     }
 }
@@ -127,8 +133,11 @@ export class ServerBuildEnv {
         let infiles = [];
         for (let i = 0; i < step.files.length; i++) {
             let f = step.files[i];
-            if (f.endsWith(this.tool.extensions[0])) {
-                infiles.push(path.join(this.sessionDir, f));
+            for (let ext of this.tool.extensions) {
+                if (f.endsWith(ext)) {
+                    infiles.push(path.join(this.sessionDir, f));
+                    break;
+                }
             }
         }
         for (let i = 0; i < args.length; i++) {

@@ -10,8 +10,8 @@ void sprite_clear(void) {
 
 void sprite_update(byte* screenmem) {
   memcpy(screenmem + 0x3f8, sprshad.spr_shapes, 8);
-  memcpy(VIC.spr_pos, sprshad.spr_pos, 16);
-  memcpy(VIC.spr_color, sprshad.spr_color, 8);
+  memcpy((void*)VIC.spr_pos, sprshad.spr_pos, 16);
+  memcpy((void*)VIC.spr_color, sprshad.spr_color, 8);
   VIC.spr_ena = sprshad.spr_ena;
   VIC.spr_hi_x = sprshad.spr_hi_x;
   VIC.spr_exp_x = sprshad.spr_exp_x;
@@ -63,7 +63,6 @@ byte sprite_get_closest_collision(byte i, byte spr_coll) {
         }
       }
     }
-  } else {
-    return 0xff;
   }
+  return 0xff;
 }

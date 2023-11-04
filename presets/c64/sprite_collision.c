@@ -96,7 +96,7 @@ void iterate_game(void) {
   collide_sprites(spr_coll);
 }
 
-void main(void) {
+int main(void) {
   
   clrscr();
   VIC.bordercolor = 0;
@@ -117,5 +117,6 @@ void main(void) {
   while (1) {
     iterate_game();
   }
+  return 0;
 }
 

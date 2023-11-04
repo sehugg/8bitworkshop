@@ -276,7 +276,8 @@ export class CodeProject {
     msg.updates.push({path:mainfilename, data:maintext});
     this.filename2path[mainfilename] = this.mainPath;
     for (var dep of depends) {
-      if (!dep.link) {
+      // remote tools send both includes and linked files in one build step
+      if (!dep.link || this.remoteTool) {
         msg.updates.push({path:dep.filename, data:dep.data});
         depfiles.push(dep.filename);
       }

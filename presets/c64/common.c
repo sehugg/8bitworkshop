@@ -5,10 +5,6 @@ void raster_wait(byte line) {
   while (VIC.rasterline < line) ;
 }
 
-void wait_vblank(void) {
-  raster_wait(255);
-}
-
 static byte VIC_BANK_PAGE[4] = {
   0xc0, 0x80, 0x40, 0x00
 };
@@ -21,8 +17,10 @@ char* get_screen_memory() {
   return ((VIC.addr & 0xf0) << 6) + get_vic_bank_start();
 }
 
+#ifdef __CC65__
 char __fastcall__ poll_keyboard() {
   asm("jmp $f142");
   return __A__;
 }
+#endif
 

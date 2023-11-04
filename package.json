@@ -68,7 +68,7 @@
     "build": "make prepare",
     "test": "npm run test-node",
     "tsbuild": "tsc --build tsconfig.json",
-    "esbuild": "npm run esbuild-worker && npm run esbuild-ui",
+    "esbuild": "npm run esbuild-worker && npm run esbuild-ui && npm run esbuild-server",
     "esbuild-clean": "rm -f ./gen/*.*",
     "esbuild-server": "esbuild src/worker/server/server.ts --platform=node --bundle --sourcemap --target=es2020 --outfile=./gen/server/server.js",
     "esbuild-worker": "esbuild src/worker/workermain.ts --bundle --sourcemap --target=es2017 --outfile=./gen/worker/bundle.js",
