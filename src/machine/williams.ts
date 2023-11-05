@@ -1,4 +1,3 @@
-import { hex } from "chroma-js";
 import { MasterAudio, WorkerSoundChannel } from "../common/audio";
 import { MemoryBus } from "../common/baseplatform";
 import { CPU6809 } from "../common/cpu/6809";

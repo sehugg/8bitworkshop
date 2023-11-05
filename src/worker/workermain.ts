@@ -1133,7 +1133,6 @@ import * as m6502 from './tools/m6502'
 import * as z80 from './tools/z80'
 import * as x86 from './tools/x86'
 import * as arm from './tools/arm'
-import * as script from './tools/script'
 import * as ecs from './tools/ecs'
 import * as remote from './tools/remote'
 
@@ -1171,7 +1170,6 @@ var TOOLS = {
   'wiz': misc.compileWiz,
   'armips': arm.assembleARMIPS,
   'vasmarm': arm.assembleVASMARM,
-  //'js': script.runJavascript,
   'ecs': ecs.assembleECS,
   'remote': remote.buildRemote
 }

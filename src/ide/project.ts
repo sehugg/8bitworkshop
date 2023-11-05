@@ -165,13 +165,7 @@ export class CodeProject {
   parseIncludeDependencies(text:string):string[] {
     let files = [];
     let m;
-    if (this.platform_id.startsWith('script')) { // TODO
-      let re1 = /\b\w+[.]read\(["'](.+?)["']/gmi;
-      while (m = re1.exec(text)) {
-        if (m[1] && m[1].indexOf(':/') < 0) // TODO: ignore URLs
-          this.pushAllFiles(files, m[1]);
-      }
-    } else if (this.platform_id.startsWith('verilog')) {
+    if (this.platform_id.startsWith('verilog')) {
       // include verilog includes
       let re1 = /^\s*(`include|[.]include)\s+"(.+?)"/gmi;
       while (m = re1.exec(text)) {
