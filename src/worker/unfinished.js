@@ -170,52 +170,6 @@ function assembleNAKEN(code, platform) {
   };
 }
 
-function compilePLASMA(code) {
-  load("plasm");
-  // stdout
-  var outstr = "";
-  function out_fn(s) { outstr += s; outstr += "\n"; }
-  // stderr
-  var re_err1 = /\s*(\d+):.*/;
-  var re_err2 = /Error: (.*)/;
-  var errors = [];
-  var errline = 0;
-  function match_fn(s) {
-    var matches = re_err1.exec(s);
-    if (matches) {
-      errline = parseInt(matches[1]);
-    }
-    matches = re_err2.exec(s);
-    if (matches) {
-      errors.push({
-        line:errline,
-        msg:matches[1]
-      });
-    }
-  }
-  var Module = PLASM({
-    noInitialRun:true,
-    noFSInit:true,
-    print:out_fn,
-    printErr:match_fn,
-  });
-  var FS = Module['FS'];
-  var output = [];
-  setupStdin(FS, code);
-  //FS.writeFile("main.pla", code);
-  Module.callMain(["-A"]);
-  // TODO: have to make dummy 4-byte header so start ends up @ $803
-  outstr = "\tnop\n\tnop\n\tnop\n\tnop\n" + outstr;
-  // set code base and INTERP address
-  outstr = "* = $7FF\n" + outstr;
-  outstr = "INTERP = $e044\n" + outstr; // TODO
-  if (errors.length) {
-    return {errors:errors};
-  }
-  console.log(outstr);
-  return assembleACME(outstr);
-}
-
 function compileSCCZ80(code, platform) {
   var preproc = preprocessMCPP(code, platform, 'sccz80');
   if (preproc.errors) return preproc;

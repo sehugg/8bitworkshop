@@ -1139,7 +1139,6 @@ import * as remote from './tools/remote'
 var TOOLS = {
   'dasm': dasm.assembleDASM,
   //'acme': assembleACME,
-  //'plasm': compilePLASMA,
   'cc65': cc65.compileCC65,
   'ca65': cc65.assembleCA65,
   'ld65': cc65.linkLD65,

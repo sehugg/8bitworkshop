@@ -112,3 +112,19 @@ The IDE uses custom forks for many of these, found at https://github.com/sehugg?
 * https://github.com/sehugg/8bit-tools
 * https://github.com/sehugg/awesome-8bitgamedev
 
+## Tool Server (experimental)
+
+This is an experimental feature that relies on a Docker container to provide compiler tools like [llvm-mos](https://github.com/llvm-mos/llvm-mos-sdk).
+Right now, you have to run locally and build your own docker container.
+
+```sh
+docker build -t 8bitws-server-debian scripts/docker
+docker run -p 3009:3009 8bitws-server-debian
+echo '{"REMOTE_URL":"http://localhost:3009/build"}' > remote.json
+```
+
+Then add "&tool=llvm-mos" to your URL, like
+[this](http://localhost:8000/?platform=c64&file=sprite_collision.c&tool=llvm-mos).
+You can also rename your C files to have the suffix "-llvm.c".
+Right now only the platforms c64, atari8, nes (NROM), and pce are supported.
+Not very many of the current examples work with the new toolchain.

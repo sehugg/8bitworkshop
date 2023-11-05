@@ -269,9 +269,10 @@ export class CodeProject {
     var depfiles = [];
     msg.updates.push({path:mainfilename, data:maintext});
     this.filename2path[mainfilename] = this.mainPath;
+    let usesRemoteTool = this.getToolForFilename(mainfilename).startsWith('remote:');
     for (var dep of depends) {
       // remote tools send both includes and linked files in one build step
-      if (!dep.link || this.remoteTool) {
+      if (!dep.link || usesRemoteTool) {
         msg.updates.push({path:dep.filename, data:dep.data});
         depfiles.push(dep.filename);
       }
@@ -419,14 +420,13 @@ export class CodeProject {
     //if (path.toLowerCase().endsWith('.h') || path.toLowerCase().endsWith('.inc'))
       //return;
     var fnprefix = getFilenamePrefix(this.stripLocalPath(path));
+    // find listing with matching prefix
     var listings = this.getListings();
-    var onlyfile = null;
     for (var lstfn in listings) {
       if (lstfn == path)
         return listings[lstfn];
     }
     for (var lstfn in listings) {
-      onlyfile = lstfn;
       if (getFilenamePrefix(lstfn) == fnprefix) {
         return listings[lstfn];
       }
