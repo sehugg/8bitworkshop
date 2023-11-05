@@ -3,7 +3,7 @@
   
   test_settings: {
     default: {
-      launch_url: 'https://8bitworkshop.com',
+      launch_url: 'https://sehugg.github.io/8bitworkshop/'
     },
 
     safari: {

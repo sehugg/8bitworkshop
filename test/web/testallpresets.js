@@ -91,7 +91,12 @@ function testPlatform(exports, platform_id, platform_name, numPresets) {
 var ex = module.exports;
 ex['@tags'] = []
 
-testPlatform(ex, 'vcs', 'Atari 2600', 35);
+//testPlatform(ex, 'williams', 'Williams', 4);
+//testPlatform(ex, 'pce', 'PC Engine', 2);
+testPlatform(ex, 'atari8-5200', 'Atari 5200', 3);
+testPlatform(ex, 'cpc.6128', 'Amstrad CPC6128', 8);
+
+testPlatform(ex, 'vcs', 'Atari 2600', 36);
 testPlatform(ex, 'nes', 'NES', 30);
 testPlatform(ex, 'vicdual', 'VIC Dual', 7);
 testPlatform(ex, 'mw8080bw', 'Midway 8080', 3);
@@ -102,7 +107,7 @@ testPlatform(ex, 'williams-z80', 'Williams (Z80)', 3);
 testPlatform(ex, 'coleco', 'ColecoVision', 12);
 //testPlatform(ex, 'sms-sg1000-libcv', 'Sega SG-1000', 3);
 testPlatform(ex, 'sms-sms-libcv', 'Sega Master System', 2);
-testPlatform(ex, 'atari7800', 'Atari 7800', 1);
+testPlatform(ex, 'atari7800', 'Atari 7800', 4);
 testPlatform(ex, 'astrocade', 'Bally Astrocade', 12);
 testPlatform(ex, 'verilog', 'Verilog', 33);
 testPlatform(ex, 'apple2', 'Apple ][+', 10);
@@ -110,5 +115,5 @@ testPlatform(ex, 'basic', 'BASIC', 10);
 testPlatform(ex, 'zmachine', 'Z-Machine', 19);
 testPlatform(ex, 'msx', 'MSX', 5);
 //testPlatform(ex, 'zx', 'ZX', 3);
-testPlatform(ex, 'c64', 'Commodore 64', 15);
+testPlatform(ex, 'c64', 'Commodore 64', 16);
 testPlatform(ex, 'atari8-800', 'Atari 800', 9);

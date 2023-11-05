@@ -642,7 +642,8 @@ export function getToolForFilename_6809(fn:string) : string {
   if (fn.endsWith(".c")) return "cmoc";
   if (fn.endsWith(".h")) return "cmoc";
   if (fn.endsWith(".xasm")) return "xasm6809";
-  return "lwasm";
+  if (fn.endsWith(".lwasm")) return "lwasm";
+  return "cmoc";
 }
 
 export abstract class Base6809Platform extends BaseZ80Platform {
