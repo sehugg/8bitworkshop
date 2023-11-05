@@ -42,7 +42,7 @@ const LLVM_MOS_TOOL = {
         },
         pce: {
             command: 'mos-pce-clang',
-            libargs: ['-lpce', '-D', '__PCE__']
+            libargs: ['-D', '__PCE__']
         },
     }
 };

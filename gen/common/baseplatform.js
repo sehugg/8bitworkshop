@@ -283,8 +283,8 @@ function inspectSymbol(platform, sym) {
 exports.inspectSymbol = inspectSymbol;
 ////// 6502
 function getToolForFilename_6502(fn) {
-    if (fn.endsWith(".pla"))
-        return "plasm";
+    if (fn.endsWith("-llvm.c"))
+        return "remote:llvm-mos";
     if (fn.endsWith(".c"))
         return "cc65";
     if (fn.endsWith(".h"))
@@ -503,7 +503,9 @@ function getToolForFilename_6809(fn) {
         return "cmoc";
     if (fn.endsWith(".xasm"))
         return "xasm6809";
-    return "lwasm";
+    if (fn.endsWith(".lwasm"))
+        return "lwasm";
+    return "cmoc";
 }
 exports.getToolForFilename_6809 = getToolForFilename_6809;
 class Base6809Platform extends BaseZ80Platform {

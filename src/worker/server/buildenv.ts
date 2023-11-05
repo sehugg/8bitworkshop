@@ -39,7 +39,7 @@ const LLVM_MOS_TOOL: ServerBuildTool = {
         },
         pce: {
             command: 'mos-pce-clang', // TODO
-            libargs: ['-lpce', '-D', '__PCE__']
+            libargs: ['-D', '__PCE__']
         },
     }
 }

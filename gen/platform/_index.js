@@ -44,7 +44,6 @@ function importPlatform(name) {
         case "mw8080bw": return Promise.resolve().then(() => __importStar(require("../platform/mw8080bw")));
         case "nes": return Promise.resolve().then(() => __importStar(require("../platform/nes")));
         case "pce": return Promise.resolve().then(() => __importStar(require("../platform/pce")));
-        case "script": return Promise.resolve().then(() => __importStar(require("../platform/script")));
         case "sms": return Promise.resolve().then(() => __importStar(require("../platform/sms")));
         case "sound_konami": return Promise.resolve().then(() => __importStar(require("../platform/sound_konami")));
         case "sound_williams": return Promise.resolve().then(() => __importStar(require("../platform/sound_williams")));

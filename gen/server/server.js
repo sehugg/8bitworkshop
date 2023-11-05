@@ -35399,9 +35399,11 @@ function assembleECS(step) {
 }
 
 // src/worker/tools/remote.ts
-var REMOTE_URL = "http://localhost:3009/build";
 var sessionID = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 async function buildRemote(step) {
+  const { REMOTE_URL } = await (await fetch("../../remote.json")).json();
+  if (typeof REMOTE_URL !== "string")
+    throw new Error("No REMOTE_URL in remote.json");
   gatherFiles(step);
   var binpath = "a.out";
   if (staleFiles(step, [binpath])) {
@@ -36624,7 +36626,7 @@ var LLVM_MOS_TOOL = {
     },
     pce: {
       command: "mos-pce-clang",
-      libargs: ["-lpce", "-D", "__PCE__"]
+      libargs: ["-D", "__PCE__"]
     }
   }
 };

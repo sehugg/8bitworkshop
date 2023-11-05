@@ -94,6 +94,7 @@ const TOOL_TO_SOURCE_STYLE = {
     'vasmarm': 'vasm',
     'armips': 'vasm',
     'ecs': 'ecs',
+    'remote:llvm-mos': 'text/x-csrc',
 };
 const TOOL_TO_HELPURL = {
     'dasm': 'https://raw.githubusercontent.com/sehugg/dasm/master/doc/dasm.txt',
@@ -107,6 +108,7 @@ const TOOL_TO_HELPURL = {
     'silice': "https://github.com/sylefeb/Silice",
     'zmac': "https://raw.githubusercontent.com/sehugg/zmac/master/doc.txt",
     'cmoc': "http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html",
+    'remote:llvm-mos': 'https://llvm-mos.org/wiki/Welcome',
 };
 function gaEvent(category, action, label, value) {
     if (window['ga'])

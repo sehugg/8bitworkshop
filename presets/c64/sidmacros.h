@@ -40,11 +40,11 @@
 
 // play a quick square wave pulse
 #define SID_PULSE_DECAY(voice, freq) \
-  SID_STOP(voice) \
+  SID_STOP(voice,0) \
   SID_FREQ(voice,freq); \
   SID_PULSEWIDTH(voice,0x200); \
-  SID_ADSR(voice,8,8,0,4); \
-  SID_WAVE(voice,SID_SQUARE|SID_GATE); \
+  SID_ADSR(voice,3,8,0,4); \
+  SID_START(voice,SID_SQUARE); \
 
 // play a tone if one is not already playing
 #define SID_PLAY_TONE(freq) \

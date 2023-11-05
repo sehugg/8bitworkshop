@@ -4,12 +4,14 @@ exports.buildRemote = void 0;
 const util_1 = require("../../common/util");
 const workertypes_1 = require("../../common/workertypes");
 const workermain_1 = require("../workermain");
-// TODO: are we running from 8bitworkshop.com in this worker?
-const REMOTE_URL = "http://localhost:3009/build";
 // create random UID
 const sessionID = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 // TODO: #include links but #link doesnt link
 async function buildRemote(step) {
+    // grab the remote URL from a remote.json file
+    const { REMOTE_URL } = await (await fetch('../../remote.json')).json();
+    if (typeof REMOTE_URL !== 'string')
+        throw new Error("No REMOTE_URL in remote.json");
     (0, workermain_1.gatherFiles)(step); // TODO?
     var binpath = "a.out"; // TODO?
     if ((0, workermain_1.staleFiles)(step, [binpath])) {

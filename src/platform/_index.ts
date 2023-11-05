@@ -19,7 +19,6 @@ export function importPlatform(name: string) : Promise<any> {
       case "mw8080bw": return import("../platform/mw8080bw");
       case "nes": return import("../platform/nes");
       case "pce": return import("../platform/pce");
-      case "script": return import("../platform/script");
       case "sms": return import("../platform/sms");
       case "sound_konami": return import("../platform/sound_konami");
       case "sound_williams": return import("../platform/sound_williams");
