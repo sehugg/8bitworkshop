@@ -1,0 +1,127 @@
+
+struct CoordXY {
+  x : u8,
+  y : u8
+}
+
+struct SIDVoice {
+  freq : u16,	/* Frequency */
+  pw : u16,	/* Pulse width */
+  ctrl : u16,	/* Control register */
+  ad : u16,	/* Attack/decay */
+  sr : u16	/* Sustain/release */
+}
+
+typealias SpriteData : [u8; 64];
+  
+union VICBank {
+  spritedata : [SpriteData; 256],
+  data : [u8; 0x4000]
+}
+
+namespace c64 {
+  extern var colorram @ 0xD800 : [u8; 0x400];
+  
+  namespace color {
+    let BLACK = 0x00;
+    let WHITE = 0x01;
+    let RED = 0x02;
+    let CYAN = 0x03;
+    let PURPLE = 0x04;
+    let GREEN = 0x05;
+    let BLUE = 0x06;
+    let YELLOW = 0x07;
+    let ORANGE = 0x08;
+    let BROWN = 0x09;
+    let LIGHTRED = 0x0A;
+    let GRAY1 = 0x0B;
+    let GRAY2 = 0x0C;
+    let LIGHTGREEN = 0x0D;
+    let LIGHTBLUE = 0x0E;
+    let GRAY3 = 0x0F;
+  }
+  
+  namespace vic {
+    namespace sprite {
+      extern var pos @ 0xD000 : [CoordXY; 8];
+      extern var coord @ 0xD000 : [u8; 16];
+      extern var hi_x @ 0xD010 : u8;
+      extern var enable @ 0xD015 : u8;
+      extern var expand_y @ 0xD017 : u8;
+      extern var priority @ 0xD01B : u8;
+      extern var multicolor @ 0xD01C : u8;
+      extern var expand_x @ 0xD01D : u8;
+      extern var coll @ 0xD01E : u8;
+      extern var coll_bg @ 0xD01F : u8;
+      extern var mcolor @ 0xD025 : [u8; 2];
+      extern var color @ 0xD027 : [u8; 8];
+    }
+    extern var control1 @ 0xD011 : u8;
+    extern var rasterline @ 0xD012 : u8;
+    extern var lightpen @ 0xD013 : CoordXY;
+    extern var control2 @ 0xD016 : u8;
+    extern var mem @ 0xD018 : u8;
+    extern var irr @ 0xD019 : u8;
+    extern var imr @ 0xD01A : u8;
+    extern var bordercolor @ 0xD020 : u8;
+    extern var bgcolor @ 0xD021 : [u8; 4];
+  }
+
+  namespace sid {
+    extern writeonly v1 @ 0xd400 : [SIDVoice; 3];
+    
+    extern writeonly flt_freq @ 0xd415 : u16;/* Filter frequency */
+    extern writeonly flt_ctrl @ 0xd417 : u8; /* Filter control register */
+    extern writeonly amp @ 0xd418 : u8;      /* Amplitude */
+    extern writeonly ad1 @ 0xd419 : u8;      /* A/D converter 1 */
+    extern writeonly ad2 @ 0xd41a : u8;      /* A/D converter 2 */
+    extern writeonly noise @ 0xd41b : u8;    /* Noise generator */
+    extern const read3 @ 0xd41c : u8;     /* Value of voice 3 */
+  }
+
+  namespace cia1 {
+    // CIA1 Registers
+    extern writeonly port_a @ 0xDC00 : u8;
+    extern const port_b @ 0xDC01 : u8;
+    extern writeonly data_direction_a @ 0xDC02 : u8;
+    extern writeonly data_direction_b @ 0xDC03 : u8;
+    extern const timer_a_lo @ 0xDC04 : u8;
+    extern const timer_a_hi @ 0xDC05 : u8;
+    extern const timer_b_lo @ 0xDC06 : u8;
+    extern const timer_b_hi @ 0xDC07 : u8;
+    extern const sdr @ 0xDC0C : u8;
+    extern const icr @ 0xDC0D : u8;
+    extern const cra @ 0xDC0E : u8;
+    extern const crb @ 0xDC0F : u8;
+  }
+
+  namespace cia2 {
+    // CIA2 Registers
+    extern writeonly port_a @ 0xDD00 : u8;
+    extern const port_b @ 0xDD01 : u8;
+    extern writeonly data_direction_a @ 0xDD02 : u8;
+    extern writeonly data_direction_b @ 0xDD03 : u8;
+    extern const timer_a_lo @ 0xDD04 : u8;
+    extern const timer_a_hi @ 0xDD05 : u8;
+    extern const timer_b_lo @ 0xDD06 : u8;
+    extern const timer_b_hi @ 0xDD07 : u8;
+    extern const sdr @ 0xDD0C : u8;
+    extern const icr @ 0xDD0D : u8;
+    extern const cra @ 0xDD0E : u8;
+    extern const crb @ 0xDD0F : u8;
+  }
+
+  namespace kernal {
+    let ioinit = 0xFDA3 as func;
+    let rantam = 0xFD50 as func;
+    let restor = 0xFD15 as func;
+    let cint = 0xFF5B as func;
+    let scnkey = 0xEA87 as func;
+    let chrin = 0xF157 as func : u8 in a;
+    let chrout = 0xF1CA as func(char : u8 in a);
+    let screen = 0xE505 as func : u16 in xy;
+    let plot_save = 0xE50A as func(save : bool in carry) : u16 in xy;
+    let plot_restore = 0xE50A as func(x : u8 in x, y : u8 in y, save : bool in carry);
+  }
+}
+

@@ -54,6 +54,13 @@
     }
     return str;
   }
+  function safeident(s) {
+    if (s.length == 0)
+      return "";
+    if (!s.match(/^[a-zA-Z_]/))
+      s = "_" + s;
+    return s.replace(/\W+/g, "_");
+  }
   function getBasePlatform(platform) {
     return platform.split(".")[0];
   }
@@ -62,6 +69,9 @@
   }
   function getRootBasePlatform(platform) {
     return getRootPlatform(getBasePlatform(platform));
+  }
+  function convertDataToUint8Array(data) {
+    return typeof data === "string" ? stringToByteArray(data) : data;
   }
   var XMLParseError = class extends Error {
   };
@@ -2878,6 +2888,26 @@
       };
     }
   }
+  function processIncbin(code) {
+    let re3 = /^\s*([;']|[/][/])#incbin\s+"(.+?)"/gm;
+    return code.replace(re3, (m, m1, m2) => {
+      let filename = m2;
+      let filedata = store.getFileData(filename);
+      let bytes = convertDataToUint8Array(filedata);
+      if (!bytes)
+        throw new Error('#incbin: file not found: "' + filename + '"');
+      let out = "";
+      let ident = safeident(filename);
+      console.log("#incbin", filename, ident, bytes.length);
+      out += "const unsigned char " + ident + "[" + bytes.length + "] = {";
+      for (let i = 0; i < bytes.length; i++) {
+        out += bytes[i].toString() + ",";
+      }
+      out += "};";
+      console.log("incbin", out);
+      return out;
+    });
+  }
   function compileCC65(step) {
     loadNative("cc65");
     var params = step.params;
@@ -2907,7 +2937,15 @@
       });
       var FS = CC65.FS;
       setupFS(FS, "65-" + getRootBasePlatform(step.platform));
-      populateFiles(step, FS);
+      populateFiles(step, FS, {
+        mainFilePath: step.path,
+        processFn: (path, code) => {
+          if (typeof code === "string") {
+            code = processIncbin(code);
+          }
+          return code;
+        }
+      });
       fixParamsWithDefines(step.path, params);
       var args = [
         "-I",

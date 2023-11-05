@@ -420,6 +420,11 @@ function clamp(minv, maxv, v) {
 }
 exports.clamp = clamp;
 function safeident(s) {
+    // if starts with non-alpha character, prefix with '_'
+    if (s.length == 0)
+        return '';
+    if (!s.match(/^[a-zA-Z_]/))
+        s = '_' + s;
     return s.replace(/\W+/g, "_");
 }
 exports.safeident = safeident;

@@ -8,6 +8,7 @@ const workermain_1 = require("../workermain");
 const REMOTE_URL = "http://localhost:3009/build";
 // create random UID
 const sessionID = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+// TODO: #include links but #link doesnt link
 async function buildRemote(step) {
     (0, workermain_1.gatherFiles)(step); // TODO?
     var binpath = "a.out"; // TODO?

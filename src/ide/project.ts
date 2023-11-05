@@ -200,9 +200,9 @@ export class CodeProject {
         this.pushAllFiles(files, m[2]);
       }
       // for .c -- //#resource "file" (or ;resource or #resource)
-      let re3 = /^\s*([;']|[/][/])#resource\s+"(.+?)"/gm;
+      let re3 = /^\s*([;']|[/][/])#(resource|incbin)\s+"(.+?)"/gm;
       while (m = re3.exec(text)) {
-        this.pushAllFiles(files, m[2]);
+        this.pushAllFiles(files, m[3]);
       }
       // for XASM only (USE include.ext)
       // for merlin32 (ASM include.ext)
@@ -276,7 +276,8 @@ export class CodeProject {
     msg.updates.push({path:mainfilename, data:maintext});
     this.filename2path[mainfilename] = this.mainPath;
     for (var dep of depends) {
-      if (!dep.link) {
+      // remote tools send both includes and linked files in one build step
+      if (!dep.link || this.remoteTool) {
         msg.updates.push({path:dep.filename, data:dep.data});
         depfiles.push(dep.filename);
       }

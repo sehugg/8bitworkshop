@@ -279,6 +279,27 @@ function linkLD65(step) {
     }
 }
 exports.linkLD65 = linkLD65;
+function processIncbin(code) {
+    let re3 = /^\s*([;']|[/][/])#incbin\s+"(.+?)"/gm;
+    // find #incbin "filename.bin" and replace with C array declaration
+    return code.replace(re3, (m, m1, m2) => {
+        let filename = m2;
+        let filedata = workermain_1.store.getFileData(filename);
+        let bytes = (0, util_1.convertDataToUint8Array)(filedata);
+        if (!bytes)
+            throw new Error('#incbin: file not found: "' + filename + '"');
+        let out = '';
+        let ident = (0, util_1.safeident)(filename);
+        console.log('#incbin', filename, ident, bytes.length);
+        out += 'const unsigned char ' + ident + '[' + bytes.length + '] = {';
+        for (let i = 0; i < bytes.length; i++) {
+            out += bytes[i].toString() + ',';
+        }
+        out += '};';
+        console.log('incbin', out);
+        return out;
+    });
+}
 function compileCC65(step) {
     (0, workermain_1.loadNative)("cc65");
     var params = step.params;
@@ -310,7 +331,15 @@ function compileCC65(step) {
         });
         var FS = CC65.FS;
         (0, workermain_1.setupFS)(FS, '65-' + (0, util_1.getRootBasePlatform)(step.platform));
-        (0, workermain_1.populateFiles)(step, FS);
+        (0, workermain_1.populateFiles)(step, FS, {
+            mainFilePath: step.path,
+            processFn: (path, code) => {
+                if (typeof code === 'string') {
+                    code = processIncbin(code);
+                }
+                return code;
+            }
+        });
         (0, workermain_1.fixParamsWithDefines)(step.path, params);
         var args = [
             '-I', '/share/include',

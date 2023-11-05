@@ -424,6 +424,9 @@ export function clamp(minv:number, maxv:number, v:number) {
 }
 
 export function safeident(s : string) : string {
+  // if starts with non-alpha character, prefix with '_'
+  if (s.length == 0) return '';
+  if (!s.match(/^[a-zA-Z_]/)) s = '_' + s;
   return s.replace(/\W+/g, "_");
 }
 

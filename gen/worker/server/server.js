@@ -8,6 +8,16 @@ const path_1 = __importDefault(require("path"));
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const buildenv_1 = require("./buildenv");
+/*
+## Tool Server (not yet used)
+
+```sh
+npm run server
+xattr -dr com.apple.quarantine llvm-mos/bin/* # macOS only
+curl http://localhost:3009/test
+go to: http://localhost:8000/?platform=c64&file=hello.c&tool=llvm-mos
+```
+*/
 ////////////////////
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());

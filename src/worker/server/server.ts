@@ -6,6 +6,17 @@ import cors from 'cors';
 import { WorkerBuildStep, WorkerFileUpdate } from '../../common/workertypes';
 import { ServerBuildEnv, TOOLS, findBestTool } from './buildenv';
 
+/*
+## Tool Server (not yet used)
+
+```sh
+npm run server
+xattr -dr com.apple.quarantine llvm-mos/bin/* # macOS only
+curl http://localhost:3009/test
+go to: http://localhost:8000/?platform=c64&file=hello.c&tool=llvm-mos
+```
+*/
+
 ////////////////////
 
 const app = express();

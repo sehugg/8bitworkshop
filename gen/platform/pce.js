@@ -13,7 +13,7 @@ class PCEnginePlatform {
     }
     start() {
         this.pce = new PCE();
-        this.video = new emu_1.RasterVideo(this.mainElement, 684, 262, { overscan: true });
+        this.video = new emu_1.RasterVideo(this.mainElement, 684, 262, { overscan: true, aspect: 4 / 3 });
         this.video.create();
         this.pce.SetCanvas(this.video.canvas);
     }
