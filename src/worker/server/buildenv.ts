@@ -56,7 +56,7 @@ export function findBestTool(step: BuildStep) {
 }
 
 export const TOOLS: ServerBuildTool[] = [
-    Object.assign({}, LLVM_MOS_TOOL, { version: '0.13.2' }),
+    Object.assign({}, LLVM_MOS_TOOL, { version: 'latest' }),
 ];
 
 interface ServerBuildTool {

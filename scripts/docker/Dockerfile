@@ -4,8 +4,8 @@ FROM --platform=linux/amd64 debian:11-slim
 # Set the working directory
 WORKDIR /app
 
-# Set the 8BITWS_SERVER_ROOT environment variable
-ENV 8BITWS_SERVER_ROOT /app
+# Set the _8BITWS_SERVER_ROOT environment variable
+ENV _8BITWS_SERVER_ROOT /app
 
 # Change to app dir
 RUN cd /app
@@ -27,17 +27,24 @@ RUN apt-get install -y nodejs
 # Fetch the LLVM-Mos tarball and extract it
 RUN curl -L https://github.com/llvm-mos/llvm-mos-sdk/releases/latest/download/llvm-mos-linux.tar.xz | xz -d | tar x -C /app
 
+# Fetch the SDCC tarball
+#RUN apt-get install -y bzip2
+#RUN curl -L https://cytranet.dl.sourceforge.net/project/sdcc/sdcc-linux-amd64/4.3.0/sdcc-4.3.0-amd64-unknown-linux2.5.tar.bz2 | tar xj -C /app
+
 # Clean up after APT
 RUN apt-get autoremove -y \
     && apt-get clean -y \
     && apt-get autoclean -y
 RUN rm -rf /var/lib/apt/lists/*
 
-# Fetch the Node.js Express server.js file from a GitHub URL
-RUN curl -O https://sehugg.github.io/8bitworkshop/gen/server/server.js
-
 # Expose the port your server will listen on
 EXPOSE 3009
 
+# Fetch the Node.js Express server.js file at runtime
+RUN curl -O https://sehugg.github.io/8bitworkshop/gen/server/server.js
+
+# Copy the run script
+COPY run.sh /app/run.sh
+
 # Start the Node.js Express server
-CMD ["node", "server.js"]
+CMD ["sh", "-a", "run.sh"]
