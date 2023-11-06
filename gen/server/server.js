@@ -36642,7 +36642,7 @@ function findBestTool(step) {
   throw new Error(`Tool not found: ${step.tool}`);
 }
 var TOOLS2 = [
-  Object.assign({}, LLVM_MOS_TOOL, { version: "0.13.2" })
+  Object.assign({}, LLVM_MOS_TOOL, { version: "latest" })
 ];
 var ServerBuildEnv = class {
   constructor(rootdir, sessionID2, tool) {
@@ -36812,7 +36812,7 @@ app.use((err, req, res, next) => {
   res.status(500).send("Something broke!");
 });
 var port = 3009;
-var SERVER_ROOT = process.env["8BITWS_SERVER_ROOT"] || import_path3.default.resolve("./server-root");
+var SERVER_ROOT = process.env["_8BITWS_SERVER_ROOT"] || import_path3.default.resolve("./server-root");
 var SESSION_ROOT = import_path3.default.join(SERVER_ROOT, "sessions");
 if (!import_fs2.default.existsSync(SESSION_ROOT)) {
   import_fs2.default.mkdirSync(SESSION_ROOT);

@@ -70,7 +70,7 @@ const port = 3009;
     origin: [`http://localhost:${port}`, 'http://localhost:8000']
 }));*/
 
-const SERVER_ROOT = process.env['8BITWS_SERVER_ROOT'] || path.resolve('./server-root');
+const SERVER_ROOT = process.env['_8BITWS_SERVER_ROOT'] || path.resolve('./server-root');
 const SESSION_ROOT = path.join(SERVER_ROOT, 'sessions');
 if (!fs.existsSync(SESSION_ROOT)) {
     fs.mkdirSync(SESSION_ROOT);

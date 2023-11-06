@@ -59,7 +59,7 @@ function findBestTool(step) {
 }
 exports.findBestTool = findBestTool;
 exports.TOOLS = [
-    Object.assign({}, LLVM_MOS_TOOL, { version: '0.13.2' }),
+    Object.assign({}, LLVM_MOS_TOOL, { version: 'latest' }),
 ];
 class ServerBuildEnv {
     constructor(rootdir, sessionID, tool) {
