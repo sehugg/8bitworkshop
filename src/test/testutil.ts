@@ -175,3 +175,12 @@ describe('Tokenizer', function () {
       'ident ident code-fragment ident eof');
   });
 });
+
+describe('EmuHalt', function () {
+  try {
+    throw new EmuHalt("test");
+  } catch (err) {
+    assert.ok(err instanceof EmuHalt);
+    assert.ok(err.squelchError);
+  }
+});

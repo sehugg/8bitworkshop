@@ -584,6 +584,7 @@ $( ".dropdown-submenu" ).click(function(event) {
           beforeSend(event, hint) {
             const error = hint.originalException;
             if (error && error.hasOwnProperty('$loc')) return null; // ignore EmuHalt
+            if (error && error.squelchError) return null; // ignore EmuHalt
             return event;
           },
       });

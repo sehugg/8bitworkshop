@@ -4,8 +4,9 @@ export _8BITWS_SERVER_ROOT=/app
 
 cd "$_8BITWS_SERVER_ROOT"
 
+curl -O https://sehugg.github.io/8bitworkshop/gen/server/server.js
+
 while true; do
-  curl -O https://sehugg.github.io/8bitworkshop/gen/server/server.js
 
   node server.js
 
