@@ -2,8 +2,10 @@
 import assert from "assert";
 import { describe } from "mocha";
 import { EmuHalt } from "../common/emu"
-import { lzgmini, isProbablyBinary } from "../common/util";
+import { lzgmini, isProbablyBinary, hex } from "../common/util";
 import { Tokenizer, TokenType } from "../common/tokenizer";
+import { OPS_6502 } from "../common/cpu/disasm6502";
+import { MOS6502 } from "../common/cpu/MOS6502";
 
 var NES_CONIO_ROM_LZG = [
   76, 90, 71, 0, 0, 160, 16, 0, 0, 11, 158, 107, 131, 223, 83, 1, 9, 17, 21, 22, 78, 69, 83, 26, 2, 1, 3, 0, 22, 6, 120, 216,
@@ -182,5 +184,18 @@ describe('EmuHalt', function () {
   } catch (err) {
     assert.ok(err instanceof EmuHalt);
     assert.ok(err.squelchError);
+  }
+});
+
+describe('CPU metadata', function () {
+  let cpu = new MOS6502();
+  for (let i=0; i<256; i++) {
+    let meta1 = OPS_6502[i];
+    let meta2 = cpu.getOpcodeMetadata(i);
+    if (meta1.il > 0) continue;
+//    assert.strictEqual(meta1.mn, meta2.mnenomic, `mnemonic ${hex(i)}: ${meta1.mn} != ${meta2.mnenomic}`);
+    assert.strictEqual(meta1.nb, meta2.insnlength, `insnLength ${hex(i)}: ${meta1.nb} != ${meta2.insnlength}`);
+    assert.strictEqual(meta1.c1, meta2.minCycles, `minCycles ${hex(i)}: ${meta1.c1} != ${meta2.minCycles}`);
+    assert.strictEqual(meta1.c1+meta1.c2, meta2.maxCycles, `maxCycles ${hex(i)}: ${meta1.c1+meta1.c2} != ${meta2.maxCycles}`);
   }
 });

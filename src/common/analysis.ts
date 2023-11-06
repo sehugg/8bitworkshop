@@ -2,10 +2,11 @@
 import { hex, byte2signed } from "./util";
 import { Platform } from "./baseplatform";
 
+const debug = false;
+
 export interface CodeAnalyzer {
   showLoopTimingForPC(pc:number);
-  pc2minclocks : {[key:number]:number};
-  pc2maxclocks : {[key:number]:number};
+  pc2clockrange : {[key:number]:ClockRange};
   MAX_CLOCKS : number;
 }
 
@@ -37,13 +38,17 @@ function constraintEquals(a,b) {
   return null;
 }
 
+interface ClockRange {
+  minclocks: number;
+  maxclocks: number;
+}
+
 abstract class CodeAnalyzer6502 implements CodeAnalyzer {
-  pc2minclocks = {};
-  pc2maxclocks = {};
+  pc2clockrange : {[key:number]:ClockRange} = {};
+  jsrresult : {[key:number]:ClockRange} = {};
   START_CLOCKS : number;
   MAX_CLOCKS : number;
   WRAP_CLOCKS : boolean;
-  jsrresult = {};
   platform : Platform;
   MAX_CYCLES : number = 2000;
   
@@ -58,45 +63,60 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
   }
 
   traceInstructions(pc:number, minclocks:number, maxclocks:number, subaddr:number, constraints) {
-    if (this.WRAP_CLOCKS) {
-      if (this.pc2minclocks[pc] !== undefined)
-        minclocks = Math.min(minclocks, this.pc2minclocks[pc]);
-      if (this.pc2maxclocks[pc] !== undefined)
-        maxclocks = Math.max(maxclocks, this.pc2maxclocks[pc]);
-    }
-    //console.log("trace", hex(pc), minclocks, maxclocks);
+    if (debug) console.log("trace", hex(pc), minclocks, maxclocks);
     if (!constraints) constraints = {};
     var modified = true;
     var abort = false;
-    for (var i=0; modified && !abort; i++) {
+    for (let i=0; modified && !abort; i++) {
       if (i >= this.MAX_CYCLES) {
         console.log("too many cycles @", hex(pc), "routine", hex(subaddr));
         break;
       }
       modified = false;
-      if (this.WRAP_CLOCKS && minclocks >= this.MAX_CLOCKS) {
+      if (this.WRAP_CLOCKS) {
         // wrap clocks
         minclocks = minclocks % this.MAX_CLOCKS;
         maxclocks = maxclocks % this.MAX_CLOCKS;
+        if (maxclocks == minclocks-1) {
+          if (debug) console.log("0-75", hex(pc), minclocks, maxclocks);
+          minclocks = 0;
+          maxclocks = this.MAX_CLOCKS-1;
+        }
       } else {
         // truncate clocks
         minclocks = Math.min(this.MAX_CLOCKS, minclocks);
         maxclocks = Math.min(this.MAX_CLOCKS, maxclocks);
       }
-      var meta = this.getClockCountsAtPC(pc);
-      var lob = this.platform.readAddress(pc+1);
-      var hib = this.platform.readAddress(pc+2);
-      var addr = lob + (hib << 8);
-      var pc0 = pc;
-      if (!(minclocks >= this.pc2minclocks[pc0])) {
-        this.pc2minclocks[pc0] = minclocks;
+      let meta = this.getClockCountsAtPC(pc);
+      let lob = this.platform.readAddress(pc+1);
+      let hib = this.platform.readAddress(pc+2);
+      let addr = lob + (hib << 8);
+      let pc0 = pc;
+      let pcrange = this.pc2clockrange[pc0];
+      if (pcrange == null) {
+        this.pc2clockrange[pc0] = pcrange = {minclocks:minclocks, maxclocks:maxclocks};
+        if (debug) console.log("new", hex(pc), hex(pc0), hex(subaddr), minclocks, maxclocks);
         modified = true;
       }
-      if (!(maxclocks <= this.pc2maxclocks[pc0])) {
-        this.pc2maxclocks[pc0] = maxclocks;
-        modified = true;
+      //console.log(hex(pc),minclocks,maxclocks, pcrange);
+      if (pcrange.minclocks != minclocks || pcrange.maxclocks != maxclocks) {
+        if (this.WRAP_CLOCKS && (minclocks <= maxclocks) != (pcrange.minclocks <= pcrange.maxclocks)) {
+          if (debug) console.log("wrap", hex(pc), hex(pc0), hex(subaddr), minclocks, maxclocks, pcrange);
+          pcrange.minclocks = minclocks = 0;
+          pcrange.maxclocks = maxclocks = this.MAX_CLOCKS-1;
+          modified = true;
+        }
+        if (minclocks < pcrange.minclocks) {
+          if (debug) console.log("min", hex(pc), hex(pc0), hex(subaddr), minclocks, maxclocks, pcrange);
+          pcrange.minclocks = minclocks;
+          modified = true;
+        }
+        if (maxclocks > pcrange.maxclocks) {
+          if (debug) console.log("max", hex(pc), hex(pc0), hex(subaddr), minclocks, maxclocks, pcrange);
+          pcrange.maxclocks = maxclocks;
+          modified = true;
+        }
       }
-      //console.log(hex(pc),minclocks,maxclocks,modified,meta,constraints);
       if (!meta.insnlength) {
         console.log("Illegal instruction!", hex(pc), hex(meta.opcode), meta);
         break;
@@ -110,13 +130,11 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
         case 0x39: case 0x3d:
         case 0x59: case 0x5d:
         case 0x79: case 0x7d:
-        case 0x99: case 0x9d:
-        case 0xa9: case 0xad:
-        case 0xb9: case 0xbd: case 0xbc: case 0xbe:
+        case 0xb9: case 0xbb:
+        case 0xbc: case 0xbd: case 0xbe: case 0xbf:
         case 0xd9: case 0xdd:
         case 0xf9: case 0xfd:
-          if (lob == 0)
-            meta.maxCycles -= 1; // no page boundary crossed
+          if (lob == 0) meta.maxCycles -= 1; // no page boundary crossed
           break;
         // TODO: only VCS
         case 0x85:
@@ -208,26 +226,27 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
           return;
       }
       // add min/max instruction time to min/max clocks bound
+      if (debug) console.log("add", hex(pc), meta.minCycles, meta.maxCycles);
       minclocks += meta.minCycles;
       maxclocks += meta.maxCycles;
     }
   }
 
   showLoopTimingForPC(pc:number) {
-    this.pc2minclocks = {};
-    this.pc2maxclocks = {};
+    this.pc2clockrange = {};
     this.jsrresult = {};
     // recurse through all traces
     this.traceInstructions(pc | this.platform.getOriginPC(), this.START_CLOCKS, this.MAX_CLOCKS, 0, {});
   }
 }
 
-// 76 cycles * 2 (support two scanline kernels)
+// 76 cycles
 export class CodeAnalyzer_vcs extends CodeAnalyzer6502 {
   constructor(platform : Platform) {
     super(platform);
-    this.MAX_CLOCKS = this.START_CLOCKS = 76*4; // 4 scanlines
-    this.WRAP_CLOCKS = false;
+    this.MAX_CLOCKS = 76; // 1 scanline
+    this.START_CLOCKS = 0; // TODO?
+    this.WRAP_CLOCKS = true;
   }
 }
 

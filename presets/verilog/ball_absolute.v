@@ -3,6 +3,10 @@
 
 /*
 A bouncing ball using absolute coordinates.
+
+Note: This module uses different clock domains
+and thus may be unstable on a FPGA.
+See: https://github.com/sehugg/8bitworkshop/issues/23
 */
 
 module ball_absolute_top(clk, reset, hsync, vsync, rgb);
@@ -18,8 +22,8 @@ module ball_absolute_top(clk, reset, hsync, vsync, rgb);
   reg [8:0] ball_hpos;	// ball current X position
   reg [8:0] ball_vpos;	// ball current Y position
   
-  reg [8:0] ball_horiz_move = -2;	// ball current X velocity
-  reg [8:0] ball_vert_move = 2;		// ball current Y velocity
+  reg [8:0] ball_horiz_move;	// ball current X velocity
+  reg [8:0] ball_vert_move;	// ball current Y velocity
   
   localparam ball_horiz_initial = 128;	// ball initial X position
   localparam ball_vert_initial = 128;	// ball initial Y position
@@ -52,15 +56,15 @@ module ball_absolute_top(clk, reset, hsync, vsync, rgb);
   end
 
   // vertical bounce
-  always @(posedge ball_vert_collide)
+  always @(posedge ball_vert_collide or posedge reset)
   begin
-    ball_vert_move <= -ball_vert_move;
+    ball_vert_move <= reset ? 2 : -ball_vert_move;
   end
 
   // horizontal bounce
-  always @(posedge ball_horiz_collide)
+  always @(posedge ball_horiz_collide or posedge reset)
   begin
-    ball_horiz_move <= -ball_horiz_move;
+    ball_horiz_move <= reset ? -2 : -ball_horiz_move;
   end
   
   // offset of ball position from video beam

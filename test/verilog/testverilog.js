@@ -4,7 +4,7 @@ var _fs = require('fs');
 var _path = require('path')
 var _cproc = require('child_process');
 var fs = require('fs');
-var wtu = require('./workertestutils.js');
+var wtu = require('../cli/workertestutils.js');
 //var heapdump = require("heapdump");
 var commandExists = require('command-exists');
 

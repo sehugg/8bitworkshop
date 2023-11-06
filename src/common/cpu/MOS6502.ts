@@ -1805,7 +1805,7 @@ export var _MOS6502 = function() {
       2, 6, 0, 0, 4, 4, 4, 4, 2, 5, 2, 0, 0, 5, 0, 0,
       2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 0, 4, 4, 4, 4,
       2, 5, 0, 5, 4, 4, 4, 4, 2, 4, 2, 0, 4, 4, 4, 4,
-      2, 6, 0, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 3, 6,
+      2, 6, 0, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6,
       2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 0, 7, 4, 4, 7, 7,
       2, 6, 0, 8, 3, 3, 5, 5, 2, 2, 2, 0, 4, 4, 6, 6,
       2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 0, 7, 4, 4, 7, 7
@@ -1989,6 +1989,7 @@ export class MOS6502 implements CPU, ClockBased, SavesState<MOS6502State>, Inter
   isStable() : boolean {
     return this.cpu.isPCStable();
   }
-  // TODO: metadata
-  // TODO: disassembler
+  getOpcodeMetadata(op: number) {
+    return this.cpu.getOpcodeMetadata(op);
+  }
 }
