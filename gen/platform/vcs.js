@@ -368,8 +368,8 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
             bus.oldRead = bus.read;
             bus.read = function (a) {
                 var v = this.oldRead(a);
-                if (a < 0x80)
-                    probe.logIORead(a, v);
+                if (a > 0 && a < 0x80)
+                    probe.logIORead(a, v); // (00),x reads $00?
                 else if (a > 0x280 && a < 0x300)
                     probe.logIORead(a, v);
                 else

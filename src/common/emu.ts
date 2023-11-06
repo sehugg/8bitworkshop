@@ -224,6 +224,7 @@ export class RAM {
 
 export class EmuHalt extends Error {
   $loc : SourceLocation;
+  squelchError = true;
   constructor(msg: string, loc?: SourceLocation) {
     super(msg);
     this.$loc = loc;

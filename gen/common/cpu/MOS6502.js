@@ -1946,7 +1946,7 @@ var _MOS6502 = function () {
         2, 6, 0, 0, 4, 4, 4, 4, 2, 5, 2, 0, 0, 5, 0, 0,
         2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 0, 4, 4, 4, 4,
         2, 5, 0, 5, 4, 4, 4, 4, 2, 4, 2, 0, 4, 4, 4, 4,
-        2, 6, 0, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 3, 6,
+        2, 6, 0, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6,
         2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 0, 7, 4, 4, 7, 7,
         2, 6, 0, 8, 3, 3, 5, 5, 2, 2, 2, 0, 4, 4, 6, 6,
         2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 0, 7, 4, 4, 7, 7
@@ -2049,8 +2049,6 @@ class MOS6502 {
     constructor() {
         this.cpu = new exports._MOS6502();
         this.interruptType = MOS6502Interrupts.None;
-        // TODO: metadata
-        // TODO: disassembler
     }
     connectMemoryBus(bus) {
         this.cpu.connectBus(bus);
@@ -2109,6 +2107,9 @@ class MOS6502 {
     }
     isStable() {
         return this.cpu.isPCStable();
+    }
+    getOpcodeMetadata(op) {
+        return this.cpu.getOpcodeMetadata(op);
     }
 }
 exports.MOS6502 = MOS6502;

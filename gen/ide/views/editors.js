@@ -293,9 +293,10 @@ class SourceEditor {
             return;
         // show the lines
         for (const line of Object.keys(this.sourcefile.line2offset)) {
-            var pc = this.sourcefile.line2offset[line];
-            var minclocks = result.pc2minclocks[pc];
-            var maxclocks = result.pc2maxclocks[pc];
+            let pc = this.sourcefile.line2offset[line];
+            let clocks = result.pc2clockrange[pc];
+            var minclocks = clocks && clocks.minclocks;
+            var maxclocks = clocks && clocks.maxclocks;
             if (minclocks >= 0 && maxclocks >= 0) {
                 var s;
                 if (maxclocks == minclocks)

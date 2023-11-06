@@ -8,6 +8,8 @@ const mocha_1 = require("mocha");
 const emu_1 = require("../common/emu");
 const util_1 = require("../common/util");
 const tokenizer_1 = require("../common/tokenizer");
+const disasm6502_1 = require("../common/cpu/disasm6502");
+const MOS6502_1 = require("../common/cpu/MOS6502");
 var NES_CONIO_ROM_LZG = [
     76, 90, 71, 0, 0, 160, 16, 0, 0, 11, 158, 107, 131, 223, 83, 1, 9, 17, 21, 22, 78, 69, 83, 26, 2, 1, 3, 0, 22, 6, 120, 216,
     162, 0, 134, 112, 134, 114, 134, 113, 134, 115, 154, 169, 32, 157, 0, 2, 157, 0, 3, 157, 0, 4, 232, 208, 244, 32, 134, 130, 32, 85, 129, 169,
@@ -168,5 +170,27 @@ var NES_CONIO_ROM_LZG = [
         t.tokenizeFile("key value ---\nthis is\na fragment\n--- foo", "test.file");
         assert_1.default.strictEqual(t.tokens.map(t => t.type).join(' '), 'ident ident code-fragment ident eof');
     });
+});
+(0, mocha_1.describe)('EmuHalt', function () {
+    try {
+        throw new emu_1.EmuHalt("test");
+    }
+    catch (err) {
+        assert_1.default.ok(err instanceof emu_1.EmuHalt);
+        assert_1.default.ok(err.squelchError);
+    }
+});
+(0, mocha_1.describe)('CPU metadata', function () {
+    let cpu = new MOS6502_1.MOS6502();
+    for (let i = 0; i < 256; i++) {
+        let meta1 = disasm6502_1.OPS_6502[i];
+        let meta2 = cpu.getOpcodeMetadata(i);
+        if (meta1.il > 0)
+            continue;
+        //    assert.strictEqual(meta1.mn, meta2.mnenomic, `mnemonic ${hex(i)}: ${meta1.mn} != ${meta2.mnenomic}`);
+        assert_1.default.strictEqual(meta1.nb, meta2.insnlength, `insnLength ${(0, util_1.hex)(i)}: ${meta1.nb} != ${meta2.insnlength}`);
+        assert_1.default.strictEqual(meta1.c1, meta2.minCycles, `minCycles ${(0, util_1.hex)(i)}: ${meta1.c1} != ${meta2.minCycles}`);
+        assert_1.default.strictEqual(meta1.c1 + meta1.c2, meta2.maxCycles, `maxCycles ${(0, util_1.hex)(i)}: ${meta1.c1 + meta1.c2} != ${meta2.maxCycles}`);
+    }
 });
 //# sourceMappingURL=testutil.js.map

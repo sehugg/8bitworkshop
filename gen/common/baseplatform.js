@@ -119,7 +119,7 @@ class BaseDebugPlatform extends BasePlatform {
         this.onBreakpointHit = callback;
     }
     clearDebug() {
-        if (this.debugBreakState != null) {
+        if (this.debugBreakState != null && this.debugSavedState != null) {
             this.loadState(this.debugSavedState);
         }
         this.debugSavedState = null;
