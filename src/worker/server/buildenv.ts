@@ -3,15 +3,15 @@ import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import { CodeListingMap, WorkerBuildStep, WorkerError, WorkerErrorResult, WorkerFileUpdate, WorkerResult, isOutputResult } from '../../common/workertypes';
-import { getBasePlatform, getRootBasePlatform } from '../../common/util';
+import { getBasePlatform, getRootBasePlatform, replaceAll } from '../../common/util';
 import { BuildStep, makeErrorMatcher } from '../workermain';
-import { parseObjDumpListing, parseObjDumpSymbolTable } from './clang';
+import { parseObjDump } from './clang';
 
 
 const LLVM_MOS_TOOL: ServerBuildTool = {
     name: 'llvm-mos',
     version: '',
-    extensions: ['.c', '.cpp', '.s'],
+    extensions: ['.c', '.cpp', '.s', '.S', '.C'],
     archs: ['6502'],
     platforms: ['atari8', 'c64', 'nes', 'pce', 'vcs'],
     platform_configs: {
@@ -27,11 +27,9 @@ const LLVM_MOS_TOOL: ServerBuildTool = {
         },
         c64: {
             command: 'mos-c64-clang',
-            libargs: ['-D', '__C64__']
         },
         atari8: {
             command: 'mos-atari8-clang',
-            libargs: ['-D', '__ATARI__']
         },
         nes: {
             command: 'mos-nes-nrom-clang', // TODO
@@ -39,7 +37,9 @@ const LLVM_MOS_TOOL: ServerBuildTool = {
         },
         pce: {
             command: 'mos-pce-clang', // TODO
-            libargs: ['-D', '__PCE__']
+        },
+        vcs: {
+            command: 'mos-atari2600-3e-clang', // TODO
         },
     }
 }
@@ -175,6 +175,10 @@ export class ServerBuildEnv {
                         resolve(this.processOutput(step));
                     }
                 } else {
+                    errorData = replaceAll(errorData, this.sessionDir, '');
+                    errorData = replaceAll(errorData, this.rootdir, '');
+                    // remove folder paths
+                    errorData = errorData.replace(/(\/var\/folders\/.+?\/).+?:/g, '');
                     let errorResult = await this.processErrors(step, errorData);
                     if (errorResult.errors.length === 0) {
                         errorResult.errors.push({ line: 0, msg: `Build failed.\n\n${errorData}` });
@@ -203,10 +207,9 @@ export class ServerBuildEnv {
 
     async processDebugInfo(step: WorkerBuildStep): Promise<WorkerResult> {
         let dbgfile = path.join(this.sessionDir, 'debug.out');
-        let dbglist = await fs.promises.readFile(dbgfile);
-        let listings = parseObjDumpListing(dbglist.toString());
-        let symbolmap = parseObjDumpSymbolTable(dbglist.toString());
-        return { output: [], listings, symbolmap };
+        let dbglist = (await fs.promises.readFile(dbgfile)).toString();
+        let { listings, symbolmap, segments } = parseObjDump(dbglist);
+        return { output: [], listings, symbolmap, segments };
     }
 
     async compileAndLink(step: WorkerBuildStep, updates: WorkerFileUpdate[]): Promise<WorkerResult> {

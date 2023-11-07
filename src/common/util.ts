@@ -695,3 +695,9 @@ export function coerceToArray<T>(arrobj: any) : T[] {
     else if (typeof arrobj === 'object') return Array.from(Object.values(arrobj))
     else throw new Error(`Expected array or object, got "${arrobj}"`);
 }
+
+export function replaceAll(s:string, search:string, replace:string) : string {
+  if (s == '') return '';
+  if (search == '') return s;
+  return s.split(search).join(replace);
+}
