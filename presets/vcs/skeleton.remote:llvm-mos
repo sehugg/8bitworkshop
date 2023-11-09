@@ -1,0 +1,67 @@
+
+#include <atari2600.h>
+#include <vcslib.h>
+#include <peekpoke.h>
+#include <mapper.h>
+
+#ifdef __ATARI2600_MAPPER_3E__
+MAPPER_CART_ROM_KB(6); // 6K ROM
+#endif
+
+#ifdef MAPPER_BANKED_ROM
+#define ROM_BANK(index) __attribute__((noinline, section(".rom"#index)))
+#else
+#define ROM_BANK(index)
+#endif
+
+#define KERNEL_BANK 1
+
+ROM_BANK(KERNEL_BANK) void my_preframe(void) {
+}
+
+ROM_BANK(KERNEL_BANK) void my_doframe(void) {
+  int i;
+  // Set player sprite color
+  TIA.colup0 = COLOR_CONV(0xfe);
+  // Draw each scanline
+  for (i=0; i<192; i++) {
+    TIA.wsync = 0; // sync to scanline
+    TIA.colubk = i; // set background color
+    TIA.pf1 = i; // set playfield
+    TIA.grp0 = i; // set sprite bitmap
+  }
+  TIA.grp0 = 0; // clear sprite
+  TIA.colubk = 0; // clear background
+}
+
+ROM_BANK(KERNEL_BANK) void my_postframe(void) {
+  // additional post-frame processing goes here
+}
+
+// Display kernel loop
+ROM_BANK(KERNEL_BANK) void do_kernel_loop() {
+    // loop until reset released
+    while (SW_RESET()) { }
+    // loop forever
+    while (1) {
+      kernel_1();
+      my_preframe();
+      kernel_2();
+      my_doframe();
+      kernel_3();
+      my_postframe();
+      kernel_4();
+    }
+}
+
+int main() {
+
+  // test banked rom call, if available
+#ifdef MAPPER_BANKED_ROM
+  banked_call_rom(KERNEL_BANK, do_kernel_loop);
+#else
+  do_kernel_loop();
+#endif
+  
+  return 0;
+}

@@ -18,7 +18,7 @@ const LLVM_MOS_TOOL: ServerBuildTool = {
         default: {
             binpath: 'llvm-mos/bin',
             command: 'mos-clang',
-            args: ['-Os', '-g', '-o', '$OUTFILE', '$INFILES'],
+            args: ['-Os', '-g', '-D', '__8BITWORKSHOP__', '-o', '$OUTFILE', '$INFILES'],
         },
         debug: { // TODO
             binpath: 'llvm-mos/bin',
