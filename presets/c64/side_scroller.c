@@ -124,6 +124,7 @@ void update_scoreboard() {
 
 void add_score(int delta) {
   score = bcd_add(score, delta);
+  update_scoreboard();
 }
 
 // clear scoreboard and draw initial strings
@@ -257,7 +258,6 @@ void detect_player_collision(byte bgcoll, byte sprcoll) {
     sprshad.spr_color[PLAYER_INDEX] = COLOR_LIGHTRED;
     SID_PLAY_TONE(500);
     if (score != 0) { add_score(0x9999); } // BCD -1
-    update_scoreboard();
   } else {
     sprshad.spr_color[PLAYER_INDEX] = COLOR_GREEN;
   }
@@ -266,7 +266,6 @@ void detect_player_collision(byte bgcoll, byte sprcoll) {
     sprshad.spr_color[POWERUP_INDEX] += 1; // cycle colors
     SID_PLAY_TONE(8000);
     add_score(1);
-    update_scoreboard();
   }
 }
 
