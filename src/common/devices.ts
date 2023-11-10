@@ -1,115 +1,116 @@
 
 export interface SavesState<S> {
-    saveState() : S;
-    loadState(state:S) : void;
+  saveState(): S;
+  loadState(state: S): void;
 }
 
 export interface Bus {
-    read(a:number) : number;
-    write(a:number, v:number) : void;
-    readConst?(a:number) : number;
+  read(a: number): number;
+  write(a: number, v: number): void;
+  readConst?(a: number): number;
 }
 
 export interface ClockBased {
-    advanceClock() : void;
+  advanceClock(): void;
 }
 
 export interface InstructionBased {
-    advanceInsn() : number;
+  advanceInsn(): number;
 }
 
 export type TrapCondition = () => boolean;
 
 export interface FrameBased {
-    advanceFrame(trap:TrapCondition) : number;
+  advanceFrame(trap: TrapCondition): number;
 }
 
 export interface VideoSource {
-  getVideoParams() : VideoParams;
-  connectVideo(pixels:Uint32Array) : void;
+  getVideoParams(): VideoParams;
+  connectVideo(pixels: Uint32Array): void;
 }
 
 export interface RasterFrameBased extends FrameBased, VideoSource {
-  getRasterY() : number;
-  getRasterX() : number;
+  getRasterY(): number;
+  getRasterX(): number;
+  getRasterCanvasPosition?(): { x: number, y: number };
 }
 
 export interface VideoParams {
-    width : number;
-    height : number;
-    overscan? : boolean;
-    rotate? : number;
-    videoFrequency? : number; // default = 60
-    aspect? : number;
+  width: number;
+  height: number;
+  overscan?: boolean;
+  rotate?: number;
+  videoFrequency?: number; // default = 60
+  aspect?: number;
 }
 
 // TODO: frame buffer optimization (apple2, etc)
 
 export interface SampledAudioParams {
-    sampleRate : number;
-    stereo : boolean;
+  sampleRate: number;
+  stereo: boolean;
 }
 
 export interface SampledAudioSink {
-    feedSample(value:number, count:number) : void;
-    //sendAudioFrame(samples:Uint16Array) : void;
+  feedSample(value: number, count: number): void;
+  //sendAudioFrame(samples:Uint16Array) : void;
 }
 
 export interface SampledAudioSource {
-    getAudioParams() : SampledAudioParams;
-    connectAudio(audio : SampledAudioSink) : void;
+  getAudioParams(): SampledAudioParams;
+  connectAudio(audio: SampledAudioSink): void;
 }
 
 export interface AcceptsROM {
-    loadROM(data:Uint8Array, title?:string) : void;
+  loadROM(data: Uint8Array, title?: string): void;
 }
 
 export interface AcceptsBIOS {
-  loadBIOS(data:Uint8Array, title?:string) : void;
+  loadBIOS(data: Uint8Array, title?: string): void;
 }
 
 export interface Resettable {
-    reset() : void;
+  reset(): void;
 }
 
 export interface MemoryBusConnected {
-    connectMemoryBus(bus:Bus) : void;
+  connectMemoryBus(bus: Bus): void;
 }
 
 export interface IOBusConnected {
-    connectIOBus(bus:Bus) : void;
+  connectIOBus(bus: Bus): void;
 }
 
 export interface CPU extends MemoryBusConnected, Resettable, SavesState<any> {
-    getPC() : number;
-    getSP() : number;
-    isStable() : boolean;
+  getPC(): number;
+  getSP(): number;
+  isStable(): boolean;
 }
 
 export interface HasCPU extends Resettable {
-    cpu : CPU;
+  cpu: CPU;
 }
 
 export interface Interruptable<IT> {
-    interrupt(type:IT) : void;
+  interrupt(type: IT): void;
 }
 
 export interface SavesInputState<CS> {
-    loadControlsState(cs:CS) : void;
-    saveControlsState() : CS;
+  loadControlsState(cs: CS): void;
+  saveControlsState(): CS;
 }
 
 export interface AcceptsKeyInput {
-    setKeyInput(key:number, code:number, flags:number) : void;
+  setKeyInput(key: number, code: number, flags: number): void;
 }
 
 export interface AcceptsPaddleInput {
-    setPaddleInput(controller:number, value:number) : void;
+  setPaddleInput(controller: number, value: number): void;
 }
 
 // TODO: interface not yet used (setKeyInput() handles joystick)
 export interface AcceptsJoyInput {
-  setJoyInput(joy:number, bitmask:number) : void;
+  setJoyInput(joy: number, bitmask: number): void;
 }
 
 // SERIAL I/O
@@ -123,15 +124,15 @@ export interface SerialEvent {
 // TODO: all these needed?
 export interface SerialIOInterface {
   // from machine to platform
-  clearToSend() : boolean;
-  sendByte(b : number);
+  clearToSend(): boolean;
+  sendByte(b: number);
   // from platform to machine
-  byteAvailable() : boolean;
-  recvByte() : number;
+  byteAvailable(): boolean;
+  recvByte(): number;
   // implement these too
-  reset() : void;
-  advance(clocks: number) : void;
-//  refresh() : void;
+  reset(): void;
+  advance(clocks: number): void;
+  //  refresh() : void;
 }
 
 export interface HasSerialIO {
@@ -143,62 +144,62 @@ export interface HasSerialIO {
 /// PROFILER
 
 export interface Probeable {
-    connectProbe(probe: ProbeAll) : void;
+  connectProbe(probe: ProbeAll): void;
 }
 
 export interface ProbeTime {
-  logClocks(clocks:number);
+  logClocks(clocks: number);
   logNewScanline();
   logNewFrame();
 }
 
 export interface ProbeCPU {
-  logExecute(address:number, SP:number);
-  logInterrupt(type:number);
-  logIllegal(address:number);
-  logWait(address:number);
+  logExecute(address: number, SP: number);
+  logInterrupt(type: number);
+  logIllegal(address: number);
+  logWait(address: number);
 }
 
 export interface ProbeBus {
-  logRead(address:number, value:number);
-  logWrite(address:number, value:number);
-  logDMARead(address:number, value:number);
-  logDMAWrite(address:number, value:number);
+  logRead(address: number, value: number);
+  logWrite(address: number, value: number);
+  logDMARead(address: number, value: number);
+  logDMAWrite(address: number, value: number);
 }
 
 export interface ProbeIO {
-  logIORead(address:number, value:number);
-  logIOWrite(address:number, value:number);
+  logIORead(address: number, value: number);
+  logIOWrite(address: number, value: number);
 }
 
 export interface ProbeVRAM {
-  logVRAMRead(address:number, value:number);
-  logVRAMWrite(address:number, value:number);
+  logVRAMRead(address: number, value: number);
+  logVRAMWrite(address: number, value: number);
 }
 
 export interface ProbeAll extends ProbeTime, ProbeCPU, ProbeBus, ProbeIO, ProbeVRAM {
-  logData(data:number); // entire 32 bits
+  logData(data: number); // entire 32 bits
   addLogBuffer(src: Uint32Array);
 }
 
 export class NullProbe implements ProbeAll {
-  logClocks()		{}
-  logNewScanline()	{}
-  logNewFrame()		{}
-  logExecute()		{}
-  logInterrupt()	{}
-  logRead()		{}
-  logWrite()		{}
-  logIORead()		{}
-  logIOWrite()		{}
-  logVRAMRead()		{}
-  logVRAMWrite()	{}
-  logIllegal()		{}
-  logWait()		{}
-  logDMARead()		{}
-  logDMAWrite()		{}
-  logData()       {}
-  addLogBuffer(src: Uint32Array) {}
+  logClocks() { }
+  logNewScanline() { }
+  logNewFrame() { }
+  logExecute() { }
+  logInterrupt() { }
+  logRead() { }
+  logWrite() { }
+  logIORead() { }
+  logIOWrite() { }
+  logVRAMRead() { }
+  logVRAMWrite() { }
+  logIllegal() { }
+  logWait() { }
+  logDMARead() { }
+  logDMAWrite() { }
+  logData() { }
+  addLogBuffer(src: Uint32Array) { }
 }
 
 /// CONVENIENCE
@@ -215,32 +216,32 @@ export interface BasicMachineState extends BasicMachineControlsState {
 export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, Probeable,
   SavesState<BasicMachineState>, SavesInputState<BasicMachineControlsState> {
 
-  abstract cpuFrequency : number;
-  abstract defaultROMSize : number;
+  abstract cpuFrequency: number;
+  abstract defaultROMSize: number;
 
-  abstract cpu : CPU;
-  abstract ram : Uint8Array;  
+  abstract cpu: CPU;
+  abstract ram: Uint8Array;
 
-  rom : Uint8Array;
-  inputs : Uint8Array = new Uint8Array(32);
-  handler : (key,code,flags) => void; // keyboard handler
+  rom: Uint8Array;
+  inputs: Uint8Array = new Uint8Array(32);
+  handler: (key, code, flags) => void; // keyboard handler
 
   nullProbe = new NullProbe();
-  probe : ProbeAll = this.nullProbe;
-  
-  abstract read(a:number) : number;
-  abstract write(a:number, v:number) : void;
+  probe: ProbeAll = this.nullProbe;
 
-  setKeyInput(key:number, code:number, flags:number) : void {
-    this.handler && this.handler(key,code,flags);
+  abstract read(a: number): number;
+  abstract write(a: number, v: number): void;
+
+  setKeyInput(key: number, code: number, flags: number): void {
+    this.handler && this.handler(key, code, flags);
   }
-  connectProbe(probe: ProbeAll) : void {
+  connectProbe(probe: ProbeAll): void {
     this.probe = probe || this.nullProbe;
   }
   reset() {
     this.cpu.reset();
   }
-  loadROM(data:Uint8Array, title?:string) : void {
+  loadROM(data: Uint8Array, title?: string): void {
     if (!this.rom) this.rom = new Uint8Array(this.defaultROMSize);
     this.rom.set(data);
   }
@@ -251,9 +252,9 @@ export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, P
   }
   saveState() {
     return {
-      c:this.cpu.saveState(),
-      ram:this.ram.slice(0),
-      inputs:this.inputs.slice(0),
+      c: this.cpu.saveState(),
+      ram: this.ram.slice(0),
+      inputs: this.inputs.slice(0),
     };
   }
   loadControlsState(state) {
@@ -261,7 +262,7 @@ export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, P
   }
   saveControlsState() {
     return {
-      inputs:this.inputs.slice(0)
+      inputs: this.inputs.slice(0)
     };
   }
   advanceCPU() {
@@ -273,102 +274,104 @@ export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, P
     this.probe.logClocks(n);
     return n;
   }
-  probeMemoryBus(membus:Bus) : Bus {
+  probeMemoryBus(membus: Bus): Bus {
     return {
       read: (a) => {
         let val = membus.read(a);
-        this.probe.logRead(a,val);
+        this.probe.logRead(a, val);
         return val;
       },
-      write: (a,v) => {
-        this.probe.logWrite(a,v);
-        membus.write(a,v);
+      write: (a, v) => {
+        this.probe.logWrite(a, v);
+        membus.write(a, v);
       }
     };
   }
-  connectCPUMemoryBus(membus:Bus) : void {
+  connectCPUMemoryBus(membus: Bus): void {
     this.cpu.connectMemoryBus(this.probeMemoryBus(membus));
   }
-  probeIOBus(iobus:Bus) : Bus {
+  probeIOBus(iobus: Bus): Bus {
     return {
       read: (a) => {
         let val = iobus.read(a);
-        this.probe.logIORead(a,val);
+        this.probe.logIORead(a, val);
         return val;
       },
-      write: (a,v) => {
-        this.probe.logIOWrite(a,v);
-        iobus.write(a,v);
+      write: (a, v) => {
+        this.probe.logIOWrite(a, v);
+        iobus.write(a, v);
       }
     };
   }
-  probeDMABus(iobus:Bus) : Bus {
+  probeDMABus(iobus: Bus): Bus {
     return {
       read: (a) => {
         let val = iobus.read(a);
-        this.probe.logDMARead(a,val);
+        this.probe.logDMARead(a, val);
         return val;
       },
-      write: (a,v) => {
-        this.probe.logDMAWrite(a,v);
-        iobus.write(a,v);
+      write: (a, v) => {
+        this.probe.logDMAWrite(a, v);
+        iobus.write(a, v);
       }
     };
   }
-  connectCPUIOBus(iobus:Bus) : void {
+  connectCPUIOBus(iobus: Bus): void {
     this.cpu['connectIOBus'](this.probeIOBus(iobus));
   }
 }
 
 export abstract class BasicMachine extends BasicHeadlessMachine implements SampledAudioSource {
 
-  abstract canvasWidth : number;
-  abstract numVisibleScanlines : number;
-  abstract sampleRate : number;
-  overscan : boolean = false;
-  rotate : number = 0;
-  aspectRatio : number;
-  
-  pixels : Uint32Array;
-  audio : SampledAudioSink;
+  abstract canvasWidth: number;
+  abstract numVisibleScanlines: number;
+  abstract sampleRate: number;
+  overscan: boolean = false;
+  rotate: number = 0;
+  aspectRatio: number;
 
-  scanline : number;
-  
-  getAudioParams() : SampledAudioParams {
-    return {sampleRate:this.sampleRate, stereo:false};
+  pixels: Uint32Array;
+  audio: SampledAudioSink;
+
+  scanline: number;
+
+  getAudioParams(): SampledAudioParams {
+    return { sampleRate: this.sampleRate, stereo: false };
   }
-  connectAudio(audio : SampledAudioSink) : void {
+  connectAudio(audio: SampledAudioSink): void {
     this.audio = audio;
   }
-  getVideoParams() : VideoParams {
-    return {width:this.canvasWidth,
-           height:this.numVisibleScanlines,
-           aspect:this.aspectRatio,
-           overscan:this.overscan,
-           rotate:this.rotate};
+  getVideoParams(): VideoParams {
+    return {
+      width: this.canvasWidth,
+      height: this.numVisibleScanlines,
+      aspect: this.aspectRatio,
+      overscan: this.overscan,
+      rotate: this.rotate
+    };
   }
-  connectVideo(pixels:Uint32Array) : void {
+  connectVideo(pixels: Uint32Array): void {
     this.pixels = pixels;
   }
 }
 
 export abstract class BasicScanlineMachine extends BasicMachine implements RasterFrameBased {
 
-  abstract numTotalScanlines : number;
-  abstract cpuCyclesPerLine : number;
+  abstract numTotalScanlines: number;
+  abstract cpuCyclesPerLine: number;
 
-  abstract startScanline() : void;
-  abstract drawScanline() : void;
+  abstract startScanline(): void;
+  abstract drawScanline(): void;
 
-  frameCycles : number;
-  
-  advanceFrame(trap: TrapCondition) : number {
+  frameCycles: number;
+
+  advanceFrame(trap: TrapCondition): number {
     this.preFrame();
     var endLineClock = 0;
     var steps = 0;
     this.probe.logNewFrame();
     this.frameCycles = 0;
-    for (var sl=0; sl<this.numTotalScanlines; sl++) {
+    for (var sl = 0; sl < this.numTotalScanlines; sl++) {
       endLineClock += this.cpuCyclesPerLine; // could be fractional
       this.scanline = sl;
       this.startScanline();

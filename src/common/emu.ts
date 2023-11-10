@@ -215,6 +215,21 @@ export class VectorVideo extends RasterVideo {
   }
 }
 
+export function drawCrosshair(ctx:CanvasRenderingContext2D, x:number, y:number, width:number) {
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fillRect(x-2, 0, 5, 32767);
+  ctx.fillRect(0, y-2, 32767, 5);
+  ctx.lineWidth = width;
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.setLineDash([width*2,width*2]);
+  ctx.beginPath();
+  ctx.moveTo(x, 0);
+  ctx.lineTo(x, 32767);
+  ctx.moveTo(0, y);
+  ctx.lineTo(32767, y);
+  ctx.stroke();
+}
+
 export class RAM {
   mem : Uint8Array;
   constructor(size:number) {

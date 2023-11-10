@@ -93,6 +93,12 @@ export class VIC20_WASMMachine extends BaseWASMMachine implements Machine, Probe
   getRasterY() {
     return this.exports.machine_get_raster_line(this.sys);
   }
+  getRasterCanvasPosition() {
+    return {
+      x: -1, // TODO?
+      y: this.getRasterY() - 14,
+    }
+  }
   getCPUState() {
     this.exports.machine_save_cpu_state(this.sys, this.cpustateptr);
     var s = this.cpustatearr;

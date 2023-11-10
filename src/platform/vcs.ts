@@ -1,6 +1,6 @@
 
 import { Platform, BasePlatform, cpuStateToLongString_6502, dumpStackToString, DisasmLine, CpuState, getToolForFilename_6502 } from "../common/baseplatform";
-import { PLATFORMS, dumpRAM, EmuHalt, RasterVideo, __createCanvas } from "../common/emu";
+import { PLATFORMS, dumpRAM, EmuHalt, RasterVideo, __createCanvas, drawCrosshair } from "../common/emu";
 import { hex, loadScript, lpad, tobin } from "../common/util";
 import { CodeAnalyzer_vcs } from "../common/analysis";
 import { disassemble6502 } from "../common/cpu/disasm6502";
@@ -72,6 +72,7 @@ function getToolForFilename_vcs(fn: string) {
 class VCSPlatform extends BasePlatform {
 
   lastBreakState; // last breakpoint state
+  canvas : HTMLCanvasElement;
 
   // TODO: super hack for ProbeBitmap view
   machine = {
@@ -92,10 +93,10 @@ class VCSPlatform extends BasePlatform {
     // show console div and start
     $("#javatari-div").show();
     Javatari.start();
-    var console = Javatari.room.console;
+    var jaconsole = Javatari.room.console;
     // intercept clockPulse function
-    console.oldClockPulse = console.clockPulse;
-    console.clockPulse = function() {
+    jaconsole.oldClockPulse = jaconsole.clockPulse;
+    jaconsole.clockPulse = function() {
       self.updateRecorder();
       self.probe.logNewFrame();
       this.oldClockPulse();
@@ -106,18 +107,19 @@ class VCSPlatform extends BasePlatform {
       }
     }
     // intercept TIA end of line
-    var videoSignal = console.tia.getVideoOutput();
+    var videoSignal = jaconsole.tia.getVideoOutput();
     videoSignal.oldNextLine = videoSignal.nextLine;
     videoSignal.nextLine = function(pixels, vsync) {
       self.probe.logNewScanline();
       return this.oldNextLine(pixels, vsync);
     }
     // resize after added to dom tree
-    var jacanvas = $("#javatari-screen").find("canvas");
+    var jacanvas = $("#javatari-screen").find("canvas")[0];
     const resizeObserver = new ResizeObserver(entries => {
       this.resize();
     });
-    resizeObserver.observe(jacanvas[0]);
+    resizeObserver.observe(jacanvas);
+    this.canvas = jacanvas;
   }
 
   loadROM(title, data) {
@@ -147,6 +149,16 @@ class VCSPlatform extends BasePlatform {
   }
   getRasterLineClock() : number {
     return this.getRasterPosition().x;
+  }
+  getRasterCanvasPosition() : {x:number,y:number} {
+    let p = Javatari.room.console.tia.getVideoOutput().monitor.getDisplayParameters();
+    let {x,y} = this.getRasterPosition();
+    let canvasPos = {
+      x: (x - p.displayOriginX) * p.displayWidth * p.displayScaleX / (p.signalWidth - p.displayOriginX),
+      y: (y - p.displayOriginY) * p.displayHeight * p.displayScaleY / p.displayHeight
+    };
+    console.log(x,y,canvasPos,p);
+    return canvasPos;
   }
 
   // TODO: Clock changes this on event, so it may not be current
@@ -194,6 +206,8 @@ class VCSPlatform extends BasePlatform {
       Javatari.room.speaker.mute();
       this.lastBreakState = state;
       callback(state);
+      // TODO: we have to delay because javatari timer is still running
+      setTimeout(() => this.updateVideoDebugger(), 100);
     }
     Javatari.room.speaker.mute();
   }
@@ -248,6 +262,7 @@ class VCSPlatform extends BasePlatform {
   }
   readAddress(addr) {
     // TODO: shouldn't have to do this when debugging
+    // TODO: don't read bank switch addresses
     if (this.lastBreakState && addr >= 0x80 && addr < 0x100)
       return this.getRAMForState(this.lastBreakState)[addr & 0x7f];
     else if ((addr & 0x1280) === 0x280)
@@ -418,6 +433,13 @@ class VCSPlatform extends BasePlatform {
     var scale = Math.min(1, ($('#emulator').width() - 24) / 640);
     var xt = (1 - scale) * 50;
     $('#javatari-div').css('transform', `translateX(-${xt}%) translateY(-${xt}%) scale(${scale})`);
+  }
+  updateVideoDebugger() {
+    const {x,y} = this.getRasterCanvasPosition();
+    if (x >= 0 || y >= 0) {
+      const ctx = this.canvas.getContext('2d');
+      drawCrosshair(ctx, x, y, 2);
+    }
   }
 };
 

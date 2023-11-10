@@ -1,5 +1,5 @@
 
-import { RasterVideo, dumpRAM, AnimationTimer, ControllerPoller } from "./emu";
+import { RasterVideo, dumpRAM, AnimationTimer, ControllerPoller, drawCrosshair } from "./emu";
 import { hex, printFlags, invertMap, byteToASCII } from "./util";
 import { CodeAnalyzer } from "./analysis";
 import { Segment, FileData } from "./workertypes";
@@ -850,7 +850,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
       }
     }
   }
-  
+
   loadROM(title, data) {
     this.machine.loadROM(data, title);
     this.reset();
@@ -873,9 +873,24 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   advance(novideo:boolean) {
     let trap = this.getDebugCallback();
     var steps = this.machine.advanceFrame(trap);
-    if (!novideo && this.video) this.video.updateFrame();
-    if (!novideo && this.serialVisualizer) this.serialVisualizer.refresh();
+    if (!novideo && this.video) {
+      this.video.updateFrame();
+      this.updateVideoDebugger();
+    }
+    if (!novideo && this.serialVisualizer) {
+      this.serialVisualizer.refresh();
+    }
     return steps;
+  }
+
+  updateVideoDebugger() {
+    if (!this.isRunning() && isRaster(this.machine) && this.machine.getRasterCanvasPosition) {
+      const {x,y} = this.machine.getRasterCanvasPosition();
+      if (x >= 0 || y >= 0) {
+        const ctx = this.video.getContext();
+        drawCrosshair(ctx, x, y, 1);
+      }
+    }
   }
 
   advanceFrameClock(trap, step) {
@@ -915,7 +930,10 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
 
   // TODO: reset target clock counter
   getRasterScanline() {
-    return isRaster(this.machine) && this.machine.getRasterY();
+    return isRaster(this.machine) && this.machine.getRasterY ? this.machine.getRasterY() : -1;
+  }
+  getRasterLineClock() {
+    return isRaster(this.machine) && this.machine.getRasterX ? this.machine.getRasterX() : -1;
   }
 
   readAddress(addr : number) : number {
