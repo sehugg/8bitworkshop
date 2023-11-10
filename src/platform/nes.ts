@@ -9,6 +9,7 @@ import { NullProbe, Probeable, ProbeAll } from "../common/devices";
 import Mousetrap = require('mousetrap');
 import jsnes = require('../../jsnes');
 import { BaseMAME6502Platform } from "../common/mameplatform";
+import { BaseLibretroPlatform } from "../common/libretroplatform";
 
 const JSNES_PRESETS = [
   {id:'hello.c', name:'Hello World'},
@@ -567,4 +568,3 @@ class NESMAMEPlatform extends BaseMAME6502Platform implements Platform {
 PLATFORMS['nes'] = JSNESPlatform;
 PLATFORMS['nes-asm'] = JSNESPlatform;
 PLATFORMS['nes.mame'] = NESMAMEPlatform;
-

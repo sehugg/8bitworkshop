@@ -48,6 +48,7 @@
     "typescript-formatter": "^7.2.2"
   },
   "optionalDependencies": {
+    "@wasmer/wasi": "^1.2.2",
     "chromedriver": "*",
     "heapdump": "^0.3.15",
     "jsfuzz": "^1.0.14",
