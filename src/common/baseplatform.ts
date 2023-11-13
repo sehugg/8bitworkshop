@@ -887,7 +887,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     if (!this.isRunning() && isRaster(this.machine) && this.machine.getRasterCanvasPosition) {
       const {x,y} = this.machine.getRasterCanvasPosition();
       if (x >= 0 || y >= 0) {
-        const ctx = this.video.getContext();
+        const ctx = this.video?.getContext();
         if (ctx) {
           drawCrosshair(ctx, x, y, 1);
         }

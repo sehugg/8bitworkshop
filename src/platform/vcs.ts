@@ -438,8 +438,10 @@ class VCSPlatform extends BasePlatform {
   updateVideoDebugger() {
     const {x,y} = this.getRasterCanvasPosition();
     if (x >= 0 || y >= 0) {
-      const ctx = this.canvas.getContext('2d');
-      drawCrosshair(ctx, x, y, 2);
+      const ctx = this.canvas?.getContext('2d');
+      if (ctx) {
+        drawCrosshair(ctx, x, y, 2);
+      }
     }
   }
 };

@@ -216,6 +216,7 @@ export class VectorVideo extends RasterVideo {
 }
 
 export function drawCrosshair(ctx:CanvasRenderingContext2D, x:number, y:number, width:number) {
+  if (!ctx?.setLineDash) return; // for unit testing
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.fillRect(x-2, 0, 5, 32767);
   ctx.fillRect(0, y-2, 32767, 5);
