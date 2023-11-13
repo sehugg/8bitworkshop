@@ -69,6 +69,12 @@ export class CPC_WASMMachine extends BaseWASMMachine implements Machine {
   getRasterY() {
     return this.exports.machine_get_raster_line(this.sys);
   }
+  getRasterCanvasPosition() {
+    return {
+      x: -1, // TODO?
+      y: this.getRasterY() - 14,
+    }
+  }
   /*
     z80_tick_t tick_cb; // 0
     uint64_t bc_de_hl_fa; // 8

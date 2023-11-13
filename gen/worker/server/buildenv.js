@@ -14,14 +14,14 @@ const clang_1 = require("./clang");
 const LLVM_MOS_TOOL = {
     name: 'llvm-mos',
     version: '',
-    extensions: ['.c', '.cpp', '.s'],
+    extensions: ['.c', '.cpp', '.s', '.S', '.C'],
     archs: ['6502'],
     platforms: ['atari8', 'c64', 'nes', 'pce', 'vcs'],
     platform_configs: {
         default: {
             binpath: 'llvm-mos/bin',
             command: 'mos-clang',
-            args: ['-Os', '-g', '-o', '$OUTFILE', '$INFILES'],
+            args: ['-Os', '-g', '-D', '__8BITWORKSHOP__', '-o', '$OUTFILE', '$INFILES'],
         },
         debug: {
             binpath: 'llvm-mos/bin',
@@ -30,19 +30,19 @@ const LLVM_MOS_TOOL = {
         },
         c64: {
             command: 'mos-c64-clang',
-            libargs: ['-D', '__C64__']
         },
         atari8: {
             command: 'mos-atari8-clang',
-            libargs: ['-D', '__ATARI__']
         },
         nes: {
             command: 'mos-nes-nrom-clang',
             libargs: ['-lneslib', '-lfamitone2']
         },
         pce: {
-            command: 'mos-pce-clang',
-            libargs: ['-D', '__PCE__']
+            command: 'mos-pce-clang', // TODO
+        },
+        vcs: {
+            command: 'mos-atari2600-3e-clang', // TODO
         },
     }
 };
@@ -154,6 +154,10 @@ class ServerBuildEnv {
                     }
                 }
                 else {
+                    errorData = (0, util_1.replaceAll)(errorData, this.sessionDir, '');
+                    errorData = (0, util_1.replaceAll)(errorData, this.rootdir, '');
+                    // remove folder paths
+                    errorData = errorData.replace(/(\/var\/folders\/.+?\/).+?:/g, '');
                     let errorResult = await this.processErrors(step, errorData);
                     if (errorResult.errors.length === 0) {
                         errorResult.errors.push({ line: 0, msg: `Build failed.\n\n${errorData}` });
@@ -179,10 +183,9 @@ class ServerBuildEnv {
     }
     async processDebugInfo(step) {
         let dbgfile = path_1.default.join(this.sessionDir, 'debug.out');
-        let dbglist = await fs_1.default.promises.readFile(dbgfile);
-        let listings = (0, clang_1.parseObjDumpListing)(dbglist.toString());
-        let symbolmap = (0, clang_1.parseObjDumpSymbolTable)(dbglist.toString());
-        return { output: [], listings, symbolmap };
+        let dbglist = (await fs_1.default.promises.readFile(dbgfile)).toString();
+        let { listings, symbolmap, segments } = (0, clang_1.parseObjDump)(dbglist);
+        return { output: [], listings, symbolmap, segments };
     }
     async compileAndLink(step, updates) {
         for (let file of updates) {

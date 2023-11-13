@@ -64,6 +64,7 @@ export class SourceEditor implements ProjectView {
   errorwidgets = [];
   errormarks = [];
   inspectWidget;
+  refreshDelayMsec = 300;
 
   createDiv(parent:HTMLElement) {
     var div = document.createElement('div');
@@ -77,6 +78,9 @@ export class SourceEditor implements ProjectView {
       this.editor.setSelection({line:0,ch:0}, {line:0,ch:0}, {scroll:true}); // move cursor to start
     }
     this.setupEditor();
+    if (current_project.getToolForFilename(this.path).startsWith("remote:")) {
+      this.refreshDelayMsec = 1000; // remote URLs get slower refresh
+    }
     return div;
   }
 
@@ -114,7 +118,7 @@ export class SourceEditor implements ProjectView {
     clearTimeout(this.updateTimer);
     this.updateTimer = setTimeout( () => {
       current_project.updateFile(this.path, this.editor.getValue());
-    }, 300);
+    }, this.refreshDelayMsec);
     if (this.markHighlight) {
       this.markHighlight.clear();
       this.markHighlight = null;

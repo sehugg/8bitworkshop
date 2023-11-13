@@ -263,12 +263,14 @@ var PLATFORM_PARAMS = {
         libargs: ['--lib-path', '/share/target/apple2/drv', '-D', '__EXEHDR__=0', 'apple2.lib'],
         __CODE_RUN__: 16384,
         code_start: 0x803,
+        acmeargs: ['-f', 'apple'],
     },
     'apple2-e': {
         arch: '6502',
         define: ['__APPLE2__'],
         cfgfile: 'apple2.cfg',
         libargs: ['apple2.lib'],
+        acmeargs: ['-f', 'apple'],
     },
     'atari8-800xl.disk': {
         arch: '6502',
@@ -338,6 +340,7 @@ var PLATFORM_PARAMS = {
         define: ['__CBM__', '__C64__'],
         cfgfile: 'c64.cfg',
         libargs: ['c64.lib'],
+        acmeargs: ['-f', 'cbm'],
         //extra_link_files: ['c64-cart.cfg'],
     },
     'vic20': {
@@ -345,6 +348,7 @@ var PLATFORM_PARAMS = {
         define: ['__CBM__', '__VIC20__'],
         cfgfile: 'vic20.cfg',
         libargs: ['vic20.lib'],
+        acmeargs: ['-f', 'cbm'],
         //extra_link_files: ['c64-cart.cfg'],
     },
     'kim1': {
@@ -1122,9 +1126,10 @@ const x86 = __importStar(require("./tools/x86"));
 const arm = __importStar(require("./tools/arm"));
 const ecs = __importStar(require("./tools/ecs"));
 const remote = __importStar(require("./tools/remote"));
+const acme = __importStar(require("./tools/acme"));
 var TOOLS = {
     'dasm': dasm.assembleDASM,
-    //'acme': assembleACME,
+    'acme': acme.assembleACME,
     'cc65': cc65.compileCC65,
     'ca65': cc65.assembleCA65,
     'ld65': cc65.linkLD65,

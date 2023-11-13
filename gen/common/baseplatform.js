@@ -722,11 +722,26 @@ class BaseMachinePlatform extends BaseDebugPlatform {
     advance(novideo) {
         let trap = this.getDebugCallback();
         var steps = this.machine.advanceFrame(trap);
-        if (!novideo && this.video)
+        if (!novideo && this.video) {
             this.video.updateFrame();
-        if (!novideo && this.serialVisualizer)
+            this.updateVideoDebugger();
+        }
+        if (!novideo && this.serialVisualizer) {
             this.serialVisualizer.refresh();
+        }
         return steps;
+    }
+    updateVideoDebugger() {
+        var _a;
+        if (!this.isRunning() && isRaster(this.machine) && this.machine.getRasterCanvasPosition) {
+            const { x, y } = this.machine.getRasterCanvasPosition();
+            if (x >= 0 || y >= 0) {
+                const ctx = (_a = this.video) === null || _a === void 0 ? void 0 : _a.getContext();
+                if (ctx) {
+                    (0, emu_1.drawCrosshair)(ctx, x, y, 1);
+                }
+            }
+        }
     }
     advanceFrameClock(trap, step) {
         if (!(step > 0))
@@ -764,7 +779,10 @@ class BaseMachinePlatform extends BaseDebugPlatform {
     }
     // TODO: reset target clock counter
     getRasterScanline() {
-        return isRaster(this.machine) && this.machine.getRasterY();
+        return isRaster(this.machine) && this.machine.getRasterY ? this.machine.getRasterY() : -1;
+    }
+    getRasterLineClock() {
+        return isRaster(this.machine) && this.machine.getRasterX ? this.machine.getRasterX() : -1;
     }
     readAddress(addr) {
         return this.machine.read(addr);

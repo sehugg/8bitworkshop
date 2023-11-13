@@ -556,6 +556,7 @@ export class BallyAstrocade extends BasicScanlineMachine implements AcceptsPaddl
       case 'Astro': return this.m.toLongString(state);
     }
   }
+  getRasterCanvasPosition() { return { x: this.getRasterX(), y: this.getRasterY() }; }
 
 }
 

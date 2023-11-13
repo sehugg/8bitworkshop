@@ -217,6 +217,11 @@ export class CodeProject {
       while (m = re6.exec(text)) {
         this.pushAllFiles(files, m[2]);
       }
+      // for acme
+      let re7 = /^[!]src\s+"(.+?)"/gmi;
+      while (m = re7.exec(text)) {
+        this.pushAllFiles(files, m[1]);
+      }
     }
     return files;
   }

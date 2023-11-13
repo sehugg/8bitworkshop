@@ -129,6 +129,7 @@ const TOOL_TO_SOURCE_STYLE = {
   'remote:llvm-mos': 'text/x-csrc',
 }
 
+// TODO: move into tool class
 const TOOL_TO_HELPURL = {
   'dasm': 'https://raw.githubusercontent.com/sehugg/dasm/master/doc/dasm.txt',
   'cc65': 'https://cc65.github.io/doc/cc65.html',
@@ -142,6 +143,7 @@ const TOOL_TO_HELPURL = {
   'zmac': "https://raw.githubusercontent.com/sehugg/zmac/master/doc.txt",
   'cmoc': "http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html",
   'remote:llvm-mos': 'https://llvm-mos.org/wiki/Welcome',
+  'acme': 'https://raw.githubusercontent.com/sehugg/acme/main/docs/QuickRef.txt',
 }
 
 function gaEvent(category:string, action:string, label?:string, value?:string) {
@@ -1895,6 +1897,8 @@ function _addIncludeFile() {
     addFileToProject("Include", ".wiz", (s) => { return 'import "'+s+'";' });
   else if (tool == 'ecs')
     addFileToProject("Include", ".ecs", (s) => { return 'import "'+s+'"' });
+  else if (tool == 'acme')
+    addFileToProject("Include", ".acme", (s) => { return '!src "'+s+'"' });
   else
     alertError("Can't add include file to this project type (" + tool + ")");
 }

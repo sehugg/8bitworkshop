@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.coerceToArray = exports.FileDataCache = exports.findIntegerFactors = exports.escapeHTML = exports.parseXMLPoorly = exports.XMLParseError = exports.parseBool = exports.decodeQueryString = exports.loadScript = exports.byteToASCII = exports.convertDataToString = exports.convertDataToUint8Array = exports.isTypedArray = exports.isArray = exports.getRootBasePlatform = exports.getBasePlatform = exports.getWithBinary = exports.rle_unpack = exports.safeident = exports.clamp = exports.RGBA = exports.rgb2bgr = exports.printFlags = exports.safe_extend = exports.compressLZG = exports.isProbablyBinary = exports.removeBOM = exports.byteArrayToUTF8 = exports.byteArrayToString = exports.stringToByteArray = exports.lzgmini = exports.highlightDifferences = exports.invertMap = exports.arrayCompare = exports.toradix = exports.tobin = exports.hex = exports.getFilenamePrefix = exports.getFolderForPath = exports.getFilenameForPath = exports.byte2signed = exports.rpad = exports.lpad = void 0;
+exports.replaceAll = exports.coerceToArray = exports.FileDataCache = exports.findIntegerFactors = exports.escapeHTML = exports.parseXMLPoorly = exports.XMLParseError = exports.parseBool = exports.decodeQueryString = exports.loadScript = exports.byteToASCII = exports.convertDataToString = exports.convertDataToUint8Array = exports.isTypedArray = exports.isArray = exports.getRootBasePlatform = exports.getBasePlatform = exports.getWithBinary = exports.rle_unpack = exports.safeident = exports.clamp = exports.RGBA = exports.rgb2bgr = exports.printFlags = exports.safe_extend = exports.compressLZG = exports.isProbablyBinary = exports.removeBOM = exports.byteArrayToUTF8 = exports.byteArrayToString = exports.stringToByteArray = exports.lzgmini = exports.highlightDifferences = exports.invertMap = exports.arrayCompare = exports.toradix = exports.tobin = exports.hex = exports.getFilenamePrefix = exports.getFolderForPath = exports.getFilenameForPath = exports.byte2signed = exports.rpad = exports.lpad = void 0;
 function lpad(s, n) {
     s += ''; // convert to string
     while (s.length < n)
@@ -701,4 +701,12 @@ function coerceToArray(arrobj) {
         throw new Error(`Expected array or object, got "${arrobj}"`);
 }
 exports.coerceToArray = coerceToArray;
+function replaceAll(s, search, replace) {
+    if (s == '')
+        return '';
+    if (search == '')
+        return s;
+    return s.split(search).join(replace);
+}
+exports.replaceAll = replaceAll;
 //# sourceMappingURL=util.js.map

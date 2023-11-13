@@ -2,7 +2,6 @@
 // ported from
 // https://odensskjegg.home.blog/2018/12/29/recreating-the-commodore-64-user-guide-code-samples-in-cc65-part-three-sprites/
 
-//#include "common.h"
 #include <peekpoke.h>
 #include <c64.h>
 
@@ -71,13 +70,13 @@ int main (void)
         rx -= 24;
         if (rx >= 0 && rx < 366) {
           // Set MSB of x coordinate for sprite if x position > 255
-          if (x >= 256) {
+          if (rx >= 256) {
             msb |= LUT[t]; // look up 1 << t
           }
-          VIC.spr_pos[t].x = x;
+          VIC.spr_pos[t].x = rx;
           // Y position is an indirect Sinus function of X, using array
           // index for retrieving the Y value
-          VIC.spr_pos[t].y = yValues[x & 63] + 40;
+          VIC.spr_pos[t].y = yValues[rx & 63] + 40;
         } else {
           VIC.spr_pos[t].x = 0;
         }

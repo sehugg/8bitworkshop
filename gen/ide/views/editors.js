@@ -43,6 +43,7 @@ class SourceEditor {
         this.errormsgs = [];
         this.errorwidgets = [];
         this.errormarks = [];
+        this.refreshDelayMsec = 300;
         this.path = path;
         this.mode = mode;
     }
@@ -58,6 +59,9 @@ class SourceEditor {
             this.editor.setSelection({ line: 0, ch: 0 }, { line: 0, ch: 0 }, { scroll: true }); // move cursor to start
         }
         this.setupEditor();
+        if (ui_1.current_project.getToolForFilename(this.path).startsWith("remote:")) {
+            this.refreshDelayMsec = 1000; // remote URLs get slower refresh
+        }
         return div;
     }
     setVisible(showing) {
@@ -94,7 +98,7 @@ class SourceEditor {
         clearTimeout(this.updateTimer);
         this.updateTimer = setTimeout(() => {
             ui_1.current_project.updateFile(this.path, this.editor.getValue());
-        }, 300);
+        }, this.refreshDelayMsec);
         if (this.markHighlight) {
             this.markHighlight.clear();
             this.markHighlight = null;

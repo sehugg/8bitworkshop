@@ -258,11 +258,17 @@ class Atari800 extends devices_1.BasicScanlineMachine {
             keycode: this.keycode,
         };
     }
-    getRasterScanline() {
+    getRasterY() {
         return this.antic.v;
     }
-    getRasterLineClock() {
+    getRasterX() {
         return this.antic.h;
+    }
+    getRasterCanvasPosition() {
+        return {
+            x: this.antic.h * 4 - this.firstVisibleClock,
+            y: this.antic.v - this.firstVisibleScanline,
+        };
     }
     getDebugCategories() {
         return ['CPU', 'Stack', 'ANTIC', 'GTIA', 'POKEY'];

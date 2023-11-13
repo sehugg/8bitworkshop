@@ -1,30 +1,30 @@
 
 import { hex, byte2signed } from "./util";
-import { Platform } from "./baseplatform";
+import { OpcodeMetadata, Platform } from "./baseplatform";
 
 const debug = false;
 
 export interface CodeAnalyzer {
-  showLoopTimingForPC(pc:number);
-  pc2clockrange : {[key:number]:ClockRange};
-  MAX_CLOCKS : number;
+  showLoopTimingForPC(pc: number);
+  pc2clockrange: { [key: number]: ClockRange };
+  MAX_CLOCKS: number;
 }
 
 /// VCS TIMING ANALYSIS
 
 // [taken, not taken]
 const BRANCH_CONSTRAINTS = [
-  [{N:0},{N:1}],
-  [{N:1},{N:0}],
-  [{V:0},{V:1}],
-  [{V:1},{V:0}],
-  [{C:0},{C:1}],
-  [{C:1},{C:0}],
-  [{Z:0},{Z:1}],
-  [{Z:1},{Z:0}]
+  [{ N: 0 }, { N: 1 }],
+  [{ N: 1 }, { N: 0 }],
+  [{ V: 0 }, { V: 1 }],
+  [{ V: 1 }, { V: 0 }],
+  [{ C: 0 }, { C: 1 }],
+  [{ C: 1 }, { C: 0 }],
+  [{ Z: 0 }, { Z: 1 }],
+  [{ Z: 1 }, { Z: 0 }]
 ];
 
-function constraintEquals(a,b) {
+function constraintEquals(a, b) {
   if (a == null || b == null)
     return null;
   for (var n in a) {
@@ -44,15 +44,15 @@ interface ClockRange {
 }
 
 abstract class CodeAnalyzer6502 implements CodeAnalyzer {
-  pc2clockrange : {[key:number]:ClockRange} = {};
-  jsrresult : {[key:number]:ClockRange} = {};
-  START_CLOCKS : number;
-  MAX_CLOCKS : number;
-  WRAP_CLOCKS : boolean;
-  platform : Platform;
-  MAX_CYCLES : number = 2000;
-  
-  constructor(platform : Platform) {
+  pc2clockrange: { [key: number]: ClockRange } = {};
+  jsrresult: { [key: number]: ClockRange } = {};
+  START_CLOCKS: number;
+  MAX_CLOCKS: number;
+  WRAP_CLOCKS: boolean;
+  platform: Platform;
+  MAX_CYCLES: number = 2000;
+
+  constructor(platform: Platform) {
     this.platform = platform;
   }
 
@@ -62,12 +62,12 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
     return meta; // minCycles, maxCycles
   }
 
-  traceInstructions(pc:number, minclocks:number, maxclocks:number, subaddr:number, constraints) {
+  traceInstructions(pc: number, minclocks: number, maxclocks: number, subaddr: number, constraints) {
     if (debug) console.log("trace", hex(pc), minclocks, maxclocks);
     if (!constraints) constraints = {};
     var modified = true;
     var abort = false;
-    for (let i=0; modified && !abort; i++) {
+    for (let i = 0; modified && !abort; i++) {
       if (i >= this.MAX_CYCLES) {
         console.log("too many cycles @", hex(pc), "routine", hex(subaddr));
         break;
@@ -77,10 +77,10 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
         // wrap clocks
         minclocks = minclocks % this.MAX_CLOCKS;
         maxclocks = maxclocks % this.MAX_CLOCKS;
-        if (maxclocks == minclocks-1) {
+        if (maxclocks == minclocks - 1) {
           if (debug) console.log("0-75", hex(pc), minclocks, maxclocks);
           minclocks = 0;
-          maxclocks = this.MAX_CLOCKS-1;
+          maxclocks = this.MAX_CLOCKS - 1;
         }
       } else {
         // truncate clocks
@@ -88,13 +88,13 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
         maxclocks = Math.min(this.MAX_CLOCKS, maxclocks);
       }
       let meta = this.getClockCountsAtPC(pc);
-      let lob = this.platform.readAddress(pc+1);
-      let hib = this.platform.readAddress(pc+2);
+      let lob = this.platform.readAddress(pc + 1);
+      let hib = this.platform.readAddress(pc + 2);
       let addr = lob + (hib << 8);
       let pc0 = pc;
       let pcrange = this.pc2clockrange[pc0];
       if (pcrange == null) {
-        this.pc2clockrange[pc0] = pcrange = {minclocks:minclocks, maxclocks:maxclocks};
+        this.pc2clockrange[pc0] = pcrange = { minclocks: minclocks, maxclocks: maxclocks };
         if (debug) console.log("new", hex(pc), hex(pc0), hex(subaddr), minclocks, maxclocks);
         modified = true;
       }
@@ -103,7 +103,7 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
         if (this.WRAP_CLOCKS && (minclocks <= maxclocks) != (pcrange.minclocks <= pcrange.maxclocks)) {
           if (debug) console.log("wrap", hex(pc), hex(pc0), hex(subaddr), minclocks, maxclocks, pcrange);
           pcrange.minclocks = minclocks = 0;
-          pcrange.maxclocks = maxclocks = this.MAX_CLOCKS-1;
+          pcrange.maxclocks = maxclocks = this.MAX_CLOCKS - 1;
           modified = true;
         }
         if (minclocks < pcrange.minclocks) {
@@ -124,106 +124,88 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
       pc += meta.insnlength;
       var oldconstraints = constraints;
       constraints = null;
-      // TODO: if jump to zero-page, maybe assume RTS?
-      switch (meta.opcode) {
-        case 0x19: case 0x1d:
-        case 0x39: case 0x3d:
-        case 0x59: case 0x5d:
-        case 0x79: case 0x7d:
-        case 0xb9: case 0xbb:
-        case 0xbc: case 0xbd: case 0xbe: case 0xbf:
-        case 0xd9: case 0xdd:
-        case 0xf9: case 0xfd:
-          if (lob == 0) meta.maxCycles -= 1; // no page boundary crossed
-          break;
-        // TODO: only VCS
-        case 0x85:
-          if (lob == 0x2) { // STA WSYNC
-            minclocks = maxclocks = 0;
-            meta.minCycles = meta.maxCycles = 0;
-          }
-          break;
-        // TODO: only NES (sprite 0 poll)
-        case 0x2c:
-          if (lob == 0x02 && hib == 0x20) { // BIT $2002
-            minclocks = 0;
-            maxclocks = 4; // uncertainty b/c of assumed branch poll
-            meta.minCycles = meta.maxCycles = 0;
-          }
-          break;
-        // TODO: only Apple2 (vapor lock)
-        /*
-        case 0xad:
-          if (lob == 0x61 && hib == 0xc0) { // LDA $C061
-            minclocks = 0;
-            maxclocks = 4; // uncertainty?
-            meta.minCycles = meta.maxCycles = 0;
-          }
-          break;
-        */
-        case 0x20: // JSR
-          // TODO: handle bare RTS case
-          minclocks += meta.minCycles;
-          maxclocks += meta.maxCycles;
-          this.traceInstructions(addr, minclocks, maxclocks, addr, constraints);
-          var result = this.jsrresult[addr];
-          if (result) {
-            minclocks = result.minclocks;
-            maxclocks = result.maxclocks;
-          } else {
-            console.log("No JSR result!", hex(pc), hex(addr));
-            minclocks = maxclocks;
-            //return;
-          }
-          break;
-        case 0x4c: // JMP
-          pc = addr; // TODO: make sure in ROM space
-          break;
-        case 0x40: // RTI
-          abort = true;
-          break;
-        case 0x60: // RTS
-        if (subaddr) { // TODO: 0 doesn't work
-            // TODO: combine with previous result
-            var result = this.jsrresult[subaddr];
-            if (!result) {
-              result = {minclocks:minclocks, maxclocks:maxclocks};
+      let syncMaxCycles = this.getMaxCyclesForSync(meta, lob, hib);
+      if (typeof syncMaxCycles === 'number') {
+        minclocks = 0;
+        maxclocks = syncMaxCycles;
+        meta.minCycles = meta.maxCycles = 0;
+      } else {
+        // TODO: if jump to zero-page, maybe assume RTS?
+        switch (meta.opcode) {
+          case 0x19: case 0x1d:
+          case 0x39: case 0x3d:
+          case 0x59: case 0x5d:
+          case 0x79: case 0x7d:
+          case 0xb9: case 0xbb:
+          case 0xbc: case 0xbd: case 0xbe: case 0xbf:
+          case 0xd9: case 0xdd:
+          case 0xf9: case 0xfd:
+            if (lob == 0) meta.maxCycles -= 1; // no page boundary crossed
+            break;
+          case 0x20: // JSR
+            // TODO: handle bare RTS case
+            minclocks += meta.minCycles;
+            maxclocks += meta.maxCycles;
+            this.traceInstructions(addr, minclocks, maxclocks, addr, constraints);
+            var result = this.jsrresult[addr];
+            if (result) {
+              minclocks = result.minclocks;
+              maxclocks = result.maxclocks;
             } else {
-              result = {
-                minclocks:Math.min(minclocks,result.minclocks),
-                maxclocks:Math.max(maxclocks,result.maxclocks)
-              }
+              console.log("No JSR result!", hex(pc), hex(addr));
+              minclocks = maxclocks;
+              //return;
             }
-            this.jsrresult[subaddr] = result;
-            console.log("RTS", hex(pc), hex(subaddr), this.jsrresult[subaddr]);
-          }
-          return;
-        case 0x10: case 0x30: // branch
-        case 0x50: case 0x70:
-        case 0x90: case 0xB0:
-        case 0xD0: case 0xF0:
-          var newpc = pc + byte2signed(lob);
-          var crosspage = (pc>>8) != (newpc>>8);
-          if (!crosspage) meta.maxCycles--;
-          // TODO: other instructions might modify flags too
-          var cons = BRANCH_CONSTRAINTS[Math.floor((meta.opcode-0x10)/0x20)];
-          var cons0 = constraintEquals(oldconstraints, cons[0]);
-          var cons1 = constraintEquals(oldconstraints, cons[1]);
-          // recursively trace the taken branch
-          if (true || cons0 !== false) { // TODO?
-            this.traceInstructions(newpc, minclocks+meta.maxCycles, maxclocks+meta.maxCycles, subaddr, cons[0]);
-          }
-          // abort if we will always take the branch
-          if (cons1 === false) {
-            console.log("branch always taken", hex(pc), oldconstraints, cons[1]);
+            break;
+          case 0x4c: // JMP
+            pc = addr; // TODO: make sure in ROM space
+            break;
+          case 0x40: // RTI
             abort = true;
-          }
-          constraints = cons[1]; // not taken
-          meta.maxCycles = meta.minCycles; // branch not taken, no extra clock(s)
-          break;
-        case 0x6c:
-          console.log("Instruction not supported!", hex(pc), hex(meta.opcode), meta); // TODO
-          return;
+            break;
+          case 0x60: // RTS
+            if (subaddr) { // TODO: 0 doesn't work
+              // TODO: combine with previous result
+              var result = this.jsrresult[subaddr];
+              if (!result) {
+                result = { minclocks: minclocks, maxclocks: maxclocks };
+              } else {
+                result = {
+                  minclocks: Math.min(minclocks, result.minclocks),
+                  maxclocks: Math.max(maxclocks, result.maxclocks)
+                }
+              }
+              this.jsrresult[subaddr] = result;
+              console.log("RTS", hex(pc), hex(subaddr), this.jsrresult[subaddr]);
+            }
+            return;
+          case 0x10: case 0x30: // branch
+          case 0x50: case 0x70:
+          case 0x90: case 0xB0:
+          case 0xD0: case 0xF0:
+            var newpc = pc + byte2signed(lob);
+            var crosspage = (pc >> 8) != (newpc >> 8);
+            if (!crosspage) meta.maxCycles--;
+            // TODO: other instructions might modify flags too
+            var cons = BRANCH_CONSTRAINTS[Math.floor((meta.opcode - 0x10) / 0x20)];
+            var cons0 = constraintEquals(oldconstraints, cons[0]);
+            var cons1 = constraintEquals(oldconstraints, cons[1]);
+            // recursively trace the taken branch
+            if (true || cons0 !== false) { // TODO?
+              this.traceInstructions(newpc, minclocks + meta.maxCycles, maxclocks + meta.maxCycles, subaddr, cons[0]);
+            }
+            // abort if we will always take the branch
+            if (cons1 === false) {
+              console.log("branch always taken", hex(pc), oldconstraints, cons[1]);
+              abort = true;
+            }
+            constraints = cons[1]; // not taken
+            meta.maxCycles = meta.minCycles; // branch not taken, no extra clock(s)
+            break;
+          case 0x6c:
+            console.log("Instruction not supported!", hex(pc), hex(meta.opcode), meta); // TODO
+            return;
+        }
       }
       // add min/max instruction time to min/max clocks bound
       if (debug) console.log("add", hex(pc), meta.minCycles, meta.maxCycles);
@@ -232,41 +214,65 @@ abstract class CodeAnalyzer6502 implements CodeAnalyzer {
     }
   }
 
-  showLoopTimingForPC(pc:number) {
+  showLoopTimingForPC(pc: number) {
     this.pc2clockrange = {};
     this.jsrresult = {};
     // recurse through all traces
     this.traceInstructions(pc | this.platform.getOriginPC(), this.START_CLOCKS, this.MAX_CLOCKS, 0, {});
   }
+
+  getMaxCyclesForSync(meta: OpcodeMetadata, lob: number, hib: number) {
+  }
 }
 
 // 76 cycles
 export class CodeAnalyzer_vcs extends CodeAnalyzer6502 {
-  constructor(platform : Platform) {
+  constructor(platform: Platform) {
     super(platform);
     this.MAX_CLOCKS = 76; // 1 scanline
     this.START_CLOCKS = 0; // TODO?
     this.WRAP_CLOCKS = true;
+  }
+  getMaxCyclesForSync(meta: OpcodeMetadata, lob: number, hib: number) {
+    if (meta.opcode == 0x85) {
+      if (lob == 0x2) { // STA WSYNC
+        return 0;
+      }
+    }
   }
 }
 
 // https://wiki.nesdev.com/w/index.php/PPU_rendering#Line-by-line_timing
 // TODO: sprite 0 hit, CPU stalls
 export class CodeAnalyzer_nes extends CodeAnalyzer6502 {
-  constructor(platform : Platform) {
+  constructor(platform: Platform) {
     super(platform);
     this.MAX_CLOCKS = 114; // 341 clocks for 3 scanlines
     this.START_CLOCKS = 0;
     this.WRAP_CLOCKS = true;
   }
+  getMaxCyclesForSync(meta: OpcodeMetadata, lob: number, hib: number) {
+    if (meta.opcode == 0x2c) {
+      if (lob == 0x02 && hib == 0x20) { // BIT $2002
+        return 4; // uncertainty b/c of assumed branch poll
+      }
+    }
+  }
 }
 
 export class CodeAnalyzer_apple2 extends CodeAnalyzer6502 {
-  constructor(platform : Platform) {
+  constructor(platform: Platform) {
     super(platform);
     this.MAX_CLOCKS = 65;
     this.START_CLOCKS = 0;
     this.WRAP_CLOCKS = true;
+  }
+  getMaxCyclesForSync(meta: OpcodeMetadata, lob: number, hib: number) {
+    if (meta.opcode == 0xad) {
+      if (lob == 0x61 && hib == 0xc0) { // LDA $C061
+        return 4; // uncertainty b/c of assumed branch poll
+      }
+    }
   }
 }
 

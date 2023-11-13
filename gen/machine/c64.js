@@ -267,8 +267,17 @@ class C64_WASMMachine extends wasmplatform_1.BaseWASMMachine {
         }
         this.exports.c64_joystick(this.sys, this.joymask0, this.joymask1);
     }
+    getRasterX() {
+        return this.statearr[0xf4];
+    }
     getRasterY() {
         return this.exports.machine_get_raster_line(this.sys);
+    }
+    getRasterCanvasPosition() {
+        return {
+            x: this.getRasterX() * 392 / 63,
+            y: this.getRasterY() - 14,
+        };
     }
     getDebugStateOffset(index) {
         var p = this.exports.machine_get_debug_pointer(this.sys, index);

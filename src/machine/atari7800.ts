@@ -516,6 +516,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
     var mc = 0;
     var fc = 0;
     var steps = 0;
+    this.lastFrameCycles = -1;
     this.probe.logNewFrame();
     //console.log(hex(this.cpu.getPC()), hex(this.maria.dll));
     // visible lines
@@ -530,6 +531,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
         if (trap && trap()) {
           trap = null;
           sl = 999;
+          this.lastFrameCycles = mc;
           break; // TODO?
         }
         mc += this.advanceCPU() << 2;
@@ -567,6 +569,7 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
         if (trap && trap()) {
           trap = null;
           sl = 999;
+          this.lastFrameCycles = mc;
           break;
         }
         mc += this.advanceCPU() << 2;
@@ -583,12 +586,17 @@ export class Atari7800 extends BasicMachine implements RasterFrameBased {
       // TODO let bkcol = this.maria.regs[0x0];
       // TODO $(this.video.canvas).css('background-color', COLORS_WEB[bkcol]);
     */
-    this.lastFrameCycles = fc;
     return steps;
   }
 
-  getRasterX() { return this.lastFrameCycles % colorClocksPerLine; }
+  // TODO: doesn't work when breakpoint
+  getRasterX() { return (this.lastFrameCycles + colorClocksPerLine) % colorClocksPerLine; }
+
   getRasterY() { return this.scanline; }
+
+  getRasterCanvasPosition() {
+    return { x: this.getRasterX(), y: this.getRasterY() };
+  }
 
   loadROM(data) {
     if (data.length == 0xc080) data = data.slice(0x80); // strip header

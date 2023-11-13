@@ -89,6 +89,12 @@ class VIC20_WASMMachine extends wasmplatform_1.BaseWASMMachine {
     getRasterY() {
         return this.exports.machine_get_raster_line(this.sys);
     }
+    getRasterCanvasPosition() {
+        return {
+            x: -1,
+            y: this.getRasterY() - 14,
+        };
+    }
     getCPUState() {
         this.exports.machine_save_cpu_state(this.sys, this.cpustateptr);
         var s = this.cpustatearr;

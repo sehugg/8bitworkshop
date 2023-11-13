@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.gtia_ntsc_to_rgb = exports.VirtualTextScroller = exports.getVisibleEditorLineHeight = exports.getMousePos = exports.newAddressDecoder = exports.AddressDecoder = exports.padBytes = exports.ControllerPoller = exports.makeKeycodeMap = exports.setKeyboardFromMap = exports.newKeyboardHandler = exports.Keys = exports.dumpRAM = exports.AnimationTimer = exports.useRequestAnimationFrame = exports.EmuHalt = exports.RAM = exports.VectorVideo = exports.RasterVideo = exports._setKeyboardEvents = exports.KeyFlags = exports.__createCanvas = exports.setNoiseSeed = exports.getNoiseSeed = exports.noise = exports.PLATFORMS = void 0;
+exports.gtia_ntsc_to_rgb = exports.VirtualTextScroller = exports.getVisibleEditorLineHeight = exports.getMousePos = exports.newAddressDecoder = exports.AddressDecoder = exports.padBytes = exports.ControllerPoller = exports.makeKeycodeMap = exports.setKeyboardFromMap = exports.newKeyboardHandler = exports.Keys = exports.dumpRAM = exports.AnimationTimer = exports.useRequestAnimationFrame = exports.EmuHalt = exports.RAM = exports.drawCrosshair = exports.VectorVideo = exports.RasterVideo = exports._setKeyboardEvents = exports.KeyFlags = exports.__createCanvas = exports.setNoiseSeed = exports.getNoiseSeed = exports.noise = exports.PLATFORMS = void 0;
 const util_1 = require("./util");
 const vlist_1 = require("./vlist");
 // Emulator classes
@@ -188,6 +188,23 @@ class VectorVideo extends RasterVideo {
     }
 }
 exports.VectorVideo = VectorVideo;
+function drawCrosshair(ctx, x, y, width) {
+    if (!(ctx === null || ctx === void 0 ? void 0 : ctx.setLineDash))
+        return; // for unit testing
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(x - 2, 0, 5, 32767);
+    ctx.fillRect(0, y - 2, 32767, 5);
+    ctx.lineWidth = width;
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.setLineDash([width * 2, width * 2]);
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, 32767);
+    ctx.moveTo(0, y);
+    ctx.lineTo(32767, y);
+    ctx.stroke();
+}
+exports.drawCrosshair = drawCrosshair;
 class RAM {
     constructor(size) {
         this.mem = new Uint8Array(new ArrayBuffer(size));

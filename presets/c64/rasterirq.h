@@ -4,6 +4,7 @@
 
 // internal function, use macro instead
 void __dlist_setup(void* ptr);
+void __dlist_done();
 
 // initialize display list with function 'func'
 #define DLIST_SETUP(func) \
@@ -19,5 +20,7 @@ void __dlist_setup(void* ptr);
   __A__ = line; \
   asm ("jmp DLIST_IRQ_RESTART");
 
+// stop display list
+#define DLIST_DONE() __dlist_done();
 
 #endif

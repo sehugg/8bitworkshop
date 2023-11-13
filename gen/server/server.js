@@ -26730,6 +26730,13 @@ function parseXMLPoorly(s, openfn, closefn) {
     throw new XMLParseError("?xml needs to be first element");
   return top;
 }
+function replaceAll(s, search, replace) {
+  if (s == "")
+    return "";
+  if (search == "")
+    return s;
+  return s.split(search).join(replace);
+}
 
 // src/common/basic/compiler.ts
 var CompileError = class extends Error {
@@ -35437,6 +35444,94 @@ async function buildRemote(step) {
   }
 }
 
+// src/worker/tools/acme.ts
+function parseACMESymbolTable(text) {
+  var symbolmap = {};
+  var lines = text.split("\n");
+  for (var i = 0; i < lines.length; ++i) {
+    var line = lines[i].trim();
+    var m = line.match(/(\w+)\s*=\s*[$]([0-9a-f]+)/i);
+    if (m) {
+      symbolmap[m[1]] = parseInt(m[2], 16);
+    }
+  }
+  return symbolmap;
+}
+function parseACMEReportFile(text) {
+  var listings = {};
+  var listing;
+  var lines = text.split("\n");
+  for (var i = 0; i < lines.length; ++i) {
+    var line = lines[i].trim();
+    var m1 = line.match(/^;\s*[*]+\s*Source: (.+)$/);
+    if (m1) {
+      var file = m1[1];
+      listings[file] = listing = {
+        lines: []
+      };
+      continue;
+    }
+    var m2 = line.match(/^(\d+)\s+([0-9a-f]+)\s+([0-9a-f]+)/i);
+    if (m2) {
+      if (listing) {
+        listing.lines.push({
+          line: parseInt(m2[1]),
+          offset: parseInt(m2[2], 16),
+          insns: m2[3]
+        });
+      }
+    }
+  }
+  return listings;
+}
+function assembleACME(step) {
+  loadNative("acme");
+  var errors = [];
+  gatherFiles(step, { mainFilePath: "main.acme" });
+  var binpath = step.prefix + ".bin";
+  var lstpath = step.prefix + ".lst";
+  var sympath = step.prefix + ".sym";
+  if (staleFiles(step, [binpath, lstpath])) {
+    var binout, lstout, symout;
+    var ACME = emglobal.acme({
+      instantiateWasm: moduleInstFn("acme"),
+      noInitialRun: true,
+      print: print_fn,
+      printErr: msvcErrorMatcher(errors)
+    });
+    var FS = ACME.FS;
+    populateFiles(step, FS);
+    fixParamsWithDefines(step.path, step.params);
+    var args = ["--msvc", "--initmem", "0", "-o", binpath, "-r", lstpath, "-l", sympath, step.path];
+    if (step.params?.acmeargs) {
+      args.unshift.apply(args, step.params.acmeargs);
+    } else {
+      args.unshift.apply(args, ["-f", "plain"]);
+    }
+    args.unshift.apply(args, ["-D__8BITWORKSHOP__=1"]);
+    if (step.mainfile) {
+      args.unshift.apply(args, ["-D__MAIN__=1"]);
+    }
+    execMain(step, ACME, args);
+    if (errors.length) {
+      let listings = {};
+      return { errors, listings };
+    }
+    binout = FS.readFile(binpath, { encoding: "binary" });
+    lstout = FS.readFile(lstpath, { encoding: "utf8" });
+    symout = FS.readFile(sympath, { encoding: "utf8" });
+    putWorkFile(binpath, binout);
+    putWorkFile(lstpath, lstout);
+    putWorkFile(sympath, symout);
+    return {
+      output: binout,
+      listings: parseACMEReportFile(lstout),
+      errors,
+      symbolmap: parseACMESymbolTable(symout)
+    };
+  }
+}
+
 // src/worker/workermain.ts
 var ENVIRONMENT_IS_WEB = typeof window === "object";
 var ENVIRONMENT_IS_WORKER = typeof importScripts === "function";
@@ -35672,13 +35767,15 @@ var PLATFORM_PARAMS = {
     cfgfile: "apple2.cfg",
     libargs: ["--lib-path", "/share/target/apple2/drv", "-D", "__EXEHDR__=0", "apple2.lib"],
     __CODE_RUN__: 16384,
-    code_start: 2051
+    code_start: 2051,
+    acmeargs: ["-f", "apple"]
   },
   "apple2-e": {
     arch: "6502",
     define: ["__APPLE2__"],
     cfgfile: "apple2.cfg",
-    libargs: ["apple2.lib"]
+    libargs: ["apple2.lib"],
+    acmeargs: ["-f", "apple"]
   },
   "atari8-800xl.disk": {
     arch: "6502",
@@ -35747,13 +35844,15 @@ var PLATFORM_PARAMS = {
     arch: "6502",
     define: ["__CBM__", "__C64__"],
     cfgfile: "c64.cfg",
-    libargs: ["c64.lib"]
+    libargs: ["c64.lib"],
+    acmeargs: ["-f", "cbm"]
   },
   "vic20": {
     arch: "6502",
     define: ["__CBM__", "__VIC20__"],
     cfgfile: "vic20.cfg",
-    libargs: ["vic20.lib"]
+    libargs: ["vic20.lib"],
+    acmeargs: ["-f", "cbm"]
   },
   "kim1": {
     arch: "6502"
@@ -36446,6 +36545,7 @@ function setupRequireFunction() {
 }
 var TOOLS = {
   "dasm": assembleDASM,
+  "acme": assembleACME,
   "cc65": compileCC65,
   "ca65": assembleCA65,
   "ld65": linkLD65,
@@ -36547,25 +36647,36 @@ var lastpromise;
 
 // src/worker/server/clang.ts
 var import_path = __toModule(require("path"));
-function parseObjDumpSymbolTable(symbolTable) {
-  const lines = symbolTable.split("\n");
-  const result = {};
+function parseObjDump(lst) {
+  const lines = lst.split("\n");
+  const symbolmap = {};
+  const segments = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (line.startsWith("00")) {
+    if (line.startsWith("Disassembly"))
+      break;
+    if (line.startsWith("0")) {
       const parts = line.split(/\s+/);
       if (parts.length < 5)
         continue;
       const symbol = parts[parts.length - 1];
-      const address = parseInt(parts[0], 16);
-      result[symbol] = address;
+      const address = parseInt(parts[0], 16) & 65535;
+      symbolmap[symbol] = address;
+      if (symbol.startsWith("__")) {
+        if (symbol.endsWith("_start")) {
+          let name = symbol.substring(2, symbol.length - 6);
+          let type = parts[2] == ".text" ? "rom" : "ram";
+          segments.push({ name, start: address, size: 0, type });
+        } else if (symbol.endsWith("_size")) {
+          let name = symbol.substring(2, symbol.length - 5);
+          let seg = segments.find((s) => s.name === name);
+          if (seg)
+            seg.size = address;
+        }
+      }
     }
   }
-  return result;
-}
-function parseObjDumpListing(lst) {
-  const lines = lst.split("\n");
-  const result = {};
+  const listings = {};
   var lastListing = null;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -36577,35 +36688,35 @@ function parseObjDumpListing(lst) {
         const file = import_path.default.basename(fileParts[0].trim()).split(".")[0] + ".lst";
         const lineNumber = parseInt(fileParts[1], 10);
         if (lineNumber > 0) {
-          if (!result[file])
-            result[file] = { lines: [], text: lst };
-          lastListing = result[file];
+          if (!listings[file])
+            listings[file] = { lines: [], text: lst };
+          lastListing = listings[file];
           lastListing.lines.push({ line: lineNumber, offset: null });
         }
       }
     } else if (lastListing && line.match(/^\s*[A-F0-9]+:.+/i)) {
       const offsetIndex = line.indexOf(":");
       if (offsetIndex !== -1) {
-        const offset = parseInt(line.substring(0, offsetIndex).trim(), 16);
+        const offset = parseInt(line.substring(0, offsetIndex).trim(), 16) & 65535;
         lastListing.lines[lastListing.lines.length - 1].offset = offset;
       }
     }
   }
-  return result;
+  return { listings, symbolmap, segments };
 }
 
 // src/worker/server/buildenv.ts
 var LLVM_MOS_TOOL = {
   name: "llvm-mos",
   version: "",
-  extensions: [".c", ".cpp", ".s"],
+  extensions: [".c", ".cpp", ".s", ".S", ".C"],
   archs: ["6502"],
   platforms: ["atari8", "c64", "nes", "pce", "vcs"],
   platform_configs: {
     default: {
       binpath: "llvm-mos/bin",
       command: "mos-clang",
-      args: ["-Os", "-g", "-o", "$OUTFILE", "$INFILES"]
+      args: ["-Os", "-g", "-D", "__8BITWORKSHOP__", "-o", "$OUTFILE", "$INFILES"]
     },
     debug: {
       binpath: "llvm-mos/bin",
@@ -36613,20 +36724,20 @@ var LLVM_MOS_TOOL = {
       args: ["-l", "-t", "$WORKDIR/a.out.elf", ">$WORKDIR/debug.out"]
     },
     c64: {
-      command: "mos-c64-clang",
-      libargs: ["-D", "__C64__"]
+      command: "mos-c64-clang"
     },
     atari8: {
-      command: "mos-atari8-clang",
-      libargs: ["-D", "__ATARI__"]
+      command: "mos-atari8-clang"
     },
     nes: {
       command: "mos-nes-nrom-clang",
       libargs: ["-lneslib", "-lfamitone2"]
     },
     pce: {
-      command: "mos-pce-clang",
-      libargs: ["-D", "__PCE__"]
+      command: "mos-pce-clang"
+    },
+    vcs: {
+      command: "mos-atari2600-3e-clang"
     }
   }
 };
@@ -36725,6 +36836,9 @@ var ServerBuildEnv = class {
             resolve(this.processOutput(step));
           }
         } else {
+          errorData = replaceAll(errorData, this.sessionDir, "");
+          errorData = replaceAll(errorData, this.rootdir, "");
+          errorData = errorData.replace(/(\/var\/folders\/.+?\/).+?:/g, "");
           let errorResult2 = await this.processErrors(step, errorData);
           if (errorResult2.errors.length === 0) {
             errorResult2.errors.push({ line: 0, msg: `Build failed.
@@ -36751,10 +36865,9 @@ ${errorData}` });
   }
   async processDebugInfo(step) {
     let dbgfile = import_path2.default.join(this.sessionDir, "debug.out");
-    let dbglist = await import_fs.default.promises.readFile(dbgfile);
-    let listings = parseObjDumpListing(dbglist.toString());
-    let symbolmap = parseObjDumpSymbolTable(dbglist.toString());
-    return { output: [], listings, symbolmap };
+    let dbglist = (await import_fs.default.promises.readFile(dbgfile)).toString();
+    let { listings, symbolmap, segments } = parseObjDump(dbglist);
+    return { output: [], listings, symbolmap, segments };
   }
   async compileAndLink(step, updates) {
     for (let file of updates) {

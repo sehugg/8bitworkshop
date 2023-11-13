@@ -54,12 +54,16 @@ const VCS_PRESETS = [
     { id: 'vcslib/demo_vcslib.c', name: 'VCSLib Demo (C)' },
 ];
 function getToolForFilename_vcs(fn) {
+    if (fn.endsWith("-llvm.c"))
+        return "remote:llvm-mos";
     if (fn.endsWith(".wiz"))
         return "wiz";
     if (fn.endsWith(".bb") || fn.endsWith(".bas"))
         return "bataribasic";
     if (fn.endsWith(".ca65"))
         return "ca65";
+    if (fn.endsWith(".acme"))
+        return "acme";
     //if (fn.endsWith(".inc")) return "ca65";
     if (fn.endsWith(".c"))
         return "cc65";
@@ -101,10 +105,10 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
         // show console div and start
         $("#javatari-div").show();
         Javatari.start();
-        var console = Javatari.room.console;
+        var jaconsole = Javatari.room.console;
         // intercept clockPulse function
-        console.oldClockPulse = console.clockPulse;
-        console.clockPulse = function () {
+        jaconsole.oldClockPulse = jaconsole.clockPulse;
+        jaconsole.clockPulse = function () {
             self.updateRecorder();
             self.probe.logNewFrame();
             this.oldClockPulse();
@@ -115,18 +119,19 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
             }
         };
         // intercept TIA end of line
-        var videoSignal = console.tia.getVideoOutput();
+        var videoSignal = jaconsole.tia.getVideoOutput();
         videoSignal.oldNextLine = videoSignal.nextLine;
         videoSignal.nextLine = function (pixels, vsync) {
             self.probe.logNewScanline();
             return this.oldNextLine(pixels, vsync);
         };
         // resize after added to dom tree
-        var jacanvas = $("#javatari-screen").find("canvas");
+        var jacanvas = $("#javatari-screen").find("canvas")[0];
         const resizeObserver = new ResizeObserver(entries => {
             this.resize();
         });
-        resizeObserver.observe(jacanvas[0]);
+        resizeObserver.observe(jacanvas);
+        this.canvas = jacanvas;
     }
     loadROM(title, data) {
         if (data.length == 0 || ((data.length & 0x3ff) != 0))
@@ -155,6 +160,16 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
     }
     getRasterLineClock() {
         return this.getRasterPosition().x;
+    }
+    getRasterCanvasPosition() {
+        let p = Javatari.room.console.tia.getVideoOutput().monitor.getDisplayParameters();
+        let { x, y } = this.getRasterPosition();
+        let canvasPos = {
+            x: (x - p.displayOriginX) * p.displayWidth * p.displayScaleX / (p.signalWidth - p.displayOriginX),
+            y: (y - p.displayOriginY) * p.displayHeight * p.displayScaleY / p.displayHeight
+        };
+        console.log(x, y, canvasPos, p);
+        return canvasPos;
     }
     // TODO: Clock changes this on event, so it may not be current
     isRunning() {
@@ -199,6 +214,8 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
             Javatari.room.speaker.mute();
             this.lastBreakState = state;
             callback(state);
+            // TODO: we have to delay because javatari timer is still running
+            setTimeout(() => this.updateVideoDebugger(), 100);
         };
         Javatari.room.speaker.mute();
     }
@@ -254,6 +271,7 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
     }
     readAddress(addr) {
         // TODO: shouldn't have to do this when debugging
+        // TODO: don't read bank switch addresses
         if (this.lastBreakState && addr >= 0x80 && addr < 0x100)
             return this.getRAMForState(this.lastBreakState)[addr & 0x7f];
         else if ((addr & 0x1280) === 0x280)
@@ -416,6 +434,16 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
         var scale = Math.min(1, ($('#emulator').width() - 24) / 640);
         var xt = (1 - scale) * 50;
         $('#javatari-div').css('transform', `translateX(-${xt}%) translateY(-${xt}%) scale(${scale})`);
+    }
+    updateVideoDebugger() {
+        var _a;
+        const { x, y } = this.getRasterCanvasPosition();
+        if (x >= 0 || y >= 0) {
+            const ctx = (_a = this.canvas) === null || _a === void 0 ? void 0 : _a.getContext('2d');
+            if (ctx) {
+                (0, emu_1.drawCrosshair)(ctx, x, y, 2);
+            }
+        }
     }
 }
 ;

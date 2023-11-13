@@ -124,6 +124,7 @@ void update_scoreboard() {
 
 void add_score(int delta) {
   score = bcd_add(score, delta);
+  update_scoreboard();
 }
 
 // clear scoreboard and draw initial strings
@@ -242,13 +243,13 @@ void scroll_one_pixel_left() {
   }
 }
 
-void detect_player_collision(byte bgcoll, byte sprcoll) {
+void detect_player_collision(byte bg_coll, byte spr_coll) {
   // did we hit a powerup? (#0 and #1)
-  bool hit_powerup = (sprcoll & 0b011) == 0b011;
+  bool hit_powerup = (spr_coll & 0b011) == 0b011;
   // did player and obstacle sprite (#0 and #2) collide?
-  bool hit_obstacle = (sprcoll & 0b101) == 0b101;
+  bool hit_obstacle = (spr_coll & 0b101) == 0b101;
   // did player (#0) collide with background?
-  hit_obstacle |= (bgcoll & 0b001) != 0;
+  hit_obstacle |= (bg_coll & 0b001) != 0;
   // did we hit anything bad?
   if (hit_obstacle) {
     // make player fall downward and backward
@@ -257,7 +258,6 @@ void detect_player_collision(byte bgcoll, byte sprcoll) {
     sprshad.spr_color[PLAYER_INDEX] = COLOR_LIGHTRED;
     SID_PLAY_TONE(500);
     if (score != 0) { add_score(0x9999); } // BCD -1
-    update_scoreboard();
   } else {
     sprshad.spr_color[PLAYER_INDEX] = COLOR_GREEN;
   }
@@ -266,7 +266,6 @@ void detect_player_collision(byte bgcoll, byte sprcoll) {
     sprshad.spr_color[POWERUP_INDEX] += 1; // cycle colors
     SID_PLAY_TONE(8000);
     add_score(1);
-    update_scoreboard();
   }
 }
 
@@ -312,15 +311,15 @@ void main() {
   // game loop, repeat forever
   while (1) {
     // saved collision flags
-    byte sprcoll, bgcoll;
+    byte spr_coll, bg_coll;
     
     // wait for end of frame
     waitvsync();
     
     //--- START TIME CRITICAL SECTION
     // grab and reset collision flags 
-    sprcoll = VIC.spr_coll;
-    bgcoll = VIC.spr_bg_coll;
+    spr_coll = VIC.spr_coll;
+    bg_coll = VIC.spr_bg_coll;
     
     // update sprite registers from sprite shadow buffer
     sprite_update(DEFAULT_SCREEN);
@@ -330,7 +329,7 @@ void main() {
     //--- END TIME CRITICAL SECTION
 
     // use collision flags to see if player collided
-    detect_player_collision(bgcoll, sprcoll);
+    detect_player_collision(bg_coll, spr_coll);
     
     // get joystick bits and move player
     move_player(joy_read(0));

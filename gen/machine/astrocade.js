@@ -525,6 +525,7 @@ class BallyAstrocade extends devices_1.BasicScanlineMachine {
             case 'Astro': return this.m.toLongString(state);
         }
     }
+    getRasterCanvasPosition() { return { x: this.getRasterX(), y: this.getRasterY() }; }
 }
 exports.BallyAstrocade = BallyAstrocade;
 /////

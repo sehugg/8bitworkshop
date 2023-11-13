@@ -8864,6 +8864,95 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     }
   }
 
+  // src/worker/tools/acme.ts
+  function parseACMESymbolTable(text) {
+    var symbolmap = {};
+    var lines = text.split("\n");
+    for (var i = 0; i < lines.length; ++i) {
+      var line = lines[i].trim();
+      var m = line.match(/(\w+)\s*=\s*[$]([0-9a-f]+)/i);
+      if (m) {
+        symbolmap[m[1]] = parseInt(m[2], 16);
+      }
+    }
+    return symbolmap;
+  }
+  function parseACMEReportFile(text) {
+    var listings = {};
+    var listing;
+    var lines = text.split("\n");
+    for (var i = 0; i < lines.length; ++i) {
+      var line = lines[i].trim();
+      var m1 = line.match(/^;\s*[*]+\s*Source: (.+)$/);
+      if (m1) {
+        var file = m1[1];
+        listings[file] = listing = {
+          lines: []
+        };
+        continue;
+      }
+      var m2 = line.match(/^(\d+)\s+([0-9a-f]+)\s+([0-9a-f]+)/i);
+      if (m2) {
+        if (listing) {
+          listing.lines.push({
+            line: parseInt(m2[1]),
+            offset: parseInt(m2[2], 16),
+            insns: m2[3]
+          });
+        }
+      }
+    }
+    return listings;
+  }
+  function assembleACME(step) {
+    var _a;
+    loadNative("acme");
+    var errors = [];
+    gatherFiles(step, { mainFilePath: "main.acme" });
+    var binpath = step.prefix + ".bin";
+    var lstpath = step.prefix + ".lst";
+    var sympath = step.prefix + ".sym";
+    if (staleFiles(step, [binpath, lstpath])) {
+      var binout, lstout, symout;
+      var ACME = emglobal.acme({
+        instantiateWasm: moduleInstFn("acme"),
+        noInitialRun: true,
+        print: print_fn,
+        printErr: msvcErrorMatcher(errors)
+      });
+      var FS = ACME.FS;
+      populateFiles(step, FS);
+      fixParamsWithDefines(step.path, step.params);
+      var args = ["--msvc", "--initmem", "0", "-o", binpath, "-r", lstpath, "-l", sympath, step.path];
+      if ((_a = step.params) == null ? void 0 : _a.acmeargs) {
+        args.unshift.apply(args, step.params.acmeargs);
+      } else {
+        args.unshift.apply(args, ["-f", "plain"]);
+      }
+      args.unshift.apply(args, ["-D__8BITWORKSHOP__=1"]);
+      if (step.mainfile) {
+        args.unshift.apply(args, ["-D__MAIN__=1"]);
+      }
+      execMain(step, ACME, args);
+      if (errors.length) {
+        let listings = {};
+        return { errors, listings };
+      }
+      binout = FS.readFile(binpath, { encoding: "binary" });
+      lstout = FS.readFile(lstpath, { encoding: "utf8" });
+      symout = FS.readFile(sympath, { encoding: "utf8" });
+      putWorkFile(binpath, binout);
+      putWorkFile(lstpath, lstout);
+      putWorkFile(sympath, symout);
+      return {
+        output: binout,
+        listings: parseACMEReportFile(lstout),
+        errors,
+        symbolmap: parseACMESymbolTable(symout)
+      };
+    }
+  }
+
   // src/worker/workermain.ts
   var ENVIRONMENT_IS_WEB = typeof window === "object";
   var ENVIRONMENT_IS_WORKER = typeof importScripts === "function";
@@ -9099,13 +9188,15 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       cfgfile: "apple2.cfg",
       libargs: ["--lib-path", "/share/target/apple2/drv", "-D", "__EXEHDR__=0", "apple2.lib"],
       __CODE_RUN__: 16384,
-      code_start: 2051
+      code_start: 2051,
+      acmeargs: ["-f", "apple"]
     },
     "apple2-e": {
       arch: "6502",
       define: ["__APPLE2__"],
       cfgfile: "apple2.cfg",
-      libargs: ["apple2.lib"]
+      libargs: ["apple2.lib"],
+      acmeargs: ["-f", "apple"]
     },
     "atari8-800xl.disk": {
       arch: "6502",
@@ -9174,13 +9265,15 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       arch: "6502",
       define: ["__CBM__", "__C64__"],
       cfgfile: "c64.cfg",
-      libargs: ["c64.lib"]
+      libargs: ["c64.lib"],
+      acmeargs: ["-f", "cbm"]
     },
     "vic20": {
       arch: "6502",
       define: ["__CBM__", "__VIC20__"],
       cfgfile: "vic20.cfg",
-      libargs: ["vic20.lib"]
+      libargs: ["vic20.lib"],
+      acmeargs: ["-f", "cbm"]
     },
     "kim1": {
       arch: "6502"
@@ -9872,6 +9965,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   }
   var TOOLS = {
     "dasm": assembleDASM,
+    "acme": assembleACME,
     "cc65": compileCC65,
     "ca65": assembleCA65,
     "ld65": linkLD65,

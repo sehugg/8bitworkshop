@@ -136,11 +136,13 @@ class BasicMachine extends BasicHeadlessMachine {
         this.audio = audio;
     }
     getVideoParams() {
-        return { width: this.canvasWidth,
+        return {
+            width: this.canvasWidth,
             height: this.numVisibleScanlines,
             aspect: this.aspectRatio,
             overscan: this.overscan,
-            rotate: this.rotate };
+            rotate: this.rotate
+        };
     }
     connectVideo(pixels) {
         this.pixels = pixels;
