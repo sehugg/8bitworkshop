@@ -265,6 +265,9 @@ describe('Worker', function() {
     compile('cc65', '#define CC65_FLAGS -Or,-g,-j\nint main() {\nint x=1;\nreturn x+2;\n}', 'apple2', done, 416, 3);
   });
   /*
+  it('should compile ACME', function(done) {
+    compile('acme', 'nop', 'c64', done, 416, 3);
+  });
   it('should compile CMOC', function(done) {
     compile('cmoc', 'int foo=0; // comment\n#if defined(__8BITWORKSHOP__) && defined(__MAIN__)\nint main(int argc) {\nint x=1;\nint y=2+argc;\nreturn x+y+argc;\n}\n#endif\n', 'williams', done, 8192, 3, 0, {filename:'test.c'});
   });

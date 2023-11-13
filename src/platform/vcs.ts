@@ -62,6 +62,7 @@ function getToolForFilename_vcs(fn: string) {
   if (fn.endsWith(".wiz")) return "wiz";
   if (fn.endsWith(".bb") || fn.endsWith(".bas")) return "bataribasic";
   if (fn.endsWith(".ca65")) return "ca65";
+  if (fn.endsWith(".acme")) return "acme";
   //if (fn.endsWith(".inc")) return "ca65";
   if (fn.endsWith(".c")) return "cc65";
   //if (fn.endsWith(".h")) return "cc65";

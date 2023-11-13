@@ -161,8 +161,8 @@ extern void tinyfont48_build(byte* dest, const char str[12]);
 #define OVERSCAN_TIM64 _TIM64(_CYCLES(36))
 #else
 #define VBLANK_TIM64 _TIM64(_CYCLES(37))
-#define KERNAL_TIM64 _TIM64(_CYCLES(194))
-#define OVERSCAN_TIM64 _TIM64(_CYCLES(32))
+#define KERNAL_TIM64 _TIM64(_CYCLES(198))
+#define OVERSCAN_TIM64 _TIM64(_CYCLES(28))
 #endif
 
 #define JOY_UP(plyr) (!(RIOT.swcha & ((plyr) ? 0x1 : ~MOVE_UP)))

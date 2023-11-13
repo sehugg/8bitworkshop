@@ -888,7 +888,9 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
       const {x,y} = this.machine.getRasterCanvasPosition();
       if (x >= 0 || y >= 0) {
         const ctx = this.video.getContext();
-        drawCrosshair(ctx, x, y, 1);
+        if (ctx) {
+          drawCrosshair(ctx, x, y, 1);
+        }
       }
     }
   }

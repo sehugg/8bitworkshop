@@ -1,0 +1,18 @@
+
+!src "basicheader.acme"
+
+Start:
+  jsr $e544	; clear screen
+  ldy #0
+Loop:
+  lda Message,y	; load message byte
+  beq EOM	; 0 = end of string
+  sta $400+41,y	; store to screen
+  iny
+  bne Loop	; next character
+EOM:
+  jmp EOM	; infinite loop
+
+Message:
+!scr "hello world!", 0
+
