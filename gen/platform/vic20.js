@@ -5,9 +5,9 @@ const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
 const mameplatform_1 = require("../common/mameplatform");
 const VIC20_PRESETS = [
-    { id: 'hello.dasm', name: 'Hello World (ASM)' },
+    //  {id:'hello.dasm', name:'Hello World (ASM)'},
     { id: 'hellocart.dasm', name: 'Hello Cartridge (ASM)' },
-    { id: 'siegegame.c', name: 'Siege Game (C)' },
+    //  {id:'siegegame.c', name:'Siege Game (C)'},
 ];
 const VIC20_MEMORY_MAP = { main: [
         { name: 'RAM', start: 0x0000, size: 0x0400, type: 'ram' },

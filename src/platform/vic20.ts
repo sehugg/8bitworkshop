@@ -5,9 +5,9 @@ import { PLATFORMS } from "../common/emu";
 import { BaseMAME6502Platform } from "../common/mameplatform";
 
 const VIC20_PRESETS = [
-  {id:'hello.dasm', name:'Hello World (ASM)'},
+//  {id:'hello.dasm', name:'Hello World (ASM)'},
   {id:'hellocart.dasm', name:'Hello Cartridge (ASM)'},
-  {id:'siegegame.c', name:'Siege Game (C)'},
+//  {id:'siegegame.c', name:'Siege Game (C)'},
 ];
 
 const VIC20_MEMORY_MAP = { main:[
