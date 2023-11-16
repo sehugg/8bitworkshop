@@ -1,5 +1,5 @@
 
-import { Platform, Base6502Platform, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../common/baseplatform";
+import { Platform, Base6502Platform, getOpcodeMetadata_6502, getToolForFilename_6502, Preset } from "../common/baseplatform";
 import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, KeyFlags, EmuHalt, ControllerPoller } from "../common/emu";
 import { hex, byteArrayToString } from "../common/util";
 import { CodeAnalyzer_nes } from "../common/analysis";
@@ -10,7 +10,7 @@ import Mousetrap = require('mousetrap');
 import jsnes = require('../../jsnes');
 import { BaseMAME6502Platform } from "../common/mameplatform";
 
-const JSNES_PRESETS = [
+const JSNES_PRESETS : Preset[] = [
   {id:'hello.c', name:'Hello World'},
   {id:'attributes.c', name:'Attribute Table'},
   {id:'scroll.c', name:'Scrolling'},
@@ -32,16 +32,16 @@ const JSNES_PRESETS = [
   {id:'climber.c', name:'Climber Game'},
   {id:'bankswitch.c', name:'Bank Switching'},
   {id:'irq.c', name:'IRQ Scanline Counter'},
-  {id:'ex0.dasm', name:'Initialization (ASM)'},
-  {id:'ex1.dasm', name:'Hello World (ASM)'},
-  {id:'ex2.dasm', name:'Scrolling Demo (ASM)'},
-  {id:'ex3.dasm', name:'Sprite Demo (ASM)'},
-  {id:'ex4.dasm', name:'Controller Demo (ASM)'},
-  {id:'musicdemo.dasm', name:'Famitone Demo (ASM)'},
-  {id:'xyscroll.dasm', name:'XY Split Scrolling (ASM)'},
-//  {id:'scrollrt.dasm', name:'Line-by-line Scrolling (ASM)'},
-  {id:'road.dasm', name:'3-D Road Demo (ASM)'},
-  {id:'chase/game.c', name:'Shiru\'s Chase Game'},
+  {id:'ex0.dasm', name:'Initialization', category:'Assembly Language (ASM)'},
+  {id:'ex1.dasm', name:'Hello World'},
+  {id:'ex2.dasm', name:'Scrolling Demo'},
+  {id:'ex3.dasm', name:'Sprite Demo'},
+  {id:'ex4.dasm', name:'Controller Demo'},
+  {id:'musicdemo.dasm', name:'Famitone Demo'},
+  {id:'xyscroll.dasm', name:'XY Split Scrolling'},
+//  {id:'scrollrt.dasm', name:'Line-by-line Scrolling'},
+  {id:'road.dasm', name:'3-D Road Demo'},
+  {id:'chase/game.c', name:'Shiru\'s Chase Game', category:'Other'},
   {id:'hello.wiz', name:'Hello (Wiz)'},
 ];
 

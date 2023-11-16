@@ -224,6 +224,7 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
     if (address < 0xc000 || address >= 0xd000) {
       return this.readConst(address);
     } else if (address < 0xc100) {
+      this.probe.logIORead(address, 0); // TODO: value
       var slot = (address >> 4) & 0x0f;
       switch (slot)
       {
@@ -280,6 +281,7 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
     if (address < 0xc000) {
       this.ram[address] = val;
       this.grdirty[address>>7] = 1;
+      this.probe.logIOWrite(address, val);
     } else if (address < 0xc080) {
       this.read(address); // strobe address, discard result
     } else if (address < 0xc100) {

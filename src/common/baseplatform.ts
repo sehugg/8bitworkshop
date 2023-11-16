@@ -158,6 +158,7 @@ export interface Preset {
   name : string;
   chapter? : number;
   title? : string;
+  category?: string;
 }
 
 export interface MemoryBus {

@@ -1,11 +1,11 @@
 
 import { C64_WASMMachine } from "../machine/c64";
-import { Platform, Base6502MachinePlatform, getToolForFilename_6502, getOpcodeMetadata_6502 } from "../common/baseplatform";
+import { Platform, Base6502MachinePlatform, getToolForFilename_6502, getOpcodeMetadata_6502, Preset } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 import { BaseMAME6502Platform } from "../common/mameplatform";
 
-const C64_PRESETS = [
-  {id:'helloc.c', name:'Hello World'},
+const C64_PRESETS : Preset[] = [
+  {id:'helloc.c', name:'Hello World', category:'C'},
   {id:'screen_ram.c', name:'Screen RAM'},
   {id:'joymove.c', name:'Sprite Movement'},
   {id:'sprite_collision.c', name:'Sprite Collision'},
@@ -35,7 +35,8 @@ const C64_PRESETS = [
   {id:'23matches.c', name:'23 Matches'},
   {id:'tgidemo.c', name:'TGI Graphics Demo'},
   {id:'upandaway.c', name:'Up, Up and Away'},
-  {id:'hello.dasm', name:'Hello World (DASM)'},
+  {id:'hello.dasm', name:'Hello World (DASM)', category:'Assembly Language'},
+  {id:'hello.dasm', name:'Hello World (ACME)'},
   {id:'hello.wiz', name:'Hello Wiz (Wiz)'},
 ];
 

@@ -3,7 +3,7 @@
 
 import * as localforage from "localforage";
 import { CodeProject, createNewPersistentStore, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
-import { WorkerResult, WorkerOutputResult, WorkerError, FileData, WorkerErrorResult } from "../common/workertypes";
+import { WorkerResult, WorkerError, FileData } from "../common/workertypes";
 import { ProjectWindows } from "./windows";
 import { Platform, Preset, DebugSymbols, DebugEvalCondition, isDebuggable, EmuState } from "../common/baseplatform";
 import { PLATFORMS, EmuHalt } from "../common/emu";
@@ -15,7 +15,7 @@ import { GHSession, GithubService, getRepos, parseGithubURL } from "./services";
 import Split = require('split.js');
 import { importPlatform } from "../platform/_index";
 import { DisassemblerView, ListingView, PC_LINE_LOOKAHEAD , SourceEditor } from "./views/editors";
-import { AddressHeatMapView, BinaryFileView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterPCHeatMapView, RasterStackMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
+import { AddressHeatMapView, BinaryFileView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterStackMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
 import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
 import { CallStackView, DebugBrowserView } from "./views/treeviews";
@@ -1221,11 +1221,16 @@ async function _downloadAllFilesZipFile(e) {
 
 function populateExamples(sel) {
   let files = {};
-  let optgroup = $("<optgroup />").attr('label','Examples').appendTo(sel);
+  let optgroup;
   for (var i=0; i<PRESETS.length; i++) {
     var preset = PRESETS[i];
     var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
     var isCurrentPreset = preset.id==current_project.mainPath;
+    if (preset.category) {
+      optgroup = $("<optgroup />").attr('label','Examples: ' + preset.category).appendTo(sel);
+    } else if (!optgroup) {
+      optgroup = $("<optgroup />").attr('label','Examples').appendTo(sel);
+    }
     optgroup.append($("<option />").val(preset.id).text(name).attr('selected',isCurrentPreset?'selected':null));
     if (isCurrentPreset) current_preset = preset;
     files[preset.id] = name;
