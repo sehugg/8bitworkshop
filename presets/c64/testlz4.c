@@ -13,14 +13,15 @@
 #include <lz4.h>
 
 // include the LZ4 binary data -> image_c64_multi_lz4[]
-
-//#incbin "image-c64.multi.lz4"
+const char image_c64_multi_lz4[] = {
+#embed "image-c64.multi.lz4"
+};
 
 /*
-CharData equ .
-ScreenData equ CharData+8000
-ColorData equ ScreenData+1000
-XtraData equ ColorData+1000
+CharData   8000 bytes
+ScreenData 1000 bytes
+ColorData  1000 bytes
+XtraData   2 bytes
 */
 
 void main() {

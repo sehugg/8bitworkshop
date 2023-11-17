@@ -273,22 +273,17 @@ export function linkLD65(step: BuildStep): BuildStepResult {
 }
 
 function processIncbin(code: string) {
-    let re3 = /^\s*([;']|[/][/])#incbin\s+"(.+?)"/gm;
-    // find #incbin "filename.bin" and replace with C array declaration
-    return code.replace(re3, (m, m1, m2) => {
-        let filename = m2;
+    let re3 = /^\s*#embed\s+"(.+?)"/gm;
+    // find #embed "filename.bin" and replace with C array data
+    return code.replace(re3, (m, m1) => {
+        let filename = m1;
         let filedata = store.getFileData(filename);
         let bytes = convertDataToUint8Array(filedata);
-        if (!bytes) throw new Error('#incbin: file not found: "' + filename + '"');
+        if (!bytes) throw new Error('#embed: file not found: "' + filename + '"');
         let out = '';
-        let ident = safeident(filename);
-        console.log('#incbin', filename, ident, bytes.length);
-        out += 'const unsigned char ' + ident + '[' + bytes.length + '] = {';
         for (let i = 0; i < bytes.length; i++) {
             out += bytes[i].toString() + ',';
         }
-        out += '};';
-        console.log('incbin', out);
         return out;
     });
 }
