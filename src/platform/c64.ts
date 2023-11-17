@@ -1,15 +1,12 @@
 
 import { C64_WASMMachine } from "../machine/c64";
-import { Platform, Base6502MachinePlatform, getToolForFilename_6502, getOpcodeMetadata_6502 } from "../common/baseplatform";
+import { Platform, Base6502MachinePlatform, getToolForFilename_6502, getOpcodeMetadata_6502, Preset } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 import { BaseMAME6502Platform } from "../common/mameplatform";
 
-const C64_PRESETS = [
-  {id:'hello.dasm', name:'Hello World (ASM)'},
-  {id:'23matches.c', name:'23 Matches'},
-  {id:'tgidemo.c', name:'TGI Graphics Demo'},
-  {id:'upandaway.c', name:'Up, Up and Away'},
-  {id:'siegegame.c', name:'Siege Game'},
+const C64_PRESETS : Preset[] = [
+  {id:'helloc.c', name:'Hello World', category:'C'},
+  {id:'screen_ram.c', name:'Screen RAM'},
   {id:'joymove.c', name:'Sprite Movement'},
   {id:'sprite_collision.c', name:'Sprite Collision'},
   {id:'scroll1.c', name:'Scrolling (Single Buffer)'},
@@ -34,6 +31,12 @@ const C64_PRESETS = [
   {id:'test_border_sprites.c', name:'Sprites in the Borders'},
   {id:'sprite_stretch.c', name:'Sprite Stretching'},
   {id:'plasma.c', name:'Plasma Demo'},
+  {id:'siegegame.c', name:'Siege Game'},
+  {id:'23matches.c', name:'23 Matches'},
+  {id:'tgidemo.c', name:'TGI Graphics Demo'},
+  {id:'upandaway.c', name:'Up, Up and Away'},
+  {id:'hello.dasm', name:'Hello World (DASM)', category:'Assembly Language'},
+  {id:'hello.dasm', name:'Hello World (ACME)'},
   {id:'hello.wiz', name:'Hello Wiz (Wiz)'},
 ];
 

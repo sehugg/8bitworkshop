@@ -1,12 +1,12 @@
 
-import { Platform, getOpcodeMetadata_6502, getToolForFilename_6502, Base6502MachinePlatform } from "../common/baseplatform";
+import { Platform, getOpcodeMetadata_6502, getToolForFilename_6502, Base6502MachinePlatform, Preset } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 import { BaseMAME6502Platform } from "../common/mameplatform";
 import { Atari5200, Atari800 } from "../machine/atari8";
 
 declare var jt; // for 6502
 
-var Atari8_PRESETS = [
+var Atari8_PRESETS : Preset[] = [
   {id:'hello.dasm', name:'Hello World (ASM)'},
   {id:'hellopm.dasm', name:'Hello Sprites (ASM)'},
   {id:'helloconio.c', name:'Text Mode (C)'},
@@ -16,7 +16,7 @@ var Atari8_PRESETS = [
 
 var Atari800_PRESETS = Atari8_PRESETS.concat([
   {id:'testmusic.c', name:'POKEY Music (C)'},
-  {id:'sieve.bas', name:'Benchmark (FastBasic)'},
+  {id:'sieve.bas', name:'Benchmark (FastBasic)', category:'FastBasic'},
   {id:'pmtest.bas', name:'Sprites Test (FastBasic)'},
   {id:'dli.bas', name:'DLI Test (FastBasic)'},
   {id:'joyas.bas', name:'Match-3 Game (FastBasic)'},

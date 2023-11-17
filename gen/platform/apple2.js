@@ -6,7 +6,7 @@ const apple2_1 = require("../machine/apple2");
 const baseplatform_2 = require("../common/baseplatform");
 const mameplatform_1 = require("../common/mameplatform");
 const APPLE2_PRESETS = [
-    { id: 'sieve.c', name: 'Sieve' },
+    { id: 'sieve.c', name: 'Sieve', category: "C" },
     { id: 'keyboardtest.c', name: 'Keyboard Test' },
     { id: 'mandel.c', name: 'Mandelbrot' },
     { id: 'tgidemo.c', name: 'TGI Graphics Demo' },
@@ -15,12 +15,12 @@ const APPLE2_PRESETS = [
     { id: 'cosmic.c', name: 'Cosmic Impalas' },
     { id: 'farmhouse.c', name: "Farmhouse Adventure" },
     { id: 'yum.c', name: "Yum Dice Game" },
-    { id: 'lzgtest.c', name: "LZG Decompressor (C)" },
-    { id: 'hgrtest.a', name: "HGR Test (ASM)" },
-    { id: 'conway.a', name: "Conway's Game of Life (ASM)" },
-    { id: 'lz4fh.a', name: "LZ4FH Decompressor (ASM)" },
-    { id: 'deltamod.dasm', name: "Delta Modulation (ASM)" },
-    //  {id:'zap.dasm', name:"ZAP! (ASM)"},
+    { id: 'lzgtest.c', name: "LZG Decompressor" },
+    { id: 'hgrtest.a', name: "HGR Test", category: "Assembly Language" },
+    { id: 'conway.a', name: "Conway's Game of Life" },
+    { id: 'lz4fh.a', name: "LZ4FH Decompressor" },
+    { id: 'deltamod.dasm', name: "Delta Modulation Audio" },
+    //  {id:'zap.dasm', name:"ZAP!"},
     //  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
 ];
 /// MAME support

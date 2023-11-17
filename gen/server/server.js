@@ -26646,13 +26646,6 @@ function byteArrayToString(data) {
   }
   return str;
 }
-function safeident(s) {
-  if (s.length == 0)
-    return "";
-  if (!s.match(/^[a-zA-Z_]/))
-    s = "_" + s;
-  return s.replace(/\W+/g, "_");
-}
 function getBasePlatform(platform) {
   return platform.split(".")[0];
 }
@@ -29486,22 +29479,17 @@ function linkLD65(step) {
   }
 }
 function processIncbin(code) {
-  let re3 = /^\s*([;']|[/][/])#incbin\s+"(.+?)"/gm;
-  return code.replace(re3, (m, m1, m2) => {
-    let filename = m2;
+  let re3 = /^\s*#embed\s+"(.+?)"/gm;
+  return code.replace(re3, (m, m1) => {
+    let filename = m1;
     let filedata = store.getFileData(filename);
     let bytes = convertDataToUint8Array(filedata);
     if (!bytes)
-      throw new Error('#incbin: file not found: "' + filename + '"');
+      throw new Error('#embed: file not found: "' + filename + '"');
     let out = "";
-    let ident = safeident(filename);
-    console.log("#incbin", filename, ident, bytes.length);
-    out += "const unsigned char " + ident + "[" + bytes.length + "] = {";
     for (let i = 0; i < bytes.length; i++) {
       out += bytes[i].toString() + ",";
     }
-    out += "};";
-    console.log("incbin", out);
     return out;
   });
 }

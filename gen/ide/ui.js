@@ -1156,13 +1156,19 @@ async function _downloadAllFilesZipFile(e) {
     }
 }
 function populateExamples(sel) {
-    var files = {};
-    sel.append($("<option />").text("--------- Examples ---------").attr('disabled', 'true'));
+    let files = {};
+    let optgroup;
     for (var i = 0; i < PRESETS.length; i++) {
         var preset = PRESETS[i];
         var name = preset.chapter ? (preset.chapter + ". " + preset.name) : preset.name;
         var isCurrentPreset = preset.id == exports.current_project.mainPath;
-        sel.append($("<option />").val(preset.id).text(name).attr('selected', isCurrentPreset ? 'selected' : null));
+        if (preset.category) {
+            optgroup = $("<optgroup />").attr('label', 'Examples: ' + preset.category).appendTo(sel);
+        }
+        else if (!optgroup) {
+            optgroup = $("<optgroup />").attr('label', 'Examples').appendTo(sel);
+        }
+        optgroup.append($("<option />").val(preset.id).text(name).attr('selected', isCurrentPreset ? 'selected' : null));
         if (isCurrentPreset)
             current_preset = preset;
         files[preset.id] = name;
@@ -1174,29 +1180,28 @@ function populateRepos(sel) {
         var n = 0;
         var repos = (0, services_1.getRepos)();
         if (repos) {
+            let optgroup = $("<optgroup />").attr('label', 'Repositories').appendTo(sel);
             for (let repopath in repos) {
                 var repo = repos[repopath];
                 if (repo.platform_id && (0, util_1.getBasePlatform)(repo.platform_id) == (0, util_1.getBasePlatform)(exports.platform_id)) {
-                    if (n++ == 0)
-                        sel.append($("<option />").text("------ Repositories ------").attr('disabled', 'true'));
-                    sel.append($("<option />").val(repo.url).text(repo.url.substring(repo.url.indexOf('/'))));
+                    optgroup.append($("<option />").val(repo.url).text(repo.url.substring(repo.url.indexOf('/'))));
                 }
             }
         }
     }
 }
 async function populateFiles(sel, category, prefix, foundFiles) {
-    var keys = await store.keys();
-    var numFound = 0;
+    let keys = await store.keys();
     if (!keys)
         keys = [];
+    let optgroup;
     for (var i = 0; i < keys.length; i++) {
-        var key = keys[i];
+        let key = keys[i];
         if (key.startsWith(prefix) && !foundFiles[key]) {
-            if (numFound++ == 0)
-                sel.append($("<option />").text("------- " + category + " -------").attr('disabled', 'true'));
-            var name = key.substring(prefix.length);
-            sel.append($("<option />").val(key).text(name).attr('selected', (key == exports.current_project.mainPath) ? 'selected' : null));
+            if (!optgroup)
+                optgroup = $("<optgroup />").attr('label', category).appendTo(sel);
+            let name = key.substring(prefix.length);
+            optgroup.append($("<option />").val(key).text(name).attr('selected', (key == exports.current_project.mainPath) ? 'selected' : null));
         }
     }
 }

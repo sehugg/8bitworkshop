@@ -1,6 +1,6 @@
 
-import { Platform, BasePlatform, cpuStateToLongString_6502, dumpStackToString, DisasmLine, CpuState, getToolForFilename_6502 } from "../common/baseplatform";
-import { PLATFORMS, dumpRAM, EmuHalt, RasterVideo, __createCanvas, drawCrosshair } from "../common/emu";
+import { Platform, BasePlatform, cpuStateToLongString_6502, dumpStackToString, DisasmLine, CpuState, Preset } from "../common/baseplatform";
+import { PLATFORMS, dumpRAM, EmuHalt, __createCanvas, drawCrosshair } from "../common/emu";
 import { hex, loadScript, lpad, tobin } from "../common/util";
 import { CodeAnalyzer_vcs } from "../common/analysis";
 import { disassemble6502 } from "../common/cpu/disasm6502";
@@ -11,7 +11,7 @@ import { BaseMAME6502Platform } from "../common/mameplatform";
 declare var Javatari : any;
 declare var jt : any; // 6502
 
-const VCS_PRESETS = [
+const VCS_PRESETS : Preset[] = [
   {id:'examples/hello.a', chapter:4, name:'Hello 6502 and TIA'},
   {id:'examples/vsync.a', chapter:5, name:'Painting on the CRT', title:'Color Bars'},
   {id:'examples/playfield.a', chapter:6, name:'Playfield Graphics'},
@@ -42,11 +42,11 @@ const VCS_PRESETS = [
   {id:'examples/road.a', chapter:33, name:'Pseudo 3D Road'},
   {id:'examples/bankswitching.a', chapter:35, name:'Bankswitching'},
   {id:'examples/wavetable.a', chapter:36, name:'Wavetable Sound'},
-  {id:'examples/fracpitch.a', name:'Fractional Pitch'},
   {id:'examples/pal.a', name:'PAL Video Output'},
 //  {id:'examples/testlibrary.a', name:'VCS Library Demo'},
 //  {id:'examples/music2.a', name:'Pitch-Accurate Music'},
 //  {id:'examples/fullgame.a', name:'Thru Hike: The Game', title:'Thru Hike'},
+  {id:'examples/fracpitch.a', name:'Fractional Pitch', category:'BASIC and Other Languages'},
   {id:'bb/helloworld.bas', name:'Hello World (batariBASIC)'},
   {id:'bb/draw.bas', name:'Playfield Draw (batariBASIC)'},
   {id:'bb/sample.bas', name:'Sprite Test (batariBASIC)'},
