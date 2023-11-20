@@ -9,6 +9,7 @@ A simple music player.
 #include "sidmacros.h"
 
 #include <cbm_petscii_charmap.h>
+#include <6502.h>
 
 // SID frequency table (PAL version)
 const int note_table_pal[96] = {
@@ -149,7 +150,7 @@ void drawParams() {
   }
 }
 
-void setParamValues() {
+void setSIDRegisters() {
   char i;
   word val;
   char buf[30];
@@ -179,57 +180,61 @@ void setParamValues() {
   music_wavebits = buf[0x04];
 }
 
-void tick(int i) {
-  while (i--) {
-    wait_vblank();
-    play_music();
-  }
+char music_update() {
+  if (!music_ptr) start_music(music1);
+  play_music();
+  return IRQ_NOT_HANDLED;
 }
 
 void handleInput() {
   char key = 0;
   char joy = joy_read(0);
+  if (joy == 0) return;
   if (JOY_UP(joy)) key = 'i';
   if (JOY_DOWN(joy)) key = 'k';
   if (JOY_LEFT(joy)) key = 'j';
   if (JOY_RIGHT(joy)) key = 'l';
-    switch (key) {
-      case 'i': // UP
-        if (currentParam > 0) {
-          --currentParam;
-          drawValue(currentParam+1);
-          drawValue(currentParam);
-          tick(3);
-        }
-        break;
-      case 'k': // DOWN
-        if (currentParam < NPARAMS - 1) {
-          ++currentParam;
-          drawValue(currentParam-1);
-          drawValue(currentParam);
-          tick(3);
-        }
-        break;
-      case 'j': // LEFT
-        if (paramValues[currentParam] > SID_PARAMS[currentParam].low) {
-          paramValues[currentParam]--;
-          drawValue(currentParam);
-          setParamValues();
-        }
-        break;
-      case 'l': // RIGHT
-        if (paramValues[currentParam] < SID_PARAMS[currentParam].high) {
-          paramValues[currentParam]++;
-          drawValue(currentParam);
-          setParamValues();
-        }
-        break;
-    }
+  switch (key) {
+    case 'i': // UP
+      if (currentParam > 0) {
+        --currentParam;
+        drawValue(currentParam+1);
+        drawValue(currentParam);
+      }
+      break;
+    case 'k': // DOWN
+      if (currentParam < NPARAMS - 1) {
+        ++currentParam;
+        drawValue(currentParam-1);
+        drawValue(currentParam);
+      }
+      break;
+    case 'j': // LEFT
+      if (paramValues[currentParam] > SID_PARAMS[currentParam].low) {
+        paramValues[currentParam]--;
+        drawValue(currentParam);
+        setSIDRegisters();
+      }
+      break;
+    case 'l': // RIGHT
+      if (paramValues[currentParam] < SID_PARAMS[currentParam].high) {
+        paramValues[currentParam]++;
+        drawValue(currentParam);
+        setSIDRegisters();
+      }
+      break;
+  }
+  // delay a few frames to slow down movement
+  waitvsync();
+  waitvsync();
+  waitvsync();
 }
 
 void main(void)
 {
   joy_install (joy_static_stddrv);
+  
+  // set initial SID parameters
   paramValues[0] = 15;
   paramValues[1] = 8;
   paramValues[2] = 8;
@@ -237,14 +242,19 @@ void main(void)
   paramValues[4] = 4;
   paramValues[5] = 4;
   paramValues[7] = 1; // pulse
+  setSIDRegisters();
+
+  // draw the UI
   drawParams();
-  setParamValues();
   
+  // set IRQ routine called every frame
+  set_irq(music_update, (void*)0x9f00, 0x100);
+  
+  // main loop to handle UI
   music_ptr = 0;
   while (1) {
+    waitvsync();
     handleInput();
-    if (!music_ptr) start_music(music1);
-    tick(1);
   }
 }
 
