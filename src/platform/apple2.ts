@@ -16,7 +16,7 @@ const APPLE2_PRESETS : Preset[] = [
   {id:'cosmic.c', name:'Cosmic Impalas'},
   {id:'farmhouse.c', name:"Farmhouse Adventure"},
   {id:'yum.c', name:"Yum Dice Game"},
-  {id:'lzgtest.c', name:"LZG Decompressor"},
+  {id:'lz4test.c', name:"LZ4 Decompressor"},
   {id:'hgrtest.a', name:"HGR Test", category:"Assembly Language"},
   {id:'conway.a', name:"Conway's Game of Life"},
   {id:'lz4fh.a', name:"LZ4FH Decompressor"},

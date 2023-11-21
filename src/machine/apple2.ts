@@ -2,13 +2,7 @@
 import { MOS6502, MOS6502State } from "../common/cpu/MOS6502";
 import { Bus, BasicScanlineMachine, SavesState, AcceptsBIOS } from "../common/devices";
 import { KeyFlags } from "../common/emu"; // TODO
-import { hex, lzgmini, stringToByteArray, RGBA, printFlags } from "../common/util";
-
-// TODO: read prodos/ca65 header?
-const VM_BASE = 0x803; // where to JMP after pr#6
-const LOAD_BASE = VM_BASE;
-const PGM_BASE = VM_BASE;
-const HDR_SIZE = PGM_BASE - LOAD_BASE;
+import { hex, lzgmini, stringToByteArray, RGBA, printFlags, arrayCompare } from "../common/util";
 
 interface AppleIIStateBase {
   ram : Uint8Array;
@@ -43,7 +37,11 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
   canvasWidth = 280;
   numVisibleScanlines = 192;
   numTotalScanlines = 262;
-  defaultROMSize = 0xbf00-0x803; // TODO
+  defaultROMSize = 0x13000; // we'll never need one that big, but...
+
+  // these are set later
+  LOAD_BASE = 0;
+  HDR_SIZE = 0;
 
   ram = new Uint8Array(0x13000); // 64K + 16K LC RAM - 4K hardware + 12K ROM
   bios : Uint8Array;
@@ -78,8 +76,8 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
               // SHOULD load program into RAM here, but have to do it
               // below instead.
               return 0;
-            case 1: return VM_BASE&0xff;
-            case 2: return (VM_BASE>>8)&0xff;
+            case 1: return this.LOAD_BASE&0xff;
+            case 2: return (this.LOAD_BASE>>8)&0xff;
             default: return 0;
           }
       }
@@ -97,8 +95,7 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
               // into RAM and returning the JMP here, instead of above
               // where it would otherwise belong.
               if (this.rom) {
-                  console.log(`Loading program into Apple ][ RAM at \$${PGM_BASE.toString(16)}`);
-                  this.ram.set(this.rom.slice(HDR_SIZE), PGM_BASE);
+                this.loadRAMWithProgram();
               }
               return 0x4c; // JMP
             case 1: return 0x20;
@@ -168,26 +165,57 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
           console.log("will load BIOS to end of memory anyway...");
       }
       this.bios = Uint8Array.from(data);
-      this.ram.set(this.bios, 0x10000 - this.bios.length);
-      this.ram[0xbf00] = 0x4c; // fake DOS detect for C
-      this.ram[0xbf6f] = 0x01; // fake DOS detect for C
   }
-  loadROM(data) {
-    if (data.length == 35*16*256) { // is it a disk image?
-      var diskii = new DiskII(this, data);
-      this.slots[6] = diskii;
-    } else { // it's a binary, use a fake drive
-      super.loadROM(data);
-      this.slots[6] = this.fakeDrive;
+   loadROM(data) {
+      // is it a 16-sector 35-track disk image?
+      if (data.length == 16 * 35 * 256) {
+         var diskii = new DiskII(this, data);
+         this.slots[6] = diskii;
+         this.reset();
+      } else { // it's a binary, use a fake drive
+         // set this.rom variable
+         super.loadROM(data);
+         // AppleSingle header? https://github.com/cc65/cc65/blob/master/libsrc/apple2/exehdr.s
+         if (arrayCompare(this.rom.slice(0, 4), [0x00, 0x05, 0x16, 0x00])) {
+            this.LOAD_BASE = this.rom[0x39] | (this.rom[0x38] << 8); // big endian
+            this.HDR_SIZE = 58;
+         } else {
+            // 4-byte DOS header? (TODO: hacky detection)
+            const origin = this.rom[0] | (this.rom[1] << 8);
+            const size = this.rom[2] | (this.rom[3] << 8);
+            let isPlausible = origin < 0xc000
+               && origin + size < 0x13000
+               && (origin == 0x803 || (origin & 0xff) == 0);
+            if (size == data.length - 4 && isPlausible) {
+               this.LOAD_BASE = origin;
+               this.HDR_SIZE = 4;
+            } else {
+               // default = raw binary @ $803
+               this.LOAD_BASE = 0x803;
+               this.HDR_SIZE = 0;
+            }
+         }
+         this.slots[6] = this.fakeDrive;
+      }
    }
-  }
+   loadRAMWithProgram() {
+      console.log(`Loading program into Apple ][ RAM at \$${this.LOAD_BASE.toString(16)}`);
+      // truncate if needed to fit into RAM
+      const exedata = this.rom.slice(this.HDR_SIZE, this.HDR_SIZE + this.ram.length - this.LOAD_BASE);
+      this.ram.set(exedata, this.LOAD_BASE);
+      // fake DOS detect for CC65 (TODO?)
+      if (this.HDR_SIZE == 58) {
+         this.ram[0xbf00] = 0x4c;
+         this.ram[0xbf6f] = 0x01;
+      }
+   }
   reset() {
-    super.reset();
     this.auxRAMselected = false;
     this.auxRAMbank = 1;
     this.writeinhibit = true;
     this.ram.fill(0, 0x300, 0x400); // Clear soft-reset vector
                                     // (force hard reset)
+    super.reset();
     this.skipboot();
   }
   skipboot() {
@@ -479,7 +507,7 @@ var Apple2Display = function(pixels : Uint32Array, apple : AppleGRParams) {
   var oldgrmode = -1;
   var textbuf = new Array(40*24);
 
-  const flashInterval = 500;
+  const flashInterval = 250;
 
   // https://mrob.com/pub/xapple2/colors.html
   const loresColor = [
