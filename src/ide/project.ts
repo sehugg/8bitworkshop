@@ -409,8 +409,12 @@ export class CodeProject {
 
   processBuildSegments(data: WorkerOutputResult<any>) {
     // save and sort segment list
-    var segs = (this.platform.getMemoryMap && this.platform.getMemoryMap()["main"]) || [];
-    if (data.segments) { segs = segs.concat(data.segments || []); }
+    var segs : Segment[] = (this.platform.getMemoryMap && this.platform.getMemoryMap()["main"]) || [];
+    if (segs?.length) { segs.forEach(seg => seg.source = 'native'); }
+    if (data.segments) {
+      data.segments.forEach(seg => seg.source = 'linker');
+      segs = segs.concat(data.segments || []);
+    }
     segs.sort((a,b) => {return a.start-b.start});
     this.segments = segs;
   }

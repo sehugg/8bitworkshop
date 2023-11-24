@@ -120,7 +120,14 @@ export type CodeListingMap = {[path:string]:CodeListing};
 export type VerilogOutput =
   {program_rom_variable:string, program_rom:Uint8Array, code:string, name:string, ports:any[], signals:any[]};
 
-export type Segment = {name:string, start:number, size:number, last?:number, type?:string};
+export type Segment = {
+  name:string,
+  start:number,
+  size:number,
+  last?:number,
+  type?:string,
+  source?:'native'|'linker'
+};
 
 export type WorkerResult = WorkerErrorResult | WorkerOutputResult<any> | WorkerUnchangedResult;
 

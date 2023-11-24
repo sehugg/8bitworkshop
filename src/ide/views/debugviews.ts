@@ -245,6 +245,8 @@ export class MemoryMapView implements ProjectView {
     this.maindiv = newDiv(parent, 'vertical-scroll');
     this.maindiv.css('display', 'grid');
     this.maindiv.css('grid-template-columns', '5em 40% 40%');
+    //this.maindiv.css('grid-template-rows', '2em auto auto');
+    this.maindiv.css('align-content', 'start');
     return this.maindiv[0];
   }
 
@@ -256,17 +258,15 @@ export class MemoryMapView implements ProjectView {
       this.maindiv.append(offset);
     }
     var segdiv = $('<div class="segment"/>');
-    if (!newrow)
+    segdiv.text(seg.name);
+    let alttext = `$${hex(seg.start)} - $${hex(seg.last || seg.start+seg.size-1)}`
+    alttext += ` (${seg.size} bytes)`;
+    // set alttext of div
+    segdiv.attr('title', alttext);
+    if (!newrow || seg.source == 'linker')
       segdiv.css('grid-column-start', 3); // make sure it's on right side
-    if (seg.last)
-      segdiv.text(seg.name+" ("+(seg.last-seg.start)+" / "+seg.size+" bytes used)");
-    else
-      segdiv.text(seg.name+" ("+seg.size+" bytes)");
-    if (seg.size >= 256) {
-      var pad = (Math.log(seg.size) - Math.log(256)) * 0.5;
-      segdiv.css('padding-top', pad+'em');
-      segdiv.css('padding-bottom', pad+'em');
-    }
+    var pad = Math.max(3.0, Math.log(seg.size+1)) * 0.5;
+    segdiv.css('height', pad+'em');
     if (seg.type) {
       segdiv.addClass('segment-'+seg.type);
     }
@@ -288,9 +288,10 @@ export class MemoryMapView implements ProjectView {
       var curofs = 0;
       var laststart = -1;
       for (var seg of segments) {
-        //var used = seg.last ? (seg.last-seg.start) : seg.size;
-        if (seg.start > curofs)
-          this.addSegment({name:'',start:curofs, size:seg.start-curofs}, true);
+        // add free space
+        if (seg.start > curofs) {
+          this.addSegment({ name: '', start: curofs, size: seg.start - curofs }, true);
+        }
         this.addSegment(seg, laststart != seg.start);
         laststart = seg.start;
         curofs = seg.start + seg.size;

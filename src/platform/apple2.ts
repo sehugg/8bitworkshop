@@ -77,7 +77,7 @@ class NewApple2Platform extends Base6502MachinePlatform<AppleII> implements Plat
       {name:'Hires Page 2',start:0x4000,size:0x2000,type:'ram'},
       {name:'RAM',start:0x6000,size:0x6000,type:'ram'},
       {name:'I/O',start:0xc000,size:0x1000,type:'io'},
-      {name:'ROM',start:0xd000,size:0x3000-6,type:'rom'},
+      {name:'ROM',start:0xd000,size:0x3000,type:'rom'},
   ] } };
   getROMExtension(rom:Uint8Array) {
     if (rom && rom.length == 35*16*256) return ".dsk"; // DSK image

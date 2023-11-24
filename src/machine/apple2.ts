@@ -309,12 +309,12 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
     if (address < 0xc000) {
       this.ram[address] = val;
       this.grdirty[address>>7] = 1;
-      this.probe.logIOWrite(address, val);
     } else if (address < 0xc080) {
       this.read(address); // strobe address, discard result
     } else if (address < 0xc100) {
        var slot = (address >> 4) & 0x0f;
        this.slots[slot-8] && this.slots[slot-8].write(address & 0xf, val);
+       this.probe.logIOWrite(address, val);
     } else if (address >= 0xd000 && !this.writeinhibit) {
       if (address >= 0xe000)
         this.ram[address] = val;
