@@ -119,6 +119,7 @@ function checkForBigNonTypedArrays(obj, path='') {
 }
 
 async function testPlatform(platid, romname, maxframes, callback) {
+    if (!emu.PLATFORMS[platid]) throw new Error("no platform " + platid);
     var platform = new emu.PLATFORMS[platid](emudiv);
     await platform.start();
     var emudiv = document.getElementById('emulator');

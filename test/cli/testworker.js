@@ -11,6 +11,12 @@ global.onmessage({data:{preload:'cc65', platform:'apple2'}});
 global.onmessage({data:{preload:'ca65', platform:'apple2'}});
 global.onmessage({data:{preload:'cc65', platform:'c64'}});
 global.onmessage({data:{preload:'ca65', platform:'c64'}});
+global.onmessage({data:{preload:'cc65', platform:'atari8'}});
+global.onmessage({data:{preload:'ca65', platform:'atari8'}});
+global.onmessage({data:{preload:'cc65', platform:'atari2600'}});
+global.onmessage({data:{preload:'ca65', platform:'atari2600'}});
+global.onmessage({data:{preload:'cc65', platform:'pce'}});
+global.onmessage({data:{preload:'ca65', platform:'pce'}});
 global.onmessage({data:{preload:'sdcc'}});
 global.onmessage({data:{preload:'inform6'}});
 
@@ -231,7 +237,7 @@ describe('Worker', function() {
   });
   it('should compile apple2 skeleton with CC65', function(done) {
     var csource = ab2str(fs.readFileSync('presets/apple2/skeleton.cc65'));
-    compile('cc65', csource, 'apple2', done, 3023, 4, 0);
+    compile('cc65', csource, 'apple2', done, 3023+58, 4, 0);
   });
   // TODO: test if compile, errors, then compile same file
   // TODO: params persist because of fixParamsWithDefines()
@@ -262,7 +268,7 @@ describe('Worker', function() {
     doBuild(msgs, done2, 205, 0, 0);
   });
   it('should compile CC65 flags', function(done) {
-    compile('cc65', '#define CC65_FLAGS -Or,-g,-j\nint main() {\nint x=1;\nreturn x+2;\n}', 'apple2', done, 416, 3);
+    compile('cc65', '#define CC65_FLAGS -Or,-g,-j\nint main() {\nint x=1;\nreturn x+2;\n}', 'apple2', done, 416+58, 3);
   });
   /*
   it('should compile ACME', function(done) {
