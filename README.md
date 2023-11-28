@@ -83,6 +83,7 @@ The IDE uses custom forks for many of these, found at https://github.com/sehugg?
 * https://github.com/dmsc/fastbasic
 * https://github.com/wiz-lang/wiz
 * https://github.com/sylefeb/Silice
+* https://github.com/steux/cc7800
 
 ### Assemblers/Linkers
 

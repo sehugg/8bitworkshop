@@ -1,0 +1,59 @@
+// example from https://github.com/steux/cc7800 - license: GPLv3
+
+#include "prosystem.h"
+#include "multisprite.h"
+
+char i, xpos, ypos;
+
+#define NB_SMALL_SPRITES 128
+ramchip short sp_xpos[NB_SMALL_SPRITES], sp_ypos[NB_SMALL_SPRITES];
+ramchip char sp_direction[NB_SMALL_SPRITES];
+
+const signed short dx[24] = {300, 289, 259, 212, 149, 77, 0, -77, -150, -212, -259, -289, -300, -289, -259, -212, -149, -77, 0, 77, 149, 212, 259, 289};
+const signed short dy[24] = {0, 124, 240, 339, 415, 463, 480, 463, 415, 339, 240, 124, 0, -124, -239, -339, -415, -463, -480, -463, -415, -339, -240, -124};
+const char horizontal_pingpong[24] = { 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13 };
+const char vertical_pingpong[24] = { 0, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
+
+// Generated with sprites7800 missile.yaml
+holeydma reversed scattered(16,1) char missile[16] = {
+	0x18, 0x96, 0x7a, 0x7e, 0x7e, 0x6e, 0x9a, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+void main()
+{
+    multisprite_init();
+    
+    *P0C1 = multisprite_color(0x1c); // Yellow 
+    *P0C2 = multisprite_color(0x37); // Orange
+    *P0C3 = multisprite_color(0x43); // Red
+   
+    // Initialize small sprites
+    for (ypos = 0, xpos = 0, i = 0, X = 0; X != NB_SMALL_SPRITES; xpos++, ypos++, X++) {
+        sp_xpos[X] = xpos << 8;
+        sp_ypos[X] = ypos << 8;
+        sp_direction[X] = i++;
+        if (i == 24) i = 0;
+    }
+
+    // Main loop
+    do {
+        multisprite_flip();
+        for (i = 0; i != NB_SMALL_SPRITES; i++) {
+            X = i;
+            Y = sp_direction[X];
+            sp_xpos[X] += dx[Y];
+            sp_ypos[X] += dy[Y];
+            xpos = sp_xpos[X] >> 8;
+            ypos = sp_ypos[X] >> 8;
+            if ((xpos < 5 && (dx[Y] >> 8) < 0) || 
+                (xpos >= 150 && (dx[Y] >> 8) >= 0)) {
+                sp_direction[X] = horizontal_pingpong[Y];
+            }
+            if ((ypos < 5 && (dy[Y] >> 8) < 0) || 
+                (ypos >= MS_YMAX - 20 && (dy[Y] >> 8) >= 0)) {
+                sp_direction[X] = vertical_pingpong[Y];
+            }
+            multisprite_display_small_sprite(xpos, ypos, missile, 1, 0, 8); 
+        }
+    } while(1);
+}

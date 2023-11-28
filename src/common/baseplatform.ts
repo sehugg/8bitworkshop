@@ -957,7 +957,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
 export abstract class Base6502MachinePlatform<T extends Machine> extends BaseMachinePlatform<T> {
 
   getOpcodeMetadata     = getOpcodeMetadata_6502;
-  getToolForFilename    = getToolForFilename_6502;
+  getToolForFilename(fn) { return getToolForFilename_6502(fn); }
 
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
     return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));

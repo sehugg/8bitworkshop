@@ -53,7 +53,7 @@ export function assembleACME(step: BuildStep): BuildStepResult {
     var binpath = step.prefix + ".bin";
     var lstpath = step.prefix + ".lst";
     var sympath = step.prefix + ".sym";
-    if (staleFiles(step, [binpath, lstpath])) {
+    if (staleFiles(step, [binpath])) {
         var binout, lstout, symout;
         var ACME: EmscriptenModule = emglobal.acme({
             instantiateWasm: moduleInstFn('acme'),

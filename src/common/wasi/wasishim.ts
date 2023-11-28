@@ -9,6 +9,7 @@
 
 const use_debug = true;
 const debug = use_debug ? console.log : () => { };
+const warning = console.log;
 
 export enum FDType {
     UNKNOWN = 0,
@@ -202,6 +203,9 @@ export class WASIFileDescriptor {
     getBytes() {
         return this.data.subarray(0, this.size);
     }
+    getBytesAsString() {
+        return new TextDecoder().decode(this.getBytes());
+    }
     toString() {
         return `FD(${this.fdindex} "${this.name}" 0x${this.type.toString(16)} 0x${this.rights.toString(16)} ${this.offset}/${this.size}/${this.data.byteLength})`;
     }
@@ -218,12 +222,20 @@ class WASIStreamingFileDescriptor extends WASIFileDescriptor {
     }
 }
 
-export class WASIFilesystem {
+export interface WASIFilesystem {
+    getFile(name: string) : WASIFileDescriptor;
+}
+
+export class WASIMemoryFilesystem implements WASIFilesystem {
+    private parent: WASIFilesystem | null = null;
     private files: Map<string, WASIFileDescriptor> = new Map();
     private dirs: Map<string, WASIFileDescriptor> = new Map();
 
     constructor() {
         this.putDirectory("/");
+    }
+    setParent(parent: WASIFilesystem) {
+        this.parent = parent;
     }
     putDirectory(name: string, rights?: number) {
         if (!rights) rights = FDRights.PATH_OPEN | FDRights.PATH_CREATE_DIRECTORY | FDRights.PATH_CREATE_FILE;
@@ -243,29 +255,62 @@ export class WASIFilesystem {
         return file;
     }
     getFile(name: string) {
-        return this.files.get(name);
+        let file = this.files.get(name);
+        if (!file) {
+            file = this.parent?.getFile(name);
+        }
+        return file;
     }
 }
 
 export class WASIRunner {
-    #compiled: WebAssembly.Module;
     #instance; // TODO
     #memarr8: Uint8Array;
     #memarr32: Int32Array;
     #args: Uint8Array[] = [];
+    #envvars: Uint8Array[] = [];
 
-    stdin = new WASIStreamingFileDescriptor(0, '<stdin>', FDType.CHARACTER_DEVICE, FDRights.FD_READ, process.stdin);
-    stdout = new WASIStreamingFileDescriptor(1, '<stdout>', FDType.CHARACTER_DEVICE, FDRights.FD_WRITE, process.stdout);
-    stderr = new WASIStreamingFileDescriptor(2, '<stderr>', FDType.CHARACTER_DEVICE, FDRights.FD_WRITE, process.stderr);
+    stdin : WASIFileDescriptor;
+    stdout : WASIFileDescriptor;
+    stderr : WASIFileDescriptor;
 
-    fds: WASIFileDescriptor[] = [this.stdin, this.stdout, this.stderr];
+    fds: WASIFileDescriptor[] = [];
     exited = false;
     errno = -1;
-    fs = new WASIFilesystem();
+    fs = new WASIMemoryFilesystem();
 
+    constructor() {
+        this.createStdioBrowser();
+    }
+    createStdioNode() {
+        this.stdin = new WASIStreamingFileDescriptor(0, '<stdin>', FDType.CHARACTER_DEVICE, FDRights.FD_READ, process.stdin);
+        this.stdout = new WASIStreamingFileDescriptor(1, '<stdout>', FDType.CHARACTER_DEVICE, FDRights.FD_WRITE, process.stdout);
+        this.stderr = new WASIStreamingFileDescriptor(2, '<stderr>', FDType.CHARACTER_DEVICE, FDRights.FD_WRITE, process.stderr);
+        this.fds[0] = this.stdin;
+        this.fds[1] = this.stdout;
+        this.fds[2] = this.stderr;
+    }
+    createStdioBrowser() {
+        this.stdin = new WASIFileDescriptor('<stdin>', FDType.CHARACTER_DEVICE, FDRights.FD_READ);
+        this.stdout = new WASIFileDescriptor('<stdout>', FDType.CHARACTER_DEVICE, FDRights.FD_WRITE);
+        this.stderr = new WASIFileDescriptor('<stderr>', FDType.CHARACTER_DEVICE, FDRights.FD_WRITE);
+        this.stdin.fdindex = 0;
+        this.stdout.fdindex = 1;
+        this.stderr.fdindex = 2;
+        this.fds[0] = this.stdin;
+        this.fds[1] = this.stdout;
+        this.fds[2] = this.stderr;
+    }
+    initSync(wasmModule: WebAssembly.Module) {
+        this.#instance = new WebAssembly.Instance(wasmModule, this.getImportObject());
+    }
+    loadSync(wasmSource: Uint8Array) {
+        let wasmModule = new WebAssembly.Module(wasmSource);
+        this.initSync(wasmModule);
+    }
     async loadAsync(wasmSource: Uint8Array) {
-        this.#compiled = await WebAssembly.compile(wasmSource);
-        this.#instance = await WebAssembly.instantiate(this.#compiled, this.getImportObject());
+        let wasmModule = await WebAssembly.compile(wasmSource);
+        this.#instance = await WebAssembly.instantiate(wasmModule, this.getImportObject());
     }
     setArgs(args: string[]) {
         this.#args = args.map(arg => new TextEncoder().encode(arg + '\0'));
@@ -296,6 +341,8 @@ export class WASIRunner {
             if (o_flags & FDOpenFlags.EXCL) return WASIErrors.INVAL; // already exists
             if (o_flags & FDOpenFlags.TRUNC) { // truncate
                 file.truncate();
+            } else {
+                file.llseek(0, 0); // seek to start
             }
         }
         file.fdindex = this.fds.length;
@@ -371,14 +418,11 @@ export class WASIRunner {
         //let errno_ptr = this.#instance.exports.__errno_location();
         //return this.peek32(errno_ptr);
     }
-    args_sizes_get(argcount_ptr: number, argv_buf_size_ptr: number) {
-        debug("args_sizes_get", argcount_ptr, argv_buf_size_ptr);
-        this.poke32(argcount_ptr, this.#args.length);
-        this.poke32(argv_buf_size_ptr, this.#args.reduce((acc, arg) => acc + arg.length, 0));
-        return 0;
+    poke_str_array_sizes(strs: Uint8Array[], count_ptr: number, buf_size_ptr: number) {
+        this.poke32(count_ptr, strs.length);
+        this.poke32(buf_size_ptr, strs.reduce((acc, arg) => acc + arg.length, 0));
     }
-    args_get(argv_ptr: number, argv_buf_ptr: number) {
-        debug("args_get", argv_ptr, argv_buf_ptr);
+    poke_str_args(strs: Uint8Array[], argv_ptr: number, argv_buf_ptr: number) {
         let argv = argv_ptr;
         let argv_buf = argv_buf_ptr;
         for (let arg of this.#args) {
@@ -389,10 +433,28 @@ export class WASIRunner {
                 argv_buf++;
             }
         }
+    }
+    args_sizes_get(argcount_ptr: number, argv_buf_size_ptr: number) {
+        debug("args_sizes_get", argcount_ptr, argv_buf_size_ptr);
+        this.poke_str_array_sizes(this.#args, argcount_ptr, argv_buf_size_ptr);
         return 0;
     }
-    fd_write(fd, iovs, iovs_len) {
-        debug("fd_write", fd, iovs, iovs_len);
+    args_get(argv_ptr: number, argv_buf_ptr: number) {
+        debug("args_get", argv_ptr, argv_buf_ptr);
+        this.poke_str_args(this.#args, argv_ptr, argv_buf_ptr);
+        return 0;
+    }
+    environ_sizes_get(environ_count_ptr: number, environ_buf_size_ptr: number) {
+        debug("environ_sizes_get", environ_count_ptr, environ_buf_size_ptr);
+        this.poke_str_array_sizes(this.#envvars, environ_count_ptr, environ_buf_size_ptr);
+        return 0;
+    }
+    environ_get(environ_ptr: number, environ_buf_ptr: number) {
+        debug("environ_get", environ_ptr, environ_buf_ptr);
+        this.poke_str_args(this.#envvars, environ_ptr, environ_buf_ptr);
+        return 0;
+    }
+    fd_write(fd, iovs, iovs_len, nwritten_ptr) {
         const stream = this.fds[fd];
         const iovecs = this.mem32().subarray(iovs >>> 2, (iovs + iovs_len * 8) >>> 2);
         let total = 0;
@@ -403,7 +465,9 @@ export class WASIRunner {
             total += len;
             stream.write(chunk);
         }
-        return total;
+        this.poke32(nwritten_ptr, total);
+        debug("fd_write", fd, iovs, iovs_len, '->', total);
+        return 0;
     }
     fd_read(fd, iovs, iovs_len, nread_ptr) {
         const stream = this.fds[fd];
@@ -500,32 +564,50 @@ export class WASIRunner {
         }
         return WASIErrors.SUCCESS;
     }
+    path_filestat_get(dirfd: number, dirflags: number, path_ptr: number, path_len: number, filestat_ptr: number) {
+        const dir = this.fds[dirfd];
+        if (dir == null) return WASIErrors.BADF;
+        if (dir.type !== FDType.DIRECTORY) return WASIErrors.NOTDIR;
+        const filename = this.peekUTF8(path_ptr, path_len);
+        const path = dir.name + '/' + filename;
+        const fd = this.fs.getFile(path);
+        console.log("path_filestat_get", dir+"", path, filestat_ptr, '->', fd+"");
+        if (!fd) return WASIErrors.NOENT;
+        this.poke64(filestat_ptr, fd.fdindex); // dev
+        this.poke64(filestat_ptr + 8, 0); // ino
+        this.poke8(filestat_ptr + 16, fd.type); // filetype
+        this.poke64(filestat_ptr + 24, 1); // nlink
+        this.poke64(filestat_ptr + 32, fd.size); // size
+        this.poke64(filestat_ptr + 40, 0); // atim
+        this.poke64(filestat_ptr + 48, 0); // mtim
+        this.poke64(filestat_ptr + 56, 0); // ctim
+    }
     getWASISnapshotPreview1() {
         return {
             args_sizes_get: this.args_sizes_get.bind(this),
             args_get: this.args_get.bind(this),
+            environ_sizes_get: this.environ_sizes_get.bind(this),
+            environ_get: this.environ_get.bind(this),
             proc_exit: this.proc_exit.bind(this),
             path_open: this.path_open.bind(this),
             fd_prestat_get: this.fd_prestat_get.bind(this),
             fd_prestat_dir_name: this.fd_prestat_dir_name.bind(this),
             fd_fdstat_get: this.fd_fdstat_get.bind(this),
-            fd_fdstat_set_flags() { debug("fd_fdstat_set_flags"); return 0; },
             fd_read: this.fd_read.bind(this),
             fd_write: this.fd_write.bind(this),
             fd_seek: this.fd_seek.bind(this),
             fd_close: this.fd_close.bind(this),
-            fd_readdir() { debug("fd_readdir"); return 0; },
-            path_unlink_file() { debug("path_unlink_file"); return 0; },
-            environ_sizes_get() { debug("environ_sizes_get"); return 0; },
-            environ_get() { debug("environ_get"); return 0; },
-            clock_time_get() { debug("clock_time_get"); return 0; },
-            path_filestat_get() { debug("path_filestat_get"); return 0; },
+            path_filestat_get: this.path_filestat_get.bind(this),
             random_get: this.random_get.bind(this),
+            fd_fdstat_set_flags() { warning("TODO: fd_fdstat_set_flags"); return WASIErrors.NOTSUP; },
+            fd_readdir() { warning("TODO: fd_readdir"); return WASIErrors.NOTSUP; },
+            path_unlink_file() { warning("TODO: path_unlink_file"); return WASIErrors.NOTSUP; },
+            clock_time_get() { warning("TODO: clock_time_get"); return WASIErrors.NOTSUP; },
         }
     }
     getEnv() {
         return {
-            __syscall_unlinkat() { debug('unlink'); return 0; },
+            __syscall_unlinkat() { warning('TODO: unlink'); return 0; },
         }
     }
 }
