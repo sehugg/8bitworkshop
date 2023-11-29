@@ -3,7 +3,7 @@ import { WASIRunner } from "../common/wasi/wasishim";
 import * as fs from "fs";
 
 async function loadWASM(filename: string) {
-    const wasmdata = fs.readFileSync(`./wasi/${filename}.wasm`);
+    const wasmdata = fs.readFileSync(`./src/worker/wasm/${filename}.wasm`);
     let shim = new WASIRunner();
     await shim.loadAsync(wasmdata);
     return shim;
@@ -12,8 +12,8 @@ async function loadWASM(filename: string) {
 async function loadDASM() {
     return loadWASM('dasm-wasisdk');
 }
-async function loadCC2600() {
-    return loadWASM('cc2600');
+async function loadCC7800() {
+    return loadWASM('cc7800');
 }
 
 describe('test WASI DASM', function () {
@@ -66,11 +66,14 @@ describe('test WASI DASM', function () {
     });
 });
 
-describe('test WASI cc2600', function () {
-    it('cc2600 help', async function () {
-        let shim = await loadCC2600();
-        shim.setArgs(["cc2600", '-h']);
+describe('test WASI cc7800', function () {
+    it('cc7800 help', async function () {
+        let shim = await loadCC7800();
+        shim.setArgs(["cc7800", '-h']);
         let errno = shim.run();
         assert.strictEqual(errno, 0);
+        const stdout = shim.fds[1].getBytesAsString();
+        console.log(stdout);
+        assert.ok(stdout.indexOf('Usage: cc7800') >= 0);
     });
 });

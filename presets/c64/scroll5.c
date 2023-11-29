@@ -118,7 +118,7 @@ void main(void) {
     // animate sprite in shadow sprite ram
     update_player();
     // wait for end of frame
-    waitvsync();
+    wait_vblank();
     // then update sprite registers
     sprite_update(visbuf);
     // update scroll registers

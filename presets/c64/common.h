@@ -80,10 +80,10 @@ typedef enum { false, true } bool; // boolean
 
 // set scrolling registers
 #define SET_SCROLL_Y(_y) \
-  VIC.ctrl1 = (VIC.ctrl1 & 0xf8) | (_y);
+  VIC.ctrl1 = (VIC.ctrl1 & 0xf8) | (_y & 7);
 
 #define SET_SCROLL_X(_x) \
-  VIC.ctrl2 = (VIC.ctrl2 & 0xf8) | (_x);
+  VIC.ctrl2 = (VIC.ctrl2 & 0xf8) | (_x & 7);
 
 
 // enable RAM from 0xa000-0xffff, disable interrupts
@@ -101,6 +101,9 @@ typedef enum { false, true } bool; // boolean
 
 // wait until specific raster line
 void raster_wait(byte line);
+
+// wait until end of frame
+void wait_vblank();
 
 // get current VIC bank start address
 char* get_vic_bank_start();
@@ -131,5 +134,10 @@ inline void waitvsync() {
   raster_wait(255);
 }
 #endif
+
+// for use with set_irq()
+// sets up the VIC to send raster interrupts
+// and disables CIA interrupts
+void set_raster_irq(char scanline);
 
 #endif

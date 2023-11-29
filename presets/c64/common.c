@@ -5,6 +5,10 @@ void raster_wait(byte line) {
   while (VIC.rasterline < line) ;
 }
 
+void wait_vblank(void) {
+  raster_wait(250);
+}
+
 static byte VIC_BANK_PAGE[4] = {
   0xc0, 0x80, 0x40, 0x00
 };
@@ -23,4 +27,14 @@ char __fastcall__ poll_keyboard() {
   return __A__;
 }
 #endif
+
+void set_raster_irq(char scanline) {
+  // deactivate CIA interrupts (keyboard, etc)
+  CIA1.icr = 0x7f;
+  // set raster line for interrupt
+  VIC.ctrl1 &= 0x7f; // clear raster line bit 8
+  VIC.rasterline = scanline;
+  // activate VIC raster interrupts
+  VIC.imr = 1;
+}
 

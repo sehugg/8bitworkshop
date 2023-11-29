@@ -83,8 +83,8 @@ void main(void) {
     // animate sprite in shadow sprite ram
     sprite_draw(0, n++, 70, 192);
     sprite_draw(0, 172, 145, 192);
-    // wait for vblank
-    waitvsync();
+    // wait for end of frame
+    wait_vblank();
     // update scroll registers
     // and swap screens if we must
     scroll_update();

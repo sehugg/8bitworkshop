@@ -34,16 +34,6 @@ char interrupt_handler() {
   return IRQ_HANDLED;
 }
 
-void set_frame_irq(char scanline) {
-  // deactivate CIA interrupts (keyboard, etc)
-  CIA1.icr = 0x7f;
-  // set raster line for interrupt
-  VIC.ctrl1 &= 0x7f; // clear raster line bit 8
-  VIC.rasterline = scanline;
-  // activate VIC raster interrupts
-  VIC.imr = 1;
-}
-
 void main(void) {
   clrscr();
   printf("\nHello World!\n");
@@ -52,7 +42,7 @@ void main(void) {
   set_irq(interrupt_handler, (void*)0x9f00, 0x100);
   
   // disable CIA interrupt, activate VIC interrupt
-  set_frame_irq(255);
+  set_raster_irq(255);
 
   while (1) {
     printf("%d ", VIC.rasterline);
