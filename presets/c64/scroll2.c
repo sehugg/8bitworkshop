@@ -23,8 +23,8 @@ void scroll_one_pixel_left() {
   src = scrnbuf[visbuf] + (scroll_x & 7) * 128;
   // destination = hidden buffer
   dst = scrnbuf[visbuf ^ 1] + (scroll_x & 7) * 128;
-  // wait for vsync
-  waitvsync();
+  // wait for end of frame
+  wait_vblank();
   // scroll hidden buffer
   memcpy(dst, src+1, 128);
   // every 8 pixels, switch visible and hidden buffers

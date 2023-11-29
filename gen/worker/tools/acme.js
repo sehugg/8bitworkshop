@@ -52,7 +52,7 @@ function assembleACME(step) {
     var binpath = step.prefix + ".bin";
     var lstpath = step.prefix + ".lst";
     var sympath = step.prefix + ".sym";
-    if ((0, workermain_1.staleFiles)(step, [binpath, lstpath])) {
+    if ((0, workermain_1.staleFiles)(step, [binpath])) {
         var binout, lstout, symout;
         var ACME = workermain_1.emglobal.acme({
             instantiateWasm: (0, workermain_1.moduleInstFn)('acme'),

@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.setupRequireFunction = exports.preprocessMCPP = exports.fixParamsWithDefines = exports.setupStdin = exports.parseSourceLines = exports.parseListing = exports.re_lineoffset = exports.re_crlf = exports.extractErrors = exports.makeErrorMatcher = exports.msvcErrorMatcher = exports.re_msvc2 = exports.re_msvc = exports.print_fn = exports.setupFS = exports.loadNative = exports.loadWASM = exports.load = exports.execMain = exports.anyTargetChanged = exports.staleFiles = exports.populateExtraFiles = exports.populateFiles = exports.getPrefix = exports.gatherFiles = exports.populateEntry = exports.getWorkFileAsString = exports.putWorkFile = exports.store = exports.FileWorkingStore = exports.endtime = exports.starttime = exports.moduleInstFn = exports.getWASMMemory = exports.emglobal = void 0;
+exports.setupRequireFunction = exports.preprocessMCPP = exports.fixParamsWithDefines = exports.setupStdin = exports.parseSourceLines = exports.parseListing = exports.re_lineoffset = exports.re_crlf = exports.extractErrors = exports.makeErrorMatcher = exports.msvcErrorMatcher = exports.re_msvc2 = exports.re_msvc = exports.print_fn = exports.setupFS = exports.loadNative = exports.loadWASM = exports.loadWASMBinary = exports.load = exports.execMain = exports.anyTargetChanged = exports.staleFiles = exports.populateExtraFiles = exports.populateFiles = exports.getPrefix = exports.gatherFiles = exports.populateEntry = exports.getWorkFileAsString = exports.putWorkFile = exports.store = exports.FileWorkingStore = exports.endtime = exports.starttime = exports.moduleInstFn = exports.getWASMBinary = exports.getWASMMemory = exports.emglobal = void 0;
 const util_1 = require("../common/util");
 const ENVIRONMENT_IS_WEB = typeof window === 'object';
 const ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
@@ -63,6 +63,10 @@ function getWASMMemory() {
     return wasmMemory;
 }
 exports.getWASMMemory = getWASMMemory;
+function getWASMBinary(module_id) {
+    return wasmBlob[module_id];
+}
+exports.getWASMBinary = getWASMBinary;
 function getWASMModule(module_id) {
     var module = _WASM_module_cache[module_id];
     if (!module) {
@@ -260,7 +264,7 @@ var PLATFORM_PARAMS = {
         arch: '6502',
         define: ['__APPLE2__'],
         cfgfile: 'apple2.cfg',
-        libargs: ['--lib-path', '/share/target/apple2/drv', '-D', '__EXEHDR__=0', 'apple2.lib'],
+        libargs: ['--lib-path', '/share/target/apple2/drv', 'apple2.lib'],
         __CODE_RUN__: 16384,
         code_start: 0x803,
         acmeargs: ['-f', 'apple'],
@@ -781,9 +785,8 @@ function load(modulename, debug) {
     }
 }
 exports.load = load;
-function loadWASM(modulename, debug) {
+function loadWASMBinary(modulename) {
     if (!loaded[modulename]) {
-        importScripts(PWORKER + "wasm/" + modulename + (debug ? "." + debug + ".js" : ".js"));
         var xhr = new XMLHttpRequest();
         xhr.responseType = 'arraybuffer';
         xhr.open("GET", PWORKER + "wasm/" + modulename + ".wasm", false); // synchronous request
@@ -796,6 +799,14 @@ function loadWASM(modulename, debug) {
         else {
             throw Error("Could not load WASM file " + modulename + ".wasm");
         }
+    }
+    return wasmBlob[modulename];
+}
+exports.loadWASMBinary = loadWASMBinary;
+function loadWASM(modulename, debug) {
+    if (!loaded[modulename]) {
+        importScripts(PWORKER + "wasm/" + modulename + (debug ? "." + debug + ".js" : ".js"));
+        loadWASMBinary(modulename);
     }
 }
 exports.loadWASM = loadWASM;
@@ -1127,6 +1138,7 @@ const arm = __importStar(require("./tools/arm"));
 const ecs = __importStar(require("./tools/ecs"));
 const remote = __importStar(require("./tools/remote"));
 const acme = __importStar(require("./tools/acme"));
+const cc7800 = __importStar(require("./tools/cc7800"));
 var TOOLS = {
     'dasm': dasm.assembleDASM,
     'acme': acme.assembleACME,
@@ -1161,7 +1173,8 @@ var TOOLS = {
     'armips': arm.assembleARMIPS,
     'vasmarm': arm.assembleVASMARM,
     'ecs': ecs.assembleECS,
-    'remote': remote.buildRemote
+    'remote': remote.buildRemote,
+    'cc7800': cc7800.compileCC7800,
 };
 var TOOL_PRELOADFS = {
     'cc65-apple2': '65-apple2',

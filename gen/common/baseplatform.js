@@ -801,8 +801,8 @@ class Base6502MachinePlatform extends BaseMachinePlatform {
     constructor() {
         super(...arguments);
         this.getOpcodeMetadata = getOpcodeMetadata_6502;
-        this.getToolForFilename = getToolForFilename_6502;
     }
+    getToolForFilename(fn) { return getToolForFilename_6502(fn); }
     disassemble(pc, read) {
         return (0, disasm6502_1.disassemble6502)(pc, read(pc), read(pc + 1), read(pc + 2));
     }

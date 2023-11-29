@@ -63,8 +63,8 @@ void main(void) {
   
   // infinite loop
   while (1) {
-    // wait for vsync
-    waitvsync();
+    // wait for end of frame
+    wait_vblank();
     // scroll one pixel to the left
     // and move screen memory every 8 pixels
     scroll_one_pixel_left();

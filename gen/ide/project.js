@@ -389,7 +389,11 @@ class CodeProject {
     processBuildSegments(data) {
         // save and sort segment list
         var segs = (this.platform.getMemoryMap && this.platform.getMemoryMap()["main"]) || [];
+        if (segs === null || segs === void 0 ? void 0 : segs.length) {
+            segs.forEach(seg => seg.source = 'native');
+        }
         if (data.segments) {
+            data.segments.forEach(seg => seg.source = 'linker');
             segs = segs.concat(data.segments || []);
         }
         segs.sort((a, b) => { return a.start - b.start; });

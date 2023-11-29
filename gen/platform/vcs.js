@@ -85,7 +85,8 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
                     { name: 'TIA Registers', start: 0x00, size: 0x80, type: 'io' },
                     { name: 'PIA RAM', start: 0x80, size: 0x80, type: 'ram' },
                     { name: 'PIA Ports and Timer', start: 0x280, size: 0x18, type: 'io' },
-                    { name: 'Cartridge ROM', start: 0xf000, size: 0x1000, type: 'rom' },
+                    { name: 'Cartridge ROM', start: 0xf000, size: 0x1000 - 6, type: 'rom' },
+                    { name: 'CPU Vectors', start: 0xfffa, size: 0x6, type: 'rom' },
                 ] };
         };
         // probing

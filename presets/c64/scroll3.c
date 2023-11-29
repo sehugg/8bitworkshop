@@ -17,8 +17,8 @@ void scroll_update_regs() {
 void scroll_swap() {
   // swap hidden and visible buffers
   hidbuf ^= 1;
-  // wait for vblank and update registers
-  waitvsync();
+  // wait for end of frame and update registers
+  wait_vblank();
   scroll_update_regs();
   SET_VIC_SCREEN(hidbuf ? 0x8000 : 0x8400);
 }

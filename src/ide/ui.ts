@@ -127,6 +127,7 @@ const TOOL_TO_SOURCE_STYLE = {
   'armips': 'vasm',
   'ecs': 'ecs',
   'remote:llvm-mos': 'text/x-csrc',
+  'cc7800': 'text/x-csrc',
 }
 
 // TODO: move into tool class

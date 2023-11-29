@@ -213,10 +213,7 @@ export function linkLD65(step: BuildStep): BuildStepResult {
                 }
             }
         }
-        // TODO: move to Platform class
         var segments = [];
-        segments.push({ name: 'CPU Stack', start: 0x100, size: 0x100, type: 'ram' });
-        segments.push({ name: 'CPU Vectors', start: 0xfffa, size: 0x6, type: 'rom' });
         // TODO: CHR, banks, etc
         let re_seglist = /(\w+)\s+([0-9A-F]+)\s+([0-9A-F]+)\s+([0-9A-F]+)\s+([0-9A-F]+)/;
         let parseseglist = false;

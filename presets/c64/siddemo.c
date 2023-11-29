@@ -3,6 +3,7 @@
 //#link "common.c"
 
 #include <tgi.h>
+#include <6502.h>
 
 //#resource "c64-sid.cfg"
 #define CFGFILE c64-sid.cfg
@@ -57,6 +58,11 @@ void show_envelope() {
   if (++sweep == 320) sweep = 0;
 }
 
+char music_update() {
+  sid_update();
+  return IRQ_NOT_HANDLED;
+}
+
 void main(void) {
   // install TGI graphics driver
   tgi_install(tgi_static_stddrv);
@@ -71,6 +77,9 @@ void main(void) {
   // install joystick driver
   joy_install(joy_static_stddrv);
 
+  // set IRQ routine called every frame
+  set_irq(music_update, (void*)0x9f00, 0x100);
+
   while (1) {
     // play sound effect when joystick is moved
     byte joy = joy_read(0);
@@ -81,8 +90,6 @@ void main(void) {
     }
     // sync with frame rate
     waitvsync();
-    // update SID player
-    sid_update();
     // update graphs
     show_envelope();
     show_signal();

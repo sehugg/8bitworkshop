@@ -50,7 +50,9 @@ export function getWASMMemory() {
     }
     return wasmMemory;
 }
-
+export function getWASMBinary(module_id:string) {
+  return wasmBlob[module_id];
+}
 function getWASMModule(module_id:string) {
   var module = _WASM_module_cache[module_id];
   if (!module) {
@@ -249,7 +251,7 @@ var PLATFORM_PARAMS = {
     arch: '6502',
     define: ['__APPLE2__'],
     cfgfile: 'apple2.cfg',
-    libargs: [ '--lib-path', '/share/target/apple2/drv', '-D', '__EXEHDR__=0', 'apple2.lib'],
+    libargs: [ '--lib-path', '/share/target/apple2/drv', 'apple2.lib'],
     __CODE_RUN__: 16384,
     code_start: 0x803,
     acmeargs: ['-f', 'apple'],
@@ -813,9 +815,8 @@ export function load(modulename:string, debug?:boolean) {
     loaded[modulename] = 1;
   }
 }
-export function loadWASM(modulename:string, debug?:boolean) {
+export function loadWASMBinary(modulename:string) {
   if (!loaded[modulename]) {
-    importScripts(PWORKER+"wasm/" + modulename+(debug?"."+debug+".js":".js"));
     var xhr = new XMLHttpRequest();
     xhr.responseType = 'arraybuffer';
     xhr.open("GET", PWORKER+"wasm/"+modulename+".wasm", false);  // synchronous request
@@ -827,6 +828,13 @@ export function loadWASM(modulename:string, debug?:boolean) {
     } else {
       throw Error("Could not load WASM file " + modulename + ".wasm");
     }
+  }
+  return wasmBlob[modulename];
+}
+export function loadWASM(modulename:string, debug?:boolean) {
+  if (!loaded[modulename]) {
+    importScripts(PWORKER+"wasm/" + modulename+(debug?"."+debug+".js":".js"));
+    loadWASMBinary(modulename);
   }
 }
 export function loadNative(modulename:string) {
@@ -1140,6 +1148,7 @@ import * as arm from './tools/arm'
 import * as ecs from './tools/ecs'
 import * as remote from './tools/remote'
 import * as acme from './tools/acme'
+import * as cc7800 from './tools/cc7800'
 
 var TOOLS = {
   'dasm': dasm.assembleDASM,
@@ -1175,7 +1184,8 @@ var TOOLS = {
   'armips': arm.assembleARMIPS,
   'vasmarm': arm.assembleVASMARM,
   'ecs': ecs.assembleECS,
-  'remote': remote.buildRemote
+  'remote': remote.buildRemote,
+  'cc7800': cc7800.compileCC7800,
 }
 
 var TOOL_PRELOADFS = {

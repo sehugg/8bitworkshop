@@ -1,0 +1,69 @@
+// example from https://github.com/steux/cc7800 - license: GPLv3
+
+#include "conio.h"
+#include "assert.h"
+
+char i;
+
+reversed scattered(8,1) char special_char[8] = {
+    0x66, 0xff, 0xff, 0xff, 0x7e, 0x3c, 0x18, 0x00  
+};
+
+void main()
+{
+    clrscr();
+    // Draw a square
+    gotoxy(0, 0);
+    textcolor(7);
+    putch(CONIO_TL_CORNER);
+    for (i = 0; i != 20; i++) {
+        putch(CONIO_HBAR);
+    }
+    putch(CONIO_TR_CORNER);
+    for (i = 0; i != 8; i++) {
+        gotoxy(0, i + 1);
+        putch(CONIO_VBAR);
+        gotoxy(21, i + 1);
+        putch(CONIO_VBAR);
+    }
+    gotoxy(0, 9);
+    putch(CONIO_BL_CORNER);
+    for (i = 0; i != 20; i++) {
+        putch(CONIO_HBAR);
+    }
+    putch(CONIO_BR_CORNER);
+    // Write some text
+    for (i = 0; i != 8; i++) {
+        textcolor(i);
+        gotoxy(i + 1, i + 1);
+        cputs("Hello World!");
+    }
+    // Long text test
+    gotoxy(0, 10);
+    cputs("This is a long text that fits in a line.");
+    
+    gotoxy(10, 11);
+    cputs("World!");
+    gotoxy(4, 11);
+    cputs("Hello");
+    
+    gotoxy(10, 12);
+    cputs("World!");
+    gotoxy(4, 12);
+    textcolor(4);
+    cputs("Hello");
+
+    gotoxy(0, 13);
+    for (i = 0; i != 8; i++) {
+        textcolor(i);
+        putch('!');
+    }
+
+    gotoxy(0, 14);
+    for (i = 0; i != 8; i++) {
+        textcolor(7 - i);
+        putch(128); // Special character
+    }
+
+    while(1);
+}
