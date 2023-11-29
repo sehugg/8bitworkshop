@@ -1,6 +1,8 @@
 import { CodeListingMap } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, loadNative, gatherFiles, staleFiles, emglobal, moduleInstFn, populateFiles, execMain, putWorkFile, setupFS, populateExtraFiles, anyTargetChanged, parseListing, print_fn, msvcErrorMatcher, getWorkFileAsString, setupStdin, preprocessMCPP, parseSourceLines } from "../workermain";
-import { EmscriptenModule } from "../workermain"
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, populateExtraFiles, anyTargetChanged, getWorkFileAsString } from "../builder";
+import { parseListing, parseSourceLines, msvcErrorMatcher } from "../listingutils";
+import { EmscriptenModule, emglobal, execMain, loadNative, moduleInstFn, print_fn, setupFS, setupStdin } from "../wasmutils";
+import { preprocessMCPP } from "./mcpp";
 
 function hexToArray(s, ofs) {
     var buf = new ArrayBuffer(s.length / 2);

@@ -1,6 +1,8 @@
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, load, emglobal, print_fn, populateFiles, execMain, putWorkFile, parseListing, loadNative, gatherFiles, staleFiles, moduleInstFn, getWorkFileAsString, preprocessMCPP, fixParamsWithDefines, msvcErrorMatcher, populateExtraFiles, anyTargetChanged, parseSourceLines } from "../workermain";
-import { EmscriptenModule } from "../workermain";
+import { BuildStep, BuildStepResult, populateFiles, putWorkFile, gatherFiles, staleFiles, getWorkFileAsString, fixParamsWithDefines, populateExtraFiles, anyTargetChanged } from "../builder";
+import { parseListing, msvcErrorMatcher, parseSourceLines } from "../listingutils";
+import { EmscriptenModule, emglobal, execMain, load, loadNative, moduleInstFn, print_fn } from "../wasmutils";
+import { preprocessMCPP } from "./mcpp";
 
 // http://datapipe-blackbeltsystems.com/windows/flex/asm09.html
 export function assembleXASM6809(step: BuildStep): BuildStepResult {

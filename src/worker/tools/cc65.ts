@@ -1,8 +1,9 @@
 
 import { convertDataToUint8Array, getFilenamePrefix, getRootBasePlatform, safeident } from "../../common/util";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
-import { re_crlf, BuildStepResult, anyTargetChanged, execMain, gatherFiles, msvcErrorMatcher, populateEntry, populateExtraFiles, populateFiles, print_fn, putWorkFile, setupFS, staleFiles, BuildStep, emglobal, loadNative, moduleInstFn, fixParamsWithDefines, store, makeErrorMatcher, getWorkFileAsString } from "../workermain";
-import { EmscriptenModule } from "../workermain"
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, fixParamsWithDefines, putWorkFile, populateExtraFiles, store, populateEntry, anyTargetChanged } from "../builder";
+import { re_crlf, makeErrorMatcher } from "../listingutils";
+import { loadNative, moduleInstFn, print_fn, setupFS, execMain, emglobal, EmscriptenModule } from "../wasmutils";
 
 
 /*

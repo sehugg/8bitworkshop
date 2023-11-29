@@ -1,41 +1,11 @@
 import { WASIFilesystem, WASIMemoryFilesystem, WASIRunner } from "../../common/wasi/wasishim";
-import { BuildStep, BuildStepResult, gatherFiles, getWASMBinary, loadNative, loadWASMBinary, makeErrorMatcher, putWorkFile, staleFiles, store } from "../workermain";
-import JSZip from 'jszip';
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, store, putWorkFile } from "../builder";
+import { makeErrorMatcher } from "../listingutils";
+import { loadWASIFilesystemZip } from "../wasiutils";
+import { loadWASMBinary } from "../wasmutils";
 
 let cc7800_fs: WASIFilesystem | null = null;
 let wasiModule: WebAssembly.Module | null = null;
-
-function loadBlobSync(path: string) {
-    var xhr = new XMLHttpRequest();
-    xhr.responseType = 'blob';
-    xhr.open("GET", path, false);  // synchronous request
-    xhr.send(null);
-    return xhr.response;
-}
-
-async function loadWASIFilesystemZip(zippath: string) {
-    const jszip = new JSZip();
-    const path = '../../src/worker/fs/' + zippath;
-    const zipdata = loadBlobSync(path);
-    console.log(zippath, zipdata);
-    await jszip.loadAsync(zipdata);
-    let fs = new WASIMemoryFilesystem();
-    let promises = [];
-    jszip.forEach(async (relativePath, zipEntry) => {
-        if (zipEntry.dir) {
-            fs.putDirectory(relativePath);
-        } else {
-            let path = './' + relativePath;
-            let prom = zipEntry.async("uint8array").then((data) => {
-                fs.putFile(path, data);
-            });
-            promises.push(prom);
-        }
-    });
-    await Promise.all(promises);
-    return fs;
-}
-
 
 export async function compileCC7800(step: BuildStep): Promise<BuildStepResult> {
     const errors = [];
