@@ -1,7 +1,8 @@
+import { WASIRunner } from "../../common/wasi/wasishim";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, populateFiles, putWorkFile, anyTargetChanged } from "../builder";
+import { BuildStep, BuildStepResult, populateFiles, putWorkFile, anyTargetChanged, store } from "../builder";
 import { msvcErrorMatcher, re_crlf, re_msvc } from "../listingutils";
-import { execMain, emglobal, EmscriptenModule, load } from "../wasmutils";
+import { execMain, emglobal, EmscriptenModule, load, loadWASMBinary } from "../wasmutils";
 
 function parseDASMListing(lstpath: string, lsttext: string, listings: CodeListingMap, errors: WorkerError[], unresolved: {}) {
     // TODO: this gets very slow
@@ -119,9 +120,21 @@ function parseDASMListing(lstpath: string, lsttext: string, listings: CodeListin
     }
 }
 
+var re_usl = /(\w+)\s+0000\s+[?][?][?][?]/;
+
+function parseSymbolMap(asym: string) {
+    var symbolmap = {};
+    for (var s of asym.split("\n")) {
+        var toks = s.split(/\s+/);
+        if (toks && toks.length >= 2 && !toks[0].startsWith('-')) {
+            symbolmap[toks[0]] = parseInt(toks[1], 16);
+        }
+    }
+    return symbolmap;
+}
+
 export function assembleDASM(step: BuildStep): BuildStepResult {
     load("dasm");
-    var re_usl = /(\w+)\s+0000\s+[?][?][?][?]/;
     var unresolved = {};
     var errors = [];
     var errorMatcher = msvcErrorMatcher(errors);
@@ -188,13 +201,7 @@ export function assembleDASM(step: BuildStep): BuildStepResult {
     // TODO: what if listing or symbols change?
     if (!anyTargetChanged(step, [binpath/*, lstpath, sympath*/]))
         return;
-    var symbolmap = {};
-    for (var s of asym.split("\n")) {
-        var toks = s.split(/\s+/);
-        if (toks && toks.length >= 2 && !toks[0].startsWith('-')) {
-            symbolmap[toks[0]] = parseInt(toks[1], 16);
-        }
-    }
+    const symbolmap = parseSymbolMap(asym);
     // for bataribasic (TODO)
     if (step['bblines']) {
         let lst = listings[step.path];
@@ -212,4 +219,55 @@ export function assembleDASM(step: BuildStep): BuildStepResult {
     };
 }
 
+let wasiModule: WebAssembly.Module | null = null;
 
+export function assembleDASM2(step: BuildStep): BuildStepResult {
+    const errors = [];
+    if (!wasiModule) {
+        wasiModule = new WebAssembly.Module(loadWASMBinary("dasm-wasisdk"));
+    }
+    const binpath = 'a.out';
+    const lstpath = step.prefix + '.lst';
+    const sympath = step.prefix + '.sym';
+    const wasi = new WASIRunner();
+    wasi.initSync(wasiModule);
+    for (let file of step.files) {
+        wasi.fs.putFile("./" + file, store.getFileData(file));
+    }
+    wasi.addPreopenDirectory(".");
+    wasi.setArgs(['dasm', step.path, '-f3', "-l" + lstpath, "-s" + sympath]);
+    try {
+        wasi.run();
+    } catch (e) {
+        errors.push(e);
+    }
+    const stdout = wasi.fds[1].getBytesAsString();
+    //const stderr = wasi.fds[2].getBytesAsString();
+    const matcher = msvcErrorMatcher(errors);
+    const unresolved = {};
+    for (let line of stdout.split("\n")) {
+        matcher(line);
+        let m = re_usl.exec(line);
+        if (m) {
+            unresolved[m[1]] = 0;
+        }
+    }
+    const alst = wasi.fs.getFile("./" + lstpath).getBytesAsString();
+    const listings: CodeListingMap = {};
+    for (let path of step.files) {
+        listings[path] = { lines: [] };
+    }
+    parseDASMListing(lstpath, alst, listings, errors, unresolved);
+    if (errors.length) {
+        return { errors: errors };
+    }
+    const asym = wasi.fs.getFile("./" + sympath).getBytesAsString();
+    const symbolmap = parseSymbolMap(asym);
+    const output = wasi.fs.getFile("./" + binpath).getBytes();
+    return {
+        output,
+        errors,
+        listings,
+        symbolmap
+    };
+}

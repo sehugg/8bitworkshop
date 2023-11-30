@@ -485,7 +485,8 @@ export class WASIRunner {
     }
     fd_seek(fd: number, offset: number, whence: number, newoffset_ptr: number) {
         const file = this.fds[fd];
-        debug("fd_seek", fd, offset, whence, file);
+        if (typeof offset == 'bigint') offset = Number(offset);
+        debug("fd_seek", fd, offset, whence, file+"");
         if (file != null) {
             file.llseek(offset, whence);
             this.poke64(newoffset_ptr, file.offset);
