@@ -77,3 +77,4 @@ describe('test WASI cc7800', function () {
         assert.ok(stdout.indexOf('Usage: cc7800') >= 0);
     });
 });
+
