@@ -6,16 +6,16 @@
 // https://github.com/WebAssembly/wasi-libc/blob/main/libc-bottom-half/sources/preopens.c
 // https://fossies.org/linux/wasm3/source/extra/wasi_core.h
 // https://wasix.org/docs/api-reference/wasi/fd_read
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+};
 var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, state, value, kind, f) {
     if (kind === "m") throw new TypeError("Private method is not writable");
     if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
     return (kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value)), value;
-};
-var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
-    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
 var _WASIRunner_instance, _WASIRunner_memarr8, _WASIRunner_memarr32, _WASIRunner_args, _WASIRunner_envvars;
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -287,6 +287,9 @@ class WASIRunner {
         this.fs = new WASIMemoryFilesystem();
         this.createStdioBrowser();
     }
+    exports() {
+        return __classPrivateFieldGet(this, _WASIRunner_instance, "f").exports;
+    }
     createStdioNode() {
         this.stdin = new WASIStreamingFileDescriptor(0, '<stdin>', FDType.CHARACTER_DEVICE, FDRights.FD_READ, process.stdin);
         this.stdout = new WASIStreamingFileDescriptor(1, '<stdout>', FDType.CHARACTER_DEVICE, FDRights.FD_WRITE, process.stdout);
@@ -389,6 +392,10 @@ class WASIRunner {
             if (!this.exited)
                 throw err;
         }
+        return this.getErrno();
+    }
+    initialize() {
+        __classPrivateFieldGet(this, _WASIRunner_instance, "f").exports._initialize();
         return this.getErrno();
     }
     getImportObject() {
@@ -503,7 +510,9 @@ class WASIRunner {
     }
     fd_seek(fd, offset, whence, newoffset_ptr) {
         const file = this.fds[fd];
-        debug("fd_seek", fd, offset, whence, file);
+        if (typeof offset == 'bigint')
+            offset = Number(offset);
+        debug("fd_seek", fd, offset, whence, file + "");
         if (file != null) {
             file.llseek(offset, whence);
             this.poke64(newoffset_ptr, file.offset);
@@ -623,11 +632,12 @@ class WASIRunner {
             fd_readdir() { warning("TODO: fd_readdir"); return WASIErrors.NOTSUP; },
             path_unlink_file() { warning("TODO: path_unlink_file"); return WASIErrors.NOTSUP; },
             clock_time_get() { warning("TODO: clock_time_get"); return WASIErrors.NOTSUP; },
+            fd_tell() { warning("TODO: fd_tell"); return WASIErrors.NOTSUP; },
         };
     }
     getEnv() {
         return {
-            __syscall_unlinkat() { warning('TODO: unlink'); return 0; },
+            __syscall_unlinkat() { warning('TODO: unlink'); return WASIErrors.NOTSUP; },
         };
     }
 }

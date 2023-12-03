@@ -2,10 +2,11 @@
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
-import { CodeListingMap, WorkerBuildStep, WorkerError, WorkerErrorResult, WorkerFileUpdate, WorkerResult, isOutputResult } from '../../common/workertypes';
-import { getBasePlatform, getRootBasePlatform, replaceAll } from '../../common/util';
-import { BuildStep, makeErrorMatcher } from '../workermain';
+import { WorkerBuildStep, WorkerErrorResult, WorkerFileUpdate, WorkerResult, isOutputResult } from '../../common/workertypes';
+import { getRootBasePlatform, replaceAll } from '../../common/util';
 import { parseObjDump } from './clang';
+import { BuildStep } from '../builder';
+import { makeErrorMatcher } from '../listingutils';
 
 
 const LLVM_MOS_TOOL: ServerBuildTool = {

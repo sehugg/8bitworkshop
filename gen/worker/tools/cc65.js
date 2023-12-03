@@ -2,7 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.compileCC65 = exports.linkLD65 = exports.assembleCA65 = void 0;
 const util_1 = require("../../common/util");
-const workermain_1 = require("../workermain");
+const builder_1 = require("../builder");
+const listingutils_1 = require("../listingutils");
+const wasmutils_1 = require("../wasmutils");
 /*
 000000r 1               .segment        "CODE"
 000000r 1               .proc	_rasterWait: near
@@ -29,7 +31,7 @@ function parseCA65Listing(asmfn, code, symbols, segments, params, dbg, listings)
     var linenum = 0;
     let curpath = asmfn || '';
     // TODO: only does .c functions, not all .s files
-    for (var line of code.split(workermain_1.re_crlf)) {
+    for (var line of code.split(listingutils_1.re_crlf)) {
         var dbgm = dbgLineMatch.exec(line);
         if (dbgm && dbgm[1]) {
             var dbgtype = dbgm[4];
@@ -107,30 +109,30 @@ function parseCA65Listing(asmfn, code, symbols, segments, params, dbg, listings)
     return origlines;
 }
 function assembleCA65(step) {
-    (0, workermain_1.loadNative)("ca65");
+    (0, wasmutils_1.loadNative)("ca65");
     var errors = [];
-    (0, workermain_1.gatherFiles)(step, { mainFilePath: "main.s" });
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.s" });
     var objpath = step.prefix + ".o";
     var lstpath = step.prefix + ".lst";
-    if ((0, workermain_1.staleFiles)(step, [objpath, lstpath])) {
+    if ((0, builder_1.staleFiles)(step, [objpath, lstpath])) {
         var objout, lstout;
-        var CA65 = workermain_1.emglobal.ca65({
-            instantiateWasm: (0, workermain_1.moduleInstFn)('ca65'),
+        var CA65 = wasmutils_1.emglobal.ca65({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('ca65'),
             noInitialRun: true,
             //logReadFiles:true,
-            print: workermain_1.print_fn,
-            printErr: (0, workermain_1.makeErrorMatcher)(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1),
+            print: wasmutils_1.print_fn,
+            printErr: (0, listingutils_1.makeErrorMatcher)(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1),
         });
         var FS = CA65.FS;
-        (0, workermain_1.setupFS)(FS, '65-' + (0, util_1.getRootBasePlatform)(step.platform));
-        (0, workermain_1.populateFiles)(step, FS);
-        (0, workermain_1.fixParamsWithDefines)(step.path, step.params);
+        (0, wasmutils_1.setupFS)(FS, '65-' + (0, util_1.getRootBasePlatform)(step.platform));
+        (0, builder_1.populateFiles)(step, FS);
+        (0, builder_1.fixParamsWithDefines)(step.path, step.params);
         var args = ['-v', '-g', '-I', '/share/asminc', '-o', objpath, '-l', lstpath, step.path];
         args.unshift.apply(args, ["-D", "__8BITWORKSHOP__=1"]);
         if (step.mainfile) {
             args.unshift.apply(args, ["-D", "__MAIN__=1"]);
         }
-        (0, workermain_1.execMain)(step, CA65, args);
+        (0, wasmutils_1.execMain)(step, CA65, args);
         if (errors.length) {
             let listings = {};
             // TODO? change extension to .lst
@@ -139,8 +141,8 @@ function assembleCA65(step) {
         }
         objout = FS.readFile(objpath, { encoding: 'binary' });
         lstout = FS.readFile(lstpath, { encoding: 'utf8' });
-        (0, workermain_1.putWorkFile)(objpath, objout);
-        (0, workermain_1.putWorkFile)(lstpath, lstout);
+        (0, builder_1.putWorkFile)(objpath, objout);
+        (0, builder_1.putWorkFile)(lstpath, lstout);
     }
     return {
         linktool: "ld65",
@@ -151,26 +153,26 @@ function assembleCA65(step) {
 exports.assembleCA65 = assembleCA65;
 function linkLD65(step) {
     var _a, _b;
-    (0, workermain_1.loadNative)("ld65");
+    (0, wasmutils_1.loadNative)("ld65");
     var params = step.params;
-    (0, workermain_1.gatherFiles)(step);
+    (0, builder_1.gatherFiles)(step);
     var binpath = "main";
-    if ((0, workermain_1.staleFiles)(step, [binpath])) {
+    if ((0, builder_1.staleFiles)(step, [binpath])) {
         var errors = [];
-        var LD65 = workermain_1.emglobal.ld65({
-            instantiateWasm: (0, workermain_1.moduleInstFn)('ld65'),
+        var LD65 = wasmutils_1.emglobal.ld65({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('ld65'),
             noInitialRun: true,
             //logReadFiles:true,
-            print: workermain_1.print_fn,
+            print: wasmutils_1.print_fn,
             printErr: function (s) { errors.push({ msg: s, line: 0 }); }
         });
         var FS = LD65.FS;
-        (0, workermain_1.setupFS)(FS, '65-' + (0, util_1.getRootBasePlatform)(step.platform));
-        (0, workermain_1.populateFiles)(step, FS);
-        (0, workermain_1.populateExtraFiles)(step, FS, params.extra_link_files);
+        (0, wasmutils_1.setupFS)(FS, '65-' + (0, util_1.getRootBasePlatform)(step.platform));
+        (0, builder_1.populateFiles)(step, FS);
+        (0, builder_1.populateExtraFiles)(step, FS, params.extra_link_files);
         // populate .cfg file, if it is a custom one
-        if (workermain_1.store.hasFile(params.cfgfile)) {
-            (0, workermain_1.populateEntry)(FS, params.cfgfile, workermain_1.store.getFileEntry(params.cfgfile), null);
+        if (builder_1.store.hasFile(params.cfgfile)) {
+            (0, builder_1.populateEntry)(FS, params.cfgfile, builder_1.store.getFileEntry(params.cfgfile), null);
         }
         var libargs = params.libargs || [];
         var cfgfile = params.cfgfile;
@@ -182,7 +184,7 @@ function linkLD65(step) {
             '-o', 'main',
             '-m', 'main.map'].concat(step.args, libargs);
         //console.log(args);
-        (0, workermain_1.execMain)(step, LD65, args);
+        (0, wasmutils_1.execMain)(step, LD65, args);
         if (errors.length)
             return { errors: errors };
         var aout = FS.readFile("main", { encoding: 'binary' });
@@ -197,11 +199,11 @@ function linkLD65(step) {
             aout = newrom;
         }
         //var dbgout = FS.readFile("main.dbg", {encoding:'utf8'});
-        (0, workermain_1.putWorkFile)("main", aout);
-        (0, workermain_1.putWorkFile)("main.map", mapout);
-        (0, workermain_1.putWorkFile)("main.vice", viceout);
+        (0, builder_1.putWorkFile)("main", aout);
+        (0, builder_1.putWorkFile)("main.map", mapout);
+        (0, builder_1.putWorkFile)("main.vice", viceout);
         // return unchanged if no files changed
-        if (!(0, workermain_1.anyTargetChanged)(step, ["main", "main.map", "main.vice"]))
+        if (!(0, builder_1.anyTargetChanged)(step, ["main", "main.map", "main.vice"]))
             return;
         // parse symbol map (TODO: omit segments, constants)
         var symbolmap = {};
@@ -244,7 +246,7 @@ function linkLD65(step) {
             if (fn.endsWith('.lst')) {
                 var lstout = FS.readFile(fn, { encoding: 'utf8' });
                 lstout = lstout.split('\n\n')[1] || lstout; // remove header
-                (0, workermain_1.putWorkFile)(fn, lstout);
+                (0, builder_1.putWorkFile)(fn, lstout);
                 //const asmpath = fn.replace(/\.lst$/, '.ca65'); // TODO! could be .s
                 let isECS = ((_b = (_a = step.debuginfo) === null || _a === void 0 ? void 0 : _a.systems) === null || _b === void 0 ? void 0 : _b.Init) != null; // TODO
                 if (isECS) {
@@ -281,7 +283,7 @@ function processIncbin(code) {
     // find #embed "filename.bin" and replace with C array data
     return code.replace(re3, (m, m1) => {
         let filename = m1;
-        let filedata = workermain_1.store.getFileData(filename);
+        let filedata = builder_1.store.getFileData(filename);
         let bytes = (0, util_1.convertDataToUint8Array)(filedata);
         if (!bytes)
             throw new Error('#embed: file not found: "' + filename + '"');
@@ -293,7 +295,7 @@ function processIncbin(code) {
     });
 }
 function compileCC65(step) {
-    (0, workermain_1.loadNative)("cc65");
+    (0, wasmutils_1.loadNative)("cc65");
     var params = step.params;
     // stderr
     var re_err1 = /(.*?):(\d+): (.+)/;
@@ -311,19 +313,19 @@ function compileCC65(step) {
             });
         }
     }
-    (0, workermain_1.gatherFiles)(step, { mainFilePath: "main.c" });
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.c" });
     var destpath = step.prefix + '.s';
-    if ((0, workermain_1.staleFiles)(step, [destpath])) {
-        var CC65 = workermain_1.emglobal.cc65({
-            instantiateWasm: (0, workermain_1.moduleInstFn)('cc65'),
+    if ((0, builder_1.staleFiles)(step, [destpath])) {
+        var CC65 = wasmutils_1.emglobal.cc65({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('cc65'),
             noInitialRun: true,
             //logReadFiles:true,
-            print: workermain_1.print_fn,
+            print: wasmutils_1.print_fn,
             printErr: match_fn,
         });
         var FS = CC65.FS;
-        (0, workermain_1.setupFS)(FS, '65-' + (0, util_1.getRootBasePlatform)(step.platform));
-        (0, workermain_1.populateFiles)(step, FS, {
+        (0, wasmutils_1.setupFS)(FS, '65-' + (0, util_1.getRootBasePlatform)(step.platform));
+        (0, builder_1.populateFiles)(step, FS, {
             mainFilePath: step.path,
             processFn: (path, code) => {
                 if (typeof code === 'string') {
@@ -332,7 +334,7 @@ function compileCC65(step) {
                 return code;
             }
         });
-        (0, workermain_1.fixParamsWithDefines)(step.path, params);
+        (0, builder_1.fixParamsWithDefines)(step.path, params);
         var args = [
             '-I', '/share/include',
             '-I', '.',
@@ -348,11 +350,11 @@ function compileCC65(step) {
         args = args.concat(customArgs, args);
         args.push(step.path);
         //console.log(args);
-        (0, workermain_1.execMain)(step, CC65, args);
+        (0, wasmutils_1.execMain)(step, CC65, args);
         if (errors.length)
             return { errors: errors };
         var asmout = FS.readFile(destpath, { encoding: 'utf8' });
-        (0, workermain_1.putWorkFile)(destpath, asmout);
+        (0, builder_1.putWorkFile)(destpath, asmout);
     }
     return {
         nexttool: "ca65",

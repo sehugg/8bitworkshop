@@ -24,34 +24,37 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.compileWiz = exports.compileBASIC = exports.compileInform6 = exports.translateShowdown = void 0;
-const workermain_1 = require("../workermain");
 const basic_compiler = __importStar(require("../../common/basic/compiler"));
 const util_1 = require("../../common/util");
+const wasmutils_1 = require("../wasmutils");
+const builder_1 = require("../builder");
+const listingutils_1 = require("../listingutils");
+const workermain_1 = require("../workermain");
 function translateShowdown(step) {
     (0, workermain_1.setupRequireFunction)();
-    (0, workermain_1.load)("showdown.min");
-    var showdown = workermain_1.emglobal['showdown'];
+    (0, wasmutils_1.load)("showdown.min");
+    var showdown = wasmutils_1.emglobal['showdown'];
     var converter = new showdown.Converter({
         tables: 'true',
         smoothLivePreview: 'true',
         requireSpaceBeforeHeadingText: 'true',
         emoji: 'true',
     });
-    var code = (0, workermain_1.getWorkFileAsString)(step.path);
+    var code = (0, builder_1.getWorkFileAsString)(step.path);
     var html = converter.makeHtml(code);
-    delete workermain_1.emglobal['require'];
+    delete wasmutils_1.emglobal['require'];
     return {
         output: html
     };
 }
 exports.translateShowdown = translateShowdown;
 function compileInform6(step) {
-    (0, workermain_1.loadNative)("inform");
+    (0, wasmutils_1.loadNative)("inform");
     var errors = [];
-    (0, workermain_1.gatherFiles)(step, { mainFilePath: "main.inf" });
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.inf" });
     var objpath = step.prefix + ".z5";
-    if ((0, workermain_1.staleFiles)(step, [objpath])) {
-        var errorMatcher = (0, workermain_1.msvcErrorMatcher)(errors);
+    if ((0, builder_1.staleFiles)(step, [objpath])) {
+        var errorMatcher = (0, listingutils_1.msvcErrorMatcher)(errors);
         var lstout = "";
         var match_fn = (s) => {
             if (s.indexOf("Error:") >= 0) {
@@ -64,23 +67,23 @@ function compileInform6(step) {
         };
         // TODO: step.path must end in '.inf' or error
         var args = ['-afjnops', '-v5', '-Cu', '-E1', '-k', '+/share/lib', step.path];
-        var inform = workermain_1.emglobal.inform({
-            instantiateWasm: (0, workermain_1.moduleInstFn)('inform'),
+        var inform = wasmutils_1.emglobal.inform({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('inform'),
             noInitialRun: true,
             //logReadFiles:true,
             print: match_fn,
             printErr: match_fn,
         });
         var FS = inform.FS;
-        (0, workermain_1.setupFS)(FS, 'inform');
-        (0, workermain_1.populateFiles)(step, FS);
+        (0, wasmutils_1.setupFS)(FS, 'inform');
+        (0, builder_1.populateFiles)(step, FS);
         //fixParamsWithDefines(step.path, step.params);
-        (0, workermain_1.execMain)(step, inform, args);
+        (0, wasmutils_1.execMain)(step, inform, args);
         if (errors.length)
             return { errors: errors };
         var objout = FS.readFile(objpath, { encoding: 'binary' });
-        (0, workermain_1.putWorkFile)(objpath, objout);
-        if (!(0, workermain_1.anyTargetChanged)(step, [objpath]))
+        (0, builder_1.putWorkFile)(objpath, objout);
+        if (!(0, builder_1.anyTargetChanged)(step, [objpath]))
             return;
         // parse debug XML
         var symbolmap = {};
@@ -123,7 +126,7 @@ function compileInform6(step) {
         // parse listing
         var listings = {};
         //    35  +00015 <*> call_vs      long_19 location long_424 -> sp 
-        var lines = (0, workermain_1.parseListing)(lstout, /\s*(\d+)\s+[+]([0-9a-f]+)\s+([<*>]*)\s*(\w+)\s+(.+)/i, -1, 2, 4);
+        var lines = (0, listingutils_1.parseListing)(lstout, /\s*(\d+)\s+[+]([0-9a-f]+)\s+([<*>]*)\s*(\w+)\s+(.+)/i, -1, 2, 4);
         var lstpath = step.prefix + '.lst';
         listings[lstpath] = { lines: [], asmlines: lines, text: lstout };
         return {
@@ -139,10 +142,10 @@ function compileInform6(step) {
 exports.compileInform6 = compileInform6;
 function compileBASIC(step) {
     var jsonpath = step.path + ".json";
-    (0, workermain_1.gatherFiles)(step);
-    if ((0, workermain_1.staleFiles)(step, [jsonpath])) {
+    (0, builder_1.gatherFiles)(step);
+    if ((0, builder_1.staleFiles)(step, [jsonpath])) {
         var parser = new basic_compiler.BASICParser();
-        var code = (0, workermain_1.getWorkFileAsString)(step.path);
+        var code = (0, builder_1.getWorkFileAsString)(step.path);
         try {
             var ast = parser.parseFile(code, step.path);
         }
@@ -156,8 +159,8 @@ function compileBASIC(step) {
         }
         // put AST into JSON (sans source locations) to see if it has changed
         var json = JSON.stringify(ast, (key, value) => { return (key == '$loc' ? undefined : value); });
-        (0, workermain_1.putWorkFile)(jsonpath, json);
-        if ((0, workermain_1.anyTargetChanged)(step, [jsonpath]))
+        (0, builder_1.putWorkFile)(jsonpath, json);
+        if ((0, builder_1.anyTargetChanged)(step, [jsonpath]))
             return {
                 output: ast,
                 listings: parser.getListings(),
@@ -166,23 +169,23 @@ function compileBASIC(step) {
 }
 exports.compileBASIC = compileBASIC;
 function compileWiz(step) {
-    (0, workermain_1.loadNative)("wiz");
+    (0, wasmutils_1.loadNative)("wiz");
     var params = step.params;
-    (0, workermain_1.gatherFiles)(step, { mainFilePath: "main.wiz" });
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.wiz" });
     var destpath = step.prefix + (params.wiz_rom_ext || ".bin");
     var errors = [];
-    if ((0, workermain_1.staleFiles)(step, [destpath])) {
-        var wiz = workermain_1.emglobal.wiz({
-            instantiateWasm: (0, workermain_1.moduleInstFn)('wiz'),
+    if ((0, builder_1.staleFiles)(step, [destpath])) {
+        var wiz = wasmutils_1.emglobal.wiz({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('wiz'),
             noInitialRun: true,
-            print: workermain_1.print_fn,
+            print: wasmutils_1.print_fn,
             //test.wiz:2: error: expected statement, but got identifier `test`
-            printErr: (0, workermain_1.makeErrorMatcher)(errors, /(.+?):(\d+):\s*(.+)/, 2, 3, step.path, 1),
+            printErr: (0, listingutils_1.makeErrorMatcher)(errors, /(.+?):(\d+):\s*(.+)/, 2, 3, step.path, 1),
         });
         var FS = wiz.FS;
-        (0, workermain_1.setupFS)(FS, 'wiz');
-        (0, workermain_1.populateFiles)(step, FS);
-        (0, workermain_1.populateExtraFiles)(step, FS, params.extra_compile_files);
+        (0, wasmutils_1.setupFS)(FS, 'wiz');
+        (0, builder_1.populateFiles)(step, FS);
+        (0, builder_1.populateExtraFiles)(step, FS, params.extra_compile_files);
         const FWDIR = '/share/common';
         var args = [
             '-o', destpath,
@@ -192,11 +195,11 @@ function compileWiz(step) {
             step.path
         ];
         args.push('--system', params.wiz_sys_type || params.arch);
-        (0, workermain_1.execMain)(step, wiz, args);
+        (0, wasmutils_1.execMain)(step, wiz, args);
         if (errors.length)
             return { errors: errors };
         var binout = FS.readFile(destpath, { encoding: 'binary' });
-        (0, workermain_1.putWorkFile)(destpath, binout);
+        (0, builder_1.putWorkFile)(destpath, binout);
         var dbgout = FS.readFile(step.prefix + '.sym', { encoding: 'utf8' });
         var symbolmap = {};
         for (var s of dbgout.split("\n")) {

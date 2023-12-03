@@ -4,25 +4,25 @@ exports.assembleECS = void 0;
 const compiler_1 = require("../../common/ecs/compiler");
 const ecs_1 = require("../../common/ecs/ecs");
 const tokenizer_1 = require("../../common/tokenizer");
-const workermain_1 = require("../workermain");
+const builder_1 = require("../builder");
 function assembleECS(step) {
     let em = new ecs_1.EntityManager(new ecs_1.Dialect_CA65()); // TODO
     let compiler = new compiler_1.ECSCompiler(em, true);
     compiler.getImportFile = (path) => {
-        return (0, workermain_1.getWorkFileAsString)(path);
+        return (0, builder_1.getWorkFileAsString)(path);
     };
-    (0, workermain_1.gatherFiles)(step, { mainFilePath: "main.ecs" });
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.ecs" });
     if (step.mainfile)
         em.mainPath = step.path;
     var destpath = step.prefix + '.ca65';
-    if ((0, workermain_1.staleFiles)(step, [destpath])) {
-        let code = (0, workermain_1.getWorkFileAsString)(step.path);
-        (0, workermain_1.fixParamsWithDefines)(step.path, step.params);
+    if ((0, builder_1.staleFiles)(step, [destpath])) {
+        let code = (0, builder_1.getWorkFileAsString)(step.path);
+        (0, builder_1.fixParamsWithDefines)(step.path, step.params);
         try {
             compiler.includeDebugInfo = true;
             compiler.parseFile(code, step.path);
             let outtext = compiler.export().toString();
-            (0, workermain_1.putWorkFile)(destpath, outtext);
+            (0, builder_1.putWorkFile)(destpath, outtext);
             var listings = {};
             listings[destpath] = { lines: [], text: outtext }; // TODO
             var debuginfo = compiler.em.getDebugTree();

@@ -1,6 +1,7 @@
 import { CodeListing, CodeListingMap } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, emglobal, execMain, fixParamsWithDefines, gatherFiles, loadNative, makeErrorMatcher, moduleInstFn, msvcErrorMatcher, populateFiles, print_fn, putWorkFile, setupFS, staleFiles } from "../workermain";
-import { EmscriptenModule } from "../workermain"
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, fixParamsWithDefines, putWorkFile } from "../builder";
+import { msvcErrorMatcher } from "../listingutils";
+import { loadNative, moduleInstFn, print_fn, setupFS, execMain, emglobal, EmscriptenModule } from "../wasmutils";
 
 function parseACMESymbolTable(text: string) {
     var symbolmap = {};

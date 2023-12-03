@@ -1,7 +1,9 @@
 
 import { WorkerError, CodeListingMap } from "../../common/workertypes";
-import { anyTargetChanged, BuildStep, BuildStepResult, emglobal, EmscriptenModule, execMain, gatherFiles, loadNative, makeErrorMatcher, moduleInstFn, parseListing, populateFiles, print_fn, putWorkFile, staleFiles } from "../workermain"
-
+import { BuildStep, BuildStepResult, populateFiles, putWorkFile, anyTargetChanged, gatherFiles, staleFiles } from "../builder";
+import { parseListing, makeErrorMatcher } from "../listingutils";
+import { loadNative, emglobal, moduleInstFn, execMain, print_fn } from "../wasmutils";
+import { EmscriptenModule } from "../wasmutils";
 
 // http://www.nespowerpak.com/nesasm/
 export function assembleNESASM(step: BuildStep): BuildStepResult {

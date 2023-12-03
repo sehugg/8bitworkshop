@@ -2,42 +2,44 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.assembleVASMARM = exports.assembleARMIPS = void 0;
 const util_1 = require("../../common/util");
-const workermain_1 = require("../workermain");
+const builder_1 = require("../builder");
+const listingutils_1 = require("../listingutils");
+const wasmutils_1 = require("../wasmutils");
 function assembleARMIPS(step) {
-    (0, workermain_1.loadNative)("armips");
+    (0, wasmutils_1.loadNative)("armips");
     var errors = [];
-    (0, workermain_1.gatherFiles)(step, { mainFilePath: "main.asm" });
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.asm" });
     var objpath = "main.bin";
     var lstpath = step.prefix + ".lst";
     var sympath = step.prefix + ".sym";
     //test.armips(3) error: Parse error '.arm'
-    var error_fn = (0, workermain_1.makeErrorMatcher)(errors, /^(.+?)\((\d+)\)\s+(fatal error|error|warning):\s+(.+)/, 2, 4, step.path, 1);
-    if ((0, workermain_1.staleFiles)(step, [objpath])) {
+    var error_fn = (0, listingutils_1.makeErrorMatcher)(errors, /^(.+?)\((\d+)\)\s+(fatal error|error|warning):\s+(.+)/, 2, 4, step.path, 1);
+    if ((0, builder_1.staleFiles)(step, [objpath])) {
         var args = [step.path, '-temp', lstpath, '-sym', sympath, '-erroronwarning'];
-        var armips = workermain_1.emglobal.armips({
-            instantiateWasm: (0, workermain_1.moduleInstFn)('armips'),
+        var armips = wasmutils_1.emglobal.armips({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('armips'),
             noInitialRun: true,
             print: error_fn,
             printErr: error_fn,
         });
         var FS = armips.FS;
-        var code = (0, workermain_1.getWorkFileAsString)(step.path);
+        var code = (0, builder_1.getWorkFileAsString)(step.path);
         code = `.arm.little :: .create "${objpath}",0 :: ${code}
   .close`;
-        (0, workermain_1.putWorkFile)(step.path, code);
-        (0, workermain_1.populateFiles)(step, FS);
-        (0, workermain_1.execMain)(step, armips, args);
+        (0, builder_1.putWorkFile)(step.path, code);
+        (0, builder_1.populateFiles)(step, FS);
+        (0, wasmutils_1.execMain)(step, armips, args);
         if (errors.length)
             return { errors: errors };
         var objout = FS.readFile(objpath, { encoding: 'binary' });
-        (0, workermain_1.putWorkFile)(objpath, objout);
-        if (!(0, workermain_1.anyTargetChanged)(step, [objpath]))
+        (0, builder_1.putWorkFile)(objpath, objout);
+        if (!(0, builder_1.anyTargetChanged)(step, [objpath]))
             return;
         var symbolmap = {};
         var segments = [];
         var listings = {};
         var lstout = FS.readFile(lstpath, { encoding: 'utf8' });
-        var lines = lstout.split(workermain_1.re_crlf);
+        var lines = lstout.split(listingutils_1.re_crlf);
         //00000034 .word 0x11223344                                             ; /vidfill.armips line 25
         var re_asmline = /^([0-9A-F]+) (.+?); [/](.+?) line (\d+)/;
         var lastofs = -1;
@@ -45,7 +47,7 @@ function assembleARMIPS(step) {
             var m;
             if (m = re_asmline.exec(line)) {
                 var path = m[3];
-                var path2 = (0, workermain_1.getPrefix)(path) + '.lst'; // TODO: don't rename listing
+                var path2 = (0, builder_1.getPrefix)(path) + '.lst'; // TODO: don't rename listing
                 var lst = listings[path2];
                 if (lst == null) {
                     lst = listings[path2] = { lines: [] };
@@ -74,7 +76,7 @@ function assembleARMIPS(step) {
         //0000000C loop2
         //00000034 .dbl:0004
         var re_symline = /^([0-9A-F]+)\s+(.+)/;
-        for (var line of symout.split(workermain_1.re_crlf)) {
+        for (var line of symout.split(listingutils_1.re_crlf)) {
             var m;
             if (m = re_symline.exec(line)) {
                 symbolmap[m[2]] = parseInt(m[1], 16);
@@ -91,7 +93,7 @@ function assembleARMIPS(step) {
 }
 exports.assembleARMIPS = assembleARMIPS;
 function assembleVASMARM(step) {
-    (0, workermain_1.loadNative)("vasmarm_std");
+    (0, wasmutils_1.loadNative)("vasmarm_std");
     /// error 2 in line 8 of "gfxtest.c": unknown mnemonic <ew>
     /// error 3007: undefined symbol <XXLOOP>
     /// TODO: match undefined symbols
@@ -140,27 +142,27 @@ function assembleVASMARM(step) {
             }
         }
     }
-    (0, workermain_1.gatherFiles)(step, { mainFilePath: "main.asm" });
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.asm" });
     var objpath = step.prefix + ".bin";
     var lstpath = step.prefix + ".lst";
-    if ((0, workermain_1.staleFiles)(step, [objpath])) {
+    if ((0, builder_1.staleFiles)(step, [objpath])) {
         var args = ['-Fbin', '-m7tdmi', '-x', '-wfail', step.path, '-o', objpath, '-L', lstpath];
-        var vasm = workermain_1.emglobal.vasm({
-            instantiateWasm: (0, workermain_1.moduleInstFn)('vasmarm_std'),
+        var vasm = wasmutils_1.emglobal.vasm({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('vasmarm_std'),
             noInitialRun: true,
             print: match_fn,
             printErr: match_fn,
         });
         var FS = vasm.FS;
-        (0, workermain_1.populateFiles)(step, FS);
-        (0, workermain_1.execMain)(step, vasm, args);
+        (0, builder_1.populateFiles)(step, FS);
+        (0, wasmutils_1.execMain)(step, vasm, args);
         if (errors.length) {
             return { errors: errors };
         }
         if (undefsyms.length == 0) {
             var objout = FS.readFile(objpath, { encoding: 'binary' });
-            (0, workermain_1.putWorkFile)(objpath, objout);
-            if (!(0, workermain_1.anyTargetChanged)(step, [objpath]))
+            (0, builder_1.putWorkFile)(objpath, objout);
+            if (!(0, builder_1.anyTargetChanged)(step, [objpath]))
                 return;
         }
         var lstout = FS.readFile(lstpath, { encoding: 'utf8' });
@@ -182,7 +184,7 @@ function assembleVASMARM(step) {
         var curline = 0;
         var sections = {};
         // map file and section indices -> names
-        var lines = lstout.split(workermain_1.re_crlf);
+        var lines = lstout.split(listingutils_1.re_crlf);
         // parse lines
         var lstlines = [];
         for (var line of lines) {

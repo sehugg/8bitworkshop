@@ -264,7 +264,7 @@ export class WASIMemoryFilesystem implements WASIFilesystem {
 }
 
 export class WASIRunner {
-    #instance; // TODO
+    #instance : any; // TODO
     #memarr8: Uint8Array;
     #memarr32: Int32Array;
     #args: Uint8Array[] = [];
@@ -281,6 +281,9 @@ export class WASIRunner {
 
     constructor() {
         this.createStdioBrowser();
+    }
+    exports() {
+        return this.#instance.exports;
     }
     createStdioNode() {
         this.stdin = new WASIStreamingFileDescriptor(0, '<stdin>', FDType.CHARACTER_DEVICE, FDRights.FD_READ, process.stdin);
@@ -371,6 +374,10 @@ export class WASIRunner {
         } catch (err) {
             if (!this.exited) throw err;
         }
+        return this.getErrno();
+    }
+    initialize() {
+        this.#instance.exports._initialize();
         return this.getErrno();
     }
     getImportObject() {
@@ -485,7 +492,8 @@ export class WASIRunner {
     }
     fd_seek(fd: number, offset: number, whence: number, newoffset_ptr: number) {
         const file = this.fds[fd];
-        debug("fd_seek", fd, offset, whence, file);
+        if (typeof offset == 'bigint') offset = Number(offset);
+        debug("fd_seek", fd, offset, whence, file+"");
         if (file != null) {
             file.llseek(offset, whence);
             this.poke64(newoffset_ptr, file.offset);
@@ -603,11 +611,12 @@ export class WASIRunner {
             fd_readdir() { warning("TODO: fd_readdir"); return WASIErrors.NOTSUP; },
             path_unlink_file() { warning("TODO: path_unlink_file"); return WASIErrors.NOTSUP; },
             clock_time_get() { warning("TODO: clock_time_get"); return WASIErrors.NOTSUP; },
+            fd_tell() { warning("TODO: fd_tell"); return WASIErrors.NOTSUP; },
         }
     }
     getEnv() {
         return {
-            __syscall_unlinkat() { warning('TODO: unlink'); return 0; },
+            __syscall_unlinkat() { warning('TODO: unlink'); return WASIErrors.NOTSUP; },
         }
     }
 }

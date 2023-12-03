@@ -1,6 +1,8 @@
 import { WorkerError, CodeListingMap } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, loadNative, gatherFiles, staleFiles, emglobal, moduleInstFn, getWorkFileAsString, preprocessMCPP, populateFiles, fixParamsWithDefines, execMain, putWorkFile, print_fn, msvcErrorMatcher, anyTargetChanged, parseListing } from "../workermain";
-import { EmscriptenModule } from "../workermain"
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, getWorkFileAsString, populateFiles, fixParamsWithDefines, putWorkFile, anyTargetChanged } from "../builder";
+import { msvcErrorMatcher, parseListing } from "../listingutils";
+import { EmscriptenModule, emglobal, execMain, loadNative, moduleInstFn, print_fn } from "../wasmutils";
+import { preprocessMCPP } from "./mcpp";
 
 // http://www.techhelpmanual.com/829-program_startup___exit.html
 export function compileSmallerC(step: BuildStep): BuildStepResult {

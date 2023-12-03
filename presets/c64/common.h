@@ -61,8 +61,6 @@ typedef enum { false, true } bool; // boolean
 // default screen base address on startup
 #define DEFAULT_SCREEN ((void*)0x400)
 
-// wait until next frame, same as waitvsync()
-#define wait_vblank waitvsync
 // is raster line > 255?
 #define RASTER_HIBIT  (VIC.ctrl1 & 0x80)
 

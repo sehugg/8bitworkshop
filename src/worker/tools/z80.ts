@@ -1,6 +1,8 @@
 
 import { CodeListingMap } from "../../common/workertypes";
-import { anyTargetChanged, BuildStep, BuildStepResult, emglobal, EmscriptenModule, execMain, gatherFiles, loadNative, makeErrorMatcher, moduleInstFn, parseListing, populateFiles, print_fn, putWorkFile, staleFiles } from "../workermain"
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, anyTargetChanged } from "../builder";
+import { makeErrorMatcher, parseListing } from "../listingutils";
+import { EmscriptenModule, emglobal, execMain, loadNative, moduleInstFn, print_fn } from "../wasmutils";
 
 
 export function assembleZMAC(step: BuildStep): BuildStepResult {

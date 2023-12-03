@@ -27,7 +27,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.compileSilice = exports.compileYosys = exports.compileVerilator = exports.compileJSASMStep = void 0;
 const assembler_1 = require("../assembler");
 const vxmlparser = __importStar(require("../../common/hdl/vxmlparser"));
-const workermain_1 = require("../workermain");
+const wasmutils_1 = require("../wasmutils");
+const builder_1 = require("../builder");
+const listingutils_1 = require("../listingutils");
 function detectModuleName(code) {
     var m = /^\s*module\s+(\w+_top)\b/m.exec(code)
         || /^\s*module\s+(top|t)\b/m.exec(code)
@@ -49,7 +51,7 @@ function compileJSASM(asmcode, platform, options, is_inline) {
     var asm = new assembler_1.Assembler(null);
     var includes = [];
     asm.loadJSON = (filename) => {
-        var jsontext = (0, workermain_1.getWorkFileAsString)(filename);
+        var jsontext = (0, builder_1.getWorkFileAsString)(filename);
         if (!jsontext)
             throw Error("could not load " + filename);
         return JSON.parse(jsontext);
@@ -99,8 +101,8 @@ function compileJSASM(asmcode, platform, options, is_inline) {
     }
 }
 function compileJSASMStep(step) {
-    (0, workermain_1.gatherFiles)(step);
-    var code = (0, workermain_1.getWorkFileAsString)(step.path);
+    (0, builder_1.gatherFiles)(step);
+    var code = (0, builder_1.getWorkFileAsString)(step.path);
     var platform = step.platform || 'verilog';
     return compileJSASM(code, platform, step, false);
 }
@@ -140,30 +142,30 @@ function compileInlineASM(code, platform, options, errors, asmlines) {
     return code;
 }
 function compileVerilator(step) {
-    (0, workermain_1.loadNative)("verilator_bin");
+    (0, wasmutils_1.loadNative)("verilator_bin");
     var platform = step.platform || 'verilog';
     var errors = [];
-    (0, workermain_1.gatherFiles)(step);
+    (0, builder_1.gatherFiles)(step);
     // compile verilog if files are stale
-    if ((0, workermain_1.staleFiles)(step, [xmlPath])) {
+    if ((0, builder_1.staleFiles)(step, [xmlPath])) {
         // TODO: %Error: Specified --top-module 'ALU' isn't at the top level, it's under another cell 'cpu'
         // TODO: ... Use "/* verilator lint_off BLKSEQ */" and lint_on around source to disable this message.
-        var match_fn = (0, workermain_1.makeErrorMatcher)(errors, /%(.+?): (.+?):(\d+)?[:]?\s*(.+)/i, 3, 4, step.path, 2);
-        var verilator_mod = workermain_1.emglobal.verilator_bin({
-            instantiateWasm: (0, workermain_1.moduleInstFn)('verilator_bin'),
+        var match_fn = (0, listingutils_1.makeErrorMatcher)(errors, /%(.+?): (.+?):(\d+)?[:]?\s*(.+)/i, 3, 4, step.path, 2);
+        var verilator_mod = wasmutils_1.emglobal.verilator_bin({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('verilator_bin'),
             noInitialRun: true,
             noExitRuntime: true,
-            print: workermain_1.print_fn,
+            print: wasmutils_1.print_fn,
             printErr: match_fn,
-            wasmMemory: (0, workermain_1.getWASMMemory)(), // reuse memory
+            wasmMemory: (0, wasmutils_1.getWASMMemory)(), // reuse memory
             //INITIAL_MEMORY:256*1024*1024,
         });
-        var code = (0, workermain_1.getWorkFileAsString)(step.path);
+        var code = (0, builder_1.getWorkFileAsString)(step.path);
         var topmod = detectTopModuleName(code);
         var FS = verilator_mod.FS;
         var listings = {};
         // process inline assembly, add listings where found
-        (0, workermain_1.populateFiles)(step, FS, {
+        (0, builder_1.populateFiles)(step, FS, {
             mainFilePath: step.path,
             processFn: (path, code) => {
                 if (typeof code === 'string') {
@@ -176,7 +178,7 @@ function compileVerilator(step) {
                 return code;
             }
         });
-        (0, workermain_1.starttime)();
+        (0, builder_1.starttime)();
         var xmlPath = `obj_dir/V${topmod}.xml`;
         try {
             var args = ["--cc", "-O3",
@@ -186,28 +188,28 @@ function compileVerilator(step) {
                 "--x-assign", "fast", "--noassert", "--pins-sc-biguint",
                 "--debug-check",
                 "--top-module", topmod, step.path];
-            (0, workermain_1.execMain)(step, verilator_mod, args);
+            (0, wasmutils_1.execMain)(step, verilator_mod, args);
         }
         catch (e) {
             console.log(e);
             errors.push({ line: 0, msg: "Compiler internal error: " + e });
         }
-        (0, workermain_1.endtime)("compile");
+        (0, builder_1.endtime)("compile");
         // remove boring errors
         errors = errors.filter(function (e) { return !/Exiting due to \d+/.exec(e.msg); }, errors);
         errors = errors.filter(function (e) { return !/Use ["][/][*]/.exec(e.msg); }, errors);
         if (errors.length) {
             return { errors: errors };
         }
-        (0, workermain_1.starttime)();
+        (0, builder_1.starttime)();
         var xmlParser = new vxmlparser.VerilogXMLParser();
         try {
             var xmlContent = FS.readFile(xmlPath, { encoding: 'utf8' });
             var xmlScrubbed = xmlContent.replace(/ fl=".+?" loc=".+?"/g, '');
             // TODO: this squelches the .asm listing
             //listings[step.prefix + '.xml'] = {lines:[],text:xmlContent};
-            (0, workermain_1.putWorkFile)(xmlPath, xmlScrubbed); // don't detect changes in source position
-            if (!(0, workermain_1.anyTargetChanged)(step, [xmlPath]))
+            (0, builder_1.putWorkFile)(xmlPath, xmlScrubbed); // don't detect changes in source position
+            if (!(0, builder_1.anyTargetChanged)(step, [xmlPath]))
                 return;
             xmlParser.parse(xmlContent);
         }
@@ -223,7 +225,7 @@ function compileVerilator(step) {
             return { errors: errors, listings: listings };
         }
         finally {
-            (0, workermain_1.endtime)("parse");
+            (0, builder_1.endtime)("parse");
         }
         return {
             output: xmlParser,
@@ -235,31 +237,31 @@ function compileVerilator(step) {
 exports.compileVerilator = compileVerilator;
 // TODO: test
 function compileYosys(step) {
-    (0, workermain_1.loadNative)("yosys");
+    (0, wasmutils_1.loadNative)("yosys");
     var code = step.code;
     var errors = [];
-    var match_fn = (0, workermain_1.makeErrorMatcher)(errors, /ERROR: (.+?) in line (.+?[.]v):(\d+)[: ]+(.+)/i, 3, 4, step.path);
-    (0, workermain_1.starttime)();
-    var yosys_mod = workermain_1.emglobal.yosys({
-        instantiateWasm: (0, workermain_1.moduleInstFn)('yosys'),
+    var match_fn = (0, listingutils_1.makeErrorMatcher)(errors, /ERROR: (.+?) in line (.+?[.]v):(\d+)[: ]+(.+)/i, 3, 4, step.path);
+    (0, builder_1.starttime)();
+    var yosys_mod = wasmutils_1.emglobal.yosys({
+        instantiateWasm: (0, wasmutils_1.moduleInstFn)('yosys'),
         noInitialRun: true,
-        print: workermain_1.print_fn,
+        print: wasmutils_1.print_fn,
         printErr: match_fn,
     });
-    (0, workermain_1.endtime)("create module");
+    (0, builder_1.endtime)("create module");
     var topmod = detectTopModuleName(code);
     var FS = yosys_mod.FS;
     FS.writeFile(topmod + ".v", code);
-    (0, workermain_1.starttime)();
+    (0, builder_1.starttime)();
     try {
-        (0, workermain_1.execMain)(step, yosys_mod, ["-q", "-o", topmod + ".json", "-S", topmod + ".v"]);
+        (0, wasmutils_1.execMain)(step, yosys_mod, ["-q", "-o", topmod + ".json", "-S", topmod + ".v"]);
     }
     catch (e) {
         console.log(e);
-        (0, workermain_1.endtime)("compile");
+        (0, builder_1.endtime)("compile");
         return { errors: errors };
     }
-    (0, workermain_1.endtime)("compile");
+    (0, builder_1.endtime)("compile");
     //TODO: filename in errors
     if (errors.length)
         return { errors: errors };
@@ -276,14 +278,14 @@ function compileYosys(step) {
 }
 exports.compileYosys = compileYosys;
 function compileSilice(step) {
-    (0, workermain_1.loadNative)("silice");
+    (0, wasmutils_1.loadNative)("silice");
     var params = step.params;
-    (0, workermain_1.gatherFiles)(step, { mainFilePath: "main.ice" });
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.ice" });
     var destpath = step.prefix + '.v';
     var errors = [];
     var errfile;
     var errline;
-    if ((0, workermain_1.staleFiles)(step, [destpath])) {
+    if ((0, builder_1.staleFiles)(step, [destpath])) {
         //[preprocessor] 97]  attempt to concatenate a nil value (global 'addrW')
         var match_fn = (s) => {
             s = s.replaceAll(/\033\[\d+\w/g, '');
@@ -309,16 +311,16 @@ function compileSilice(step) {
             else
                 console.log(s);
         };
-        var silice = workermain_1.emglobal.silice({
-            instantiateWasm: (0, workermain_1.moduleInstFn)('silice'),
+        var silice = wasmutils_1.emglobal.silice({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('silice'),
             noInitialRun: true,
             print: match_fn,
             printErr: match_fn,
         });
         var FS = silice.FS;
-        (0, workermain_1.setupFS)(FS, 'Silice');
-        (0, workermain_1.populateFiles)(step, FS);
-        (0, workermain_1.populateExtraFiles)(step, FS, params.extra_compile_files);
+        (0, wasmutils_1.setupFS)(FS, 'Silice');
+        (0, builder_1.populateFiles)(step, FS);
+        (0, builder_1.populateExtraFiles)(step, FS, params.extra_compile_files);
         const FWDIR = '/share/frameworks';
         var args = [
             '-D', 'NTSC=1',
@@ -327,11 +329,11 @@ function compileSilice(step) {
             '-o', destpath,
             step.path
         ];
-        (0, workermain_1.execMain)(step, silice, args);
+        (0, wasmutils_1.execMain)(step, silice, args);
         if (errors.length)
             return { errors: errors };
         var vout = FS.readFile(destpath, { encoding: 'utf8' });
-        (0, workermain_1.putWorkFile)(destpath, vout);
+        (0, builder_1.putWorkFile)(destpath, vout);
     }
     return {
         nexttool: "verilator",

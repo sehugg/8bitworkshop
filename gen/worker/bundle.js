@@ -5193,6 +5193,956 @@
     "MODERN": MODERN_BASIC
   };
 
+  // src/worker/platforms.ts
+  var PLATFORM_PARAMS = {
+    "vcs": {
+      arch: "6502",
+      code_start: 4096,
+      code_size: 61440,
+      data_start: 128,
+      data_size: 128,
+      wiz_rom_ext: ".a26",
+      wiz_inc_dir: "2600",
+      cfgfile: "atari2600.cfg",
+      libargs: ["crt0.o", "atari2600.lib"],
+      extra_link_files: ["crt0.o", "atari2600.cfg"],
+      define: ["__ATARI2600__"]
+    },
+    "mw8080bw": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 8192,
+      data_start: 8192,
+      data_size: 1024,
+      stack_end: 9216
+    },
+    "vicdual": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 16416,
+      data_start: 58368,
+      data_size: 1024,
+      stack_end: 59392
+    },
+    "galaxian": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 16384,
+      data_start: 16384,
+      data_size: 1024,
+      stack_end: 18432
+    },
+    "galaxian-scramble": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 20512,
+      data_start: 16384,
+      data_size: 1024,
+      stack_end: 18432
+    },
+    "williams": {
+      arch: "6809",
+      code_start: 0,
+      rom_size: 49152,
+      data_start: 38912,
+      data_size: 10240,
+      stack_end: 49152,
+      set_stack_end: 49152,
+      extra_link_files: ["williams.scr", "libcmoc-crt-vec.a", "libcmoc-std-vec.a"],
+      extra_link_args: ["-swilliams.scr", "-lcmoc-crt-vec", "-lcmoc-std-vec"],
+      extra_compile_files: ["assert.h", "cmoc.h", "stdarg.h", "stdlib.h"]
+    },
+    "williams-defender": {
+      arch: "6809",
+      code_start: 0,
+      rom_size: 49152,
+      data_start: 38912,
+      data_size: 10240,
+      stack_end: 49152
+    },
+    "williams-z80": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 38912,
+      data_start: 38912,
+      data_size: 10240,
+      stack_end: 49152
+    },
+    "vector-z80color": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 32768,
+      data_start: 57344,
+      data_size: 8192,
+      stack_end: 0
+    },
+    "vector-ataricolor": {
+      arch: "6502",
+      define: ["__VECTOR__"],
+      cfgfile: "vector-color.cfg",
+      libargs: ["crt0.o", "none.lib"],
+      extra_link_files: ["crt0.o", "vector-color.cfg"]
+    },
+    "sound_williams-z80": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 16384,
+      data_start: 16384,
+      data_size: 1024,
+      stack_end: 32768
+    },
+    "base_z80": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 32768,
+      data_start: 32768,
+      data_size: 32768,
+      stack_end: 0
+    },
+    "coleco": {
+      arch: "z80",
+      rom_start: 32768,
+      code_start: 33024,
+      rom_size: 32768,
+      data_start: 28672,
+      data_size: 1024,
+      stack_end: 32768,
+      extra_preproc_args: ["-I", "/share/include/coleco", "-D", "CV_CV"],
+      extra_link_args: ["-k", "/share/lib/coleco", "-l", "libcv", "-l", "libcvu", "crt0.rel"]
+    },
+    "msx": {
+      arch: "z80",
+      rom_start: 16384,
+      code_start: 16384,
+      rom_size: 32768,
+      data_start: 49152,
+      data_size: 12288,
+      stack_end: 65535,
+      extra_link_args: ["crt0-msx.rel"],
+      extra_link_files: ["crt0-msx.rel", "crt0-msx.lst"],
+      wiz_sys_type: "z80",
+      wiz_inc_dir: "msx"
+    },
+    "msx-libcv": {
+      arch: "z80",
+      rom_start: 16384,
+      code_start: 16384,
+      rom_size: 32768,
+      data_start: 49152,
+      data_size: 12288,
+      stack_end: 65535,
+      extra_preproc_args: ["-I", ".", "-D", "CV_MSX"],
+      extra_link_args: ["-k", ".", "-l", "libcv-msx", "-l", "libcvu-msx", "crt0-msx.rel"],
+      extra_link_files: ["libcv-msx.lib", "libcvu-msx.lib", "crt0-msx.rel", "crt0-msx.lst"],
+      extra_compile_files: ["cv.h", "cv_graphics.h", "cv_input.h", "cv_sound.h", "cv_support.h", "cvu.h", "cvu_c.h", "cvu_compression.h", "cvu_f.h", "cvu_graphics.h", "cvu_input.h", "cvu_sound.h"]
+    },
+    "sms-sg1000-libcv": {
+      arch: "z80",
+      rom_start: 0,
+      code_start: 256,
+      rom_size: 49152,
+      data_start: 49152,
+      data_size: 1024,
+      stack_end: 57344,
+      extra_preproc_args: ["-I", ".", "-D", "CV_SMS"],
+      extra_link_args: ["-k", ".", "-l", "libcv-sms", "-l", "libcvu-sms", "crt0-sms.rel"],
+      extra_link_files: ["libcv-sms.lib", "libcvu-sms.lib", "crt0-sms.rel", "crt0-sms.lst"],
+      extra_compile_files: ["cv.h", "cv_graphics.h", "cv_input.h", "cv_sound.h", "cv_support.h", "cvu.h", "cvu_c.h", "cvu_compression.h", "cvu_f.h", "cvu_graphics.h", "cvu_input.h", "cvu_sound.h"]
+    },
+    "nes": {
+      arch: "6502",
+      define: ["__NES__"],
+      cfgfile: "neslib2.cfg",
+      libargs: [
+        "crt0.o",
+        "nes.lib",
+        "neslib2.lib",
+        "-D",
+        "NES_MAPPER=0",
+        "-D",
+        "NES_PRG_BANKS=2",
+        "-D",
+        "NES_CHR_BANKS=1",
+        "-D",
+        "NES_MIRRORING=0"
+      ],
+      extra_link_files: ["crt0.o", "neslib2.lib", "neslib2.cfg", "nesbanked.cfg"],
+      wiz_rom_ext: ".nes"
+    },
+    "apple2": {
+      arch: "6502",
+      define: ["__APPLE2__"],
+      cfgfile: "apple2.cfg",
+      libargs: ["--lib-path", "/share/target/apple2/drv", "apple2.lib"],
+      __CODE_RUN__: 16384,
+      code_start: 2051,
+      acmeargs: ["-f", "apple"]
+    },
+    "apple2-e": {
+      arch: "6502",
+      define: ["__APPLE2__"],
+      cfgfile: "apple2.cfg",
+      libargs: ["apple2.lib"],
+      acmeargs: ["-f", "apple"]
+    },
+    "atari8-800xl.disk": {
+      arch: "6502",
+      define: ["__ATARI__"],
+      cfgfile: "atari.cfg",
+      libargs: ["atari.lib"],
+      fastbasic_cfgfile: "fastbasic-cart.cfg"
+    },
+    "atari8-800xl": {
+      arch: "6502",
+      define: ["__ATARI__"],
+      cfgfile: "atari-cart.cfg",
+      libargs: ["atari.lib", "-D", "__CARTFLAGS__=4"],
+      fastbasic_cfgfile: "fastbasic-cart.cfg"
+    },
+    "atari8-800": {
+      arch: "6502",
+      define: ["__ATARI__"],
+      cfgfile: "atari-cart.cfg",
+      libargs: ["atari.lib", "-D", "__CARTFLAGS__=4"],
+      fastbasic_cfgfile: "fastbasic-cart.cfg"
+    },
+    "atari8-5200": {
+      arch: "6502",
+      define: ["__ATARI5200__"],
+      cfgfile: "atari5200.cfg",
+      libargs: ["atari5200.lib", "-D", "__CARTFLAGS__=255"],
+      fastbasic_cfgfile: "fastbasic-cart.cfg"
+    },
+    "verilog": {
+      arch: "verilog",
+      extra_compile_files: ["8bitworkshop.v"]
+    },
+    "astrocade": {
+      arch: "z80",
+      code_start: 8192,
+      rom_size: 8192,
+      data_start: 19984,
+      data_size: 496,
+      stack_end: 20480
+    },
+    "astrocade-arcade": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 16384,
+      data_start: 32224,
+      data_size: 544,
+      stack_end: 32768
+    },
+    "astrocade-bios": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 8192,
+      data_start: 20430,
+      data_size: 50,
+      stack_end: 20430
+    },
+    "atari7800": {
+      arch: "6502",
+      define: ["__ATARI7800__"],
+      cfgfile: "atari7800.cfg",
+      libargs: ["crt0.o", "none.lib"],
+      extra_link_files: ["crt0.o", "atari7800.cfg"]
+    },
+    "c64": {
+      arch: "6502",
+      define: ["__CBM__", "__C64__"],
+      cfgfile: "c64.cfg",
+      libargs: ["c64.lib"],
+      acmeargs: ["-f", "cbm"]
+    },
+    "vic20": {
+      arch: "6502",
+      define: ["__CBM__", "__VIC20__"],
+      cfgfile: "vic20.cfg",
+      libargs: ["vic20.lib"],
+      acmeargs: ["-f", "cbm"]
+    },
+    "kim1": {
+      arch: "6502"
+    },
+    "vectrex": {
+      arch: "6809",
+      code_start: 0,
+      rom_size: 32768,
+      data_start: 51328,
+      data_size: 896,
+      stack_end: 52224,
+      extra_compile_files: ["assert.h", "cmoc.h", "stdarg.h", "vectrex.h", "stdlib.h", "bios.h"],
+      extra_link_files: ["vectrex.scr", "libcmoc-crt-vec.a", "libcmoc-std-vec.a"],
+      extra_compile_args: ["--vectrex"],
+      extra_link_args: ["-svectrex.scr", "-lcmoc-crt-vec", "-lcmoc-std-vec"]
+    },
+    "x86": {
+      arch: "x86"
+    },
+    "zx": {
+      arch: "z80",
+      code_start: 23755,
+      rom_size: 65368 - 23755,
+      data_start: 61440,
+      data_size: 65024 - 61440,
+      stack_end: 65368,
+      extra_link_args: ["crt0-zx.rel"],
+      extra_link_files: ["crt0-zx.rel", "crt0-zx.lst"]
+    },
+    "devel-6502": {
+      arch: "6502",
+      cfgfile: "devel-6502.cfg",
+      libargs: ["crt0.o", "none.lib"],
+      extra_link_files: ["crt0.o", "devel-6502.cfg"]
+    },
+    "cpc.rslib": {
+      arch: "z80",
+      code_start: 16384,
+      rom_size: 45312 - 16384,
+      data_start: 45312,
+      data_size: 45312 - 49152,
+      stack_end: 49152,
+      extra_compile_files: ["cpcrslib.h"],
+      extra_link_args: ["crt0-cpc.rel", "cpcrslib.lib"],
+      extra_link_files: ["crt0-cpc.rel", "crt0-cpc.lst", "cpcrslib.lib", "cpcrslib.lst"]
+    },
+    "cpc": {
+      arch: "z80",
+      code_start: 16384,
+      rom_size: 45312 - 16384,
+      data_start: 45312,
+      data_size: 45312 - 49152,
+      stack_end: 49152,
+      extra_compile_files: ["cpctelera.h"],
+      extra_link_args: ["crt0-cpc.rel", "cpctelera.lib"],
+      extra_link_files: ["crt0-cpc.rel", "crt0-cpc.lst", "cpctelera.lib", "cpctelera.lst"]
+    },
+    "pce": {
+      arch: "huc6280",
+      define: ["__PCE__"],
+      cfgfile: "pce.cfg",
+      libargs: ["pce.lib", "-D", "__CARTSIZE__=0x8000"]
+    }
+  };
+  PLATFORM_PARAMS["sms-sms-libcv"] = PLATFORM_PARAMS["sms-sg1000-libcv"];
+  PLATFORM_PARAMS["sms-gg-libcv"] = PLATFORM_PARAMS["sms-sms-libcv"];
+
+  // src/worker/builder.ts
+  var PSRC = "../../src/";
+  var PWORKER = PSRC + "worker/";
+  var FileWorkingStore = class {
+    constructor() {
+      this.workfs = {};
+      this.workerseq = 0;
+      this.reset();
+    }
+    reset() {
+      this.workfs = {};
+      this.newVersion();
+    }
+    currentVersion() {
+      return this.workerseq;
+    }
+    newVersion() {
+      let ts = new Date().getTime();
+      if (ts <= this.workerseq)
+        ts = ++this.workerseq;
+      return ts;
+    }
+    putFile(path, data) {
+      var encoding = typeof data === "string" ? "utf8" : "binary";
+      var entry = this.workfs[path];
+      if (!entry || !compareData(entry.data, data) || entry.encoding != encoding) {
+        this.workfs[path] = entry = { path, data, encoding, ts: this.newVersion() };
+        console.log("+++", entry.path, entry.encoding, entry.data.length, entry.ts);
+      }
+      return entry;
+    }
+    hasFile(path) {
+      return this.workfs[path] != null;
+    }
+    getFileData(path) {
+      return this.workfs[path] && this.workfs[path].data;
+    }
+    getFileAsString(path) {
+      let data = this.getFileData(path);
+      if (data != null && typeof data !== "string")
+        throw new Error(`${path}: expected string`);
+      return data;
+    }
+    getFileEntry(path) {
+      return this.workfs[path];
+    }
+    setItem(key, value) {
+      this.items[key] = value;
+    }
+  };
+  var store = new FileWorkingStore();
+  function errorResult(msg) {
+    return { errors: [{ line: 0, msg }] };
+  }
+  var Builder = class {
+    constructor() {
+      this.steps = [];
+      this.startseq = 0;
+    }
+    wasChanged(entry) {
+      return entry.ts > this.startseq;
+    }
+    async executeBuildSteps() {
+      this.startseq = store.currentVersion();
+      var linkstep = null;
+      while (this.steps.length) {
+        var step = this.steps.shift();
+        var platform = step.platform;
+        var [tool, remoteTool] = step.tool.split(":", 2);
+        var toolfn = TOOLS[tool];
+        if (!toolfn) {
+          throw Error(`no tool named "${tool}"`);
+        }
+        if (remoteTool) {
+          step.tool = remoteTool;
+        }
+        step.params = PLATFORM_PARAMS[getBasePlatform(platform)];
+        try {
+          step.result = await toolfn(step);
+        } catch (e) {
+          console.log("EXCEPTION", e, e.stack);
+          return errorResult(e + "");
+        }
+        if (step.result) {
+          step.result.params = step.params;
+          if (step.debuginfo) {
+            let r = step.result;
+            if (!r.debuginfo)
+              r.debuginfo = {};
+            Object.assign(r.debuginfo, step.debuginfo);
+          }
+          if ("errors" in step.result && step.result.errors.length) {
+            applyDefaultErrorPath(step.result.errors, step.path);
+            return step.result;
+          }
+          if ("output" in step.result && step.result.output) {
+            return step.result;
+          }
+          if ("linktool" in step.result) {
+            if (linkstep) {
+              linkstep.files = linkstep.files.concat(step.result.files);
+              linkstep.args = linkstep.args.concat(step.result.args);
+            } else {
+              linkstep = {
+                tool: step.result.linktool,
+                platform,
+                files: step.result.files,
+                args: step.result.args
+              };
+            }
+            linkstep.debuginfo = step.debuginfo;
+          }
+          if ("nexttool" in step.result) {
+            var asmstep = __spreadValues({
+              tool: step.result.nexttool,
+              platform
+            }, step.result);
+            this.steps.push(asmstep);
+          }
+          if (this.steps.length == 0 && linkstep) {
+            this.steps.push(linkstep);
+            linkstep = null;
+          }
+        }
+      }
+    }
+    async handleMessage(data) {
+      this.steps = [];
+      if (data.updates) {
+        data.updates.forEach((u) => store.putFile(u.path, u.data));
+      }
+      if (data.setitems) {
+        data.setitems.forEach((i) => store.setItem(i.key, i.value));
+      }
+      if (data.buildsteps) {
+        this.steps.push.apply(this.steps, data.buildsteps);
+      }
+      if (data.code) {
+        this.steps.push(data);
+      }
+      if (this.steps.length) {
+        var result = await this.executeBuildSteps();
+        return result ? result : { unchanged: true };
+      }
+      console.log("Unknown message", data);
+    }
+  };
+  function applyDefaultErrorPath(errors, path) {
+    if (!path)
+      return;
+    for (var i = 0; i < errors.length; i++) {
+      var err = errors[i];
+      if (!err.path && err.line)
+        err.path = path;
+    }
+  }
+  function compareData(a, b) {
+    if (a.length != b.length)
+      return false;
+    if (typeof a === "string" && typeof b === "string") {
+      return a == b;
+    } else {
+      for (var i = 0; i < a.length; i++) {
+        if (a[i] != b[i])
+          return false;
+      }
+      return true;
+    }
+  }
+  var builder = new Builder();
+  var _t1;
+  function starttime() {
+    _t1 = new Date();
+  }
+  function endtime(msg) {
+    var _t2 = new Date();
+    console.log(msg, _t2.getTime() - _t1.getTime(), "ms");
+  }
+  function putWorkFile(path, data) {
+    return store.putFile(path, data);
+  }
+  function getWorkFileAsString(path) {
+    return store.getFileAsString(path);
+  }
+  function populateEntry(fs, path, entry, options) {
+    var data = entry.data;
+    if (options && options.processFn) {
+      data = options.processFn(path, data);
+    }
+    var toks = path.split("/");
+    if (toks.length > 1) {
+      for (var i = 0; i < toks.length - 1; i++)
+        try {
+          fs.mkdir(toks[i]);
+        } catch (e) {
+        }
+    }
+    fs.writeFile(path, data, { encoding: entry.encoding });
+    var time = new Date(entry.ts);
+    fs.utime(path, time, time);
+    console.log("<<<", path, entry.data.length);
+  }
+  function gatherFiles(step, options) {
+    var maxts = 0;
+    if (step.files) {
+      for (var i = 0; i < step.files.length; i++) {
+        var path = step.files[i];
+        var entry = store.workfs[path];
+        if (!entry) {
+          throw new Error("No entry for path '" + path + "'");
+        } else {
+          maxts = Math.max(maxts, entry.ts);
+        }
+      }
+    } else if (step.code) {
+      var path = step.path ? step.path : options.mainFilePath;
+      if (!path)
+        throw Error("need path or mainFilePath");
+      var code = step.code;
+      var entry = putWorkFile(path, code);
+      step.path = path;
+      step.files = [path];
+      maxts = entry.ts;
+    } else if (step.path) {
+      var path = step.path;
+      var entry = store.workfs[path];
+      maxts = entry.ts;
+      step.files = [path];
+    }
+    if (step.path && !step.prefix) {
+      step.prefix = getPrefix(step.path);
+    }
+    step.maxts = maxts;
+    return maxts;
+  }
+  function getPrefix(s) {
+    var pos = s.lastIndexOf(".");
+    return pos > 0 ? s.substring(0, pos) : s;
+  }
+  function populateFiles(step, fs, options) {
+    gatherFiles(step, options);
+    if (!step.files)
+      throw Error("call gatherFiles() first");
+    for (var i = 0; i < step.files.length; i++) {
+      var path = step.files[i];
+      populateEntry(fs, path, store.workfs[path], options);
+    }
+  }
+  function populateExtraFiles(step, fs, extrafiles) {
+    if (extrafiles) {
+      for (var i = 0; i < extrafiles.length; i++) {
+        var xfn = extrafiles[i];
+        if (store.workfs[xfn]) {
+          fs.writeFile(xfn, store.workfs[xfn].data, { encoding: "binary" });
+          continue;
+        }
+        var xpath = "lib/" + getBasePlatform(step.platform) + "/" + xfn;
+        var xhr = new XMLHttpRequest();
+        xhr.responseType = "arraybuffer";
+        xhr.open("GET", PWORKER + xpath, false);
+        xhr.send(null);
+        if (xhr.response && xhr.status == 200) {
+          var data = new Uint8Array(xhr.response);
+          fs.writeFile(xfn, data, { encoding: "binary" });
+          putWorkFile(xfn, data);
+          console.log(":::", xfn, data.length);
+        } else {
+          throw Error("Could not load extra file " + xpath);
+        }
+      }
+    }
+  }
+  function staleFiles(step, targets) {
+    if (!step.maxts)
+      throw Error("call populateFiles() first");
+    for (var i = 0; i < targets.length; i++) {
+      var entry = store.workfs[targets[i]];
+      if (!entry || step.maxts > entry.ts)
+        return true;
+    }
+    console.log("unchanged", step.maxts, targets);
+    return false;
+  }
+  function anyTargetChanged(step, targets) {
+    if (!step.maxts)
+      throw Error("call populateFiles() first");
+    for (var i = 0; i < targets.length; i++) {
+      var entry = store.workfs[targets[i]];
+      if (!entry || entry.ts > step.maxts)
+        return true;
+    }
+    console.log("unchanged", step.maxts, targets);
+    return false;
+  }
+  function fixParamsWithDefines(path, params) {
+    var libargs = params.libargs;
+    if (path && libargs) {
+      var code = getWorkFileAsString(path);
+      if (code) {
+        var oldcfgfile = params.cfgfile;
+        var ident2index = {};
+        for (var i = 0; i < libargs.length; i++) {
+          var toks = libargs[i].split("=");
+          if (toks.length == 2) {
+            ident2index[toks[0]] = i;
+          }
+        }
+        var re = /^[;]?#define\s+(\w+)\s+(\S+)/gmi;
+        var m;
+        while (m = re.exec(code)) {
+          var ident = m[1];
+          var value = m[2];
+          var index = ident2index[ident];
+          if (index >= 0) {
+            libargs[index] = ident + "=" + value;
+            console.log("Using libargs", index, libargs[index]);
+            if (ident == "NES_MAPPER" && value == "4") {
+              params.cfgfile = "nesbanked.cfg";
+              console.log("using config file", params.cfgfile);
+            }
+          } else if (ident == "CFGFILE" && value) {
+            params.cfgfile = value;
+          } else if (ident == "LIBARGS" && value) {
+            params.libargs = value.split(",").filter((s) => {
+              return s != "";
+            });
+            console.log("Using libargs", params.libargs);
+          } else if (ident == "CC65_FLAGS" && value) {
+            params.extra_compiler_args = value.split(",").filter((s) => {
+              return s != "";
+            });
+            console.log("Using compiler flags", params.extra_compiler_args);
+          }
+        }
+      }
+    }
+  }
+
+  // src/worker/wasmutils.ts
+  var ENVIRONMENT_IS_WEB = typeof window === "object";
+  var ENVIRONMENT_IS_WORKER = typeof importScripts === "function";
+  var emglobal = ENVIRONMENT_IS_WORKER ? self : ENVIRONMENT_IS_WEB ? window : global;
+  if (!emglobal["require"]) {
+    emglobal["require"] = (modpath) => {
+      if (modpath.endsWith(".js"))
+        modpath = modpath.slice(-3);
+      var modname = modpath.split("/").slice(-1)[0];
+      var hasNamespace = emglobal[modname] != null;
+      console.log("@@@ require", modname, modpath, hasNamespace);
+      if (!hasNamespace) {
+        exports = {};
+        importScripts(`${modpath}.js`);
+      }
+      if (emglobal[modname] == null) {
+        emglobal[modname] = exports;
+      }
+      return emglobal[modname];
+    };
+  }
+  var _WASM_module_cache = {};
+  var CACHE_WASM_MODULES = true;
+  var wasmMemory;
+  function getWASMMemory() {
+    if (wasmMemory == null) {
+      wasmMemory = new WebAssembly.Memory({
+        "initial": 1024,
+        "maximum": 16384
+      });
+    }
+    return wasmMemory;
+  }
+  function getWASMModule(module_id) {
+    var module = _WASM_module_cache[module_id];
+    if (!module) {
+      starttime();
+      module = new WebAssembly.Module(wasmBlob[module_id]);
+      if (CACHE_WASM_MODULES) {
+        _WASM_module_cache[module_id] = module;
+        delete wasmBlob[module_id];
+      }
+      endtime("module creation " + module_id);
+    }
+    return module;
+  }
+  function moduleInstFn(module_id) {
+    return function(imports, ri) {
+      var mod = getWASMModule(module_id);
+      var inst = new WebAssembly.Instance(mod, imports);
+      ri(inst);
+      return inst.exports;
+    };
+  }
+  function execMain(step, mod, args) {
+    starttime();
+    var run = mod.callMain || mod.run;
+    run(args);
+    endtime(step.tool);
+  }
+  var fsMeta = {};
+  var fsBlob = {};
+  var wasmBlob = {};
+  function loadFilesystem(name) {
+    var xhr = new XMLHttpRequest();
+    xhr.responseType = "blob";
+    xhr.open("GET", PWORKER + "fs/fs" + name + ".data", false);
+    xhr.send(null);
+    fsBlob[name] = xhr.response;
+    xhr = new XMLHttpRequest();
+    xhr.responseType = "json";
+    xhr.open("GET", PWORKER + "fs/fs" + name + ".js.metadata", false);
+    xhr.send(null);
+    fsMeta[name] = xhr.response;
+    console.log("Loaded " + name + " filesystem", fsMeta[name].files.length, "files", fsBlob[name].size, "bytes");
+  }
+  var loaded = {};
+  function load(modulename, debug3) {
+    if (!loaded[modulename]) {
+      importScripts(PWORKER + "asmjs/" + modulename + (debug3 ? "." + debug3 + ".js" : ".js"));
+      loaded[modulename] = 1;
+    }
+  }
+  function loadWASMBinary(modulename) {
+    if (!loaded[modulename]) {
+      var xhr = new XMLHttpRequest();
+      xhr.responseType = "arraybuffer";
+      xhr.open("GET", PWORKER + "wasm/" + modulename + ".wasm", false);
+      xhr.send(null);
+      if (xhr.response) {
+        wasmBlob[modulename] = new Uint8Array(xhr.response);
+        console.log("Loaded " + modulename + ".wasm (" + wasmBlob[modulename].length + " bytes)");
+        loaded[modulename] = 1;
+      } else {
+        throw Error("Could not load WASM file " + modulename + ".wasm");
+      }
+    }
+    return wasmBlob[modulename];
+  }
+  function loadWASM(modulename, debug3) {
+    if (!loaded[modulename]) {
+      importScripts(PWORKER + "wasm/" + modulename + (debug3 ? "." + debug3 + ".js" : ".js"));
+      loadWASMBinary(modulename);
+    }
+  }
+  function loadNative(modulename) {
+    if (CACHE_WASM_MODULES && typeof WebAssembly === "object") {
+      loadWASM(modulename);
+    } else {
+      load(modulename);
+    }
+  }
+  function setupFS(FS, name) {
+    var WORKERFS = FS.filesystems["WORKERFS"];
+    if (name === "65-vector")
+      name = "65-none";
+    if (name === "65-atari7800")
+      name = "65-none";
+    if (name === "65-devel")
+      name = "65-none";
+    if (name === "65-vcs")
+      name = "65-atari2600";
+    if (!fsMeta[name])
+      throw Error("No filesystem for '" + name + "'");
+    FS.mkdir("/share");
+    FS.mount(WORKERFS, {
+      packages: [{ metadata: fsMeta[name], blob: fsBlob[name] }]
+    }, "/share");
+    var reader = WORKERFS.reader;
+    var blobcache = {};
+    WORKERFS.stream_ops.read = function(stream, buffer, offset, length, position) {
+      if (position >= stream.node.size)
+        return 0;
+      var contents = blobcache[stream.path];
+      if (!contents) {
+        var ab = reader.readAsArrayBuffer(stream.node.contents);
+        contents = blobcache[stream.path] = new Uint8Array(ab);
+      }
+      if (position + length > contents.length)
+        length = contents.length - position;
+      for (var i = 0; i < length; i++) {
+        buffer[offset + i] = contents[position + i];
+      }
+      return length;
+    };
+  }
+  var print_fn = function(s) {
+    console.log(s);
+  };
+  function setupStdin(fs, code) {
+    var i = 0;
+    fs.init(function() {
+      return i < code.length ? code.charCodeAt(i++) : null;
+    });
+  }
+
+  // src/worker/listingutils.ts
+  var re_msvc = /[/]*([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+?):\s*(.*)/;
+  var re_msvc2 = /\s*(at)\s+(\d+)\s*(:)\s*(.*)/;
+  function msvcErrorMatcher(errors) {
+    return function(s) {
+      var matches = re_msvc.exec(s) || re_msvc2.exec(s);
+      if (matches) {
+        var errline = parseInt(matches[2]);
+        errors.push({
+          line: errline,
+          path: matches[1],
+          msg: matches[4]
+        });
+      } else {
+        console.log(s);
+      }
+    };
+  }
+  function makeErrorMatcher(errors, regex, iline, imsg, mainpath, ifilename) {
+    return function(s) {
+      var matches = regex.exec(s);
+      if (matches) {
+        errors.push({
+          line: parseInt(matches[iline]) || 1,
+          msg: matches[imsg],
+          path: ifilename ? matches[ifilename] : mainpath
+        });
+      } else {
+        console.log("??? " + s);
+      }
+    };
+  }
+  function extractErrors(regex, strings, path, iline, imsg, ifilename) {
+    var errors = [];
+    var matcher = makeErrorMatcher(errors, regex, iline, imsg, path, ifilename);
+    for (var i = 0; i < strings.length; i++) {
+      matcher(strings[i]);
+    }
+    return errors;
+  }
+  var re_crlf = /\r?\n/;
+  var re_lineoffset = /\s*(\d+)\s+[%]line\s+(\d+)\+(\d+)\s+(.+)/;
+  function parseListing(code, lineMatch, iline, ioffset, iinsns, icycles, funcMatch, segMatch) {
+    var lines = [];
+    var lineofs = 0;
+    var segment = "";
+    var func = "";
+    var funcbase = 0;
+    code.split(re_crlf).forEach((line, lineindex) => {
+      let segm = segMatch && segMatch.exec(line);
+      if (segm) {
+        segment = segm[1];
+      }
+      let funcm = funcMatch && funcMatch.exec(line);
+      if (funcm) {
+        funcbase = parseInt(funcm[1], 16);
+        func = funcm[2];
+      }
+      var linem = lineMatch.exec(line);
+      if (linem && linem[1]) {
+        var linenum = iline < 0 ? lineindex : parseInt(linem[iline]);
+        var offset = parseInt(linem[ioffset], 16);
+        var insns = linem[iinsns];
+        var cycles = icycles ? parseInt(linem[icycles]) : null;
+        var iscode = cycles > 0;
+        if (insns) {
+          lines.push({
+            line: linenum + lineofs,
+            offset: offset - funcbase,
+            insns,
+            cycles,
+            iscode,
+            segment,
+            func
+          });
+        }
+      } else {
+        let m = re_lineoffset.exec(line);
+        if (m) {
+          lineofs = parseInt(m[2]) - parseInt(m[1]) - parseInt(m[3]);
+        }
+      }
+    });
+    return lines;
+  }
+  function parseSourceLines(code, lineMatch, offsetMatch, funcMatch, segMatch) {
+    var lines = [];
+    var lastlinenum = 0;
+    var segment = "";
+    var func = "";
+    var funcbase = 0;
+    for (var line of code.split(re_crlf)) {
+      let segm = segMatch && segMatch.exec(line);
+      if (segm) {
+        segment = segm[1];
+      }
+      let funcm = funcMatch && funcMatch.exec(line);
+      if (funcm) {
+        funcbase = parseInt(funcm[1], 16);
+        func = funcm[2];
+      }
+      var linem = lineMatch.exec(line);
+      if (linem && linem[1]) {
+        lastlinenum = parseInt(linem[1]);
+      } else if (lastlinenum) {
+        var linem = offsetMatch.exec(line);
+        if (linem && linem[1]) {
+          var offset = parseInt(linem[1], 16);
+          lines.push({
+            line: lastlinenum,
+            offset: offset - funcbase,
+            segment,
+            func
+          });
+          lastlinenum = 0;
+        }
+      }
+    }
+    return lines;
+  }
+
   // src/worker/tools/misc.ts
   function translateShowdown(step) {
     setupRequireFunction();
@@ -5704,6 +6654,642 @@
     };
   }
 
+  // src/common/wasi/wasishim.ts
+  var use_debug = true;
+  var debug = use_debug ? console.log : () => {
+  };
+  var warning = console.log;
+  var FDType;
+  (function(FDType2) {
+    FDType2[FDType2["UNKNOWN"] = 0] = "UNKNOWN";
+    FDType2[FDType2["BLOCK_DEVICE"] = 1] = "BLOCK_DEVICE";
+    FDType2[FDType2["CHARACTER_DEVICE"] = 2] = "CHARACTER_DEVICE";
+    FDType2[FDType2["DIRECTORY"] = 3] = "DIRECTORY";
+    FDType2[FDType2["REGULAR_FILE"] = 4] = "REGULAR_FILE";
+    FDType2[FDType2["SOCKET_DGRAM"] = 5] = "SOCKET_DGRAM";
+    FDType2[FDType2["SOCKET_STREAM"] = 6] = "SOCKET_STREAM";
+    FDType2[FDType2["SYMBOLIC_LINK"] = 7] = "SYMBOLIC_LINK";
+  })(FDType || (FDType = {}));
+  var FDRights;
+  (function(FDRights2) {
+    FDRights2[FDRights2["FD_DATASYNC"] = 1] = "FD_DATASYNC";
+    FDRights2[FDRights2["FD_READ"] = 2] = "FD_READ";
+    FDRights2[FDRights2["FD_SEEK"] = 4] = "FD_SEEK";
+    FDRights2[FDRights2["FD_FDSTAT_SET_FLAGS"] = 8] = "FD_FDSTAT_SET_FLAGS";
+    FDRights2[FDRights2["FD_SYNC"] = 16] = "FD_SYNC";
+    FDRights2[FDRights2["FD_TELL"] = 32] = "FD_TELL";
+    FDRights2[FDRights2["FD_WRITE"] = 64] = "FD_WRITE";
+    FDRights2[FDRights2["FD_ADVISE"] = 128] = "FD_ADVISE";
+    FDRights2[FDRights2["FD_ALLOCATE"] = 256] = "FD_ALLOCATE";
+    FDRights2[FDRights2["PATH_CREATE_DIRECTORY"] = 512] = "PATH_CREATE_DIRECTORY";
+    FDRights2[FDRights2["PATH_CREATE_FILE"] = 1024] = "PATH_CREATE_FILE";
+    FDRights2[FDRights2["PATH_LINK_SOURCE"] = 2048] = "PATH_LINK_SOURCE";
+    FDRights2[FDRights2["PATH_LINK_TARGET"] = 4096] = "PATH_LINK_TARGET";
+    FDRights2[FDRights2["PATH_OPEN"] = 8192] = "PATH_OPEN";
+    FDRights2[FDRights2["FD_READDIR"] = 16384] = "FD_READDIR";
+    FDRights2[FDRights2["PATH_READLINK"] = 32768] = "PATH_READLINK";
+    FDRights2[FDRights2["PATH_RENAME_SOURCE"] = 65536] = "PATH_RENAME_SOURCE";
+    FDRights2[FDRights2["PATH_RENAME_TARGET"] = 131072] = "PATH_RENAME_TARGET";
+    FDRights2[FDRights2["PATH_FILESTAT_GET"] = 262144] = "PATH_FILESTAT_GET";
+    FDRights2[FDRights2["PATH_FILESTAT_SET_SIZE"] = 524288] = "PATH_FILESTAT_SET_SIZE";
+    FDRights2[FDRights2["PATH_FILESTAT_SET_TIMES"] = 1048576] = "PATH_FILESTAT_SET_TIMES";
+    FDRights2[FDRights2["FD_FILESTAT_GET"] = 2097152] = "FD_FILESTAT_GET";
+    FDRights2[FDRights2["FD_FILESTAT_SET_SIZE"] = 4194304] = "FD_FILESTAT_SET_SIZE";
+    FDRights2[FDRights2["FD_FILESTAT_SET_TIMES"] = 8388608] = "FD_FILESTAT_SET_TIMES";
+    FDRights2[FDRights2["PATH_SYMLINK"] = 16777216] = "PATH_SYMLINK";
+    FDRights2[FDRights2["PATH_REMOVE_DIRECTORY"] = 33554432] = "PATH_REMOVE_DIRECTORY";
+    FDRights2[FDRights2["PATH_UNLINK_FILE"] = 67108864] = "PATH_UNLINK_FILE";
+    FDRights2[FDRights2["POLL_FD_READWRITE"] = 134217728] = "POLL_FD_READWRITE";
+    FDRights2[FDRights2["SOCK_SHUTDOWN"] = 268435456] = "SOCK_SHUTDOWN";
+    FDRights2[FDRights2["FD_ALL"] = 536870911] = "FD_ALL";
+  })(FDRights || (FDRights = {}));
+  var FDFlags;
+  (function(FDFlags2) {
+    FDFlags2[FDFlags2["APPEND"] = 1] = "APPEND";
+    FDFlags2[FDFlags2["DSYNC"] = 2] = "DSYNC";
+    FDFlags2[FDFlags2["NONBLOCK"] = 4] = "NONBLOCK";
+    FDFlags2[FDFlags2["RSYNC"] = 8] = "RSYNC";
+    FDFlags2[FDFlags2["SYNC"] = 16] = "SYNC";
+  })(FDFlags || (FDFlags = {}));
+  var FDOpenFlags;
+  (function(FDOpenFlags2) {
+    FDOpenFlags2[FDOpenFlags2["CREAT"] = 1] = "CREAT";
+    FDOpenFlags2[FDOpenFlags2["DIRECTORY"] = 2] = "DIRECTORY";
+    FDOpenFlags2[FDOpenFlags2["EXCL"] = 4] = "EXCL";
+    FDOpenFlags2[FDOpenFlags2["TRUNC"] = 8] = "TRUNC";
+  })(FDOpenFlags || (FDOpenFlags = {}));
+  var WASIErrors;
+  (function(WASIErrors2) {
+    WASIErrors2[WASIErrors2["SUCCESS"] = 0] = "SUCCESS";
+    WASIErrors2[WASIErrors2["TOOBIG"] = 1] = "TOOBIG";
+    WASIErrors2[WASIErrors2["ACCES"] = 2] = "ACCES";
+    WASIErrors2[WASIErrors2["ADDRINUSE"] = 3] = "ADDRINUSE";
+    WASIErrors2[WASIErrors2["ADDRNOTAVAIL"] = 4] = "ADDRNOTAVAIL";
+    WASIErrors2[WASIErrors2["AFNOSUPPORT"] = 5] = "AFNOSUPPORT";
+    WASIErrors2[WASIErrors2["AGAIN"] = 6] = "AGAIN";
+    WASIErrors2[WASIErrors2["ALREADY"] = 7] = "ALREADY";
+    WASIErrors2[WASIErrors2["BADF"] = 8] = "BADF";
+    WASIErrors2[WASIErrors2["BADMSG"] = 9] = "BADMSG";
+    WASIErrors2[WASIErrors2["BUSY"] = 10] = "BUSY";
+    WASIErrors2[WASIErrors2["CANCELED"] = 11] = "CANCELED";
+    WASIErrors2[WASIErrors2["CHILD"] = 12] = "CHILD";
+    WASIErrors2[WASIErrors2["CONNABORTED"] = 13] = "CONNABORTED";
+    WASIErrors2[WASIErrors2["CONNREFUSED"] = 14] = "CONNREFUSED";
+    WASIErrors2[WASIErrors2["CONNRESET"] = 15] = "CONNRESET";
+    WASIErrors2[WASIErrors2["DEADLK"] = 16] = "DEADLK";
+    WASIErrors2[WASIErrors2["DESTADDRREQ"] = 17] = "DESTADDRREQ";
+    WASIErrors2[WASIErrors2["DOM"] = 18] = "DOM";
+    WASIErrors2[WASIErrors2["DQUOT"] = 19] = "DQUOT";
+    WASIErrors2[WASIErrors2["EXIST"] = 20] = "EXIST";
+    WASIErrors2[WASIErrors2["FAULT"] = 21] = "FAULT";
+    WASIErrors2[WASIErrors2["FBIG"] = 22] = "FBIG";
+    WASIErrors2[WASIErrors2["HOSTUNREACH"] = 23] = "HOSTUNREACH";
+    WASIErrors2[WASIErrors2["IDRM"] = 24] = "IDRM";
+    WASIErrors2[WASIErrors2["ILSEQ"] = 25] = "ILSEQ";
+    WASIErrors2[WASIErrors2["INPROGRESS"] = 26] = "INPROGRESS";
+    WASIErrors2[WASIErrors2["INTR"] = 27] = "INTR";
+    WASIErrors2[WASIErrors2["INVAL"] = 28] = "INVAL";
+    WASIErrors2[WASIErrors2["IO"] = 29] = "IO";
+    WASIErrors2[WASIErrors2["ISCONN"] = 30] = "ISCONN";
+    WASIErrors2[WASIErrors2["ISDIR"] = 31] = "ISDIR";
+    WASIErrors2[WASIErrors2["LOOP"] = 32] = "LOOP";
+    WASIErrors2[WASIErrors2["MFILE"] = 33] = "MFILE";
+    WASIErrors2[WASIErrors2["MLINK"] = 34] = "MLINK";
+    WASIErrors2[WASIErrors2["MSGSIZE"] = 35] = "MSGSIZE";
+    WASIErrors2[WASIErrors2["MULTIHOP"] = 36] = "MULTIHOP";
+    WASIErrors2[WASIErrors2["NAMETOOLONG"] = 37] = "NAMETOOLONG";
+    WASIErrors2[WASIErrors2["NETDOWN"] = 38] = "NETDOWN";
+    WASIErrors2[WASIErrors2["NETRESET"] = 39] = "NETRESET";
+    WASIErrors2[WASIErrors2["NETUNREACH"] = 40] = "NETUNREACH";
+    WASIErrors2[WASIErrors2["NFILE"] = 41] = "NFILE";
+    WASIErrors2[WASIErrors2["NOBUFS"] = 42] = "NOBUFS";
+    WASIErrors2[WASIErrors2["NODEV"] = 43] = "NODEV";
+    WASIErrors2[WASIErrors2["NOENT"] = 44] = "NOENT";
+    WASIErrors2[WASIErrors2["NOEXEC"] = 45] = "NOEXEC";
+    WASIErrors2[WASIErrors2["NOLCK"] = 46] = "NOLCK";
+    WASIErrors2[WASIErrors2["NOLINK"] = 47] = "NOLINK";
+    WASIErrors2[WASIErrors2["NOMEM"] = 48] = "NOMEM";
+    WASIErrors2[WASIErrors2["NOMSG"] = 49] = "NOMSG";
+    WASIErrors2[WASIErrors2["NOPROTOOPT"] = 50] = "NOPROTOOPT";
+    WASIErrors2[WASIErrors2["NOSPC"] = 51] = "NOSPC";
+    WASIErrors2[WASIErrors2["NOSYS"] = 52] = "NOSYS";
+    WASIErrors2[WASIErrors2["NOTCONN"] = 53] = "NOTCONN";
+    WASIErrors2[WASIErrors2["NOTDIR"] = 54] = "NOTDIR";
+    WASIErrors2[WASIErrors2["NOTEMPTY"] = 55] = "NOTEMPTY";
+    WASIErrors2[WASIErrors2["NOTRECOVERABLE"] = 56] = "NOTRECOVERABLE";
+    WASIErrors2[WASIErrors2["NOTSOCK"] = 57] = "NOTSOCK";
+    WASIErrors2[WASIErrors2["NOTSUP"] = 58] = "NOTSUP";
+    WASIErrors2[WASIErrors2["NOTTY"] = 59] = "NOTTY";
+    WASIErrors2[WASIErrors2["NXIO"] = 60] = "NXIO";
+    WASIErrors2[WASIErrors2["OVERFLOW"] = 61] = "OVERFLOW";
+    WASIErrors2[WASIErrors2["OWNERDEAD"] = 62] = "OWNERDEAD";
+    WASIErrors2[WASIErrors2["PERM"] = 63] = "PERM";
+    WASIErrors2[WASIErrors2["PIPE"] = 64] = "PIPE";
+    WASIErrors2[WASIErrors2["PROTO"] = 65] = "PROTO";
+    WASIErrors2[WASIErrors2["PROTONOSUPPORT"] = 66] = "PROTONOSUPPORT";
+    WASIErrors2[WASIErrors2["PROTOTYPE"] = 67] = "PROTOTYPE";
+    WASIErrors2[WASIErrors2["RANGE"] = 68] = "RANGE";
+    WASIErrors2[WASIErrors2["ROFS"] = 69] = "ROFS";
+    WASIErrors2[WASIErrors2["SPIPE"] = 70] = "SPIPE";
+    WASIErrors2[WASIErrors2["SRCH"] = 71] = "SRCH";
+    WASIErrors2[WASIErrors2["STALE"] = 72] = "STALE";
+    WASIErrors2[WASIErrors2["TIMEDOUT"] = 73] = "TIMEDOUT";
+    WASIErrors2[WASIErrors2["TXTBSY"] = 74] = "TXTBSY";
+    WASIErrors2[WASIErrors2["XDEV"] = 75] = "XDEV";
+    WASIErrors2[WASIErrors2["NOTCAPABLE"] = 76] = "NOTCAPABLE";
+  })(WASIErrors || (WASIErrors = {}));
+  var WASIFileDescriptor = class {
+    constructor(name, type, rights) {
+      this.name = name;
+      this.type = type;
+      this.rights = rights;
+      this.fdindex = -1;
+      this.data = new Uint8Array(16);
+      this.flags = 0;
+      this.size = 0;
+      this.offset = 0;
+      this.rights = -1;
+    }
+    ensureCapacity(size) {
+      if (this.data.byteLength < size) {
+        const newdata = new Uint8Array(size * 2);
+        newdata.set(this.data);
+        this.data = newdata;
+      }
+    }
+    write(chunk) {
+      this.ensureCapacity(this.offset + chunk.byteLength);
+      this.data.set(chunk, this.offset);
+      this.offset += chunk.byteLength;
+      this.size = Math.max(this.size, this.offset);
+    }
+    read(chunk) {
+      const len = Math.min(chunk.byteLength, this.size - this.offset);
+      chunk.set(this.data.subarray(this.offset, this.offset + len));
+      this.offset += len;
+      return len;
+    }
+    truncate() {
+      this.size = 0;
+      this.offset = 0;
+    }
+    llseek(offset, whence) {
+      switch (whence) {
+        case 0:
+          this.offset = offset;
+          break;
+        case 1:
+          this.offset += offset;
+          break;
+        case 2:
+          this.offset = this.size + offset;
+          break;
+      }
+      if (this.offset < 0)
+        this.offset = 0;
+      if (this.offset > this.size)
+        this.offset = this.size;
+    }
+    getBytes() {
+      return this.data.subarray(0, this.size);
+    }
+    getBytesAsString() {
+      return new TextDecoder().decode(this.getBytes());
+    }
+    toString() {
+      return `FD(${this.fdindex} "${this.name}" 0x${this.type.toString(16)} 0x${this.rights.toString(16)} ${this.offset}/${this.size}/${this.data.byteLength})`;
+    }
+  };
+  var WASIStreamingFileDescriptor = class extends WASIFileDescriptor {
+    constructor(fdindex, name, type, rights, stream) {
+      super(name, type, rights);
+      this.stream = stream;
+      this.fdindex = fdindex;
+    }
+    write(chunk) {
+      this.stream.write(chunk);
+    }
+  };
+  var WASIMemoryFilesystem = class {
+    constructor() {
+      this.parent = null;
+      this.files = new Map();
+      this.dirs = new Map();
+      this.putDirectory("/");
+    }
+    setParent(parent) {
+      this.parent = parent;
+    }
+    putDirectory(name, rights) {
+      if (!rights)
+        rights = 8192 | 512 | 1024;
+      const dir = new WASIFileDescriptor(name, 3, rights);
+      this.dirs.set(name, dir);
+      return dir;
+    }
+    putFile(name, data, rights) {
+      if (typeof data === "string") {
+        data = new TextEncoder().encode(data);
+      }
+      if (!rights)
+        rights = 2 | 64;
+      const file = new WASIFileDescriptor(name, 4, rights);
+      file.write(data);
+      file.offset = 0;
+      this.files.set(name, file);
+      return file;
+    }
+    getFile(name) {
+      var _a;
+      let file = this.files.get(name);
+      if (!file) {
+        file = (_a = this.parent) == null ? void 0 : _a.getFile(name);
+      }
+      return file;
+    }
+  };
+  var _instance, _memarr8, _memarr32, _args, _envvars;
+  var WASIRunner = class {
+    constructor() {
+      __privateAdd(this, _instance, void 0);
+      __privateAdd(this, _memarr8, void 0);
+      __privateAdd(this, _memarr32, void 0);
+      __privateAdd(this, _args, []);
+      __privateAdd(this, _envvars, []);
+      this.fds = [];
+      this.exited = false;
+      this.errno = -1;
+      this.fs = new WASIMemoryFilesystem();
+      this.createStdioBrowser();
+    }
+    exports() {
+      return __privateGet(this, _instance).exports;
+    }
+    createStdioNode() {
+      this.stdin = new WASIStreamingFileDescriptor(0, "<stdin>", 2, 2, process.stdin);
+      this.stdout = new WASIStreamingFileDescriptor(1, "<stdout>", 2, 64, process.stdout);
+      this.stderr = new WASIStreamingFileDescriptor(2, "<stderr>", 2, 64, process.stderr);
+      this.fds[0] = this.stdin;
+      this.fds[1] = this.stdout;
+      this.fds[2] = this.stderr;
+    }
+    createStdioBrowser() {
+      this.stdin = new WASIFileDescriptor("<stdin>", 2, 2);
+      this.stdout = new WASIFileDescriptor("<stdout>", 2, 64);
+      this.stderr = new WASIFileDescriptor("<stderr>", 2, 64);
+      this.stdin.fdindex = 0;
+      this.stdout.fdindex = 1;
+      this.stderr.fdindex = 2;
+      this.fds[0] = this.stdin;
+      this.fds[1] = this.stdout;
+      this.fds[2] = this.stderr;
+    }
+    initSync(wasmModule) {
+      __privateSet(this, _instance, new WebAssembly.Instance(wasmModule, this.getImportObject()));
+    }
+    loadSync(wasmSource) {
+      let wasmModule = new WebAssembly.Module(wasmSource);
+      this.initSync(wasmModule);
+    }
+    async loadAsync(wasmSource) {
+      let wasmModule = await WebAssembly.compile(wasmSource);
+      __privateSet(this, _instance, await WebAssembly.instantiate(wasmModule, this.getImportObject()));
+    }
+    setArgs(args) {
+      __privateSet(this, _args, args.map((arg) => new TextEncoder().encode(arg + "\0")));
+    }
+    addPreopenDirectory(name) {
+      return this.openFile(name, 2 | 1);
+    }
+    openFile(path, o_flags, mode) {
+      let file = this.fs.getFile(path);
+      mode = typeof mode == "undefined" ? 438 : mode;
+      if (o_flags & 1) {
+        if (file == null) {
+          if (o_flags & 2) {
+            file = this.fs.putDirectory(path);
+          } else {
+            file = this.fs.putFile(path, new Uint8Array(), 536870911);
+          }
+        } else {
+          if (o_flags & 8) {
+            file.truncate();
+          } else
+            return 28;
+        }
+      } else {
+        if (file == null)
+          return 52;
+        if (o_flags & 2) {
+          if (file.type !== 3)
+            return 52;
+        }
+        if (o_flags & 4)
+          return 28;
+        if (o_flags & 8) {
+          file.truncate();
+        } else {
+          file.llseek(0, 0);
+        }
+      }
+      file.fdindex = this.fds.length;
+      this.fds.push(file);
+      return file;
+    }
+    mem8() {
+      var _a;
+      if (!((_a = __privateGet(this, _memarr8)) == null ? void 0 : _a.byteLength)) {
+        __privateSet(this, _memarr8, new Uint8Array(__privateGet(this, _instance).exports.memory.buffer));
+      }
+      return __privateGet(this, _memarr8);
+    }
+    mem32() {
+      var _a;
+      if (!((_a = __privateGet(this, _memarr32)) == null ? void 0 : _a.byteLength)) {
+        __privateSet(this, _memarr32, new Int32Array(__privateGet(this, _instance).exports.memory.buffer));
+      }
+      return __privateGet(this, _memarr32);
+    }
+    run() {
+      try {
+        __privateGet(this, _instance).exports._start();
+        if (!this.exited) {
+          this.exited = true;
+          this.errno = 0;
+        }
+      } catch (err) {
+        if (!this.exited)
+          throw err;
+      }
+      return this.getErrno();
+    }
+    initialize() {
+      __privateGet(this, _instance).exports._initialize();
+      return this.getErrno();
+    }
+    getImportObject() {
+      return {
+        "wasi_snapshot_preview1": this.getWASISnapshotPreview1(),
+        "env": this.getEnv()
+      };
+    }
+    peek8(ptr) {
+      return this.mem8()[ptr];
+    }
+    peek16(ptr) {
+      return this.mem8()[ptr] | this.mem8()[ptr + 1] << 8;
+    }
+    peek32(ptr) {
+      return this.mem32()[ptr >>> 2];
+    }
+    poke8(ptr, val) {
+      this.mem8()[ptr] = val;
+    }
+    poke16(ptr, val) {
+      this.mem8()[ptr] = val;
+      this.mem8()[ptr + 1] = val >> 8;
+    }
+    poke32(ptr, val) {
+      this.mem32()[ptr >>> 2] = val;
+    }
+    poke64(ptr, val) {
+      this.mem32()[ptr >>> 2] = val;
+      this.mem32()[(ptr >>> 2) + 1] = 0;
+    }
+    pokeUTF8(str, ptr, maxlen) {
+      const enc = new TextEncoder();
+      const bytes = enc.encode(str);
+      const len = Math.min(bytes.length, maxlen);
+      this.mem8().set(bytes.subarray(0, len), ptr);
+    }
+    peekUTF8(ptr, maxlen) {
+      const bytes = this.mem8().subarray(ptr, ptr + maxlen);
+      const dec = new TextDecoder();
+      return dec.decode(bytes);
+    }
+    getErrno() {
+      return this.errno;
+    }
+    poke_str_array_sizes(strs, count_ptr, buf_size_ptr) {
+      this.poke32(count_ptr, strs.length);
+      this.poke32(buf_size_ptr, strs.reduce((acc, arg) => acc + arg.length, 0));
+    }
+    poke_str_args(strs, argv_ptr, argv_buf_ptr) {
+      let argv = argv_ptr;
+      let argv_buf = argv_buf_ptr;
+      for (let arg of __privateGet(this, _args)) {
+        this.poke32(argv, argv_buf);
+        argv += 4;
+        for (let i = 0; i < arg.length; i++) {
+          this.poke8(argv_buf, arg[i]);
+          argv_buf++;
+        }
+      }
+    }
+    args_sizes_get(argcount_ptr, argv_buf_size_ptr) {
+      debug("args_sizes_get", argcount_ptr, argv_buf_size_ptr);
+      this.poke_str_array_sizes(__privateGet(this, _args), argcount_ptr, argv_buf_size_ptr);
+      return 0;
+    }
+    args_get(argv_ptr, argv_buf_ptr) {
+      debug("args_get", argv_ptr, argv_buf_ptr);
+      this.poke_str_args(__privateGet(this, _args), argv_ptr, argv_buf_ptr);
+      return 0;
+    }
+    environ_sizes_get(environ_count_ptr, environ_buf_size_ptr) {
+      debug("environ_sizes_get", environ_count_ptr, environ_buf_size_ptr);
+      this.poke_str_array_sizes(__privateGet(this, _envvars), environ_count_ptr, environ_buf_size_ptr);
+      return 0;
+    }
+    environ_get(environ_ptr, environ_buf_ptr) {
+      debug("environ_get", environ_ptr, environ_buf_ptr);
+      this.poke_str_args(__privateGet(this, _envvars), environ_ptr, environ_buf_ptr);
+      return 0;
+    }
+    fd_write(fd, iovs, iovs_len, nwritten_ptr) {
+      const stream = this.fds[fd];
+      const iovecs = this.mem32().subarray(iovs >>> 2, iovs + iovs_len * 8 >>> 2);
+      let total = 0;
+      for (let i = 0; i < iovs_len; i++) {
+        const ptr = iovecs[i * 2];
+        const len = iovecs[i * 2 + 1];
+        const chunk = this.mem8().subarray(ptr, ptr + len);
+        total += len;
+        stream.write(chunk);
+      }
+      this.poke32(nwritten_ptr, total);
+      debug("fd_write", fd, iovs, iovs_len, "->", total);
+      return 0;
+    }
+    fd_read(fd, iovs, iovs_len, nread_ptr) {
+      const stream = this.fds[fd];
+      const iovecs = this.mem32().subarray(iovs >>> 2, iovs + iovs_len * 8 >>> 2);
+      let total = 0;
+      for (let i = 0; i < iovs_len; i++) {
+        const ptr = iovecs[i * 2];
+        const len = iovecs[i * 2 + 1];
+        const chunk = this.mem8().subarray(ptr, ptr + len);
+        total += stream.read(chunk);
+      }
+      this.poke32(nread_ptr, total);
+      debug("fd_read", fd, iovs, iovs_len, "->", total);
+      return 0;
+    }
+    fd_seek(fd, offset, whence, newoffset_ptr) {
+      const file = this.fds[fd];
+      if (typeof offset == "bigint")
+        offset = Number(offset);
+      debug("fd_seek", fd, offset, whence, file + "");
+      if (file != null) {
+        file.llseek(offset, whence);
+        this.poke64(newoffset_ptr, file.offset);
+        return 0;
+      }
+      return 8;
+    }
+    fd_close(fd) {
+      debug("fd_close", fd);
+      const file = this.fds[fd];
+      if (file != null) {
+        this.fds[fd] = null;
+        return 0;
+      }
+      return 8;
+    }
+    proc_exit(errno) {
+      debug("proc_exit", errno);
+      this.errno = errno;
+      this.exited = true;
+    }
+    fd_prestat_get(fd, prestat_ptr) {
+      const file = this.fds[fd];
+      debug("fd_prestat_get", fd, prestat_ptr, file == null ? void 0 : file.name);
+      if (file && file.type === 3) {
+        const enc_name = new TextEncoder().encode(file.name);
+        this.poke8(prestat_ptr + 0, 0);
+        this.poke64(prestat_ptr + 8, enc_name.length);
+        return 0;
+      }
+      return 8;
+    }
+    fd_fdstat_get(fd, fdstat_ptr) {
+      const file = this.fds[fd];
+      debug("fd_fdstat_get", fd, fdstat_ptr, file + "");
+      if (file != null) {
+        this.poke16(fdstat_ptr + 0, file.type);
+        this.poke16(fdstat_ptr + 2, file.flags);
+        this.poke64(fdstat_ptr + 8, file.rights);
+        this.poke64(fdstat_ptr + 16, file.rights);
+        return 0;
+      }
+      return 8;
+    }
+    fd_prestat_dir_name(fd, path_ptr, path_len) {
+      const file = this.fds[fd];
+      debug("fd_prestat_dir_name", fd, path_ptr, path_len);
+      if (file != null) {
+        this.pokeUTF8(file.name, path_ptr, path_len);
+        return 0;
+      }
+      return 28;
+    }
+    path_open(dirfd, dirflags, path_ptr, path_len, o_flags, fs_rights_base, fs_rights_inheriting, fd_flags, fd_ptr) {
+      const dir = this.fds[dirfd];
+      if (dir == null)
+        return 8;
+      if (dir.type !== 3)
+        return 54;
+      const filename = this.peekUTF8(path_ptr, path_len);
+      const path = dir.name + "/" + filename;
+      const fd = this.openFile(path, o_flags, fd_flags);
+      debug("path_open", path, dirfd, dirflags, o_flags, fd_flags, fd_ptr, "->", fd + "");
+      if (typeof fd === "number")
+        return fd;
+      this.poke32(fd_ptr, fd.fdindex);
+      return 0;
+    }
+    random_get(ptr, len) {
+      debug("random_get", ptr, len);
+      for (let i = 0; i < len; i++) {
+        this.poke8(ptr + i, Math.floor(Math.random() * 256));
+      }
+      return 0;
+    }
+    path_filestat_get(dirfd, dirflags, path_ptr, path_len, filestat_ptr) {
+      const dir = this.fds[dirfd];
+      if (dir == null)
+        return 8;
+      if (dir.type !== 3)
+        return 54;
+      const filename = this.peekUTF8(path_ptr, path_len);
+      const path = dir.name + "/" + filename;
+      const fd = this.fs.getFile(path);
+      console.log("path_filestat_get", dir + "", path, filestat_ptr, "->", fd + "");
+      if (!fd)
+        return 44;
+      this.poke64(filestat_ptr, fd.fdindex);
+      this.poke64(filestat_ptr + 8, 0);
+      this.poke8(filestat_ptr + 16, fd.type);
+      this.poke64(filestat_ptr + 24, 1);
+      this.poke64(filestat_ptr + 32, fd.size);
+      this.poke64(filestat_ptr + 40, 0);
+      this.poke64(filestat_ptr + 48, 0);
+      this.poke64(filestat_ptr + 56, 0);
+    }
+    getWASISnapshotPreview1() {
+      return {
+        args_sizes_get: this.args_sizes_get.bind(this),
+        args_get: this.args_get.bind(this),
+        environ_sizes_get: this.environ_sizes_get.bind(this),
+        environ_get: this.environ_get.bind(this),
+        proc_exit: this.proc_exit.bind(this),
+        path_open: this.path_open.bind(this),
+        fd_prestat_get: this.fd_prestat_get.bind(this),
+        fd_prestat_dir_name: this.fd_prestat_dir_name.bind(this),
+        fd_fdstat_get: this.fd_fdstat_get.bind(this),
+        fd_read: this.fd_read.bind(this),
+        fd_write: this.fd_write.bind(this),
+        fd_seek: this.fd_seek.bind(this),
+        fd_close: this.fd_close.bind(this),
+        path_filestat_get: this.path_filestat_get.bind(this),
+        random_get: this.random_get.bind(this),
+        fd_fdstat_set_flags() {
+          warning("TODO: fd_fdstat_set_flags");
+          return 58;
+        },
+        fd_readdir() {
+          warning("TODO: fd_readdir");
+          return 58;
+        },
+        path_unlink_file() {
+          warning("TODO: path_unlink_file");
+          return 58;
+        },
+        clock_time_get() {
+          warning("TODO: clock_time_get");
+          return 58;
+        },
+        fd_tell() {
+          warning("TODO: fd_tell");
+          return 58;
+        }
+      };
+    }
+    getEnv() {
+      return {
+        __syscall_unlinkat() {
+          warning("TODO: unlink");
+          return 58;
+        }
+      };
+    }
+  };
+  _instance = new WeakMap();
+  _memarr8 = new WeakMap();
+  _memarr32 = new WeakMap();
+  _args = new WeakMap();
+  _envvars = new WeakMap();
+
   // src/worker/tools/dasm.ts
   function parseDASMListing(lstpath, lsttext, listings, errors, unresolved) {
     let lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([?0-9a-f][?0-9a-f ]+)?\s+(.+)?/i;
@@ -5805,29 +7391,39 @@
       }
     }
   }
+  var re_usl = /(\w+)\s+0000\s+[?][?][?][?]/;
+  function parseSymbolMap(asym) {
+    var symbolmap = {};
+    for (var s of asym.split("\n")) {
+      var toks = s.split(/\s+/);
+      if (toks && toks.length >= 2 && !toks[0].startsWith("-")) {
+        symbolmap[toks[0]] = parseInt(toks[1], 16);
+      }
+    }
+    return symbolmap;
+  }
   function assembleDASM(step) {
     load("dasm");
-    var re_usl = /(\w+)\s+0000\s+[?][?][?][?]/;
     var unresolved = {};
     var errors = [];
     var errorMatcher = msvcErrorMatcher(errors);
-    function match_fn(s2) {
-      var matches = re_usl.exec(s2);
+    function match_fn(s) {
+      var matches = re_usl.exec(s);
       if (matches) {
         var key = matches[1];
         if (key != "NO_ILLEGAL_OPCODES") {
           unresolved[matches[1]] = 0;
         }
-      } else if (s2.startsWith("Warning:")) {
-        errors.push({ line: 0, msg: s2.substr(9) });
-      } else if (s2.startsWith("unable ")) {
-        errors.push({ line: 0, msg: s2 });
-      } else if (s2.startsWith("segment: ")) {
-        errors.push({ line: 0, msg: "Segment overflow: " + s2.substring(9) });
-      } else if (s2.toLowerCase().indexOf("error:") >= 0) {
-        errors.push({ line: 0, msg: s2.trim() });
+      } else if (s.startsWith("Warning:")) {
+        errors.push({ line: 0, msg: s.substr(9) });
+      } else if (s.startsWith("unable ")) {
+        errors.push({ line: 0, msg: s });
+      } else if (s.startsWith("segment: ")) {
+        errors.push({ line: 0, msg: "Segment overflow: " + s.substring(9) });
+      } else if (s.toLowerCase().indexOf("error:") >= 0) {
+        errors.push({ line: 0, msg: s.trim() });
       } else {
-        errorMatcher(s2);
+        errorMatcher(s);
       }
     }
     var Module = emglobal.DASM({
@@ -5871,13 +7467,7 @@
     putWorkFile(sympath, asym);
     if (!anyTargetChanged(step, [binpath]))
       return;
-    var symbolmap = {};
-    for (var s of asym.split("\n")) {
-      var toks = s.split(/\s+/);
-      if (toks && toks.length >= 2 && !toks[0].startsWith("-")) {
-        symbolmap[toks[0]] = parseInt(toks[1], 16);
-      }
-    }
+    const symbolmap = parseSymbolMap(asym);
     if (step["bblines"]) {
       let lst = listings[step.path];
       if (lst) {
@@ -5893,94 +7483,68 @@
       symbolmap
     };
   }
-  function preprocessBatariBasic(code) {
-    load("bbpreprocess");
-    var bbout = "";
-    function addbbout_fn(s) {
-      bbout += s;
-      bbout += "\n";
-    }
-    var BBPRE = emglobal.preprocess({
-      noInitialRun: true,
-      print: addbbout_fn,
-      printErr: print_fn,
-      noFSInit: true
-    });
-    var FS = BBPRE.FS;
-    setupStdin(FS, code);
-    BBPRE.callMain([]);
-    console.log("preprocess " + code.length + " -> " + bbout.length + " bytes");
-    return bbout;
+
+  // src/worker/tools/mcpp.ts
+  function makeCPPSafe(s) {
+    return s.replace(/[^A-Za-z0-9_]/g, "_");
   }
-  function compileBatariBasic(step) {
-    load("bb2600basic");
-    var params = step.params;
-    var asmout = "";
-    function addasmout_fn(s) {
-      asmout += s;
-      asmout += "\n";
-    }
-    var re_err1 = /[(](\d+)[)]:?\s*(.+)/;
+  function preprocessMCPP(step, filesys) {
+    load("mcpp");
+    var platform = step.platform;
+    var params = PLATFORM_PARAMS[getBasePlatform(platform)];
+    if (!params)
+      throw Error("Platform not supported: " + platform);
     var errors = [];
-    var errline = 0;
-    function match_fn(s) {
-      console.log(s);
-      var matches = re_err1.exec(s);
-      if (matches) {
-        errline = parseInt(matches[1]);
-        errors.push({
-          line: errline,
-          msg: matches[2]
-        });
-      }
+    var match_fn = makeErrorMatcher(errors, /<stdin>:(\d+): (.+)/, 1, 2, step.path);
+    var MCPP = emglobal.mcpp({
+      noInitialRun: true,
+      noFSInit: true,
+      print: print_fn,
+      printErr: match_fn
+    });
+    var FS = MCPP.FS;
+    if (filesys)
+      setupFS(FS, filesys);
+    populateFiles(step, FS);
+    populateExtraFiles(step, FS, params.extra_compile_files);
+    var args = [
+      "-D",
+      "__8BITWORKSHOP__",
+      "-D",
+      "__SDCC_z80",
+      "-D",
+      makeCPPSafe(platform.toUpperCase()),
+      "-I",
+      "/share/include",
+      "-Q",
+      step.path,
+      "main.i"
+    ];
+    if (step.mainfile) {
+      args.unshift.apply(args, ["-D", "__MAIN__"]);
     }
-    gatherFiles(step, { mainFilePath: "main.bas" });
-    var destpath = step.prefix + ".asm";
-    if (staleFiles(step, [destpath])) {
-      var BB = emglobal.bb2600basic({
-        noInitialRun: true,
-        print: addasmout_fn,
-        printErr: match_fn,
-        noFSInit: true,
-        TOTAL_MEMORY: 64 * 1024 * 1024
-      });
-      var FS = BB.FS;
-      populateFiles(step, FS);
-      var code = getWorkFileAsString(step.path);
-      code = preprocessBatariBasic(code);
-      setupStdin(FS, code);
-      setupFS(FS, "2600basic");
-      execMain(step, BB, ["-i", "/share", step.path]);
-      if (errors.length)
+    let platform_def = platform.toUpperCase().replaceAll(/[^a-zA-Z0-9]/g, "_");
+    args.unshift.apply(args, ["-D", `__PLATFORM_${platform_def}__`]);
+    if (params.extra_preproc_args) {
+      args.push.apply(args, params.extra_preproc_args);
+    }
+    execMain(step, MCPP, args);
+    if (errors.length)
+      return { errors };
+    var iout = FS.readFile("main.i", { encoding: "utf8" });
+    iout = iout.replace(/^#line /gm, "\n# ");
+    try {
+      var errout = FS.readFile("mcpp.err", { encoding: "utf8" });
+      if (errout.length) {
+        var errors = extractErrors(/([^:]+):(\d+): (.+)/, errout.split("\n"), step.path, 2, 3, 1);
+        if (errors.length == 0) {
+          errors = errorResult(errout).errors;
+        }
         return { errors };
-      var includesout = FS.readFile("includes.bB", { encoding: "utf8" });
-      var redefsout = FS.readFile("2600basic_variable_redefs.h", { encoding: "utf8" });
-      var includes = includesout.trim().split("\n");
-      var combinedasm = "";
-      var splitasm = asmout.split("bB.asm file is split here");
-      for (var incfile of includes) {
-        var inctext;
-        if (incfile == "bB.asm")
-          inctext = splitasm[0];
-        else if (incfile == "bB2.asm")
-          inctext = splitasm[1];
-        else
-          inctext = FS.readFile("/share/includes/" + incfile, { encoding: "utf8" });
-        console.log(incfile, inctext.length);
-        combinedasm += "\n\n;;;" + incfile + "\n\n";
-        combinedasm += inctext;
       }
-      putWorkFile(destpath, combinedasm);
-      putWorkFile("2600basic.h", FS.readFile("/share/includes/2600basic.h"));
-      putWorkFile("2600basic_variable_redefs.h", redefsout);
+    } catch (e) {
     }
-    return {
-      nexttool: "dasm",
-      path: destpath,
-      args: [destpath],
-      files: [destpath, "2600basic.h", "2600basic_variable_redefs.h"],
-      bblines: true
-    };
+    return { code: iout };
   }
 
   // src/worker/tools/sdcc.ts
@@ -8652,7 +10216,7 @@
   };
 
   // src/common/ecs/binpack.ts
-  var debug = false;
+  var debug2 = false;
   var BoxPlacement;
   (function(BoxPlacement2) {
     BoxPlacement2[BoxPlacement2["TopLeft"] = 0] = "TopLeft";
@@ -8689,12 +10253,12 @@
     }
     fits(b) {
       if (!boxesContain(this.binbounds, b)) {
-        if (debug)
+        if (debug2)
           console.log("out of bounds!", b.left, b.top, b.right, b.bottom);
         return false;
       }
       if (this.getBoxes(b, 1).length > 0) {
-        if (debug)
+        if (debug2)
           console.log("intersect!", b.left, b.top, b.right, b.bottom);
         return false;
       }
@@ -8748,7 +10312,7 @@
       return best;
     }
     add(b) {
-      if (debug)
+      if (debug2)
         console.log("add", b.left, b.top, b.right, b.bottom);
       if (!this.fits(b)) {
         throw new Error(`bad fit ${b.left} ${b.top} ${b.right} ${b.bottom}`);
@@ -8760,7 +10324,7 @@
         let i = this.free.indexOf(p);
         if (i < 0)
           throw new Error("cannot find parent");
-        if (debug)
+        if (debug2)
           console.log("removed", p.left, p.top, p.right, p.bottom);
         this.free.splice(i, 1);
         this.addFree(p.left, p.top, b.left, p.bottom);
@@ -8772,7 +10336,7 @@
     addFree(left, top, right, bottom) {
       if (bottom > top && right > left) {
         let b = { left, top, right, bottom };
-        if (debug)
+        if (debug2)
           console.log("free", b.left, b.top, b.right, b.bottom);
         this.free.push(b);
       }
@@ -8801,7 +10365,7 @@
         if (!parent) {
           parent = bin.anyFit(b);
           approx = true;
-          if (debug)
+          if (debug2)
             console.log("anyfit", parent == null ? void 0 : parent.left, parent == null ? void 0 : parent.top);
         }
         if (parent) {
@@ -8830,7 +10394,7 @@
             box.left = parent.right - w;
             box.right = parent.right;
           }
-          if (debug)
+          if (debug2)
             console.log("place", b.label, box.left, box.top, box.right, box.bottom, parent == null ? void 0 : parent.left, parent == null ? void 0 : parent.top);
           let parents = [parent];
           if (approx)
@@ -8838,7 +10402,7 @@
           return __spreadValues({ parents, place, bin }, box);
         }
       }
-      if (debug)
+      if (debug2)
         console.log("cannot place!", b.left, b.top, b.width, b.height);
       return null;
     }
@@ -11679,633 +13243,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     }
   }
 
-  // src/common/wasi/wasishim.ts
-  var use_debug = true;
-  var debug2 = use_debug ? console.log : () => {
-  };
-  var warning = console.log;
-  var FDType;
-  (function(FDType2) {
-    FDType2[FDType2["UNKNOWN"] = 0] = "UNKNOWN";
-    FDType2[FDType2["BLOCK_DEVICE"] = 1] = "BLOCK_DEVICE";
-    FDType2[FDType2["CHARACTER_DEVICE"] = 2] = "CHARACTER_DEVICE";
-    FDType2[FDType2["DIRECTORY"] = 3] = "DIRECTORY";
-    FDType2[FDType2["REGULAR_FILE"] = 4] = "REGULAR_FILE";
-    FDType2[FDType2["SOCKET_DGRAM"] = 5] = "SOCKET_DGRAM";
-    FDType2[FDType2["SOCKET_STREAM"] = 6] = "SOCKET_STREAM";
-    FDType2[FDType2["SYMBOLIC_LINK"] = 7] = "SYMBOLIC_LINK";
-  })(FDType || (FDType = {}));
-  var FDRights;
-  (function(FDRights2) {
-    FDRights2[FDRights2["FD_DATASYNC"] = 1] = "FD_DATASYNC";
-    FDRights2[FDRights2["FD_READ"] = 2] = "FD_READ";
-    FDRights2[FDRights2["FD_SEEK"] = 4] = "FD_SEEK";
-    FDRights2[FDRights2["FD_FDSTAT_SET_FLAGS"] = 8] = "FD_FDSTAT_SET_FLAGS";
-    FDRights2[FDRights2["FD_SYNC"] = 16] = "FD_SYNC";
-    FDRights2[FDRights2["FD_TELL"] = 32] = "FD_TELL";
-    FDRights2[FDRights2["FD_WRITE"] = 64] = "FD_WRITE";
-    FDRights2[FDRights2["FD_ADVISE"] = 128] = "FD_ADVISE";
-    FDRights2[FDRights2["FD_ALLOCATE"] = 256] = "FD_ALLOCATE";
-    FDRights2[FDRights2["PATH_CREATE_DIRECTORY"] = 512] = "PATH_CREATE_DIRECTORY";
-    FDRights2[FDRights2["PATH_CREATE_FILE"] = 1024] = "PATH_CREATE_FILE";
-    FDRights2[FDRights2["PATH_LINK_SOURCE"] = 2048] = "PATH_LINK_SOURCE";
-    FDRights2[FDRights2["PATH_LINK_TARGET"] = 4096] = "PATH_LINK_TARGET";
-    FDRights2[FDRights2["PATH_OPEN"] = 8192] = "PATH_OPEN";
-    FDRights2[FDRights2["FD_READDIR"] = 16384] = "FD_READDIR";
-    FDRights2[FDRights2["PATH_READLINK"] = 32768] = "PATH_READLINK";
-    FDRights2[FDRights2["PATH_RENAME_SOURCE"] = 65536] = "PATH_RENAME_SOURCE";
-    FDRights2[FDRights2["PATH_RENAME_TARGET"] = 131072] = "PATH_RENAME_TARGET";
-    FDRights2[FDRights2["PATH_FILESTAT_GET"] = 262144] = "PATH_FILESTAT_GET";
-    FDRights2[FDRights2["PATH_FILESTAT_SET_SIZE"] = 524288] = "PATH_FILESTAT_SET_SIZE";
-    FDRights2[FDRights2["PATH_FILESTAT_SET_TIMES"] = 1048576] = "PATH_FILESTAT_SET_TIMES";
-    FDRights2[FDRights2["FD_FILESTAT_GET"] = 2097152] = "FD_FILESTAT_GET";
-    FDRights2[FDRights2["FD_FILESTAT_SET_SIZE"] = 4194304] = "FD_FILESTAT_SET_SIZE";
-    FDRights2[FDRights2["FD_FILESTAT_SET_TIMES"] = 8388608] = "FD_FILESTAT_SET_TIMES";
-    FDRights2[FDRights2["PATH_SYMLINK"] = 16777216] = "PATH_SYMLINK";
-    FDRights2[FDRights2["PATH_REMOVE_DIRECTORY"] = 33554432] = "PATH_REMOVE_DIRECTORY";
-    FDRights2[FDRights2["PATH_UNLINK_FILE"] = 67108864] = "PATH_UNLINK_FILE";
-    FDRights2[FDRights2["POLL_FD_READWRITE"] = 134217728] = "POLL_FD_READWRITE";
-    FDRights2[FDRights2["SOCK_SHUTDOWN"] = 268435456] = "SOCK_SHUTDOWN";
-    FDRights2[FDRights2["FD_ALL"] = 536870911] = "FD_ALL";
-  })(FDRights || (FDRights = {}));
-  var FDFlags;
-  (function(FDFlags2) {
-    FDFlags2[FDFlags2["APPEND"] = 1] = "APPEND";
-    FDFlags2[FDFlags2["DSYNC"] = 2] = "DSYNC";
-    FDFlags2[FDFlags2["NONBLOCK"] = 4] = "NONBLOCK";
-    FDFlags2[FDFlags2["RSYNC"] = 8] = "RSYNC";
-    FDFlags2[FDFlags2["SYNC"] = 16] = "SYNC";
-  })(FDFlags || (FDFlags = {}));
-  var FDOpenFlags;
-  (function(FDOpenFlags2) {
-    FDOpenFlags2[FDOpenFlags2["CREAT"] = 1] = "CREAT";
-    FDOpenFlags2[FDOpenFlags2["DIRECTORY"] = 2] = "DIRECTORY";
-    FDOpenFlags2[FDOpenFlags2["EXCL"] = 4] = "EXCL";
-    FDOpenFlags2[FDOpenFlags2["TRUNC"] = 8] = "TRUNC";
-  })(FDOpenFlags || (FDOpenFlags = {}));
-  var WASIErrors;
-  (function(WASIErrors2) {
-    WASIErrors2[WASIErrors2["SUCCESS"] = 0] = "SUCCESS";
-    WASIErrors2[WASIErrors2["TOOBIG"] = 1] = "TOOBIG";
-    WASIErrors2[WASIErrors2["ACCES"] = 2] = "ACCES";
-    WASIErrors2[WASIErrors2["ADDRINUSE"] = 3] = "ADDRINUSE";
-    WASIErrors2[WASIErrors2["ADDRNOTAVAIL"] = 4] = "ADDRNOTAVAIL";
-    WASIErrors2[WASIErrors2["AFNOSUPPORT"] = 5] = "AFNOSUPPORT";
-    WASIErrors2[WASIErrors2["AGAIN"] = 6] = "AGAIN";
-    WASIErrors2[WASIErrors2["ALREADY"] = 7] = "ALREADY";
-    WASIErrors2[WASIErrors2["BADF"] = 8] = "BADF";
-    WASIErrors2[WASIErrors2["BADMSG"] = 9] = "BADMSG";
-    WASIErrors2[WASIErrors2["BUSY"] = 10] = "BUSY";
-    WASIErrors2[WASIErrors2["CANCELED"] = 11] = "CANCELED";
-    WASIErrors2[WASIErrors2["CHILD"] = 12] = "CHILD";
-    WASIErrors2[WASIErrors2["CONNABORTED"] = 13] = "CONNABORTED";
-    WASIErrors2[WASIErrors2["CONNREFUSED"] = 14] = "CONNREFUSED";
-    WASIErrors2[WASIErrors2["CONNRESET"] = 15] = "CONNRESET";
-    WASIErrors2[WASIErrors2["DEADLK"] = 16] = "DEADLK";
-    WASIErrors2[WASIErrors2["DESTADDRREQ"] = 17] = "DESTADDRREQ";
-    WASIErrors2[WASIErrors2["DOM"] = 18] = "DOM";
-    WASIErrors2[WASIErrors2["DQUOT"] = 19] = "DQUOT";
-    WASIErrors2[WASIErrors2["EXIST"] = 20] = "EXIST";
-    WASIErrors2[WASIErrors2["FAULT"] = 21] = "FAULT";
-    WASIErrors2[WASIErrors2["FBIG"] = 22] = "FBIG";
-    WASIErrors2[WASIErrors2["HOSTUNREACH"] = 23] = "HOSTUNREACH";
-    WASIErrors2[WASIErrors2["IDRM"] = 24] = "IDRM";
-    WASIErrors2[WASIErrors2["ILSEQ"] = 25] = "ILSEQ";
-    WASIErrors2[WASIErrors2["INPROGRESS"] = 26] = "INPROGRESS";
-    WASIErrors2[WASIErrors2["INTR"] = 27] = "INTR";
-    WASIErrors2[WASIErrors2["INVAL"] = 28] = "INVAL";
-    WASIErrors2[WASIErrors2["IO"] = 29] = "IO";
-    WASIErrors2[WASIErrors2["ISCONN"] = 30] = "ISCONN";
-    WASIErrors2[WASIErrors2["ISDIR"] = 31] = "ISDIR";
-    WASIErrors2[WASIErrors2["LOOP"] = 32] = "LOOP";
-    WASIErrors2[WASIErrors2["MFILE"] = 33] = "MFILE";
-    WASIErrors2[WASIErrors2["MLINK"] = 34] = "MLINK";
-    WASIErrors2[WASIErrors2["MSGSIZE"] = 35] = "MSGSIZE";
-    WASIErrors2[WASIErrors2["MULTIHOP"] = 36] = "MULTIHOP";
-    WASIErrors2[WASIErrors2["NAMETOOLONG"] = 37] = "NAMETOOLONG";
-    WASIErrors2[WASIErrors2["NETDOWN"] = 38] = "NETDOWN";
-    WASIErrors2[WASIErrors2["NETRESET"] = 39] = "NETRESET";
-    WASIErrors2[WASIErrors2["NETUNREACH"] = 40] = "NETUNREACH";
-    WASIErrors2[WASIErrors2["NFILE"] = 41] = "NFILE";
-    WASIErrors2[WASIErrors2["NOBUFS"] = 42] = "NOBUFS";
-    WASIErrors2[WASIErrors2["NODEV"] = 43] = "NODEV";
-    WASIErrors2[WASIErrors2["NOENT"] = 44] = "NOENT";
-    WASIErrors2[WASIErrors2["NOEXEC"] = 45] = "NOEXEC";
-    WASIErrors2[WASIErrors2["NOLCK"] = 46] = "NOLCK";
-    WASIErrors2[WASIErrors2["NOLINK"] = 47] = "NOLINK";
-    WASIErrors2[WASIErrors2["NOMEM"] = 48] = "NOMEM";
-    WASIErrors2[WASIErrors2["NOMSG"] = 49] = "NOMSG";
-    WASIErrors2[WASIErrors2["NOPROTOOPT"] = 50] = "NOPROTOOPT";
-    WASIErrors2[WASIErrors2["NOSPC"] = 51] = "NOSPC";
-    WASIErrors2[WASIErrors2["NOSYS"] = 52] = "NOSYS";
-    WASIErrors2[WASIErrors2["NOTCONN"] = 53] = "NOTCONN";
-    WASIErrors2[WASIErrors2["NOTDIR"] = 54] = "NOTDIR";
-    WASIErrors2[WASIErrors2["NOTEMPTY"] = 55] = "NOTEMPTY";
-    WASIErrors2[WASIErrors2["NOTRECOVERABLE"] = 56] = "NOTRECOVERABLE";
-    WASIErrors2[WASIErrors2["NOTSOCK"] = 57] = "NOTSOCK";
-    WASIErrors2[WASIErrors2["NOTSUP"] = 58] = "NOTSUP";
-    WASIErrors2[WASIErrors2["NOTTY"] = 59] = "NOTTY";
-    WASIErrors2[WASIErrors2["NXIO"] = 60] = "NXIO";
-    WASIErrors2[WASIErrors2["OVERFLOW"] = 61] = "OVERFLOW";
-    WASIErrors2[WASIErrors2["OWNERDEAD"] = 62] = "OWNERDEAD";
-    WASIErrors2[WASIErrors2["PERM"] = 63] = "PERM";
-    WASIErrors2[WASIErrors2["PIPE"] = 64] = "PIPE";
-    WASIErrors2[WASIErrors2["PROTO"] = 65] = "PROTO";
-    WASIErrors2[WASIErrors2["PROTONOSUPPORT"] = 66] = "PROTONOSUPPORT";
-    WASIErrors2[WASIErrors2["PROTOTYPE"] = 67] = "PROTOTYPE";
-    WASIErrors2[WASIErrors2["RANGE"] = 68] = "RANGE";
-    WASIErrors2[WASIErrors2["ROFS"] = 69] = "ROFS";
-    WASIErrors2[WASIErrors2["SPIPE"] = 70] = "SPIPE";
-    WASIErrors2[WASIErrors2["SRCH"] = 71] = "SRCH";
-    WASIErrors2[WASIErrors2["STALE"] = 72] = "STALE";
-    WASIErrors2[WASIErrors2["TIMEDOUT"] = 73] = "TIMEDOUT";
-    WASIErrors2[WASIErrors2["TXTBSY"] = 74] = "TXTBSY";
-    WASIErrors2[WASIErrors2["XDEV"] = 75] = "XDEV";
-    WASIErrors2[WASIErrors2["NOTCAPABLE"] = 76] = "NOTCAPABLE";
-  })(WASIErrors || (WASIErrors = {}));
-  var WASIFileDescriptor = class {
-    constructor(name, type, rights) {
-      this.name = name;
-      this.type = type;
-      this.rights = rights;
-      this.fdindex = -1;
-      this.data = new Uint8Array(16);
-      this.flags = 0;
-      this.size = 0;
-      this.offset = 0;
-      this.rights = -1;
-    }
-    ensureCapacity(size) {
-      if (this.data.byteLength < size) {
-        const newdata = new Uint8Array(size * 2);
-        newdata.set(this.data);
-        this.data = newdata;
-      }
-    }
-    write(chunk) {
-      this.ensureCapacity(this.offset + chunk.byteLength);
-      this.data.set(chunk, this.offset);
-      this.offset += chunk.byteLength;
-      this.size = Math.max(this.size, this.offset);
-    }
-    read(chunk) {
-      const len = Math.min(chunk.byteLength, this.size - this.offset);
-      chunk.set(this.data.subarray(this.offset, this.offset + len));
-      this.offset += len;
-      return len;
-    }
-    truncate() {
-      this.size = 0;
-      this.offset = 0;
-    }
-    llseek(offset, whence) {
-      switch (whence) {
-        case 0:
-          this.offset = offset;
-          break;
-        case 1:
-          this.offset += offset;
-          break;
-        case 2:
-          this.offset = this.size + offset;
-          break;
-      }
-      if (this.offset < 0)
-        this.offset = 0;
-      if (this.offset > this.size)
-        this.offset = this.size;
-    }
-    getBytes() {
-      return this.data.subarray(0, this.size);
-    }
-    getBytesAsString() {
-      return new TextDecoder().decode(this.getBytes());
-    }
-    toString() {
-      return `FD(${this.fdindex} "${this.name}" 0x${this.type.toString(16)} 0x${this.rights.toString(16)} ${this.offset}/${this.size}/${this.data.byteLength})`;
-    }
-  };
-  var WASIStreamingFileDescriptor = class extends WASIFileDescriptor {
-    constructor(fdindex, name, type, rights, stream) {
-      super(name, type, rights);
-      this.stream = stream;
-      this.fdindex = fdindex;
-    }
-    write(chunk) {
-      this.stream.write(chunk);
-    }
-  };
-  var WASIMemoryFilesystem = class {
-    constructor() {
-      this.parent = null;
-      this.files = new Map();
-      this.dirs = new Map();
-      this.putDirectory("/");
-    }
-    setParent(parent) {
-      this.parent = parent;
-    }
-    putDirectory(name, rights) {
-      if (!rights)
-        rights = 8192 | 512 | 1024;
-      const dir = new WASIFileDescriptor(name, 3, rights);
-      this.dirs.set(name, dir);
-      return dir;
-    }
-    putFile(name, data, rights) {
-      if (typeof data === "string") {
-        data = new TextEncoder().encode(data);
-      }
-      if (!rights)
-        rights = 2 | 64;
-      const file = new WASIFileDescriptor(name, 4, rights);
-      file.write(data);
-      file.offset = 0;
-      this.files.set(name, file);
-      return file;
-    }
-    getFile(name) {
-      var _a;
-      let file = this.files.get(name);
-      if (!file) {
-        file = (_a = this.parent) == null ? void 0 : _a.getFile(name);
-      }
-      return file;
-    }
-  };
-  var _instance, _memarr8, _memarr32, _args, _envvars;
-  var WASIRunner = class {
-    constructor() {
-      __privateAdd(this, _instance, void 0);
-      __privateAdd(this, _memarr8, void 0);
-      __privateAdd(this, _memarr32, void 0);
-      __privateAdd(this, _args, []);
-      __privateAdd(this, _envvars, []);
-      this.fds = [];
-      this.exited = false;
-      this.errno = -1;
-      this.fs = new WASIMemoryFilesystem();
-      this.createStdioBrowser();
-    }
-    createStdioNode() {
-      this.stdin = new WASIStreamingFileDescriptor(0, "<stdin>", 2, 2, process.stdin);
-      this.stdout = new WASIStreamingFileDescriptor(1, "<stdout>", 2, 64, process.stdout);
-      this.stderr = new WASIStreamingFileDescriptor(2, "<stderr>", 2, 64, process.stderr);
-      this.fds[0] = this.stdin;
-      this.fds[1] = this.stdout;
-      this.fds[2] = this.stderr;
-    }
-    createStdioBrowser() {
-      this.stdin = new WASIFileDescriptor("<stdin>", 2, 2);
-      this.stdout = new WASIFileDescriptor("<stdout>", 2, 64);
-      this.stderr = new WASIFileDescriptor("<stderr>", 2, 64);
-      this.stdin.fdindex = 0;
-      this.stdout.fdindex = 1;
-      this.stderr.fdindex = 2;
-      this.fds[0] = this.stdin;
-      this.fds[1] = this.stdout;
-      this.fds[2] = this.stderr;
-    }
-    initSync(wasmModule) {
-      __privateSet(this, _instance, new WebAssembly.Instance(wasmModule, this.getImportObject()));
-    }
-    loadSync(wasmSource) {
-      let wasmModule = new WebAssembly.Module(wasmSource);
-      this.initSync(wasmModule);
-    }
-    async loadAsync(wasmSource) {
-      let wasmModule = await WebAssembly.compile(wasmSource);
-      __privateSet(this, _instance, await WebAssembly.instantiate(wasmModule, this.getImportObject()));
-    }
-    setArgs(args) {
-      __privateSet(this, _args, args.map((arg) => new TextEncoder().encode(arg + "\0")));
-    }
-    addPreopenDirectory(name) {
-      return this.openFile(name, 2 | 1);
-    }
-    openFile(path, o_flags, mode) {
-      let file = this.fs.getFile(path);
-      mode = typeof mode == "undefined" ? 438 : mode;
-      if (o_flags & 1) {
-        if (file == null) {
-          if (o_flags & 2) {
-            file = this.fs.putDirectory(path);
-          } else {
-            file = this.fs.putFile(path, new Uint8Array(), 536870911);
-          }
-        } else {
-          if (o_flags & 8) {
-            file.truncate();
-          } else
-            return 28;
-        }
-      } else {
-        if (file == null)
-          return 52;
-        if (o_flags & 2) {
-          if (file.type !== 3)
-            return 52;
-        }
-        if (o_flags & 4)
-          return 28;
-        if (o_flags & 8) {
-          file.truncate();
-        } else {
-          file.llseek(0, 0);
-        }
-      }
-      file.fdindex = this.fds.length;
-      this.fds.push(file);
-      return file;
-    }
-    mem8() {
-      var _a;
-      if (!((_a = __privateGet(this, _memarr8)) == null ? void 0 : _a.byteLength)) {
-        __privateSet(this, _memarr8, new Uint8Array(__privateGet(this, _instance).exports.memory.buffer));
-      }
-      return __privateGet(this, _memarr8);
-    }
-    mem32() {
-      var _a;
-      if (!((_a = __privateGet(this, _memarr32)) == null ? void 0 : _a.byteLength)) {
-        __privateSet(this, _memarr32, new Int32Array(__privateGet(this, _instance).exports.memory.buffer));
-      }
-      return __privateGet(this, _memarr32);
-    }
-    run() {
-      try {
-        __privateGet(this, _instance).exports._start();
-        if (!this.exited) {
-          this.exited = true;
-          this.errno = 0;
-        }
-      } catch (err) {
-        if (!this.exited)
-          throw err;
-      }
-      return this.getErrno();
-    }
-    getImportObject() {
-      return {
-        "wasi_snapshot_preview1": this.getWASISnapshotPreview1(),
-        "env": this.getEnv()
-      };
-    }
-    peek8(ptr) {
-      return this.mem8()[ptr];
-    }
-    peek16(ptr) {
-      return this.mem8()[ptr] | this.mem8()[ptr + 1] << 8;
-    }
-    peek32(ptr) {
-      return this.mem32()[ptr >>> 2];
-    }
-    poke8(ptr, val) {
-      this.mem8()[ptr] = val;
-    }
-    poke16(ptr, val) {
-      this.mem8()[ptr] = val;
-      this.mem8()[ptr + 1] = val >> 8;
-    }
-    poke32(ptr, val) {
-      this.mem32()[ptr >>> 2] = val;
-    }
-    poke64(ptr, val) {
-      this.mem32()[ptr >>> 2] = val;
-      this.mem32()[(ptr >>> 2) + 1] = 0;
-    }
-    pokeUTF8(str, ptr, maxlen) {
-      const enc = new TextEncoder();
-      const bytes = enc.encode(str);
-      const len = Math.min(bytes.length, maxlen);
-      this.mem8().set(bytes.subarray(0, len), ptr);
-    }
-    peekUTF8(ptr, maxlen) {
-      const bytes = this.mem8().subarray(ptr, ptr + maxlen);
-      const dec = new TextDecoder();
-      return dec.decode(bytes);
-    }
-    getErrno() {
-      return this.errno;
-    }
-    poke_str_array_sizes(strs, count_ptr, buf_size_ptr) {
-      this.poke32(count_ptr, strs.length);
-      this.poke32(buf_size_ptr, strs.reduce((acc, arg) => acc + arg.length, 0));
-    }
-    poke_str_args(strs, argv_ptr, argv_buf_ptr) {
-      let argv = argv_ptr;
-      let argv_buf = argv_buf_ptr;
-      for (let arg of __privateGet(this, _args)) {
-        this.poke32(argv, argv_buf);
-        argv += 4;
-        for (let i = 0; i < arg.length; i++) {
-          this.poke8(argv_buf, arg[i]);
-          argv_buf++;
-        }
-      }
-    }
-    args_sizes_get(argcount_ptr, argv_buf_size_ptr) {
-      debug2("args_sizes_get", argcount_ptr, argv_buf_size_ptr);
-      this.poke_str_array_sizes(__privateGet(this, _args), argcount_ptr, argv_buf_size_ptr);
-      return 0;
-    }
-    args_get(argv_ptr, argv_buf_ptr) {
-      debug2("args_get", argv_ptr, argv_buf_ptr);
-      this.poke_str_args(__privateGet(this, _args), argv_ptr, argv_buf_ptr);
-      return 0;
-    }
-    environ_sizes_get(environ_count_ptr, environ_buf_size_ptr) {
-      debug2("environ_sizes_get", environ_count_ptr, environ_buf_size_ptr);
-      this.poke_str_array_sizes(__privateGet(this, _envvars), environ_count_ptr, environ_buf_size_ptr);
-      return 0;
-    }
-    environ_get(environ_ptr, environ_buf_ptr) {
-      debug2("environ_get", environ_ptr, environ_buf_ptr);
-      this.poke_str_args(__privateGet(this, _envvars), environ_ptr, environ_buf_ptr);
-      return 0;
-    }
-    fd_write(fd, iovs, iovs_len, nwritten_ptr) {
-      const stream = this.fds[fd];
-      const iovecs = this.mem32().subarray(iovs >>> 2, iovs + iovs_len * 8 >>> 2);
-      let total = 0;
-      for (let i = 0; i < iovs_len; i++) {
-        const ptr = iovecs[i * 2];
-        const len = iovecs[i * 2 + 1];
-        const chunk = this.mem8().subarray(ptr, ptr + len);
-        total += len;
-        stream.write(chunk);
-      }
-      this.poke32(nwritten_ptr, total);
-      debug2("fd_write", fd, iovs, iovs_len, "->", total);
-      return 0;
-    }
-    fd_read(fd, iovs, iovs_len, nread_ptr) {
-      const stream = this.fds[fd];
-      const iovecs = this.mem32().subarray(iovs >>> 2, iovs + iovs_len * 8 >>> 2);
-      let total = 0;
-      for (let i = 0; i < iovs_len; i++) {
-        const ptr = iovecs[i * 2];
-        const len = iovecs[i * 2 + 1];
-        const chunk = this.mem8().subarray(ptr, ptr + len);
-        total += stream.read(chunk);
-      }
-      this.poke32(nread_ptr, total);
-      debug2("fd_read", fd, iovs, iovs_len, "->", total);
-      return 0;
-    }
-    fd_seek(fd, offset, whence, newoffset_ptr) {
-      const file = this.fds[fd];
-      debug2("fd_seek", fd, offset, whence, file);
-      if (file != null) {
-        file.llseek(offset, whence);
-        this.poke64(newoffset_ptr, file.offset);
-        return 0;
-      }
-      return 8;
-    }
-    fd_close(fd) {
-      debug2("fd_close", fd);
-      const file = this.fds[fd];
-      if (file != null) {
-        this.fds[fd] = null;
-        return 0;
-      }
-      return 8;
-    }
-    proc_exit(errno) {
-      debug2("proc_exit", errno);
-      this.errno = errno;
-      this.exited = true;
-    }
-    fd_prestat_get(fd, prestat_ptr) {
-      const file = this.fds[fd];
-      debug2("fd_prestat_get", fd, prestat_ptr, file == null ? void 0 : file.name);
-      if (file && file.type === 3) {
-        const enc_name = new TextEncoder().encode(file.name);
-        this.poke8(prestat_ptr + 0, 0);
-        this.poke64(prestat_ptr + 8, enc_name.length);
-        return 0;
-      }
-      return 8;
-    }
-    fd_fdstat_get(fd, fdstat_ptr) {
-      const file = this.fds[fd];
-      debug2("fd_fdstat_get", fd, fdstat_ptr, file + "");
-      if (file != null) {
-        this.poke16(fdstat_ptr + 0, file.type);
-        this.poke16(fdstat_ptr + 2, file.flags);
-        this.poke64(fdstat_ptr + 8, file.rights);
-        this.poke64(fdstat_ptr + 16, file.rights);
-        return 0;
-      }
-      return 8;
-    }
-    fd_prestat_dir_name(fd, path_ptr, path_len) {
-      const file = this.fds[fd];
-      debug2("fd_prestat_dir_name", fd, path_ptr, path_len);
-      if (file != null) {
-        this.pokeUTF8(file.name, path_ptr, path_len);
-        return 0;
-      }
-      return 28;
-    }
-    path_open(dirfd, dirflags, path_ptr, path_len, o_flags, fs_rights_base, fs_rights_inheriting, fd_flags, fd_ptr) {
-      const dir = this.fds[dirfd];
-      if (dir == null)
-        return 8;
-      if (dir.type !== 3)
-        return 54;
-      const filename = this.peekUTF8(path_ptr, path_len);
-      const path = dir.name + "/" + filename;
-      const fd = this.openFile(path, o_flags, fd_flags);
-      debug2("path_open", path, dirfd, dirflags, o_flags, fd_flags, fd_ptr, "->", fd + "");
-      if (typeof fd === "number")
-        return fd;
-      this.poke32(fd_ptr, fd.fdindex);
-      return 0;
-    }
-    random_get(ptr, len) {
-      debug2("random_get", ptr, len);
-      for (let i = 0; i < len; i++) {
-        this.poke8(ptr + i, Math.floor(Math.random() * 256));
-      }
-      return 0;
-    }
-    path_filestat_get(dirfd, dirflags, path_ptr, path_len, filestat_ptr) {
-      const dir = this.fds[dirfd];
-      if (dir == null)
-        return 8;
-      if (dir.type !== 3)
-        return 54;
-      const filename = this.peekUTF8(path_ptr, path_len);
-      const path = dir.name + "/" + filename;
-      const fd = this.fs.getFile(path);
-      console.log("path_filestat_get", dir + "", path, filestat_ptr, "->", fd + "");
-      if (!fd)
-        return 44;
-      this.poke64(filestat_ptr, fd.fdindex);
-      this.poke64(filestat_ptr + 8, 0);
-      this.poke8(filestat_ptr + 16, fd.type);
-      this.poke64(filestat_ptr + 24, 1);
-      this.poke64(filestat_ptr + 32, fd.size);
-      this.poke64(filestat_ptr + 40, 0);
-      this.poke64(filestat_ptr + 48, 0);
-      this.poke64(filestat_ptr + 56, 0);
-    }
-    getWASISnapshotPreview1() {
-      return {
-        args_sizes_get: this.args_sizes_get.bind(this),
-        args_get: this.args_get.bind(this),
-        environ_sizes_get: this.environ_sizes_get.bind(this),
-        environ_get: this.environ_get.bind(this),
-        proc_exit: this.proc_exit.bind(this),
-        path_open: this.path_open.bind(this),
-        fd_prestat_get: this.fd_prestat_get.bind(this),
-        fd_prestat_dir_name: this.fd_prestat_dir_name.bind(this),
-        fd_fdstat_get: this.fd_fdstat_get.bind(this),
-        fd_read: this.fd_read.bind(this),
-        fd_write: this.fd_write.bind(this),
-        fd_seek: this.fd_seek.bind(this),
-        fd_close: this.fd_close.bind(this),
-        path_filestat_get: this.path_filestat_get.bind(this),
-        random_get: this.random_get.bind(this),
-        fd_fdstat_set_flags() {
-          warning("TODO: fd_fdstat_set_flags");
-          return 58;
-        },
-        fd_readdir() {
-          warning("TODO: fd_readdir");
-          return 58;
-        },
-        path_unlink_file() {
-          warning("TODO: path_unlink_file");
-          return 58;
-        },
-        clock_time_get() {
-          warning("TODO: clock_time_get");
-          return 58;
-        }
-      };
-    }
-    getEnv() {
-      return {
-        __syscall_unlinkat() {
-          warning("TODO: unlink");
-          return 0;
-        }
-      };
-    }
-  };
-  _instance = new WeakMap();
-  _memarr8 = new WeakMap();
-  _memarr32 = new WeakMap();
-  _args = new WeakMap();
-  _envvars = new WeakMap();
-
-  // src/worker/tools/cc7800.ts
+  // src/worker/wasiutils.ts
   var import_jszip = __toModule(require_jszip_min());
-  var cc7800_fs = null;
-  var wasiModule = null;
   function loadBlobSync(path) {
     var xhr = new XMLHttpRequest();
     xhr.responseType = "blob";
@@ -12335,6 +13274,10 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     await Promise.all(promises);
     return fs;
   }
+
+  // src/worker/tools/cc7800.ts
+  var cc7800_fs = null;
+  var wasiModule = null;
   async function compileCC7800(step) {
     const errors = [];
     gatherFiles(step, { mainFilePath: "main.c" });
@@ -12384,1025 +13327,98 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     };
   }
 
-  // src/worker/workermain.ts
-  var ENVIRONMENT_IS_WEB = typeof window === "object";
-  var ENVIRONMENT_IS_WORKER = typeof importScripts === "function";
-  var emglobal = ENVIRONMENT_IS_WORKER ? self : ENVIRONMENT_IS_WEB ? window : global;
-  if (!emglobal["require"]) {
-    emglobal["require"] = (modpath) => {
-      if (modpath.endsWith(".js"))
-        modpath = modpath.slice(-3);
-      var modname = modpath.split("/").slice(-1)[0];
-      var hasNamespace = emglobal[modname] != null;
-      console.log("@@@ require", modname, modpath, hasNamespace);
-      if (!hasNamespace) {
-        exports = {};
-        importScripts(`${modpath}.js`);
-      }
-      if (emglobal[modname] == null) {
-        emglobal[modname] = exports;
-      }
-      return emglobal[modname];
-    };
+  // src/worker/tools/bataribasic.ts
+  function preprocessBatariBasic(code) {
+    load("bbpreprocess");
+    var bbout = "";
+    function addbbout_fn(s) {
+      bbout += s;
+      bbout += "\n";
+    }
+    var BBPRE = emglobal.preprocess({
+      noInitialRun: true,
+      print: addbbout_fn,
+      printErr: print_fn,
+      noFSInit: true
+    });
+    var FS = BBPRE.FS;
+    setupStdin(FS, code);
+    BBPRE.callMain([]);
+    console.log("preprocess " + code.length + " -> " + bbout.length + " bytes");
+    return bbout;
   }
-  var _WASM_module_cache = {};
-  var CACHE_WASM_MODULES = true;
-  var wasmMemory;
-  function getWASMMemory() {
-    if (wasmMemory == null) {
-      wasmMemory = new WebAssembly.Memory({
-        "initial": 1024,
-        "maximum": 16384
-      });
+  function compileBatariBasic(step) {
+    load("bb2600basic");
+    var params = step.params;
+    var asmout = "";
+    function addasmout_fn(s) {
+      asmout += s;
+      asmout += "\n";
     }
-    return wasmMemory;
-  }
-  function getWASMBinary2(module_id) {
-    return wasmBlob[module_id];
-  }
-  function getWASMModule(module_id) {
-    var module = _WASM_module_cache[module_id];
-    if (!module) {
-      starttime();
-      module = new WebAssembly.Module(wasmBlob[module_id]);
-      if (CACHE_WASM_MODULES) {
-        _WASM_module_cache[module_id] = module;
-        delete wasmBlob[module_id];
-      }
-      endtime("module creation " + module_id);
-    }
-    return module;
-  }
-  function moduleInstFn(module_id) {
-    return function(imports, ri) {
-      var mod = getWASMModule(module_id);
-      var inst = new WebAssembly.Instance(mod, imports);
-      ri(inst);
-      return inst.exports;
-    };
-  }
-  var PLATFORM_PARAMS = {
-    "vcs": {
-      arch: "6502",
-      code_start: 4096,
-      code_size: 61440,
-      data_start: 128,
-      data_size: 128,
-      wiz_rom_ext: ".a26",
-      wiz_inc_dir: "2600",
-      cfgfile: "atari2600.cfg",
-      libargs: ["crt0.o", "atari2600.lib"],
-      extra_link_files: ["crt0.o", "atari2600.cfg"],
-      define: ["__ATARI2600__"]
-    },
-    "mw8080bw": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 8192,
-      data_start: 8192,
-      data_size: 1024,
-      stack_end: 9216
-    },
-    "vicdual": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 16416,
-      data_start: 58368,
-      data_size: 1024,
-      stack_end: 59392
-    },
-    "galaxian": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 16384,
-      data_start: 16384,
-      data_size: 1024,
-      stack_end: 18432
-    },
-    "galaxian-scramble": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 20512,
-      data_start: 16384,
-      data_size: 1024,
-      stack_end: 18432
-    },
-    "williams": {
-      arch: "6809",
-      code_start: 0,
-      rom_size: 49152,
-      data_start: 38912,
-      data_size: 10240,
-      stack_end: 49152,
-      set_stack_end: 49152,
-      extra_link_files: ["williams.scr", "libcmoc-crt-vec.a", "libcmoc-std-vec.a"],
-      extra_link_args: ["-swilliams.scr", "-lcmoc-crt-vec", "-lcmoc-std-vec"],
-      extra_compile_files: ["assert.h", "cmoc.h", "stdarg.h", "stdlib.h"]
-    },
-    "williams-defender": {
-      arch: "6809",
-      code_start: 0,
-      rom_size: 49152,
-      data_start: 38912,
-      data_size: 10240,
-      stack_end: 49152
-    },
-    "williams-z80": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 38912,
-      data_start: 38912,
-      data_size: 10240,
-      stack_end: 49152
-    },
-    "vector-z80color": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 32768,
-      data_start: 57344,
-      data_size: 8192,
-      stack_end: 0
-    },
-    "vector-ataricolor": {
-      arch: "6502",
-      define: ["__VECTOR__"],
-      cfgfile: "vector-color.cfg",
-      libargs: ["crt0.o", "none.lib"],
-      extra_link_files: ["crt0.o", "vector-color.cfg"]
-    },
-    "sound_williams-z80": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 16384,
-      data_start: 16384,
-      data_size: 1024,
-      stack_end: 32768
-    },
-    "base_z80": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 32768,
-      data_start: 32768,
-      data_size: 32768,
-      stack_end: 0
-    },
-    "coleco": {
-      arch: "z80",
-      rom_start: 32768,
-      code_start: 33024,
-      rom_size: 32768,
-      data_start: 28672,
-      data_size: 1024,
-      stack_end: 32768,
-      extra_preproc_args: ["-I", "/share/include/coleco", "-D", "CV_CV"],
-      extra_link_args: ["-k", "/share/lib/coleco", "-l", "libcv", "-l", "libcvu", "crt0.rel"]
-    },
-    "msx": {
-      arch: "z80",
-      rom_start: 16384,
-      code_start: 16384,
-      rom_size: 32768,
-      data_start: 49152,
-      data_size: 12288,
-      stack_end: 65535,
-      extra_link_args: ["crt0-msx.rel"],
-      extra_link_files: ["crt0-msx.rel", "crt0-msx.lst"],
-      wiz_sys_type: "z80",
-      wiz_inc_dir: "msx"
-    },
-    "msx-libcv": {
-      arch: "z80",
-      rom_start: 16384,
-      code_start: 16384,
-      rom_size: 32768,
-      data_start: 49152,
-      data_size: 12288,
-      stack_end: 65535,
-      extra_preproc_args: ["-I", ".", "-D", "CV_MSX"],
-      extra_link_args: ["-k", ".", "-l", "libcv-msx", "-l", "libcvu-msx", "crt0-msx.rel"],
-      extra_link_files: ["libcv-msx.lib", "libcvu-msx.lib", "crt0-msx.rel", "crt0-msx.lst"],
-      extra_compile_files: ["cv.h", "cv_graphics.h", "cv_input.h", "cv_sound.h", "cv_support.h", "cvu.h", "cvu_c.h", "cvu_compression.h", "cvu_f.h", "cvu_graphics.h", "cvu_input.h", "cvu_sound.h"]
-    },
-    "sms-sg1000-libcv": {
-      arch: "z80",
-      rom_start: 0,
-      code_start: 256,
-      rom_size: 49152,
-      data_start: 49152,
-      data_size: 1024,
-      stack_end: 57344,
-      extra_preproc_args: ["-I", ".", "-D", "CV_SMS"],
-      extra_link_args: ["-k", ".", "-l", "libcv-sms", "-l", "libcvu-sms", "crt0-sms.rel"],
-      extra_link_files: ["libcv-sms.lib", "libcvu-sms.lib", "crt0-sms.rel", "crt0-sms.lst"],
-      extra_compile_files: ["cv.h", "cv_graphics.h", "cv_input.h", "cv_sound.h", "cv_support.h", "cvu.h", "cvu_c.h", "cvu_compression.h", "cvu_f.h", "cvu_graphics.h", "cvu_input.h", "cvu_sound.h"]
-    },
-    "nes": {
-      arch: "6502",
-      define: ["__NES__"],
-      cfgfile: "neslib2.cfg",
-      libargs: [
-        "crt0.o",
-        "nes.lib",
-        "neslib2.lib",
-        "-D",
-        "NES_MAPPER=0",
-        "-D",
-        "NES_PRG_BANKS=2",
-        "-D",
-        "NES_CHR_BANKS=1",
-        "-D",
-        "NES_MIRRORING=0"
-      ],
-      extra_link_files: ["crt0.o", "neslib2.lib", "neslib2.cfg", "nesbanked.cfg"],
-      wiz_rom_ext: ".nes"
-    },
-    "apple2": {
-      arch: "6502",
-      define: ["__APPLE2__"],
-      cfgfile: "apple2.cfg",
-      libargs: ["--lib-path", "/share/target/apple2/drv", "apple2.lib"],
-      __CODE_RUN__: 16384,
-      code_start: 2051,
-      acmeargs: ["-f", "apple"]
-    },
-    "apple2-e": {
-      arch: "6502",
-      define: ["__APPLE2__"],
-      cfgfile: "apple2.cfg",
-      libargs: ["apple2.lib"],
-      acmeargs: ["-f", "apple"]
-    },
-    "atari8-800xl.disk": {
-      arch: "6502",
-      define: ["__ATARI__"],
-      cfgfile: "atari.cfg",
-      libargs: ["atari.lib"],
-      fastbasic_cfgfile: "fastbasic-cart.cfg"
-    },
-    "atari8-800xl": {
-      arch: "6502",
-      define: ["__ATARI__"],
-      cfgfile: "atari-cart.cfg",
-      libargs: ["atari.lib", "-D", "__CARTFLAGS__=4"],
-      fastbasic_cfgfile: "fastbasic-cart.cfg"
-    },
-    "atari8-800": {
-      arch: "6502",
-      define: ["__ATARI__"],
-      cfgfile: "atari-cart.cfg",
-      libargs: ["atari.lib", "-D", "__CARTFLAGS__=4"],
-      fastbasic_cfgfile: "fastbasic-cart.cfg"
-    },
-    "atari8-5200": {
-      arch: "6502",
-      define: ["__ATARI5200__"],
-      cfgfile: "atari5200.cfg",
-      libargs: ["atari5200.lib", "-D", "__CARTFLAGS__=255"],
-      fastbasic_cfgfile: "fastbasic-cart.cfg"
-    },
-    "verilog": {
-      arch: "verilog",
-      extra_compile_files: ["8bitworkshop.v"]
-    },
-    "astrocade": {
-      arch: "z80",
-      code_start: 8192,
-      rom_size: 8192,
-      data_start: 19984,
-      data_size: 496,
-      stack_end: 20480
-    },
-    "astrocade-arcade": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 16384,
-      data_start: 32224,
-      data_size: 544,
-      stack_end: 32768
-    },
-    "astrocade-bios": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 8192,
-      data_start: 20430,
-      data_size: 50,
-      stack_end: 20430
-    },
-    "atari7800": {
-      arch: "6502",
-      define: ["__ATARI7800__"],
-      cfgfile: "atari7800.cfg",
-      libargs: ["crt0.o", "none.lib"],
-      extra_link_files: ["crt0.o", "atari7800.cfg"]
-    },
-    "c64": {
-      arch: "6502",
-      define: ["__CBM__", "__C64__"],
-      cfgfile: "c64.cfg",
-      libargs: ["c64.lib"],
-      acmeargs: ["-f", "cbm"]
-    },
-    "vic20": {
-      arch: "6502",
-      define: ["__CBM__", "__VIC20__"],
-      cfgfile: "vic20.cfg",
-      libargs: ["vic20.lib"],
-      acmeargs: ["-f", "cbm"]
-    },
-    "kim1": {
-      arch: "6502"
-    },
-    "vectrex": {
-      arch: "6809",
-      code_start: 0,
-      rom_size: 32768,
-      data_start: 51328,
-      data_size: 896,
-      stack_end: 52224,
-      extra_compile_files: ["assert.h", "cmoc.h", "stdarg.h", "vectrex.h", "stdlib.h", "bios.h"],
-      extra_link_files: ["vectrex.scr", "libcmoc-crt-vec.a", "libcmoc-std-vec.a"],
-      extra_compile_args: ["--vectrex"],
-      extra_link_args: ["-svectrex.scr", "-lcmoc-crt-vec", "-lcmoc-std-vec"]
-    },
-    "x86": {
-      arch: "x86"
-    },
-    "zx": {
-      arch: "z80",
-      code_start: 23755,
-      rom_size: 65368 - 23755,
-      data_start: 61440,
-      data_size: 65024 - 61440,
-      stack_end: 65368,
-      extra_link_args: ["crt0-zx.rel"],
-      extra_link_files: ["crt0-zx.rel", "crt0-zx.lst"]
-    },
-    "devel-6502": {
-      arch: "6502",
-      cfgfile: "devel-6502.cfg",
-      libargs: ["crt0.o", "none.lib"],
-      extra_link_files: ["crt0.o", "devel-6502.cfg"]
-    },
-    "cpc.rslib": {
-      arch: "z80",
-      code_start: 16384,
-      rom_size: 45312 - 16384,
-      data_start: 45312,
-      data_size: 45312 - 49152,
-      stack_end: 49152,
-      extra_compile_files: ["cpcrslib.h"],
-      extra_link_args: ["crt0-cpc.rel", "cpcrslib.lib"],
-      extra_link_files: ["crt0-cpc.rel", "crt0-cpc.lst", "cpcrslib.lib", "cpcrslib.lst"]
-    },
-    "cpc": {
-      arch: "z80",
-      code_start: 16384,
-      rom_size: 45312 - 16384,
-      data_start: 45312,
-      data_size: 45312 - 49152,
-      stack_end: 49152,
-      extra_compile_files: ["cpctelera.h"],
-      extra_link_args: ["crt0-cpc.rel", "cpctelera.lib"],
-      extra_link_files: ["crt0-cpc.rel", "crt0-cpc.lst", "cpctelera.lib", "cpctelera.lst"]
-    },
-    "pce": {
-      arch: "huc6280",
-      define: ["__PCE__"],
-      cfgfile: "pce.cfg",
-      libargs: ["pce.lib", "-D", "__CARTSIZE__=0x8000"]
-    }
-  };
-  PLATFORM_PARAMS["sms-sms-libcv"] = PLATFORM_PARAMS["sms-sg1000-libcv"];
-  PLATFORM_PARAMS["sms-gg-libcv"] = PLATFORM_PARAMS["sms-sms-libcv"];
-  var _t1;
-  function starttime() {
-    _t1 = new Date();
-  }
-  function endtime(msg) {
-    var _t2 = new Date();
-    console.log(msg, _t2.getTime() - _t1.getTime(), "ms");
-  }
-  var FileWorkingStore = class {
-    constructor() {
-      this.workfs = {};
-      this.workerseq = 0;
-      this.reset();
-    }
-    reset() {
-      this.workfs = {};
-      this.newVersion();
-    }
-    currentVersion() {
-      return this.workerseq;
-    }
-    newVersion() {
-      let ts = new Date().getTime();
-      if (ts <= this.workerseq)
-        ts = ++this.workerseq;
-      return ts;
-    }
-    putFile(path, data) {
-      var encoding = typeof data === "string" ? "utf8" : "binary";
-      var entry = this.workfs[path];
-      if (!entry || !compareData(entry.data, data) || entry.encoding != encoding) {
-        this.workfs[path] = entry = { path, data, encoding, ts: this.newVersion() };
-        console.log("+++", entry.path, entry.encoding, entry.data.length, entry.ts);
-      }
-      return entry;
-    }
-    hasFile(path) {
-      return this.workfs[path] != null;
-    }
-    getFileData(path) {
-      return this.workfs[path] && this.workfs[path].data;
-    }
-    getFileAsString(path) {
-      let data = this.getFileData(path);
-      if (data != null && typeof data !== "string")
-        throw new Error(`${path}: expected string`);
-      return data;
-    }
-    getFileEntry(path) {
-      return this.workfs[path];
-    }
-    setItem(key, value) {
-      this.items[key] = value;
-    }
-  };
-  var store = new FileWorkingStore();
-  function errorResult(msg) {
-    return { errors: [{ line: 0, msg }] };
-  }
-  var Builder = class {
-    constructor() {
-      this.steps = [];
-      this.startseq = 0;
-    }
-    wasChanged(entry) {
-      return entry.ts > this.startseq;
-    }
-    async executeBuildSteps() {
-      this.startseq = store.currentVersion();
-      var linkstep = null;
-      while (this.steps.length) {
-        var step = this.steps.shift();
-        var platform = step.platform;
-        var [tool, remoteTool] = step.tool.split(":", 2);
-        var toolfn = TOOLS[tool];
-        if (!toolfn) {
-          throw Error(`no tool named "${tool}"`);
-        }
-        if (remoteTool) {
-          step.tool = remoteTool;
-        }
-        step.params = PLATFORM_PARAMS[getBasePlatform(platform)];
-        try {
-          step.result = await toolfn(step);
-        } catch (e) {
-          console.log("EXCEPTION", e, e.stack);
-          return errorResult(e + "");
-        }
-        if (step.result) {
-          step.result.params = step.params;
-          if (step.debuginfo) {
-            let r = step.result;
-            if (!r.debuginfo)
-              r.debuginfo = {};
-            Object.assign(r.debuginfo, step.debuginfo);
-          }
-          if ("errors" in step.result && step.result.errors.length) {
-            applyDefaultErrorPath(step.result.errors, step.path);
-            return step.result;
-          }
-          if ("output" in step.result && step.result.output) {
-            return step.result;
-          }
-          if ("linktool" in step.result) {
-            if (linkstep) {
-              linkstep.files = linkstep.files.concat(step.result.files);
-              linkstep.args = linkstep.args.concat(step.result.args);
-            } else {
-              linkstep = {
-                tool: step.result.linktool,
-                platform,
-                files: step.result.files,
-                args: step.result.args
-              };
-            }
-            linkstep.debuginfo = step.debuginfo;
-          }
-          if ("nexttool" in step.result) {
-            var asmstep = __spreadValues({
-              tool: step.result.nexttool,
-              platform
-            }, step.result);
-            this.steps.push(asmstep);
-          }
-          if (this.steps.length == 0 && linkstep) {
-            this.steps.push(linkstep);
-            linkstep = null;
-          }
-        }
-      }
-    }
-    async handleMessage(data) {
-      this.steps = [];
-      if (data.updates) {
-        data.updates.forEach((u) => store.putFile(u.path, u.data));
-      }
-      if (data.setitems) {
-        data.setitems.forEach((i) => store.setItem(i.key, i.value));
-      }
-      if (data.buildsteps) {
-        this.steps.push.apply(this.steps, data.buildsteps);
-      }
-      if (data.code) {
-        this.steps.push(data);
-      }
-      if (this.steps.length) {
-        var result = await this.executeBuildSteps();
-        return result ? result : { unchanged: true };
-      }
-      console.log("Unknown message", data);
-    }
-  };
-  var builder = new Builder();
-  function applyDefaultErrorPath(errors, path) {
-    if (!path)
-      return;
-    for (var i = 0; i < errors.length; i++) {
-      var err = errors[i];
-      if (!err.path && err.line)
-        err.path = path;
-    }
-  }
-  function compareData(a, b) {
-    if (a.length != b.length)
-      return false;
-    if (typeof a === "string" && typeof b === "string") {
-      return a == b;
-    } else {
-      for (var i = 0; i < a.length; i++) {
-        if (a[i] != b[i])
-          return false;
-      }
-      return true;
-    }
-  }
-  function putWorkFile(path, data) {
-    return store.putFile(path, data);
-  }
-  function getWorkFileAsString(path) {
-    return store.getFileAsString(path);
-  }
-  function populateEntry(fs, path, entry, options) {
-    var data = entry.data;
-    if (options && options.processFn) {
-      data = options.processFn(path, data);
-    }
-    var toks = path.split("/");
-    if (toks.length > 1) {
-      for (var i = 0; i < toks.length - 1; i++)
-        try {
-          fs.mkdir(toks[i]);
-        } catch (e) {
-        }
-    }
-    fs.writeFile(path, data, { encoding: entry.encoding });
-    var time = new Date(entry.ts);
-    fs.utime(path, time, time);
-    console.log("<<<", path, entry.data.length);
-  }
-  function gatherFiles(step, options) {
-    var maxts = 0;
-    if (step.files) {
-      for (var i = 0; i < step.files.length; i++) {
-        var path = step.files[i];
-        var entry = store.workfs[path];
-        if (!entry) {
-          throw new Error("No entry for path '" + path + "'");
-        } else {
-          maxts = Math.max(maxts, entry.ts);
-        }
-      }
-    } else if (step.code) {
-      var path = step.path ? step.path : options.mainFilePath;
-      if (!path)
-        throw Error("need path or mainFilePath");
-      var code = step.code;
-      var entry = putWorkFile(path, code);
-      step.path = path;
-      step.files = [path];
-      maxts = entry.ts;
-    } else if (step.path) {
-      var path = step.path;
-      var entry = store.workfs[path];
-      maxts = entry.ts;
-      step.files = [path];
-    }
-    if (step.path && !step.prefix) {
-      step.prefix = getPrefix(step.path);
-    }
-    step.maxts = maxts;
-    return maxts;
-  }
-  function getPrefix(s) {
-    var pos = s.lastIndexOf(".");
-    return pos > 0 ? s.substring(0, pos) : s;
-  }
-  function populateFiles(step, fs, options) {
-    gatherFiles(step, options);
-    if (!step.files)
-      throw Error("call gatherFiles() first");
-    for (var i = 0; i < step.files.length; i++) {
-      var path = step.files[i];
-      populateEntry(fs, path, store.workfs[path], options);
-    }
-  }
-  function populateExtraFiles(step, fs, extrafiles) {
-    if (extrafiles) {
-      for (var i = 0; i < extrafiles.length; i++) {
-        var xfn = extrafiles[i];
-        if (store.workfs[xfn]) {
-          fs.writeFile(xfn, store.workfs[xfn].data, { encoding: "binary" });
-          continue;
-        }
-        var xpath = "lib/" + getBasePlatform(step.platform) + "/" + xfn;
-        var xhr = new XMLHttpRequest();
-        xhr.responseType = "arraybuffer";
-        xhr.open("GET", PWORKER + xpath, false);
-        xhr.send(null);
-        if (xhr.response && xhr.status == 200) {
-          var data = new Uint8Array(xhr.response);
-          fs.writeFile(xfn, data, { encoding: "binary" });
-          putWorkFile(xfn, data);
-          console.log(":::", xfn, data.length);
-        } else {
-          throw Error("Could not load extra file " + xpath);
-        }
-      }
-    }
-  }
-  function staleFiles(step, targets) {
-    if (!step.maxts)
-      throw Error("call populateFiles() first");
-    for (var i = 0; i < targets.length; i++) {
-      var entry = store.workfs[targets[i]];
-      if (!entry || step.maxts > entry.ts)
-        return true;
-    }
-    console.log("unchanged", step.maxts, targets);
-    return false;
-  }
-  function anyTargetChanged(step, targets) {
-    if (!step.maxts)
-      throw Error("call populateFiles() first");
-    for (var i = 0; i < targets.length; i++) {
-      var entry = store.workfs[targets[i]];
-      if (!entry || entry.ts > step.maxts)
-        return true;
-    }
-    console.log("unchanged", step.maxts, targets);
-    return false;
-  }
-  function execMain(step, mod, args) {
-    starttime();
-    var run = mod.callMain || mod.run;
-    run(args);
-    endtime(step.tool);
-  }
-  var fsMeta = {};
-  var fsBlob = {};
-  var wasmBlob = {};
-  var PSRC = "../../src/";
-  var PWORKER = PSRC + "worker/";
-  function loadFilesystem(name) {
-    var xhr = new XMLHttpRequest();
-    xhr.responseType = "blob";
-    xhr.open("GET", PWORKER + "fs/fs" + name + ".data", false);
-    xhr.send(null);
-    fsBlob[name] = xhr.response;
-    xhr = new XMLHttpRequest();
-    xhr.responseType = "json";
-    xhr.open("GET", PWORKER + "fs/fs" + name + ".js.metadata", false);
-    xhr.send(null);
-    fsMeta[name] = xhr.response;
-    console.log("Loaded " + name + " filesystem", fsMeta[name].files.length, "files", fsBlob[name].size, "bytes");
-  }
-  var loaded = {};
-  function load(modulename, debug3) {
-    if (!loaded[modulename]) {
-      importScripts(PWORKER + "asmjs/" + modulename + (debug3 ? "." + debug3 + ".js" : ".js"));
-      loaded[modulename] = 1;
-    }
-  }
-  function loadWASMBinary(modulename) {
-    if (!loaded[modulename]) {
-      var xhr = new XMLHttpRequest();
-      xhr.responseType = "arraybuffer";
-      xhr.open("GET", PWORKER + "wasm/" + modulename + ".wasm", false);
-      xhr.send(null);
-      if (xhr.response) {
-        wasmBlob[modulename] = new Uint8Array(xhr.response);
-        console.log("Loaded " + modulename + ".wasm (" + wasmBlob[modulename].length + " bytes)");
-        loaded[modulename] = 1;
-      } else {
-        throw Error("Could not load WASM file " + modulename + ".wasm");
-      }
-    }
-    return wasmBlob[modulename];
-  }
-  function loadWASM(modulename, debug3) {
-    if (!loaded[modulename]) {
-      importScripts(PWORKER + "wasm/" + modulename + (debug3 ? "." + debug3 + ".js" : ".js"));
-      loadWASMBinary(modulename);
-    }
-  }
-  function loadNative(modulename) {
-    if (CACHE_WASM_MODULES && typeof WebAssembly === "object") {
-      loadWASM(modulename);
-    } else {
-      load(modulename);
-    }
-  }
-  function setupFS(FS, name) {
-    var WORKERFS = FS.filesystems["WORKERFS"];
-    if (name === "65-vector")
-      name = "65-none";
-    if (name === "65-atari7800")
-      name = "65-none";
-    if (name === "65-devel")
-      name = "65-none";
-    if (name === "65-vcs")
-      name = "65-atari2600";
-    if (!fsMeta[name])
-      throw Error("No filesystem for '" + name + "'");
-    FS.mkdir("/share");
-    FS.mount(WORKERFS, {
-      packages: [{ metadata: fsMeta[name], blob: fsBlob[name] }]
-    }, "/share");
-    var reader = WORKERFS.reader;
-    var blobcache = {};
-    WORKERFS.stream_ops.read = function(stream, buffer, offset, length, position) {
-      if (position >= stream.node.size)
-        return 0;
-      var contents = blobcache[stream.path];
-      if (!contents) {
-        var ab = reader.readAsArrayBuffer(stream.node.contents);
-        contents = blobcache[stream.path] = new Uint8Array(ab);
-      }
-      if (position + length > contents.length)
-        length = contents.length - position;
-      for (var i = 0; i < length; i++) {
-        buffer[offset + i] = contents[position + i];
-      }
-      return length;
-    };
-  }
-  var print_fn = function(s) {
-    console.log(s);
-  };
-  var re_msvc = /[/]*([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+?):\s*(.*)/;
-  var re_msvc2 = /\s*(at)\s+(\d+)\s*(:)\s*(.*)/;
-  function msvcErrorMatcher(errors) {
-    return function(s) {
-      var matches = re_msvc.exec(s) || re_msvc2.exec(s);
+    var re_err1 = /[(](\d+)[)]:?\s*(.+)/;
+    var errors = [];
+    var errline = 0;
+    function match_fn(s) {
+      console.log(s);
+      var matches = re_err1.exec(s);
       if (matches) {
-        var errline = parseInt(matches[2]);
+        errline = parseInt(matches[1]);
         errors.push({
           line: errline,
-          path: matches[1],
-          msg: matches[4]
+          msg: matches[2]
         });
-      } else {
-        console.log(s);
-      }
-    };
-  }
-  function makeErrorMatcher(errors, regex, iline, imsg, mainpath, ifilename) {
-    return function(s) {
-      var matches = regex.exec(s);
-      if (matches) {
-        errors.push({
-          line: parseInt(matches[iline]) || 1,
-          msg: matches[imsg],
-          path: ifilename ? matches[ifilename] : mainpath
-        });
-      } else {
-        console.log("??? " + s);
-      }
-    };
-  }
-  function extractErrors(regex, strings, path, iline, imsg, ifilename) {
-    var errors = [];
-    var matcher = makeErrorMatcher(errors, regex, iline, imsg, path, ifilename);
-    for (var i = 0; i < strings.length; i++) {
-      matcher(strings[i]);
-    }
-    return errors;
-  }
-  var re_crlf = /\r?\n/;
-  var re_lineoffset = /\s*(\d+)\s+[%]line\s+(\d+)\+(\d+)\s+(.+)/;
-  function parseListing(code, lineMatch, iline, ioffset, iinsns, icycles, funcMatch, segMatch) {
-    var lines = [];
-    var lineofs = 0;
-    var segment = "";
-    var func = "";
-    var funcbase = 0;
-    code.split(re_crlf).forEach((line, lineindex) => {
-      let segm = segMatch && segMatch.exec(line);
-      if (segm) {
-        segment = segm[1];
-      }
-      let funcm = funcMatch && funcMatch.exec(line);
-      if (funcm) {
-        funcbase = parseInt(funcm[1], 16);
-        func = funcm[2];
-      }
-      var linem = lineMatch.exec(line);
-      if (linem && linem[1]) {
-        var linenum = iline < 0 ? lineindex : parseInt(linem[iline]);
-        var offset = parseInt(linem[ioffset], 16);
-        var insns = linem[iinsns];
-        var cycles = icycles ? parseInt(linem[icycles]) : null;
-        var iscode = cycles > 0;
-        if (insns) {
-          lines.push({
-            line: linenum + lineofs,
-            offset: offset - funcbase,
-            insns,
-            cycles,
-            iscode,
-            segment,
-            func
-          });
-        }
-      } else {
-        let m = re_lineoffset.exec(line);
-        if (m) {
-          lineofs = parseInt(m[2]) - parseInt(m[1]) - parseInt(m[3]);
-        }
-      }
-    });
-    return lines;
-  }
-  function parseSourceLines(code, lineMatch, offsetMatch, funcMatch, segMatch) {
-    var lines = [];
-    var lastlinenum = 0;
-    var segment = "";
-    var func = "";
-    var funcbase = 0;
-    for (var line of code.split(re_crlf)) {
-      let segm = segMatch && segMatch.exec(line);
-      if (segm) {
-        segment = segm[1];
-      }
-      let funcm = funcMatch && funcMatch.exec(line);
-      if (funcm) {
-        funcbase = parseInt(funcm[1], 16);
-        func = funcm[2];
-      }
-      var linem = lineMatch.exec(line);
-      if (linem && linem[1]) {
-        lastlinenum = parseInt(linem[1]);
-      } else if (lastlinenum) {
-        var linem = offsetMatch.exec(line);
-        if (linem && linem[1]) {
-          var offset = parseInt(linem[1], 16);
-          lines.push({
-            line: lastlinenum,
-            offset: offset - funcbase,
-            segment,
-            func
-          });
-          lastlinenum = 0;
-        }
       }
     }
-    return lines;
-  }
-  function setupStdin(fs, code) {
-    var i = 0;
-    fs.init(function() {
-      return i < code.length ? code.charCodeAt(i++) : null;
-    });
-  }
-  function fixParamsWithDefines(path, params) {
-    var libargs = params.libargs;
-    if (path && libargs) {
-      var code = getWorkFileAsString(path);
-      if (code) {
-        var oldcfgfile = params.cfgfile;
-        var ident2index = {};
-        for (var i = 0; i < libargs.length; i++) {
-          var toks = libargs[i].split("=");
-          if (toks.length == 2) {
-            ident2index[toks[0]] = i;
-          }
-        }
-        var re = /^[;]?#define\s+(\w+)\s+(\S+)/gmi;
-        var m;
-        while (m = re.exec(code)) {
-          var ident = m[1];
-          var value = m[2];
-          var index = ident2index[ident];
-          if (index >= 0) {
-            libargs[index] = ident + "=" + value;
-            console.log("Using libargs", index, libargs[index]);
-            if (ident == "NES_MAPPER" && value == "4") {
-              params.cfgfile = "nesbanked.cfg";
-              console.log("using config file", params.cfgfile);
-            }
-          } else if (ident == "CFGFILE" && value) {
-            params.cfgfile = value;
-          } else if (ident == "LIBARGS" && value) {
-            params.libargs = value.split(",").filter((s) => {
-              return s != "";
-            });
-            console.log("Using libargs", params.libargs);
-          } else if (ident == "CC65_FLAGS" && value) {
-            params.extra_compiler_args = value.split(",").filter((s) => {
-              return s != "";
-            });
-            console.log("Using compiler flags", params.extra_compiler_args);
-          }
-        }
-      }
-    }
-  }
-  function makeCPPSafe(s) {
-    return s.replace(/[^A-Za-z0-9_]/g, "_");
-  }
-  function preprocessMCPP(step, filesys) {
-    load("mcpp");
-    var platform = step.platform;
-    var params = PLATFORM_PARAMS[getBasePlatform(platform)];
-    if (!params)
-      throw Error("Platform not supported: " + platform);
-    var errors = [];
-    var match_fn = makeErrorMatcher(errors, /<stdin>:(\d+): (.+)/, 1, 2, step.path);
-    var MCPP = emglobal.mcpp({
-      noInitialRun: true,
-      noFSInit: true,
-      print: print_fn,
-      printErr: match_fn
-    });
-    var FS = MCPP.FS;
-    if (filesys)
-      setupFS(FS, filesys);
-    populateFiles(step, FS);
-    populateExtraFiles(step, FS, params.extra_compile_files);
-    var args = [
-      "-D",
-      "__8BITWORKSHOP__",
-      "-D",
-      "__SDCC_z80",
-      "-D",
-      makeCPPSafe(platform.toUpperCase()),
-      "-I",
-      "/share/include",
-      "-Q",
-      step.path,
-      "main.i"
-    ];
-    if (step.mainfile) {
-      args.unshift.apply(args, ["-D", "__MAIN__"]);
-    }
-    let platform_def = platform.toUpperCase().replaceAll(/[^a-zA-Z0-9]/g, "_");
-    args.unshift.apply(args, ["-D", `__PLATFORM_${platform_def}__`]);
-    if (params.extra_preproc_args) {
-      args.push.apply(args, params.extra_preproc_args);
-    }
-    execMain(step, MCPP, args);
-    if (errors.length)
-      return { errors };
-    var iout = FS.readFile("main.i", { encoding: "utf8" });
-    iout = iout.replace(/^#line /gm, "\n# ");
-    try {
-      var errout = FS.readFile("mcpp.err", { encoding: "utf8" });
-      if (errout.length) {
-        var errors = extractErrors(/([^:]+):(\d+): (.+)/, errout.split("\n"), step.path, 2, 3, 1);
-        if (errors.length == 0) {
-          errors = errorResult(errout).errors;
-        }
+    gatherFiles(step, { mainFilePath: "main.bas" });
+    var destpath = step.prefix + ".asm";
+    if (staleFiles(step, [destpath])) {
+      var BB = emglobal.bb2600basic({
+        noInitialRun: true,
+        print: addasmout_fn,
+        printErr: match_fn,
+        noFSInit: true,
+        TOTAL_MEMORY: 64 * 1024 * 1024
+      });
+      var FS = BB.FS;
+      populateFiles(step, FS);
+      var code = getWorkFileAsString(step.path);
+      code = preprocessBatariBasic(code);
+      setupStdin(FS, code);
+      setupFS(FS, "2600basic");
+      execMain(step, BB, ["-i", "/share", step.path]);
+      if (errors.length)
         return { errors };
+      var includesout = FS.readFile("includes.bB", { encoding: "utf8" });
+      var redefsout = FS.readFile("2600basic_variable_redefs.h", { encoding: "utf8" });
+      var includes = includesout.trim().split("\n");
+      var combinedasm = "";
+      var splitasm = asmout.split("bB.asm file is split here");
+      for (var incfile of includes) {
+        var inctext;
+        if (incfile == "bB.asm")
+          inctext = splitasm[0];
+        else if (incfile == "bB2.asm")
+          inctext = splitasm[1];
+        else
+          inctext = FS.readFile("/share/includes/" + incfile, { encoding: "utf8" });
+        console.log(incfile, inctext.length);
+        combinedasm += "\n\n;;;" + incfile + "\n\n";
+        combinedasm += inctext;
       }
-    } catch (e) {
+      putWorkFile(destpath, combinedasm);
+      putWorkFile("2600basic.h", FS.readFile("/share/includes/2600basic.h"));
+      putWorkFile("2600basic_variable_redefs.h", redefsout);
     }
-    return { code: iout };
-  }
-  function setupRequireFunction() {
-    var exports2 = {};
-    exports2["jsdom"] = {
-      JSDOM: function(a, b) {
-        this.window = {};
-      }
-    };
-    emglobal["require"] = (modname) => {
-      console.log("require", modname, exports2[modname] != null);
-      return exports2[modname];
+    return {
+      nexttool: "dasm",
+      path: destpath,
+      args: [destpath],
+      files: [destpath, "2600basic.h", "2600basic_variable_redefs.h"],
+      bblines: true
     };
   }
+
+  // src/worker/workertools.ts
   var TOOLS = {
     "dasm": assembleDASM,
     "acme": assembleACME,
@@ -13470,6 +13486,20 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     "ecs-nes": "65-nes",
     "ecs-c64": "65-c64"
   };
+
+  // src/worker/workermain.ts
+  function setupRequireFunction() {
+    var exports2 = {};
+    exports2["jsdom"] = {
+      JSDOM: function(a, b) {
+        this.window = {};
+      }
+    };
+    emglobal["require"] = (modname) => {
+      console.log("require", modname, exports2[modname] != null);
+      return exports2[modname];
+    };
+  }
   async function handleMessage(data) {
     if (data.preload) {
       var fs = TOOL_PRELOADFS[data.preload];
@@ -13487,7 +13517,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     }
     return builder.handleMessage(data);
   }
-  if (ENVIRONMENT_IS_WORKER) {
+  var ENVIRONMENT_IS_WORKER2 = typeof importScripts === "function";
+  if (ENVIRONMENT_IS_WORKER2) {
     lastpromise = null;
     onmessage = async function(e) {
       await lastpromise;

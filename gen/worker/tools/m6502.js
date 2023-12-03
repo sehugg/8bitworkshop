@@ -1,10 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.compileFastBasic = exports.assembleMerlin32 = exports.assembleNESASM = void 0;
-const workermain_1 = require("../workermain");
+const builder_1 = require("../builder");
+const listingutils_1 = require("../listingutils");
+const wasmutils_1 = require("../wasmutils");
 // http://www.nespowerpak.com/nesasm/
 function assembleNESASM(step) {
-    (0, workermain_1.loadNative)("nesasm");
+    (0, wasmutils_1.loadNative)("nesasm");
     var re_filename = /\#\[(\d+)\]\s+(\S+)/;
     var re_insn = /\s+(\d+)\s+([0-9A-F]+):([0-9A-F]+)/;
     var re_error = /\s+(.+)/;
@@ -35,26 +37,26 @@ function assembleNESASM(step) {
                 break;
         }
     }
-    var Module = workermain_1.emglobal.nesasm({
-        instantiateWasm: (0, workermain_1.moduleInstFn)('nesasm'),
+    var Module = wasmutils_1.emglobal.nesasm({
+        instantiateWasm: (0, wasmutils_1.moduleInstFn)('nesasm'),
         noInitialRun: true,
         print: match_fn
     });
     var FS = Module.FS;
-    (0, workermain_1.populateFiles)(step, FS, {
+    (0, builder_1.populateFiles)(step, FS, {
         mainFilePath: 'main.a'
     });
     var binpath = step.prefix + '.nes';
     var lstpath = step.prefix + '.lst';
     var sympath = step.prefix + '.fns';
-    (0, workermain_1.execMain)(step, Module, [step.path, '-s', "-l", "2"]);
+    (0, wasmutils_1.execMain)(step, Module, [step.path, '-s', "-l", "2"]);
     // parse main listing, get errors and listings for each file
     var listings = {};
     try {
         var alst = FS.readFile(lstpath, { 'encoding': 'utf8' });
         //   16  00:C004  8E 17 40    STX $4017    ; disable APU frame IRQ
-        var asmlines = (0, workermain_1.parseListing)(alst, /^\s*(\d+)\s+([0-9A-F]+):([0-9A-F]+)\s+([0-9A-F ]+?)  (.*)/i, 1, 3, 4);
-        (0, workermain_1.putWorkFile)(lstpath, alst);
+        var asmlines = (0, listingutils_1.parseListing)(alst, /^\s*(\d+)\s+([0-9A-F]+):([0-9A-F]+)\s+([0-9A-F ]+?)  (.*)/i, 1, 3, 4);
+        (0, builder_1.putWorkFile)(lstpath, alst);
         listings[lstpath] = {
             lines: asmlines,
             text: alst
@@ -77,12 +79,12 @@ function assembleNESASM(step) {
         errors.push({ line: 0, msg: "No symbol table generated, maybe missing ENDM or segment overflow?" });
         return { errors: errors };
     }
-    (0, workermain_1.putWorkFile)(binpath, aout);
-    (0, workermain_1.putWorkFile)(sympath, asym);
+    (0, builder_1.putWorkFile)(binpath, aout);
+    (0, builder_1.putWorkFile)(sympath, asym);
     if (alst)
-        (0, workermain_1.putWorkFile)(lstpath, alst); // listing optional (use LIST)
+        (0, builder_1.putWorkFile)(lstpath, alst); // listing optional (use LIST)
     // return unchanged if no files changed
-    if (!(0, workermain_1.anyTargetChanged)(step, [binpath, sympath]))
+    if (!(0, builder_1.anyTargetChanged)(step, [binpath, sympath]))
         return;
     // parse symbols
     var symbolmap = {};
@@ -116,15 +118,15 @@ Line | # File       Line | Line Type   | MX |  Reloc  | Size | Address   Object 
 
 */
 function assembleMerlin32(step) {
-    (0, workermain_1.loadNative)("merlin32");
+    (0, wasmutils_1.loadNative)("merlin32");
     var errors = [];
     var lstfiles = [];
-    (0, workermain_1.gatherFiles)(step, { mainFilePath: "main.lnk" });
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.lnk" });
     var objpath = step.prefix + ".bin";
-    if ((0, workermain_1.staleFiles)(step, [objpath])) {
+    if ((0, builder_1.staleFiles)(step, [objpath])) {
         var args = ['-v', step.path];
-        var merlin32 = workermain_1.emglobal.merlin32({
-            instantiateWasm: (0, workermain_1.moduleInstFn)('merlin32'),
+        var merlin32 = wasmutils_1.emglobal.merlin32({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('merlin32'),
             noInitialRun: true,
             print: (s) => {
                 var m = /\s*=>\s*Creating Output file '(.+?)'/.exec(s);
@@ -143,11 +145,11 @@ function assembleMerlin32(step) {
                     });
                 }
             },
-            printErr: workermain_1.print_fn,
+            printErr: wasmutils_1.print_fn,
         });
         var FS = merlin32.FS;
-        (0, workermain_1.populateFiles)(step, FS);
-        (0, workermain_1.execMain)(step, merlin32, args);
+        (0, builder_1.populateFiles)(step, FS);
+        (0, wasmutils_1.execMain)(step, merlin32, args);
         if (errors.length)
             return { errors: errors };
         var errout = null;
@@ -158,8 +160,8 @@ function assembleMerlin32(step) {
             //
         }
         var objout = FS.readFile(objpath, { encoding: 'binary' });
-        (0, workermain_1.putWorkFile)(objpath, objout);
-        if (!(0, workermain_1.anyTargetChanged)(step, [objpath]))
+        (0, builder_1.putWorkFile)(objpath, objout);
+        if (!(0, builder_1.anyTargetChanged)(step, [objpath]))
             return;
         var symbolmap = {};
         var segments = [];
@@ -202,20 +204,20 @@ exports.assembleMerlin32 = assembleMerlin32;
 // README.md:2:5: parse error, expected: statement or variable assignment, integer variable, variable assignment
 function compileFastBasic(step) {
     // TODO: fastbasic-fp?
-    (0, workermain_1.loadNative)("fastbasic-int");
+    (0, wasmutils_1.loadNative)("fastbasic-int");
     var params = step.params;
-    (0, workermain_1.gatherFiles)(step, { mainFilePath: "main.fb" });
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.fb" });
     var destpath = step.prefix + '.s';
     var errors = [];
-    if ((0, workermain_1.staleFiles)(step, [destpath])) {
-        var fastbasic = workermain_1.emglobal.fastbasic({
-            instantiateWasm: (0, workermain_1.moduleInstFn)('fastbasic-int'),
+    if ((0, builder_1.staleFiles)(step, [destpath])) {
+        var fastbasic = wasmutils_1.emglobal.fastbasic({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('fastbasic-int'),
             noInitialRun: true,
-            print: workermain_1.print_fn,
-            printErr: (0, workermain_1.makeErrorMatcher)(errors, /(.+?):(\d+):(\d+):\s*(.+)/, 2, 4, step.path, 1),
+            print: wasmutils_1.print_fn,
+            printErr: (0, listingutils_1.makeErrorMatcher)(errors, /(.+?):(\d+):(\d+):\s*(.+)/, 2, 4, step.path, 1),
         });
         var FS = fastbasic.FS;
-        (0, workermain_1.populateFiles)(step, FS);
+        (0, builder_1.populateFiles)(step, FS);
         var libfile = 'fastbasic-int.lib';
         params.libargs = [libfile];
         params.cfgfile = params.fastbasic_cfgfile;
@@ -223,11 +225,11 @@ function compileFastBasic(step) {
         params.extra_link_files = [libfile, params.cfgfile];
         //fixParamsWithDefines(step.path, params);
         var args = [step.path, destpath];
-        (0, workermain_1.execMain)(step, fastbasic, args);
+        (0, wasmutils_1.execMain)(step, fastbasic, args);
         if (errors.length)
             return { errors: errors };
         var asmout = FS.readFile(destpath, { encoding: 'utf8' });
-        (0, workermain_1.putWorkFile)(destpath, asmout);
+        (0, builder_1.putWorkFile)(destpath, asmout);
     }
     return {
         nexttool: "ca65",

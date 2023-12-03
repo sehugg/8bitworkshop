@@ -1,8 +1,10 @@
 import { Segment, CodeListingMap, WorkerResult, WorkerError } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, setupRequireFunction, load, emglobal, getWorkFileAsString, loadNative, gatherFiles, staleFiles, msvcErrorMatcher, moduleInstFn, setupFS, populateFiles, execMain, putWorkFile, anyTargetChanged, parseListing, print_fn, makeErrorMatcher, populateExtraFiles } from "../workermain";
-import { EmscriptenModule } from "../workermain"
 import * as basic_compiler from '../../common/basic/compiler';
 import { getRootBasePlatform, parseXMLPoorly } from "../../common/util";
+import { EmscriptenModule, emglobal, execMain, load, loadNative, moduleInstFn, print_fn, setupFS } from "../wasmutils";
+import { BuildStep, BuildStepResult, getWorkFileAsString, gatherFiles, staleFiles, populateFiles, putWorkFile, anyTargetChanged, populateExtraFiles } from "../builder";
+import { msvcErrorMatcher, parseListing, makeErrorMatcher } from "../listingutils";
+import { setupRequireFunction } from "../workermain";
 
 export function translateShowdown(step: BuildStep): BuildStepResult {
     setupRequireFunction();

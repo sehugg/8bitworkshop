@@ -2,7 +2,7 @@ import { ECSCompiler } from "../../common/ecs/compiler";
 import { Dialect_CA65, ECSError, EntityManager } from "../../common/ecs/ecs";
 import { CompileError } from "../../common/tokenizer";
 import { CodeListingMap } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, fixParamsWithDefines, gatherFiles, getWorkFileAsString, putWorkFile, staleFiles } from "../workermain";
+import { BuildStep, BuildStepResult, getWorkFileAsString, gatherFiles, staleFiles, fixParamsWithDefines, putWorkFile } from "../builder";
 
 export function assembleECS(step: BuildStep): BuildStepResult {
     let em = new EntityManager(new Dialect_CA65()); // TODO

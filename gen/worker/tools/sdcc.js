@@ -1,7 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.compileSDCC = exports.linkSDLDZ80 = exports.assembleSDASZ80 = void 0;
-const workermain_1 = require("../workermain");
+const builder_1 = require("../builder");
+const listingutils_1 = require("../listingutils");
+const wasmutils_1 = require("../wasmutils");
+const mcpp_1 = require("./mcpp");
 function hexToArray(s, ofs) {
     var buf = new ArrayBuffer(s.length / 2);
     var arr = new Uint8Array(buf);
@@ -43,13 +46,13 @@ function parseIHX(ihx, rom_start, rom_size, errors) {
     return output;
 }
 function assembleSDASZ80(step) {
-    (0, workermain_1.loadNative)("sdasz80");
+    (0, wasmutils_1.loadNative)("sdasz80");
     var objout, lstout, symout;
     var errors = [];
-    (0, workermain_1.gatherFiles)(step, { mainFilePath: "main.asm" });
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.asm" });
     var objpath = step.prefix + ".rel";
     var lstpath = step.prefix + ".lst";
-    if ((0, workermain_1.staleFiles)(step, [objpath, lstpath])) {
+    if ((0, builder_1.staleFiles)(step, [objpath, lstpath])) {
         //?ASxxxx-Error-<o> in line 1 of main.asm null
         //              <o> .org in REL area or directive / mnemonic error
         // ?ASxxxx-Error-<q> in line 1627 of cosmic.asm
@@ -75,23 +78,23 @@ function assembleSDASZ80(step) {
                 }
             }
         };
-        var ASZ80 = workermain_1.emglobal.sdasz80({
-            instantiateWasm: (0, workermain_1.moduleInstFn)('sdasz80'),
+        var ASZ80 = wasmutils_1.emglobal.sdasz80({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('sdasz80'),
             noInitialRun: true,
             //logReadFiles:true,
             print: match_asm_fn,
             printErr: match_asm_fn,
         });
         var FS = ASZ80.FS;
-        (0, workermain_1.populateFiles)(step, FS);
-        (0, workermain_1.execMain)(step, ASZ80, ['-plosgffwy', step.path]);
+        (0, builder_1.populateFiles)(step, FS);
+        (0, wasmutils_1.execMain)(step, ASZ80, ['-plosgffwy', step.path]);
         if (errors.length) {
             return { errors: errors };
         }
         objout = FS.readFile(objpath, { encoding: 'utf8' });
         lstout = FS.readFile(lstpath, { encoding: 'utf8' });
-        (0, workermain_1.putWorkFile)(objpath, objout);
-        (0, workermain_1.putWorkFile)(lstpath, lstout);
+        (0, builder_1.putWorkFile)(objpath, objout);
+        (0, builder_1.putWorkFile)(lstpath, lstout);
     }
     return {
         linktool: "sdldz80",
@@ -102,11 +105,11 @@ function assembleSDASZ80(step) {
 }
 exports.assembleSDASZ80 = assembleSDASZ80;
 function linkSDLDZ80(step) {
-    (0, workermain_1.loadNative)("sdldz80");
+    (0, wasmutils_1.loadNative)("sdldz80");
     var errors = [];
-    (0, workermain_1.gatherFiles)(step);
+    (0, builder_1.gatherFiles)(step);
     var binpath = "main.ihx";
-    if ((0, workermain_1.staleFiles)(step, [binpath])) {
+    if ((0, builder_1.staleFiles)(step, [binpath])) {
         //?ASlink-Warning-Undefined Global '__divsint' referenced by module 'main'
         var match_aslink_re = /\?ASlink-(\w+)-(.+)/;
         var match_aslink_fn = (s) => {
@@ -119,17 +122,17 @@ function linkSDLDZ80(step) {
             }
         };
         var params = step.params;
-        var LDZ80 = workermain_1.emglobal.sdldz80({
-            instantiateWasm: (0, workermain_1.moduleInstFn)('sdldz80'),
+        var LDZ80 = wasmutils_1.emglobal.sdldz80({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('sdldz80'),
             noInitialRun: true,
             //logReadFiles:true,
             print: match_aslink_fn,
             printErr: match_aslink_fn,
         });
         var FS = LDZ80.FS;
-        (0, workermain_1.setupFS)(FS, 'sdcc');
-        (0, workermain_1.populateFiles)(step, FS);
-        (0, workermain_1.populateExtraFiles)(step, FS, params.extra_link_files);
+        (0, wasmutils_1.setupFS)(FS, 'sdcc');
+        (0, builder_1.populateFiles)(step, FS);
+        (0, builder_1.populateExtraFiles)(step, FS, params.extra_link_files);
         // TODO: coleco hack so that -u flag works
         if (step.platform.startsWith("coleco")) {
             FS.writeFile('crt0.rel', FS.readFile('/share/lib/coleco/crt0.rel', { encoding: 'utf8' }));
@@ -145,13 +148,13 @@ function linkSDLDZ80(step) {
             args.push.apply(args, params.extra_link_args);
         args.push.apply(args, step.args);
         //console.log(args);
-        (0, workermain_1.execMain)(step, LDZ80, args);
+        (0, wasmutils_1.execMain)(step, LDZ80, args);
         var hexout = FS.readFile("main.ihx", { encoding: 'utf8' });
         var noiout = FS.readFile("main.noi", { encoding: 'utf8' });
-        (0, workermain_1.putWorkFile)("main.ihx", hexout);
-        (0, workermain_1.putWorkFile)("main.noi", noiout);
+        (0, builder_1.putWorkFile)("main.ihx", hexout);
+        (0, builder_1.putWorkFile)("main.noi", noiout);
         // return unchanged if no files changed
-        if (!(0, workermain_1.anyTargetChanged)(step, ["main.ihx", "main.noi"]))
+        if (!(0, builder_1.anyTargetChanged)(step, ["main.ihx", "main.noi"]))
             return;
         // parse binary file
         var binout = parseIHX(hexout, params.rom_start !== undefined ? params.rom_start : params.code_start, params.rom_size, errors);
@@ -164,9 +167,9 @@ function linkSDLDZ80(step) {
             if (fn.endsWith('.lst')) {
                 var rstout = FS.readFile(fn.replace('.lst', '.rst'), { encoding: 'utf8' });
                 //   0000 21 02 00      [10]   52 	ld	hl, #2
-                var asmlines = (0, workermain_1.parseListing)(rstout, /^\s*([0-9A-F]{4})\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]?\s+(\d+) (.*)/i, 4, 1, 2, 3);
-                var srclines = (0, workermain_1.parseSourceLines)(rstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i);
-                (0, workermain_1.putWorkFile)(fn, rstout);
+                var asmlines = (0, listingutils_1.parseListing)(rstout, /^\s*([0-9A-F]{4})\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]?\s+(\d+) (.*)/i, 4, 1, 2, 3);
+                var srclines = (0, listingutils_1.parseSourceLines)(rstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i);
+                (0, builder_1.putWorkFile)(fn, rstout);
                 // TODO: you have to get rid of all source lines to get asm listing
                 listings[fn] = {
                     asmlines: srclines.length ? asmlines : null,
@@ -217,35 +220,35 @@ function linkSDLDZ80(step) {
 }
 exports.linkSDLDZ80 = linkSDLDZ80;
 function compileSDCC(step) {
-    (0, workermain_1.gatherFiles)(step, {
+    (0, builder_1.gatherFiles)(step, {
         mainFilePath: "main.c" // not used
     });
     var outpath = step.prefix + ".asm";
-    if ((0, workermain_1.staleFiles)(step, [outpath])) {
+    if ((0, builder_1.staleFiles)(step, [outpath])) {
         var errors = [];
         var params = step.params;
-        (0, workermain_1.loadNative)('sdcc');
-        var SDCC = workermain_1.emglobal.sdcc({
-            instantiateWasm: (0, workermain_1.moduleInstFn)('sdcc'),
+        (0, wasmutils_1.loadNative)('sdcc');
+        var SDCC = wasmutils_1.emglobal.sdcc({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('sdcc'),
             noInitialRun: true,
             noFSInit: true,
-            print: workermain_1.print_fn,
-            printErr: (0, workermain_1.msvcErrorMatcher)(errors),
+            print: wasmutils_1.print_fn,
+            printErr: (0, listingutils_1.msvcErrorMatcher)(errors),
             //TOTAL_MEMORY:256*1024*1024,
         });
         var FS = SDCC.FS;
-        (0, workermain_1.populateFiles)(step, FS);
+        (0, builder_1.populateFiles)(step, FS);
         // load source file and preprocess
-        var code = (0, workermain_1.getWorkFileAsString)(step.path);
-        var preproc = (0, workermain_1.preprocessMCPP)(step, 'sdcc');
+        var code = (0, builder_1.getWorkFileAsString)(step.path);
+        var preproc = (0, mcpp_1.preprocessMCPP)(step, 'sdcc');
         if (preproc.errors) {
             return { errors: preproc.errors };
         }
         else
             code = preproc.code;
         // pipe file to stdin
-        (0, workermain_1.setupStdin)(FS, code);
-        (0, workermain_1.setupFS)(FS, 'sdcc');
+        (0, wasmutils_1.setupStdin)(FS, code);
+        (0, wasmutils_1.setupFS)(FS, 'sdcc');
         var args = ['--vc', '--std-sdcc99', '-mz80',
             '--c1mode',
             //'--debug',
@@ -276,7 +279,7 @@ function compileSDCC(step) {
         if (params.extra_compile_args) {
             args.push.apply(args, params.extra_compile_args);
         }
-        (0, workermain_1.execMain)(step, SDCC, args);
+        (0, wasmutils_1.execMain)(step, SDCC, args);
         // TODO: preprocessor errors w/ correct file
         if (errors.length /* && nwarnings < msvc_errors.length*/) {
             return { errors: errors };
@@ -284,7 +287,7 @@ function compileSDCC(step) {
         // massage the asm output
         var asmout = FS.readFile(outpath, { encoding: 'utf8' });
         asmout = " .area _HOME\n .area _CODE\n .area _INITIALIZER\n .area _DATA\n .area _INITIALIZED\n .area _BSEG\n .area _BSS\n .area _HEAP\n" + asmout;
-        (0, workermain_1.putWorkFile)(outpath, asmout);
+        (0, builder_1.putWorkFile)(outpath, asmout);
     }
     return {
         nexttool: "sdasz80",

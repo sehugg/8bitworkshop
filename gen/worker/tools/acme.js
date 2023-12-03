@@ -1,7 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.assembleACME = void 0;
-const workermain_1 = require("../workermain");
+const builder_1 = require("../builder");
+const listingutils_1 = require("../listingutils");
+const wasmutils_1 = require("../wasmutils");
 function parseACMESymbolTable(text) {
     var symbolmap = {};
     var lines = text.split("\n");
@@ -46,24 +48,24 @@ function parseACMEReportFile(text) {
 }
 function assembleACME(step) {
     var _a;
-    (0, workermain_1.loadNative)("acme");
+    (0, wasmutils_1.loadNative)("acme");
     var errors = [];
-    (0, workermain_1.gatherFiles)(step, { mainFilePath: "main.acme" });
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.acme" });
     var binpath = step.prefix + ".bin";
     var lstpath = step.prefix + ".lst";
     var sympath = step.prefix + ".sym";
-    if ((0, workermain_1.staleFiles)(step, [binpath])) {
+    if ((0, builder_1.staleFiles)(step, [binpath])) {
         var binout, lstout, symout;
-        var ACME = workermain_1.emglobal.acme({
-            instantiateWasm: (0, workermain_1.moduleInstFn)('acme'),
+        var ACME = wasmutils_1.emglobal.acme({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('acme'),
             noInitialRun: true,
-            print: workermain_1.print_fn,
-            printErr: (0, workermain_1.msvcErrorMatcher)(errors),
+            print: wasmutils_1.print_fn,
+            printErr: (0, listingutils_1.msvcErrorMatcher)(errors),
             //printErr: makeErrorMatcher(errors, /(Error|Warning) - File (.+?), line (\d+)[^:]+: (.+)/, 3, 4, step.path, 2),
         });
         var FS = ACME.FS;
-        (0, workermain_1.populateFiles)(step, FS);
-        (0, workermain_1.fixParamsWithDefines)(step.path, step.params);
+        (0, builder_1.populateFiles)(step, FS);
+        (0, builder_1.fixParamsWithDefines)(step.path, step.params);
         var args = ['--msvc', '--initmem', '0', '-o', binpath, '-r', lstpath, '-l', sympath, step.path];
         if ((_a = step.params) === null || _a === void 0 ? void 0 : _a.acmeargs) {
             args.unshift.apply(args, step.params.acmeargs);
@@ -75,7 +77,7 @@ function assembleACME(step) {
         if (step.mainfile) {
             args.unshift.apply(args, ["-D__MAIN__=1"]);
         }
-        (0, workermain_1.execMain)(step, ACME, args);
+        (0, wasmutils_1.execMain)(step, ACME, args);
         if (errors.length) {
             let listings = {};
             return { errors, listings };
@@ -83,9 +85,9 @@ function assembleACME(step) {
         binout = FS.readFile(binpath, { encoding: 'binary' });
         lstout = FS.readFile(lstpath, { encoding: 'utf8' });
         symout = FS.readFile(sympath, { encoding: 'utf8' });
-        (0, workermain_1.putWorkFile)(binpath, binout);
-        (0, workermain_1.putWorkFile)(lstpath, lstout);
-        (0, workermain_1.putWorkFile)(sympath, symout);
+        (0, builder_1.putWorkFile)(binpath, binout);
+        (0, builder_1.putWorkFile)(lstpath, lstout);
+        (0, builder_1.putWorkFile)(sympath, symout);
         return {
             output: binout,
             listings: parseACMEReportFile(lstout),

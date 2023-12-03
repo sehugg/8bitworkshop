@@ -4,8 +4,9 @@
 import { WorkerError, CodeListingMap, SourceLocation } from "../../common/workertypes";
 import { Assembler } from "../assembler";
 import * as vxmlparser from '../../common/hdl/vxmlparser';
-import { getWorkFileAsString, BuildStep, BuildStepResult, gatherFiles, loadNative, staleFiles, makeErrorMatcher, emglobal, moduleInstFn, print_fn, populateFiles, execMain, putWorkFile, anyTargetChanged, endtime, getWASMMemory, starttime, populateExtraFiles, setupFS } from "../workermain";
-import { EmscriptenModule } from "../workermain"
+import { EmscriptenModule, emglobal, execMain, getWASMMemory, loadNative, moduleInstFn, print_fn, setupFS } from "../wasmutils";
+import { getWorkFileAsString, BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, starttime, endtime, putWorkFile, anyTargetChanged, populateExtraFiles } from "../builder";
+import { makeErrorMatcher } from "../listingutils";
 
 function detectModuleName(code: string) {
     var m = /^\s*module\s+(\w+_top)\b/m.exec(code)

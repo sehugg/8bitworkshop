@@ -1,7 +1,9 @@
 
 import { hex } from "../../common/util";
-import { WorkerResult, CodeListingMap, WorkerError, SourceLine } from "../../common/workertypes";
-import { anyTargetChanged, BuildStep, BuildStepResult, emglobal, EmscriptenModule, execMain, gatherFiles, getPrefix, getWorkFileAsString, loadNative, makeErrorMatcher, moduleInstFn, populateFiles, putWorkFile, re_crlf, staleFiles } from "../workermain"
+import { CodeListingMap, SourceLine, WorkerError, WorkerResult } from "../../common/workertypes";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, anyTargetChanged, getPrefix, getWorkFileAsString } from "../builder";
+import { makeErrorMatcher, re_crlf } from "../listingutils";
+import { loadNative, moduleInstFn, execMain, emglobal, EmscriptenModule } from "../wasmutils";
 
 export function assembleARMIPS(step: BuildStep): WorkerResult {
     loadNative("armips");

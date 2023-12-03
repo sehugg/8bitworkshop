@@ -1,6 +1,6 @@
 import { byteArrayToString, stringToByteArray } from "../../common/util";
 import { WorkerFileUpdate, isErrorResult, isOutputResult, isUnchanged } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, staleFiles, store } from "../workermain";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, store } from "../builder";
 
 // create random UID
 const sessionID = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);

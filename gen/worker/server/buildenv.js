@@ -9,8 +9,8 @@ const path_1 = __importDefault(require("path"));
 const child_process_1 = require("child_process");
 const workertypes_1 = require("../../common/workertypes");
 const util_1 = require("../../common/util");
-const workermain_1 = require("../workermain");
 const clang_1 = require("./clang");
+const listingutils_1 = require("../listingutils");
 const LLVM_MOS_TOOL = {
     name: 'llvm-mos',
     version: '',
@@ -170,7 +170,7 @@ class ServerBuildEnv {
     async processErrors(step, errorData) {
         let errors = [];
         // split errorData into lines
-        let errorMatcher = (0, workermain_1.makeErrorMatcher)(errors, /([^:/]+):(\d+):(\d+):\s*(.+)/, 2, 4, step.path, 1);
+        let errorMatcher = (0, listingutils_1.makeErrorMatcher)(errors, /([^:/]+):(\d+):(\d+):\s*(.+)/, 2, 4, step.path, 1);
         for (let line of errorData.split('\n')) {
             errorMatcher(line);
         }

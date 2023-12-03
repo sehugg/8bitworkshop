@@ -1,7 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.compileBatariBasic = exports.assembleDASM = void 0;
-const workermain_1 = require("../workermain");
+exports.assembleDASM2 = exports.assembleDASM = void 0;
+const wasishim_1 = require("../../common/wasi/wasishim");
+const builder_1 = require("../builder");
+const listingutils_1 = require("../listingutils");
+const wasmutils_1 = require("../wasmutils");
 function parseDASMListing(lstpath, lsttext, listings, errors, unresolved) {
     // TODO: this gets very slow
     // TODO: macros that are on adjacent lines don't get offset addresses
@@ -13,7 +16,7 @@ function parseDASMListing(lstpath, lsttext, listings, errors, unresolved) {
     let macros = {};
     let lstline = 0;
     let lstlist = listings[lstpath];
-    for (let line of lsttext.split(workermain_1.re_crlf)) {
+    for (let line of lsttext.split(listingutils_1.re_crlf)) {
         lstline++;
         let linem = lineMatch.exec(line + "    ");
         if (linem && linem[1] != null) {
@@ -110,7 +113,7 @@ function parseDASMListing(lstpath, lsttext, listings, errors, unresolved) {
                 }
             }
         }
-        let errm = workermain_1.re_msvc.exec(line);
+        let errm = listingutils_1.re_msvc.exec(line);
         if (errm) {
             errors.push({
                 path: errm[1],
@@ -120,12 +123,22 @@ function parseDASMListing(lstpath, lsttext, listings, errors, unresolved) {
         }
     }
 }
+var re_usl = /(\w+)\s+0000\s+[?][?][?][?]/;
+function parseSymbolMap(asym) {
+    var symbolmap = {};
+    for (var s of asym.split("\n")) {
+        var toks = s.split(/\s+/);
+        if (toks && toks.length >= 2 && !toks[0].startsWith('-')) {
+            symbolmap[toks[0]] = parseInt(toks[1], 16);
+        }
+    }
+    return symbolmap;
+}
 function assembleDASM(step) {
-    (0, workermain_1.load)("dasm");
-    var re_usl = /(\w+)\s+0000\s+[?][?][?][?]/;
+    (0, wasmutils_1.load)("dasm");
     var unresolved = {};
     var errors = [];
-    var errorMatcher = (0, workermain_1.msvcErrorMatcher)(errors);
+    var errorMatcher = (0, listingutils_1.msvcErrorMatcher)(errors);
     function match_fn(s) {
         // TODO: what if s is not string? (startsWith is not a function)
         var matches = re_usl.exec(s);
@@ -151,18 +164,18 @@ function assembleDASM(step) {
             errorMatcher(s);
         }
     }
-    var Module = workermain_1.emglobal.DASM({
+    var Module = wasmutils_1.emglobal.DASM({
         noInitialRun: true,
         print: match_fn
     });
     var FS = Module.FS;
-    (0, workermain_1.populateFiles)(step, FS, {
+    (0, builder_1.populateFiles)(step, FS, {
         mainFilePath: 'main.a'
     });
     var binpath = step.prefix + '.bin';
     var lstpath = step.prefix + '.lst';
     var sympath = step.prefix + '.sym';
-    (0, workermain_1.execMain)(step, Module, [step.path, '-f3',
+    (0, wasmutils_1.execMain)(step, Module, [step.path, '-f3',
         "-l" + lstpath,
         "-o" + binpath,
         "-s" + sympath]);
@@ -188,20 +201,14 @@ function assembleDASM(step) {
         errors.push({ line: 0, msg: "No symbol table generated, maybe segment overflow?" });
         return { errors: errors };
     }
-    (0, workermain_1.putWorkFile)(binpath, aout);
-    (0, workermain_1.putWorkFile)(lstpath, alst);
-    (0, workermain_1.putWorkFile)(sympath, asym);
+    (0, builder_1.putWorkFile)(binpath, aout);
+    (0, builder_1.putWorkFile)(lstpath, alst);
+    (0, builder_1.putWorkFile)(sympath, asym);
     // return unchanged if no files changed
     // TODO: what if listing or symbols change?
-    if (!(0, workermain_1.anyTargetChanged)(step, [binpath /*, lstpath, sympath*/]))
+    if (!(0, builder_1.anyTargetChanged)(step, [binpath /*, lstpath, sympath*/]))
         return;
-    var symbolmap = {};
-    for (var s of asym.split("\n")) {
-        var toks = s.split(/\s+/);
-        if (toks && toks.length >= 2 && !toks[0].startsWith('-')) {
-            symbolmap[toks[0]] = parseInt(toks[1], 16);
-        }
-    }
+    const symbolmap = parseSymbolMap(asym);
     // for bataribasic (TODO)
     if (step['bblines']) {
         let lst = listings[step.path];
@@ -219,101 +226,57 @@ function assembleDASM(step) {
     };
 }
 exports.assembleDASM = assembleDASM;
-function preprocessBatariBasic(code) {
-    (0, workermain_1.load)("bbpreprocess");
-    var bbout = "";
-    function addbbout_fn(s) {
-        bbout += s;
-        bbout += "\n";
+let wasiModule = null;
+function assembleDASM2(step) {
+    const errors = [];
+    if (!wasiModule) {
+        wasiModule = new WebAssembly.Module((0, wasmutils_1.loadWASMBinary)("dasm-wasisdk"));
     }
-    var BBPRE = workermain_1.emglobal.preprocess({
-        noInitialRun: true,
-        //logReadFiles:true,
-        print: addbbout_fn,
-        printErr: workermain_1.print_fn,
-        noFSInit: true,
-    });
-    var FS = BBPRE.FS;
-    (0, workermain_1.setupStdin)(FS, code);
-    BBPRE.callMain([]);
-    console.log("preprocess " + code.length + " -> " + bbout.length + " bytes");
-    return bbout;
-}
-function compileBatariBasic(step) {
-    (0, workermain_1.load)("bb2600basic");
-    var params = step.params;
-    // stdout
-    var asmout = "";
-    function addasmout_fn(s) {
-        asmout += s;
-        asmout += "\n";
+    const binpath = 'a.out';
+    const lstpath = step.prefix + '.lst';
+    const sympath = step.prefix + '.sym';
+    const wasi = new wasishim_1.WASIRunner();
+    wasi.initSync(wasiModule);
+    for (let file of step.files) {
+        wasi.fs.putFile("./" + file, builder_1.store.getFileData(file));
     }
-    // stderr
-    var re_err1 = /[(](\d+)[)]:?\s*(.+)/;
-    var errors = [];
-    var errline = 0;
-    function match_fn(s) {
-        console.log(s);
-        var matches = re_err1.exec(s);
-        if (matches) {
-            errline = parseInt(matches[1]);
-            errors.push({
-                line: errline,
-                msg: matches[2]
-            });
+    wasi.addPreopenDirectory(".");
+    wasi.setArgs(['dasm', step.path, '-f3', "-l" + lstpath, "-s" + sympath]);
+    try {
+        wasi.run();
+    }
+    catch (e) {
+        errors.push(e);
+    }
+    const stdout = wasi.fds[1].getBytesAsString();
+    //const stderr = wasi.fds[2].getBytesAsString();
+    const matcher = (0, listingutils_1.msvcErrorMatcher)(errors);
+    const unresolved = {};
+    for (let line of stdout.split("\n")) {
+        matcher(line);
+        let m = re_usl.exec(line);
+        if (m) {
+            unresolved[m[1]] = 0;
         }
     }
-    (0, workermain_1.gatherFiles)(step, { mainFilePath: "main.bas" });
-    var destpath = step.prefix + '.asm';
-    if ((0, workermain_1.staleFiles)(step, [destpath])) {
-        var BB = workermain_1.emglobal.bb2600basic({
-            noInitialRun: true,
-            //logReadFiles:true,
-            print: addasmout_fn,
-            printErr: match_fn,
-            noFSInit: true,
-            TOTAL_MEMORY: 64 * 1024 * 1024,
-        });
-        var FS = BB.FS;
-        (0, workermain_1.populateFiles)(step, FS);
-        // preprocess, pipe file to stdin
-        var code = (0, workermain_1.getWorkFileAsString)(step.path);
-        code = preprocessBatariBasic(code);
-        (0, workermain_1.setupStdin)(FS, code);
-        (0, workermain_1.setupFS)(FS, '2600basic');
-        (0, workermain_1.execMain)(step, BB, ["-i", "/share", step.path]);
-        if (errors.length)
-            return { errors: errors };
-        // build final assembly output from include file list
-        var includesout = FS.readFile("includes.bB", { encoding: 'utf8' });
-        var redefsout = FS.readFile("2600basic_variable_redefs.h", { encoding: 'utf8' });
-        var includes = includesout.trim().split("\n");
-        var combinedasm = "";
-        var splitasm = asmout.split("bB.asm file is split here");
-        for (var incfile of includes) {
-            var inctext;
-            if (incfile == "bB.asm")
-                inctext = splitasm[0];
-            else if (incfile == "bB2.asm")
-                inctext = splitasm[1];
-            else
-                inctext = FS.readFile("/share/includes/" + incfile, { encoding: 'utf8' });
-            console.log(incfile, inctext.length);
-            combinedasm += "\n\n;;;" + incfile + "\n\n";
-            combinedasm += inctext;
-        }
-        // TODO: ; bB.asm file is split here
-        (0, workermain_1.putWorkFile)(destpath, combinedasm);
-        (0, workermain_1.putWorkFile)("2600basic.h", FS.readFile("/share/includes/2600basic.h"));
-        (0, workermain_1.putWorkFile)("2600basic_variable_redefs.h", redefsout);
+    const alst = wasi.fs.getFile("./" + lstpath).getBytesAsString();
+    const listings = {};
+    for (let path of step.files) {
+        listings[path] = { lines: [] };
     }
+    parseDASMListing(lstpath, alst, listings, errors, unresolved);
+    if (errors.length) {
+        return { errors: errors };
+    }
+    const asym = wasi.fs.getFile("./" + sympath).getBytesAsString();
+    const symbolmap = parseSymbolMap(asym);
+    const output = wasi.fs.getFile("./" + binpath).getBytes();
     return {
-        nexttool: "dasm",
-        path: destpath,
-        args: [destpath],
-        files: [destpath, "2600basic.h", "2600basic_variable_redefs.h"],
-        bblines: true,
+        output,
+        errors,
+        listings,
+        symbolmap
     };
 }
-exports.compileBatariBasic = compileBatariBasic;
+exports.assembleDASM2 = assembleDASM2;
 //# sourceMappingURL=dasm.js.map
