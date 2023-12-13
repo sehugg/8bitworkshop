@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.replaceAll = exports.coerceToArray = exports.FileDataCache = exports.findIntegerFactors = exports.escapeHTML = exports.parseXMLPoorly = exports.XMLParseError = exports.parseBool = exports.decodeQueryString = exports.loadScript = exports.byteToASCII = exports.convertDataToString = exports.convertDataToUint8Array = exports.isTypedArray = exports.isArray = exports.getRootBasePlatform = exports.getBasePlatform = exports.getWithBinary = exports.rle_unpack = exports.safeident = exports.clamp = exports.RGBA = exports.rgb2bgr = exports.printFlags = exports.safe_extend = exports.compressLZG = exports.isProbablyBinary = exports.removeBOM = exports.byteArrayToUTF8 = exports.byteArrayToString = exports.stringToByteArray = exports.lzgmini = exports.highlightDifferences = exports.invertMap = exports.arrayCompare = exports.toradix = exports.tobin = exports.hex = exports.getFilenamePrefix = exports.getFolderForPath = exports.getFilenameForPath = exports.byte2signed = exports.rpad = exports.lpad = void 0;
+exports.getCookie = exports.replaceAll = exports.coerceToArray = exports.FileDataCache = exports.findIntegerFactors = exports.escapeHTML = exports.parseXMLPoorly = exports.XMLParseError = exports.parseBool = exports.decodeQueryString = exports.loadScript = exports.byteToASCII = exports.convertDataToString = exports.convertDataToUint8Array = exports.isTypedArray = exports.isArray = exports.getRootBasePlatform = exports.getBasePlatform = exports.getWithBinary = exports.rle_unpack = exports.safeident = exports.clamp = exports.RGBA = exports.rgb2bgr = exports.printFlags = exports.safe_extend = exports.compressLZG = exports.isProbablyBinary = exports.removeBOM = exports.byteArrayToUTF8 = exports.byteArrayToString = exports.stringToByteArray = exports.lzgmini = exports.highlightDifferences = exports.invertMap = exports.arrayCompare = exports.toradix = exports.tobin = exports.hex = exports.getFilenamePrefix = exports.getFolderForPath = exports.getFilenameForPath = exports.byte2signed = exports.rpad = exports.lpad = void 0;
 function lpad(s, n) {
     s += ''; // convert to string
     while (s.length < n)
@@ -709,4 +709,17 @@ function replaceAll(s, search, replace) {
     return s.split(search).join(replace);
 }
 exports.replaceAll = replaceAll;
+function getCookie(name) {
+    var nameEQ = name + "=";
+    var ca = document.cookie.split(';');
+    for (var i = 0; i < ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ')
+            c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) == 0)
+            return c.substring(nameEQ.length, c.length);
+    }
+    return null;
+}
+exports.getCookie = getCookie;
 //# sourceMappingURL=util.js.map

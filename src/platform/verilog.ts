@@ -35,7 +35,8 @@ var VERILOG_PRESETS = [
   {id:'sound_generator.v', name:'Sound Generator'},
   {id:'lfsr.v', name:'Linear Feedback Shift Register'},
   {id:'starfield.v', name:'Scrolling Starfield'},
-  {id:'alu.v', name:'ALU'},
+
+  {id:'alu.v', name:'ALU', category:'CPU'},
   {id:'cpu8.v', name:'Simple 8-Bit CPU'},
   {id:'racing_game_cpu.v', name:'Racing Game with CPU'},
   {id:'framebuffer.v', name:'Frame Buffer'},
@@ -45,9 +46,10 @@ var VERILOG_PRESETS = [
   {id:'cpu_platform.v', name:'CPU Platform'},
   {id:'test2.asm', name:'16-bit ASM Game'},
   {id:'cpu6502.v', name:'6502 CPU'},
-  {id:'test_pattern.ice', name:'Test Pattern (Silice)'},
-  {id:'copperbars.ice', name:'Animated Bars (Silice)'},
-  {id:'rototexture.ice', name:'Rotating Texture (Silice)'},
+
+  {id:'test_pattern.ice', name:'Test Pattern', category:'Silice'},
+  {id:'copperbars.ice', name:'Animated Bars'},
+  {id:'rototexture.ice', name:'Rotating Texture'},
   //{id:'life.ice', name:'Conway\'s Life (Silice)'},
 ];
 

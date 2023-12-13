@@ -48,8 +48,9 @@ class MemoryView {
         });
         $(parent).append(this.memorylist.container);
         this.tick();
-        if (ui_1.compparams && this.dumplines)
-            this.scrollToAddress(ui_1.compparams.data_start);
+        const compparams = (0, ui_1.getWorkerParams)();
+        if (compparams && this.dumplines)
+            this.scrollToAddress(compparams.data_start);
     }
     scrollToAddress(addr) {
         if (this.dumplines) {
@@ -146,14 +147,15 @@ class MemoryView {
     }
     // TODO: use segments list?
     getMemorySegment(a) {
-        if (ui_1.compparams) {
-            if (a >= ui_1.compparams.data_start && a < ui_1.compparams.data_start + ui_1.compparams.data_size) {
+        const compparams = (0, ui_1.getWorkerParams)();
+        if (compparams) {
+            if (a >= compparams.data_start && a < compparams.data_start + compparams.data_size) {
                 if (ui_1.platform.getSP && a >= ui_1.platform.getSP() - 15)
                     return 'stack';
                 else
                     return 'data';
             }
-            else if (a >= ui_1.compparams.code_start && a < ui_1.compparams.code_start + (ui_1.compparams.code_size || ui_1.compparams.rom_size))
+            else if (a >= compparams.code_start && a < compparams.code_start + (compparams.code_size || compparams.rom_size))
                 return 'code';
         }
         var segments = ui_1.current_project.segments;

@@ -1,7 +1,7 @@
 
 import { newDiv, ProjectView } from "./baseviews";
 import { Segment } from "../../common/workertypes";
-import { platform, compparams, current_project, projectWindows, runToPC, setupBreakpoint } from "../ui";
+import { platform, current_project, projectWindows, runToPC, setupBreakpoint, getWorkerParams } from "../ui";
 import { hex, lpad, rpad } from "../../common/util";
 import { VirtualList } from "../../common/vlist";
 import { getMousePos, getVisibleEditorLineHeight, VirtualTextLine, VirtualTextScroller } from "../../common/emu";
@@ -52,6 +52,7 @@ export class MemoryView implements ProjectView {
     });
     $(parent).append(this.memorylist.container);
     this.tick();
+    const compparams = getWorkerParams();
     if (compparams && this.dumplines)
       this.scrollToAddress(compparams.data_start);
   }
@@ -151,6 +152,7 @@ export class MemoryView implements ProjectView {
 
   // TODO: use segments list?
   getMemorySegment(a:number) : string {
+    const compparams = getWorkerParams();
     if (compparams) {
       if (a >= compparams.data_start && a < compparams.data_start+compparams.data_size) {
         if (platform.getSP && a >= platform.getSP() - 15)
