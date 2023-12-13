@@ -71,6 +71,7 @@ const _BallyAstrocade = function(arcade:boolean) {
   const swidth = arcade ? 320 : 160;
   const sheight = arcade ? 204 : 102;
   const swbytes = swidth >> 2;
+  const samask = arcade ? 0x3fff : 0xfff;
   const INITIAL_WATCHDOG = 256;
   const PIXEL_ON = 0xffeeeeee;
   const PIXEL_OFF = 0xff000000;
@@ -90,19 +91,19 @@ const _BallyAstrocade = function(arcade:boolean) {
   var palinds = new Uint8Array(8);
   var refreshlines = 0;
   var dirtylines = new Uint8Array(arcade ? 262 : 131);
-  var vidactive = false;
   var rotdata = new Uint8Array(4);
   var rotcount = 0;
   var intst = 0;
   var waitstates = 0;
-
+  var patboard = new Uint8Array(0x08);
+  var patdest = 0;
 
   function ramwrite(a: number, v: number) {
     // set RAM
     ram[a] = v;
     waitstates++;
     // mark scanline as dirty
-    dirtylines[((a & 0xfff) / swbytes) | 0] = 1;
+    dirtylines[((a & samask) / swbytes) | 0] = 1;
     // this was old behavior where we updated instantly
     // but it had problems if we had mid-screen palette changes
     //ramupdate(a, v);
@@ -201,7 +202,105 @@ const _BallyAstrocade = function(arcade:boolean) {
   function refreshall() {
     refreshlines = sheight;
   }
-  
+
+  // bally astrocade pattern board
+  // https://github.com/mamedev/mame/blob/7ff10685c56a6e123336c684e5e96fdb9e8b3674/src/mame/midway/astrocde_v.cpp#L726
+  function xfer_patboard() {
+    let m_pattern_source = patboard[0] | (patboard[1] << 8);
+    let m_pattern_mode = patboard[2] & 0x3f;
+    let m_pattern_skip = patboard[3];
+    let m_pattern_dest = (patdest & 0xff) | (patboard[4] << 8);
+    let m_pattern_width = patboard[5];
+    let m_pattern_height = patboard[6] + 1;
+
+    let curwidth: number;
+    let u13ff: number = 0;
+    let cycles: number = 0;
+
+    u13ff = 0;
+
+    if ((m_pattern_mode & 0x02) === 0) {
+      u13ff = 1;
+    }
+
+    function incrementSource(): void {
+      if (u13ff && (m_pattern_mode & 0x04) !== 0 && (curwidth !== 0 || (m_pattern_mode & 0x08) === 0)) {
+        m_pattern_source++;
+      }
+
+      if ((m_pattern_mode & 0x02) !== 0) {
+        u13ff ^= 1;
+      }
+    }
+
+    function incrementDest(): void {
+      if (curwidth !== 0) {
+        if ((m_pattern_mode & 0x20) !== 0) {
+          m_pattern_dest++;
+        } else {
+          m_pattern_dest--;
+        }
+      }
+    }
+
+    // Loop over height
+    while (m_pattern_height >= 0) {
+      let carry: number;
+
+      curwidth = m_pattern_width;
+
+      // Loop over width
+      while (curwidth >= 0) {
+        let busaddr: number;
+        let busdata: number;
+
+        // Read Phase
+        busaddr = (m_pattern_mode & 0x01) === 0 ? m_pattern_source : m_pattern_dest;
+
+        if (curwidth === 0 && (m_pattern_mode & 0x08) !== 0) {
+          busdata = 0;
+        } else {
+          busdata = membus.read(m_pattern_source);
+        }
+
+        if ((m_pattern_mode & 0x01) === 0) {
+          incrementSource();
+        } else {
+          incrementDest();
+        }
+
+        // Write Phase
+        busaddr = (m_pattern_mode & 0x01) !== 0 ? m_pattern_source : m_pattern_dest;
+        ramwrite(busaddr, busdata);
+
+        if ((m_pattern_mode & 0x01) === 0) {
+          incrementDest();
+        } else {
+          incrementSource();
+        }
+
+        cycles += 4;
+        curwidth--;
+      }
+
+      // At the end of each row, adjust m_pattern_dest
+      carry = ((m_pattern_dest & 0xff) + m_pattern_skip) & 0x100;
+      m_pattern_dest = (m_pattern_dest & 0xff00) | ((m_pattern_dest + m_pattern_skip) & 0xff);
+
+      if ((m_pattern_mode & 0x10) === 0) {
+        m_pattern_dest += carry;
+      } else {
+        m_pattern_dest -= carry ^ 0x100;
+      }
+
+      m_pattern_height--;
+    }
+
+    // Adjust m_maincpu.icount
+    // m_maincpu.adjust_icount(-cycles);
+    // Replace the above line with the actual adjustment of icount.
+  }
+    
   this.drawScanline = (sl:number) => {
     // interrupt
     if (sl == inlin && (inmod & 0x8)) {
@@ -226,9 +325,9 @@ const _BallyAstrocade = function(arcade:boolean) {
     ram = r;
     inputs = inp;
     psg = psgg;
-    //bios = padBytes(ASTROCADE_MINIMAL_BIOS, 0x2000);
-    bios = padBytes(new lzgmini().decode(stringToByteArray(atob(ASTROLIBRE_BIOS_LZG))), 0x2000);
     if (!arcade) {
+      //bios = padBytes(ASTROCADE_MINIMAL_BIOS, 0x2000);
+      bios = padBytes(new lzgmini().decode(stringToByteArray(atob(ASTROLIBRE_BIOS_LZG))), 0x2000);
       // game console
       membus = {
         read: newAddressDecoder([
@@ -246,13 +345,14 @@ const _BallyAstrocade = function(arcade:boolean) {
       membus = {
         read: newAddressDecoder([
           [0x4000, 0x7fff, 0x3fff, function(a) { return ram[a]; }],	// screen RAM
-          [0xd000, 0xdfff, 0xfff, function(a) { return ram[a + 0x4000]; }], // static RAM
-          [0x0000, 0xafff, 0xffff, function(a) { return rom ? rom[a] : 0; }], // ROM (0-3fff,8000-afff)
+          [0xd000, 0xdfff, 0x0fff, function(a) { return ram[a + 0x4000]; }], // static RAM
+          [0x0000, 0x3fff, 0x3fff, function(a) { return rom ? rom[a] : 0; }], // ROM
+          [0x8000, 0xbfff, 0x3fff, function(a) { return rom ? rom[a + 0x4000] : 0; }], // ROM
         ]),
         write: newAddressDecoder([
           [0x4000, 0x7fff, 0x3fff, ramwrite],
-          [0xd000, 0xdfff, 0xfff, function(a, v) { ramwrite(a + 0x4000, v); }], // static RAM
           [0x0000, 0x3fff, 0x3fff, magicwrite],
+          [0xd000, 0xdfff, 0x0fff, function(a, v) { ramwrite(a + 0x4000, v); }], // static RAM
         ]),
       }
     }
@@ -273,6 +373,19 @@ const _BallyAstrocade = function(arcade:boolean) {
         return rtn;
       },
       write: function(addr, val) {
+        if (addr == 0xa55b) {
+          // TODO: protected_ram_enable_w
+          return;
+        }
+        addr &= 0xff;
+        // pattern board
+        if (addr > 0x78 && addr < 0x80) {
+          patboard[addr & 7] = val;
+          if (addr == 0x72) { patdest = 0; }
+          if (addr == 0x74) { patdest = (patdest + patboard[3]) & 0xff; }
+          if (addr == 0x7e) { xfer_patboard(); }
+          return;
+        }
         addr &= 0x1f;
         val &= 0xff;
         switch (addr) {
@@ -332,8 +445,15 @@ const _BallyAstrocade = function(arcade:boolean) {
           case 0x19: // XPAND
             xpand = val;	
             break;
+          case 0x1a:
+          case 0x1b:
+          case 0x1c:
+          case 0x1d:
+          case 0x1e:
+            //psg2.setACRegister(addr - 0x1a, val);
+            break;
           default:
-            console.log('IO write', hex(addr, 4), hex(val, 2));
+            //console.log('IO write', hex(addr, 4), hex(val, 2));
             break;
         }
       }
@@ -372,6 +492,8 @@ const _BallyAstrocade = function(arcade:boolean) {
     rotdata.set(state.rotdata);
     intst = state.intst;
     inputs.set(state.inputs);
+    patboard.set(state.patboard);
+    patdest = state.patdest;
     refreshall();
   }
     
@@ -393,7 +515,9 @@ const _BallyAstrocade = function(arcade:boolean) {
       verbl: verbl,
       rotcount: rotcount,
       rotdata: rotdata.slice(0),
-      intst: intst
+      intst: intst,
+      patboard: patboard.slice(0),
+      patdest: patdest,
     };
   }
   this.reset = () => {
@@ -450,6 +574,7 @@ export class BallyAstrocade extends BasicScanlineMachine implements AcceptsPaddl
   ram : Uint8Array;
   cpu : Z80;
   m; // _BallyAstrocade
+  arcade : boolean;
 
   psg: AstrocadeAudio;
   audioadapter;
@@ -458,6 +583,7 @@ export class BallyAstrocade extends BasicScanlineMachine implements AcceptsPaddl
 
   constructor(arcade:boolean) {
     super();
+    this.arcade = arcade;
     this.cpu = new Z80();
     this.psg = new AstrocadeAudio(new MasterAudio());
     this.audioadapter = new TssChannelAdapter(this.psg.psg, audioOversample, this.sampleRate);
@@ -471,6 +597,12 @@ export class BallyAstrocade extends BasicScanlineMachine implements AcceptsPaddl
     //this.cpuCyclesPerVisible = this.cpuCyclesPerLine - this.cpuCyclesPerHBlank;
     this.m = new _BallyAstrocade(arcade);
     this.m.init(this, this.cpu, this.ram, this.inputs, this.psg);
+    if (arcade) {
+      this.inputs[0x10] = 0xff; // switches (active low)
+      this.inputs[0x11] = 0xff; // switches (active low)
+      this.inputs[0x12] = 0x00;
+      this.inputs[0x13] = 0x08; // dip switches
+    }
   }
   
   read(a:number) : number {
@@ -556,8 +688,16 @@ export class BallyAstrocade extends BasicScanlineMachine implements AcceptsPaddl
       case 'Astro': return this.m.toLongString(state);
     }
   }
-  getRasterCanvasPosition() { return { x: this.getRasterX(), y: this.getRasterY() }; }
-
+  getRasterCanvasPosition() {
+    return { x: this.getRasterX(), y: this.getRasterY() };
+  }
+  getVideoParams() {
+    if (this.arcade) {
+      return { width: 320, height: 204, rotate: 180 };
+    } else {
+      return { width: 160, height: 102 };
+    }
+  }
 }
 
 /////
@@ -589,16 +729,6 @@ class AstrocadeAudio extends AY38910_Audio {
         break;
     }
   }
-}
-
-export const _BallyArcade = function() {
-  this.__proto__ = new (_BallyAstrocade as any)(true);
-  // TODO: inputs[0x13] = 0xfe; // dip switch on arcade
-  // TODO: arcade controls, bit blit
-  var _in = this.saveControlsState();
-  _in.in[0x10] = 0xff; // switches
-  _in.in[0x13] = 0xfe; // dip switches
-  this.loadControlsState(_in);
 }
 
 /////
