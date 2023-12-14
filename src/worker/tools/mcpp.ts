@@ -1,5 +1,5 @@
 import { getBasePlatform } from "../../common/util";
-import { BuildStep, populateFiles, populateExtraFiles, errorResult } from "../builder";
+import { BuildStep, populateFiles, populateExtraFiles, errorResult, processEmbedDirective } from "../builder";
 import { makeErrorMatcher, extractErrors } from "../listingutils";
 import { PLATFORM_PARAMS } from "../platforms";
 import { load, print_fn, setupFS, execMain, emglobal, EmscriptenModule } from "../wasmutils";
@@ -24,7 +24,15 @@ export function preprocessMCPP(step: BuildStep, filesys: string) {
     });
     var FS = MCPP.FS;
     if (filesys) setupFS(FS, filesys);
-    populateFiles(step, FS);
+    populateFiles(step, FS, {
+        mainFilePath: step.path,
+        processFn: (path, code) => {
+            if (typeof code === 'string') {
+                code = processEmbedDirective(code);
+            }
+            return code;
+        }
+    });
     populateExtraFiles(step, FS, params.extra_compile_files);
     // TODO: make configurable by other compilers
     var args = [

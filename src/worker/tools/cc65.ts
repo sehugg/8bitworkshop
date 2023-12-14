@@ -1,7 +1,7 @@
 
-import { convertDataToUint8Array, getFilenamePrefix, getRootBasePlatform, safeident } from "../../common/util";
+import { getRootBasePlatform } from "../../common/util";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, fixParamsWithDefines, putWorkFile, populateExtraFiles, store, populateEntry, anyTargetChanged } from "../builder";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, fixParamsWithDefines, putWorkFile, populateExtraFiles, store, populateEntry, anyTargetChanged, processEmbedDirective } from "../builder";
 import { re_crlf, makeErrorMatcher } from "../listingutils";
 import { loadNative, moduleInstFn, print_fn, setupFS, execMain, emglobal, EmscriptenModule } from "../wasmutils";
 
@@ -270,22 +270,6 @@ export function linkLD65(step: BuildStep): BuildStepResult {
     }
 }
 
-function processIncbin(code: string) {
-    let re3 = /^\s*#embed\s+"(.+?)"/gm;
-    // find #embed "filename.bin" and replace with C array data
-    return code.replace(re3, (m, m1) => {
-        let filename = m1;
-        let filedata = store.getFileData(filename);
-        let bytes = convertDataToUint8Array(filedata);
-        if (!bytes) throw new Error('#embed: file not found: "' + filename + '"');
-        let out = '';
-        for (let i = 0; i < bytes.length; i++) {
-            out += bytes[i].toString() + ',';
-        }
-        return out;
-    });
-}
-
 export function compileCC65(step: BuildStep): BuildStepResult {
     loadNative("cc65");
     var params = step.params;
@@ -321,7 +305,7 @@ export function compileCC65(step: BuildStep): BuildStepResult {
             mainFilePath: step.path,
             processFn: (path, code) => {
                 if (typeof code === 'string') {
-                    code = processIncbin(code);
+                    code = processEmbedDirective(code);
                 }
                 return code;
             }

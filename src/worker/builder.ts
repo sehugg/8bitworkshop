@@ -1,4 +1,4 @@
-import { getBasePlatform } from "../common/util";
+import { convertDataToUint8Array, getBasePlatform } from "../common/util";
 import { WorkerBuildStep, WorkerError, WorkerErrorResult, WorkerMessage, WorkerResult, WorkingStore } from "../common/workertypes";
 import { PLATFORM_PARAMS } from "./platforms";
 import { TOOLS } from "./workertools";
@@ -414,3 +414,20 @@ export function fixParamsWithDefines(path: string, params) {
     }
   }
 }
+
+export function processEmbedDirective(code: string) {
+  let re3 = /^\s*#embed\s+"(.+?)"/gm;
+  // find #embed "filename.bin" and replace with C array data
+  return code.replace(re3, (m, m1) => {
+      let filename = m1;
+      let filedata = store.getFileData(filename);
+      let bytes = convertDataToUint8Array(filedata);
+      if (!bytes) throw new Error('#embed: file not found: "' + filename + '"');
+      let out = '';
+      for (let i = 0; i < bytes.length; i++) {
+          out += bytes[i].toString() + ',';
+      }
+      return out.substring(0, out.length-1);
+  });
+}
+
