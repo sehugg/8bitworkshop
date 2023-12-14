@@ -12,6 +12,7 @@ export function importPlatform(name: string) : Promise<any> {
       case "coleco": return import("../platform/coleco");
       case "cpc": return import("../platform/cpc");
       case "devel": return import("../platform/devel");
+      case "exidy": return import("../platform/exidy");
       case "galaxian": return import("../platform/galaxian");
       case "kim1": return import("../platform/kim1");
       case "markdown": return import("../platform/markdown");
