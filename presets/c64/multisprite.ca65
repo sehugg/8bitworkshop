@@ -1,9 +1,12 @@
 
+VIC_BASE = $0
+VIC_SCRN_BASE = VIC_BASE + $400
+
 MAX_MSPRITES = 28
 
 MIN_Y_SPACING = 35
 
-DEBUG = 1
+DEBUG = 0
 
 .code
 
@@ -31,7 +34,7 @@ _msprite_render_section:
   adc #MIN_Y_SPACING
   sta bailout_line
 @loop:
-.ifdef DEBUG
+.if DEBUG
   inc $d020
 .endif
   lda $d012
@@ -66,7 +69,7 @@ _msprite_render_section:
   sta $d027,x
 ; POKE(0x7f8+j, msprite_shape[i]);
   lda _msprite_shape,y
-  sta $07f8,x
+  sta VIC_SCRN_BASE + $03f8,x
 ; set hi X bit
   lda _msprite_x_hi,y
   lsr
@@ -83,7 +86,7 @@ _msprite_render_section:
   sta j		; next h/w sprite
   jmp @loop
 @loopexit:
-.ifdef DEBUG
+.if DEBUG
   lda #0
   sta $d020
 .endif

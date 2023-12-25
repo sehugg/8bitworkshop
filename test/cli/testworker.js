@@ -126,7 +126,7 @@ describe('Worker', function() {
   });
   it('should compile galaxian skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/galaxian-scramble/skeleton.sdcc'));
-    compile('sdcc', csource, 'galaxian-scramble', done, 20512, 34, 0);
+    compile('sdcc', csource, 'galaxian-scramble', done, 20512, 28, 0);
   });
   it('should compile vector skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/vector-z80color/skeleton.sdcc'));

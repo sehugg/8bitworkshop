@@ -26,10 +26,9 @@ void sid_init() {
 
 byte music_index = 0;
 byte cur_duration = 0;
-byte music_wavebits = 0;
+byte music_wavebits = SID_SQUARE;
 
-const byte music1[]; // music data -- see end of file
-const byte* music_ptr = music1;
+const byte* music_ptr = 0;
 
 byte next_music_byte() {
   return *music_ptr++;
@@ -179,6 +178,8 @@ void setSIDRegisters() {
   POKE(0xd414, buf[0x06]);
   music_wavebits = buf[0x04];
 }
+
+const byte music1[]; // music data -- see end of file
 
 char music_update() {
   if (!music_ptr) start_music(music1);
