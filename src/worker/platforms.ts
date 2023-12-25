@@ -327,6 +327,13 @@ export var PLATFORM_PARAMS = {
       cfgfile: 'pce.cfg',
       libargs: ['pce.lib', '-D', '__CARTSIZE__=0x8000'],
     },
+    'exidy': {
+      define: ['__EXIDY__'],
+      cfgfile: 'exidy.cfg',
+      libargs: ['crt0.o', 'none.lib'],
+      extra_link_files: ['crt0.o', 'exidy.cfg'],
+      //extra_compile_files: ['exidy.h'],
+    },
   };
   
   PLATFORM_PARAMS['sms-sms-libcv'] = PLATFORM_PARAMS['sms-sg1000-libcv'];

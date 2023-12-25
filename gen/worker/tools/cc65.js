@@ -278,22 +278,6 @@ function linkLD65(step) {
     }
 }
 exports.linkLD65 = linkLD65;
-function processIncbin(code) {
-    let re3 = /^\s*#embed\s+"(.+?)"/gm;
-    // find #embed "filename.bin" and replace with C array data
-    return code.replace(re3, (m, m1) => {
-        let filename = m1;
-        let filedata = builder_1.store.getFileData(filename);
-        let bytes = (0, util_1.convertDataToUint8Array)(filedata);
-        if (!bytes)
-            throw new Error('#embed: file not found: "' + filename + '"');
-        let out = '';
-        for (let i = 0; i < bytes.length; i++) {
-            out += bytes[i].toString() + ',';
-        }
-        return out;
-    });
-}
 function compileCC65(step) {
     (0, wasmutils_1.loadNative)("cc65");
     var params = step.params;
@@ -329,7 +313,7 @@ function compileCC65(step) {
             mainFilePath: step.path,
             processFn: (path, code) => {
                 if (typeof code === 'string') {
-                    code = processIncbin(code);
+                    code = (0, builder_1.processEmbedDirective)(code);
                 }
                 return code;
             }

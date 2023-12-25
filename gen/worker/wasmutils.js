@@ -148,6 +148,8 @@ function setupFS(FS, name) {
         name = '65-none'; // TODO
     if (name === '65-vcs')
         name = '65-atari2600'; // TODO
+    if (name === '65-exidy')
+        name = '65-none'; // TODO
     if (!exports.fsMeta[name])
         throw Error("No filesystem for '" + name + "'");
     FS.mkdir('/share');

@@ -5523,6 +5523,12 @@
       define: ["__PCE__"],
       cfgfile: "pce.cfg",
       libargs: ["pce.lib", "-D", "__CARTSIZE__=0x8000"]
+    },
+    "exidy": {
+      define: ["__EXIDY__"],
+      cfgfile: "exidy.cfg",
+      libargs: ["crt0.o", "none.lib"],
+      extra_link_files: ["crt0.o", "exidy.cfg"]
     }
   };
   PLATFORM_PARAMS["sms-sms-libcv"] = PLATFORM_PARAMS["sms-sg1000-libcv"];
@@ -5865,6 +5871,21 @@
       }
     }
   }
+  function processEmbedDirective(code) {
+    let re3 = /^\s*#embed\s+"(.+?)"/gm;
+    return code.replace(re3, (m, m1) => {
+      let filename = m1;
+      let filedata = store.getFileData(filename);
+      let bytes = convertDataToUint8Array(filedata);
+      if (!bytes)
+        throw new Error('#embed: file not found: "' + filename + '"');
+      let out = "";
+      for (let i = 0; i < bytes.length; i++) {
+        out += bytes[i].toString() + ",";
+      }
+      return out.substring(0, out.length - 1);
+    });
+  }
 
   // src/worker/wasmutils.ts
   var ENVIRONMENT_IS_WEB = typeof window === "object";
@@ -5988,6 +6009,8 @@
       name = "65-none";
     if (name === "65-vcs")
       name = "65-atari2600";
+    if (name === "65-exidy")
+      name = "65-none";
     if (!fsMeta[name])
       throw Error("No filesystem for '" + name + "'");
     FS.mkdir("/share");
@@ -6569,21 +6592,6 @@
       };
     }
   }
-  function processIncbin(code) {
-    let re3 = /^\s*#embed\s+"(.+?)"/gm;
-    return code.replace(re3, (m, m1) => {
-      let filename = m1;
-      let filedata = store.getFileData(filename);
-      let bytes = convertDataToUint8Array(filedata);
-      if (!bytes)
-        throw new Error('#embed: file not found: "' + filename + '"');
-      let out = "";
-      for (let i = 0; i < bytes.length; i++) {
-        out += bytes[i].toString() + ",";
-      }
-      return out;
-    });
-  }
   function compileCC65(step) {
     loadNative("cc65");
     var params = step.params;
@@ -6617,7 +6625,7 @@
         mainFilePath: step.path,
         processFn: (path, code) => {
           if (typeof code === "string") {
-            code = processIncbin(code);
+            code = processEmbedDirective(code);
           }
           return code;
         }
@@ -7505,7 +7513,15 @@
     var FS = MCPP.FS;
     if (filesys)
       setupFS(FS, filesys);
-    populateFiles(step, FS);
+    populateFiles(step, FS, {
+      mainFilePath: step.path,
+      processFn: (path, code) => {
+        if (typeof code === "string") {
+          code = processEmbedDirective(code);
+        }
+        return code;
+      }
+    });
     populateExtraFiles(step, FS, params.extra_compile_files);
     var args = [
       "-D",
@@ -7682,6 +7698,9 @@
         args.push.apply(args, params.extra_link_args);
       args.push.apply(args, step.args);
       execMain(step, LDZ80, args);
+      if (errors.length) {
+        return { errors };
+      }
       var hexout = FS.readFile("main.ihx", { encoding: "utf8" });
       var noiout = FS.readFile("main.noi", { encoding: "utf8" });
       putWorkFile("main.ihx", hexout);
@@ -13474,6 +13493,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     "ca65-vcs": "65-atari2600",
     "cc65-pce": "65-pce",
     "ca65-pce": "65-pce",
+    "cc65-exidy": "65-none",
+    "ca65-exidy": "65-none",
     "sdasz80": "sdcc",
     "sdcc": "sdcc",
     "sccz80": "sccz80",

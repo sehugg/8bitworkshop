@@ -149,6 +149,9 @@ function linkSDLDZ80(step) {
         args.push.apply(args, step.args);
         //console.log(args);
         (0, wasmutils_1.execMain)(step, LDZ80, args);
+        if (errors.length) {
+            return { errors: errors };
+        }
         var hexout = FS.readFile("main.ihx", { encoding: 'utf8' });
         var noiout = FS.readFile("main.noi", { encoding: 'utf8' });
         (0, builder_1.putWorkFile)("main.ihx", hexout);

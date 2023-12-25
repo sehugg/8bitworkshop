@@ -149,6 +149,7 @@ export function setupFS(FS, name: string) {
   if (name === '65-atari7800') name = '65-none'; // TODO
   if (name === '65-devel') name = '65-none'; // TODO
   if (name === '65-vcs') name = '65-atari2600'; // TODO
+  if (name === '65-exidy') name = '65-none'; // TODO
   if (!fsMeta[name]) throw Error("No filesystem for '" + name + "'");
   FS.mkdir('/share');
   FS.mount(WORKERFS, {

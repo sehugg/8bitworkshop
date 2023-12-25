@@ -22,6 +22,9 @@ const ASTROCADE_PRESETS = [
 const ASTROCADE_BIOS_PRESETS = [
     { id: 'bios.c', name: 'BIOS' },
 ];
+const ASTROCADE_ARCADE_PRESETS = [
+    { id: 'hello.c', name: 'Hello Graphics' },
+];
 class BallyAstrocadePlatform extends baseplatform_1.BaseZ80MachinePlatform {
     constructor() {
         super(...arguments);
@@ -51,12 +54,15 @@ class BallyArcadePlatform extends BallyAstrocadePlatform {
         super(...arguments);
         this.getMemoryMap = function () {
             return { main: [
+                    { name: 'ROM', start: 0x0, size: 0x4000, type: 'rom' },
                     { name: 'Magic RAM', start: 0x0, size: 0x4000, type: 'ram' },
                     { name: 'Screen RAM', start: 0x4000, size: 0x4000, type: 'ram' },
+                    { name: 'ROM', start: 0x8000, size: 0x4000, type: 'rom' },
                 ] };
         };
     }
     newMachine() { return new astrocade_1.BallyAstrocade(true); }
+    getPresets() { return ASTROCADE_ARCADE_PRESETS; }
 }
 emu_1.PLATFORMS['astrocade'] = BallyAstrocadePlatform;
 emu_1.PLATFORMS['astrocade-bios'] = BallyAstrocadeBIOSPlatform;

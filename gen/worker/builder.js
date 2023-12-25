@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.fixParamsWithDefines = exports.anyTargetChanged = exports.staleFiles = exports.populateExtraFiles = exports.populateFiles = exports.getPrefix = exports.gatherFiles = exports.populateEntry = exports.getWorkFileAsString = exports.putWorkFile = exports.endtime = exports.starttime = exports.builder = exports.Builder = exports.errorResult = exports.store = exports.FileWorkingStore = exports.PWORKER = void 0;
+exports.processEmbedDirective = exports.fixParamsWithDefines = exports.anyTargetChanged = exports.staleFiles = exports.populateExtraFiles = exports.populateFiles = exports.getPrefix = exports.gatherFiles = exports.populateEntry = exports.getWorkFileAsString = exports.putWorkFile = exports.endtime = exports.starttime = exports.builder = exports.Builder = exports.errorResult = exports.store = exports.FileWorkingStore = exports.PWORKER = void 0;
 const util_1 = require("../common/util");
 const platforms_1 = require("./platforms");
 const workertools_1 = require("./workertools");
@@ -383,4 +383,21 @@ function fixParamsWithDefines(path, params) {
     }
 }
 exports.fixParamsWithDefines = fixParamsWithDefines;
+function processEmbedDirective(code) {
+    let re3 = /^\s*#embed\s+"(.+?)"/gm;
+    // find #embed "filename.bin" and replace with C array data
+    return code.replace(re3, (m, m1) => {
+        let filename = m1;
+        let filedata = exports.store.getFileData(filename);
+        let bytes = (0, util_1.convertDataToUint8Array)(filedata);
+        if (!bytes)
+            throw new Error('#embed: file not found: "' + filename + '"');
+        let out = '';
+        for (let i = 0; i < bytes.length; i++) {
+            out += bytes[i].toString() + ',';
+        }
+        return out.substring(0, out.length - 1);
+    });
+}
+exports.processEmbedDirective = processEmbedDirective;
 //# sourceMappingURL=builder.js.map

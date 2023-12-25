@@ -37,6 +37,7 @@ function importPlatform(name) {
         case "coleco": return Promise.resolve().then(() => __importStar(require("../platform/coleco")));
         case "cpc": return Promise.resolve().then(() => __importStar(require("../platform/cpc")));
         case "devel": return Promise.resolve().then(() => __importStar(require("../platform/devel")));
+        case "exidy": return Promise.resolve().then(() => __importStar(require("../platform/exidy")));
         case "galaxian": return Promise.resolve().then(() => __importStar(require("../platform/galaxian")));
         case "kim1": return Promise.resolve().then(() => __importStar(require("../platform/kim1")));
         case "markdown": return Promise.resolve().then(() => __importStar(require("../platform/markdown")));

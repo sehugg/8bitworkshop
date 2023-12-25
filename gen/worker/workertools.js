@@ -97,6 +97,8 @@ exports.TOOL_PRELOADFS = {
     'ca65-vcs': '65-atari2600',
     'cc65-pce': '65-pce',
     'ca65-pce': '65-pce',
+    'cc65-exidy': '65-none',
+    'ca65-exidy': '65-none',
     'sdasz80': 'sdcc',
     'sdcc': 'sdcc',
     'sccz80': 'sccz80',

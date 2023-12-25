@@ -27,7 +27,15 @@ function preprocessMCPP(step, filesys) {
     var FS = MCPP.FS;
     if (filesys)
         (0, wasmutils_1.setupFS)(FS, filesys);
-    (0, builder_1.populateFiles)(step, FS);
+    (0, builder_1.populateFiles)(step, FS, {
+        mainFilePath: step.path,
+        processFn: (path, code) => {
+            if (typeof code === 'string') {
+                code = (0, builder_1.processEmbedDirective)(code);
+            }
+            return code;
+        }
+    });
     (0, builder_1.populateExtraFiles)(step, FS, params.extra_compile_files);
     // TODO: make configurable by other compilers
     var args = [
