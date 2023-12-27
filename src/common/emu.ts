@@ -658,7 +658,7 @@ export function padBytes(data:Uint8Array|number[], len:number, padstart?:boolean
 
 type AddressReadWriteFn = ((a:number) => number) | ((a:number,v:number) => void);
 type AddressDecoderEntry = [number, number, number, AddressReadWriteFn];
-type AddressDecoderOptions = {gmask?:number};
+type AddressDecoderOptions = {gmask?:number, defaultval?:number};
 
 // TODO: better performance, check values
 export function AddressDecoder(table : AddressDecoderEntry[], options?:AddressDecoderOptions) {
@@ -679,7 +679,7 @@ export function AddressDecoder(table : AddressDecoderEntry[], options?:AddressDe
       if (mask) s += "a&="+mask+";";
       s += "return this.__fn"+i+"(a,v)&0xff;}\n";
     }
-    s += "return 0;"; // TODO: noise()?
+    s += "return "+(options?.defaultval|0)+";";
     return new Function('a', 'v', s);
   }
   return makeFunction().bind(self);

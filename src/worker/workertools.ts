@@ -52,6 +52,8 @@ export const TOOLS = {
   'ecs': ecs.assembleECS,
   'remote': remote.buildRemote,
   'cc7800': cc7800.compileCC7800,
+  'armtcc': arm.compileARMTCC,
+  'armtcclink': arm.linkARMTCC,
 }
 
 export const TOOL_PRELOADFS = {

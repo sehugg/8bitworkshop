@@ -1,6 +1,6 @@
 
 import { ARM32CPU, ARMCoreState } from "../common/cpu/ARM";
-import { BasicScanlineMachine, HasSerialIO, SerialEvent, SerialIOInterface } from "../common/devices";
+import { BasicScanlineMachine, Bus32, HasSerialIO, SerialEvent, SerialIOInterface } from "../common/devices";
 import { newAddressDecoder, Keys, makeKeycodeMap, newKeyboardHandler, EmuHalt } from "../common/emu";
 import { Debuggable, EmuState } from "../common/baseplatform";
 import { hex, lpad } from "../common/util";
@@ -18,36 +18,42 @@ var GBA_KEYCODE_MAP = makeKeycodeMap([
   [Keys.DOWN,  0, 0x80],
 ]);
 
-const ROM_START =        0x0;
-const ROM_SIZE  =    0x80000;
-const RAM_START =  0x2000000;
-const RAM_SIZE  =    0x80000;
+const RAM_START =        0x0;
+const RAM_SIZE  =   0x100000;
+const ROM_BASE  =    0x10000;
+const ENTRY_POINT =  0x20000;
 const IO_START =   0x4000000;
 const IO_SIZE  =       0x100;
 const MAX_SERIAL_CHARS = 1000000;
 
 const CPU_FREQ = 4000000; // 4 MHz
 
-export class ARM32Machine extends BasicScanlineMachine implements Debuggable, HasSerialIO {
+const ILLEGAL_OPCODE = 0xedededed;
+
+export class ARM32Machine extends BasicScanlineMachine
+  implements Debuggable, HasSerialIO, Bus32 {
 
   cpuFrequency = CPU_FREQ; // MHz
   canvasWidth = 160;
   numTotalScanlines = 256;
   numVisibleScanlines = 128;
   cpuCyclesPerLine = Math.floor(CPU_FREQ / (256*60));
-  defaultROMSize = 512*1024;
+  defaultROMSize = RAM_SIZE - ROM_BASE;
   sampleRate = 1;
   
   cpu: ARM32CPU = new ARM32CPU();
-  ram = new Uint8Array(96*1024);
+  ram = new Uint8Array(RAM_SIZE);
   ram16 = new Uint16Array(this.ram.buffer);
+  ram32 = new Uint32Array(this.ram.buffer);
   pixels32 : Uint32Array;
   pixels8 : Uint8Array;
-  vidbase : number = 0;
+  rombase : number = ROM_BASE;
   brightness : number = 255;
   serial : SerialIOInterface;
   serialOut : SerialEvent[];
   serialIn : SerialEvent[];
+  ioregs = new Uint8Array(IO_SIZE);
+  ioregs32 = new Uint32Array(this.ioregs.buffer);
 
   constructor() {
     super();
@@ -65,7 +71,25 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable, Ha
     this.serial = serial;
   }
 
+  loadROM(rom: Uint8Array) {
+    super.loadROM(rom);
+  }
+
   reset() {
+    if (this.rom) {
+      this.ram.set(this.rom, this.rombase);
+      // set ARM vectors
+      const obj32 = new Uint32Array(this.ram.buffer);
+      const start = ENTRY_POINT;
+      obj32[0] = start; // set reset vector
+      obj32[1] = start; // set undefined vector
+      obj32[2] = start; // set swi vector
+      obj32[3] = start; // set prefetch abort vector
+      obj32[4] = start; // set data abort vector
+      obj32[5] = start; // set reserved vector
+      obj32[6] = start; // set irq vector
+      obj32[7] = start; // set fiq vector
+  }
     super.reset();
     this.serialOut = [];
     this.serialIn = [];
@@ -74,19 +98,13 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable, Ha
   // TODO: 32-bit bus?
 
   read = newAddressDecoder([
-    [ROM_START, ROM_START+ROM_SIZE-1, ROM_SIZE-1, (a) => {
-      return this.rom ? this.rom[a] : 0;
-    }],
     [RAM_START, RAM_START+RAM_SIZE-1, RAM_SIZE-1, (a) => {
       return this.ram[a];
     }],
     [IO_START, IO_START+IO_SIZE-1, IO_SIZE-1, (a, v) => {
       return this.readIO(a);
     }],
-    [0, (1<<31)-1, 0, (a, v) => {
-      throw new EmuHalt(`Address read out of bounds: 0x${hex(a)}`);
-    }]
-  ]);
+  ], {defaultval: ILLEGAL_OPCODE & 0xff});
 
   write = newAddressDecoder([
     [RAM_START, RAM_START+RAM_SIZE-1, RAM_SIZE-1, (a, v) => {
@@ -96,6 +114,30 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable, Ha
       this.writeIO(a, v);
     }],
   ]);
+
+  read32 = (a) => {
+    if (a >= RAM_START && a < RAM_SIZE && (a & 3) == 0) {
+      return this.ram32[a >> 2];
+    } else {
+      return this.read(a) | (this.read(a+1)<<8) | (this.read(a+2)<<16) | (this.read(a+3)<<24);
+    }
+  };
+
+  write32 = (a, v) => {
+    if (a >= RAM_START && a < RAM_SIZE && (a & 3) == 0) {
+      this.ram32[a >> 2] = v;
+    } else {
+      this.write(a, v & 0xff);
+      this.write(a+1, (v>>8) & 0xff);
+      this.write(a+2, (v>>16) & 0xff);
+      this.write(a+3, (v>>24) & 0xff);
+    }
+  }
+
+  readAddress(a : number) : number {
+    if (a >= RAM_START && a < RAM_START+RAM_SIZE) return this.read(a);
+    else return ILLEGAL_OPCODE;
+  }
 
   readIO(a : number) : number {
     switch (a) {
@@ -116,6 +158,7 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable, Ha
   }
 
   writeIO(a : number, v : number) : void {
+    this.ioregs[a] = v;
     switch (a) {
       case 0x0:
         //this.brightness = v & 0xff;
@@ -136,7 +179,8 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable, Ha
   
   postFrame() {
     var p32 = this.pixels32;
-    var vbase = (this.vidbase >> 1) & 0xfffff;
+    const vidbase = this.ioregs32[0x80 >> 2];
+    var vbase = (vidbase >> 1) & 0xfffff;
     var mask = this.brightness << 24;
     for (var i=0; i<p32.length; i++) {
       var col = this.ram16[i + vbase];
@@ -152,13 +196,29 @@ export class ARM32Machine extends BasicScanlineMachine implements Debuggable, Ha
 
   getDebugInfo?(category: string, state: EmuState) : string {
     switch (category) {
+      case 'Stack':
+        var s = '';
+        var c = state.c as ARMCoreState;
+        var sp = c.gprs[13];
+        var fp = c.gprs[11];
+        // dump stack using ram32
+        for (var i=0; i<16; i++) {
+          s += hex(sp,8) + '  ' + hex(this.ram32[(sp-RAM_START)>>2],8);
+          if (sp == fp) s += ' FP';
+          s += '\n';
+          sp += 4;
+          if (sp >= RAM_START+RAM_SIZE) break;
+        }
+        return s;
       case 'CPU':
         var s = '';
         var c = state.c as ARMCoreState;
         const EXEC_MODE = {2:'Thumb',4:'ARM'};
         const REGNAMES = {15:'PC',14:'LR',13:'SP',12:'IP',11:'FP',9:'SB'};
-        for (var i=0; i<16; i++) {
-          s += lpad(REGNAMES[i]||'',3) + lpad('r'+i, 5) + '  ' + hex(c.gprs[i],8) + '\n';
+        for (var i=0; i<8; i++) {
+          let j = i+8;
+          s += lpad('r'+i, 5) + ' ' + hex(c.gprs[i],8) + '   ';
+          s += lpad('r'+j, 5) + ' ' + hex(c.gprs[j],8) + lpad(REGNAMES[j]||'',3) + '\n';
         }
         s += 'Flags ';
         s += c.cpsrN ? " N" : " -";

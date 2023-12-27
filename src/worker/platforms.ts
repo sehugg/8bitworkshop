@@ -334,6 +334,11 @@ export var PLATFORM_PARAMS = {
       extra_link_files: ['crt0.o', 'exidy.cfg'],
       //extra_compile_files: ['exidy.h'],
     },
+    'arm32': {
+      arch: 'arm32',
+      define: ['__ARM__'],
+      extra_link_files: ['arm-tcc.o', 'arm-libtcc1.a'],
+    },
   };
   
   PLATFORM_PARAMS['sms-sms-libcv'] = PLATFORM_PARAMS['sms-sg1000-libcv'];

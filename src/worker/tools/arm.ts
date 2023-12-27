@@ -1,7 +1,7 @@
 
 import { hex } from "../../common/util";
 import { CodeListingMap, SourceLine, WorkerError, WorkerResult } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, anyTargetChanged, getPrefix, getWorkFileAsString } from "../builder";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, anyTargetChanged, getPrefix, getWorkFileAsString, populateExtraFiles } from "../builder";
 import { makeErrorMatcher, re_crlf } from "../listingutils";
 import { loadNative, moduleInstFn, execMain, emglobal, EmscriptenModule } from "../wasmutils";
 
@@ -235,6 +235,112 @@ export function assembleVASMARM(step: BuildStep): BuildStepResult {
             errors: errors,
             symbolmap: symbolmap,
             segments: segments
+        };
+    }
+}
+
+function tccErrorMatcher(errors: WorkerError[], mainpath: string) {
+    return makeErrorMatcher(errors, /(\w+|tcc):(\d+|\s*error): (.+)/, 2, 3, mainpath, 1);;
+}
+
+export async function compileARMTCC(step: BuildStep): Promise<BuildStepResult> {
+    loadNative("arm-tcc");
+    const params = step.params;
+    const errors = [];
+    gatherFiles(step, { mainFilePath: "main.c" });
+    const objpath = step.prefix + ".o";
+    const error_fn = tccErrorMatcher(errors, step.path);
+
+    if (staleFiles(step, [objpath])) {
+        const armtcc: EmscriptenModule = await emglobal.armtcc({
+            instantiateWasm: moduleInstFn('arm-tcc'),
+            noInitialRun: true,
+            print: error_fn,
+            printErr: error_fn,
+        });
+
+        var args = ['-I.', '-c',
+            //'-std=c11',
+            '-funsigned-char',
+            '-Wwrite-strings',
+            '-gdwarf',
+            '-o', objpath];
+        if (params.define) {
+            params.define.forEach((x) => args.push('-D' + x));
+        }
+        args.push(step.path);
+    
+        const FS = armtcc.FS;
+        populateExtraFiles(step, FS, params.extra_compile_files);
+        populateFiles(step, FS);
+        execMain(step, armtcc, args);
+        if (errors.length)
+            return { errors: errors };
+
+        var objout = FS.readFile(objpath, { encoding: 'binary' }) as Uint8Array;
+        putWorkFile(objpath, objout);
+    }
+    return {
+        linktool: "armtcclink",
+        files: [objpath],
+        args: [objpath]
+    }
+}
+
+export async function linkARMTCC(step: BuildStep): Promise<WorkerResult> {
+    loadNative("arm-tcc");
+    const params = step.params;
+    const errors = [];
+    gatherFiles(step, { mainFilePath: "main.c" });
+    const objpath = "main.bin";
+    const error_fn = tccErrorMatcher(errors, step.path);
+
+    if (staleFiles(step, [objpath])) {
+        const armtcc: EmscriptenModule = await emglobal.armtcc({
+            instantiateWasm: moduleInstFn('arm-tcc'),
+            noInitialRun: true,
+            print: error_fn,
+            printErr: error_fn,
+        });
+
+        var args = ['-L.', '-nostdlib', '-nostdinc',
+            '-Wl,--oformat=binary',
+            //'-Wl,-section-alignment=0x100000',
+            '-gdwarf',
+            '-o', objpath];
+        if (params.define) {
+            params.define.forEach((x) => args.push('-D' + x));
+        }
+        let objfiles = step.files;
+        // sort so that crtxxx files are first
+        objfiles.sort((a, b) => {
+            let a0 = a.startsWith('crt') ? 0 : 1;
+            let b0 = b.startsWith('crt') ? 0 : 1;
+            a = a0 + a;
+            b = b0 + b;
+            return a.localeCompare(b);
+        });
+        args = args.concat(objfiles);
+        args.push('arm-libtcc1.a');
+    
+        const FS = armtcc.FS;
+        populateExtraFiles(step, FS, params.extra_link_files);
+        populateFiles(step, FS);
+        execMain(step, armtcc, args);
+        if (errors.length)
+            return { errors: errors };
+
+        var objout = FS.readFile(objpath, { encoding: 'binary' }) as Uint8Array;
+        putWorkFile(objpath, objout);
+        if (!anyTargetChanged(step, [objpath]))
+            return;
+
+        return {
+            output: objout, //.slice(0x34),
+            //listings: listings,
+            errors: errors,
+            //symbolmap: symbolmap,
+            //segments: segments
         };
     }
 }

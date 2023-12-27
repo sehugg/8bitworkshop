@@ -27,7 +27,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 */
 
-import { Bus, CPU, InstructionBased, SavesState } from "../devices";
+import { Bus, Bus32, CPU, InstructionBased, SavesState } from "../devices";
 import { EmuHalt } from "../emu";
 import { hex } from "../util";
 
@@ -103,12 +103,16 @@ export interface ARMCoreState {
 	bankedRegisters: number[][],
 	spsr: number,
 	bankedSPSRs: number[],
+	sfprs: number[],
+	dfprs: number[],
 	cycles: number,
 	instructionWidth: 2 | 4
 }
 
 interface ARMCoreType {
 	gprs: Int32Array;
+	sfprs: Float32Array;
+	dfprs: Float64Array;
 	PC: number;
 	SP: number;
 	LR: number;
@@ -658,6 +662,11 @@ ARMCoreArm.prototype.constructAddressingMode4Writeback = function(immediate, off
 		return addr;
 	}
 };
+
+ARMCoreArm.prototype.constructNOP = function() {
+	this.writesPC = false;
+	return function() { };
+}
 
 ARMCoreArm.prototype.constructADC = function(rd, rn, shiftOp, condOp) {
 	var cpu : ARMCoreType = this.cpu;
@@ -2658,6 +2667,8 @@ function ARMCore() {
 	this.generateConds();
 
 	this.gprs = new Int32Array(16);
+	this.dfprs = new Float64Array(16);
+	this.sfprs = new Float32Array(this.dfprs.buffer); // regs shared with dfprs
 };
 
 ARMCore.prototype.resetCPU = function(startOffset) {
@@ -2665,6 +2676,7 @@ ARMCore.prototype.resetCPU = function(startOffset) {
 		this.gprs[i] = 0;
 	}
 	this.gprs[ARMRegs.PC] = startOffset + ARMConstants.WORD_SIZE_ARM;
+	this.dfprs.set(0); // no need to zero the sfprs, since they share the same buffer
 
 	this.loadInstruction = this.loadInstructionArm;
 	this.execMode = ARMMode.MODE_ARM;
@@ -2769,6 +2781,8 @@ ARMCore.prototype.freeze = function() : ARMCoreState {
 			this.gprs[14],
 			this.gprs[15],
 		],
+		'sfprs': this.sfprs.slice(),
+		'dfprs': this.dfprs.slice(),
 		'mode': this.mode,
 		'cpsrI': this.cpsrI,
 		'cpsrF': this.cpsrF,
@@ -2849,6 +2863,9 @@ ARMCore.prototype.defrost = function(frost: ARMCoreState) {
 	this.gprs[13] = frost.gprs[13];
 	this.gprs[14] = frost.gprs[14];
 	this.gprs[15] = frost.gprs[15];
+
+	//this.sfprs.set(frost.sfprs);
+	this.dfprs.set(frost.dfprs); // regs shared with sfprs
 
 	this.mode = frost.mode;
 	this.cpsrI = frost.cpsrI;
@@ -3667,6 +3684,25 @@ ARMCore.prototype.compileArm = function(instruction) {
 			break;
 		case 0x0C000000:
 			// Coprocessor data transfer
+			// VSTM, VSTMDB, VSTMIA
+			if ((instruction & 0x0c100f00) == 0x0c000a00) {
+				// TODO
+				op = this.armCompiler.constructNOP();
+				/* TODO
+				const rn = (instruction & 0x000F0000) >> 16;
+				const vd = (instruction & 0x0000F000) >> 12;
+				const imm = instruction & 0x000000FF;
+				const writeback = instruction & 0x00200000;
+				const increment = instruction & 0x00800000;
+				const load = instruction & 0x00100000;
+				const user = instruction & 0x00400000;
+				op.writesPC = false;
+				*/
+			}
+			else if ((instruction & 0x0c100f00) == 0x0c100a00) {
+				// TODO: VSTR, VLDR
+				op = this.armCompiler.constructNOP();
+			}
 			break;
 		case 0x0E000000:
 			// Coprocessor data operation/SWI
@@ -4103,10 +4139,12 @@ ARMCore.prototype.compileThumb = function(instruction) {
 
 ///////////////////////////////////////////////////////////////////////////
 
+type ARMBus = Bus & Bus32;
+
 export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQInterface, SavesState<ARMCoreState> {
 
 	core : ARMCoreType;
-	bus : Bus;
+	bus : ARMBus;
 	memory : ARMMemoryRegion[];
 
 	BASE_OFFSET = 24;
@@ -4122,8 +4160,7 @@ export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQI
 		this.memory = []; // TODO
 		for (var i=0; i<256; i++) {
 			// TODO: constant
-			var bits = 10;
-			var size = 0x80000; 
+			const bits = 10;
 			this.memory[i] = {
 				PAGE_MASK: (2 << bits) - 1,
 				ICACHE_PAGE_BITS: bits,
@@ -4146,12 +4183,13 @@ export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQI
 	isStable(): boolean {
 		return true; // TODO?
 	}
-	connectMemoryBus(bus: Bus): void {
+	connectMemoryBus(bus: ARMBus): void {
 		this.bus = bus;
 	}
 	reset(): void {
 		this.resetMemory();
-		this.core.resetCPU(0);
+		const resetVector = this.load32(0);
+		this.core.resetCPU(resetVector);
 	}
 	saveState() : ARMCoreState {
 		return this.core.freeze();
@@ -4173,7 +4211,7 @@ export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQI
 		return this.bus.read(a) | (this.bus.read(a+1) << 8);
 	}
 	load32(a: number): number {
-		var v = this.bus.read(a) | (this.bus.read(a+1) << 8) | (this.bus.read(a+2) << 16) | (this.bus.read(a+3) << 24);
+		var v = this.bus.read32(a);
 		return v;
 	}
 	// TODO:         memory.invalidatePage(maskedOffset);
@@ -4185,10 +4223,7 @@ export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQI
 		this.bus.write(a+1, (v >> 8) & 0xff);
 	}
 	store32(a: number, v: number): void {
-		this.bus.write(a, v & 0xff);
-		this.bus.write(a+1, (v >> 8) & 0xff);
-		this.bus.write(a+2, (v >> 16) & 0xff);
-		this.bus.write(a+3, (v >> 24) & 0xff);
+		this.bus.write32(a, v);
 	}
 	// TODO
 	wait(a: number): void {
@@ -4252,5 +4287,11 @@ export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQI
 
 	isThumb() : boolean {
 		return this.core.instructionWidth == 2;
+	}
+	getDebugTree() {
+		return {
+			state: this.saveState(),
+			mmu: this.core.mmu
+		};
 	}
 }

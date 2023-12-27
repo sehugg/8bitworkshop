@@ -1,40 +1,28 @@
 
-import { BaseDebugPlatform, CpuState, EmuState, Platform, DisasmLine, Debuggable, Machine, BaseMachinePlatform } from "../common/baseplatform";
-import { AnimationTimer, EmuHalt, padBytes, PLATFORMS, RasterVideo } from "../common/emu";
-import { hex, lpad, loadScript } from "../common/util";
-import { ARM32CPU } from "../common/cpu/ARM";
+import { Platform, DisasmLine, Machine, BaseMachinePlatform } from "../common/baseplatform";
+import { PLATFORMS } from "../common/emu";
+import { loadScript } from "../common/util";
 import { ARM32Machine } from "../machine/arm32";
 
-declare var uc, cs : any; // Unicorn module
+declare var cs : any; // Unicorn module
 
 const ARM32_PRESETS = [
-  { id: 'vidfill.vasm', name: 'Video Memory Fill' },
+  { id: 'vidfill.c', name: 'Video Memory Fill' },
 ];
-
-const SCREEN_WIDTH = 160;
-const SCREEN_HEIGHT = 128;
-const ROM_START_ADDR = 0x0;
-const HIROM_START_ADDR = 0xff800000;
-const ROM_SIZE = 512*1024;
-const RAM_START_ADDR = 0x20000000;
-const RAM_SIZE = 512*1024;
-const CLOCKS_PER_FRAME = 10000;
-
-interface ARM32State extends EmuState {
-  r: Uint32Array; // registers
-}
 
 export abstract class BaseARMMachinePlatform<T extends Machine> extends BaseMachinePlatform<T> {
 
     //getOpcodeMetadata     = getOpcodeMetadata_z80;
     getToolForFilename(fn: string)  {
+      fn = fn.toLowerCase();
       if (fn.endsWith('.vasm')) return "vasmarm";
-      else if (fn.endsWith('.armips')) return "armips";
-      else return "vasmarm";
+      if (fn.endsWith('.armips')) return "armips";
+      if (fn.endsWith('.c')) return "armtcc";
+      if (fn.endsWith('.s')) return "armtcc";
+      return "armtcc";
     }
     getPresets()          { return ARM32_PRESETS; }
-    getDefaultExtension() { return ".vasm"; };
-    
+    getDefaultExtension() { return ".c"; };
   }
   
 class ARM32Platform extends BaseARMMachinePlatform<ARM32Machine> implements Platform {
@@ -53,10 +41,10 @@ class ARM32Platform extends BaseARMMachinePlatform<ARM32Machine> implements Plat
   newMachine()          { return new ARM32Machine(); }
   readAddress(a)        { return this.machine.read(a); }
   getMemoryMap = function() { return { main:[
-    {name:'ROM',start:0x0000000,size:0x80000,type:'rom'},
-    {name:'RAM',start:0x2000000,size:0x80000,type:'ram'},
+    {name:'ROM',start:0x0000000,size:0x100000,type:'ram'},
     {name:'I/O',start:0x4000000,size:0x100,type:'io'},
   ] } };
+  getDebugTree()        { return this.machine.cpu.getDebugTree(); }
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
     var is_thumb = this.machine.cpu.isThumb();
     var capstone = is_thumb ? this.capstone_thumb : this.capstone_arm;

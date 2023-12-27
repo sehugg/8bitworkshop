@@ -10,6 +10,12 @@ export interface Bus {
   readConst?(a: number): number;
 }
 
+export interface Bus32 {
+  read32(a: number): number;
+  write32(a: number, v: number): void;
+  readConst32?(a: number): number;
+}
+
 export interface ClockBased {
   advanceClock(): void;
 }
@@ -276,7 +282,7 @@ export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, P
     this.probe.logClocks(n);
     return n;
   }
-  probeMemoryBus(membus: Bus): Bus {
+  probeMemoryBus(membus: Bus & Partial<Bus32>): Bus & Partial<Bus32> {
     return {
       read: (a) => {
         let val = membus.read(a);
@@ -286,11 +292,20 @@ export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, P
       write: (a, v) => {
         this.probe.logWrite(a, v);
         membus.write(a, v);
+      },
+      read32: (a) => {
+        let val = membus.read32(a);
+        this.probe.logRead(a, val);
+        return val;
+      },
+      write32: (a, v) => {
+        this.probe.logWrite(a, v);
+        membus.write32(a, v);
       }
     };
   }
   connectCPUMemoryBus(membus: Bus): void {
-    this.cpu.connectMemoryBus(this.probeMemoryBus(membus));
+    this.cpu.connectMemoryBus(this.probeMemoryBus(membus as Bus&Bus32));
   }
   probeIOBus(iobus: Bus): Bus {
     return {
@@ -302,7 +317,7 @@ export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, P
       write: (a, v) => {
         this.probe.logIOWrite(a, v);
         iobus.write(a, v);
-      }
+      },
     };
   }
   probeDMABus(iobus: Bus): Bus {
