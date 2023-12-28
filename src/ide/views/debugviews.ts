@@ -23,6 +23,7 @@ export class MemoryView implements ProjectView {
   dumplines;
   maindiv : HTMLElement;
   recreateOnResize = true;
+  hibits = 0;
   totalRows = 0x1400;
 
   createDiv(parent : HTMLElement) {
@@ -101,7 +102,7 @@ export class MemoryView implements ProjectView {
     for (var i=0; i<n1; i++) s += '   ';
     if (n1 > 8) s += ' ';
     for (var i=n1; i<n2; i++) {
-      var read = this.readAddress(offset+i);
+      var read = this.readAddress((offset+i) | this.hibits);
       if (i==8) s += ' ';
       s += ' ' + (typeof read == 'number' ? hex(read,2) : '??');
     }
@@ -279,7 +280,8 @@ export class MemoryMapView implements ProjectView {
     segdiv.click(() => {
       // TODO: what if memory browser does not exist?
       var memview = projectWindows.createOrShow('#memory') as MemoryView;
-      memview.scrollToAddress(seg.start);
+      memview.hibits = seg.start & 0xffff0000;
+      memview.scrollToAddress(seg.start & 0xffff);
     });
   }
 

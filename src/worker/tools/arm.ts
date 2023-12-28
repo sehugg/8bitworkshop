@@ -1,4 +1,5 @@
 
+import { ELFParser } from "../../common/binutils";
 import { hex } from "../../common/util";
 import { CodeListingMap, SourceLine, WorkerError, WorkerResult } from "../../common/workertypes";
 import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, anyTargetChanged, getPrefix, getWorkFileAsString, populateExtraFiles } from "../builder";
@@ -292,7 +293,7 @@ export async function linkARMTCC(step: BuildStep): Promise<WorkerResult> {
     const params = step.params;
     const errors = [];
     gatherFiles(step, { mainFilePath: "main.c" });
-    const objpath = "main.bin";
+    const objpath = "main.elf";
     const error_fn = tccErrorMatcher(errors, step.path);
 
     if (staleFiles(step, [objpath])) {
@@ -304,7 +305,7 @@ export async function linkARMTCC(step: BuildStep): Promise<WorkerResult> {
         });
 
         var args = ['-L.', '-nostdlib', '-nostdinc',
-            '-Wl,--oformat=binary',
+            '-Wl,--oformat=elf32-arm',
             //'-Wl,-section-alignment=0x100000',
             '-gdwarf',
             '-o', objpath];
@@ -335,12 +336,54 @@ export async function linkARMTCC(step: BuildStep): Promise<WorkerResult> {
         if (!anyTargetChanged(step, [objpath]))
             return;
 
+        // parse ELF and create ROM
+        const elfparser = new ELFParser(objout);
+        let maxaddr = 0;
+        elfparser.sectionHeaders.forEach((section, index) => {
+            maxaddr = Math.max(maxaddr, section.vmaddr + section.size);
+        });
+        let rom = new Uint8Array(maxaddr);
+        elfparser.sectionHeaders.forEach((section, index) => {
+            if (section.flags & 0x2) {
+                let data = objout.slice(section.offset, section.offset + section.size);
+                console.log(section.name, section.vmaddr.toString(16), data);
+                rom.set(data, section.vmaddr);
+            }
+        });
+        // set vectors, entry point etc
+        const obj32 = new Uint32Array(rom.buffer);
+        const start = elfparser.entry;
+        obj32[0] = start; // set reset vector
+        obj32[1] = start; // set undefined vector
+        obj32[2] = start; // set swi vector
+        obj32[3] = start; // set prefetch abort vector
+        obj32[4] = start; // set data abort vector
+        obj32[5] = start; // set reserved vector
+        obj32[6] = start; // set irq vector
+        obj32[7] = start; // set fiq vector
+ 
+        let symbolmap = {};
+        elfparser.getSymbols().forEach((symbol, index) => {
+            symbolmap[symbol.name] = symbol.value;
+        });
+        let segments = [];
+        elfparser.sectionHeaders.forEach((section, index) => {
+            if ((section.flags & 0x2) && section.size) {
+                segments.push({
+                    name: section.name,
+                    start: section.vmaddr,
+                    size: section.size,
+                    type: section.type,
+                });
+            }
+        });
+
         return {
-            output: objout, //.slice(0x34),
+            output: rom, //.slice(0x34),
             //listings: listings,
             errors: errors,
-            //symbolmap: symbolmap,
-            //segments: segments
+            symbolmap: symbolmap,
+            segments: segments
         };
     }
 }

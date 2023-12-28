@@ -20,8 +20,7 @@ var GBA_KEYCODE_MAP = makeKeycodeMap([
 
 const RAM_START =        0x0;
 const RAM_SIZE  =   0x100000;
-const ROM_BASE  =    0x10000;
-const ENTRY_POINT =  0x20000;
+const ROM_BASE  =        0x0;
 const IO_START =   0x4000000;
 const IO_SIZE  =       0x100;
 const MAX_SERIAL_CHARS = 1000000;
@@ -78,18 +77,7 @@ export class ARM32Machine extends BasicScanlineMachine
   reset() {
     if (this.rom) {
       this.ram.set(this.rom, this.rombase);
-      // set ARM vectors
-      const obj32 = new Uint32Array(this.ram.buffer);
-      const start = ENTRY_POINT;
-      obj32[0] = start; // set reset vector
-      obj32[1] = start; // set undefined vector
-      obj32[2] = start; // set swi vector
-      obj32[3] = start; // set prefetch abort vector
-      obj32[4] = start; // set data abort vector
-      obj32[5] = start; // set reserved vector
-      obj32[6] = start; // set irq vector
-      obj32[7] = start; // set fiq vector
-  }
+    }
     super.reset();
     this.serialOut = [];
     this.serialIn = [];

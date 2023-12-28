@@ -1,18 +1,29 @@
 
+
+function getASCII(view: DataView, offset: number): string {
+    let s = '';
+    let i = offset;
+    while (view.getUint8(i) !== 0) {
+        s += String.fromCharCode(view.getUint8(i));
+        i++;
+    }
+    return s;
+}
+
+// https://blog.k3170makan.com/2018/09/introduction-to-elf-format-elf-header.html
+// https://dwarfstd.org/doc/DWARF5.pdf
+
 export class ELFParser {
     readonly dataView: DataView;
     readonly sectionHeaders: ElfSectionHeader[];
     readonly symbolTable: ElfSymbolTableEntry[];
-    entry: number;
+    readonly entry: number;
 
     constructor(data: Uint8Array) {
         this.dataView = new DataView(data.buffer);
         this.sectionHeaders = [];
         this.symbolTable = [];
-        this.parse();
-    }
 
-    private parse() {
         const elfHeader = new DataView(this.dataView.buffer, 0, 52);
         // check magic #
         const magic = elfHeader.getInt32(0, true);
@@ -55,26 +66,19 @@ export class ELFParser {
         if (!sectionNameSection) {
             throw new Error('Invalid ELF section name table');
         } else {
-            const stringTableOffset = sectionNameSection.offset;
-            const stringTableSize = sectionNameSection.size;
-            const sectionNameView = new DataView(this.dataView.buffer, stringTableOffset, stringTableSize);
+            const sectionNameView = sectionNameSection.contents;
             for (let i = 0; i < sectionHeaderCount; i++) {
                 this.sectionHeaders[i].stringView = sectionNameView;
             }
         }
 
         // Extract the string table
-        const stringTableSection = this.sectionHeaders.find(
-            (section) => section.type === ElfSectionType.STRTAB && section.name == '.strtab'
-        );
+        const stringTableSection = this.getSection('.strtab', ElfSectionType.STRTAB);
         if (stringTableSection) {
-            const stringTableOffset = stringTableSection.offset;
-            const stringTableSize = stringTableSection.size;
-            const stringView = new DataView(this.dataView.buffer, stringTableOffset, stringTableSize);
+            const stringView = stringTableSection.contents;
             // Find the symbol table section and string table section
-            const symbolTableSection = this.sectionHeaders.find(
-                (section) => section.name === '.symtab'
-            );
+            const symbolTableSection = this.getSection('.symtab', ElfSectionType.SYMTAB);
+            console.log('symbolTableSection', symbolTableSection);
             if (symbolTableSection) {
                 // Extract the symbol table
                 const symbolTableOffset = symbolTableSection.offset;
@@ -93,6 +97,14 @@ export class ELFParser {
     getSymbols(): ElfSymbolTableEntry[] {
         return this.symbolTable;
     }
+
+    getSection(name: string, type?: number): ElfSectionHeader | null {
+        if (typeof type === 'number') {
+            return this.sectionHeaders.find((section) => section.name === name && section.type === type) || null;
+        } else {
+            return this.sectionHeaders.find((section) => section.name === name) || null;
+        }
+    }
 }
 
 enum ElfSectionType {
@@ -107,6 +119,12 @@ class ElfSectionHeader {
     constructor(readonly dataView: DataView, readonly headerOffset: number) {
         this.type = this.dataView.getUint32(this.headerOffset + 0x4, true);
     }
+    get flags(): number {
+        return this.dataView.getUint32(this.headerOffset + 0x8, true);
+    }
+    get vmaddr(): number {
+        return this.dataView.getUint32(this.headerOffset + 0xc, true);
+    }
     get offset(): number {
         return this.dataView.getUint32(this.headerOffset + 0x10, true);
     }
@@ -117,10 +135,10 @@ class ElfSectionHeader {
         return this.dataView.getUint32(this.headerOffset + 0x0, true);
     }
     get name(): string {
-        return getUTF8(this.stringView!, this.nameOffset);
+        return getASCII(this.stringView!, this.nameOffset);
     }
-    get vaddr(): number {
-        return this.dataView.getUint32(this.headerOffset + 0xc, true);
+    get contents(): DataView {
+        return new DataView(this.dataView.buffer, this.offset, this.size);
     }
 }
 
@@ -134,7 +152,7 @@ class ElfSymbolTableEntry {
         return this.dataView.getUint32(this.entryOffset, true);
     }
     get name(): string {
-        return getUTF8(this.stringView, this.nameOffset);
+        return getASCII(this.stringView, this.nameOffset);
     }
     get value(): number {
         return this.dataView.getUint32(this.entryOffset + 4, true);
@@ -150,10 +168,45 @@ class ElfSymbolTableEntry {
     }
 }
 
-function getUTF8(view: DataView, offset: number): string {
-    let str = '';
-    for (let i = offset; view.getUint8(i) !== 0; i++) {
-        str += String.fromCharCode(view.getUint8(i));
+// https://dwarfstd.org/doc/Debugging%20using%20DWARF-2012.pdf
+// https://dwarfstd.org/doc/DWARF5.pdf
+
+export class DWARFParser {
+
+    invo: DWARFDebugInfo;
+    abbrev: ElfSectionHeader;
+    line: ElfSectionHeader;
+    str: ElfSectionHeader;
+    line_str: ElfSectionHeader;
+    aranges: ElfSectionHeader;
+
+    constructor(readonly elf: ELFParser) {
+        // fetch sections
+        this.invo = new DWARFDebugInfo(elf.getSection('.debug_info'));
+        this.abbrev = elf.getSection('.debug_abbrev', ElfSectionType.STRTAB);
+        this.line = elf.getSection('.debug_line', ElfSectionType.STRTAB);
+        this.str = elf.getSection('.debug_str', ElfSectionType.STRTAB);
+        this.line_str = elf.getSection('.debug_line_str', ElfSectionType.STRTAB);
+        this.aranges = elf.getSection('.debug_aranges', ElfSectionType.STRTAB);
     }
-    return str;
+    /*
+    getCompilationUnits(): DWARFCompilationUnit[] {
+        const compilationUnits: DWARFCompilationUnit[] = [];
+        let offset = this.debugInfoSection.offset;
+        while (offset < this.debugInfoSection.offset + this.debugInfoSection.size) {
+            const compilationUnit = new DWARFCompilationUnit(this.debugInfoSection.contents, offset);
+            compilationUnits.push(compilationUnit);
+            offset += compilationUnit.size;
+        }
+        return compilationUnits;
+    }
+    */
+}
+
+class DWARFDebugInfo {
+    contents: DataView;
+
+    constructor(readonly section: ElfSectionHeader) {
+        this.contents = section.contents;
+    }
 }
