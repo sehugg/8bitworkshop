@@ -359,8 +359,8 @@ export var PLATFORM_PARAMS = {
       arch: 'arm32',
       define: ['__ARM__', 'DISABLE_UNIMPLEMENTED_LIBC_APIS', 'PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_SOFT'],
       extra_compile_args: ['-I./arch/arm/include', '-I./openlibm/include', '-I./openlibm/src', '-I./printf/src'],
-      extra_link_files: ['crt0.c', 'arm-libtcc1.a', 'libc.a'],
-      extra_link_args: ['arm-libtcc1.a', 'libc.a'],
+      extra_link_files: ['crt0.c', 'libtcc1.a', 'libc.a'],
+      extra_link_args: ['-ltcc1', '-lc'],
       crt0: 'crt0.c',
     },
   };

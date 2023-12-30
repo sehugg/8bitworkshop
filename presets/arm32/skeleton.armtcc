@@ -1,0 +1,16 @@
+
+#include <string.h>
+#include <stdio.h>
+
+#define SERIAL_OUT ((int*)0x4000048)
+
+void putchar_(char c) {
+  *SERIAL_OUT = c;
+}
+
+int main() {
+  int x = 2024*2;
+  x /= 2; // TODO: we need this to bring in __aeabi_uldivmod() etc.
+  printf("Hello World! %d\n", x);
+  return 0;
+}
