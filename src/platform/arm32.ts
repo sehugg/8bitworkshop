@@ -65,6 +65,7 @@ class ARM32Platform extends BaseARMMachinePlatform<ARM32Machine> implements Plat
     {name:'ROM',start:0x0000000,size:0x100000,type:'ram'},
     {name:'I/O',start:0x4000000,size:0x100,type:'io'},
   ] } };
+  getPlatformName()     { return "ARM7"; }
   getDebugTree()        { return this.machine.cpu.getDebugTree(); }
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
     var is_thumb = this.machine.cpu.isThumb();

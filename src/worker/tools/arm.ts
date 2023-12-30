@@ -352,9 +352,6 @@ export async function linkARMTCC(step: BuildStep): Promise<WorkerResult> {
         if (params.define) {
             params.define.forEach((x) => args.push('-D' + x));
         }
-        if (params.crt0) {
-            args.push(params.crt0);
-        }
         args = args.concat(step.files);
         if (params.extra_link_args) {
             args = args.concat(params.extra_link_args);
