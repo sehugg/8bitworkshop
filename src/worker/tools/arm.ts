@@ -1,9 +1,32 @@
+/*
+ * Copyright (c) 2024 Steven E. Hugg
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
 import { ELFParser } from "../../common/binutils";
 import { hex } from "../../common/util";
+import { WASIFilesystem } from "../../common/wasi/wasishim";
 import { CodeListingMap, SourceLine, WorkerError, WorkerResult } from "../../common/workertypes";
 import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, anyTargetChanged, getPrefix, getWorkFileAsString, populateExtraFiles } from "../builder";
 import { makeErrorMatcher, re_crlf } from "../listingutils";
+import { loadWASIFilesystemZip } from "../wasiutils";
 import { loadNative, moduleInstFn, execMain, emglobal, EmscriptenModule } from "../wasmutils";
 
 export function assembleARMIPS(step: BuildStep): WorkerResult {
@@ -241,8 +264,10 @@ export function assembleVASMARM(step: BuildStep): BuildStepResult {
 }
 
 function tccErrorMatcher(errors: WorkerError[], mainpath: string) {
-    return makeErrorMatcher(errors, /(\w+|tcc):(\d+|\s*error): (.+)/, 2, 3, mainpath, 1);;
+    return makeErrorMatcher(errors, /([^:]+|tcc):(\d+|\s*error): (.+)/, 2, 3, mainpath, 1);;
 }
+
+let armtcc_fs: WASIFilesystem | null = null;
 
 export async function compileARMTCC(step: BuildStep): Promise<BuildStepResult> {
     loadNative("arm-tcc");
@@ -252,6 +277,10 @@ export async function compileARMTCC(step: BuildStep): Promise<BuildStepResult> {
     const objpath = step.prefix + ".o";
     const error_fn = tccErrorMatcher(errors, step.path);
 
+    if (!armtcc_fs) {
+        armtcc_fs = await loadWASIFilesystemZip("arm32-fs.zip");
+    }
+    
     if (staleFiles(step, [objpath])) {
         const armtcc: EmscriptenModule = await emglobal.armtcc({
             instantiateWasm: moduleInstFn('arm-tcc'),
@@ -260,7 +289,7 @@ export async function compileARMTCC(step: BuildStep): Promise<BuildStepResult> {
             printErr: error_fn,
         });
 
-        var args = ['-I.', '-c',
+        var args = ['-c', '-I.', '-I./include',
             //'-std=c11',
             '-funsigned-char',
             '-Wwrite-strings',
@@ -269,10 +298,21 @@ export async function compileARMTCC(step: BuildStep): Promise<BuildStepResult> {
         if (params.define) {
             params.define.forEach((x) => args.push('-D' + x));
         }
+        if (params.extra_compile_args) {
+            args = args.concat(params.extra_compile_args);
+        }
         args.push(step.path);
     
         const FS = armtcc.FS;
+        // TODO: only should do once?
+        armtcc_fs.getDirectories().forEach((dir) => {
+            if (dir.name != '/') FS.mkdir(dir.name);
+        });
+        armtcc_fs.getFiles().forEach((file) => {
+            FS.writeFile(file.name, file.getBytes(), { encoding: 'binary' });
+        });
         populateExtraFiles(step, FS, params.extra_compile_files);
+
         populateFiles(step, FS);
         execMain(step, armtcc, args);
         if (errors.length)
@@ -312,18 +352,14 @@ export async function linkARMTCC(step: BuildStep): Promise<WorkerResult> {
         if (params.define) {
             params.define.forEach((x) => args.push('-D' + x));
         }
-        let objfiles = step.files;
-        // sort so that crtxxx files are first
-        objfiles.sort((a, b) => {
-            let a0 = a.startsWith('crt') ? 0 : 1;
-            let b0 = b.startsWith('crt') ? 0 : 1;
-            a = a0 + a;
-            b = b0 + b;
-            return a.localeCompare(b);
-        });
-        args = args.concat(objfiles);
-        args.push('arm-libtcc1.a');
-    
+        if (params.crt0) {
+            args.push(params.crt0);
+        }
+        args = args.concat(step.files);
+        if (params.extra_link_args) {
+            args = args.concat(params.extra_link_args);
+        }
+
         const FS = armtcc.FS;
         populateExtraFiles(step, FS, params.extra_link_files);
         populateFiles(step, FS);
@@ -346,7 +382,7 @@ export async function linkARMTCC(step: BuildStep): Promise<WorkerResult> {
         elfparser.sectionHeaders.forEach((section, index) => {
             if (section.flags & 0x2) {
                 let data = objout.slice(section.offset, section.offset + section.size);
-                console.log(section.name, section.vmaddr.toString(16), data);
+                //console.log(section.name, section.vmaddr.toString(16), data);
                 rom.set(data, section.vmaddr);
             }
         });

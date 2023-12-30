@@ -3555,6 +3555,11 @@ ARMCore.prototype.compileArm = function(instruction) {
 			var load = instruction & 0x00100000;
 			var b = instruction & 0x00400000;
 			var i = instruction & 0x02000000;
+			// test for UDF instruction
+			if ((instruction & 0xfff000f0) == (0xe7f000f0|0)) {
+				var immediate = instruction & 0x0000000f; // TODO: full range
+				throw new EmuHalt("Program exited (" + immediate + ")");
+			}
 
 			var address : AddressFunction = function() {
 				throw new EmuHalt("Unimplemented memory access: 0x" + instruction.toString(16));

@@ -23,8 +23,8 @@ export class MemoryView implements ProjectView {
   dumplines;
   maindiv : HTMLElement;
   recreateOnResize = true;
-  hibits = 0;
-  totalRows = 0x1400;
+  hibits = 0; // a hack to make it work with 32-bit addresses
+  totalRows = 0x1400; // a little more room in case we split lots of lines
 
   createDiv(parent : HTMLElement) {
     var div = document.createElement('div');
@@ -45,7 +45,7 @@ export class MemoryView implements ProjectView {
         var linediv = document.createElement("div");
         if (this.dumplines) {
           var dlr = this.dumplines[row];
-          if (dlr) linediv.classList.add('seg_' + this.getMemorySegment(this.dumplines[row].a));
+          if (dlr) linediv.classList.add('seg_' + this.getMemorySegment(this.dumplines[row].a | this.hibits));
         }
         linediv.appendChild(document.createTextNode(s));
         return linediv;
@@ -60,7 +60,8 @@ export class MemoryView implements ProjectView {
 
   scrollToAddress(addr : number) {
     if (this.dumplines) {
-      this.memorylist.scrollToItem(this.findMemoryWindowLine(addr));
+      this.hibits = addr & 0xffff0000;
+      this.memorylist.scrollToItem(this.findMemoryWindowLine(addr & 0xffff));
     }
   }
 
@@ -131,7 +132,7 @@ export class MemoryView implements ProjectView {
       var sym;
       for (const _nextofs of Object.keys(addr2sym)) {
         var nextofs = parseInt(_nextofs); // convert from string (stupid JS)
-        var nextsym = addr2sym[nextofs];
+        var nextsym = addr2sym[nextofs | this.hibits];
         if (sym) {
           // ignore certain symbols
           if (ignoreSymbol(sym)) {
@@ -280,8 +281,7 @@ export class MemoryMapView implements ProjectView {
     segdiv.click(() => {
       // TODO: what if memory browser does not exist?
       var memview = projectWindows.createOrShow('#memory') as MemoryView;
-      memview.hibits = seg.start & 0xffff0000;
-      memview.scrollToAddress(seg.start & 0xffff);
+      memview.scrollToAddress(seg.start);
     });
   }
 

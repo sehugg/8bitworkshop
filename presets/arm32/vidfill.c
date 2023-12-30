@@ -1,6 +1,4 @@
 
-//#link "crt0.c"
-
 const char const str[] = "HELLO WORLD!";
 
 int global = 0x1234;
