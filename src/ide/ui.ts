@@ -914,7 +914,7 @@ function showDebugInfo(state?) {
   if (allcats && !debugCategory)
     debugCategory = allcats[0];
   var s = state && platform.getDebugInfo(debugCategory, state);
-  if (s) {
+  if (typeof s === 'string') {
     var hs = lastDebugInfo ? highlightDifferences(lastDebugInfo, s) : s;
     meminfo.show();
     meminfomsg.html(hs);

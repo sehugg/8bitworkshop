@@ -152,6 +152,14 @@ export class ARM32Machine extends BasicScanlineMachine
     switch (a) {
       case 0x0:
         return this.inputs[0];
+      case 0x20:
+        return this.getRasterY() & 0xff;
+      case 0x21:
+        return this.getRasterY() >> 8;
+      case 0x24:
+        return this.getRasterX();
+      case 0x25:
+        return this.getRasterX() >> 8;
       case 0x40:
         return (this.serial.byteAvailable() ? 0x80 : 0) | (this.serial.clearToSend() ? 0x40 : 0);
       case 0x44:
@@ -169,15 +177,12 @@ export class ARM32Machine extends BasicScanlineMachine
   writeIO(a : number, v : number) : void {
     this.ioregs[a] = v;
     switch (a) {
-      case 0x0:
-        //this.brightness = v & 0xff;
-        break;
       case 0x48:
         if (this.serialOut.length < MAX_SERIAL_CHARS) {
           this.serialOut.push({op:'write', value:v, nbits:8});
         }
         break;
-    }
+      }
   }
 
   startScanline() {
@@ -246,7 +251,11 @@ export class ARM32Machine extends BasicScanlineMachine
         var c = state.c as ARMCoreState;
         for (var i=0; i<16; i++) {
           //let j = i+16;
-          s += lpad('s'+i, 5) + ' ' + hex(c.ifprs[i],8) + ' '  + c.sfprs[i] + '\n';
+          s += lpad('s'+i, 5) + ' ' + hex(c.ifprs[i],8) + ' '  + c.sfprs[i].toPrecision(6);
+          if (i & 1) {
+            s += lpad('d'+(i>>1), 5) + ' ' + c.dfprs[i>>1].toPrecision(12);
+          }
+          s += '\n';
           //s += lpad('s'+j, 5) + ' ' + lpad(c.sfprs[j]+'',8) + '\n';
         }
         return s;

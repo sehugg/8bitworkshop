@@ -292,7 +292,7 @@ export async function compileARMTCC(step: BuildStep): Promise<BuildStepResult> {
         var args = ['-c', '-I.', '-I./include',
             //'-std=c11',
             '-funsigned-char',
-            '-Wwrite-strings',
+            //'-Wwrite-strings',
             '-gdwarf',
             '-o', objpath];
         if (params.define) {

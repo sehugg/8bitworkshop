@@ -1771,46 +1771,37 @@ ARMCoreArm.prototype.constructUMULLS = function(rd, rn, rs, rm, condOp) {
 	};
 };
 
-ARMCoreArm.prototype.constructVFP3Register = function(condOp, opcode, nOperandReg, destReg, number, opcode2, mOperandReg) {
+ARMCoreArm.prototype.constructVFP3Register = function(condOp, opcode, nOperandReg, destReg, sz, opcode2, mOperandReg) {
 	var cpu : ARMCoreType = this.cpu;
-	var gprs = cpu.gprs;
-	var sregs = cpu.sfprs;
-	var dregs = cpu.dfprs;
-	var iregs = cpu.ifprs;
+	var fpregs = sz ? cpu.dfprs : cpu.sfprs;
+	//console.log("VFP3Register: " + hex(opcode) + " " + hex(nOperandReg) + " " + hex(destReg) + " " + hex(number) + " " + hex(opcode2) + " " + hex(mOperandReg));
 	return function() {
 		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
 		if (condOp && !condOp()) {
 			return;
 		}
 		switch (opcode) {
-		case 1: // VMOV
-			switch (opcode2) {
-				case 0:
-					gprs[destReg] = iregs[nOperandReg];
-					return;
-			}
-			break;
 		case 2: // VMUL
 			switch (opcode2) {
 				case 0:
-					sregs[destReg] = sregs[nOperandReg] * sregs[mOperandReg];
+					fpregs[destReg] = fpregs[nOperandReg] * fpregs[mOperandReg];
 					return;
 			}
 			break;
 		case 3: // VADD/VSUB
 			switch (opcode2) {
 				case 0:
-					sregs[destReg] = sregs[nOperandReg] + sregs[mOperandReg];
+					fpregs[destReg] = fpregs[nOperandReg] + fpregs[mOperandReg];
 					return;
 				case 2:
-					sregs[destReg] = sregs[nOperandReg] - sregs[mOperandReg];
+					fpregs[destReg] = fpregs[nOperandReg] - fpregs[mOperandReg];
 					return;
 			}
 			break;
 		case 8: // VDIV
 			switch (opcode2) {
 				case 0:
-					sregs[destReg] = sregs[nOperandReg] / sregs[mOperandReg];
+					fpregs[destReg] = fpregs[nOperandReg] / fpregs[mOperandReg];
 					return;
 			}
 			break;
@@ -1892,6 +1883,26 @@ ARMCoreArm.prototype.constructVCVT = function(condOp, D, opc2, Vd, sz, op, M, Vm
 	};
 }
 
+ARMCoreArm.prototype.constructVCVTF = function(condOp, d, m, double_to_single) {
+	var cpu : ARMCoreType = this.cpu;
+	var sregs = cpu.sfprs;
+	var dregs = cpu.dfprs;
+	return function() {
+		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
+		if (condOp && !condOp()) {
+			return;
+		}
+		var n = double_to_single ? dregs[m] : sregs[m];
+		// store result
+		if (double_to_single) {
+			sregs[d] = n;
+		} else {
+			dregs[d] = n;
+		}
+	};
+
+}
+
 ARMCoreArm.prototype.constructVLDR = function(condOp, destReg, address, single_reg) {
 	var cpu : ARMCoreType = this.cpu;
 	var iregs = cpu.ifprs;
@@ -1904,8 +1915,8 @@ ARMCoreArm.prototype.constructVLDR = function(condOp, destReg, address, single_r
 		if (single_reg) {
 			iregs[destReg] = cpu.mmu.load32(addr);
 		} else {
-			iregs[destReg*2] = cpu.mmu.load32(addr);
-			iregs[destReg*2+1] = cpu.mmu.load32(addr+4);
+			iregs[destReg] = cpu.mmu.load32(addr);
+			iregs[destReg+1] = cpu.mmu.load32(addr+4);
 		}
 		cpu.mmu.wait32(addr);
 		cpu.mmu.wait32(cpu.gprs[ARMRegs.PC]);
@@ -1964,6 +1975,58 @@ ARMCoreArm.prototype.constructVPOP = function(condOp, d, regs, single_regs) {
 			addr += 4;
 		}
 	};
+}
+
+function FPCompare(op1: number, op2: number) {
+	/* assert N IN {32,64};
+    fpscr_val = if fpscr_controlled then FPSCR else StandardFPSCRValue();
+    (type1,sign1,value1) = FPUnpack(op1, fpscr_val);
+    (type2,sign2,value2) = FPUnpack(op2, fpscr_val); */
+	if (isNaN(op1) || isNaN(op2)) {
+		return 0b0011;
+	}
+	if (op1 == op2) return 0b0110;
+	if (op1 < op2) return 0b1000;
+	else return 0b0010;
+}
+
+ARMCoreArm.prototype.constructVCMP = function(condOp, d, Vd, sz, E, m, Vm) {
+	var cpu : ARMCoreType = this.cpu;
+	var sregs = cpu.sfprs;
+	var dregs = cpu.dfprs;
+	return function() {
+		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
+		if (condOp && !condOp()) {
+			return;
+		}
+		let op1, op2;
+		if (sz) {
+			op1 = dregs[d];
+			op2 = dregs[m];
+		} else {
+			op1 = sregs[d];
+			op2 = sregs[m];
+		}
+		let result = FPCompare(op1, op2);
+		cpu.cpsrN = (result & 8) != 0;
+		cpu.cpsrZ = (result & 4) != 0;
+		cpu.cpsrC = (result & 2) != 0;
+		cpu.cpsrV = (result & 1) != 0;
+	}
+}
+
+ARMCoreArm.prototype.constructVMOV = function(condOp, to_arm_reg, n, t) {
+	var cpu : ARMCoreType = this.cpu;
+	var srcregs = to_arm_reg ? cpu.ifprs : cpu.gprs;
+	var destregs = to_arm_reg ? cpu.gprs : cpu.ifprs;
+	//console.log('VMOV: ' + hex(to_arm_reg) + ' ' + hex(n) + ' ' + hex(t));
+	return function() {
+		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
+		if (condOp && !condOp()) {
+			return;
+		}
+		destregs[t] = srcregs[n];
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -3926,9 +3989,9 @@ ARMCore.prototype.compileArm = function(instruction) {
 					address = this.armCompiler.constructAddressingMode4(immediate, rn);
 				}
 				if (load) {
-					op = this.armCompiler.constructVLDR(condOp, crd, address, true);
+					op = this.armCompiler.constructVLDR(condOp, d, address, true);
 				} else {
-					op = this.armCompiler.constructVSTR(condOp, crd, address, true);
+					op = this.armCompiler.constructVSTR(condOp, d, address, true);
 				}
 			} else if ((instruction & 0x0f200f00) == 0x0d000b00) {
 				immediate *= 4;
@@ -3943,9 +4006,9 @@ ARMCore.prototype.compileArm = function(instruction) {
 					address = this.armCompiler.constructAddressingMode4(immediate, rn);
 				}
 				if (load) {
-					op = this.armCompiler.constructVLDR(condOp, crd, address, false);
+					op = this.armCompiler.constructVLDR(condOp, d, address, false);
 				} else {
-					op = this.armCompiler.constructVSTR(condOp, crd, address, false);
+					op = this.armCompiler.constructVSTR(condOp, d, address, false);
 				}
 			}
 			break;
@@ -3971,18 +4034,98 @@ ARMCore.prototype.compileArm = function(instruction) {
 				op = this.armCompiler.constructVCVT(condOp, D, opc2, Vd, sz, to_fixed, M, Vm);
 				op.writesPC = false;
 			}
-			// floating point vector instructions
-			else {
+			// VCVT f64/f32
+			else if ((instruction & 0x0FBF0ED0) == 0x0EB70AC0) {
 				const cond = (instruction >> 28) & 0xf;
-				const opcode = (instruction & 0x0F00000) >> 20;
-				const CRn = (instruction & 0x000F0000) >> 16;
-				const CRd = (instruction & 0x0000F000) >> 12;
-				const CPn = (instruction & 0x00000F00) >> 8;
-				const opcode2 = (instruction & 0b11100000) >> 5;
-				const CRm = instruction & 0x0000000F;
-				var condOp = this.conds[cond];
-				op = this.armCompiler.constructVFP3Register(condOp, opcode, CRn, CRd, CPn, opcode2, CRm);
+				const D = (instruction >> 22) & 0x1;
+				const Vd = (instruction >> 12) & 0xf;
+				const sz = (instruction >> 8) & 0x1;
+				const M = (instruction >> 5) & 0x1;
+				const Vm = instruction & 0xf;
+				const double_to_single = sz != 0;
+				const d = sz ? (D?16:0)|Vd : (Vd<<1)|(D?1:0);
+				const m = sz ? (M?16:0)|Vm : (Vm<<1)|(M?1:0);
+				op = this.armCompiler.constructVCVTF(condOp, d, m, double_to_single);
 				op.writesPC = false;
+			}
+			// 3-op floating point vector instructions (VADD, etc)
+			else if ((instruction & 0x0FA00E10) == 0x0E200A00) {
+				const cond = (instruction >> 28) & 0xf;
+				const D = (instruction >> 22) & 0x1;
+				const N = (instruction >> 7) & 0x1;
+				const M = (instruction >> 5) & 0x1;
+				const opcode = (instruction & 0x0F00000) >> 20;
+				const Vn = (instruction & 0x000F0000) >> 16;
+				const Vd = (instruction & 0x0000F000) >> 12;
+				const opcode2 = (instruction & 0b11100000) >> 5;
+				const Vm = instruction & 0x0000000F;
+				const sz = (instruction >> 8) & 0x1;
+				const d = sz ? (D?16:0)|Vd : (Vd<<1)|(D?1:0);
+				const m = sz ? (M?16:0)|Vm : (Vm<<1)|(M?1:0);
+				const n = sz ? (N?16:0)|Vn : (Vn<<1)|(N?1:0);
+
+				var condOp = this.conds[cond];
+				op = this.armCompiler.constructVFP3Register(condOp, opcode, n, d, sz, opcode2, m);
+				op.writesPC = false;
+			}
+			// VDIV - https://developer.arm.com/documentation/ddi0597/2023-12/SIMD-FP-Instructions/VDIV--Divide-?lang=en
+			else if ((instruction & 0x0FB00C50) == 0x0E800800) {
+				const cond = (instruction >> 28) & 0xf;
+				const D = (instruction >> 22) & 0x1;
+				const Vn = (instruction >> 16) & 0xf;
+				const Vd = (instruction >> 12) & 0xf;
+				const size = (instruction >> 8) & 0x3;
+				const N = (instruction >> 7) & 0x1;
+				const M = (instruction >> 5) & 0x1;
+				const Vm = instruction & 0xf;
+				/*
+				case size of
+				when '01' esize = 16; d = UInt(Vd:D); n = UInt(Vn:N); m = UInt(Vm:M);
+				when '10' esize = 32; d = UInt(Vd:D); n = UInt(Vn:N); m = UInt(Vm:M);
+				when '11' esize = 64; d = UInt(D:Vd); n = UInt(N:Vn); m = UInt(M:Vm);
+				*/
+				const d = size==3 ? (D?16:0)|Vd : (Vd<<1)|(D?1:0);
+				const m = size==3 ? (M?16:0)|Vm : (Vm<<1)|(M?1:0);
+				const n = size==3 ? (N?16:0)|Vn : (Vn<<1)|(N?1:0);
+				op = this.armCompiler.constructVFP3Register(condOp, 8, n, d, size==3, 0, m);
+				op.writesPC = false;
+			}
+			// 2-op floating point vector instructions (VCMP, etc)
+			else if ((instruction & 0x0FBF0E50) == 0x0EB40A40) {
+				const cond = (instruction >> 28) & 0xf;
+				const D = (instruction >> 22) & 0x1;
+				const Vd = (instruction >> 12) & 0xf;
+				const sz = (instruction >> 8) & 0x1;
+				const E = (instruction >> 7) & 0x1;
+				const M = (instruction >> 5) & 0x1;
+				const Vm = instruction & 0x0000000F;
+				const d = sz ? (D?16:0)|Vd : (Vd<<1)|(D?1:0);
+				const m = sz ? (M?16:0)|Vm : (Vm<<1)|(M?1:0);
+				
+				var condOp = this.conds[cond];
+				op = this.armCompiler.constructVCMP(condOp, d, Vd, sz, E, m, Vm);
+				op.writesPC = false;
+			}
+			// vmrs apsr_nzcv, fpscr (ignore, we always call this after CMP)
+			else if (instruction == 0xeef1fa10) {
+				op = this.armCompiler.constructNOP();
+			}
+			// VMOV
+			else if ((instruction & 0x0FE00F10) == 0x0E000A10) {
+				const cond = (instruction >> 28) & 0xf;
+				const opc1 = (instruction >> 20) & 0x1;
+				const Vn = (instruction >> 16) & 0xf;
+				const Rt = (instruction >> 12) & 0xf;
+				const N = (instruction >> 7) & 0x1;
+				var condOp = this.conds[cond];
+				op = this.armCompiler.constructVMOV(condOp, opc1, (Vn<<1)|(N?1:0), Rt);
+			}
+			// vmov.32 dn[i], rn
+			else if (instruction == 0xee000b10) {
+				op = this.armCompiler.constructVMOV(condOp, false, 0, 0);
+			}
+			else if (instruction == 0xee201b10) {
+				op = this.armCompiler.constructVMOV(condOp, false, 1, 1);
 			}
 			break;
 		default:
