@@ -200,7 +200,7 @@ export class ARM32Machine extends BasicScanlineMachine
   }
 
   getDebugCategories() {
-    return ['CPU', 'Stack'];
+    return ['CPU', 'Stack', 'FPU'];
   }
 
   getDebugInfo?(category: string, state: EmuState) : string {
@@ -240,6 +240,15 @@ export class ARM32Machine extends BasicScanlineMachine
         s += 'MODE ' + EXEC_MODE[c.instructionWidth] + ' ' + MODE_NAMES[c.mode] + '\n';
         s += 'SPSR ' + hex(c.spsr,8) + '\n';
         s += 'cycl ' + c.cycles + '\n';
+        return s;
+      case 'FPU':
+        var s = '';
+        var c = state.c as ARMCoreState;
+        for (var i=0; i<16; i++) {
+          //let j = i+16;
+          s += lpad('s'+i, 5) + ' ' + hex(c.ifprs[i],8) + ' '  + c.sfprs[i] + '\n';
+          //s += lpad('s'+j, 5) + ' ' + lpad(c.sfprs[j]+'',8) + '\n';
+        }
         return s;
     }
   }
