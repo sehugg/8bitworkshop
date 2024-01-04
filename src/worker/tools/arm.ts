@@ -20,11 +20,11 @@
  * SOFTWARE.
  */
 
-import { ELFParser } from "../../common/binutils";
+import { DWARFParser, ELFParser } from "../../common/binutils";
 import { hex } from "../../common/util";
 import { WASIFilesystem } from "../../common/wasi/wasishim";
 import { CodeListingMap, SourceLine, WorkerError, WorkerResult } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, anyTargetChanged, getPrefix, getWorkFileAsString, populateExtraFiles } from "../builder";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, anyTargetChanged, getPrefix, getWorkFileAsString, populateExtraFiles, processEmbedDirective } from "../builder";
 import { makeErrorMatcher, re_crlf } from "../listingutils";
 import { loadWASIFilesystemZip } from "../wasiutils";
 import { loadNative, moduleInstFn, execMain, emglobal, EmscriptenModule } from "../wasmutils";
@@ -293,7 +293,7 @@ export async function compileARMTCC(step: BuildStep): Promise<BuildStepResult> {
             //'-std=c11',
             '-funsigned-char',
             //'-Wwrite-strings',
-            '-gdwarf',
+            '-gdwarf-2',
             '-o', objpath];
         if (params.define) {
             params.define.forEach((x) => args.push('-D' + x));
@@ -313,7 +313,15 @@ export async function compileARMTCC(step: BuildStep): Promise<BuildStepResult> {
         });
         populateExtraFiles(step, FS, params.extra_compile_files);
 
-        populateFiles(step, FS);
+        populateFiles(step, FS, {
+            mainFilePath: step.path,
+            processFn: (path, code) => {
+                if (typeof code === 'string') {
+                    code = processEmbedDirective(code);
+                }
+                return code;
+            }
+        });
         execMain(step, armtcc, args);
         if (errors.length)
             return { errors: errors };
@@ -347,7 +355,7 @@ export async function linkARMTCC(step: BuildStep): Promise<WorkerResult> {
         var args = ['-L.', '-nostdlib', '-nostdinc',
             '-Wl,--oformat=elf32-arm',
             //'-Wl,-section-alignment=0x100000',
-            '-gdwarf',
+            '-gdwarf-2',
             '-o', objpath];
         if (params.define) {
             params.define.forEach((x) => args.push('-D' + x));
@@ -410,10 +418,31 @@ export async function linkARMTCC(step: BuildStep): Promise<WorkerResult> {
                 });
             }
         });
+        const listings: CodeListingMap = {};
+        const dwarf = new DWARFParser(elfparser);
+        dwarf.lineInfos.forEach((lineInfo) => {
+            lineInfo.files.forEach((file) => {
+                if (!file || !file.lines) return;
+                file.lines.forEach((line) => {
+                    const filename = line.file;
+                    const offset = line.address;
+                    const path = getPrefix(filename) + '.lst';
+                    const linenum = line.line;
+                    let lst = listings[path];
+                    if (lst == null) { lst = listings[path] = { lines: [] }; }
+                    lst.lines.push({
+                        path,
+                        line: linenum,
+                        offset
+                    });
+                });
+            });
+        });
+        //console.log(listings);
 
         return {
             output: rom, //.slice(0x34),
-            //listings: listings,
+            listings: listings,
             errors: errors,
             symbolmap: symbolmap,
             segments: segments

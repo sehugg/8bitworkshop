@@ -38,16 +38,20 @@ describe('test ELFParser', () => {
             console.log('symbol', index, symbol.info, symbol.other, symbol.name, symbol.value.toString(16));
         });
         */
-        assert.strictEqual(22, elfParser.sectionHeaders.length);
-        assert.strictEqual(31, elfParser.getSymbols().length);
+        assert.strictEqual(21, elfParser.sectionHeaders.length);
+        assert.strictEqual(29, elfParser.getSymbols().length);
         assert.ok(elfParser.sectionHeaders.find((section) => section.name === '.text') != null);
         assert.ok(elfParser.getSymbols().find((symbol) => symbol.name === 'main') != null);
     });
 
     it('should parse DWARF info', () => {
         const dwarf = new DWARFParser(elfParser);
+        assert.strictEqual(2, dwarf.units.length);
+        const cu = dwarf.units[0];
+        // TODO: check info content
+        const li = dwarf.lineInfos[0];
+        assert.strictEqual('crt0.c', li.files[1].name);
         /*
-        const info = dwarf.getCompilationUnits()[0];
         assert.ok(info != null);
         assert.ok(info!.lineNumberProgram != null);
         assert.ok(info!.lineNumberProgram!.length > 0);
