@@ -66,7 +66,12 @@ class ARM32Platform extends BaseARMMachinePlatform<ARM32Machine> implements Plat
     {name:'I/O',start:0x4000000,size:0x100,type:'io'},
   ] } };
   getPlatformName()     { return "ARM7"; }
-  getDebugTree()        { return this.machine.cpu.getDebugTree(); }
+  getDebugTree() {
+    return {
+      ...this.machine.cpu.getDebugTree(),
+      dwarf: this.debugSymbols.debuginfo
+    }
+  }
   disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
     var is_thumb = this.machine.cpu.isThumb();
     var capstone = is_thumb ? this.capstone_thumb : this.capstone_arm;

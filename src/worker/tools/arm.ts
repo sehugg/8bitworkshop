@@ -445,7 +445,8 @@ export async function linkARMTCC(step: BuildStep): Promise<WorkerResult> {
             listings: listings,
             errors: errors,
             symbolmap: symbolmap,
-            segments: segments
+            segments: segments,
+            debuginfo: dwarf
         };
     }
 }

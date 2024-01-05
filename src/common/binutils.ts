@@ -34,6 +34,8 @@ function getASCII(view: DataView, offset: number): string {
 // https://chromium.googlesource.com/breakpad/breakpad/+/linux-dwarf/src/common/dwarf/dwarf2reader.cc
 // https://wiki.osdev.org/DWARF
 // https://dwarfstd.org/doc/dwarf-2.0.0.pdf
+// https://dwarfstd.org/doc/Debugging%20using%20DWARF-2012.pdf
+// https://dwarfstd.org/doc/DWARF5.pdf
 
 export class ELFParser {
     readonly dataView: DataView;
@@ -188,9 +190,6 @@ class ElfSymbolTableEntry {
         return this.dataView.getUint8(this.entryOffset + 13);
     }
 }
-
-// https://dwarfstd.org/doc/Debugging%20using%20DWARF-2012.pdf
-// https://dwarfstd.org/doc/DWARF5.pdf
 
 // Tag names and codes.
 enum DwarfTag {
@@ -702,7 +701,7 @@ class ByteReader {
         return value;
     }
 
-    readUnsignedLEB128(): bigint {
+    readUnsignedLEB128(): number | bigint {
         let result = BigInt(0);
         let shift = BigInt(0);
         while (true) {
@@ -713,10 +712,10 @@ class ByteReader {
             }
             shift += BigInt(7);
         }
-        return result;
+        return shift < 31 ? Number(result) : result;
     }
 
-    readSignedLEB128(): bigint {
+    readSignedLEB128(): number | bigint {
         let result = BigInt(0);
         let shift = BigInt(0);
         let byte = 0;
@@ -732,39 +731,44 @@ class ByteReader {
             // Sign extend if the highest bit of the last byte is set.
             result |= -(BigInt(1) << shift);
         }
-        return result;
+        return shift < 31 ? Number(result) : result;
     }
 
-    readOffset(): number | bigint {
+    readOffset(): number {
         if (this.offsetSize === 4) {
             const value = this.readFourBytes();
             return value;
+            /*
         } else if (this.offsetSize === 8) {
             const value = this.readEightBytes();
             return value;
+            */
         } else {
             throw new Error('Invalid offset size');
         }
     }
 
-    readAddress(): number | bigint {
+    readAddress(): number {
         if (this.addressSize === 4) {
             const value = this.readFourBytes();
             return value;
+            /*
         } else if (this.addressSize === 8) {
             const value = this.readEightBytes();
             return value;
+            */
         } else {
             throw new Error('Invalid address size');
         }
     }
-    readInitialLength(): bigint | number {
+    readInitialLength(): number {
         const initial_length = this.readFourBytes();
         // In DWARF2/3, if the initial length is all 1 bits, then the offset
         // size is 8 and we need to read the next 8 bytes for the real length.
         if (initial_length === 0xffffffff) {
-            this.offsetSize = 8;
-            return this.readEightBytes();
+            throw new Error('64-bit DWARF is not supported');
+            //this.offsetSize = 8;
+            //return this.readEightBytes();
         } else {
             this.offsetSize = 4;
             return initial_length;
@@ -831,6 +835,7 @@ class DWARFCompilationUnit {
     contentOffset: number;
     abbrevOffset: number;
     abbrevs: Abbrev[] = [];
+    root: {};
 
     constructor(protected infoReader: ByteReader, protected debugstrs: DataView) {
         const baseOffset = infoReader.offset;
@@ -860,33 +865,38 @@ class DWARFCompilationUnit {
         this.abbrevs = parseAbbrevs(abbrevReader);
         // extract slice with DIEs
         const slice = this.infoReader.slice(this.contentOffset, this.contentLength);
-        this.processDIEs(new ByteReader(slice, true));
+        this.root = this.processDIEs(new ByteReader(slice, true));
         // skip to next cu section
         this.skip();
     }
     processDIEs(reader: ByteReader) {
-        let die_stack = [];
+        let die_stack : any[] = [{children:[]}];
         // TODO: capture tree structure
         while (!reader.isEOF()) {
             let absolute_offset = reader.offset + this.contentOffset;
             let abbrev_num = Number(reader.readUnsignedLEB128());
             //console.log('DIE', absolute_offset.toString(16), abbrev_num);
             if (abbrev_num == 0) {
-                if (die_stack.length == 0) throw new Error('DIE stack underflow @ offset ' + reader.offset);
-                die_stack.pop();
+                let item = die_stack.pop();
+                if (!item) throw new Error('DIE stack underflow @ offset ' + reader.offset);
                 continue;
             }
             let abbrev = this.abbrevs[abbrev_num - 1];
             if (!abbrev) throw new Error('Invalid abbreviation number ' + abbrev_num);
             let obj = this.processDIE(reader, abbrev);
+            let top = die_stack[die_stack.length - 1];
+            if (!top.children) top.children = [];
+            top.children.push(obj);
             if (abbrev.has_children) {
                 die_stack.push(obj);
             }
         }
+        if (die_stack.length != 1) throw new Error('DIE stack not empty');
+        return die_stack[0];
     }
     processDIE(reader: ByteReader, abbrev: Abbrev) {
         //console.log('processDIE', abbrev);
-        let obj = {};
+        let obj = {tag: DwarfTag[abbrev.tag]};
         // iterate through attributes
         for (let attr of abbrev.attributes) {
             let form = attr.form;
@@ -1153,7 +1163,6 @@ class DWARFLineInfo {
             opcode -= this.opcode_base;
             let advance_address = Math.floor(opcode / this.line_range) * this.min_insn_length;
             let advance_line = (opcode % this.line_range) + this.line_base;
-            //console.log('advance', advance_address, advance_line, this.lsm);
             this.checkPassPC();
             this.lsm.address += advance_address;
             this.lsm.line_num += advance_line;
@@ -1214,7 +1223,6 @@ class DWARFLineInfo {
             case DwarfLineNumberOps.DW_LNS_extended_op: {
                 const extended_op_len = this.opReader.readUnsignedLEB128();
                 const extended_op = this.opReader.readOneByte();
-                //console.log('extended', extended_op, extended_op_len);
                 switch (extended_op) {
                     case DwarfLineNumberExtendedOps.DW_LNE_end_sequence:
                         this.lsm.end_sequence = true;
@@ -1225,11 +1233,8 @@ class DWARFLineInfo {
                     case DwarfLineNumberExtendedOps.DW_LNE_define_file:
                         // TODO
                         break;
-                        //case DwarfLineNumberExtendedOps.DW_LNE_set_discriminator:
-                        // TODO
-                        break;
                     default:
-                        //console.log('Unknown DWARF extended opcode ' + extended_op);
+                        console.log('Unknown DWARF extended opcode ' + extended_op);
                         this.opReader.offset += Number(extended_op_len);
                         break;
                 }
