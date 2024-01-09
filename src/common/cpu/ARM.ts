@@ -1811,15 +1811,6 @@ ARMCoreArm.prototype.constructVFP3Register = function(condOp, opcode, nOperandRe
 };
 
 /*
-if opc2 != '000' && !(opc2 IN "10x") then SEE "Related encodings";
-to_integer = (opc2<2> == '1');  dp_operation = (sz == 1);
-if to_integer then
-    unsigned = (opc2<0> == '0');  round_zero = (op == '1');
-    d = UInt(Vd:D);  m = if dp_operation then UInt(M:Vm) else UInt(Vm:M);
-else
-    unsigned = (op == '0');  round_nearest = FALSE;  // FALSE selects FPSCR rounding
-    m = UInt(Vm:M);  d = if dp_operation then UInt(D:Vd) else UInt(Vd:D);
-
 if ConditionPassed() then
     EncodingSpecificOperations();  CheckVFPEnabled(TRUE);
     if to_integer then
@@ -1833,24 +1824,11 @@ if ConditionPassed() then
         else
             S[d] = FixedToFP(S[m], 32, 0, unsigned, round_nearest, TRUE);
 */
-ARMCoreArm.prototype.constructVCVT = function(condOp, D, opc2, Vd, sz, op, M, Vm) {
+ARMCoreArm.prototype.constructVCVT = function(condOp, d, m, to_integer, dp_operation, unsigned, round_zero, round_nearest) {
 	var cpu : ARMCoreType = this.cpu;
 	var sregs = cpu.sfprs;
 	var dregs = cpu.dfprs;
 	var iregs = cpu.ifprs;
-	var to_integer = (opc2 & 0x4) != 0;
-	var dp_operation = (sz & 1) != 0;
-	var unsigned = (opc2 & 0x1) == 0;
-	var round_zero = false;
-	var round_nearest = false;
-	if (to_integer) {
-		unsigned = (opc2 & 0x1) == 0;
-		round_zero = (op & 0x1) != 0;
-	} else {
-		unsigned = (op & 0x1) == 0;
-		round_nearest = false;
-	}
-	//console.log("VCVT: " + hex(D) + " " + hex(opc2) + " " + hex(Vd) + " " + hex(sz) + " " + hex(op) + " " + hex(M) + " " + hex(Vm) + " " + to_integer + " " + unsigned);
 	return function() {
 		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
 		if (condOp && !condOp()) {
@@ -1860,11 +1838,11 @@ ARMCoreArm.prototype.constructVCVT = function(condOp, D, opc2, Vd, sz, op, M, Vm
 		var dest : number;
 		// get source
 		if (to_integer && dp_operation) {
-			src = dregs[M];
+			src = dregs[m];
 		} else if (to_integer) {
-			src = sregs[M];
+			src = sregs[m];
 		} else {
-			src = iregs[M];
+			src = iregs[m];
 		}
 		// convert
 		if (to_integer) {
@@ -1874,11 +1852,11 @@ ARMCoreArm.prototype.constructVCVT = function(condOp, D, opc2, Vd, sz, op, M, Vm
 		}
 		// store result
 		if (to_integer) {
-			iregs[D] = dest;
+			iregs[d] = dest;
 		} else if (dp_operation) {
-			dregs[D] = dest;
+			dregs[d] = dest;
 		} else {
-			sregs[D] = dest;
+			sregs[d] = dest;
 		}
 	};
 }
@@ -1935,8 +1913,8 @@ ARMCoreArm.prototype.constructVSTR = function(condOp, srcReg, address, single_re
 		if (single_reg) {
 			cpu.mmu.store32(addr, iregs[srcReg]);
 		} else {
-			cpu.mmu.store32(addr, iregs[srcReg*2]);
-			cpu.mmu.store32(addr+4, iregs[srcReg*2+1]);
+			cpu.mmu.store32(addr, iregs[srcReg]);
+			cpu.mmu.store32(addr+4, iregs[srcReg+1]);
 		}
 		cpu.mmu.wait32(addr);
 		cpu.mmu.wait32(cpu.gprs[ARMRegs.PC]);
@@ -2015,17 +1993,40 @@ ARMCoreArm.prototype.constructVCMP = function(condOp, d, Vd, sz, E, m, Vm) {
 	}
 }
 
-ARMCoreArm.prototype.constructVMOV = function(condOp, to_arm_reg, n, t) {
+ARMCoreArm.prototype.constructVCMP0 = function(condOp, d, Vd, sz, E) {
 	var cpu : ARMCoreType = this.cpu;
-	var srcregs = to_arm_reg ? cpu.ifprs : cpu.gprs;
-	var destregs = to_arm_reg ? cpu.gprs : cpu.ifprs;
-	//console.log('VMOV: ' + hex(to_arm_reg) + ' ' + hex(n) + ' ' + hex(t));
+	var sregs = cpu.sfprs;
+	var dregs = cpu.dfprs;
 	return function() {
 		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
 		if (condOp && !condOp()) {
 			return;
 		}
-		destregs[t] = srcregs[n];
+		let op1, op2=0;
+		if (sz) {
+			op1 = dregs[d];
+		} else {
+			op1 = sregs[d];
+		}
+		let result = FPCompare(op1, op2);
+		cpu.cpsrN = (result & 8) != 0;
+		cpu.cpsrZ = (result & 4) != 0;
+		cpu.cpsrC = (result & 2) != 0;
+		cpu.cpsrV = (result & 1) != 0;
+	}
+}
+ARMCoreArm.prototype.constructVMOV = function(condOp, to_arm_reg, n, t) {
+	var cpu : ARMCoreType = this.cpu;
+	return function() {
+		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
+		if (condOp && !condOp()) {
+			return;
+		}
+		if (to_arm_reg) {
+			cpu.gprs[t] = cpu.ifprs[n];
+		} else {
+			cpu.ifprs[n] = cpu.gprs[t];
+		}
 	}
 }
 
@@ -3976,6 +3977,7 @@ ARMCore.prototype.compileArm = function(instruction) {
 				op = this.armCompiler.constructVPOP(condOp, ((user?16:0)|crd)*2, immediate, false);
 			}
 			// VLDR, VSTR
+			// https://developer.arm.com/documentation/ddi0406/c/Application-Level-Architecture/Instruction-Details/Alphabetical-list-of-instructions/VSTR?lang=en
 			else if ((instruction & 0x0f200f00) == 0x0d000a00) {
 				immediate *= 4;
 				if (!u) immediate = -immediate;
@@ -4022,16 +4024,34 @@ ARMCore.prototype.compileArm = function(instruction) {
 			}
 			// VCVT, VCVTR, VCVT
 			// https://developer.arm.com/documentation/ddi0406/c/Application-Level-Architecture/Instruction-Details/Alphabetical-list-of-instructions/VCVT--VCVTR--between-floating-point-and-integer--Floating-point-
+			/*
+			if opc2 != '000' && !(opc2 IN "10x") then SEE "Related encodings";
+			to_integer = (opc2<2> == '1');  dp_operation = (sz == 1);
+			if to_integer then
+				unsigned = (opc2<0> == '0');  round_zero = (op == '1');
+				d = UInt(Vd:D);  m = if dp_operation then UInt(M:Vm) else UInt(Vm:M);
+			else
+				unsigned = (op == '0');  round_nearest = FALSE;  // FALSE selects FPSCR rounding
+				m = UInt(Vm:M);  d = if dp_operation then UInt(D:Vd) else UInt(Vd:D);
+			*/
 			else if ((instruction & 0x0FB80E50) == 0x0EB80A40) {
 				const cond = (instruction >> 28) & 0xf;
 				const D = (instruction >> 22) & 0x1;
 				const opc2 = (instruction >> 16) & 0x7;
 				const Vd = (instruction >> 12) & 0xf;
 				const sz = (instruction >> 8) & 0x1;
-				const to_fixed = (instruction >> 7) & 0x1;
+				const op0 = (instruction >> 7) & 0x1;
 				const M = (instruction >> 5) & 0x1;
 				const Vm = instruction & 0xf;
-				op = this.armCompiler.constructVCVT(condOp, D, opc2, Vd, sz, to_fixed, M, Vm);
+				const to_integer = opc2 & 0x4;
+				const dp_operation = sz != 0;
+				const unsigned = to_integer ? opc2 & 0x1 : 0;
+				const round_zero = op0 != 0;
+				const round_nearest = false;
+				const d = sz ? (D?16:0)|Vd : (Vd<<1)|(D?1:0);
+				const m = sz ? (M?16:0)|Vm : (Vm<<1)|(M?1:0);
+				//console.log("VCVT", d, m, opc2, to_integer, dp_operation, unsigned, round_zero, round_nearest);
+				op = this.armCompiler.constructVCVT(condOp, d, m, to_integer, dp_operation, unsigned, round_zero, round_nearest);
 				op.writesPC = false;
 			}
 			// VCVT f64/f32
@@ -4106,11 +4126,27 @@ ARMCore.prototype.compileArm = function(instruction) {
 				op = this.armCompiler.constructVCMP(condOp, d, Vd, sz, E, m, Vm);
 				op.writesPC = false;
 			}
+			// VCMP #0
+			else if ((instruction & 0x0FBF0EFF) == 0x0EB50A40) {
+				const cond = (instruction >> 28) & 0xf;
+				const D = (instruction >> 22) & 0x1;
+				const Vd = (instruction >> 12) & 0xf;
+				const sz = (instruction >> 8) & 0x1;
+				const E = (instruction >> 7) & 0x1;
+				const M = (instruction >> 5) & 0x1;
+				const Vm = instruction & 0x0000000F;
+				const d = sz ? (D?16:0)|Vd : (Vd<<1)|(D?1:0);
+				const m = sz ? (M?16:0)|Vm : (Vm<<1)|(M?1:0);
+				
+				var condOp = this.conds[cond];
+				op = this.armCompiler.constructVCMP0(condOp, d, Vd, sz, E, m, Vm);
+				op.writesPC = false;
+			}
 			// vmrs apsr_nzcv, fpscr (ignore, we always call this after CMP)
 			else if (instruction == 0xeef1fa10) {
 				op = this.armCompiler.constructNOP();
 			}
-			// VMOV
+			// VMOV - https://developer.arm.com/documentation/ddi0406/c/Application-Level-Architecture/Instruction-Details/Alphabetical-list-of-instructions/VMOV--between-ARM-core-register-and-single-precision-register-
 			else if ((instruction & 0x0FE00F10) == 0x0E000A10) {
 				const cond = (instruction >> 28) & 0xf;
 				const opc1 = (instruction >> 20) & 0x1;
@@ -4118,6 +4154,7 @@ ARMCore.prototype.compileArm = function(instruction) {
 				const Rt = (instruction >> 12) & 0xf;
 				const N = (instruction >> 7) & 0x1;
 				var condOp = this.conds[cond];
+				//console.log("VMOV", instruction.toString(16), opc1, Vn, Rt, N);
 				op = this.armCompiler.constructVMOV(condOp, opc1, (Vn<<1)|(N?1:0), Rt);
 			}
 			// vmov.32 dn[i], rn

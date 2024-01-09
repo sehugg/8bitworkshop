@@ -96,6 +96,7 @@ export class ARM32Machine extends BasicScanlineMachine
   }
 
   reset() {
+    this.ram.fill(0);
     if (this.rom) {
       this.ram.set(this.rom, this.rombase);
     }
