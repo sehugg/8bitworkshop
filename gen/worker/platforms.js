@@ -1,4 +1,25 @@
 "use strict";
+/*
+ * Copyright (c) 2024 Steven E. Hugg
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PLATFORM_PARAMS = void 0;
 exports.PLATFORM_PARAMS = {
@@ -335,6 +356,13 @@ exports.PLATFORM_PARAMS = {
         libargs: ['crt0.o', 'none.lib'],
         extra_link_files: ['crt0.o', 'exidy.cfg'],
         //extra_compile_files: ['exidy.h'],
+    },
+    'arm32': {
+        arch: 'arm32',
+        define: ['__ARM__', 'DISABLE_UNIMPLEMENTED_LIBC_APIS', 'PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_SOFT'],
+        extra_compile_args: ['-I./arch/arm/include', '-I./openlibm/include', '-I./openlibm/src', '-I./printf/src'],
+        extra_link_files: ['crt0.c', 'libc.a'],
+        extra_link_args: ['crt0.c', '-lc'],
     },
 };
 exports.PLATFORM_PARAMS['sms-sms-libcv'] = exports.PLATFORM_PARAMS['sms-sg1000-libcv'];

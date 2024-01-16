@@ -127,13 +127,15 @@ div.mem_info {
   bottom: 10px;
   background-color: #333;
   color: #66ff66;
-  white-space: pre;
-  padding: 20px;
   z-index: 12;
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
   font-size: 12pt;
   box-shadow: 0px 0px 8px rgba(0,0,0,.5);
-  max-height: 90vh;
+}
+div.mem_info_msg {
+  white-space: pre;
+  padding: 20px;
+  max-height: 80vh;
   overflow-y: auto;
 }
 div.mem_info a {
@@ -147,6 +149,9 @@ div.mem_info a:hover {
 }
 div.mem_info a.selected {
  color: #ffffff;
+}
+div.mem_info button {
+  color: #fff;
 }
 .mem_info_links {
  text-align:right;

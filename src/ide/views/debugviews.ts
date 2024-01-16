@@ -23,7 +23,8 @@ export class MemoryView implements ProjectView {
   dumplines;
   maindiv : HTMLElement;
   recreateOnResize = true;
-  totalRows = 0x1400;
+  hibits = 0; // a hack to make it work with 32-bit addresses
+  totalRows = 0x1400; // a little more room in case we split lots of lines
 
   createDiv(parent : HTMLElement) {
     var div = document.createElement('div');
@@ -44,7 +45,7 @@ export class MemoryView implements ProjectView {
         var linediv = document.createElement("div");
         if (this.dumplines) {
           var dlr = this.dumplines[row];
-          if (dlr) linediv.classList.add('seg_' + this.getMemorySegment(this.dumplines[row].a));
+          if (dlr) linediv.classList.add('seg_' + this.getMemorySegment(this.dumplines[row].a | this.hibits));
         }
         linediv.appendChild(document.createTextNode(s));
         return linediv;
@@ -59,7 +60,8 @@ export class MemoryView implements ProjectView {
 
   scrollToAddress(addr : number) {
     if (this.dumplines) {
-      this.memorylist.scrollToItem(this.findMemoryWindowLine(addr));
+      this.hibits = addr & 0xffff0000;
+      this.memorylist.scrollToItem(this.findMemoryWindowLine(addr & 0xffff));
     }
   }
 
@@ -101,7 +103,7 @@ export class MemoryView implements ProjectView {
     for (var i=0; i<n1; i++) s += '   ';
     if (n1 > 8) s += ' ';
     for (var i=n1; i<n2; i++) {
-      var read = this.readAddress(offset+i);
+      var read = this.readAddress((offset+i) | this.hibits);
       if (i==8) s += ' ';
       s += ' ' + (typeof read == 'number' ? hex(read,2) : '??');
     }
@@ -130,7 +132,7 @@ export class MemoryView implements ProjectView {
       var sym;
       for (const _nextofs of Object.keys(addr2sym)) {
         var nextofs = parseInt(_nextofs); // convert from string (stupid JS)
-        var nextsym = addr2sym[nextofs];
+        var nextsym = addr2sym[nextofs | this.hibits];
         if (sym) {
           // ignore certain symbols
           if (ignoreSymbol(sym)) {

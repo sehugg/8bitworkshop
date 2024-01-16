@@ -721,15 +721,20 @@ class BaseMachinePlatform extends BaseDebugPlatform {
     }
     advance(novideo) {
         let trap = this.getDebugCallback();
-        var steps = this.machine.advanceFrame(trap);
-        if (!novideo && this.video) {
-            this.video.updateFrame();
-            this.updateVideoDebugger();
+        try {
+            var steps = this.machine.advanceFrame(trap);
+            return steps;
         }
-        if (!novideo && this.serialVisualizer) {
-            this.serialVisualizer.refresh();
+        finally {
+            // in case EmuHalt is thrown...
+            if (!novideo && this.video) {
+                this.video.updateFrame();
+                this.updateVideoDebugger();
+            }
+            if (!novideo && this.serialVisualizer) {
+                this.serialVisualizer.refresh();
+            }
         }
-        return steps;
     }
     updateVideoDebugger() {
         var _a;

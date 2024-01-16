@@ -1,9 +1,32 @@
 "use strict";
+/*
+ * Copyright (c) 2024 Steven E. Hugg
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.assembleVASMARM = exports.assembleARMIPS = void 0;
+exports.linkARMTCC = exports.compileARMTCC = exports.assembleVASMARM = exports.assembleARMIPS = void 0;
+const binutils_1 = require("../../common/binutils");
 const util_1 = require("../../common/util");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
+const wasiutils_1 = require("../wasiutils");
 const wasmutils_1 = require("../wasmutils");
 function assembleARMIPS(step) {
     (0, wasmutils_1.loadNative)("armips");
@@ -239,4 +262,182 @@ function assembleVASMARM(step) {
     }
 }
 exports.assembleVASMARM = assembleVASMARM;
+function tccErrorMatcher(errors, mainpath) {
+    return (0, listingutils_1.makeErrorMatcher)(errors, /([^:]+|tcc):(\d+|\s*error): (.+)/, 2, 3, mainpath, 1);
+    ;
+}
+let armtcc_fs = null;
+async function compileARMTCC(step) {
+    (0, wasmutils_1.loadNative)("arm-tcc");
+    const params = step.params;
+    const errors = [];
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.c" });
+    const objpath = step.prefix + ".o";
+    const error_fn = tccErrorMatcher(errors, step.path);
+    if (!armtcc_fs) {
+        armtcc_fs = await (0, wasiutils_1.loadWASIFilesystemZip)("arm32-fs.zip");
+    }
+    if ((0, builder_1.staleFiles)(step, [objpath])) {
+        const armtcc = await wasmutils_1.emglobal.armtcc({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('arm-tcc'),
+            noInitialRun: true,
+            print: error_fn,
+            printErr: error_fn,
+        });
+        var args = ['-c', '-I.', '-I./include',
+            //'-std=c11',
+            '-funsigned-char',
+            //'-Wwrite-strings',
+            '-gdwarf-2',
+            '-o', objpath];
+        if (params.define) {
+            params.define.forEach((x) => args.push('-D' + x));
+        }
+        if (params.extra_compile_args) {
+            args = args.concat(params.extra_compile_args);
+        }
+        args.push(step.path);
+        const FS = armtcc.FS;
+        // TODO: only should do once?
+        armtcc_fs.getDirectories().forEach((dir) => {
+            if (dir.name != '/')
+                FS.mkdir(dir.name);
+        });
+        armtcc_fs.getFiles().forEach((file) => {
+            FS.writeFile(file.name, file.getBytes(), { encoding: 'binary' });
+        });
+        (0, builder_1.populateExtraFiles)(step, FS, params.extra_compile_files);
+        (0, builder_1.populateFiles)(step, FS, {
+            mainFilePath: step.path,
+            processFn: (path, code) => {
+                if (typeof code === 'string') {
+                    code = (0, builder_1.processEmbedDirective)(code);
+                }
+                return code;
+            }
+        });
+        (0, wasmutils_1.execMain)(step, armtcc, args);
+        if (errors.length)
+            return { errors: errors };
+        var objout = FS.readFile(objpath, { encoding: 'binary' });
+        (0, builder_1.putWorkFile)(objpath, objout);
+    }
+    return {
+        linktool: "armtcclink",
+        files: [objpath],
+        args: [objpath]
+    };
+}
+exports.compileARMTCC = compileARMTCC;
+async function linkARMTCC(step) {
+    (0, wasmutils_1.loadNative)("arm-tcc");
+    const params = step.params;
+    const errors = [];
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.c" });
+    const objpath = "main.elf";
+    const error_fn = tccErrorMatcher(errors, step.path);
+    if ((0, builder_1.staleFiles)(step, [objpath])) {
+        const armtcc = await wasmutils_1.emglobal.armtcc({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('arm-tcc'),
+            noInitialRun: true,
+            print: error_fn,
+            printErr: error_fn,
+        });
+        var args = ['-L.', '-nostdlib', '-nostdinc',
+            '-Wl,--oformat=elf32-arm',
+            //'-Wl,-section-alignment=0x100000',
+            '-gdwarf-2',
+            '-o', objpath];
+        if (params.define) {
+            params.define.forEach((x) => args.push('-D' + x));
+        }
+        args = args.concat(step.files);
+        if (params.extra_link_args) {
+            args = args.concat(params.extra_link_args);
+        }
+        const FS = armtcc.FS;
+        (0, builder_1.populateExtraFiles)(step, FS, params.extra_link_files);
+        (0, builder_1.populateFiles)(step, FS);
+        (0, wasmutils_1.execMain)(step, armtcc, args);
+        if (errors.length)
+            return { errors: errors };
+        var objout = FS.readFile(objpath, { encoding: 'binary' });
+        (0, builder_1.putWorkFile)(objpath, objout);
+        if (!(0, builder_1.anyTargetChanged)(step, [objpath]))
+            return;
+        // parse ELF and create ROM
+        const elfparser = new binutils_1.ELFParser(objout);
+        let maxaddr = 0;
+        elfparser.sectionHeaders.forEach((section, index) => {
+            maxaddr = Math.max(maxaddr, section.vmaddr + section.size);
+        });
+        let rom = new Uint8Array(maxaddr);
+        elfparser.sectionHeaders.forEach((section, index) => {
+            if (section.flags & 0x2) {
+                let data = objout.slice(section.offset, section.offset + section.size);
+                //console.log(section.name, section.vmaddr.toString(16), data);
+                rom.set(data, section.vmaddr);
+            }
+        });
+        // set vectors, entry point etc
+        const obj32 = new Uint32Array(rom.buffer);
+        const start = elfparser.entry;
+        obj32[0] = start; // set reset vector
+        obj32[1] = start; // set undefined vector
+        obj32[2] = start; // set swi vector
+        obj32[3] = start; // set prefetch abort vector
+        obj32[4] = start; // set data abort vector
+        obj32[5] = start; // set reserved vector
+        obj32[6] = start; // set irq vector
+        obj32[7] = start; // set fiq vector
+        let symbolmap = {};
+        elfparser.getSymbols().forEach((symbol, index) => {
+            symbolmap[symbol.name] = symbol.value;
+        });
+        let segments = [];
+        elfparser.sectionHeaders.forEach((section, index) => {
+            if ((section.flags & 0x2) && section.size) {
+                segments.push({
+                    name: section.name,
+                    start: section.vmaddr,
+                    size: section.size,
+                    type: section.type,
+                });
+            }
+        });
+        const listings = {};
+        const dwarf = new binutils_1.DWARFParser(elfparser);
+        dwarf.lineInfos.forEach((lineInfo) => {
+            lineInfo.files.forEach((file) => {
+                if (!file || !file.lines)
+                    return;
+                file.lines.forEach((line) => {
+                    const filename = line.file;
+                    const offset = line.address;
+                    const path = (0, builder_1.getPrefix)(filename) + '.lst';
+                    const linenum = line.line;
+                    let lst = listings[path];
+                    if (lst == null) {
+                        lst = listings[path] = { lines: [] };
+                    }
+                    lst.lines.push({
+                        path,
+                        line: linenum,
+                        offset
+                    });
+                });
+            });
+        });
+        //console.log(listings);
+        return {
+            output: rom,
+            listings: listings,
+            errors: errors,
+            symbolmap: symbolmap,
+            segments: segments,
+            debuginfo: dwarf
+        };
+    }
+}
+exports.linkARMTCC = linkARMTCC;
 //# sourceMappingURL=arm.js.map

@@ -251,7 +251,8 @@ class CodeProject {
         var depfiles = [];
         msg.updates.push({ path: mainfilename, data: maintext });
         this.filename2path[mainfilename] = this.mainPath;
-        let usesRemoteTool = this.getToolForFilename(mainfilename).startsWith('remote:');
+        const tool = this.getToolForFilename(this.mainPath);
+        let usesRemoteTool = tool.startsWith('remote:');
         for (var dep of depends) {
             // remote tools send both includes and linked files in one build step
             if (!dep.link || usesRemoteTool) {

@@ -115,6 +115,7 @@ const TOOL_TO_SOURCE_STYLE = {
     'ecs': 'ecs',
     'remote:llvm-mos': 'text/x-csrc',
     'cc7800': 'text/x-csrc',
+    'armtcc': 'text/x-csrc',
 };
 // TODO: move into tool class
 const TOOL_TO_HELPURL = {
@@ -874,13 +875,15 @@ function showDebugInfo(state) {
     if (!(0, baseplatform_1.isDebuggable)(exports.platform))
         return;
     var meminfo = $("#mem_info");
+    var meminfomsg = $("#mem_info_msg");
     var allcats = exports.platform.getDebugCategories();
     if (allcats && !debugCategory)
         debugCategory = allcats[0];
     var s = state && exports.platform.getDebugInfo(debugCategory, state);
-    if (s) {
+    if (typeof s === 'string') {
         var hs = lastDebugInfo ? (0, util_1.highlightDifferences)(lastDebugInfo, s) : s;
-        meminfo.show().html(hs);
+        meminfo.show();
+        meminfomsg.html(hs);
         var catspan = $('<div class="mem_info_links">');
         var addCategoryLink = (cat) => {
             var catlink = $('<a>' + cat + '</a>');
@@ -897,8 +900,8 @@ function showDebugInfo(state) {
         for (var cat of allcats) {
             addCategoryLink(cat);
         }
-        meminfo.append('<br>');
-        meminfo.append(catspan);
+        meminfomsg.append('<br>');
+        meminfomsg.append(catspan);
         lastDebugInfo = s;
     }
     else {

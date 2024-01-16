@@ -1,11 +1,25 @@
 "use strict";
-// https://dev.to/ndesmic/building-a-minimal-wasi-polyfill-for-browsers-4nel
-// http://www.wasmtutor.com/webassembly-barebones-wasi
-// https://github.com/emscripten-core/emscripten/blob/c017fc2d6961962ee87ae387462a099242dfbbd2/src/library_wasi.js#L451
-// https://github.com/emscripten-core/emscripten/blob/c017fc2d6961962ee87ae387462a099242dfbbd2/src/library_fs.js
-// https://github.com/WebAssembly/wasi-libc/blob/main/libc-bottom-half/sources/preopens.c
-// https://fossies.org/linux/wasm3/source/extra/wasi_core.h
-// https://wasix.org/docs/api-reference/wasi/fd_read
+/*
+ * Copyright (c) 2024 Steven E. Hugg
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, state, kind, f) {
     if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
@@ -20,6 +34,13 @@ var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (
 var _WASIRunner_instance, _WASIRunner_memarr8, _WASIRunner_memarr32, _WASIRunner_args, _WASIRunner_envvars;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WASIRunner = exports.WASIMemoryFilesystem = exports.WASIFileDescriptor = exports.WASIErrors = exports.FDOpenFlags = exports.FDFlags = exports.FDRights = exports.FDType = void 0;
+// https://dev.to/ndesmic/building-a-minimal-wasi-polyfill-for-browsers-4nel
+// http://www.wasmtutor.com/webassembly-barebones-wasi
+// https://github.com/emscripten-core/emscripten/blob/c017fc2d6961962ee87ae387462a099242dfbbd2/src/library_wasi.js#L451
+// https://github.com/emscripten-core/emscripten/blob/c017fc2d6961962ee87ae387462a099242dfbbd2/src/library_fs.js
+// https://github.com/WebAssembly/wasi-libc/blob/main/libc-bottom-half/sources/preopens.c
+// https://fossies.org/linux/wasm3/source/extra/wasi_core.h
+// https://wasix.org/docs/api-reference/wasi/fd_read
 const use_debug = true;
 const debug = use_debug ? console.log : () => { };
 const warning = console.log;
@@ -248,6 +269,14 @@ class WASIMemoryFilesystem {
     putDirectory(name, rights) {
         if (!rights)
             rights = FDRights.PATH_OPEN | FDRights.PATH_CREATE_DIRECTORY | FDRights.PATH_CREATE_FILE;
+        if (name != '/' && name.endsWith('/'))
+            name = name.substring(0, name.length - 1);
+        // add parent directory(s)
+        const parent = name.substring(0, name.lastIndexOf('/'));
+        if (parent && parent != name) {
+            this.putDirectory(parent, rights);
+        }
+        // add directory
         const dir = new WASIFileDescriptor(name, FDType.DIRECTORY, rights);
         this.dirs.set(name, dir);
         return dir;
@@ -271,6 +300,12 @@ class WASIMemoryFilesystem {
             file = (_a = this.parent) === null || _a === void 0 ? void 0 : _a.getFile(name);
         }
         return file;
+    }
+    getDirectories() {
+        return [...this.dirs.values()];
+    }
+    getFiles() {
+        return [...this.files.values()];
     }
 }
 exports.WASIMemoryFilesystem = WASIMemoryFilesystem;

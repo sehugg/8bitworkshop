@@ -873,15 +873,19 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
 
   advance(novideo:boolean) {
     let trap = this.getDebugCallback();
-    var steps = this.machine.advanceFrame(trap);
-    if (!novideo && this.video) {
-      this.video.updateFrame();
-      this.updateVideoDebugger();
+    try {
+      var steps = this.machine.advanceFrame(trap);
+      return steps;
+    } finally {
+      // in case EmuHalt is thrown...
+      if (!novideo && this.video) {
+        this.video.updateFrame();
+        this.updateVideoDebugger();
+      }
+      if (!novideo && this.serialVisualizer) {
+        this.serialVisualizer.refresh();
+      }
     }
-    if (!novideo && this.serialVisualizer) {
-      this.serialVisualizer.refresh();
-    }
-    return steps;
   }
 
   updateVideoDebugger() {

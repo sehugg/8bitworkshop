@@ -136,6 +136,7 @@ const TOOL_TO_SOURCE_STYLE = {
   'ecs': 'ecs',
   'remote:llvm-mos': 'text/x-csrc',
   'cc7800': 'text/x-csrc',
+  'armtcc': 'text/x-csrc',
 }
 
 // TODO: move into tool class
@@ -908,13 +909,15 @@ function hideDebugInfo() {
 function showDebugInfo(state?) {
   if (!isDebuggable(platform)) return;
   var meminfo = $("#mem_info");
+  var meminfomsg = $("#mem_info_msg");
   var allcats = platform.getDebugCategories();
   if (allcats && !debugCategory)
     debugCategory = allcats[0];
   var s = state && platform.getDebugInfo(debugCategory, state);
-  if (s) {
+  if (typeof s === 'string') {
     var hs = lastDebugInfo ? highlightDifferences(lastDebugInfo, s) : s;
-    meminfo.show().html(hs);
+    meminfo.show();
+    meminfomsg.html(hs);
     var catspan = $('<div class="mem_info_links">');
     var addCategoryLink = (cat:string) => {
       var catlink = $('<a>'+cat+'</a>');
@@ -931,8 +934,8 @@ function showDebugInfo(state?) {
     for (var cat of allcats) {
       addCategoryLink(cat);
     }
-    meminfo.append('<br>');
-    meminfo.append(catspan);
+    meminfomsg.append('<br>');
+    meminfomsg.append(catspan);
     lastDebugInfo = s;
   } else {
     hideDebugInfo();

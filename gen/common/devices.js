@@ -88,6 +88,15 @@ class BasicHeadlessMachine {
             write: (a, v) => {
                 this.probe.logWrite(a, v);
                 membus.write(a, v);
+            },
+            read32: (a) => {
+                let val = membus.read32(a);
+                this.probe.logRead(a, val);
+                return val;
+            },
+            write32: (a, v) => {
+                this.probe.logWrite(a, v);
+                membus.write32(a, v);
             }
         };
     }
@@ -104,7 +113,7 @@ class BasicHeadlessMachine {
             write: (a, v) => {
                 this.probe.logIOWrite(a, v);
                 iobus.write(a, v);
-            }
+            },
         };
     }
     probeDMABus(iobus) {

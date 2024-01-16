@@ -620,7 +620,7 @@ function AddressDecoder(table, options) {
                 s += "a&=" + mask + ";";
             s += "return this.__fn" + i + "(a,v)&0xff;}\n";
         }
-        s += "return 0;"; // TODO: noise()?
+        s += "return " + ((options === null || options === void 0 ? void 0 : options.defaultval) | 0) + ";";
         return new Function('a', 'v', s);
     }
     return makeFunction().bind(self);

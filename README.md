@@ -45,19 +45,21 @@ Note: Github tests may fail due to lack of API key.
 
 ## License
 
-Copyright © 2016-2022 [Steven Hugg](https://github.com/sehugg).
+Copyright © 2016-2024 [Steven E. Hugg](https://github.com/sehugg).
 
-This project is [GPL-3.0](https://github.com/sehugg/8bitworkshop/blob/master/LICENSE) licensed.
 
-Dependencies retain their original licenses.
+This project, unless specifically noted, is multi-licensed.
+You may choose to adhere to the terms of either the [GPL-3.0](https://github.com/sehugg/8bitworkshop/blob/master/LICENSE) License for the entire project or respect the individual licenses of its dependencies and included code samples, as applicable.
 
-All included code samples (all files under the presets/ directory) are licensed under
+This project includes various dependencies, modules, and components that retain their original licenses. 
+For detailed licensing information for each dependency, please refer to the respective files and documentation.
+
+All included code samples located in the presets/ directory are licensed under
 [CC0](https://creativecommons.org/publicdomain/zero/1.0/)
-unless otherwise licensed.
+unless a different license is explicitly stated within the specific code sample.
+
 
 ## Dependencies
-
-The IDE uses custom forks for many of these, found at https://github.com/sehugg?tab=repositories
 
 ### Emulators
 
@@ -84,6 +86,7 @@ The IDE uses custom forks for many of these, found at https://github.com/sehugg?
 * https://github.com/wiz-lang/wiz
 * https://github.com/sylefeb/Silice
 * https://github.com/steux/cc7800
+* https://bellard.org/tcc/
 
 ### Assemblers/Linkers
 
@@ -112,6 +115,8 @@ The IDE uses custom forks for many of these, found at https://github.com/sehugg?
 * https://github.com/sehugg/8bitworkshop-compilers
 * https://github.com/sehugg/8bit-tools
 * https://github.com/sehugg/awesome-8bitgamedev
+* https://github.com/sehugg?tab=repositories
+
 
 ## Tool Server (experimental)
 

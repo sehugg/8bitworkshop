@@ -1,3 +1,24 @@
+/*
+ * Copyright (c) 2024 Steven E. Hugg
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
 // https://dev.to/ndesmic/building-a-minimal-wasi-polyfill-for-browsers-4nel
 // http://www.wasmtutor.com/webassembly-barebones-wasi
@@ -154,7 +175,7 @@ export enum WASIErrors {
 
 export class WASIFileDescriptor {
     fdindex: number = -1;
-    data: Uint8Array = new Uint8Array(16);
+    protected data: Uint8Array = new Uint8Array(16);
     flags: number = 0;
     size: number = 0;
     offset: number = 0;
@@ -224,6 +245,8 @@ class WASIStreamingFileDescriptor extends WASIFileDescriptor {
 
 export interface WASIFilesystem {
     getFile(name: string) : WASIFileDescriptor;
+    getFiles() : WASIFileDescriptor[];
+    getDirectories() : WASIFileDescriptor[];
 }
 
 export class WASIMemoryFilesystem implements WASIFilesystem {
@@ -239,6 +262,13 @@ export class WASIMemoryFilesystem implements WASIFilesystem {
     }
     putDirectory(name: string, rights?: number) {
         if (!rights) rights = FDRights.PATH_OPEN | FDRights.PATH_CREATE_DIRECTORY | FDRights.PATH_CREATE_FILE;
+        if (name != '/' && name.endsWith('/')) name = name.substring(0, name.length - 1);
+        // add parent directory(s)
+        const parent = name.substring(0, name.lastIndexOf('/'));
+        if (parent && parent != name) {
+            this.putDirectory(parent, rights);
+        }
+        // add directory
         const dir = new WASIFileDescriptor(name, FDType.DIRECTORY, rights);
         this.dirs.set(name, dir);
         return dir;
@@ -260,6 +290,12 @@ export class WASIMemoryFilesystem implements WASIFilesystem {
             file = this.parent?.getFile(name);
         }
         return file;
+    }
+    getDirectories() {
+        return [...this.dirs.values()];
+    }
+    getFiles() {
+        return [...this.files.values()];
     }
 }
 

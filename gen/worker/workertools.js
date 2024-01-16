@@ -75,6 +75,8 @@ exports.TOOLS = {
     'ecs': ecs.assembleECS,
     'remote': remote.buildRemote,
     'cc7800': cc7800.compileCC7800,
+    'armtcc': arm.compileARMTCC,
+    'armtcclink': arm.linkARMTCC,
 };
 exports.TOOL_PRELOADFS = {
     'cc65-apple2': '65-apple2',

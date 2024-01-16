@@ -27,7 +27,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 */
 
-import { Bus, CPU, InstructionBased, SavesState } from "../devices";
+import { Bus, Bus32, CPU, InstructionBased, SavesState } from "../devices";
 import { EmuHalt } from "../emu";
 import { hex } from "../util";
 
@@ -103,12 +103,18 @@ export interface ARMCoreState {
 	bankedRegisters: number[][],
 	spsr: number,
 	bankedSPSRs: number[],
+	sfprs: number[],
+	dfprs: number[],
+	ifprs: number[],
 	cycles: number,
 	instructionWidth: 2 | 4
 }
 
 interface ARMCoreType {
 	gprs: Int32Array;
+	sfprs: Float32Array;
+	dfprs: Float64Array;
+	ifprs: Int32Array;
 	PC: number;
 	SP: number;
 	LR: number;
@@ -658,6 +664,11 @@ ARMCoreArm.prototype.constructAddressingMode4Writeback = function(immediate, off
 		return addr;
 	}
 };
+
+ARMCoreArm.prototype.constructNOP = function() {
+	this.writesPC = false;
+	return function() { };
+}
 
 ARMCoreArm.prototype.constructADC = function(rd, rn, shiftOp, condOp) {
 	var cpu : ARMCoreType = this.cpu;
@@ -1760,6 +1771,265 @@ ARMCoreArm.prototype.constructUMULLS = function(rd, rn, rs, rm, condOp) {
 	};
 };
 
+ARMCoreArm.prototype.constructVFP3Register = function(condOp, opcode, nOperandReg, destReg, sz, opcode2, mOperandReg) {
+	var cpu : ARMCoreType = this.cpu;
+	var fpregs = sz ? cpu.dfprs : cpu.sfprs;
+	//console.log("VFP3Register: " + hex(opcode) + " " + hex(nOperandReg) + " " + hex(destReg) + " " + hex(number) + " " + hex(opcode2) + " " + hex(mOperandReg));
+	return function() {
+		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
+		if (condOp && !condOp()) {
+			return;
+		}
+		switch (opcode) {
+		case 2: // VMUL
+			switch (opcode2) {
+				case 0:
+					fpregs[destReg] = fpregs[nOperandReg] * fpregs[mOperandReg];
+					return;
+			}
+			break;
+		case 3: // VADD/VSUB
+			switch (opcode2) {
+				case 0:
+					fpregs[destReg] = fpregs[nOperandReg] + fpregs[mOperandReg];
+					return;
+				case 2:
+					fpregs[destReg] = fpregs[nOperandReg] - fpregs[mOperandReg];
+					return;
+			}
+			break;
+		case 8: // VDIV
+			switch (opcode2) {
+				case 0:
+					fpregs[destReg] = fpregs[nOperandReg] / fpregs[mOperandReg];
+					return;
+			}
+			break;
+		}
+		console.log("Unsupported instruction: " + hex(opcode) + " " + hex(opcode2));
+	};
+};
+
+/*
+if ConditionPassed() then
+    EncodingSpecificOperations();  CheckVFPEnabled(TRUE);
+    if to_integer then
+        if dp_operation then
+            S[d] = FPToFixed(D[m], 32, 0, unsigned, round_zero, TRUE);
+        else
+            S[d] = FPToFixed(S[m], 32, 0, unsigned, round_zero, TRUE);
+    else
+        if dp_operation then
+            D[d] = FixedToFP(S[m], 64, 0, unsigned, round_nearest, TRUE);
+        else
+            S[d] = FixedToFP(S[m], 32, 0, unsigned, round_nearest, TRUE);
+*/
+ARMCoreArm.prototype.constructVCVT = function(condOp, d, m, to_integer, dp_operation, unsigned, round_zero, round_nearest) {
+	var cpu : ARMCoreType = this.cpu;
+	var sregs = cpu.sfprs;
+	var dregs = cpu.dfprs;
+	var iregs = cpu.ifprs;
+	return function() {
+		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
+		if (condOp && !condOp()) {
+			return;
+		}
+		var src : number;
+		var dest : number;
+		// get source
+		if (to_integer && dp_operation) {
+			src = dregs[m];
+		} else if (to_integer) {
+			src = sregs[m];
+		} else {
+			src = iregs[m];
+		}
+		// convert
+		if (to_integer) {
+			dest = round_zero ? Math.floor(src) : Math.round(src);
+		} else {
+			dest = src;
+		}
+		// store result
+		if (to_integer) {
+			iregs[d] = dest;
+		} else if (dp_operation) {
+			dregs[d] = dest;
+		} else {
+			sregs[d] = dest;
+		}
+	};
+}
+
+ARMCoreArm.prototype.constructVCVTF = function(condOp, d, m, double_to_single) {
+	var cpu : ARMCoreType = this.cpu;
+	var sregs = cpu.sfprs;
+	var dregs = cpu.dfprs;
+	return function() {
+		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
+		if (condOp && !condOp()) {
+			return;
+		}
+		var n = double_to_single ? dregs[m] : sregs[m];
+		// store result
+		if (double_to_single) {
+			sregs[d] = n;
+		} else {
+			dregs[d] = n;
+		}
+	};
+
+}
+
+ARMCoreArm.prototype.constructVLDR = function(condOp, destReg, address, single_reg) {
+	var cpu : ARMCoreType = this.cpu;
+	var iregs = cpu.ifprs;
+	return function() {
+		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
+		if (condOp && !condOp()) {
+			return;
+		}
+		let addr = address();
+		if (single_reg) {
+			iregs[destReg] = cpu.mmu.load32(addr);
+		} else {
+			iregs[destReg] = cpu.mmu.load32(addr);
+			iregs[destReg+1] = cpu.mmu.load32(addr+4);
+		}
+		cpu.mmu.wait32(addr);
+		cpu.mmu.wait32(cpu.gprs[ARMRegs.PC]);
+	};
+};
+
+ARMCoreArm.prototype.constructVSTR = function(condOp, srcReg, address, single_reg) {
+	var cpu : ARMCoreType = this.cpu;
+	var iregs = cpu.ifprs;
+	return function() {
+		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
+		if (condOp && !condOp()) {
+			return;
+		}
+		let addr = address();
+		if (single_reg) {
+			cpu.mmu.store32(addr, iregs[srcReg]);
+		} else {
+			cpu.mmu.store32(addr, iregs[srcReg]);
+			cpu.mmu.store32(addr+4, iregs[srcReg+1]);
+		}
+		cpu.mmu.wait32(addr);
+		cpu.mmu.wait32(cpu.gprs[ARMRegs.PC]);
+	};
+}
+
+ARMCoreArm.prototype.constructVPUSH = function(condOp, d, regs, single_regs) {
+	var cpu : ARMCoreType = this.cpu;
+	var iregs = cpu.ifprs;
+	return function() {
+		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
+		if (condOp && !condOp()) {
+			return;
+		}
+		let addr = cpu.gprs[ARMRegs.SP] - regs * 4;
+		cpu.gprs[ARMRegs.SP] = addr;
+		for (let i = 0; i < regs; ++i) {
+			cpu.mmu.store32(addr, iregs[d+i]);
+			addr += 4;
+		}
+	};
+}
+
+ARMCoreArm.prototype.constructVPOP = function(condOp, d, regs, single_regs) {
+	var cpu : ARMCoreType = this.cpu;
+	var iregs = cpu.ifprs;
+	return function() {
+		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
+		if (condOp && !condOp()) {
+			return;
+		}
+		let addr = cpu.gprs[ARMRegs.SP];
+		cpu.gprs[ARMRegs.SP] += regs * 4;
+		for (let i = 0; i < regs; ++i) {
+			iregs[d+i] = cpu.mmu.load32(addr);
+			addr += 4;
+		}
+	};
+}
+
+function FPCompare(op1: number, op2: number) {
+	/* assert N IN {32,64};
+    fpscr_val = if fpscr_controlled then FPSCR else StandardFPSCRValue();
+    (type1,sign1,value1) = FPUnpack(op1, fpscr_val);
+    (type2,sign2,value2) = FPUnpack(op2, fpscr_val); */
+	if (isNaN(op1) || isNaN(op2)) {
+		return 0b0011;
+	}
+	if (op1 == op2) return 0b0110;
+	if (op1 < op2) return 0b1000;
+	else return 0b0010;
+}
+
+ARMCoreArm.prototype.constructVCMP = function(condOp, d, Vd, sz, E, m, Vm) {
+	var cpu : ARMCoreType = this.cpu;
+	var sregs = cpu.sfprs;
+	var dregs = cpu.dfprs;
+	return function() {
+		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
+		if (condOp && !condOp()) {
+			return;
+		}
+		let op1, op2;
+		if (sz) {
+			op1 = dregs[d];
+			op2 = dregs[m];
+		} else {
+			op1 = sregs[d];
+			op2 = sregs[m];
+		}
+		let result = FPCompare(op1, op2);
+		cpu.cpsrN = (result & 8) != 0;
+		cpu.cpsrZ = (result & 4) != 0;
+		cpu.cpsrC = (result & 2) != 0;
+		cpu.cpsrV = (result & 1) != 0;
+	}
+}
+
+ARMCoreArm.prototype.constructVCMP0 = function(condOp, d, Vd, sz, E) {
+	var cpu : ARMCoreType = this.cpu;
+	var sregs = cpu.sfprs;
+	var dregs = cpu.dfprs;
+	return function() {
+		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
+		if (condOp && !condOp()) {
+			return;
+		}
+		let op1, op2=0;
+		if (sz) {
+			op1 = dregs[d];
+		} else {
+			op1 = sregs[d];
+		}
+		let result = FPCompare(op1, op2);
+		cpu.cpsrN = (result & 8) != 0;
+		cpu.cpsrZ = (result & 4) != 0;
+		cpu.cpsrC = (result & 2) != 0;
+		cpu.cpsrV = (result & 1) != 0;
+	}
+}
+ARMCoreArm.prototype.constructVMOV = function(condOp, to_arm_reg, n, t) {
+	var cpu : ARMCoreType = this.cpu;
+	return function() {
+		cpu.mmu.waitPrefetch32(cpu.gprs[ARMRegs.PC]);
+		if (condOp && !condOp()) {
+			return;
+		}
+		if (to_arm_reg) {
+			cpu.gprs[t] = cpu.ifprs[n];
+		} else {
+			cpu.ifprs[n] = cpu.gprs[t];
+		}
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 function ARMCoreThumb(cpu) {
@@ -2658,6 +2928,9 @@ function ARMCore() {
 	this.generateConds();
 
 	this.gprs = new Int32Array(16);
+	this.dfprs = new Float64Array(16);
+	this.sfprs = new Float32Array(this.dfprs.buffer); // regs shared with dfprs
+	this.ifprs = new Int32Array(this.dfprs.buffer); // regs shared with dfprs
 };
 
 ARMCore.prototype.resetCPU = function(startOffset) {
@@ -2665,6 +2938,7 @@ ARMCore.prototype.resetCPU = function(startOffset) {
 		this.gprs[i] = 0;
 	}
 	this.gprs[ARMRegs.PC] = startOffset + ARMConstants.WORD_SIZE_ARM;
+	this.dfprs.set(0); // no need to zero the sfprs, since they share the same buffer
 
 	this.loadInstruction = this.loadInstructionArm;
 	this.execMode = ARMMode.MODE_ARM;
@@ -2769,6 +3043,9 @@ ARMCore.prototype.freeze = function() : ARMCoreState {
 			this.gprs[14],
 			this.gprs[15],
 		],
+		'sfprs': this.sfprs.slice(),
+		'dfprs': this.dfprs.slice(),
+		'ifprs': this.ifprs.slice(),
 		'mode': this.mode,
 		'cpsrI': this.cpsrI,
 		'cpsrF': this.cpsrF,
@@ -2849,6 +3126,8 @@ ARMCore.prototype.defrost = function(frost: ARMCoreState) {
 	this.gprs[13] = frost.gprs[13];
 	this.gprs[14] = frost.gprs[14];
 	this.gprs[15] = frost.gprs[15];
+
+	this.ifprs.set(frost.ifprs); // regs shared with sfprs
 
 	this.mode = frost.mode;
 	this.cpsrI = frost.cpsrI;
@@ -3538,6 +3817,11 @@ ARMCore.prototype.compileArm = function(instruction) {
 			var load = instruction & 0x00100000;
 			var b = instruction & 0x00400000;
 			var i = instruction & 0x02000000;
+			// test for UDF instruction
+			if ((instruction & 0xfff000f0) == (0xe7f000f0|0)) {
+				var immediate = instruction & 0x0000000f; // TODO: full range
+				throw new EmuHalt("Program exited (" + immediate + ")");
+			}
 
 			var address : AddressFunction = function() {
 				throw new EmuHalt("Unimplemented memory access: 0x" + instruction.toString(16));
@@ -3667,6 +3951,68 @@ ARMCore.prototype.compileArm = function(instruction) {
 			break;
 		case 0x0C000000:
 			// Coprocessor data transfer
+			var load = instruction & 0x00100000;
+			var w = instruction & 0x00200000;
+			var user = instruction & 0x00400000;
+			var u = instruction & 0x00800000;
+			var p = instruction & 0x01000000;
+			var rn = (instruction & 0x000F0000) >> 16;
+			var crd = (instruction & 0x0000F000) >> 12;
+			var cpnum = (instruction & 0x00000F00) >> 8;
+			var immediate = instruction & 0x000000FF;
+			var cond = (instruction >> 28) & 0xf;
+			var condOp = this.conds[cond];
+
+			// VPUSH, VPOP
+			if ((instruction & 0x0fbf0f00) == 0x0d2d0a00) {
+				op = this.armCompiler.constructVPUSH(condOp, (crd<<1)|(user?1:0), immediate, true);
+			}
+			else if ((instruction & 0x0fbf0f00) == 0x0d2d0b00) {
+				op = this.armCompiler.constructVPUSH(condOp, ((user?16:0)|crd)*2, immediate, false);
+			}
+			else if ((instruction & 0x0fbf0f00) == 0x0cbd0a00) {
+				op = this.armCompiler.constructVPOP(condOp, (crd<<1)|(user?1:0), immediate, true);
+			}
+			else if ((instruction & 0x0fbf0f00) == 0x0cbd0b00) {
+				op = this.armCompiler.constructVPOP(condOp, ((user?16:0)|crd)*2, immediate, false);
+			}
+			// VLDR, VSTR
+			// https://developer.arm.com/documentation/ddi0406/c/Application-Level-Architecture/Instruction-Details/Alphabetical-list-of-instructions/VSTR?lang=en
+			else if ((instruction & 0x0f200f00) == 0x0d000a00) {
+				immediate *= 4;
+				if (!u) immediate = -immediate;
+				var overlap = false;
+				var d = (crd<<1)|(user?1:0);
+	
+				var address : AddressFunction;
+				if (w) {
+					address = this.armCompiler.constructAddressingMode4Writeback(immediate, offset, rn, overlap);
+				} else {
+					address = this.armCompiler.constructAddressingMode4(immediate, rn);
+				}
+				if (load) {
+					op = this.armCompiler.constructVLDR(condOp, d, address, true);
+				} else {
+					op = this.armCompiler.constructVSTR(condOp, d, address, true);
+				}
+			} else if ((instruction & 0x0f200f00) == 0x0d000b00) {
+				immediate *= 4;
+				if (!u) immediate = -immediate;
+				var overlap = false;
+				var d = ((user?16:0)|crd)*2;
+	
+				var address : AddressFunction;
+				if (w) {
+					address = this.armCompiler.constructAddressingMode4Writeback(immediate, offset, rn, overlap);
+				} else {
+					address = this.armCompiler.constructAddressingMode4(immediate, rn);
+				}
+				if (load) {
+					op = this.armCompiler.constructVLDR(condOp, d, address, false);
+				} else {
+					op = this.armCompiler.constructVSTR(condOp, d, address, false);
+				}
+			}
 			break;
 		case 0x0E000000:
 			// Coprocessor data operation/SWI
@@ -3675,6 +4021,148 @@ ARMCore.prototype.compileArm = function(instruction) {
 				var immediate = (instruction & 0x00FFFFFF);
 				op = this.armCompiler.constructSWI(immediate, condOp);
 				op.writesPC = false;
+			}
+			// VCVT, VCVTR, VCVT
+			// https://developer.arm.com/documentation/ddi0406/c/Application-Level-Architecture/Instruction-Details/Alphabetical-list-of-instructions/VCVT--VCVTR--between-floating-point-and-integer--Floating-point-
+			/*
+			if opc2 != '000' && !(opc2 IN "10x") then SEE "Related encodings";
+			to_integer = (opc2<2> == '1');  dp_operation = (sz == 1);
+			if to_integer then
+				unsigned = (opc2<0> == '0');  round_zero = (op == '1');
+				d = UInt(Vd:D);  m = if dp_operation then UInt(M:Vm) else UInt(Vm:M);
+			else
+				unsigned = (op == '0');  round_nearest = FALSE;  // FALSE selects FPSCR rounding
+				m = UInt(Vm:M);  d = if dp_operation then UInt(D:Vd) else UInt(Vd:D);
+			*/
+			else if ((instruction & 0x0FB80E50) == 0x0EB80A40) {
+				const cond = (instruction >> 28) & 0xf;
+				const D = (instruction >> 22) & 0x1;
+				const opc2 = (instruction >> 16) & 0x7;
+				const Vd = (instruction >> 12) & 0xf;
+				const sz = (instruction >> 8) & 0x1;
+				const op0 = (instruction >> 7) & 0x1;
+				const M = (instruction >> 5) & 0x1;
+				const Vm = instruction & 0xf;
+				const to_integer = opc2 & 0x4;
+				const dp_operation = sz != 0;
+				const unsigned = to_integer ? opc2 & 0x1 : 0;
+				const round_zero = op0 != 0;
+				const round_nearest = false;
+				const d = sz ? (D?16:0)|Vd : (Vd<<1)|(D?1:0);
+				const m = sz ? (M?16:0)|Vm : (Vm<<1)|(M?1:0);
+				//console.log("VCVT", d, m, opc2, to_integer, dp_operation, unsigned, round_zero, round_nearest);
+				op = this.armCompiler.constructVCVT(condOp, d, m, to_integer, dp_operation, unsigned, round_zero, round_nearest);
+				op.writesPC = false;
+			}
+			// VCVT f64/f32
+			else if ((instruction & 0x0FBF0ED0) == 0x0EB70AC0) {
+				const cond = (instruction >> 28) & 0xf;
+				const D = (instruction >> 22) & 0x1;
+				const Vd = (instruction >> 12) & 0xf;
+				const sz = (instruction >> 8) & 0x1;
+				const M = (instruction >> 5) & 0x1;
+				const Vm = instruction & 0xf;
+				const double_to_single = sz != 0;
+				const d = sz ? (D?16:0)|Vd : (Vd<<1)|(D?1:0);
+				const m = sz ? (M?16:0)|Vm : (Vm<<1)|(M?1:0);
+				op = this.armCompiler.constructVCVTF(condOp, d, m, double_to_single);
+				op.writesPC = false;
+			}
+			// 3-op floating point vector instructions (VADD, etc)
+			else if ((instruction & 0x0FA00E10) == 0x0E200A00) {
+				const cond = (instruction >> 28) & 0xf;
+				const D = (instruction >> 22) & 0x1;
+				const N = (instruction >> 7) & 0x1;
+				const M = (instruction >> 5) & 0x1;
+				const opcode = (instruction & 0x0F00000) >> 20;
+				const Vn = (instruction & 0x000F0000) >> 16;
+				const Vd = (instruction & 0x0000F000) >> 12;
+				const opcode2 = (instruction & 0b11100000) >> 5;
+				const Vm = instruction & 0x0000000F;
+				const sz = (instruction >> 8) & 0x1;
+				const d = sz ? (D?16:0)|Vd : (Vd<<1)|(D?1:0);
+				const m = sz ? (M?16:0)|Vm : (Vm<<1)|(M?1:0);
+				const n = sz ? (N?16:0)|Vn : (Vn<<1)|(N?1:0);
+
+				var condOp = this.conds[cond];
+				op = this.armCompiler.constructVFP3Register(condOp, opcode, n, d, sz, opcode2, m);
+				op.writesPC = false;
+			}
+			// VDIV - https://developer.arm.com/documentation/ddi0597/2023-12/SIMD-FP-Instructions/VDIV--Divide-?lang=en
+			else if ((instruction & 0x0FB00C50) == 0x0E800800) {
+				const cond = (instruction >> 28) & 0xf;
+				const D = (instruction >> 22) & 0x1;
+				const Vn = (instruction >> 16) & 0xf;
+				const Vd = (instruction >> 12) & 0xf;
+				const size = (instruction >> 8) & 0x3;
+				const N = (instruction >> 7) & 0x1;
+				const M = (instruction >> 5) & 0x1;
+				const Vm = instruction & 0xf;
+				/*
+				case size of
+				when '01' esize = 16; d = UInt(Vd:D); n = UInt(Vn:N); m = UInt(Vm:M);
+				when '10' esize = 32; d = UInt(Vd:D); n = UInt(Vn:N); m = UInt(Vm:M);
+				when '11' esize = 64; d = UInt(D:Vd); n = UInt(N:Vn); m = UInt(M:Vm);
+				*/
+				const d = size==3 ? (D?16:0)|Vd : (Vd<<1)|(D?1:0);
+				const m = size==3 ? (M?16:0)|Vm : (Vm<<1)|(M?1:0);
+				const n = size==3 ? (N?16:0)|Vn : (Vn<<1)|(N?1:0);
+				op = this.armCompiler.constructVFP3Register(condOp, 8, n, d, size==3, 0, m);
+				op.writesPC = false;
+			}
+			// 2-op floating point vector instructions (VCMP, etc)
+			else if ((instruction & 0x0FBF0E50) == 0x0EB40A40) {
+				const cond = (instruction >> 28) & 0xf;
+				const D = (instruction >> 22) & 0x1;
+				const Vd = (instruction >> 12) & 0xf;
+				const sz = (instruction >> 8) & 0x1;
+				const E = (instruction >> 7) & 0x1;
+				const M = (instruction >> 5) & 0x1;
+				const Vm = instruction & 0x0000000F;
+				const d = sz ? (D?16:0)|Vd : (Vd<<1)|(D?1:0);
+				const m = sz ? (M?16:0)|Vm : (Vm<<1)|(M?1:0);
+				
+				var condOp = this.conds[cond];
+				op = this.armCompiler.constructVCMP(condOp, d, Vd, sz, E, m, Vm);
+				op.writesPC = false;
+			}
+			// VCMP #0
+			else if ((instruction & 0x0FBF0EFF) == 0x0EB50A40) {
+				const cond = (instruction >> 28) & 0xf;
+				const D = (instruction >> 22) & 0x1;
+				const Vd = (instruction >> 12) & 0xf;
+				const sz = (instruction >> 8) & 0x1;
+				const E = (instruction >> 7) & 0x1;
+				const M = (instruction >> 5) & 0x1;
+				const Vm = instruction & 0x0000000F;
+				const d = sz ? (D?16:0)|Vd : (Vd<<1)|(D?1:0);
+				const m = sz ? (M?16:0)|Vm : (Vm<<1)|(M?1:0);
+				
+				var condOp = this.conds[cond];
+				op = this.armCompiler.constructVCMP0(condOp, d, Vd, sz, E, m, Vm);
+				op.writesPC = false;
+			}
+			// vmrs apsr_nzcv, fpscr (ignore, we always call this after CMP)
+			else if (instruction == 0xeef1fa10) {
+				op = this.armCompiler.constructNOP();
+			}
+			// VMOV - https://developer.arm.com/documentation/ddi0406/c/Application-Level-Architecture/Instruction-Details/Alphabetical-list-of-instructions/VMOV--between-ARM-core-register-and-single-precision-register-
+			else if ((instruction & 0x0FE00F10) == 0x0E000A10) {
+				const cond = (instruction >> 28) & 0xf;
+				const opc1 = (instruction >> 20) & 0x1;
+				const Vn = (instruction >> 16) & 0xf;
+				const Rt = (instruction >> 12) & 0xf;
+				const N = (instruction >> 7) & 0x1;
+				var condOp = this.conds[cond];
+				//console.log("VMOV", instruction.toString(16), opc1, Vn, Rt, N);
+				op = this.armCompiler.constructVMOV(condOp, opc1, (Vn<<1)|(N?1:0), Rt);
+			}
+			// vmov.32 dn[i], rn
+			else if (instruction == 0xee000b10) {
+				op = this.armCompiler.constructVMOV(condOp, false, 0, 0);
+			}
+			else if (instruction == 0xee201b10) {
+				op = this.armCompiler.constructVMOV(condOp, false, 1, 1);
 			}
 			break;
 		default:
@@ -4103,11 +4591,16 @@ ARMCore.prototype.compileThumb = function(instruction) {
 
 ///////////////////////////////////////////////////////////////////////////
 
+type ARMBus = Bus & Bus32;
+
 export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQInterface, SavesState<ARMCoreState> {
 
 	core : ARMCoreType;
-	bus : Bus;
+	bus : ARMBus;
 	memory : ARMMemoryRegion[];
+	f64arr = new Float64Array(1);
+	f32arr = new Float32Array(this.f64arr.buffer);
+	i32arr = new Int32Array(this.f64arr.buffer);
 
 	BASE_OFFSET = 24;
 	OFFSET_MASK = 0x00FFFFFF;
@@ -4122,8 +4615,7 @@ export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQI
 		this.memory = []; // TODO
 		for (var i=0; i<256; i++) {
 			// TODO: constant
-			var bits = 10;
-			var size = 0x80000; 
+			const bits = 10;
 			this.memory[i] = {
 				PAGE_MASK: (2 << bits) - 1,
 				ICACHE_PAGE_BITS: bits,
@@ -4146,12 +4638,13 @@ export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQI
 	isStable(): boolean {
 		return true; // TODO?
 	}
-	connectMemoryBus(bus: Bus): void {
+	connectMemoryBus(bus: ARMBus): void {
 		this.bus = bus;
 	}
 	reset(): void {
 		this.resetMemory();
-		this.core.resetCPU(0);
+		const resetVector = this.load32(0);
+		this.core.resetCPU(resetVector);
 	}
 	saveState() : ARMCoreState {
 		return this.core.freeze();
@@ -4173,7 +4666,7 @@ export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQI
 		return this.bus.read(a) | (this.bus.read(a+1) << 8);
 	}
 	load32(a: number): number {
-		var v = this.bus.read(a) | (this.bus.read(a+1) << 8) | (this.bus.read(a+2) << 16) | (this.bus.read(a+3) << 24);
+		var v = this.bus.read32(a);
 		return v;
 	}
 	// TODO:         memory.invalidatePage(maskedOffset);
@@ -4185,10 +4678,7 @@ export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQI
 		this.bus.write(a+1, (v >> 8) & 0xff);
 	}
 	store32(a: number, v: number): void {
-		this.bus.write(a, v & 0xff);
-		this.bus.write(a+1, (v >> 8) & 0xff);
-		this.bus.write(a+2, (v >> 16) & 0xff);
-		this.bus.write(a+3, (v >> 24) & 0xff);
+		this.bus.write32(a, v);
 	}
 	// TODO
 	wait(a: number): void {
@@ -4252,5 +4742,11 @@ export class ARM32CPU implements CPU, InstructionBased, ARMMMUInterface, ARMIRQI
 
 	isThumb() : boolean {
 		return this.core.instructionWidth == 2;
+	}
+	getDebugTree() {
+		return {
+			state: this.saveState(),
+			mmu: this.core.mmu
+		};
 	}
 }

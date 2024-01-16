@@ -1,0 +1,11 @@
+
+#include <string.h>
+#include <stdio.h>
+
+//#link "serialout.c"
+
+int main() {
+  int x = 2024;
+  printf("Hello World! %d\n", x);
+  return 0;
+}

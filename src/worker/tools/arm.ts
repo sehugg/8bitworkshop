@@ -1,8 +1,32 @@
+/*
+ * Copyright (c) 2024 Steven E. Hugg
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
+import { DWARFParser, ELFParser } from "../../common/binutils";
 import { hex } from "../../common/util";
+import { WASIFilesystem } from "../../common/wasi/wasishim";
 import { CodeListingMap, SourceLine, WorkerError, WorkerResult } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, anyTargetChanged, getPrefix, getWorkFileAsString } from "../builder";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, anyTargetChanged, getPrefix, getWorkFileAsString, populateExtraFiles, processEmbedDirective } from "../builder";
 import { makeErrorMatcher, re_crlf } from "../listingutils";
+import { loadWASIFilesystemZip } from "../wasiutils";
 import { loadNative, moduleInstFn, execMain, emglobal, EmscriptenModule } from "../wasmutils";
 
 export function assembleARMIPS(step: BuildStep): WorkerResult {
@@ -235,6 +259,194 @@ export function assembleVASMARM(step: BuildStep): BuildStepResult {
             errors: errors,
             symbolmap: symbolmap,
             segments: segments
+        };
+    }
+}
+
+function tccErrorMatcher(errors: WorkerError[], mainpath: string) {
+    return makeErrorMatcher(errors, /([^:]+|tcc):(\d+|\s*error): (.+)/, 2, 3, mainpath, 1);;
+}
+
+let armtcc_fs: WASIFilesystem | null = null;
+
+export async function compileARMTCC(step: BuildStep): Promise<BuildStepResult> {
+    loadNative("arm-tcc");
+    const params = step.params;
+    const errors = [];
+    gatherFiles(step, { mainFilePath: "main.c" });
+    const objpath = step.prefix + ".o";
+    const error_fn = tccErrorMatcher(errors, step.path);
+
+    if (!armtcc_fs) {
+        armtcc_fs = await loadWASIFilesystemZip("arm32-fs.zip");
+    }
+    
+    if (staleFiles(step, [objpath])) {
+        const armtcc: EmscriptenModule = await emglobal.armtcc({
+            instantiateWasm: moduleInstFn('arm-tcc'),
+            noInitialRun: true,
+            print: error_fn,
+            printErr: error_fn,
+        });
+
+        var args = ['-c', '-I.', '-I./include',
+            //'-std=c11',
+            '-funsigned-char',
+            //'-Wwrite-strings',
+            '-gdwarf-2',
+            '-o', objpath];
+        if (params.define) {
+            params.define.forEach((x) => args.push('-D' + x));
+        }
+        if (params.extra_compile_args) {
+            args = args.concat(params.extra_compile_args);
+        }
+        args.push(step.path);
+    
+        const FS = armtcc.FS;
+        // TODO: only should do once?
+        armtcc_fs.getDirectories().forEach((dir) => {
+            if (dir.name != '/') FS.mkdir(dir.name);
+        });
+        armtcc_fs.getFiles().forEach((file) => {
+            FS.writeFile(file.name, file.getBytes(), { encoding: 'binary' });
+        });
+        populateExtraFiles(step, FS, params.extra_compile_files);
+
+        populateFiles(step, FS, {
+            mainFilePath: step.path,
+            processFn: (path, code) => {
+                if (typeof code === 'string') {
+                    code = processEmbedDirective(code);
+                }
+                return code;
+            }
+        });
+        execMain(step, armtcc, args);
+        if (errors.length)
+            return { errors: errors };
+
+        var objout = FS.readFile(objpath, { encoding: 'binary' }) as Uint8Array;
+        putWorkFile(objpath, objout);
+    }
+    return {
+        linktool: "armtcclink",
+        files: [objpath],
+        args: [objpath]
+    }
+}
+
+export async function linkARMTCC(step: BuildStep): Promise<WorkerResult> {
+    loadNative("arm-tcc");
+    const params = step.params;
+    const errors = [];
+    gatherFiles(step, { mainFilePath: "main.c" });
+    const objpath = "main.elf";
+    const error_fn = tccErrorMatcher(errors, step.path);
+
+    if (staleFiles(step, [objpath])) {
+        const armtcc: EmscriptenModule = await emglobal.armtcc({
+            instantiateWasm: moduleInstFn('arm-tcc'),
+            noInitialRun: true,
+            print: error_fn,
+            printErr: error_fn,
+        });
+
+        var args = ['-L.', '-nostdlib', '-nostdinc',
+            '-Wl,--oformat=elf32-arm',
+            //'-Wl,-section-alignment=0x100000',
+            '-gdwarf-2',
+            '-o', objpath];
+        if (params.define) {
+            params.define.forEach((x) => args.push('-D' + x));
+        }
+        args = args.concat(step.files);
+        if (params.extra_link_args) {
+            args = args.concat(params.extra_link_args);
+        }
+
+        const FS = armtcc.FS;
+        populateExtraFiles(step, FS, params.extra_link_files);
+        populateFiles(step, FS);
+        execMain(step, armtcc, args);
+        if (errors.length)
+            return { errors: errors };
+
+        var objout = FS.readFile(objpath, { encoding: 'binary' }) as Uint8Array;
+        putWorkFile(objpath, objout);
+        if (!anyTargetChanged(step, [objpath]))
+            return;
+
+        // parse ELF and create ROM
+        const elfparser = new ELFParser(objout);
+        let maxaddr = 0;
+        elfparser.sectionHeaders.forEach((section, index) => {
+            maxaddr = Math.max(maxaddr, section.vmaddr + section.size);
+        });
+        let rom = new Uint8Array(maxaddr);
+        elfparser.sectionHeaders.forEach((section, index) => {
+            if (section.flags & 0x2) {
+                let data = objout.slice(section.offset, section.offset + section.size);
+                //console.log(section.name, section.vmaddr.toString(16), data);
+                rom.set(data, section.vmaddr);
+            }
+        });
+        // set vectors, entry point etc
+        const obj32 = new Uint32Array(rom.buffer);
+        const start = elfparser.entry;
+        obj32[0] = start; // set reset vector
+        obj32[1] = start; // set undefined vector
+        obj32[2] = start; // set swi vector
+        obj32[3] = start; // set prefetch abort vector
+        obj32[4] = start; // set data abort vector
+        obj32[5] = start; // set reserved vector
+        obj32[6] = start; // set irq vector
+        obj32[7] = start; // set fiq vector
+ 
+        let symbolmap = {};
+        elfparser.getSymbols().forEach((symbol, index) => {
+            symbolmap[symbol.name] = symbol.value;
+        });
+        let segments = [];
+        elfparser.sectionHeaders.forEach((section, index) => {
+            if ((section.flags & 0x2) && section.size) {
+                segments.push({
+                    name: section.name,
+                    start: section.vmaddr,
+                    size: section.size,
+                    type: section.type,
+                });
+            }
+        });
+        const listings: CodeListingMap = {};
+        const dwarf = new DWARFParser(elfparser);
+        dwarf.lineInfos.forEach((lineInfo) => {
+            lineInfo.files.forEach((file) => {
+                if (!file || !file.lines) return;
+                file.lines.forEach((line) => {
+                    const filename = line.file;
+                    const offset = line.address;
+                    const path = getPrefix(filename) + '.lst';
+                    const linenum = line.line;
+                    let lst = listings[path];
+                    if (lst == null) { lst = listings[path] = { lines: [] }; }
+                    lst.lines.push({
+                        path,
+                        line: linenum,
+                        offset
+                    });
+                });
+            });
+        });
+        //console.log(listings);
+
+        return {
+            output: rom, //.slice(0x34),
+            listings: listings,
+            errors: errors,
+            symbolmap: symbolmap,
+            segments: segments,
+            debuginfo: dwarf
         };
     }
 }
