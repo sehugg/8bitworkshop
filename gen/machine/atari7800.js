@@ -367,11 +367,11 @@ class Atari7800 extends devices_1.BasicMachine {
             [0x0000, 0x001f, 0x1f, (a) => { this.xtracyc++; return this.tia.read(a); }],
             [0x0020, 0x003f, 0x1f, (a) => { return this.maria.read(a); }],
             [0x0040, 0x00ff, 0xff, (a) => { return this.ram[a + 0x800]; }],
-            [0x0100, 0x013f, 0xff, (a) => { return this.read(a); }],
+            [0x0100, 0x013f, 0xff, (a) => { return this.read(a); }], // shadow
             [0x0140, 0x01ff, 0x1ff, (a) => { return this.ram[a + 0x800]; }],
             [0x0280, 0x02ff, 0x7f, (a) => { this.xtracyc++; return this.readPIA(a); }],
             [0x1800, 0x27ff, 0xffff, (a) => { return this.ram[a - 0x1800]; }],
-            [0x2800, 0x3fff, 0x7ff, (a) => { return this.read(a | 0x2000); }],
+            [0x2800, 0x3fff, 0x7ff, (a) => { return this.read(a | 0x2000); }], // shadow
             [0x4000, 0xffff, 0xffff, (a) => { return this.rom ? this.rom[a - 0x4000] : 0; }],
             [0x0000, 0xffff, 0xffff, (a) => { return this.probe && this.probe.logIllegal(a); }],
         ]);
@@ -380,12 +380,12 @@ class Atari7800 extends devices_1.BasicMachine {
             [0x0000, 0x001f, 0x1f, (a, v) => { this.xtracyc++; this.tia.write(a, v); }],
             [0x0020, 0x003f, 0x1f, (a, v) => { this.maria.write(a, v); }],
             [0x0040, 0x00ff, 0xff, (a, v) => { this.ram[a + 0x800] = v; }],
-            [0x0100, 0x013f, 0xff, (a, v) => { this.write(a, v); }],
+            [0x0100, 0x013f, 0xff, (a, v) => { this.write(a, v); }], // shadow
             [0x0140, 0x01ff, 0x1ff, (a, v) => { this.ram[a + 0x800] = v; }],
             [0x0280, 0x02ff, 0x7f, (a, v) => { this.xtracyc++; this.writePIA(a, v); }],
             [0x1800, 0x27ff, 0xffff, (a, v) => { this.ram[a - 0x1800] = v; }],
-            [0x2800, 0x3fff, 0x7ff, (a, v) => { this.write(a | 0x2000, v); }],
-            [0xbfff, 0xbfff, 0xffff, (a, v) => { }],
+            [0x2800, 0x3fff, 0x7ff, (a, v) => { this.write(a | 0x2000, v); }], // shadow
+            [0xbfff, 0xbfff, 0xffff, (a, v) => { }], // TODO: bank switching?
             [0x0000, 0xffff, 0xffff, (a, v) => { this.probe && this.probe.logIllegal(a); }],
         ]);
         this.connectCPUMemoryBus(this);

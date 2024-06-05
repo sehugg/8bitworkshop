@@ -309,7 +309,7 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
     if (address < 0xc000) {
       this.ram[address] = val;
       this.grdirty[address>>7] = 1;
-    } else if (address < 0xc080) {
+    } else if (address < 0xc090) {
       this.read(address); // strobe address, discard result
     } else if (address < 0xc100) {
        var slot = (address >> 4) & 0x0f;
@@ -408,6 +408,7 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
   }
   
   doLanguageCardIO(address:number) {
+     // TODO: require two writes in a row for some things
      switch (address & 0x0f) {
          // Select aux RAM bank 2, write protected.
         case 0x0:

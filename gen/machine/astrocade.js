@@ -322,9 +322,9 @@ const _BallyAstrocade = function (arcade) {
             // arcade game (TODO: wait states 1/4 of the time)
             membus = {
                 read: (0, emu_1.newAddressDecoder)([
-                    [0x4000, 0x7fff, 0x3fff, function (a) { return ram[a]; }],
-                    [0xd000, 0xdfff, 0x0fff, function (a) { return ram[a + 0x4000]; }],
-                    [0x0000, 0x3fff, 0x3fff, function (a) { return rom ? rom[a] : 0; }],
+                    [0x4000, 0x7fff, 0x3fff, function (a) { return ram[a]; }], // screen RAM
+                    [0xd000, 0xdfff, 0x0fff, function (a) { return ram[a + 0x4000]; }], // static RAM
+                    [0x0000, 0x3fff, 0x3fff, function (a) { return rom ? rom[a] : 0; }], // ROM
                     [0x8000, 0xbfff, 0x3fff, function (a) { return rom ? rom[a + 0x4000] : 0; }], // ROM
                 ]),
                 write: (0, emu_1.newAddressDecoder)([

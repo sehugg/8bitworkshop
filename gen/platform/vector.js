@@ -214,7 +214,7 @@ var AtariColorVectorPlatform = function (mainElement) {
             write: (0, emu_1.newAddressDecoder)([
                 [0x0, 0x7ff, 0x7ff, function (a, v) { cpuram.mem[a] = v; }],
                 [0x2000, 0x27ff, 0x7ff, function (a, v) { dvgram.mem[a] = v; }],
-                [0x2800, 0x5fff, 0x7fff, function (a, v) { vecrom[a - 0x2800] = v; }],
+                [0x2800, 0x5fff, 0x7fff, function (a, v) { vecrom[a - 0x2800] = v; }], // TODO: remove (it's ROM!)
                 [0x6000, 0x67ff, 0xf, function (a, v) { audio.pokey1.setRegister(a, v); }],
                 [0x6800, 0x6fff, 0xf, function (a, v) { audio.pokey2.setRegister(a, v); }],
                 [0x8800, 0x8800, 0, function (a, v) { }],

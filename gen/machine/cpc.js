@@ -11,10 +11,10 @@ const BIN_HEADER = [
     0, 0, 0, 0, 0, 0,
     1,
     0, 0,
-    0x0, 0x40,
+    0x0, 0x40, // load addr
     0,
-    0x0, 0x0,
-    0x0, 0x40,
+    0x0, 0x0, // length
+    0x0, 0x40, // start addr
     0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -70,7 +70,7 @@ class CPC_WASMMachine extends wasmplatform_1.BaseWASMMachine {
     }
     getRasterCanvasPosition() {
         return {
-            x: -1,
+            x: -1, // TODO?
             y: this.getRasterY() - 14,
         };
     }

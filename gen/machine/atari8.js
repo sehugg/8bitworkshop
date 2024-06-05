@@ -33,8 +33,8 @@ var ATARI8_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
       [Keys.P2_RIGHT, 0, 0x80],
       [Keys.P2_A, 3, 0x1],
     */
-    [emu_1.Keys.VK_F1, 3, 0x1],
-    [emu_1.Keys.VK_F2, 3, 0x2],
+    [emu_1.Keys.VK_F1, 3, 0x1], // START
+    [emu_1.Keys.VK_F2, 3, 0x2], // SELECT
     [emu_1.Keys.VK_F3, 3, 0x4], // OPTION
 ]);
 class Atari800 extends devices_1.BasicScanlineMachine {

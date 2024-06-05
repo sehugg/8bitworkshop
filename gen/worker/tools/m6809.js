@@ -270,7 +270,7 @@ function linkLWLINK(step) {
             }
         }
         return {
-            output: aout,
+            output: aout, //.slice(0),
             listings: listings,
             errors: errors,
             symbolmap: symbolmap,

@@ -34,10 +34,10 @@ const OPERATORS = {
     'IMP': { f: 'bimp', p: 4 },
     'EQV': { f: 'beqv', p: 5 },
     'XOR': { f: 'bxor', p: 6 },
-    'OR': { f: 'bor', p: 7 },
-    'AND': { f: 'band', p: 8 },
-    '||': { f: 'lor', p: 17 },
-    '&&': { f: 'land', p: 18 },
+    'OR': { f: 'bor', p: 7 }, // or "lor" for logical
+    'AND': { f: 'band', p: 8 }, // or "land" for logical
+    '||': { f: 'lor', p: 17 }, // not used
+    '&&': { f: 'land', p: 18 }, // not used
     '=': { f: 'eq', p: 50 },
     '==': { f: 'eq', p: 50 },
     '<>': { f: 'ne', p: 50 },
@@ -1229,7 +1229,7 @@ exports.DARTMOUTH_4TH_EDITION = {
     validKeywords: [
         'BASE', 'DATA', 'DEF', 'DIM', 'END',
         'FOR', 'GO', 'GOSUB', 'GOTO', 'IF', 'INPUT', 'LET', 'NEXT', 'ON', 'OPTION', 'PRINT',
-        'RANDOMIZE', 'READ', 'REM', 'RESTORE', 'RETURN', 'STEP', 'STOP', 'THEN', 'TO',
+        'RANDOMIZE', 'READ', 'REM', 'RESTORE', 'RETURN', 'STEP', 'STOP', 'THEN', 'TO', //'SUB',
         'CHANGE', 'MAT', 'RANDOM', 'RESTORE$', 'RESTORE*',
     ],
     validFunctions: [
@@ -1304,7 +1304,7 @@ exports.TINY_BASIC = {
 exports.HP_TIMESHARED_BASIC = {
     dialectName: "HP2000",
     asciiOnly: true,
-    uppercaseOnly: true,
+    uppercaseOnly: true, // the terminal is usually uppercase
     optionalLabels: false,
     optionalWhitespace: false,
     multipleStmtsPerLine: true,
@@ -1317,18 +1317,18 @@ exports.HP_TIMESHARED_BASIC = {
     stringConcat: false,
     maxDimensions: 2,
     maxDefArgs: 255,
-    maxStringLength: 255,
-    tickComments: false,
+    maxStringLength: 255, // 72 for literals
+    tickComments: false, // TODO: HP BASIC has 'hh char constants
     hexOctalConsts: false,
     validKeywords: [
         'BASE', 'DATA', 'DEF', 'DIM', 'END',
         'FOR', 'GO', 'GOSUB', 'GOTO', 'IF', 'INPUT', 'LET', 'NEXT', 'OPTION', 'PRINT',
-        'RANDOMIZE', 'READ', 'REM', 'RESTORE', 'RETURN', 'STEP', 'STOP', 'THEN', 'TO',
+        'RANDOMIZE', 'READ', 'REM', 'RESTORE', 'RETURN', 'STEP', 'STOP', 'THEN', 'TO', //'SUB',
         'ENTER', 'MAT', 'CONVERT', 'OF', 'IMAGE', 'USING'
     ],
     validFunctions: [
         'ABS', 'ATN', 'BRK', 'COS', 'CTL', 'EXP', 'INT', 'LEN', 'LIN', 'LOG', 'NUM',
-        'POS', 'RND', 'SGN', 'SIN', 'SPA', 'SQR', 'TAB', 'TAN', 'TIM', 'TYP', 'UPS$',
+        'POS', 'RND', 'SGN', 'SIN', 'SPA', 'SQR', 'TAB', 'TAN', 'TIM', 'TYP', 'UPS$', // TODO: POS,
         'NFORMAT$', // non-standard, substitute for PRINT USING
     ],
     validOperators: [
@@ -1343,7 +1343,7 @@ exports.HP_TIMESHARED_BASIC = {
     multipleNextVars: false,
     bitwiseLogic: false,
     checkOnGotoIndex: false,
-    computedGoto: true,
+    computedGoto: true, // not really, but we do parse expressions for GOTO ... OF 
     restoreWithLabel: true,
     squareBrackets: true,
     arraysContainChars: true,
@@ -1357,19 +1357,19 @@ exports.HP_TIMESHARED_BASIC = {
 exports.DEC_BASIC_11 = {
     dialectName: "DEC11",
     asciiOnly: true,
-    uppercaseOnly: true,
+    uppercaseOnly: true, // translates all lower to upper
     optionalLabels: false,
     optionalWhitespace: false,
-    multipleStmtsPerLine: false,
+    multipleStmtsPerLine: false, // actually "\"
     varNaming: "A1",
     staticArrays: true,
     sharedArrayNamespace: false,
     defaultArrayBase: 0,
     defaultArraySize: 11,
     defaultValues: true,
-    stringConcat: true,
+    stringConcat: true, // can also use &
     maxDimensions: 2,
-    maxDefArgs: 255,
+    maxDefArgs: 255, // ?
     maxStringLength: 255,
     tickComments: false,
     hexOctalConsts: false,
@@ -1389,12 +1389,12 @@ exports.DEC_BASIC_11 = {
     ],
     printZoneLength: 14,
     numericPadding: true,
-    checkOverflow: true,
+    checkOverflow: true, // non-fatal; subst 0 and continue
     testInitialFor: true,
     optionalNextVar: false,
     multipleNextVars: false,
     bitwiseLogic: false,
-    checkOnGotoIndex: true,
+    checkOnGotoIndex: true, // might continue
     computedGoto: false,
     restoreWithLabel: false,
     squareBrackets: false,
@@ -1420,11 +1420,11 @@ exports.DEC_BASIC_PLUS = {
     defaultArrayBase: 0,
     defaultArraySize: 11,
     defaultValues: true,
-    stringConcat: true,
+    stringConcat: true, // can also use "&"
     maxDimensions: 2,
-    maxDefArgs: 255,
+    maxDefArgs: 255, // ?
     maxStringLength: 255,
-    tickComments: true,
+    tickComments: true, // actually use "!"
     hexOctalConsts: false,
     validKeywords: [
         'OPTION',
@@ -1448,18 +1448,18 @@ exports.DEC_BASIC_PLUS = {
     ],
     printZoneLength: 14,
     numericPadding: true,
-    checkOverflow: true,
+    checkOverflow: true, // non-fatal; subst 0 and continue
     testInitialFor: true,
     optionalNextVar: false,
     multipleNextVars: false,
     bitwiseLogic: false,
-    checkOnGotoIndex: true,
+    checkOnGotoIndex: true, // might continue
     computedGoto: false,
     restoreWithLabel: false,
     squareBrackets: false,
     arraysContainChars: false,
     endStmtRequired: false,
-    chainAssignments: false,
+    chainAssignments: false, // TODO: can chain with "," not "="
     optionalLet: true,
     compiledBlocks: true,
     // TODO: max line number 32767
@@ -1489,7 +1489,7 @@ exports.BASICODE = {
     validKeywords: [
         'BASE', 'DATA', 'DEF', 'DIM', 'END',
         'FOR', 'GO', 'GOSUB', 'GOTO', 'IF', 'INPUT', 'LET', 'NEXT', 'ON', 'OPTION', 'PRINT',
-        'READ', 'REM', 'RESTORE', 'RETURN', 'STEP', 'STOP', 'THEN', 'TO',
+        'READ', 'REM', 'RESTORE', 'RETURN', 'STEP', 'STOP', 'THEN', 'TO', // 'SUB',
         'AND', 'NOT', 'OR'
     ],
     validFunctions: [
@@ -1523,14 +1523,14 @@ exports.ALTAIR_BASIC41 = {
     optionalLabels: false,
     optionalWhitespace: true,
     multipleStmtsPerLine: true,
-    varNaming: "*",
+    varNaming: "*", // or AA
     staticArrays: false,
     sharedArrayNamespace: true,
     defaultArrayBase: 0,
     defaultArraySize: 11,
     defaultValues: true,
     stringConcat: true,
-    maxDimensions: 128,
+    maxDimensions: 128, // "as many as will fit on a single line" ... ?
     maxDefArgs: 255,
     maxStringLength: 255,
     tickComments: false,
@@ -1581,7 +1581,7 @@ exports.APPLESOFT_BASIC = {
     optionalLabels: false,
     optionalWhitespace: true,
     multipleStmtsPerLine: true,
-    varNaming: "*",
+    varNaming: "*", // or AA
     staticArrays: false,
     sharedArrayNamespace: false,
     defaultArrayBase: 0,
@@ -1589,7 +1589,7 @@ exports.APPLESOFT_BASIC = {
     defaultValues: true,
     stringConcat: true,
     maxDimensions: 88,
-    maxDefArgs: 1,
+    maxDefArgs: 1, // TODO: no string FNs
     maxStringLength: 255,
     tickComments: false,
     hexOctalConsts: false,
@@ -1676,7 +1676,7 @@ exports.BASIC80 = {
     ],
     printZoneLength: 14,
     numericPadding: true,
-    checkOverflow: false,
+    checkOverflow: false, // TODO: message displayed when overflow, division by zero = ok
     testInitialFor: true,
     optionalNextVar: true,
     multipleNextVars: true,
@@ -1702,17 +1702,17 @@ exports.MODERN_BASIC = {
     staticArrays: false,
     sharedArrayNamespace: false,
     defaultArrayBase: 0,
-    defaultArraySize: 0,
+    defaultArraySize: 0, // DIM required
     defaultValues: false,
     stringConcat: true,
     maxDimensions: 255,
     maxDefArgs: 255,
-    maxStringLength: 2048,
+    maxStringLength: 2048, // TODO?
     tickComments: true,
     hexOctalConsts: true,
-    validKeywords: null,
-    validFunctions: null,
-    validOperators: null,
+    validKeywords: null, // all
+    validFunctions: null, // all
+    validOperators: null, // all
     printZoneLength: 16,
     numericPadding: false,
     checkOverflow: true,
@@ -1755,8 +1755,8 @@ const BUILTIN_DEFS = [
     ['MID$', ['string', 'number', 'number'], 'string'],
     ['OCT$', ['number'], 'string'],
     ['PI', [], 'number'],
-    ['POS', ['number'], 'number'],
-    ['POS', ['string', 'string'], 'number'],
+    ['POS', ['number'], 'number'], // arg ignored
+    ['POS', ['string', 'string'], 'number'], // HP POS
     ['RIGHT$', ['string', 'number'], 'string'],
     ['RND', [], 'number'],
     ['RND', ['number'], 'number'],
@@ -1771,7 +1771,7 @@ const BUILTIN_DEFS = [
     ['STRING$', ['number', 'string'], 'string'],
     ['TAB', ['number'], 'string'],
     ['TAN', ['number'], 'number'],
-    ['TIM', ['number'], 'number'],
+    ['TIM', ['number'], 'number'], // only HP BASIC?
     ['TIMER', [], 'number'],
     ['UPS$', ['string'], 'string'],
     ['VAL', ['string'], 'number'],

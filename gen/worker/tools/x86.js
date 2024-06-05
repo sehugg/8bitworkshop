@@ -118,7 +118,7 @@ function assembleYASM(step) {
         var listings = {};
         listings[lstpath] = { lines: lines, text: lstout };
         return {
-            output: objout,
+            output: objout, //.slice(0),
             listings: listings,
             errors: errors,
             symbolmap: symbolmap,

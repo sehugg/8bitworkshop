@@ -67,7 +67,7 @@ class ExidyUGBv2 extends devices_1.BasicScanlineMachine {
             write: (0, emu_1.newAddressDecoder)([
                 [0x0000, 0x03ff, 0, (a, v) => { this.ram[a] = v; }],
                 [0x4000, 0x4fff, 0, (a, v) => { this.ram[a] = v; }],
-                [0x5000, 0x5101, 0, (a, v) => { this.ram[a] = v; }],
+                [0x5000, 0x5101, 0, (a, v) => { this.ram[a] = v; }], // TODO: sprite latch
                 [0x5210, 0x5212, 3, (a, v) => { this.setColorLatch(a, v); }],
                 [0x6000, 0x6fff, 0, (a, v) => { this.ram[a] = v; }],
             ]),

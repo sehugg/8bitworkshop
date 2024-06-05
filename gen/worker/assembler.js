@@ -391,7 +391,7 @@ class Assembler {
     }
     state() {
         return { ip: this.ip, line: this.linenum, origin: this.origin, codelen: this.codelen,
-            intermediate: {},
+            intermediate: {}, // TODO: listing, symbols?
             output: this.outwords,
             lines: this.asmlines,
             errors: this.errors,

@@ -248,7 +248,7 @@ var _MOS6502 = function () {
     var zeroPageRead = function (operation) {
         return [
             fetchOpcodeAndDecodeInstruction,
-            fetchADL,
+            fetchADL, // ADH will be zero
             fetchDataFromAD,
             function () {
                 operation();
@@ -271,7 +271,7 @@ var _MOS6502 = function () {
     var indirectXRead = function (operation) {
         return [
             fetchOpcodeAndDecodeInstruction,
-            fetchBAL,
+            fetchBAL, // BAH will be zero
             fetchDataFromBA,
             function () {
                 addXtoBAL();
@@ -321,7 +321,7 @@ var _MOS6502 = function () {
         return function (operation) {
             return [
                 fetchOpcodeAndDecodeInstruction,
-                fetchBAL,
+                fetchBAL, // BAH will be zero
                 fetchDataFromBA,
                 function () {
                     addIndex();
@@ -337,7 +337,7 @@ var _MOS6502 = function () {
     var indirectYRead = function (operation) {
         return [
             fetchOpcodeAndDecodeInstruction,
-            fetchIAL,
+            fetchIAL, // IAH will be zero
             fetchBALFromIA,
             function () {
                 add1toIAL();
@@ -366,7 +366,7 @@ var _MOS6502 = function () {
     var zeroPageWrite = function (operation) {
         return [
             fetchOpcodeAndDecodeInstruction,
-            fetchADL,
+            fetchADL, // ADH will be zero
             function () {
                 operation();
                 writeDataToAD();
@@ -389,7 +389,7 @@ var _MOS6502 = function () {
     var indirectXWrite = function (operation) {
         return [
             fetchOpcodeAndDecodeInstruction,
-            fetchBAL,
+            fetchBAL, // BAH will be zero
             fetchDataFromBA,
             function () {
                 addXtoBAL();
@@ -431,7 +431,7 @@ var _MOS6502 = function () {
         return function (operation) {
             return [
                 fetchOpcodeAndDecodeInstruction,
-                fetchBAL,
+                fetchBAL, // BAH will be zero
                 fetchDataFromBA,
                 function () {
                     addIndex();
@@ -445,7 +445,7 @@ var _MOS6502 = function () {
     var indirectYWrite = function (operation) {
         return [
             fetchOpcodeAndDecodeInstruction,
-            fetchIAL,
+            fetchIAL, // IAH will be zero
             fetchBALFromIA,
             function () {
                 add1toIAL();
@@ -466,7 +466,7 @@ var _MOS6502 = function () {
     var zeroPageReadModifyWrite = function (operation) {
         return [
             fetchOpcodeAndDecodeInstruction,
-            fetchADL,
+            fetchADL, // ADH will be zero
             fetchDataFromAD,
             writeDataToAD,
             function () {
@@ -495,7 +495,7 @@ var _MOS6502 = function () {
         return function (operation) {
             return [
                 fetchOpcodeAndDecodeInstruction,
-                fetchBAL,
+                fetchBAL, // BAH will be zero
                 fetchDataFromBA,
                 function () {
                     addIndex();
@@ -535,7 +535,7 @@ var _MOS6502 = function () {
     var indirectXReadModifyWrite = function (operation) {
         return [
             fetchOpcodeAndDecodeInstruction,
-            fetchBAL,
+            fetchBAL, // BAH will be zero
             fetchDataFromBA,
             function () {
                 addXtoBAL();
@@ -557,7 +557,7 @@ var _MOS6502 = function () {
     var indirectYReadModifyWrite = function (operation) {
         return [
             fetchOpcodeAndDecodeInstruction,
-            fetchIAL,
+            fetchIAL, // IAH will be zero
             fetchBALFromIA,
             function () {
                 add1toIAL();
@@ -1762,14 +1762,14 @@ var _MOS6502 = function () {
     function BRK() {
         return [
             fetchOpcodeAndDecodeInstruction,
-            fetchDataFromImmediate,
+            fetchDataFromImmediate, // For debugging purposes, use operand as an arg for BRK!
             function () {
                 if (self.debug)
                     self.breakpoint("BRK " + data);
                 pushToStack((PC >>> 8) & 0xff);
             },
             function () { pushToStack(PC & 0xff); },
-            function () { pushToStack(getStatusBits()); },
+            function () { pushToStack(getStatusBits()); }, // set B flag
             function () { AD = bus.read(IRQ_VECTOR); },
             function () { AD |= bus.read(IRQ_VECTOR + 1) << 8; },
             function () { PC = AD; I = 1; fetchNextOpcode(); }
@@ -1778,14 +1778,14 @@ var _MOS6502 = function () {
     function IRQ() {
         return [
             fetchOpcodeAndDecodeInstruction,
-            fetchDataFromImmediate,
+            fetchDataFromImmediate, // For debugging purposes, use operand as an arg for BRK!
             function () {
                 if (self.debug)
                     self.breakpoint("IRQ " + data);
                 pushToStack((PC >>> 8) & 0xff);
             },
             function () { pushToStack(PC & 0xff); },
-            function () { pushToStack(getStatusBits() & ~0x10); },
+            function () { pushToStack(getStatusBits() & ~0x10); }, // no BRK flag
             function () { AD = bus.read(IRQ_VECTOR); },
             function () { AD |= bus.read(IRQ_VECTOR + 1) << 8; },
             function () { PC = AD; fetchNextOpcode(); }
@@ -1801,7 +1801,7 @@ var _MOS6502 = function () {
                 pushToStack((PC >>> 8) & 0xff);
             },
             function () { pushToStack(PC & 0xff); },
-            function () { pushToStack(getStatusBits() & ~0x10); },
+            function () { pushToStack(getStatusBits() & ~0x10); }, // no BRK flag
             function () { AD = bus.read(NMI_VECTOR); },
             function () { AD |= bus.read(NMI_VECTOR + 1) << 8; },
             function () { PC = AD; fetchNextOpcode(); }
@@ -1840,7 +1840,7 @@ var _MOS6502 = function () {
     function JMP_IND() {
         return [
             fetchOpcodeAndDecodeInstruction,
-            fetchIAL,
+            fetchIAL, // IAH will be zero
             fetchIAH,
             fetchBALFromIA,
             function () {

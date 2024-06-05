@@ -21,7 +21,7 @@ function createTextSpan(text, className) {
 exports.PC_LINE_LOOKAHEAD = 64;
 const MAX_ERRORS = 200;
 const MODEDEFS = {
-    default: { theme: 'mbo' },
+    default: { theme: 'mbo' }, // NOTE: Not merged w/ other modes
     '6502': { isAsm: true },
     z80: { isAsm: true },
     jsasm: { isAsm: true },
@@ -30,7 +30,7 @@ const MODEDEFS = {
     inform6: { theme: 'cobalt' },
     markdown: { lineWrap: true },
     fastbasic: { noGutters: true },
-    basic: { noLineNumbers: true, noGutters: true },
+    basic: { noLineNumbers: true, noGutters: true }, // TODO: not used?
     ecs: { theme: 'mbo', isAsm: true },
 };
 exports.textMapFunctions = {
@@ -440,7 +440,7 @@ class DisassemblerView {
     }
     newEditor(parent) {
         this.disasmview = CodeMirror(parent, {
-            mode: 'z80',
+            mode: 'z80', // TODO: pick correct one
             theme: 'cobalt',
             tabSize: 8,
             readOnly: true,

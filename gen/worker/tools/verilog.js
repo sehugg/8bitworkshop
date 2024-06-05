@@ -186,7 +186,7 @@ function compileVerilator(step) {
                 "-Wall",
                 "-Wno-DECLFILENAME", "-Wno-UNUSED", "-Wno-EOFNEWLINE", "-Wno-PROCASSWIRE",
                 "--x-assign", "fast", "--noassert", "--pins-sc-biguint",
-                "--debug-check",
+                "--debug-check", // for XML output
                 "--top-module", topmod, step.path];
             (0, wasmutils_1.execMain)(step, verilator_mod, args);
         }

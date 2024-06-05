@@ -35,7 +35,7 @@ const LLVM_MOS_TOOL = {
             command: 'mos-atari8-clang',
         },
         nes: {
-            command: 'mos-nes-nrom-clang',
+            command: 'mos-nes-nrom-clang', // TODO
             libargs: ['-lneslib', '-lfamitone2']
         },
         pce: {

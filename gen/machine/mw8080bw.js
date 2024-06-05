@@ -6,10 +6,10 @@ const devices_1 = require("../common/devices");
 const emu_1 = require("../common/emu");
 // http://www.computerarcheology.com/Arcade/
 const SPACEINV_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
-    [emu_1.Keys.A, 1, 0x10],
+    [emu_1.Keys.A, 1, 0x10], // P1
     [emu_1.Keys.LEFT, 1, 0x20],
     [emu_1.Keys.RIGHT, 1, 0x40],
-    [emu_1.Keys.P2_A, 2, 0x10],
+    [emu_1.Keys.P2_A, 2, 0x10], // P2
     [emu_1.Keys.P2_LEFT, 2, 0x20],
     [emu_1.Keys.P2_RIGHT, 2, 0x40],
     [emu_1.Keys.SELECT, 1, 0x1],

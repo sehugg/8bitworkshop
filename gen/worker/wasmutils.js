@@ -34,7 +34,7 @@ var wasmMemory;
 function getWASMMemory() {
     if (wasmMemory == null) {
         wasmMemory = new WebAssembly.Memory({
-            'initial': 1024,
+            'initial': 1024, // 64MB
             'maximum': 16384, // 1024MB
         });
     }

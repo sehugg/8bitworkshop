@@ -106,7 +106,7 @@ function assembleARMIPS(step) {
             }
         }
         return {
-            output: objout,
+            output: objout, //.slice(0),
             listings: listings,
             errors: errors,
             symbolmap: symbolmap,
@@ -253,7 +253,7 @@ function assembleVASMARM(step) {
             });
         }
         return {
-            output: objout,
+            output: objout, //.slice(0x34),
             listings: listings,
             errors: errors,
             symbolmap: symbolmap,
@@ -430,7 +430,7 @@ async function linkARMTCC(step) {
         });
         //console.log(listings);
         return {
-            output: rom,
+            output: rom, //.slice(0x34),
             listings: listings,
             errors: errors,
             symbolmap: symbolmap,

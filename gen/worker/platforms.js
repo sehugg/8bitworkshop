@@ -183,9 +183,9 @@ exports.PLATFORM_PARAMS = {
         define: ['__NES__'],
         cfgfile: 'neslib2.cfg',
         libargs: ['crt0.o', 'nes.lib', 'neslib2.lib',
-            '-D', 'NES_MAPPER=0',
-            '-D', 'NES_PRG_BANKS=2',
-            '-D', 'NES_CHR_BANKS=1',
+            '-D', 'NES_MAPPER=0', // NROM
+            '-D', 'NES_PRG_BANKS=2', // 2 16K PRG banks
+            '-D', 'NES_CHR_BANKS=1', // 1 CHR bank
             '-D', 'NES_MIRRORING=0', // horizontal mirroring
         ],
         extra_link_files: ['crt0.o', 'neslib2.lib', 'neslib2.cfg', 'nesbanked.cfg'],
@@ -273,7 +273,7 @@ exports.PLATFORM_PARAMS = {
     'c64': {
         arch: '6502',
         define: ['__CBM__', '__C64__'],
-        cfgfile: 'c64.cfg',
+        cfgfile: 'c64.cfg', // SYS 2061
         libargs: ['c64.lib'],
         acmeargs: ['-f', 'cbm'],
         //extra_link_files: ['c64-cart.cfg'],

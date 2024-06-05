@@ -108,7 +108,7 @@ class GithubService {
             repopath: urlparse.repopath,
             branch: branch,
             subtreepath: urlparse.subtreepath,
-            prefix: '',
+            prefix: '', //this.getPrefix(urlparse.user, urlparse.repo),
             repo: repo,
             platform_id: this.project ? this.project.platform_id : (saved ? saved.platform_id : null)
         };

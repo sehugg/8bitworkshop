@@ -26,7 +26,7 @@ var SG1000_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
     [emu_1.Keys.P2_RIGHT, 1, 0x2],
     [emu_1.Keys.P2_A, 1, 0x4],
     [emu_1.Keys.P2_B, 1, 0x8],
-    [emu_1.Keys.VK_BACK_SLASH, 1, 0x10],
+    [emu_1.Keys.VK_BACK_SLASH, 1, 0x10], // reset
     [emu_1.Keys.VK_ENTER, 1, 0x80], // start/pause
 ]);
 class SG1000 extends vdp_z80_1.BaseZ80VDPBasedMachine {

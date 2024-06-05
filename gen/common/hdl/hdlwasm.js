@@ -564,7 +564,7 @@ class HDLModuleWASM {
                     console.log('... Finished @', o); this.finished = true; },
                 $stop: (o) => { if (!this.stopped)
                     console.log('... Stopped @', o); this.stopped = true; },
-                $time: (o) => BigInt(new Date().getTime() - this.resetStartTimeMsec),
+                $time: (o) => BigInt(new Date().getTime() - this.resetStartTimeMsec), // TODO: timescale
                 $rand: (o) => (Math.random() * (65536 * 65536)) | 0,
                 $readmem: (o, a, b) => this.$readmem(a, b)
             }

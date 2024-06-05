@@ -128,13 +128,13 @@ class VicDualDisplay {
     constructor() {
         this.palbank = 0;
         this.palette = [
-            0xff000000,
-            0xff0000ff,
-            0xff00ff00,
-            0xff00ffff,
-            0xffff0000,
-            0xffff00ff,
-            0xffffff00,
+            0xff000000, // black
+            0xff0000ff, // red
+            0xff00ff00, // green
+            0xff00ffff, // yellow
+            0xffff0000, // blue
+            0xffff00ff, // magenta
+            0xffffff00, // cyan
             0xffffffff // white
         ];
         // default PROM

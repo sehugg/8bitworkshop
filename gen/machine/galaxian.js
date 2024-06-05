@@ -6,10 +6,10 @@ const devices_1 = require("../common/devices");
 const emu_1 = require("../common/emu");
 const audio_1 = require("../common/audio");
 const GALAXIAN_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
-    [emu_1.Keys.A, 0, 0x10],
+    [emu_1.Keys.A, 0, 0x10], // P1
     [emu_1.Keys.LEFT, 0, 0x4],
     [emu_1.Keys.RIGHT, 0, 0x8],
-    [emu_1.Keys.P2_A, 1, 0x10],
+    [emu_1.Keys.P2_A, 1, 0x10], // P2
     [emu_1.Keys.P2_LEFT, 1, 0x4],
     [emu_1.Keys.P2_RIGHT, 1, 0x8],
     [emu_1.Keys.SELECT, 0, 0x1],
@@ -17,10 +17,10 @@ const GALAXIAN_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
     [emu_1.Keys.VK_2, 1, 0x2],
 ]);
 const SCRAMBLE_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
-    [emu_1.Keys.UP, 0, -0x1],
-    [emu_1.Keys.B, 0, -0x2],
-    [emu_1.Keys.VK_7, 0, -0x4],
-    [emu_1.Keys.A, 0, -0x8],
+    [emu_1.Keys.UP, 0, -0x1], // P1
+    [emu_1.Keys.B, 0, -0x2], // fire
+    [emu_1.Keys.VK_7, 0, -0x4], // credit
+    [emu_1.Keys.A, 0, -0x8], // bomb
     [emu_1.Keys.RIGHT, 0, -0x10],
     [emu_1.Keys.LEFT, 0, -0x20],
     [emu_1.Keys.VK_6, 0, -0x40],
@@ -31,8 +31,8 @@ const SCRAMBLE_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
     //[Keys.VK_UP,    2, -0x10],
 ]);
 const bitcolors = [
-    0x000021, 0x000047, 0x000097,
-    0x002100, 0x004700, 0x009700,
+    0x000021, 0x000047, 0x000097, // red
+    0x002100, 0x004700, 0x009700, // green
     0x510000, 0xae0000 // blue
 ];
 const GalaxianVideo = function (rom, vram, oram, palette, options) {
@@ -329,7 +329,7 @@ class GalaxianScrambleMachine extends GalaxianMachine {
             [0x8100, 0x8100, 0, (a) => { return this.inputs[0]; }],
             [0x8101, 0x8101, 0, (a) => { return this.inputs[1]; }],
             [0x8102, 0x8102, 0, (a) => { return this.inputs[2] | this.scramble_protection_alt_r(); }],
-            [0x8202, 0x8202, 0, (a) => { return this.m_protection_result; }],
+            [0x8202, 0x8202, 0, (a) => { return this.m_protection_result; }], // scramble (protection)
             [0x9100, 0x9100, 0, (a) => { return this.inputs[0]; }],
             [0x9101, 0x9101, 0, (a) => { return this.inputs[1]; }],
             [0x9102, 0x9102, 0, (a) => { return this.inputs[2] | this.scramble_protection_alt_r(); }],
@@ -344,8 +344,8 @@ class GalaxianScrambleMachine extends GalaxianMachine {
             [0x6802, 0x6802, 0, (a, v) => { }],
             [0x6803, 0x6803, 0, (a, v) => { }],
             [0x6804, 0x6804, 0, (a, v) => { this.gfx.starsEnabled = v & 1; }],
-            [0x6808, 0x6808, 0, (a, v) => { this.gfx.missileWidth = v; }],
-            [0x6809, 0x6809, 0, (a, v) => { this.gfx.missileOffset = v; }],
+            [0x6808, 0x6808, 0, (a, v) => { this.gfx.missileWidth = v; }], // not on h/w
+            [0x6809, 0x6809, 0, (a, v) => { this.gfx.missileOffset = v; }], // not on h/w
             [0x8202, 0x8202, 0, this.scramble_protection_w.bind(this)],
             //[0x8100, 0x8103, 0, function(a,v){ /* PPI 0 */ }],
             //[0x8200, 0x8203, 0, function(a,v){ /* PPI 1 */ }],

@@ -461,7 +461,7 @@ const OP2JS = {
     'xor': '^',
     'add': '+',
     'sub': '-',
-    'shiftr': '>>>',
+    'shiftr': '>>>', // TODO?
     'shiftl': '<<',
     // TODO: correct?
     'mul': '*',

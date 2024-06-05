@@ -918,7 +918,7 @@ class SMSVDP extends TMS9918A {
         if (this.screenMode == TMS9918A_Mode.MODE4) {
             var tables = [
                 ["Pattern Table", 0, 512 * 32],
-                ["Name Table", this.nameTable, 32 * 32 * 2],
+                ["Name Table", this.nameTable, 32 * 32 * 2], // TODO: size
                 ["Sprite Attributes", this.spriteAttributeTable, 256],
             ];
             return tables;

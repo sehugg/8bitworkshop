@@ -139,7 +139,7 @@ function linkSDLDZ80(step) {
             FS.writeFile('crt0.lst', '\n'); // TODO: needed so -u flag works
         }
         var args = ['-mjwxyu',
-            '-i', 'main.ihx',
+            '-i', 'main.ihx', // TODO: main?
             '-b', '_CODE=0x' + params.code_start.toString(16),
             '-b', '_DATA=0x' + params.data_start.toString(16),
             '-k', '/share/lib/z80',
@@ -252,7 +252,7 @@ function compileSDCC(step) {
         // pipe file to stdin
         (0, wasmutils_1.setupStdin)(FS, code);
         (0, wasmutils_1.setupFS)(FS, 'sdcc');
-        var args = ['--vc', '--std-sdcc99', '-mz80',
+        var args = ['--vc', '--std-sdcc99', '-mz80', //'-Wall',
             '--c1mode',
             //'--debug',
             //'-S', 'main.c',

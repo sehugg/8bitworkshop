@@ -97,7 +97,7 @@ class VIC20_WASMMachine extends wasmplatform_1.BaseWASMMachine {
     }
     getRasterCanvasPosition() {
         return {
-            x: -1,
+            x: -1, // TODO?
             y: this.getRasterY() - 14,
         };
     }

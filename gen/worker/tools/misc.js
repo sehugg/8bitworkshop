@@ -130,7 +130,7 @@ function compileInform6(step) {
         var lstpath = step.prefix + '.lst';
         listings[lstpath] = { lines: [], asmlines: lines, text: lstout };
         return {
-            output: objout,
+            output: objout, //.slice(0),
             listings: listings,
             errors: errors,
             symbolmap: symbolmap,
@@ -213,7 +213,7 @@ function compileWiz(step) {
             }
         }
         return {
-            output: binout,
+            output: binout, //.slice(0),
             errors: errors,
             symbolmap: symbolmap,
         };

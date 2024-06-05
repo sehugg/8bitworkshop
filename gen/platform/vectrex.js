@@ -479,8 +479,8 @@ class VIA6522 {
 }
 ;
 const Globals = {
-    VECTREX_MHZ: 1500000,
-    VECTREX_COLORS: 128,
+    VECTREX_MHZ: 1500000, /* speed of the vectrex being emulated */
+    VECTREX_COLORS: 128, /* number of possible colors ... grayscale */
     ALG_MAX_X: 33000,
     ALG_MAX_Y: 41000,
     //VECTREX_PDECAY: 30, /* phosphor decay rate */

@@ -109,8 +109,8 @@ exports.TOOL_PRELOADFS = {
     'fastbasic': '65-atari8',
     'silice': 'Silice',
     'wiz': 'wiz',
-    'ecs-vcs': '65-atari2600',
-    'ecs-nes': '65-nes',
+    'ecs-vcs': '65-atari2600', // TODO: support multiple platforms
+    'ecs-nes': '65-nes', // TODO: support multiple platforms
     'ecs-c64': '65-c64', // TODO: support multiple platforms
 };
 //# sourceMappingURL=workertools.js.map

@@ -855,7 +855,7 @@ export class CharmapEditor extends PixNode {
           sel.attr('selected','selected');
       });
       palselect.appendTo(agrid).change((e) => {
-        var index = $(e.target).val() as number;
+        var index = ($(e.target).val() as any) as number;
         (palizer as Palettizer).palindex = index;
         palizer.refreshRight();
       });

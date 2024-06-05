@@ -192,7 +192,7 @@ function assembleMerlin32(step) {
             });
         });
         return {
-            output: objout,
+            output: objout, //.slice(0),
             listings: listings,
             errors: errors,
             symbolmap: symbolmap,

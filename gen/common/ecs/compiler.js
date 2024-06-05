@@ -18,10 +18,10 @@ const OPERATORS = {
     'IMP': { f: 'bimp', p: 4 },
     'EQV': { f: 'beqv', p: 5 },
     'XOR': { f: 'bxor', p: 6 },
-    'OR': { f: 'bor', p: 7 },
-    'AND': { f: 'band', p: 8 },
-    '||': { f: 'lor', p: 17 },
-    '&&': { f: 'land', p: 18 },
+    'OR': { f: 'bor', p: 7 }, // or "lor" for logical
+    'AND': { f: 'band', p: 8 }, // or "land" for logical
+    '||': { f: 'lor', p: 17 }, // not used
+    '&&': { f: 'land', p: 18 }, // not used
     '=': { f: 'eq', p: 50 },
     '==': { f: 'eq', p: 50 },
     '<>': { f: 'ne', p: 50 },
