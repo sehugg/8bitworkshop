@@ -18,7 +18,7 @@ const C64_PRESETS = [
     { id: 'scroll3.c', name: 'Scrolling (Multidirectional)' },
     { id: 'scroll4.c', name: 'Scrolling (Color RAM Buffering)' },
     { id: 'scroll5.c', name: 'Scrolling (Camera Following)' },
-    { id: 'scrollingmap1.c', name: 'Scrolling Tile Map' },
+    //  {id:'scrollingmap1.c', name:'Scrolling Tile Map'},
     { id: 'fullscrollgame.c', name: 'Full-Scrolling Game' },
     { id: 'test_multiplex.c', name: 'Sprite Retriggering' },
     { id: 'test_multispritelib.c', name: 'Sprite Multiplexing Library' },
@@ -37,7 +37,7 @@ const C64_PRESETS = [
     { id: 'tgidemo.c', name: 'TGI Graphics Demo' },
     { id: 'upandaway.c', name: 'Up, Up and Away' },
     { id: 'hello.dasm', name: 'Hello World (DASM)', category: 'Assembly Language' },
-    { id: 'hello.dasm', name: 'Hello World (ACME)' },
+    { id: 'hello.acme', name: 'Hello World (ACME)' },
     { id: 'hello.wiz', name: 'Hello Wiz (Wiz)' },
 ];
 const C64_MEMORY_MAP = { main: [
