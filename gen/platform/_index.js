@@ -24,7 +24,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.importPlatform = void 0;
+exports.importPlatform = importPlatform;
 function importPlatform(name) {
     switch (name) {
         case "apple2": return Promise.resolve().then(() => __importStar(require("../platform/apple2")));
@@ -61,5 +61,4 @@ function importPlatform(name) {
         default: throw new Error(`Platform not recognized: '${name}'`);
     }
 }
-exports.importPlatform = importPlatform;
 //# sourceMappingURL=_index.js.map

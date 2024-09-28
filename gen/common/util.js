@@ -1,39 +1,76 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getCookie = exports.replaceAll = exports.coerceToArray = exports.FileDataCache = exports.findIntegerFactors = exports.escapeHTML = exports.parseXMLPoorly = exports.XMLParseError = exports.parseBool = exports.decodeQueryString = exports.loadScript = exports.byteToASCII = exports.convertDataToString = exports.convertDataToUint8Array = exports.isTypedArray = exports.isArray = exports.getRootBasePlatform = exports.getBasePlatform = exports.getWithBinary = exports.rle_unpack = exports.safeident = exports.clamp = exports.RGBA = exports.rgb2bgr = exports.printFlags = exports.safe_extend = exports.compressLZG = exports.isProbablyBinary = exports.removeBOM = exports.byteArrayToUTF8 = exports.byteArrayToString = exports.stringToByteArray = exports.lzgmini = exports.highlightDifferences = exports.invertMap = exports.arrayCompare = exports.toradix = exports.tobin = exports.hex = exports.getFilenamePrefix = exports.getFolderForPath = exports.getFilenameForPath = exports.byte2signed = exports.rpad = exports.lpad = void 0;
+exports.FileDataCache = exports.XMLParseError = void 0;
+exports.lpad = lpad;
+exports.rpad = rpad;
+exports.byte2signed = byte2signed;
+exports.getFilenameForPath = getFilenameForPath;
+exports.getFolderForPath = getFolderForPath;
+exports.getFilenamePrefix = getFilenamePrefix;
+exports.hex = hex;
+exports.tobin = tobin;
+exports.toradix = toradix;
+exports.arrayCompare = arrayCompare;
+exports.invertMap = invertMap;
+exports.highlightDifferences = highlightDifferences;
+exports.lzgmini = lzgmini;
+exports.stringToByteArray = stringToByteArray;
+exports.byteArrayToString = byteArrayToString;
+exports.byteArrayToUTF8 = byteArrayToUTF8;
+exports.removeBOM = removeBOM;
+exports.isProbablyBinary = isProbablyBinary;
+exports.compressLZG = compressLZG;
+exports.safe_extend = safe_extend;
+exports.printFlags = printFlags;
+exports.rgb2bgr = rgb2bgr;
+exports.RGBA = RGBA;
+exports.clamp = clamp;
+exports.safeident = safeident;
+exports.rle_unpack = rle_unpack;
+exports.getWithBinary = getWithBinary;
+exports.getBasePlatform = getBasePlatform;
+exports.getRootBasePlatform = getRootBasePlatform;
+exports.isArray = isArray;
+exports.isTypedArray = isTypedArray;
+exports.convertDataToUint8Array = convertDataToUint8Array;
+exports.convertDataToString = convertDataToString;
+exports.byteToASCII = byteToASCII;
+exports.loadScript = loadScript;
+exports.decodeQueryString = decodeQueryString;
+exports.parseBool = parseBool;
+exports.parseXMLPoorly = parseXMLPoorly;
+exports.escapeHTML = escapeHTML;
+exports.findIntegerFactors = findIntegerFactors;
+exports.coerceToArray = coerceToArray;
+exports.replaceAll = replaceAll;
+exports.getCookie = getCookie;
 function lpad(s, n) {
     s += ''; // convert to string
     while (s.length < n)
         s = " " + s;
     return s;
 }
-exports.lpad = lpad;
 function rpad(s, n) {
     s += ''; // convert to string
     while (s.length < n)
         s += " ";
     return s;
 }
-exports.rpad = rpad;
 function byte2signed(b) {
     b &= 0xff;
     return (b < 0x80) ? b : -(256 - b);
 }
-exports.byte2signed = byte2signed;
 function getFilenameForPath(s) {
     var toks = s.split('/');
     return toks[toks.length - 1];
 }
-exports.getFilenameForPath = getFilenameForPath;
 function getFolderForPath(s) {
     return s.substring(0, s.lastIndexOf('/'));
 }
-exports.getFolderForPath = getFolderForPath;
 function getFilenamePrefix(s) {
     var pos = s.lastIndexOf('.');
     return (pos > 0) ? s.substr(0, pos) : s;
 }
-exports.getFilenamePrefix = getFilenamePrefix;
 function hex(v, nd) {
     if (!nd)
         nd = 2;
@@ -44,13 +81,11 @@ function hex(v, nd) {
         return toradix(v, nd, 16);
     }
 }
-exports.hex = hex;
 function tobin(v, nd) {
     if (!nd)
         nd = 8;
     return toradix(v, nd, 2);
 }
-exports.tobin = tobin;
 function toradix(v, nd, radix) {
     try {
         var s = v.toString(radix).toUpperCase();
@@ -62,7 +97,6 @@ function toradix(v, nd, radix) {
         return v + "";
     }
 }
-exports.toradix = toradix;
 function arrayCompare(a, b) {
     if (a == null && b == null)
         return true;
@@ -77,7 +111,6 @@ function arrayCompare(a, b) {
             return false;
     return true;
 }
-exports.arrayCompare = arrayCompare;
 function invertMap(m) {
     var r = {};
     if (m) {
@@ -86,7 +119,6 @@ function invertMap(m) {
     }
     return r;
 }
-exports.invertMap = invertMap;
 function highlightDifferences(s1, s2) {
     var split1 = s1.split(/(\S+\s+)/).filter(function (n) { return n; });
     var split2 = s2.split(/(\S+\s+)/).filter(function (n) { return n; });
@@ -112,7 +144,6 @@ function highlightDifferences(s1, s2) {
     }
     return result;
 }
-exports.highlightDifferences = highlightDifferences;
 function lzgmini() {
     // Constants
     var LZG_HEADER_SIZE = 16;
@@ -246,14 +277,12 @@ function lzgmini() {
         return byteArrayToUTF8(outdata);
     };
 }
-exports.lzgmini = lzgmini;
 function stringToByteArray(s) {
     var a = new Uint8Array(s.length);
     for (var i = 0; i < s.length; i++)
         a[i] = s.charCodeAt(i);
     return a;
 }
-exports.stringToByteArray = stringToByteArray;
 function byteArrayToString(data) {
     var str = "";
     if (data != null) {
@@ -266,7 +295,6 @@ function byteArrayToString(data) {
     }
     return str;
 }
-exports.byteArrayToString = byteArrayToString;
 function byteArrayToUTF8(data) {
     var str = "";
     var charLUT = new Array();
@@ -294,14 +322,12 @@ function byteArrayToUTF8(data) {
     }
     return str;
 }
-exports.byteArrayToUTF8 = byteArrayToUTF8;
 function removeBOM(s) {
     if (s.charCodeAt(0) === 0xFEFF) {
         s = s.substr(1);
     }
     return s;
 }
-exports.removeBOM = removeBOM;
 function isProbablyBinary(path, data) {
     var score = 0;
     // check extensions
@@ -346,7 +372,6 @@ function isProbablyBinary(path, data) {
     }
     return score > 0;
 }
-exports.isProbablyBinary = isProbablyBinary;
 // need to load liblzg.js first
 function compressLZG(em_module, inBuffer, levelArg) {
     var level = levelArg || 9;
@@ -366,7 +391,6 @@ function compressLZG(em_module, inBuffer, levelArg) {
     em_module._free(outPtr);
     return outBuffer;
 }
-exports.compressLZG = compressLZG;
 // only does primitives, 1D arrays and no recursion
 function safe_extend(deep, dest, src) {
     // TODO: deep ignored
@@ -393,7 +417,6 @@ function safe_extend(deep, dest, src) {
     }
     return dest;
 }
-exports.safe_extend = safe_extend;
 function printFlags(val, names, r2l) {
     var s = '';
     for (var i = 0; i < names.length; i++) {
@@ -406,19 +429,15 @@ function printFlags(val, names, r2l) {
     }
     return s;
 }
-exports.printFlags = printFlags;
 function rgb2bgr(x) {
     return ((x & 0xff) << 16) | ((x >> 16) & 0xff) | (x & 0x00ff00);
 }
-exports.rgb2bgr = rgb2bgr;
 function RGBA(r, g, b) {
     return (r & 0xff) | ((g & 0xff) << 8) | ((b & 0xff) << 16) | 0xff000000;
 }
-exports.RGBA = RGBA;
 function clamp(minv, maxv, v) {
     return (v < minv) ? minv : (v > maxv) ? maxv : v;
 }
-exports.clamp = clamp;
 function safeident(s) {
     // if starts with non-alpha character, prefix with '_'
     if (s.length == 0)
@@ -427,7 +446,6 @@ function safeident(s) {
         s = '_' + s;
     return s.replace(/\W+/g, "_");
 }
-exports.safeident = safeident;
 function rle_unpack(src) {
     var i = 0;
     var tag = src[i++];
@@ -449,7 +467,6 @@ function rle_unpack(src) {
     }
     return new Uint8Array(dest);
 }
-exports.rle_unpack = rle_unpack;
 // firefox doesn't do GET with binary files
 // TODO: replace with fetch()?
 function getWithBinary(url, success, datatype) {
@@ -479,12 +496,10 @@ function getWithBinary(url, success, datatype) {
     };
     oReq.send(null);
 }
-exports.getWithBinary = getWithBinary;
 // get platform ID without . emulator
 function getBasePlatform(platform) {
     return platform.split('.')[0];
 }
-exports.getBasePlatform = getBasePlatform;
 // get platform ID without - specialization
 function getRootPlatform(platform) {
     return platform.split('-')[0];
@@ -493,30 +508,24 @@ function getRootPlatform(platform) {
 function getRootBasePlatform(platform) {
     return getRootPlatform(getBasePlatform(platform));
 }
-exports.getRootBasePlatform = getRootBasePlatform;
 function isArray(obj) {
     return obj != null && (Array.isArray(obj) || isTypedArray(obj));
 }
-exports.isArray = isArray;
 function isTypedArray(obj) {
     return obj != null && obj['BYTES_PER_ELEMENT'];
 }
-exports.isTypedArray = isTypedArray;
 function convertDataToUint8Array(data) {
     return (typeof data === 'string') ? stringToByteArray(data) : data;
 }
-exports.convertDataToUint8Array = convertDataToUint8Array;
 function convertDataToString(data) {
     return (data instanceof Uint8Array) ? byteArrayToUTF8(data) : data;
 }
-exports.convertDataToString = convertDataToString;
 function byteToASCII(b) {
     if (b < 32)
         return String.fromCharCode(b + 0x2400);
     else
         return String.fromCharCode(b);
 }
-exports.byteToASCII = byteToASCII;
 function loadScript(scriptfn) {
     return new Promise((resolve, reject) => {
         var script = document.createElement('script');
@@ -526,7 +535,6 @@ function loadScript(scriptfn) {
         document.getElementsByTagName('head')[0].appendChild(script);
     });
 }
-exports.loadScript = loadScript;
 function decodeQueryString(qs) {
     if (qs.startsWith('?'))
         qs = qs.substr(1);
@@ -543,7 +551,6 @@ function decodeQueryString(qs) {
     }
     return b;
 }
-exports.decodeQueryString = decodeQueryString;
 function parseBool(s) {
     if (!s)
         return false;
@@ -553,7 +560,6 @@ function parseBool(s) {
         return true;
     return s ? true : false;
 }
-exports.parseBool = parseBool;
 ///
 class XMLParseError extends Error {
 }
@@ -629,11 +635,9 @@ function parseXMLPoorly(s, openfn, closefn) {
         throw new XMLParseError("?xml needs to be first element");
     return top;
 }
-exports.parseXMLPoorly = parseXMLPoorly;
 function escapeHTML(s) {
     return s.replace(/[&]/g, '&amp;').replace(/[<]/g, '&lt;').replace(/[>]/g, '&gt;');
 }
-exports.escapeHTML = escapeHTML;
 // lame factorization for displaying bitmaps
 // returns a > b such that a * b == x (or higher), a >= mina, b >= minb
 function findIntegerFactors(x, mina, minb, aspect) {
@@ -667,7 +671,6 @@ function findIntegerFactors(x, mina, minb, aspect) {
     }
     return { a, b };
 }
-exports.findIntegerFactors = findIntegerFactors;
 class FileDataCache {
     constructor() {
         this.maxSize = 8000000;
@@ -700,7 +703,6 @@ function coerceToArray(arrobj) {
     else
         throw new Error(`Expected array or object, got "${arrobj}"`);
 }
-exports.coerceToArray = coerceToArray;
 function replaceAll(s, search, replace) {
     if (s == '')
         return '';
@@ -708,7 +710,6 @@ function replaceAll(s, search, replace) {
         return s;
     return s.split(search).join(replace);
 }
-exports.replaceAll = replaceAll;
 function getCookie(name) {
     var nameEQ = name + "=";
     var ca = document.cookie.split(';');
@@ -721,5 +722,4 @@ function getCookie(name) {
     }
     return null;
 }
-exports.getCookie = getCookie;
 //# sourceMappingURL=util.js.map

@@ -1,6 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.EntityManager = exports.EntityScope = exports.SourceFileExport = exports.Dialect_CA65 = exports.isQueryExpr = exports.isInlineCode = exports.isBlockStmt = exports.isUnOp = exports.isBinOp = exports.isLookup = exports.isLiteralInt = exports.isLiteral = exports.CodePlaceholderNode = exports.CodeLiteralNode = exports.ActionNode = exports.SELECT_TYPE = exports.SystemStats = exports.ECSError = void 0;
+exports.EntityManager = exports.EntityScope = exports.SourceFileExport = exports.Dialect_CA65 = exports.CodePlaceholderNode = exports.CodeLiteralNode = exports.ActionNode = exports.SELECT_TYPE = exports.SystemStats = exports.ECSError = void 0;
+exports.isLiteral = isLiteral;
+exports.isLiteralInt = isLiteralInt;
+exports.isLookup = isLookup;
+exports.isBinOp = isBinOp;
+exports.isUnOp = isUnOp;
+exports.isBlockStmt = isBlockStmt;
+exports.isInlineCode = isInlineCode;
+exports.isQueryExpr = isQueryExpr;
 const binpack_1 = require("./binpack");
 class ECSError extends Error {
     constructor(msg, obj) {
@@ -46,35 +54,27 @@ exports.CodePlaceholderNode = CodePlaceholderNode;
 function isLiteral(arg) {
     return arg.value != null;
 }
-exports.isLiteral = isLiteral;
 function isLiteralInt(arg) {
     return isLiteral(arg) && arg.valtype.dtype == 'int';
 }
-exports.isLiteralInt = isLiteralInt;
 function isLookup(arg) {
     return arg.name != null;
 }
-exports.isLookup = isLookup;
 function isBinOp(arg) {
     return arg.op != null && arg.left != null && arg.right != null;
 }
-exports.isBinOp = isBinOp;
 function isUnOp(arg) {
     return arg.op != null && arg.expr != null;
 }
-exports.isUnOp = isUnOp;
 function isBlockStmt(arg) {
     return arg.stmts != null;
 }
-exports.isBlockStmt = isBlockStmt;
 function isInlineCode(arg) {
     return arg.code != null;
 }
-exports.isInlineCode = isInlineCode;
 function isQueryExpr(arg) {
     return arg.query != null;
 }
-exports.isQueryExpr = isQueryExpr;
 /// DIALECT
 class Dialect_CA65 {
     constructor() {

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CPU6809 = void 0;
+exports.CPU6809 = CPU6809;
 /*
 The MIT License (MIT)
 Copyright (c) 2014 Martin Maly, http://retrocip.cz, http://www.uelectronics.info,
@@ -2649,6 +2649,5 @@ function CPU6809() {
         isStable: function () { return true; }
     };
 }
-exports.CPU6809 = CPU6809;
 ;
 //# sourceMappingURL=6809.js.map

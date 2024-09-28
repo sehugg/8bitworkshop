@@ -3,7 +3,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports._removeRepository = exports._pullProjectFromGithub = exports._pushProjectToGithub = exports._publishProjectToGithub = exports._importProjectFromGithub = exports._logoutOfGithub = exports._loginToGithub = exports.importProjectFromGithub = exports.getBoundGithubURL = exports.getGithubService = void 0;
+exports.getGithubService = getGithubService;
+exports.getBoundGithubURL = getBoundGithubURL;
+exports.importProjectFromGithub = importProjectFromGithub;
+exports._loginToGithub = _loginToGithub;
+exports._logoutOfGithub = _logoutOfGithub;
+exports._importProjectFromGithub = _importProjectFromGithub;
+exports._publishProjectToGithub = _publishProjectToGithub;
+exports._pushProjectToGithub = _pushProjectToGithub;
+exports._pullProjectFromGithub = _pullProjectFromGithub;
+exports._removeRepository = _removeRepository;
 const dompurify_1 = __importDefault(require("dompurify"));
 const util_1 = require("../common/util");
 const analytics_1 = require("./analytics");
@@ -28,7 +37,6 @@ async function getGithubService() {
     }
     return githubService;
 }
-exports.getGithubService = getGithubService;
 function getBoundGithubURL() {
     var toks = (ui_1.repo_id || '').split('/');
     if (toks.length != 2) {
@@ -37,7 +45,6 @@ function getBoundGithubURL() {
     }
     return 'https://github.com/' + toks[0] + '/' + toks[1];
 }
-exports.getBoundGithubURL = getBoundGithubURL;
 // GITHUB stuff (TODO: move)
 async function importProjectFromGithub(githuburl, replaceURL) {
     var sess;
@@ -73,7 +80,6 @@ async function importProjectFromGithub(githuburl, replaceURL) {
         (0, dialogs_1.alertError)("Could not import " + githuburl + "." + e);
     });
 }
-exports.importProjectFromGithub = importProjectFromGithub;
 async function _loginToGithub(e) {
     var gh = await getGithubService();
     gh.login().then(() => {
@@ -82,14 +88,12 @@ async function _loginToGithub(e) {
         (0, dialogs_1.alertError)("Could not sign in." + e);
     });
 }
-exports._loginToGithub = _loginToGithub;
 async function _logoutOfGithub(e) {
     var gh = await getGithubService();
     gh.logout().then(() => {
         (0, dialogs_1.alertInfo)("You are logged out of Github.");
     });
 }
-exports._logoutOfGithub = _logoutOfGithub;
 function _importProjectFromGithub(e) {
     var modal = $("#importGithubModal");
     var btn = $("#importGithubButton");
@@ -100,7 +104,6 @@ function _importProjectFromGithub(e) {
         importProjectFromGithub(githuburl, false);
     });
 }
-exports._importProjectFromGithub = _importProjectFromGithub;
 function _publishProjectToGithub(e) {
     if (ui_1.repo_id) {
         if (!confirm("This project (" + (0, ui_1.getCurrentProject)().mainPath + ") is already bound to a Github repository. Do you want to re-publish to a new repository? (You can instead choose 'Push Changes' to update files in the existing repository.)"))
@@ -141,7 +144,6 @@ function _publishProjectToGithub(e) {
         });
     });
 }
-exports._publishProjectToGithub = _publishProjectToGithub;
 function _pushProjectToGithub(e) {
     var ghurl = getBoundGithubURL();
     if (!ghurl)
@@ -155,7 +157,6 @@ function _pushProjectToGithub(e) {
         pushChangesToGithub(commitMsg);
     });
 }
-exports._pushProjectToGithub = _pushProjectToGithub;
 function _pullProjectFromGithub(e) {
     var ghurl = getBoundGithubURL();
     if (!ghurl)
@@ -171,7 +172,6 @@ function _pullProjectFromGithub(e) {
         }
     });
 }
-exports._pullProjectFromGithub = _pullProjectFromGithub;
 function confirmCommit(sess) {
     return new Promise((resolve, reject) => {
         var files = sess.commit.files;
@@ -251,7 +251,6 @@ function _removeRepository() {
         }
     });
 }
-exports._removeRepository = _removeRepository;
 async function removeRepository() {
     var ghurl = getBoundGithubURL();
     (0, dialogs_1.setWaitDialog)(true);

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.compileCC7800 = void 0;
+exports.compileCC7800 = compileCC7800;
 const wasishim_1 = require("../../common/wasi/wasishim");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
@@ -59,5 +59,4 @@ async function compileCC7800(step) {
         files: [destpath]
     };
 }
-exports.compileCC7800 = compileCC7800;
 //# sourceMappingURL=cc7800.js.map

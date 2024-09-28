@@ -1,6 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processEmbedDirective = exports.fixParamsWithDefines = exports.anyTargetChanged = exports.staleFiles = exports.populateExtraFiles = exports.populateFiles = exports.getPrefix = exports.gatherFiles = exports.populateEntry = exports.getWorkFileAsString = exports.putWorkFile = exports.endtime = exports.starttime = exports.builder = exports.Builder = exports.errorResult = exports.store = exports.FileWorkingStore = exports.PWORKER = void 0;
+exports.builder = exports.Builder = exports.store = exports.FileWorkingStore = exports.PWORKER = void 0;
+exports.errorResult = errorResult;
+exports.starttime = starttime;
+exports.endtime = endtime;
+exports.putWorkFile = putWorkFile;
+exports.getWorkFileAsString = getWorkFileAsString;
+exports.populateEntry = populateEntry;
+exports.gatherFiles = gatherFiles;
+exports.getPrefix = getPrefix;
+exports.populateFiles = populateFiles;
+exports.populateExtraFiles = populateExtraFiles;
+exports.staleFiles = staleFiles;
+exports.anyTargetChanged = anyTargetChanged;
+exports.fixParamsWithDefines = fixParamsWithDefines;
+exports.processEmbedDirective = processEmbedDirective;
 const util_1 = require("../common/util");
 const platforms_1 = require("./platforms");
 const workertools_1 = require("./workertools");
@@ -62,7 +76,6 @@ exports.store = new FileWorkingStore();
 function errorResult(msg) {
     return { errors: [{ line: 0, msg: msg }] };
 }
-exports.errorResult = errorResult;
 class Builder {
     constructor() {
         this.steps = [];
@@ -197,18 +210,14 @@ function compareData(a, b) {
 exports.builder = new Builder();
 var _t1;
 function starttime() { _t1 = new Date(); }
-exports.starttime = starttime;
 function endtime(msg) { var _t2 = new Date(); console.log(msg, _t2.getTime() - _t1.getTime(), "ms"); }
-exports.endtime = endtime;
 ///
 function putWorkFile(path, data) {
     return exports.store.putFile(path, data);
 }
-exports.putWorkFile = putWorkFile;
 function getWorkFileAsString(path) {
     return exports.store.getFileAsString(path);
 }
-exports.getWorkFileAsString = getWorkFileAsString;
 function populateEntry(fs, path, entry, options) {
     var data = entry.data;
     if (options && options.processFn) {
@@ -229,7 +238,6 @@ function populateEntry(fs, path, entry, options) {
     fs.utime(path, time, time);
     console.log("<<<", path, entry.data.length);
 }
-exports.populateEntry = populateEntry;
 // can call multiple times (from populateFiles)
 function gatherFiles(step, options) {
     var maxts = 0;
@@ -267,12 +275,10 @@ function gatherFiles(step, options) {
     step.maxts = maxts;
     return maxts;
 }
-exports.gatherFiles = gatherFiles;
 function getPrefix(s) {
     var pos = s.lastIndexOf('.');
     return (pos > 0) ? s.substring(0, pos) : s;
 }
-exports.getPrefix = getPrefix;
 function populateFiles(step, fs, options) {
     gatherFiles(step, options);
     if (!step.files)
@@ -282,7 +288,6 @@ function populateFiles(step, fs, options) {
         populateEntry(fs, path, exports.store.workfs[path], options);
     }
 }
-exports.populateFiles = populateFiles;
 function populateExtraFiles(step, fs, extrafiles) {
     if (extrafiles) {
         for (var i = 0; i < extrafiles.length; i++) {
@@ -310,7 +315,6 @@ function populateExtraFiles(step, fs, extrafiles) {
         }
     }
 }
-exports.populateExtraFiles = populateExtraFiles;
 function staleFiles(step, targets) {
     if (!step.maxts)
         throw Error("call populateFiles() first");
@@ -323,7 +327,6 @@ function staleFiles(step, targets) {
     console.log("unchanged", step.maxts, targets);
     return false;
 }
-exports.staleFiles = staleFiles;
 function anyTargetChanged(step, targets) {
     if (!step.maxts)
         throw Error("call populateFiles() first");
@@ -336,7 +339,6 @@ function anyTargetChanged(step, targets) {
     console.log("unchanged", step.maxts, targets);
     return false;
 }
-exports.anyTargetChanged = anyTargetChanged;
 function fixParamsWithDefines(path, params) {
     var libargs = params.libargs;
     if (path && libargs) {
@@ -382,7 +384,6 @@ function fixParamsWithDefines(path, params) {
         }
     }
 }
-exports.fixParamsWithDefines = fixParamsWithDefines;
 function processEmbedDirective(code) {
     let re3 = /^\s*#embed\s+"(.+?)"/gm;
     // find #embed "filename.bin" and replace with C array data
@@ -399,5 +400,4 @@ function processEmbedDirective(code) {
         return out.substring(0, out.length - 1);
     });
 }
-exports.processEmbedDirective = processEmbedDirective;
 //# sourceMappingURL=builder.js.map

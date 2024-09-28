@@ -23,7 +23,7 @@
  * SOFTWARE.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.VirtualList = void 0;
+exports.VirtualList = VirtualList;
 /**
  * Creates a virtually-rendered scrollable list.
  * @param {object} config
@@ -74,7 +74,6 @@ function VirtualList(config) {
     }
     this.container.addEventListener('scroll', onScroll);
 }
-exports.VirtualList = VirtualList;
 VirtualList.prototype.createRow = function (i) {
     var item;
     if (this.generatorFn)

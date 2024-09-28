@@ -2,7 +2,12 @@
 // test.c(6) : warning 85: in function main unreferenced local variable : 'x'
 // main.a (4): error: Unknown Mnemonic 'xxx'.
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseSourceLines = exports.parseListing = exports.re_lineoffset = exports.re_crlf = exports.extractErrors = exports.makeErrorMatcher = exports.msvcErrorMatcher = exports.re_msvc2 = exports.re_msvc = void 0;
+exports.re_lineoffset = exports.re_crlf = exports.re_msvc2 = exports.re_msvc = void 0;
+exports.msvcErrorMatcher = msvcErrorMatcher;
+exports.makeErrorMatcher = makeErrorMatcher;
+exports.extractErrors = extractErrors;
+exports.parseListing = parseListing;
+exports.parseSourceLines = parseSourceLines;
 // at 2: warning 190: ISO C forbids an empty source file
 exports.re_msvc = /[/]*([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+?):\s*(.*)/;
 exports.re_msvc2 = /\s*(at)\s+(\d+)\s*(:)\s*(.*)/;
@@ -23,7 +28,6 @@ function msvcErrorMatcher(errors) {
         }
     };
 }
-exports.msvcErrorMatcher = msvcErrorMatcher;
 function makeErrorMatcher(errors, regex, iline, imsg, mainpath, ifilename) {
     return function (s) {
         var matches = regex.exec(s);
@@ -39,7 +43,6 @@ function makeErrorMatcher(errors, regex, iline, imsg, mainpath, ifilename) {
         }
     };
 }
-exports.makeErrorMatcher = makeErrorMatcher;
 function extractErrors(regex, strings, path, iline, imsg, ifilename) {
     var errors = [];
     var matcher = makeErrorMatcher(errors, regex, iline, imsg, path, ifilename);
@@ -48,7 +51,6 @@ function extractErrors(regex, strings, path, iline, imsg, ifilename) {
     }
     return errors;
 }
-exports.extractErrors = extractErrors;
 exports.re_crlf = /\r?\n/;
 //    1   %line 16+1 hello.asm
 exports.re_lineoffset = /\s*(\d+)\s+[%]line\s+(\d+)\+(\d+)\s+(.+)/;
@@ -97,7 +99,6 @@ function parseListing(code, lineMatch, iline, ioffset, iinsns, icycles, funcMatc
     });
     return lines;
 }
-exports.parseListing = parseListing;
 function parseSourceLines(code, lineMatch, offsetMatch, funcMatch, segMatch) {
     var lines = [];
     var lastlinenum = 0;
@@ -134,5 +135,4 @@ function parseSourceLines(code, lineMatch, offsetMatch, funcMatch, segMatch) {
     }
     return lines;
 }
-exports.parseSourceLines = parseSourceLines;
 //# sourceMappingURL=listingutils.js.map

@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.assembleYASM = exports.compileSmallerC = void 0;
+exports.compileSmallerC = compileSmallerC;
+exports.assembleYASM = assembleYASM;
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const wasmutils_1 = require("../wasmutils");
@@ -72,7 +73,6 @@ function compileSmallerC(step) {
         files: [destpath],
     };
 }
-exports.compileSmallerC = compileSmallerC;
 function assembleYASM(step) {
     (0, wasmutils_1.loadNative)("yasm");
     var errors = [];
@@ -126,5 +126,4 @@ function assembleYASM(step) {
         };
     }
 }
-exports.assembleYASM = assembleYASM;
 //# sourceMappingURL=x86.js.map

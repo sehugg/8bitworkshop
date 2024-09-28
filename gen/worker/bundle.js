@@ -9157,7 +9157,7 @@
     var errline;
     if (staleFiles(step, [destpath])) {
       var match_fn = (s) => {
-        s = s.replaceAll(/\033\[\d+\w/g, "");
+        s = s.replaceAll(/\x1b\[\d+\w/g, "");
         var mf = /file:\s*(\w+)/.exec(s);
         var ml = /line:\s+(\d+)/.exec(s);
         var preproc = /\[preprocessor\] (\d+)\] (.+)/.exec(s);

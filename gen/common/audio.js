@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TssChannelAdapter = exports.SampledAudio = exports.SampleAudio = exports.WorkerSoundChannel = exports.POKEYDeviceChannel = exports.newPOKEYAudio = exports.SN76489_Audio = exports.AY38910_Audio = exports.MasterAudio = void 0;
+exports.TssChannelAdapter = exports.SampledAudio = exports.SampleAudio = exports.WorkerSoundChannel = exports.POKEYDeviceChannel = exports.SN76489_Audio = exports.AY38910_Audio = exports.MasterAudio = void 0;
+exports.newPOKEYAudio = newPOKEYAudio;
 class MasterAudio {
     constructor() {
         this.master = new MasterChannel();
@@ -75,7 +76,6 @@ function newPOKEYAudio(count) {
     }
     return audio;
 }
-exports.newPOKEYAudio = newPOKEYAudio;
 function combinePolys(a, b) {
     var arr = new Uint8Array(a.length * b.length);
     var n = 0;

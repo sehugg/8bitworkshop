@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.disassemble6502 = exports.OPS_6502 = void 0;
+exports.OPS_6502 = void 0;
+exports.disassemble6502 = disassemble6502;
 const util_1 = require("../util");
 exports.OPS_6502 = [
     { mn: "BRK", am: "", nb: 1, il: 0, c1: 7, c2: 0, nw: 3, br: 1, mod: "SI" }, // 0
@@ -281,6 +282,5 @@ function disassemble6502(pc, b0, b1, b2) {
     }
     return { line: op.mn + " " + am, nbytes: op.nb, isaddr: isaddr };
 }
-exports.disassemble6502 = disassemble6502;
 ;
 //# sourceMappingURL=disasm6502.js.map

@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.disassembleHuC6280 = exports.OPS_HuC6280 = void 0;
+exports.OPS_HuC6280 = void 0;
+exports.disassembleHuC6280 = disassembleHuC6280;
 const util_1 = require("../util");
 exports.OPS_HuC6280 = [
     { mn: "BRK", am: "", nb: 1, il: 0, c1: 7, c2: 0, nw: 3, br: 1, mod: "SI" }, // 0
@@ -282,6 +283,5 @@ function disassembleHuC6280(pc, b0, b1, b2) {
     }
     return { line: op.mn + " " + am, nbytes: op.nb, isaddr: isaddr };
 }
-exports.disassembleHuC6280 = disassembleHuC6280;
 ;
 //# sourceMappingURL=disasmHuC6280.js.map

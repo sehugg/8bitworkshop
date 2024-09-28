@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.fuzz = void 0;
+exports.fuzz = fuzz;
 //import binaryen = require('binaryen');
 //import { fn } from "jquery";
 const hdlruntime_1 = require("./hdlruntime");
@@ -44,5 +44,4 @@ function fuzz(buf) {
         }
     }
 }
-exports.fuzz = fuzz;
 //# sourceMappingURL=fuzz.js.map

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.assembleZMAC = void 0;
+exports.assembleZMAC = assembleZMAC;
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const wasmutils_1 = require("../wasmutils");
@@ -65,5 +65,4 @@ function assembleZMAC(step) {
         };
     }
 }
-exports.assembleZMAC = assembleZMAC;
 //# sourceMappingURL=z80.js.map

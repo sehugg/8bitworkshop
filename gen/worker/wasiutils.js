@@ -3,7 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.loadWASIFilesystemZip = exports.loadBlobSync = void 0;
+exports.loadBlobSync = loadBlobSync;
+exports.loadWASIFilesystemZip = loadWASIFilesystemZip;
 const jszip_1 = __importDefault(require("jszip"));
 const wasishim_1 = require("../common/wasi/wasishim");
 function loadBlobSync(path) {
@@ -13,7 +14,6 @@ function loadBlobSync(path) {
     xhr.send(null);
     return xhr.response;
 }
-exports.loadBlobSync = loadBlobSync;
 async function loadWASIFilesystemZip(zippath) {
     const jszip = new jszip_1.default();
     const path = '../../src/worker/fs/' + zippath;
@@ -37,5 +37,4 @@ async function loadWASIFilesystemZip(zippath) {
     await Promise.all(promises);
     return fs;
 }
-exports.loadWASIFilesystemZip = loadWASIFilesystemZip;
 //# sourceMappingURL=wasiutils.js.map

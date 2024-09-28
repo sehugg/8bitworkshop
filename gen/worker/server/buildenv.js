@@ -3,7 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ServerBuildEnv = exports.TOOLS = exports.findBestTool = void 0;
+exports.ServerBuildEnv = exports.TOOLS = void 0;
+exports.findBestTool = findBestTool;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const child_process_1 = require("child_process");
@@ -57,7 +58,6 @@ function findBestTool(step) {
     }
     throw new Error(`Tool not found: ${step.tool}`);
 }
-exports.findBestTool = findBestTool;
 exports.TOOLS = [
     Object.assign({}, LLVM_MOS_TOOL, { version: 'latest' }),
 ];

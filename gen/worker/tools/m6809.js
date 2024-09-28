@@ -1,6 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.linkLWLINK = exports.assembleLWASM = exports.compileCMOC = exports.assembleXASM6809 = void 0;
+exports.assembleXASM6809 = assembleXASM6809;
+exports.compileCMOC = compileCMOC;
+exports.assembleLWASM = assembleLWASM;
+exports.linkLWLINK = linkLWLINK;
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const wasmutils_1 = require("../wasmutils");
@@ -64,7 +67,6 @@ function assembleXASM6809(step) {
         symbolmap: symbolmap,
     };
 }
-exports.assembleXASM6809 = assembleXASM6809;
 function compileCMOC(step) {
     (0, wasmutils_1.loadNative)("cmoc");
     var params = step.params;
@@ -131,7 +133,6 @@ function compileCMOC(step) {
         files: [destpath],
     };
 }
-exports.compileCMOC = compileCMOC;
 function assembleLWASM(step) {
     (0, wasmutils_1.loadNative)("lwasm");
     var errors = [];
@@ -173,7 +174,6 @@ function assembleLWASM(step) {
         args: [objpath]
     };
 }
-exports.assembleLWASM = assembleLWASM;
 function linkLWLINK(step) {
     (0, wasmutils_1.loadNative)("lwlink");
     var params = step.params;
@@ -278,5 +278,4 @@ function linkLWLINK(step) {
         };
     }
 }
-exports.linkLWLINK = linkLWLINK;
 //# sourceMappingURL=m6809.js.map

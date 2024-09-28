@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.compileFastBasic = exports.assembleMerlin32 = exports.assembleNESASM = void 0;
+exports.assembleNESASM = assembleNESASM;
+exports.assembleMerlin32 = assembleMerlin32;
+exports.compileFastBasic = compileFastBasic;
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const wasmutils_1 = require("../wasmutils");
@@ -103,7 +105,6 @@ function assembleNESASM(step) {
         symbolmap: symbolmap,
     };
 }
-exports.assembleNESASM = assembleNESASM;
 /*
 ------+-------------------+-------------+----+---------+------+-----------------------+-------------------------------------------------------------------
 Line | # File       Line | Line Type   | MX |  Reloc  | Size | Address   Object Code |  Source Code
@@ -200,7 +201,6 @@ function assembleMerlin32(step) {
         };
     }
 }
-exports.assembleMerlin32 = assembleMerlin32;
 // README.md:2:5: parse error, expected: statement or variable assignment, integer variable, variable assignment
 function compileFastBasic(step) {
     // TODO: fastbasic-fp?
@@ -238,5 +238,4 @@ function compileFastBasic(step) {
         files: [destpath],
     };
 }
-exports.compileFastBasic = compileFastBasic;
 //# sourceMappingURL=m6502.js.map

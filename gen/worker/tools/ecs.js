@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.assembleECS = void 0;
+exports.assembleECS = assembleECS;
 const compiler_1 = require("../../common/ecs/compiler");
 const ecs_1 = require("../../common/ecs/ecs");
 const tokenizer_1 = require("../../common/tokenizer");
@@ -55,5 +55,4 @@ function assembleECS(step) {
         };
     }
 }
-exports.assembleECS = assembleECS;
 //# sourceMappingURL=ecs.js.map

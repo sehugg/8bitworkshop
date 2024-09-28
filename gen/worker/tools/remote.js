@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.buildRemote = void 0;
+exports.buildRemote = buildRemote;
 const util_1 = require("../../common/util");
 const workertypes_1 = require("../../common/workertypes");
 const builder_1 = require("../builder");
@@ -50,5 +50,4 @@ async function buildRemote(step) {
         throw new Error(`Unexpected result from remote build: ${JSON.stringify(json)}`);
     }
 }
-exports.buildRemote = buildRemote;
 //# sourceMappingURL=remote.js.map

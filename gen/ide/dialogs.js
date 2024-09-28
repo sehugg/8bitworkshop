@@ -3,7 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.fatalError = exports.alertInfo = exports.alertError = exports.setWaitProgress = exports.setWaitDialog = void 0;
+exports.setWaitDialog = setWaitDialog;
+exports.setWaitProgress = setWaitProgress;
+exports.alertError = alertError;
+exports.alertInfo = alertInfo;
+exports.fatalError = fatalError;
 const dompurify_1 = __importDefault(require("dompurify"));
 function setWaitDialog(b) {
     if (b) {
@@ -15,11 +19,9 @@ function setWaitDialog(b) {
         $("#pleaseWaitModal").modal('hide');
     }
 }
-exports.setWaitDialog = setWaitDialog;
 function setWaitProgress(prog) {
     $("#pleaseWaitProgressBar").css('width', (prog * 100) + '%').show();
 }
-exports.setWaitProgress = setWaitProgress;
 function alertError(s) {
     setWaitDialog(false);
     bootbox.alert({
@@ -27,15 +29,12 @@ function alertError(s) {
         message: dompurify_1.default.sanitize(s)
     });
 }
-exports.alertError = alertError;
 function alertInfo(s) {
     setWaitDialog(false);
     bootbox.alert(dompurify_1.default.sanitize(s));
 }
-exports.alertInfo = alertInfo;
 function fatalError(s) {
     alertError(s);
     throw new Error(s);
 }
-exports.fatalError = fatalError;
 //# sourceMappingURL=dialogs.js.map

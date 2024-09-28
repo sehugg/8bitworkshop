@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Tokenizer = exports.TokenizerRuleSet = exports.TokenRule = exports.Token = exports.TokenType = exports.mergeLocs = exports.CompileError = void 0;
+exports.Tokenizer = exports.TokenizerRuleSet = exports.TokenRule = exports.Token = exports.TokenType = exports.CompileError = void 0;
+exports.mergeLocs = mergeLocs;
 class CompileError extends Error {
     constructor(msg, loc) {
         super(msg);
@@ -18,7 +19,6 @@ function mergeLocs(a, b) {
         path: a.path || b.path,
     };
 }
-exports.mergeLocs = mergeLocs;
 var TokenType;
 (function (TokenType) {
     TokenType["EOF"] = "eof";

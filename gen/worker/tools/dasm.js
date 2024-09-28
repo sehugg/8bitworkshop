@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.assembleDASM2 = exports.assembleDASM = void 0;
+exports.assembleDASM = assembleDASM;
+exports.assembleDASM2 = assembleDASM2;
 const wasishim_1 = require("../../common/wasi/wasishim");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
@@ -225,7 +226,6 @@ function assembleDASM(step) {
         symbolmap: symbolmap,
     };
 }
-exports.assembleDASM = assembleDASM;
 let wasiModule = null;
 function assembleDASM2(step) {
     const errors = [];
@@ -278,5 +278,4 @@ function assembleDASM2(step) {
         symbolmap
     };
 }
-exports.assembleDASM2 = assembleDASM2;
 //# sourceMappingURL=dasm.js.map

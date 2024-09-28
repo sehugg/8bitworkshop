@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.compileBatariBasic = void 0;
+exports.compileBatariBasic = compileBatariBasic;
 const builder_1 = require("../builder");
 const wasmutils_1 = require("../wasmutils");
 function preprocessBatariBasic(code) {
@@ -99,5 +99,4 @@ function compileBatariBasic(step) {
         bblines: true,
     };
 }
-exports.compileBatariBasic = compileBatariBasic;
 //# sourceMappingURL=bataribasic.js.map

@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.compileSDCC = exports.linkSDLDZ80 = exports.assembleSDASZ80 = void 0;
+exports.assembleSDASZ80 = assembleSDASZ80;
+exports.linkSDLDZ80 = linkSDLDZ80;
+exports.compileSDCC = compileSDCC;
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const wasmutils_1 = require("../wasmutils");
@@ -103,7 +105,6 @@ function assembleSDASZ80(step) {
     };
     //symout = FS.readFile("main.sym", {encoding:'utf8'});
 }
-exports.assembleSDASZ80 = assembleSDASZ80;
 function linkSDLDZ80(step) {
     (0, wasmutils_1.loadNative)("sdldz80");
     var errors = [];
@@ -221,7 +222,6 @@ function linkSDLDZ80(step) {
         };
     }
 }
-exports.linkSDLDZ80 = linkSDLDZ80;
 function compileSDCC(step) {
     (0, builder_1.gatherFiles)(step, {
         mainFilePath: "main.c" // not used
@@ -299,5 +299,4 @@ function compileSDCC(step) {
         files: [outpath],
     };
 }
-exports.compileSDCC = compileSDCC;
 //# sourceMappingURL=sdcc.js.map

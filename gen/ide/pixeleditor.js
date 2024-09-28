@@ -1,6 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TwoWayMapper = exports.Viewer = exports.MapEditor = exports.CharmapEditor = exports.ImageChooser = exports.NESNametableConverter = exports.MetaspriteCompositor = exports.Compositor = exports.PaletteFormatToRGB = exports.Palettizer = exports.Mapper = exports.Compressor = exports.TextDataNode = exports.FileDataNode = exports.PixNode = exports.convertPaletteFormat = exports.getPaletteLength = exports.convertPaletteBytes = exports.convertImagesToWords = exports.convertWordsToImages = exports.replaceHexWords = exports.parseHexWords = void 0;
+exports.TwoWayMapper = exports.Viewer = exports.MapEditor = exports.CharmapEditor = exports.ImageChooser = exports.NESNametableConverter = exports.MetaspriteCompositor = exports.Compositor = exports.PaletteFormatToRGB = exports.Palettizer = exports.Mapper = exports.Compressor = exports.TextDataNode = exports.FileDataNode = exports.PixNode = void 0;
+exports.parseHexWords = parseHexWords;
+exports.replaceHexWords = replaceHexWords;
+exports.convertWordsToImages = convertWordsToImages;
+exports.convertImagesToWords = convertImagesToWords;
+exports.convertPaletteBytes = convertPaletteBytes;
+exports.getPaletteLength = getPaletteLength;
+exports.convertPaletteFormat = convertPaletteFormat;
 const util_1 = require("../common/util");
 const toolbar_1 = require("./toolbar");
 /////////////////
@@ -33,7 +40,6 @@ function parseHexWords(s) {
     }
     return arr;
 }
-exports.parseHexWords = parseHexWords;
 function replaceHexWords(s, words) {
     var result = "";
     var m;
@@ -66,7 +72,6 @@ function replaceHexWords(s, words) {
     });
     return result;
 }
-exports.replaceHexWords = replaceHexWords;
 function remapBits(x, arr) {
     if (!arr)
         return x;
@@ -131,7 +136,6 @@ function convertWordsToImages(words, fmt) {
     }
     return images;
 }
-exports.convertWordsToImages = convertWordsToImages;
 function convertImagesToWords(images, fmt) {
     if (fmt.destfmt)
         fmt = fmt.destfmt;
@@ -181,7 +185,6 @@ function convertImagesToWords(images, fmt) {
     }
     return words;
 }
-exports.convertImagesToWords = convertImagesToWords;
 // TODO
 function convertPaletteBytes(arr, r0, r1, g0, g1, b0, b1) {
     var result = [];
@@ -195,7 +198,6 @@ function convertPaletteBytes(arr, r0, r1, g0, g1, b0, b1) {
     }
     return result;
 }
-exports.convertPaletteBytes = convertPaletteBytes;
 function getPaletteLength(palfmt) {
     var pal = palfmt.pal;
     if (typeof pal === 'number') {
@@ -214,7 +216,6 @@ function getPaletteLength(palfmt) {
         }
     }
 }
-exports.getPaletteLength = getPaletteLength;
 function convertPaletteFormat(palbytes, palfmt) {
     var pal = palfmt.pal;
     var newpalette;
@@ -239,7 +240,6 @@ function convertPaletteFormat(palbytes, palfmt) {
     }
     return newpalette;
 }
-exports.convertPaletteFormat = convertPaletteFormat;
 // TODO: illegal colors?
 const PREDEF_PALETTES = {
     'nes': [

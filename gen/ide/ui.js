@@ -24,7 +24,28 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.highlightSearch = exports.reloadWorkspaceFile = exports.emulationHalted = exports.getSaveState = exports.getTestOutput = exports.setTestInput = exports.startUI = exports.getPlatformAndRepo = exports.setupSplits = exports.gotoNewLocation = exports.haltEmulation = exports.setFrameRateUI = exports.clearBreakpoint = exports.runToPC = exports.setupBreakpoint = exports.getCurrentEditorFilename = exports.getCurrentMainFilename = exports.getWorkerParams = exports.getCurrentOutput = exports.getCurrentProject = exports.getPlatformStore = exports.lastDebugState = exports.projectWindows = exports.current_project = exports.platform = exports.repo_id = exports.store_id = exports.platform_id = exports.qs = void 0;
+exports.lastDebugState = exports.projectWindows = exports.current_project = exports.platform = exports.repo_id = exports.store_id = exports.platform_id = exports.qs = void 0;
+exports.getPlatformStore = getPlatformStore;
+exports.getCurrentProject = getCurrentProject;
+exports.getCurrentOutput = getCurrentOutput;
+exports.getWorkerParams = getWorkerParams;
+exports.getCurrentMainFilename = getCurrentMainFilename;
+exports.getCurrentEditorFilename = getCurrentEditorFilename;
+exports.setupBreakpoint = setupBreakpoint;
+exports.runToPC = runToPC;
+exports.clearBreakpoint = clearBreakpoint;
+exports.setFrameRateUI = setFrameRateUI;
+exports.haltEmulation = haltEmulation;
+exports.gotoNewLocation = gotoNewLocation;
+exports.setupSplits = setupSplits;
+exports.getPlatformAndRepo = getPlatformAndRepo;
+exports.startUI = startUI;
+exports.setTestInput = setTestInput;
+exports.getTestOutput = getTestOutput;
+exports.getSaveState = getSaveState;
+exports.emulationHalted = emulationHalted;
+exports.reloadWorkspaceFile = reloadWorkspaceFile;
+exports.highlightSearch = highlightSearch;
 const localforage = __importStar(require("localforage"));
 const project_1 = require("./project");
 const windows_1 = require("./windows");
@@ -71,19 +92,15 @@ var lastBreakExpr = "c.PC == 0x6000";
 function getPlatformStore() {
     return store;
 }
-exports.getPlatformStore = getPlatformStore;
 function getCurrentProject() {
     return exports.current_project;
 }
-exports.getCurrentProject = getCurrentProject;
 function getCurrentOutput() {
     return current_output;
 }
-exports.getCurrentOutput = getCurrentOutput;
 function getWorkerParams() {
     return compparams;
 }
-exports.getWorkerParams = getWorkerParams;
 // TODO: codemirror multiplex support?
 // TODO: move to views.ts?
 const TOOL_TO_SOURCE_STYLE = {
@@ -599,11 +616,9 @@ async function getLocalFilesystem(repoid) {
 function getCurrentMainFilename() {
     return (0, util_1.getFilenameForPath)(exports.current_project.mainPath);
 }
-exports.getCurrentMainFilename = getCurrentMainFilename;
 function getCurrentEditorFilename() {
     return (0, util_1.getFilenameForPath)(exports.projectWindows.getActiveID());
 }
-exports.getCurrentEditorFilename = getCurrentEditorFilename;
 function _revertFile(e) {
     var wnd = exports.projectWindows.getActive();
     if (wnd && wnd.setText) {
@@ -993,7 +1008,6 @@ function setupBreakpoint(btnid) {
     if (btnid)
         setDebugButtonState(btnid, "active");
 }
-exports.setupBreakpoint = setupBreakpoint;
 function _pause() {
     if (exports.platform && exports.platform.isRunning()) {
         exports.platform.pause();
@@ -1065,7 +1079,6 @@ function runToPC(pc) {
         });
     }
 }
-exports.runToPC = runToPC;
 function restartAtCursor() {
     if (exports.platform.restartAtPC(getEditorPC())) {
         resume();
@@ -1095,7 +1108,6 @@ function clearBreakpoint() {
     setupDebugCallback(); // in case of BRK/trap
     showDebugInfo();
 }
-exports.clearBreakpoint = clearBreakpoint;
 function resetPlatform() {
     exports.platform.reset();
     _resetRecording();
@@ -1181,7 +1193,6 @@ function setFrameRateUI(fps) {
     else
         $("#fps_label").text("1/" + Math.round(1 / fps));
 }
-exports.setFrameRateUI = setFrameRateUI;
 function _slowerFrameRate() {
     var fps = exports.platform.getFrameRate();
     fps = fps / 2;
@@ -1600,7 +1611,6 @@ function haltEmulation(err) {
     emulationHalted(err);
     // TODO: reset platform?
 }
-exports.haltEmulation = haltEmulation;
 // catch errors
 function installErrorHandler() {
     window.addEventListener('error', globalErrorHandler);
@@ -1620,7 +1630,6 @@ function gotoNewLocation(replaceHistory, newQueryString) {
     else
         window.location.href = "?" + $.param(exports.qs);
 }
-exports.gotoNewLocation = gotoNewLocation;
 function replaceURLState() {
     if (exports.platform_id)
         exports.qs.platform = exports.platform_id;
@@ -1784,7 +1793,6 @@ function setupSplits() {
         },
     });
 }
-exports.setupSplits = setupSplits;
 function loadImportedURL(url) {
     // TODO: zip file?
     const ignore = (0, util_1.parseBool)(exports.qs.ignore) || isEmbed;
@@ -1895,7 +1903,6 @@ function getPlatformAndRepo() {
         exports.platform_id = exports.qs.platform = "vcs";
     }
 }
-exports.getPlatformAndRepo = getPlatformAndRepo;
 // start
 async function startUI() {
     // import from github?
@@ -1925,7 +1932,6 @@ async function startUI() {
     // load and start platform object
     loadAndStartPlatform();
 }
-exports.startUI = startUI;
 async function loadAndStartPlatform() {
     try {
         var module = await (0, _index_1.importPlatform)((0, util_1.getRootBasePlatform)(exports.platform_id));
@@ -1984,15 +1990,12 @@ redirectToHTTPS();
 function setTestInput(path, data) {
     exports.platform.writeFile(path, data);
 }
-exports.setTestInput = setTestInput;
 function getTestOutput(path) {
     return exports.platform.readFile(path);
 }
-exports.getTestOutput = getTestOutput;
 function getSaveState() {
     return exports.platform.saveState();
 }
-exports.getSaveState = getSaveState;
 function emulationHalted(err) {
     var msg = (err && err.message) || msg;
     showExceptionAsError(err, msg);
@@ -2000,7 +2003,6 @@ function emulationHalted(err) {
     if (exports.platform.saveState)
         showDebugInfo(exports.platform.saveState());
 }
-exports.emulationHalted = emulationHalted;
 async function reloadWorkspaceFile(path) {
     var oldval = exports.current_project.filedata[path];
     if (oldval != null) {
@@ -2008,7 +2010,6 @@ async function reloadWorkspaceFile(path) {
         console.log('updating file', path);
     }
 }
-exports.reloadWorkspaceFile = reloadWorkspaceFile;
 function writeOutputROMFile() {
     if (isElectron && current_output instanceof Uint8Array) {
         var prefix = (0, util_1.getFilenamePrefix)(getCurrentMainFilename());
@@ -2026,7 +2027,6 @@ function highlightSearch(query) {
         }
     }
 }
-exports.highlightSearch = highlightSearch;
 function startUIWhenVisible() {
     let started = false;
     let observer = new IntersectionObserver((entries, observer) => {

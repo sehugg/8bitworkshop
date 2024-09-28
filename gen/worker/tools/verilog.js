@@ -24,7 +24,10 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.compileSilice = exports.compileYosys = exports.compileVerilator = exports.compileJSASMStep = void 0;
+exports.compileJSASMStep = compileJSASMStep;
+exports.compileVerilator = compileVerilator;
+exports.compileYosys = compileYosys;
+exports.compileSilice = compileSilice;
 const assembler_1 = require("../assembler");
 const vxmlparser = __importStar(require("../../common/hdl/vxmlparser"));
 const wasmutils_1 = require("../wasmutils");
@@ -106,7 +109,6 @@ function compileJSASMStep(step) {
     var platform = step.platform || 'verilog';
     return compileJSASM(code, platform, step, false);
 }
-exports.compileJSASMStep = compileJSASMStep;
 function compileInlineASM(code, platform, options, errors, asmlines) {
     code = code.replace(/__asm\b([\s\S]+?)\b__endasm\b/g, function (s, asmcode, index) {
         var firstline = code.substr(0, index).match(/\n/g).length;
@@ -234,7 +236,6 @@ function compileVerilator(step) {
         };
     }
 }
-exports.compileVerilator = compileVerilator;
 // TODO: test
 function compileYosys(step) {
     (0, wasmutils_1.loadNative)("yosys");
@@ -276,7 +277,6 @@ function compileYosys(step) {
         return { errors: errors };
     }
 }
-exports.compileYosys = compileYosys;
 function compileSilice(step) {
     (0, wasmutils_1.loadNative)("silice");
     var params = step.params;
@@ -288,7 +288,7 @@ function compileSilice(step) {
     if ((0, builder_1.staleFiles)(step, [destpath])) {
         //[preprocessor] 97]  attempt to concatenate a nil value (global 'addrW')
         var match_fn = (s) => {
-            s = s.replaceAll(/\033\[\d+\w/g, '');
+            s = s.replaceAll(/\x1b\[\d+\w/g, '');
             var mf = /file:\s*(\w+)/.exec(s);
             var ml = /line:\s+(\d+)/.exec(s);
             var preproc = /\[preprocessor\] (\d+)\] (.+)/.exec(s);
@@ -342,5 +342,4 @@ function compileSilice(step) {
         files: [destpath],
     };
 }
-exports.compileSilice = compileSilice;
 //# sourceMappingURL=verilog.js.map

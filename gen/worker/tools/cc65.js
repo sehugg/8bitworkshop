@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.compileCC65 = exports.linkLD65 = exports.assembleCA65 = void 0;
+exports.assembleCA65 = assembleCA65;
+exports.linkLD65 = linkLD65;
+exports.compileCC65 = compileCC65;
 const util_1 = require("../../common/util");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
@@ -150,7 +152,6 @@ function assembleCA65(step) {
         args: [objpath]
     };
 }
-exports.assembleCA65 = assembleCA65;
 function linkLD65(step) {
     var _a, _b;
     (0, wasmutils_1.loadNative)("ld65");
@@ -277,7 +278,6 @@ function linkLD65(step) {
         };
     }
 }
-exports.linkLD65 = linkLD65;
 function compileCC65(step) {
     (0, wasmutils_1.loadNative)("cc65");
     var params = step.params;
@@ -347,5 +347,4 @@ function compileCC65(step) {
         files: [destpath],
     };
 }
-exports.compileCC65 = compileCC65;
 //# sourceMappingURL=cc65.js.map

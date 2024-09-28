@@ -2,7 +2,18 @@
 // WebAssembly module cache
 // for Emscripten-compiled functions
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.setupStdin = exports.print_fn = exports.setupFS = exports.loadNative = exports.loadWASM = exports.loadWASMBinary = exports.load = exports.loadFilesystem = exports.fsMeta = exports.execMain = exports.moduleInstFn = exports.getWASMBinary = exports.getWASMMemory = exports.emglobal = void 0;
+exports.print_fn = exports.fsMeta = exports.emglobal = void 0;
+exports.getWASMMemory = getWASMMemory;
+exports.getWASMBinary = getWASMBinary;
+exports.moduleInstFn = moduleInstFn;
+exports.execMain = execMain;
+exports.loadFilesystem = loadFilesystem;
+exports.load = load;
+exports.loadWASMBinary = loadWASMBinary;
+exports.loadWASM = loadWASM;
+exports.loadNative = loadNative;
+exports.setupFS = setupFS;
+exports.setupStdin = setupStdin;
 const builder_1 = require("./builder");
 const ENVIRONMENT_IS_WEB = typeof window === 'object';
 const ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
@@ -40,11 +51,9 @@ function getWASMMemory() {
     }
     return wasmMemory;
 }
-exports.getWASMMemory = getWASMMemory;
 function getWASMBinary(module_id) {
     return wasmBlob[module_id];
 }
-exports.getWASMBinary = getWASMBinary;
 function getWASMModule(module_id) {
     var module = _WASM_module_cache[module_id];
     if (!module) {
@@ -67,14 +76,12 @@ function moduleInstFn(module_id) {
         return inst.exports;
     };
 }
-exports.moduleInstFn = moduleInstFn;
 function execMain(step, mod, args) {
     (0, builder_1.starttime)();
     var run = mod.callMain || mod.run; // TODO: run?
     run(args);
     (0, builder_1.endtime)(step.tool);
 }
-exports.execMain = execMain;
 /// asm.js / WASM / filesystem loading
 exports.fsMeta = {};
 var fsBlob = {};
@@ -93,7 +100,6 @@ function loadFilesystem(name) {
     exports.fsMeta[name] = xhr.response;
     console.log("Loaded " + name + " filesystem", exports.fsMeta[name].files.length, 'files', fsBlob[name].size, 'bytes');
 }
-exports.loadFilesystem = loadFilesystem;
 var loaded = {};
 function load(modulename, debug) {
     if (!loaded[modulename]) {
@@ -101,7 +107,6 @@ function load(modulename, debug) {
         loaded[modulename] = 1;
     }
 }
-exports.load = load;
 function loadWASMBinary(modulename) {
     if (!loaded[modulename]) {
         var xhr = new XMLHttpRequest();
@@ -119,14 +124,12 @@ function loadWASMBinary(modulename) {
     }
     return wasmBlob[modulename];
 }
-exports.loadWASMBinary = loadWASMBinary;
 function loadWASM(modulename, debug) {
     if (!loaded[modulename]) {
         importScripts(builder_1.PWORKER + "wasm/" + modulename + (debug ? "." + debug + ".js" : ".js"));
         loadWASMBinary(modulename);
     }
 }
-exports.loadWASM = loadWASM;
 function loadNative(modulename) {
     // detect WASM
     if (CACHE_WASM_MODULES && typeof WebAssembly === 'object') {
@@ -136,7 +139,6 @@ function loadNative(modulename) {
         load(modulename);
     }
 }
-exports.loadNative = loadNative;
 // mount the filesystem at /share
 function setupFS(FS, name) {
     var WORKERFS = FS.filesystems['WORKERFS'];
@@ -177,7 +179,6 @@ function setupFS(FS, name) {
         return length;
     };
 }
-exports.setupFS = setupFS;
 var print_fn = function (s) {
     console.log(s);
     //console.log(new Error().stack);
@@ -187,5 +188,4 @@ function setupStdin(fs, code) {
     var i = 0;
     fs.init(function () { return i < code.length ? code.charCodeAt(i++) : null; });
 }
-exports.setupStdin = setupStdin;
 //# sourceMappingURL=wasmutils.js.map

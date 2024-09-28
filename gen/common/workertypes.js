@@ -1,6 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isOutputResult = exports.isErrorResult = exports.isUnchanged = exports.SourceFile = void 0;
+exports.SourceFile = void 0;
+exports.isUnchanged = isUnchanged;
+exports.isErrorResult = isErrorResult;
+exports.isOutputResult = isOutputResult;
 class SourceFile {
     constructor(lines, text) {
         lines = lines || [];
@@ -41,13 +44,10 @@ exports.SourceFile = SourceFile;
 function isUnchanged(result) {
     return ('unchanged' in result);
 }
-exports.isUnchanged = isUnchanged;
 function isErrorResult(result) {
     return ('errors' in result);
 }
-exports.isErrorResult = isErrorResult;
 function isOutputResult(result) {
     return ('output' in result);
 }
-exports.isOutputResult = isOutputResult;
 //# sourceMappingURL=workertypes.js.map

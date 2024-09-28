@@ -1,6 +1,22 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.gtia_ntsc_to_rgb = exports.VirtualTextScroller = exports.getVisibleEditorLineHeight = exports.getMousePos = exports.newAddressDecoder = exports.AddressDecoder = exports.padBytes = exports.ControllerPoller = exports.makeKeycodeMap = exports.setKeyboardFromMap = exports.newKeyboardHandler = exports.Keys = exports.dumpRAM = exports.AnimationTimer = exports.useRequestAnimationFrame = exports.EmuHalt = exports.RAM = exports.drawCrosshair = exports.VectorVideo = exports.RasterVideo = exports._setKeyboardEvents = exports.KeyFlags = exports.__createCanvas = exports.setNoiseSeed = exports.getNoiseSeed = exports.noise = exports.PLATFORMS = void 0;
+exports.VirtualTextScroller = exports.ControllerPoller = exports.Keys = exports.AnimationTimer = exports.useRequestAnimationFrame = exports.EmuHalt = exports.RAM = exports.VectorVideo = exports.RasterVideo = exports.KeyFlags = exports.PLATFORMS = void 0;
+exports.noise = noise;
+exports.getNoiseSeed = getNoiseSeed;
+exports.setNoiseSeed = setNoiseSeed;
+exports.__createCanvas = __createCanvas;
+exports._setKeyboardEvents = _setKeyboardEvents;
+exports.drawCrosshair = drawCrosshair;
+exports.dumpRAM = dumpRAM;
+exports.newKeyboardHandler = newKeyboardHandler;
+exports.setKeyboardFromMap = setKeyboardFromMap;
+exports.makeKeycodeMap = makeKeycodeMap;
+exports.padBytes = padBytes;
+exports.AddressDecoder = AddressDecoder;
+exports.newAddressDecoder = newAddressDecoder;
+exports.getMousePos = getMousePos;
+exports.getVisibleEditorLineHeight = getVisibleEditorLineHeight;
+exports.gtia_ntsc_to_rgb = gtia_ntsc_to_rgb;
 const util_1 = require("./util");
 const vlist_1 = require("./vlist");
 // Emulator classes
@@ -13,15 +29,12 @@ function noise() {
     x ^= x << 5;
     return (_random_state = x) & 0xff;
 }
-exports.noise = noise;
 function getNoiseSeed() {
     return _random_state;
 }
-exports.getNoiseSeed = getNoiseSeed;
 function setNoiseSeed(x) {
     _random_state = x;
 }
-exports.setNoiseSeed = setNoiseSeed;
 function __createCanvas(doc, mainElement, width, height) {
     var canvas = doc.createElement('canvas');
     canvas.width = width;
@@ -31,7 +44,6 @@ function __createCanvas(doc, mainElement, width, height) {
     mainElement.appendChild(canvas);
     return canvas;
 }
-exports.__createCanvas = __createCanvas;
 var KeyFlags;
 (function (KeyFlags) {
     KeyFlags[KeyFlags["KeyDown"] = 1] = "KeyDown";
@@ -56,7 +68,6 @@ function _setKeyboardEvents(canvas, callback) {
         callback(e.which, e.keyCode, KeyFlags.KeyUp | _metakeyflags(e));
     };
 }
-exports._setKeyboardEvents = _setKeyboardEvents;
 ;
 class RasterVideo {
     constructor(mainElement, width, height, options) {
@@ -204,7 +215,6 @@ function drawCrosshair(ctx, x, y, width) {
     ctx.lineTo(32767, y);
     ctx.stroke();
 }
-exports.drawCrosshair = drawCrosshair;
 class RAM {
     constructor(size) {
         this.mem = new Uint8Array(new ArrayBuffer(size));
@@ -313,7 +323,6 @@ function dumpRAM(ram, ramofs, ramlen) {
     }
     return s;
 }
-exports.dumpRAM = dumpRAM;
 ;
 exports.Keys = {
     ANYKEY: { c: 0, n: "?" },
@@ -484,13 +493,11 @@ function newKeyboardHandler(switches, map, func, alwaysfunc) {
         }
     };
 }
-exports.newKeyboardHandler = newKeyboardHandler;
 function setKeyboardFromMap(video, switches, map, func, alwaysfunc) {
     var handler = newKeyboardHandler(switches, map, func, alwaysfunc);
     video.setKeyboardEvents(handler);
     return new ControllerPoller(handler);
 }
-exports.setKeyboardFromMap = setKeyboardFromMap;
 function makeKeycodeMap(table) {
     var map = new Map();
     for (var i = 0; i < table.length; i++) {
@@ -500,7 +507,6 @@ function makeKeycodeMap(table) {
     }
     return map;
 }
-exports.makeKeycodeMap = makeKeycodeMap;
 const DEFAULT_CONTROLLER_KEYS = [
     exports.Keys.UP, exports.Keys.DOWN, exports.Keys.LEFT, exports.Keys.RIGHT, exports.Keys.A, exports.Keys.B, exports.Keys.SELECT, exports.Keys.START,
     exports.Keys.P2_UP, exports.Keys.P2_DOWN, exports.Keys.P2_LEFT, exports.Keys.P2_RIGHT, exports.Keys.P2_A, exports.Keys.P2_B, exports.Keys.P2_SELECT, exports.Keys.P2_START,
@@ -599,7 +605,6 @@ function padBytes(data, len, padstart) {
         r.mem.set(data);
     return r.mem;
 }
-exports.padBytes = padBytes;
 // TODO: better performance, check values
 function AddressDecoder(table, options) {
     var self = this;
@@ -625,11 +630,9 @@ function AddressDecoder(table, options) {
     }
     return makeFunction().bind(self);
 }
-exports.AddressDecoder = AddressDecoder;
 function newAddressDecoder(table, options) {
     return new AddressDecoder(table, options);
 }
-exports.newAddressDecoder = newAddressDecoder;
 // https://stackoverflow.com/questions/17130395/real-mouse-position-in-canvas
 function getMousePos(canvas, evt) {
     var rect = canvas.getBoundingClientRect(), // abs. size of element
@@ -640,13 +643,11 @@ function getMousePos(canvas, evt) {
         y: (evt.clientY - rect.top) * scaleY // been adjusted to be relative to element
     };
 }
-exports.getMousePos = getMousePos;
 ///
 // TODO: https://stackoverflow.com/questions/10463518/converting-em-to-px-in-javascript-and-getting-default-font-size
 function getVisibleEditorLineHeight() {
     return $("#booksMenuButton").first().height();
 }
-exports.getVisibleEditorLineHeight = getVisibleEditorLineHeight;
 class VirtualTextScroller {
     constructor(parent) {
         var div = document.createElement('div');
@@ -714,5 +715,4 @@ function gtia_ntsc_to_rgb(val) {
     var b = y - 1.107 * i + 1.704 * q;
     return (0, util_1.RGBA)((0, util_1.clamp)(0, 255, r), (0, util_1.clamp)(0, 255, g), (0, util_1.clamp)(0, 255, b));
 }
-exports.gtia_ntsc_to_rgb = gtia_ntsc_to_rgb;
 //# sourceMappingURL=emu.js.map

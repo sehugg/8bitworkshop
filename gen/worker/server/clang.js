@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.parseObjDump = void 0;
+exports.parseObjDump = parseObjDump;
 const path_1 = __importDefault(require("path"));
 function parseObjDump(lst) {
     // parse symbol map
@@ -67,5 +67,4 @@ function parseObjDump(lst) {
     }
     return { listings, symbolmap, segments };
 }
-exports.parseObjDump = parseObjDump;
 //# sourceMappingURL=clang.js.map

@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.newDecoder = exports.VCSBitmap48Decoder = exports.VCSVersatilePlayfieldDecoder = exports.VCSPlayfieldDecoder = exports.VCSBitmapDecoder = exports.VCSSpriteDecoder = void 0;
+exports.VCSBitmap48Decoder = exports.VCSVersatilePlayfieldDecoder = exports.VCSPlayfieldDecoder = exports.VCSBitmapDecoder = exports.VCSSpriteDecoder = void 0;
+exports.newDecoder = newDecoder;
 const ecs_1 = require("./ecs");
 class LineDecoder {
     constructor(text) {
@@ -189,7 +190,6 @@ function newDecoder(name, text) {
     if (cons)
         return new cons(text);
 }
-exports.newDecoder = newDecoder;
 const DECODERS = {
     'vcs_sprite': VCSSpriteDecoder,
     'vcs_bitmap': VCSBitmapDecoder,

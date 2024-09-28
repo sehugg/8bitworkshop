@@ -259,7 +259,7 @@ export function compileSilice(step: BuildStep): BuildStepResult {
     if (staleFiles(step, [destpath])) {
         //[preprocessor] 97]  attempt to concatenate a nil value (global 'addrW')
         var match_fn = (s: string) => {
-            s = (s as any).replaceAll(/\033\[\d+\w/g, '');
+            s = (s as any).replaceAll(/\x1b\[\d+\w/g, '');
             var mf = /file:\s*(\w+)/.exec(s);
             var ml = /line:\s+(\d+)/.exec(s);
             var preproc = /\[preprocessor\] (\d+)\] (.+)/.exec(s);

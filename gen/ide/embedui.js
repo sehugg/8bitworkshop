@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.startEmbed = exports.stateRecorder = exports.platform = exports.platform_id = void 0;
+exports.stateRecorder = exports.platform = exports.platform_id = void 0;
+exports.startEmbed = startEmbed;
 const util_1 = require("../common/util");
 const emu_1 = require("../common/emu");
 const util_2 = require("../common/util");
@@ -176,7 +177,6 @@ function startEmbed() {
         loadPlatform(_qs);
     }
 }
-exports.startEmbed = startEmbed;
 // iframe API
 window.addEventListener("message", receiveMessage, false);
 function receiveMessage(event) {

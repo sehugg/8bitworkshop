@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.preprocessMCPP = void 0;
+exports.preprocessMCPP = preprocessMCPP;
 const util_1 = require("../../common/util");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
@@ -75,5 +75,4 @@ function preprocessMCPP(step, filesys) {
     }
     return { code: iout };
 }
-exports.preprocessMCPP = preprocessMCPP;
 //# sourceMappingURL=mcpp.js.map

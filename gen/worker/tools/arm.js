@@ -21,7 +21,10 @@
  * SOFTWARE.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.linkARMTCC = exports.compileARMTCC = exports.assembleVASMARM = exports.assembleARMIPS = void 0;
+exports.assembleARMIPS = assembleARMIPS;
+exports.assembleVASMARM = assembleVASMARM;
+exports.compileARMTCC = compileARMTCC;
+exports.linkARMTCC = linkARMTCC;
 const binutils_1 = require("../../common/binutils");
 const util_1 = require("../../common/util");
 const builder_1 = require("../builder");
@@ -114,7 +117,6 @@ function assembleARMIPS(step) {
         };
     }
 }
-exports.assembleARMIPS = assembleARMIPS;
 function assembleVASMARM(step) {
     (0, wasmutils_1.loadNative)("vasmarm_std");
     /// error 2 in line 8 of "gfxtest.c": unknown mnemonic <ew>
@@ -261,7 +263,6 @@ function assembleVASMARM(step) {
         };
     }
 }
-exports.assembleVASMARM = assembleVASMARM;
 function tccErrorMatcher(errors, mainpath) {
     return (0, listingutils_1.makeErrorMatcher)(errors, /([^:]+|tcc):(\d+|\s*error): (.+)/, 2, 3, mainpath, 1);
     ;
@@ -328,7 +329,6 @@ async function compileARMTCC(step) {
         args: [objpath]
     };
 }
-exports.compileARMTCC = compileARMTCC;
 async function linkARMTCC(step) {
     (0, wasmutils_1.loadNative)("arm-tcc");
     const params = step.params;
@@ -439,5 +439,4 @@ async function linkARMTCC(step) {
         };
     }
 }
-exports.linkARMTCC = linkARMTCC;
 //# sourceMappingURL=arm.js.map

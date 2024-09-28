@@ -23,7 +23,10 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.compileWiz = exports.compileBASIC = exports.compileInform6 = exports.translateShowdown = void 0;
+exports.translateShowdown = translateShowdown;
+exports.compileInform6 = compileInform6;
+exports.compileBASIC = compileBASIC;
+exports.compileWiz = compileWiz;
 const basic_compiler = __importStar(require("../../common/basic/compiler"));
 const util_1 = require("../../common/util");
 const wasmutils_1 = require("../wasmutils");
@@ -47,7 +50,6 @@ function translateShowdown(step) {
         output: html
     };
 }
-exports.translateShowdown = translateShowdown;
 function compileInform6(step) {
     (0, wasmutils_1.loadNative)("inform");
     var errors = [];
@@ -139,7 +141,6 @@ function compileInform6(step) {
         };
     }
 }
-exports.compileInform6 = compileInform6;
 function compileBASIC(step) {
     var jsonpath = step.path + ".json";
     (0, builder_1.gatherFiles)(step);
@@ -167,7 +168,6 @@ function compileBASIC(step) {
             };
     }
 }
-exports.compileBASIC = compileBASIC;
 function compileWiz(step) {
     (0, wasmutils_1.loadNative)("wiz");
     var params = step.params;
@@ -219,5 +219,4 @@ function compileWiz(step) {
         };
     }
 }
-exports.compileWiz = compileWiz;
 //# sourceMappingURL=misc.js.map

@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FirebaseProjectFilesystem = exports.GithubService = exports.parseGithubURL = exports.getRepos = void 0;
+exports.FirebaseProjectFilesystem = exports.GithubService = void 0;
+exports.getRepos = getRepos;
+exports.parseGithubURL = parseGithubURL;
 const util_1 = require("../common/util");
 const README_md_template = "$NAME\n=====\n\n[Open this project in 8bitworkshop](http://8bitworkshop.com/redir.html?platform=$PLATFORM&githubURL=$GITHUBURL&file=$MAINFILE).\n";
 function getRepos() {
@@ -15,7 +17,6 @@ function getRepos() {
     }
     return repos;
 }
-exports.getRepos = getRepos;
 function parseGithubURL(ghurl) {
     var toks = ghurl.split('/', 8);
     if (toks.length < 5)
@@ -28,7 +29,6 @@ function parseGithubURL(ghurl) {
         return null;
     return { user: toks[3], repo: toks[4], repopath: toks[3] + '/' + toks[4], branch: toks[6], subtreepath: toks[7] };
 }
-exports.parseGithubURL = parseGithubURL;
 class GithubService {
     constructor(githubCons, githubToken, store, project) {
         this.githubCons = githubCons;

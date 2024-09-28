@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.assembleACME = void 0;
+exports.assembleACME = assembleACME;
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const wasmutils_1 = require("../wasmutils");
@@ -96,5 +96,4 @@ function assembleACME(step) {
         };
     }
 }
-exports.assembleACME = assembleACME;
 //# sourceMappingURL=acme.js.map

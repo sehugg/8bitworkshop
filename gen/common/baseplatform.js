@@ -1,6 +1,26 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Base6809MachinePlatform = exports.BaseZ80MachinePlatform = exports.Base6502MachinePlatform = exports.BaseMachinePlatform = exports.hasSerialIO = exports.hasBIOS = exports.hasProbe = exports.isRaster = exports.hasPaddleInput = exports.hasJoyInput = exports.hasKeyInput = exports.hasAudio = exports.hasVideo = exports.lookupSymbol = exports.dumpStackToString = exports.Base6809Platform = exports.getToolForFilename_6809 = exports.cpuStateToLongString_6809 = exports.getToolForFilename_z80 = exports.BaseZ80Platform = exports.cpuStateToLongString_Z80 = exports.getOpcodeMetadata_6502 = exports.cpuStateToLongString_6502 = exports.Base6502Platform = exports.getToolForFilename_6502 = exports.inspectSymbol = exports.BaseDebugPlatform = exports.BasePlatform = exports.BreakpointList = exports.isDebuggable = exports.DebugSymbols = void 0;
+exports.Base6809MachinePlatform = exports.BaseZ80MachinePlatform = exports.Base6502MachinePlatform = exports.BaseMachinePlatform = exports.Base6809Platform = exports.BaseZ80Platform = exports.Base6502Platform = exports.BaseDebugPlatform = exports.BasePlatform = exports.BreakpointList = exports.DebugSymbols = void 0;
+exports.isDebuggable = isDebuggable;
+exports.inspectSymbol = inspectSymbol;
+exports.getToolForFilename_6502 = getToolForFilename_6502;
+exports.cpuStateToLongString_6502 = cpuStateToLongString_6502;
+exports.getOpcodeMetadata_6502 = getOpcodeMetadata_6502;
+exports.cpuStateToLongString_Z80 = cpuStateToLongString_Z80;
+exports.getToolForFilename_z80 = getToolForFilename_z80;
+exports.cpuStateToLongString_6809 = cpuStateToLongString_6809;
+exports.getToolForFilename_6809 = getToolForFilename_6809;
+exports.dumpStackToString = dumpStackToString;
+exports.lookupSymbol = lookupSymbol;
+exports.hasVideo = hasVideo;
+exports.hasAudio = hasAudio;
+exports.hasKeyInput = hasKeyInput;
+exports.hasJoyInput = hasJoyInput;
+exports.hasPaddleInput = hasPaddleInput;
+exports.isRaster = isRaster;
+exports.hasProbe = hasProbe;
+exports.hasBIOS = hasBIOS;
+exports.hasSerialIO = hasSerialIO;
 const emu_1 = require("./emu");
 const util_1 = require("./util");
 const disasm6502_1 = require("./cpu/disasm6502");
@@ -28,7 +48,6 @@ exports.DebugSymbols = DebugSymbols;
 function isDebuggable(arg) {
     return arg && typeof arg.getDebugCategories === 'function';
 }
-exports.isDebuggable = isDebuggable;
 // for composite breakpoints w/ single debug function
 class BreakpointList {
     constructor() {
@@ -280,7 +299,6 @@ function inspectSymbol(platform, sym) {
         return "$" + (0, util_1.hex)(addr, 4) + " = $" + (0, util_1.hex)(b, 2) + " $" + (0, util_1.hex)(b2, 2) + " (" + ((w << 16) >> 16) + " decimal)"; // signed
     }
 }
-exports.inspectSymbol = inspectSymbol;
 ////// 6502
 function getToolForFilename_6502(fn) {
     if (fn.endsWith("-llvm.c"))
@@ -303,7 +321,6 @@ function getToolForFilename_6502(fn) {
         return "ecs";
     return "dasm"; // .a
 }
-exports.getToolForFilename_6502 = getToolForFilename_6502;
 // TODO: can merge w/ Z80?
 class Base6502Platform extends BaseDebugPlatform {
     constructor() {
@@ -364,7 +381,6 @@ function cpuStateToLongString_6502(c) {
         + " X " + (0, util_1.hex)(c.X) + "\n"
         + " Y " + (0, util_1.hex)(c.Y) + "     " + "SP " + (0, util_1.hex)(c.SP) + "\n";
 }
-exports.cpuStateToLongString_6502 = cpuStateToLongString_6502;
 var OPMETA_6502 = {
     cycletime: [
         7, 6, 0, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6, 2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 0, 7, 4, 4, 7, 7, 6, 6, 0, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6, 2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 0, 7, 4, 4, 7, 7, 6, 6, 0, 8, 3, 3, 5, 5, 3, 2, 2, 2, 3, 4, 6, 6, 2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 0, 7, 4, 4, 7, 7, 6, 6, 0, 8, 3, 3, 5, 5, 4, 2, 2, 2, 5, 4, 6, 6, 2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 0, 7, 4, 4, 7, 7, 0, 6, 0, 6, 3, 3, 3, 3, 2, 0, 2, 0, 4, 4, 4, 4, 2, 6, 0, 0, 4, 4, 4, 4, 2, 5, 2, 0, 0, 5, 0, 0, 2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 0, 4, 4, 4, 4, 2, 5, 0, 5, 4, 4, 4, 4, 2, 4, 2, 0, 4, 4, 4, 4, 2, 6, 0, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 3, 6, 2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 0, 7, 4, 4, 7, 7, 2, 6, 0, 8, 3, 3, 5, 5, 2, 2, 2, 0, 4, 4, 6, 6, 2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 0, 7, 4, 4, 7, 7
@@ -389,7 +405,6 @@ function getOpcodeMetadata_6502(opcode, address) {
         insnlength: OPMETA_6502.insnlengths[opcode]
     };
 }
-exports.getOpcodeMetadata_6502 = getOpcodeMetadata_6502;
 ////// Z80
 function cpuStateToLongString_Z80(c) {
     function decodeFlags(flags) {
@@ -401,7 +416,6 @@ function cpuStateToLongString_Z80(c) {
         + "AF " + (0, util_1.hex)(c.AF, 4) + "  BC " + (0, util_1.hex)(c.BC, 4) + "\n"
         + "DE " + (0, util_1.hex)(c.DE, 4) + "  HL " + (0, util_1.hex)(c.HL, 4) + "\n";
 }
-exports.cpuStateToLongString_Z80 = cpuStateToLongString_Z80;
 class BaseZ80Platform extends BaseDebugPlatform {
     constructor() {
         super(...arguments);
@@ -480,7 +494,6 @@ function getToolForFilename_z80(fn) {
         return "wiz";
     return "zmac";
 }
-exports.getToolForFilename_z80 = getToolForFilename_z80;
 ////// 6809
 function cpuStateToLongString_6809(c) {
     function decodeFlags(flags) {
@@ -495,7 +508,6 @@ function cpuStateToLongString_6809(c) {
         + " Y " + (0, util_1.hex)(c.Y, 4) + "\n"
         + " U " + (0, util_1.hex)(c.U, 4) + "\n";
 }
-exports.cpuStateToLongString_6809 = cpuStateToLongString_6809;
 function getToolForFilename_6809(fn) {
     if (fn.endsWith(".c"))
         return "cmoc";
@@ -507,7 +519,6 @@ function getToolForFilename_6809(fn) {
         return "lwasm";
     return "cmoc";
 }
-exports.getToolForFilename_6809 = getToolForFilename_6809;
 class Base6809Platform extends BaseZ80Platform {
     constructor() {
         super(...arguments);
@@ -576,7 +587,6 @@ function dumpStackToString(platform, mem, start, end, sp, jsrop, bigendian) {
     }
     return s + "\n";
 }
-exports.dumpStackToString = dumpStackToString;
 // TODO: slow, funky, uses global
 function lookupSymbol(platform, addr, extra) {
     var start = addr;
@@ -593,43 +603,33 @@ function lookupSymbol(platform, addr, extra) {
     }
     return "";
 }
-exports.lookupSymbol = lookupSymbol;
 function hasVideo(arg) {
     return typeof arg.connectVideo === 'function';
 }
-exports.hasVideo = hasVideo;
 function hasAudio(arg) {
     return typeof arg.connectAudio === 'function';
 }
-exports.hasAudio = hasAudio;
 function hasKeyInput(arg) {
     return typeof arg.setKeyInput === 'function';
 }
-exports.hasKeyInput = hasKeyInput;
 function hasJoyInput(arg) {
     return typeof arg.setJoyInput === 'function';
 }
-exports.hasJoyInput = hasJoyInput;
 function hasPaddleInput(arg) {
     return typeof arg.setPaddleInput === 'function';
 }
-exports.hasPaddleInput = hasPaddleInput;
 function isRaster(arg) {
     return typeof arg.getRasterY === 'function';
 }
-exports.isRaster = isRaster;
 function hasProbe(arg) {
     return typeof arg.connectProbe == 'function';
 }
-exports.hasProbe = hasProbe;
 function hasBIOS(arg) {
     return typeof arg.loadBIOS == 'function';
 }
-exports.hasBIOS = hasBIOS;
 function hasSerialIO(arg) {
     return typeof arg.connectSerialIO === 'function';
 }
-exports.hasSerialIO = hasSerialIO;
 class BaseMachinePlatform extends BaseDebugPlatform {
     constructor(mainElement) {
         super();

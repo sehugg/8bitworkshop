@@ -23,7 +23,16 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports._recordVideo = exports._downloadAllFilesZipFile = exports._downloadSymFile = exports._downloadProjectZipFile = exports._downloadSourceFile = exports._downloadROMImage = exports._downloadCassetteFile = exports._getCassetteFunction = exports._downloadCassetteFile_vcs = exports._shareEmbedLink = void 0;
+exports._shareEmbedLink = _shareEmbedLink;
+exports._downloadCassetteFile_vcs = _downloadCassetteFile_vcs;
+exports._getCassetteFunction = _getCassetteFunction;
+exports._downloadCassetteFile = _downloadCassetteFile;
+exports._downloadROMImage = _downloadROMImage;
+exports._downloadSourceFile = _downloadSourceFile;
+exports._downloadProjectZipFile = _downloadProjectZipFile;
+exports._downloadSymFile = _downloadSymFile;
+exports._downloadAllFilesZipFile = _downloadAllFilesZipFile;
+exports._recordVideo = _recordVideo;
 const CommodoreTape_1 = require("../common/audio/CommodoreTape");
 const util_1 = require("../common/util");
 const dialogs_1 = require("./dialogs");
@@ -64,7 +73,6 @@ function _shareEmbedLink(e) {
     });
     return true;
 }
-exports._shareEmbedLink = _shareEmbedLink;
 function loadClipboardLibrary() {
     // can happen in background because it won't be used until user clicks
     console.log('clipboard');
@@ -139,7 +147,6 @@ function _downloadCassetteFile_vcs(e) {
         });
     });
 }
-exports._downloadCassetteFile_vcs = _downloadCassetteFile_vcs;
 function _downloadCassetteFile_c64(e) {
     var prefix = (0, util_1.getFilenamePrefix)((0, ui_1.getCurrentMainFilename)());
     let audpath = prefix + ".tap";
@@ -165,7 +172,6 @@ function _getCassetteFunction() {
         case 'c64': return _downloadCassetteFile_c64;
     }
 }
-exports._getCassetteFunction = _getCassetteFunction;
 function _downloadCassetteFile(e) {
     if ((0, ui_1.getCurrentOutput)() == null) {
         (0, dialogs_1.alertError)("Please fix errors before exporting.");
@@ -178,7 +184,6 @@ function _downloadCassetteFile(e) {
     }
     fn(e);
 }
-exports._downloadCassetteFile = _downloadCassetteFile;
 function _downloadROMImage(e) {
     if ((0, ui_1.getCurrentOutput)() == null) {
         (0, dialogs_1.alertError)("Please finish compiling with no errors before downloading ROM.");
@@ -200,7 +205,6 @@ function _downloadROMImage(e) {
         (0, dialogs_1.alertError)(`The "${ui_1.platform_id}" platform doesn't have downloadable ROMs.`);
     }
 }
-exports._downloadROMImage = _downloadROMImage;
 function _downloadSourceFile(e) {
     var text = ui_1.projectWindows.getCurrentText();
     if (!text)
@@ -208,7 +212,6 @@ function _downloadSourceFile(e) {
     var blob = new Blob([text], { type: "text/plain;charset=utf-8" });
     (0, file_saver_1.saveAs)(blob, (0, ui_1.getCurrentEditorFilename)(), { autoBom: false });
 }
-exports._downloadSourceFile = _downloadSourceFile;
 async function newJSZip() {
     let JSZip = (await Promise.resolve().then(() => __importStar(require('jszip')))).default;
     return new JSZip();
@@ -224,7 +227,6 @@ async function _downloadProjectZipFile(e) {
         (0, file_saver_1.saveAs)(content, (0, ui_1.getCurrentMainFilename)() + "-" + (0, util_1.getBasePlatform)(ui_1.platform_id) + ".zip");
     });
 }
-exports._downloadProjectZipFile = _downloadProjectZipFile;
 function _downloadSymFile(e) {
     let symfile = ui_1.platform.getDebugSymbolFile && ui_1.platform.getDebugSymbolFile();
     if (!symfile) {
@@ -234,7 +236,6 @@ function _downloadSymFile(e) {
     var prefix = (0, util_1.getFilenamePrefix)((0, ui_1.getCurrentMainFilename)());
     (0, file_saver_1.saveAs)(symfile.blob, prefix + symfile.extension, { autoBom: false });
 }
-exports._downloadSymFile = _downloadSymFile;
 async function _downloadAllFilesZipFile(e) {
     var zip = await newJSZip();
     var keys = await (0, ui_1.getPlatformStore)().keys();
@@ -256,7 +257,6 @@ async function _downloadAllFilesZipFile(e) {
         (0, dialogs_1.setWaitDialog)(false);
     }
 }
-exports._downloadAllFilesZipFile = _downloadAllFilesZipFile;
 var recordingVideo = false;
 function _recordVideo() {
     if (recordingVideo)
@@ -313,5 +313,4 @@ function _recordVideo() {
         f();
     });
 }
-exports._recordVideo = _recordVideo;
 //# sourceMappingURL=shareexport.js.map

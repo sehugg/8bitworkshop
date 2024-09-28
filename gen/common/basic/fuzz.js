@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.fuzz = void 0;
+exports.fuzz = fuzz;
 const compiler_1 = require("./compiler");
 const runtime_1 = require("./runtime");
 const emu_1 = require("../emu");
@@ -49,5 +49,4 @@ function fuzz(buf) {
         throw e;
     }
 }
-exports.fuzz = fuzz;
 //# sourceMappingURL=fuzz.js.map

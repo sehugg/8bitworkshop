@@ -3,7 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createNewPersistentStore = exports.CodeProject = exports.LocalForageFilesystem = exports.OverlayFilesystem = exports.NullFilesystem = exports.WebPresetsFileSystem = void 0;
+exports.CodeProject = exports.LocalForageFilesystem = exports.OverlayFilesystem = exports.NullFilesystem = exports.WebPresetsFileSystem = void 0;
+exports.createNewPersistentStore = createNewPersistentStore;
 const workertypes_1 = require("../common/workertypes");
 const util_1 = require("../common/util");
 const localforage_1 = __importDefault(require("localforage"));
@@ -446,5 +447,4 @@ function createNewPersistentStore(storeid) {
     });
     return store;
 }
-exports.createNewPersistentStore = createNewPersistentStore;
 //# sourceMappingURL=project.js.map

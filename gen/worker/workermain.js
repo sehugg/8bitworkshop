@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.setupRequireFunction = void 0;
+exports.setupRequireFunction = setupRequireFunction;
 const util_1 = require("../common/util");
 const workertools_1 = require("./workertools");
 const builder_1 = require("./builder");
@@ -17,7 +17,6 @@ function setupRequireFunction() {
         return exports[modname];
     };
 }
-exports.setupRequireFunction = setupRequireFunction;
 ////////////////////////////
 //const waitFor = delay => new Promise(resolve => setTimeout(resolve, delay)); // for testing
 async function handleMessage(data) {
