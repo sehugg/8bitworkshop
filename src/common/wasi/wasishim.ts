@@ -284,6 +284,14 @@ export class WASIMemoryFilesystem implements WASIFilesystem {
         this.files.set(name, file);
         return file;
     }
+    putSymbolicLink(name: string, target: string, rights?: number) {
+        if (!rights) rights = FDRights.PATH_SYMLINK;
+        const file = new WASIFileDescriptor(name, FDType.SYMBOLIC_LINK, rights);
+        file.write(new TextEncoder().encode(target));
+        file.offset = 0;
+        this.files.set(name, file);
+        return file;
+    }
     getFile(name: string) {
         let file = this.files.get(name);
         if (!file) {
@@ -450,6 +458,7 @@ export class WASIRunner {
         const bytes = enc.encode(str);
         const len = Math.min(bytes.length, maxlen);
         this.mem8().set(bytes.subarray(0, len), ptr);
+        return len;
     }
     peekUTF8(ptr: number, maxlen: number) {
         const bytes = this.mem8().subarray(ptr, ptr + maxlen);
@@ -626,6 +635,39 @@ export class WASIRunner {
         this.poke64(filestat_ptr + 48, 0); // mtim
         this.poke64(filestat_ptr + 56, 0); // ctim
     }
+    path_readlink(dirfd: number, path_ptr: number, path_len: number, buf_ptr: number, buf_len: number, buf_used_ptr: number) {
+        const dir = this.fds[dirfd];
+        if (dir == null) return WASIErrors.BADF;
+        if (dir.type !== FDType.DIRECTORY) return WASIErrors.NOTDIR;
+        const filename = this.peekUTF8(path_ptr, path_len); 
+        const path = dir.name + '/' + filename;
+        const fd = this.fs.getFile(path);
+        debug("path_readlink", path, fd+"");
+        if (!fd) return WASIErrors.NOENT;
+        if (fd.type !== FDType.SYMBOLIC_LINK) return WASIErrors.INVAL;
+        const target = fd.getBytesAsString();
+        const len = this.pokeUTF8(target, buf_ptr, buf_len);
+        this.poke32(buf_used_ptr, len);
+        debug("path_readlink", path, '->', target);
+        return WASIErrors.SUCCESS;
+    }
+    path_unlink_file(dirfd: number, path_ptr: number, path_len: number) {
+        const dir = this.fds[dirfd];
+        if (dir == null) return WASIErrors.BADF;
+        if (dir.type !== FDType.DIRECTORY) return WASIErrors.NOTDIR;
+        const filename = this.peekUTF8(path_ptr, path_len);
+        const path = dir.name + '/' + filename;
+        const fd = this.fs.getFile(path);
+        debug("path_unlink_file", dir+"", path, fd+"");
+        if (!fd) return WASIErrors.NOENT;
+        this.fs.getFile(path);
+        return WASIErrors.SUCCESS;
+    }
+    clock_time_get(clock_id: number, precision: number, time_ptr: number) {
+        const time = Date.now();
+        this.poke64(time_ptr, time);
+        return WASIErrors.SUCCESS;
+    }
     getWASISnapshotPreview1() {
         return {
             args_sizes_get: this.args_sizes_get.bind(this),
@@ -643,11 +685,13 @@ export class WASIRunner {
             fd_close: this.fd_close.bind(this),
             path_filestat_get: this.path_filestat_get.bind(this),
             random_get: this.random_get.bind(this),
+            path_readlink: this.path_readlink.bind(this),
+            path_unlink_file: this.path_unlink_file.bind(this),
+            clock_time_get: this.clock_time_get.bind(this),
             fd_fdstat_set_flags() { warning("TODO: fd_fdstat_set_flags"); return WASIErrors.NOTSUP; },
             fd_readdir() { warning("TODO: fd_readdir"); return WASIErrors.NOTSUP; },
-            path_unlink_file() { warning("TODO: path_unlink_file"); return WASIErrors.NOTSUP; },
-            clock_time_get() { warning("TODO: clock_time_get"); return WASIErrors.NOTSUP; },
             fd_tell() { warning("TODO: fd_tell"); return WASIErrors.NOTSUP; },
+            path_remove_directory() { warning("TODO: path_remove_directory"); return 0; },
         }
     }
     getEnv() {

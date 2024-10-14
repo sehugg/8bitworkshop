@@ -5,15 +5,16 @@ For more information, see "Making Arcade Games in C".
 
 #include "common.h"
 
-// BASL = text address of cursor position
-static byte** BASL = (byte**) 0xD1;
+// BASL = text address of start of cursor line
+byte** BASL = (byte**) 0xD1;
 
 // get the character at a specfic x/y position
 byte readcharxy(byte x, byte y) {
-  gotoxy(x,y);		// set cursor position
-  return (*BASL)[x];	// lookup value @ cursor address
+  gotoxy(x,y);        // set BASL
+  return (*BASL)[x];  // read character at (x,y)
 }
 
+// delay for 'count' frames
 void delay(byte count) {
   while (count--) {
     waitvsync();
@@ -23,19 +24,18 @@ void delay(byte count) {
 ////////// GAME DATA
 
 typedef struct {
-  byte x;
-  byte y;
-  byte dir;
-  word score;
-  char head_attr;
-  char tail_attr;
-  int collided:1;
-  int human:1;
+  byte x;          // x coordinate
+  byte y;          // y coordinate
+  byte dir;        // direction (0-3)
+  word score;      // current score
+  char head_attr;  // char to draw player
+  char tail_attr;  // char to draw trail
+  int collided:1;  // did we collide? (boolean)
+  int human:1;     // is this player a human? (boolean)
 } Player;
 
-Player players[2];
+Player players[2];  // two player structs
 
-byte credits = 0;
 byte frames_per_move;
 byte gameover;
 
@@ -66,8 +66,8 @@ void draw_box(byte x, byte y, byte x2, byte y2, const char* chars) {
 
 void draw_playfield() {
   draw_box(0,1,COLS-1,ROWS-1,BOX_CHARS);
-  cputsxy( 0, 0, "Plyr1:");
-  cputsxy(20, 0, "Plyr2:");
+  cputsxy( 0, 0, "plyr1:");
+  cputsxy(20, 0, "plyr2:");
   cputcxy( 7, 0, players[0].score+'0');
   cputcxy(27, 0, players[1].score+'0');
 }

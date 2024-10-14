@@ -6,6 +6,7 @@ import { BaseMAME6502Platform } from "../common/mameplatform";
 
 const C64_PRESETS : Preset[] = [
   {id:'helloc.c', name:'Hello World', category:'C'},
+  {id:'siegegame.c', name:'Siege Game'},
   {id:'screen_ram.c', name:'Screen RAM'},
   {id:'joymove.c', name:'Sprite Movement'},
   {id:'sprite_collision.c', name:'Sprite Collision'},
@@ -32,7 +33,6 @@ const C64_PRESETS : Preset[] = [
   {id:'test_border_sprites.c', name:'Sprites in the Borders'},
   {id:'sprite_stretch.c', name:'Sprite Stretching'},
   {id:'plasma.c', name:'Plasma Demo'},
-  {id:'siegegame.c', name:'Siege Game'},
   {id:'23matches.c', name:'23 Matches'},
   {id:'tgidemo.c', name:'TGI Graphics Demo'},
   {id:'upandaway.c', name:'Up, Up and Away'},

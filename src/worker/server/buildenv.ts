@@ -8,6 +8,22 @@ import { parseObjDump } from './clang';
 import { BuildStep } from '../builder';
 import { makeErrorMatcher } from '../listingutils';
 
+interface ServerBuildTool {
+    name: string;
+    version: string;
+    extensions: string[];
+    archs: string[];
+    platforms: string[];
+    platform_configs: { [platform: string]: ServerBuildToolPlatformConfig };
+}
+
+interface ServerBuildToolPlatformConfig {
+    binpath?: string;
+    command?: string;
+    args?: string[];
+    libargs?: string[];
+    outfile?: string;
+}
 
 const LLVM_MOS_TOOL: ServerBuildTool = {
     name: 'llvm-mos',
@@ -45,6 +61,24 @@ const LLVM_MOS_TOOL: ServerBuildTool = {
     }
 }
 
+const OSCAR64_TOOL: ServerBuildTool = {
+    name: 'oscar64',
+    version: '',
+    extensions: ['.c', '.cc', '.cpp'],
+    archs: ['6502'],
+    platforms: ['atari8', 'c64', 'nes'],
+    platform_configs: {
+        default: {
+            binpath: 'oscar64/bin',
+            command: 'oscar64',
+            args: ['-Os', '-g', '-d__8BITWORKSHOP__', '-o=$OUTFILE', '$INFILES'],
+        },
+        c64: {
+            outfile: 'a.prg',
+        }
+    }
+}
+
 export function findBestTool(step: BuildStep) {
     if (!step?.tool) throw new Error('No tool specified');
     const [name, version] = step.tool.split('@');
@@ -58,24 +92,8 @@ export function findBestTool(step: BuildStep) {
 
 export const TOOLS: ServerBuildTool[] = [
     Object.assign({}, LLVM_MOS_TOOL, { version: 'latest' }),
+    Object.assign({}, OSCAR64_TOOL, { version: 'latest' }),
 ];
-
-interface ServerBuildTool {
-    name: string;
-    version: string;
-    extensions: string[];
-    archs: string[];
-    platforms: string[];
-    platform_configs: { [platform: string]: ServerBuildToolPlatformConfig };
-}
-
-interface ServerBuildToolPlatformConfig {
-    binpath?: string;
-    command?: string;
-    args?: string[];
-    libargs?: string[];
-}
-
 
 
 export class ServerBuildEnv {
@@ -124,7 +142,7 @@ export class ServerBuildEnv {
         let args = config.args.slice(0); //copy array
         let command = config.command;
         // replace $OUTFILE
-        let outfile = path.join(this.sessionDir, 'a.out'); // TODO? a.out
+        let outfile = path.join(this.sessionDir, config.outfile || 'a.out');
         for (let i = 0; i < args.length; i++) {
             args[i] = args[i].replace(/\$OUTFILE/g, outfile);
             args[i] = args[i].replace(/\$WORKDIR/g, this.sessionDir);
@@ -173,7 +191,7 @@ export class ServerBuildEnv {
                     if (platform === 'debug') {
                         resolve(this.processDebugInfo(step));
                     } else {
-                        resolve(this.processOutput(step));
+                        resolve(this.processOutput(step, outfile));
                     }
                 } else {
                     errorData = replaceAll(errorData, this.sessionDir, '');
@@ -200,8 +218,7 @@ export class ServerBuildEnv {
         return { errors };
     }
 
-    async processOutput(step: WorkerBuildStep): Promise<WorkerResult> {
-        let outfile = path.join(this.sessionDir, 'a.out');
+    async processOutput(step: WorkerBuildStep, outfile: string): Promise<WorkerResult> {
         let output = await fs.promises.readFile(outfile, { encoding: 'base64' });
         return { output };
     }
@@ -220,7 +237,7 @@ export class ServerBuildEnv {
         try {
             let result = await this.build(step);
             // did we succeed?
-            if (isOutputResult(result)) {
+            if (step.tool == 'llvm-mos' && isOutputResult(result)) {
                 // do the debug info
                 const debugInfo = await this.build(step, 'debug');
                 if (isOutputResult(debugInfo)) {
