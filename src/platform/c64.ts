@@ -32,6 +32,7 @@ const C64_PRESETS : Preset[] = [
   {id:'climber.c', name:'Climber Game'},
   {id:'test_border_sprites.c', name:'Sprites in the Borders'},
   {id:'sprite_stretch.c', name:'Sprite Stretching'},
+  {id:'linecrunch.c', name:'Linecrunch'},
   {id:'plasma.c', name:'Plasma Demo'},
   {id:'23matches.c', name:'23 Matches'},
   {id:'tgidemo.c', name:'TGI Graphics Demo'},
