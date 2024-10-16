@@ -27,6 +27,10 @@ RUN apt-get install -y nodejs
 # Fetch the LLVM-Mos tarball and extract it
 RUN curl -L https://github.com/llvm-mos/llvm-mos-sdk/releases/latest/download/llvm-mos-linux.tar.xz | xz -d | tar x -C /app
 
+# Fetch Oscar64
+RUN curl -L https://github.com/drmortalwombat/oscar64/archive/refs/tags/v1.31.255.tar.gz | tar xz -C /app
+RUN cd /app/oscar64 && make -f make/makefile compiler
+
 # Fetch the SDCC tarball
 #RUN apt-get install -y bzip2
 #RUN curl -L https://cytranet.dl.sourceforge.net/project/sdcc/sdcc-linux-amd64/4.3.0/sdcc-4.3.0-amd64-unknown-linux2.5.tar.bz2 | tar xj -C /app
