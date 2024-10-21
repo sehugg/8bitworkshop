@@ -5,13 +5,9 @@ For more information, see "Making Arcade Games in C".
 
 #include "common.h"
 
-// BASL = text address of start of cursor line
-byte** BASL = (byte**) 0xD1;
-
 // get the character at a specfic x/y position
 byte readcharxy(byte x, byte y) {
-  gotoxy(x,y);        // set BASL
-  return (*BASL)[x];  // read character at (x,y)
+  return PEEK(SCRNADR(0x400, x, y));
 }
 
 // delay for 'count' frames
@@ -27,11 +23,11 @@ typedef struct {
   byte x;          // x coordinate
   byte y;          // y coordinate
   byte dir;        // direction (0-3)
-  word score;      // current score
+  byte score;      // current score
   char head_attr;  // char to draw player
   char tail_attr;  // char to draw trail
-  int collided:1;  // did we collide? (boolean)
-  int human:1;     // is this player a human? (boolean)
+  bool collided;  // did we collide?
+  bool human;     // is this player a human?
 } Player;
 
 Player players[2];  // two player structs

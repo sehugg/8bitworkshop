@@ -6,8 +6,8 @@ import { BaseMAME6502Platform } from "../common/mameplatform";
 
 const C64_PRESETS : Preset[] = [
   {id:'helloc.c', name:'Hello World', category:'C'},
-  {id:'siegegame.c', name:'Siege Game'},
   {id:'screen_ram.c', name:'Screen RAM'},
+  {id:'siegegame.c', name:'Siege Game'},
   {id:'joymove.c', name:'Sprite Movement'},
   {id:'sprite_collision.c', name:'Sprite Collision'},
   {id:'scroll1.c', name:'Scrolling (Single Buffer)'},
@@ -29,10 +29,12 @@ const C64_PRESETS : Preset[] = [
   {id:'musicplayer.c', name:'Music Player'},
   //{id:'sidtune.dasm', name:'Tiny SID Tune (ASM)'},
   {id:'siddemo.c', name:'SID Player Demo'},
+  {id:'digisound.c', name:'Digi Sound Player'},
   {id:'climber.c', name:'Climber Game'},
   {id:'test_border_sprites.c', name:'Sprites in the Borders'},
   {id:'sprite_stretch.c', name:'Sprite Stretching'},
   {id:'linecrunch.c', name:'Linecrunch'},
+  {id:'fld.c', name:'Flexible Line Distance'},
   {id:'plasma.c', name:'Plasma Demo'},
   {id:'23matches.c', name:'23 Matches'},
   {id:'tgidemo.c', name:'TGI Graphics Demo'},

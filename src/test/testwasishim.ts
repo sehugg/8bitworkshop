@@ -88,10 +88,10 @@ describe('test WASI oscar64', function () {
         let shim = await loadOscar64();
         const zipdata = fs.readFileSync(`./src/worker/fs/oscar64-fs.zip`);
         shim.fs = await unzipWASIFilesystem(zipdata, "/root/");
+        shim.addPreopenDirectory("/root");
         shim.fs.putSymbolicLink("/proc/self/exe", "/root/bin/oscar64");
         shim.fs.putFile("/root/main.c", "#include <stdio.h>\nint main() { return 0; }");
-        shim.addPreopenDirectory("");
-        shim.setArgs(["oscar64", '-v', '-o=foo.prg', '/root/main.c']);
+        shim.setArgs(["oscar64", '-v', '-o=foo.prg', 'main.c']);
         let errno = shim.run();
         const stdout = shim.fds[1].getBytesAsString();
         console.log(stdout);

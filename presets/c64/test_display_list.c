@@ -27,10 +27,10 @@ word score = 0;		 // current player score
 // display list used by rasterirq.h
 // draws scoreboard and sets scroll register
 void display_list() {
-  // set x scroll register to scroll value
-  SET_SCROLL_X(scroll_x);
   // set background color
   VIC.bgcolor[0] = COLOR_CYAN;
+  // set x scroll register to scroll value
+  SET_SCROLL_X(scroll_x);
   // next interrupt is two rows from bottom
   DLIST_NEXT(250-16);
 

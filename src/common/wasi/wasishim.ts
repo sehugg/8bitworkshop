@@ -171,8 +171,6 @@ export enum WASIErrors {
     NOTCAPABLE = 76,
 }
 
-
-
 export class WASIFileDescriptor {
     fdindex: number = -1;
     protected data: Uint8Array = new Uint8Array(16);
@@ -622,9 +620,9 @@ export class WASIRunner {
         if (dir == null) return WASIErrors.BADF;
         if (dir.type !== FDType.DIRECTORY) return WASIErrors.NOTDIR;
         const filename = this.peekUTF8(path_ptr, path_len);
-        const path = dir.name + '/' + filename;
+        const path = filename.startsWith('/') ? filename : dir.name + '/' + filename; // TODO?
         const fd = this.fs.getFile(path);
-        console.log("path_filestat_get", dir+"", path, filestat_ptr, '->', fd+"");
+        console.log("path_filestat_get", dir+"", filename, path, filestat_ptr, '->', fd+"");
         if (!fd) return WASIErrors.NOENT;
         this.poke64(filestat_ptr, fd.fdindex); // dev
         this.poke64(filestat_ptr + 8, 0); // ino
@@ -637,6 +635,7 @@ export class WASIRunner {
     }
     path_readlink(dirfd: number, path_ptr: number, path_len: number, buf_ptr: number, buf_len: number, buf_used_ptr: number) {
         const dir = this.fds[dirfd];
+        debug("path_readlink", dirfd, path_ptr, path_len, buf_ptr, buf_len, buf_used_ptr, dir+"");
         if (dir == null) return WASIErrors.BADF;
         if (dir.type !== FDType.DIRECTORY) return WASIErrors.NOTDIR;
         const filename = this.peekUTF8(path_ptr, path_len); 
@@ -650,6 +649,9 @@ export class WASIRunner {
         this.poke32(buf_used_ptr, len);
         debug("path_readlink", path, '->', target);
         return WASIErrors.SUCCESS;
+    }
+    path_readlinkat(dirfd: number, path_ptr: number, path_len: number, buf_ptr: number, buf_len: number, buf_used_ptr: number) {
+        return this.path_readlink(dirfd, path_ptr, path_len, buf_ptr, buf_len, buf_used_ptr);
     }
     path_unlink_file(dirfd: number, path_ptr: number, path_len: number) {
         const dir = this.fds[dirfd];
@@ -697,6 +699,10 @@ export class WASIRunner {
     getEnv() {
         return {
             __syscall_unlinkat() { warning('TODO: unlink'); return WASIErrors.NOTSUP; },
+            __syscall_faccessat() { warning("TODO: faccessat"); return WASIErrors.NOTSUP; },
+            __syscall_readlinkat: this.path_readlinkat.bind(this),
+            __syscall_getcwd() { warning("TODO: getcwd"); return WASIErrors.NOTSUP; },
+            __syscall_rmdir() { warning("TODO: rmdir"); return WASIErrors.NOTSUP; },
         }
     }
 }
