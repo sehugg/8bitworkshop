@@ -6920,6 +6920,15 @@
       this.files.set(name, file);
       return file;
     }
+    putSymbolicLink(name, target, rights) {
+      if (!rights)
+        rights = 16777216;
+      const file = new WASIFileDescriptor(name, 7, rights);
+      file.write(new TextEncoder().encode(target));
+      file.offset = 0;
+      this.files.set(name, file);
+      return file;
+    }
     getFile(name) {
       var _a;
       let file = this.files.get(name);
@@ -7088,6 +7097,7 @@
       const bytes = enc.encode(str);
       const len = Math.min(bytes.length, maxlen);
       this.mem8().set(bytes.subarray(0, len), ptr);
+      return len;
     }
     peekUTF8(ptr, maxlen) {
       const bytes = this.mem8().subarray(ptr, ptr + maxlen);
@@ -7249,9 +7259,9 @@
       if (dir.type !== 3)
         return 54;
       const filename = this.peekUTF8(path_ptr, path_len);
-      const path = dir.name + "/" + filename;
+      const path = filename.startsWith("/") ? filename : dir.name + "/" + filename;
       const fd = this.fs.getFile(path);
-      console.log("path_filestat_get", dir + "", path, filestat_ptr, "->", fd + "");
+      console.log("path_filestat_get", dir + "", filename, path, filestat_ptr, "->", fd + "");
       if (!fd)
         return 44;
       this.poke64(filestat_ptr, fd.fdindex);
@@ -7262,6 +7272,50 @@
       this.poke64(filestat_ptr + 40, 0);
       this.poke64(filestat_ptr + 48, 0);
       this.poke64(filestat_ptr + 56, 0);
+    }
+    path_readlink(dirfd, path_ptr, path_len, buf_ptr, buf_len, buf_used_ptr) {
+      const dir = this.fds[dirfd];
+      debug("path_readlink", dirfd, path_ptr, path_len, buf_ptr, buf_len, buf_used_ptr, dir + "");
+      if (dir == null)
+        return 8;
+      if (dir.type !== 3)
+        return 54;
+      const filename = this.peekUTF8(path_ptr, path_len);
+      const path = dir.name + "/" + filename;
+      const fd = this.fs.getFile(path);
+      debug("path_readlink", path, fd + "");
+      if (!fd)
+        return 44;
+      if (fd.type !== 7)
+        return 28;
+      const target = fd.getBytesAsString();
+      const len = this.pokeUTF8(target, buf_ptr, buf_len);
+      this.poke32(buf_used_ptr, len);
+      debug("path_readlink", path, "->", target);
+      return 0;
+    }
+    path_readlinkat(dirfd, path_ptr, path_len, buf_ptr, buf_len, buf_used_ptr) {
+      return this.path_readlink(dirfd, path_ptr, path_len, buf_ptr, buf_len, buf_used_ptr);
+    }
+    path_unlink_file(dirfd, path_ptr, path_len) {
+      const dir = this.fds[dirfd];
+      if (dir == null)
+        return 8;
+      if (dir.type !== 3)
+        return 54;
+      const filename = this.peekUTF8(path_ptr, path_len);
+      const path = dir.name + "/" + filename;
+      const fd = this.fs.getFile(path);
+      debug("path_unlink_file", dir + "", path, fd + "");
+      if (!fd)
+        return 44;
+      this.fs.getFile(path);
+      return 0;
+    }
+    clock_time_get(clock_id, precision, time_ptr) {
+      const time = Date.now();
+      this.poke64(time_ptr, time);
+      return 0;
     }
     getWASISnapshotPreview1() {
       return {
@@ -7280,6 +7334,9 @@
         fd_close: this.fd_close.bind(this),
         path_filestat_get: this.path_filestat_get.bind(this),
         random_get: this.random_get.bind(this),
+        path_readlink: this.path_readlink.bind(this),
+        path_unlink_file: this.path_unlink_file.bind(this),
+        clock_time_get: this.clock_time_get.bind(this),
         fd_fdstat_set_flags() {
           warning("TODO: fd_fdstat_set_flags");
           return 58;
@@ -7288,17 +7345,13 @@
           warning("TODO: fd_readdir");
           return 58;
         },
-        path_unlink_file() {
-          warning("TODO: path_unlink_file");
-          return 58;
-        },
-        clock_time_get() {
-          warning("TODO: clock_time_get");
-          return 58;
-        },
         fd_tell() {
           warning("TODO: fd_tell");
           return 58;
+        },
+        path_remove_directory() {
+          warning("TODO: path_remove_directory");
+          return 0;
         }
       };
     }
@@ -7306,6 +7359,19 @@
       return {
         __syscall_unlinkat() {
           warning("TODO: unlink");
+          return 58;
+        },
+        __syscall_faccessat() {
+          warning("TODO: faccessat");
+          return 58;
+        },
+        __syscall_readlinkat: this.path_readlinkat.bind(this),
+        __syscall_getcwd() {
+          warning("TODO: getcwd");
+          return 58;
+        },
+        __syscall_rmdir() {
+          warning("TODO: rmdir");
           return 58;
         }
       };
@@ -10890,11 +10956,8 @@
     xhr.send(null);
     return xhr.response;
   }
-  async function loadWASIFilesystemZip(zippath) {
+  async function unzipWASIFilesystem(zipdata, rootPath = "./") {
     const jszip = new import_jszip.default();
-    const path = "../../src/worker/fs/" + zippath;
-    const zipdata = loadBlobSync(path);
-    console.log(zippath, zipdata);
     await jszip.loadAsync(zipdata);
     let fs = new WASIMemoryFilesystem();
     let promises = [];
@@ -10902,15 +10965,22 @@
       if (zipEntry.dir) {
         fs.putDirectory(relativePath);
       } else {
-        let path2 = "./" + relativePath;
+        let path = rootPath + relativePath;
         let prom = zipEntry.async("uint8array").then((data) => {
-          fs.putFile(path2, data);
+          fs.putFile(path, data);
         });
         promises.push(prom);
       }
     });
     await Promise.all(promises);
     return fs;
+  }
+  async function loadWASIFilesystemZip(zippath, rootPath = "./") {
+    const jszip = new import_jszip.default();
+    const path = "../../src/worker/fs/" + zippath;
+    const zipdata = loadBlobSync(path);
+    console.log(zippath, zipdata);
+    return unzipWASIFilesystem(zipdata, rootPath);
   }
 
   // src/worker/tools/arm.ts
@@ -14421,7 +14491,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       for (var i = 0; i < step.files.length; i++) {
         let path = step.files[i];
         let entry = store.workfs[path];
-        let data = typeof entry.data === "string" ? entry.data : btoa(byteArrayToString(entry.data));
+        let data = typeof entry.data === "string" ? entry.data : "data:base64," + btoa(byteArrayToString(entry.data));
         updates.push({ path, data });
       }
       let cmd = { buildStep: step, updates, sessionID };
@@ -14679,6 +14749,55 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     };
   }
 
+  // src/worker/tools/oscar64.ts
+  var oscar64_fs = null;
+  var wasiModule2 = null;
+  async function compileOscar64(step) {
+    const errors = [];
+    const rootDir = "/root/";
+    gatherFiles(step, { mainFilePath: "main.c" });
+    const destpath = (step.path || "main.c").replace(/\.[^.]+$/, ".prg");
+    console.log("destpath", destpath);
+    if (staleFiles(step, [destpath])) {
+      if (!oscar64_fs) {
+        oscar64_fs = await loadWASIFilesystemZip("oscar64-fs.zip", "/root/");
+      }
+      if (!wasiModule2) {
+        wasiModule2 = new WebAssembly.Module(loadWASMBinary("oscar64"));
+      }
+      const wasi = new WASIRunner();
+      wasi.initSync(wasiModule2);
+      wasi.fs.setParent(oscar64_fs);
+      for (let file of step.files) {
+        wasi.fs.putFile(rootDir + file, store.getFileData(file));
+      }
+      wasi.addPreopenDirectory("/root");
+      wasi.setArgs(["oscar64", "-v", "-g", "-i=/root", step.path]);
+      try {
+        wasi.run();
+      } catch (e) {
+        errors.push(e);
+      }
+      let stdout = wasi.fds[1].getBytesAsString();
+      let stderr = wasi.fds[2].getBytesAsString();
+      console.log("stdout", stdout);
+      console.log("stderr", stderr);
+      const matcher = makeErrorMatcher(errors, /\((\d+),\s+(\d+)\)\s+: error (\d+): (.+)/, 1, 4, step.path);
+      for (let line of stderr.split("\n")) {
+        matcher(line);
+      }
+      if (errors.length) {
+        return { errors };
+      }
+      const output = wasi.fs.getFile(destpath).getBytes();
+      putWorkFile(destpath, output);
+      return {
+        output,
+        errors
+      };
+    }
+  }
+
   // src/worker/workertools.ts
   var TOOLS = {
     "dasm": assembleDASM,
@@ -14714,7 +14833,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     "remote": buildRemote,
     "cc7800": compileCC7800,
     "armtcc": compileARMTCC,
-    "armtcclink": linkARMTCC
+    "armtcclink": linkARMTCC,
+    "oscar64": compileOscar64
   };
   var TOOL_PRELOADFS = {
     "cc65-apple2": "65-apple2",

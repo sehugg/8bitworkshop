@@ -39,6 +39,7 @@ const remote = __importStar(require("./tools/remote"));
 const acme = __importStar(require("./tools/acme"));
 const cc7800 = __importStar(require("./tools/cc7800"));
 const bataribasic = __importStar(require("./tools/bataribasic"));
+const oscar64 = __importStar(require("./tools/oscar64"));
 exports.TOOLS = {
     'dasm': dasm.assembleDASM,
     'acme': acme.assembleACME,
@@ -77,6 +78,7 @@ exports.TOOLS = {
     'cc7800': cc7800.compileCC7800,
     'armtcc': arm.compileARMTCC,
     'armtcclink': arm.linkARMTCC,
+    'oscar64': oscar64.compileOscar64,
 };
 exports.TOOL_PRELOADFS = {
     'cc65-apple2': '65-apple2',

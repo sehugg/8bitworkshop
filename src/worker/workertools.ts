@@ -14,6 +14,7 @@ import * as remote from './tools/remote'
 import * as acme from './tools/acme'
 import * as cc7800 from './tools/cc7800'
 import * as bataribasic from './tools/bataribasic'
+import * as oscar64 from './tools/oscar64'
 import { PLATFORM_PARAMS } from "./platforms";
 
 export const TOOLS = {
@@ -54,6 +55,7 @@ export const TOOLS = {
   'cc7800': cc7800.compileCC7800,
   'armtcc': arm.compileARMTCC,
   'armtcclink': arm.linkARMTCC,
+  'oscar64': oscar64.compileOscar64,
 }
 
 export const TOOL_PRELOADFS = {

@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.loadBlobSync = loadBlobSync;
+exports.unzipWASIFilesystem = unzipWASIFilesystem;
 exports.loadWASIFilesystemZip = loadWASIFilesystemZip;
 const jszip_1 = __importDefault(require("jszip"));
 const wasishim_1 = require("../common/wasi/wasishim");
@@ -14,11 +15,8 @@ function loadBlobSync(path) {
     xhr.send(null);
     return xhr.response;
 }
-async function loadWASIFilesystemZip(zippath) {
+async function unzipWASIFilesystem(zipdata, rootPath = "./") {
     const jszip = new jszip_1.default();
-    const path = '../../src/worker/fs/' + zippath;
-    const zipdata = loadBlobSync(path);
-    console.log(zippath, zipdata);
     await jszip.loadAsync(zipdata);
     let fs = new wasishim_1.WASIMemoryFilesystem();
     let promises = [];
@@ -27,7 +25,7 @@ async function loadWASIFilesystemZip(zippath) {
             fs.putDirectory(relativePath);
         }
         else {
-            let path = './' + relativePath;
+            let path = rootPath + relativePath;
             let prom = zipEntry.async("uint8array").then((data) => {
                 fs.putFile(path, data);
             });
@@ -36,5 +34,12 @@ async function loadWASIFilesystemZip(zippath) {
     });
     await Promise.all(promises);
     return fs;
+}
+async function loadWASIFilesystemZip(zippath, rootPath = "./") {
+    const jszip = new jszip_1.default();
+    const path = '../../src/worker/fs/' + zippath;
+    const zipdata = loadBlobSync(path);
+    console.log(zippath, zipdata);
+    return unzipWASIFilesystem(zipdata, rootPath);
 }
 //# sourceMappingURL=wasiutils.js.map

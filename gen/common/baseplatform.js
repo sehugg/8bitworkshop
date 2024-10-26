@@ -319,6 +319,12 @@ function getToolForFilename_6502(fn) {
         return "wiz";
     if (fn.endsWith(".ecs"))
         return "ecs";
+    if (fn.endsWith(".cpp"))
+        return "oscar64";
+    if (fn.endsWith(".cc"))
+        return "oscar64";
+    if (fn.endsWith(".o64"))
+        return "oscar64";
     return "dasm"; // .a
 }
 // TODO: can merge w/ Z80?

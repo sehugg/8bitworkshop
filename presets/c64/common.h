@@ -92,8 +92,11 @@ typedef enum { false, true } bool; // boolean
 
 // enable ROM and interrupts
 #define DISABLE_HIMEM() \
-  POKE(1, PEEK(1) | 0b111); \
+  POKE(1, PEEK(1) | 0b110); \
   asm("plp");
+
+// are we on a PAL system?
+#define IS_PAL() (PEEK(0x2a6) != 0)
 
 ///// FUNCTIONS /////
 

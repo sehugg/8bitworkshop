@@ -20,11 +20,14 @@ static int sweep = 0;
 #define BITMAP_START 0xe020
 
 // recursive macros to quickly set bitmap memory
+#define SID_SIGNAL(index) \
+  POKE(BITMAP_START + (index), SID.noise)
+
 #define SID_SIGNAL_4(index) \
-  POKE(BITMAP_START + (index) + 0, SID.noise); \
-  POKE(BITMAP_START + (index) + 1, SID.noise); \
-  POKE(BITMAP_START + (index) + 2, SID.noise); \
-  POKE(BITMAP_START + (index) + 3, SID.noise);
+  SID_SIGNAL(index); \
+  SID_SIGNAL(index+1); \
+  SID_SIGNAL(index+2); \
+  SID_SIGNAL(index+3);
 
 #define SID_SIGNAL_16(index) \
   SID_SIGNAL_4(index); \

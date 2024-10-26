@@ -21,7 +21,7 @@ async function buildRemote(step) {
             let path = step.files[i];
             let entry = builder_1.store.workfs[path];
             // convert to base64
-            let data = typeof entry.data === 'string' ? entry.data : btoa((0, util_1.byteArrayToString)(entry.data));
+            let data = typeof entry.data === 'string' ? entry.data : "data:base64," + btoa((0, util_1.byteArrayToString)(entry.data));
             updates.push({ path, data });
         }
         // build the command

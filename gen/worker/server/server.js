@@ -26,12 +26,25 @@ app.get('/info', (req, res) => {
     // send a list of supported tools
     res.json({ tools: buildenv_1.TOOLS });
 });
-app.get('/test', async (req, res, next) => {
+app.get('/test1', async (req, res, next) => {
     // quick test of the build
     try {
         const updates = [{ path: 'test.c', data: 'int main() { return 0; }' }];
         const buildStep = { tool: 'llvm-mos', platform: 'c64', files: ['test.c'] };
         const env = new buildenv_1.ServerBuildEnv(SERVER_ROOT, 'test', buildenv_1.TOOLS[0]);
+        const result = await env.compileAndLink(buildStep, updates);
+        res.json(result);
+    }
+    catch (err) {
+        return next(err);
+    }
+});
+app.get('/test2', async (req, res, next) => {
+    // quick test of the build
+    try {
+        const updates = [{ path: 'test.c', data: 'int main() { return 0; }' }];
+        const buildStep = { tool: 'oscar64', platform: 'c64', files: ['test.c'] };
+        const env = new buildenv_1.ServerBuildEnv(SERVER_ROOT, 'test', buildenv_1.TOOLS[1]);
         const result = await env.compileAndLink(buildStep, updates);
         res.json(result);
     }

@@ -2,12 +2,30 @@
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
-import { WorkerBuildStep, WorkerErrorResult, WorkerFileUpdate, WorkerResult, isOutputResult } from '../../common/workertypes';
-import { getRootBasePlatform, replaceAll } from '../../common/util';
+import { CodeListing, CodeListingMap, Segment, WorkerBuildStep, WorkerErrorResult, WorkerFileUpdate, WorkerResult, isOutputResult } from '../../common/workertypes';
+import { getFilenamePrefix, getRootBasePlatform, replaceAll } from '../../common/util';
 import { parseObjDump } from './clang';
 import { BuildStep } from '../builder';
 import { makeErrorMatcher } from '../listingutils';
 
+interface ServerBuildTool {
+    name: string;
+    version: string;
+    extensions: string[];
+    archs: string[];
+    platforms: string[];
+    platform_configs: { [platform: string]: ServerBuildToolPlatformConfig };
+    processErrors(step: WorkerBuildStep, errorData: string): Promise<WorkerErrorResult>;
+    processOutput(step: WorkerBuildStep, outfile: string): Promise<WorkerResult>;
+}
+
+interface ServerBuildToolPlatformConfig {
+    binpath?: string;
+    command?: string;
+    args?: string[];
+    libargs?: string[];
+    outfile?: string;
+}
 
 const LLVM_MOS_TOOL: ServerBuildTool = {
     name: 'llvm-mos',
@@ -15,6 +33,8 @@ const LLVM_MOS_TOOL: ServerBuildTool = {
     extensions: ['.c', '.cpp', '.s', '.S', '.C'],
     archs: ['6502'],
     platforms: ['atari8', 'c64', 'nes', 'pce', 'vcs'],
+    processOutput: basicProcessOutput,
+    processErrors: llvmMosProcessErrors,
     platform_configs: {
         default: {
             binpath: 'llvm-mos/bin',
@@ -45,6 +65,130 @@ const LLVM_MOS_TOOL: ServerBuildTool = {
     }
 }
 
+async function basicProcessOutput(step: WorkerBuildStep, outfile: string): Promise<WorkerResult> {
+    let output = await fs.promises.readFile(outfile, { encoding: 'base64' });
+    return { output };
+}
+
+async function llvmMosProcessErrors(step: WorkerBuildStep, errorData: string): Promise<WorkerErrorResult> {
+    errorData = errorData.replace(/(\/var\/folders\/.+?\/).+?:/g, ''); // TODO?
+    let errors = [];
+    // split errorData into lines
+    let errorMatcher = makeErrorMatcher(errors, /([^:/]+):(\d+):(\d+):\s*(.+)/, 2, 4, step.path, 1);
+    for (let line of errorData.split('\n')) {
+        errorMatcher(line);
+    }
+    return { errors };
+}
+
+
+const OSCAR64_TOOL: ServerBuildTool = {
+    name: 'oscar64',
+    version: '',
+    extensions: ['.c', '.cc', '.cpp'],
+    archs: ['6502'],
+    platforms: ['atari8', 'c64', 'nes'],
+    processOutput: oscar64ProcessOutput,
+    processErrors: oscar64ProcessErrors,
+    platform_configs: {
+        default: {
+            binpath: 'oscar64/bin',
+            command: 'oscar64',
+            args: ['-Os', '-g', '-d__8BITWORKSHOP__', '-o=$OUTFILE', '$INFILES'],
+        },
+        c64: {
+            outfile: 'a.prg',
+        }
+    }
+}
+
+async function oscar64ProcessErrors(step: WorkerBuildStep, errorData: string): Promise<WorkerErrorResult> {
+    let errors = [];
+    // split errorData into lines
+    let errorMatcher = makeErrorMatcher(errors, /\/([^(]+)\((\d+), (\d+)\) : \s*(.+)/, 2, 4, step.path, 1);
+    for (let line of errorData.split('\n')) {
+        errorMatcher(line);
+    }
+    return { errors };
+}
+
+async function oscar64ProcessOutput(step: WorkerBuildStep, outpath: string): Promise<WorkerResult> {
+    let prefix_path = outpath.replace(/\.\w+$/, '');
+    let output = await fs.promises.readFile(outpath, { encoding: 'base64' });
+    let listings: CodeListingMap = {};
+    let symbolmap: { [sym: string]: number } = {};
+    let debuginfo = {};
+    let segments: Segment[] = [];
+    // read segments
+    {
+        let txt = await fs.promises.readFile(prefix_path + '.map', { encoding: 'utf-8' });
+        for (let line of txt.split("\n")) {
+            // 0880 - 0887 : DATA, code
+            const m1 = line.match(/([0-9a-f]+) - ([0-9a-f]+) : ([A-Z_]+), (.+)/);
+            if (m1) {
+                const name = m1[4];
+                const start = parseInt(m1[1], 16);
+                const end = parseInt(m1[2], 16);
+                segments.push({
+                    name, start, size: end - start,
+                });
+            }
+            // 0801 (0062) : startup, NATIVE_CODE:startup
+            const m2 = line.match(/([0-9a-f]+) \(([0-9a-f]+)\) : ([^,]+), (.+)/);
+            if (m2) {
+                const addr = parseInt(m2[1], 16);
+                const name = m2[3];
+                symbolmap[name] = addr;
+            }
+        }
+    }
+    // read listings
+    {
+        let txt = await fs.promises.readFile(prefix_path + '.asm', { encoding: 'utf-8' });
+        let lst : CodeListing = { lines: [], text: txt };
+        let asm_lineno = 0;
+        let c_lineno = 0;
+        let c_path = '';
+        const path = step.path;
+        for (let line of txt.split("\n")) {
+            asm_lineno++;
+            //;   4, "/Users/sehugg/PuzzlingPlans/8bitworkshop/server-root/oscar64/main.c"
+            let m2 = line.match(/;\s*(\d+), "(.+?)"/);
+            if (m2) {
+                c_lineno = parseInt(m2[1]);
+                c_path = m2[2].split('/').pop(); // TODO
+            }
+            //0807 : 30 36 __ BMI $083f ; (startup + 62)
+            let m = line.match(/([0-9a-f]+) : ([0-9a-f _]{8}) (.+)/);
+            if (m) {
+                let offset = parseInt(m[1], 16);
+                let hex = m[2];
+                let asm = m[3];
+                if (c_path) {
+                    lst.lines.push({
+                        line: c_lineno,
+                        path: c_path,
+                        offset,
+                        iscode: true
+                    });
+                    c_path = '';
+                    c_lineno = 0;
+                }
+                /*
+                lst.asmlines.push({
+                    line: asm_lineno,
+                    path,
+                    offset,
+                    insns: hex + ' ' + asm,
+                    iscode: true });
+                */
+            }
+        }
+        listings[getFilenamePrefix(step.path) + '.lst'] = lst;
+    }
+    return { output, listings, symbolmap, segments, debuginfo };
+}
+
 export function findBestTool(step: BuildStep) {
     if (!step?.tool) throw new Error('No tool specified');
     const [name, version] = step.tool.split('@');
@@ -58,24 +202,8 @@ export function findBestTool(step: BuildStep) {
 
 export const TOOLS: ServerBuildTool[] = [
     Object.assign({}, LLVM_MOS_TOOL, { version: 'latest' }),
+    Object.assign({}, OSCAR64_TOOL, { version: 'latest' }),
 ];
-
-interface ServerBuildTool {
-    name: string;
-    version: string;
-    extensions: string[];
-    archs: string[];
-    platforms: string[];
-    platform_configs: { [platform: string]: ServerBuildToolPlatformConfig };
-}
-
-interface ServerBuildToolPlatformConfig {
-    binpath?: string;
-    command?: string;
-    args?: string[];
-    libargs?: string[];
-}
-
 
 
 export class ServerBuildEnv {
@@ -105,7 +233,16 @@ export class ServerBuildEnv {
         if (file.path.match(/[\\\/]/)) {
             throw new Error(`Invalid file path: ${file.path}`);
         }
-        await fs.promises.writeFile(path.join(this.sessionDir, file.path), file.data);
+        let data = file.data;
+        if (typeof data === 'string' && data.startsWith('data:base64,')) {
+            // convert data URL to base64
+            let parts = data.split(',');
+            if (parts.length !== 2) {
+                throw new Error(`Invalid data URL: ${data}`);
+            }
+            data = Buffer.from(parts[1], 'base64');
+        }
+        await fs.promises.writeFile(path.join(this.sessionDir, file.path), data);
     }
 
     async build(step: WorkerBuildStep, platform?: string): Promise<WorkerResult> {
@@ -124,7 +261,7 @@ export class ServerBuildEnv {
         let args = config.args.slice(0); //copy array
         let command = config.command;
         // replace $OUTFILE
-        let outfile = path.join(this.sessionDir, 'a.out'); // TODO? a.out
+        let outfile = path.join(this.sessionDir, config.outfile || 'a.out');
         for (let i = 0; i < args.length; i++) {
             args[i] = args[i].replace(/\$OUTFILE/g, outfile);
             args[i] = args[i].replace(/\$WORKDIR/g, this.sessionDir);
@@ -156,8 +293,10 @@ export class ServerBuildEnv {
         let childProcess = spawn(command, args, {
             shell: true,
             cwd: this.rootdir,
-            env: { PATH: path.join(this.rootdir, config.binpath)
-        } });
+            env: {
+                PATH: path.join(this.rootdir, config.binpath)
+            }
+        });
         let outputData = '';
         let errorData = '';
         // TODO?
@@ -173,14 +312,13 @@ export class ServerBuildEnv {
                     if (platform === 'debug') {
                         resolve(this.processDebugInfo(step));
                     } else {
-                        resolve(this.processOutput(step));
+                        resolve(this.tool.processOutput(step, outfile));
                     }
                 } else {
                     errorData = replaceAll(errorData, this.sessionDir, '');
                     errorData = replaceAll(errorData, this.rootdir, '');
                     // remove folder paths
-                    errorData = errorData.replace(/(\/var\/folders\/.+?\/).+?:/g, '');
-                    let errorResult = await this.processErrors(step, errorData);
+                    let errorResult = await this.tool.processErrors(step, errorData);
                     if (errorResult.errors.length === 0) {
                         errorResult.errors.push({ line: 0, msg: `Build failed.\n\n${errorData}` });
                     }
@@ -190,18 +328,7 @@ export class ServerBuildEnv {
         });
     }
 
-    async processErrors(step: WorkerBuildStep, errorData: string): Promise<WorkerErrorResult> {
-        let errors = [];
-        // split errorData into lines
-        let errorMatcher = makeErrorMatcher(errors, /([^:/]+):(\d+):(\d+):\s*(.+)/, 2, 4, step.path, 1);
-        for (let line of errorData.split('\n')) {
-            errorMatcher(line);
-        }
-        return { errors };
-    }
-
-    async processOutput(step: WorkerBuildStep): Promise<WorkerResult> {
-        let outfile = path.join(this.sessionDir, 'a.out');
+    async processOutput(step: WorkerBuildStep, outfile: string): Promise<WorkerResult> {
         let output = await fs.promises.readFile(outfile, { encoding: 'base64' });
         return { output };
     }
@@ -220,7 +347,7 @@ export class ServerBuildEnv {
         try {
             let result = await this.build(step);
             // did we succeed?
-            if (isOutputResult(result)) {
+            if (step.tool == 'llvm-mos' && isOutputResult(result)) {
                 // do the debug info
                 const debugInfo = await this.build(step, 'debug');
                 if (isOutputResult(debugInfo)) {
@@ -230,7 +357,7 @@ export class ServerBuildEnv {
             }
             return result;
         } catch (err) {
-            return { errors: [{line:0, msg: err.toString()}] };
+            return { errors: [{ line: 0, msg: err.toString() }] };
         }
     }
 }

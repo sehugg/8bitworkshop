@@ -30,12 +30,25 @@ app.get('/info', (req: Request, res: Response) => {
     res.json({ tools: TOOLS });
 });
 
-app.get('/test', async (req: Request, res: Response, next) => {
+app.get('/test1', async (req: Request, res: Response, next) => {
     // quick test of the build
     try {
         const updates: WorkerFileUpdate[] = [{ path: 'test.c', data: 'int main() { return 0; }' }];
         const buildStep: WorkerBuildStep = { tool: 'llvm-mos', platform: 'c64', files: ['test.c'] };
         const env = new ServerBuildEnv(SERVER_ROOT, 'test', TOOLS[0]);
+        const result = await env.compileAndLink(buildStep, updates);
+        res.json(result);
+    } catch (err) {
+        return next(err);
+    }
+});
+
+app.get('/test2', async (req: Request, res: Response, next) => {
+    // quick test of the build
+    try {
+        const updates: WorkerFileUpdate[] = [{ path: 'test.c', data: 'int main() { return 0; }' }];
+        const buildStep: WorkerBuildStep = { tool: 'oscar64', platform: 'c64', files: ['test.c'] };
+        const env = new ServerBuildEnv(SERVER_ROOT, 'test', TOOLS[1]);
         const result = await env.compileAndLink(buildStep, updates);
         res.json(result);
     } catch (err) {

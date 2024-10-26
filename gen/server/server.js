@@ -21161,68 +21161,96 @@ var require_cookie = __commonJS({
     exports2.parse = parse;
     exports2.serialize = serialize;
     var __toString = Object.prototype.toString;
-    var fieldContentRegExp = /^[\u0009\u0020-\u007e\u0080-\u00ff]+$/;
-    function parse(str, options) {
+    var cookieNameRegExp = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+    var cookieValueRegExp = /^("?)[\u0021\u0023-\u002B\u002D-\u003A\u003C-\u005B\u005D-\u007E]*\1$/;
+    var domainValueRegExp = /^([.]?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)([.][a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
+    var pathValueRegExp = /^[\u0020-\u003A\u003D-\u007E]*$/;
+    function parse(str, opt) {
       if (typeof str !== "string") {
         throw new TypeError("argument str must be a string");
       }
       var obj = {};
-      var opt = options || {};
-      var dec = opt.decode || decode;
+      var len = str.length;
+      if (len < 2)
+        return obj;
+      var dec = opt && opt.decode || decode;
       var index = 0;
-      while (index < str.length) {
-        var eqIdx = str.indexOf("=", index);
-        if (eqIdx === -1) {
+      var eqIdx = 0;
+      var endIdx = 0;
+      do {
+        eqIdx = str.indexOf("=", index);
+        if (eqIdx === -1)
           break;
-        }
-        var endIdx = str.indexOf(";", index);
+        endIdx = str.indexOf(";", index);
         if (endIdx === -1) {
-          endIdx = str.length;
-        } else if (endIdx < eqIdx) {
+          endIdx = len;
+        } else if (eqIdx > endIdx) {
           index = str.lastIndexOf(";", eqIdx - 1) + 1;
           continue;
         }
-        var key = str.slice(index, eqIdx).trim();
-        if (obj[key] === void 0) {
-          var val = str.slice(eqIdx + 1, endIdx).trim();
-          if (val.charCodeAt(0) === 34) {
-            val = val.slice(1, -1);
+        var keyStartIdx = startIndex(str, index, eqIdx);
+        var keyEndIdx = endIndex(str, eqIdx, keyStartIdx);
+        var key = str.slice(keyStartIdx, keyEndIdx);
+        if (!obj.hasOwnProperty(key)) {
+          var valStartIdx = startIndex(str, eqIdx + 1, endIdx);
+          var valEndIdx = endIndex(str, endIdx, valStartIdx);
+          if (str.charCodeAt(valStartIdx) === 34 && str.charCodeAt(valEndIdx - 1) === 34) {
+            valStartIdx++;
+            valEndIdx--;
           }
+          var val = str.slice(valStartIdx, valEndIdx);
           obj[key] = tryDecode(val, dec);
         }
         index = endIdx + 1;
-      }
+      } while (index < len);
       return obj;
     }
-    function serialize(name, val, options) {
-      var opt = options || {};
-      var enc = opt.encode || encode;
+    function startIndex(str, index, max) {
+      do {
+        var code = str.charCodeAt(index);
+        if (code !== 32 && code !== 9)
+          return index;
+      } while (++index < max);
+      return max;
+    }
+    function endIndex(str, index, min) {
+      while (index > min) {
+        var code = str.charCodeAt(--index);
+        if (code !== 32 && code !== 9)
+          return index + 1;
+      }
+      return min;
+    }
+    function serialize(name, val, opt) {
+      var enc = opt && opt.encode || encodeURIComponent;
       if (typeof enc !== "function") {
         throw new TypeError("option encode is invalid");
       }
-      if (!fieldContentRegExp.test(name)) {
+      if (!cookieNameRegExp.test(name)) {
         throw new TypeError("argument name is invalid");
       }
       var value = enc(val);
-      if (value && !fieldContentRegExp.test(value)) {
+      if (!cookieValueRegExp.test(value)) {
         throw new TypeError("argument val is invalid");
       }
       var str = name + "=" + value;
+      if (!opt)
+        return str;
       if (opt.maxAge != null) {
-        var maxAge = opt.maxAge - 0;
-        if (isNaN(maxAge) || !isFinite(maxAge)) {
+        var maxAge = Math.floor(opt.maxAge);
+        if (!isFinite(maxAge)) {
           throw new TypeError("option maxAge is invalid");
         }
-        str += "; Max-Age=" + Math.floor(maxAge);
+        str += "; Max-Age=" + maxAge;
       }
       if (opt.domain) {
-        if (!fieldContentRegExp.test(opt.domain)) {
+        if (!domainValueRegExp.test(opt.domain)) {
           throw new TypeError("option domain is invalid");
         }
         str += "; Domain=" + opt.domain;
       }
       if (opt.path) {
-        if (!fieldContentRegExp.test(opt.path)) {
+        if (!pathValueRegExp.test(opt.path)) {
           throw new TypeError("option path is invalid");
         }
         str += "; Path=" + opt.path;
@@ -21283,11 +21311,8 @@ var require_cookie = __commonJS({
     function decode(str) {
       return str.indexOf("%") !== -1 ? decodeURIComponent(str) : str;
     }
-    function encode(val) {
-      return encodeURIComponent(val);
-    }
     function isDate(val) {
-      return __toString.call(val) === "[object Date]" || val instanceof Date;
+      return __toString.call(val) === "[object Date]";
     }
     function tryDecode(str, decode2) {
       try {
@@ -22402,6 +22427,10 @@ function isOutputResult(result) {
 }
 
 // src/common/util.ts
+function getFilenamePrefix(s) {
+  var pos = s.lastIndexOf(".");
+  return pos > 0 ? s.substr(0, pos) : s;
+}
 function getBasePlatform(platform) {
   return platform.split(".")[0];
 }
@@ -22502,6 +22531,8 @@ var LLVM_MOS_TOOL = {
   extensions: [".c", ".cpp", ".s", ".S", ".C"],
   archs: ["6502"],
   platforms: ["atari8", "c64", "nes", "pce", "vcs"],
+  processOutput: basicProcessOutput,
+  processErrors: llvmMosProcessErrors,
   platform_configs: {
     default: {
       binpath: "llvm-mos/bin",
@@ -22531,6 +22562,110 @@ var LLVM_MOS_TOOL = {
     }
   }
 };
+async function basicProcessOutput(step, outfile) {
+  let output = await import_fs.default.promises.readFile(outfile, { encoding: "base64" });
+  return { output };
+}
+async function llvmMosProcessErrors(step, errorData) {
+  errorData = errorData.replace(/(\/var\/folders\/.+?\/).+?:/g, "");
+  let errors = [];
+  let errorMatcher = makeErrorMatcher(errors, /([^:/]+):(\d+):(\d+):\s*(.+)/, 2, 4, step.path, 1);
+  for (let line of errorData.split("\n")) {
+    errorMatcher(line);
+  }
+  return { errors };
+}
+var OSCAR64_TOOL = {
+  name: "oscar64",
+  version: "",
+  extensions: [".c", ".cc", ".cpp"],
+  archs: ["6502"],
+  platforms: ["atari8", "c64", "nes"],
+  processOutput: oscar64ProcessOutput,
+  processErrors: oscar64ProcessErrors,
+  platform_configs: {
+    default: {
+      binpath: "oscar64/bin",
+      command: "oscar64",
+      args: ["-Os", "-g", "-d__8BITWORKSHOP__", "-o=$OUTFILE", "$INFILES"]
+    },
+    c64: {
+      outfile: "a.prg"
+    }
+  }
+};
+async function oscar64ProcessErrors(step, errorData) {
+  let errors = [];
+  let errorMatcher = makeErrorMatcher(errors, /\/([^(]+)\((\d+), (\d+)\) : \s*(.+)/, 2, 4, step.path, 1);
+  for (let line of errorData.split("\n")) {
+    errorMatcher(line);
+  }
+  return { errors };
+}
+async function oscar64ProcessOutput(step, outpath) {
+  let prefix_path = outpath.replace(/\.\w+$/, "");
+  let output = await import_fs.default.promises.readFile(outpath, { encoding: "base64" });
+  let listings = {};
+  let symbolmap = {};
+  let debuginfo = {};
+  let segments = [];
+  {
+    let txt = await import_fs.default.promises.readFile(prefix_path + ".map", { encoding: "utf-8" });
+    for (let line of txt.split("\n")) {
+      const m1 = line.match(/([0-9a-f]+) - ([0-9a-f]+) : ([A-Z_]+), (.+)/);
+      if (m1) {
+        const name = m1[4];
+        const start = parseInt(m1[1], 16);
+        const end = parseInt(m1[2], 16);
+        segments.push({
+          name,
+          start,
+          size: end - start
+        });
+      }
+      const m2 = line.match(/([0-9a-f]+) \(([0-9a-f]+)\) : ([^,]+), (.+)/);
+      if (m2) {
+        const addr = parseInt(m2[1], 16);
+        const name = m2[3];
+        symbolmap[name] = addr;
+      }
+    }
+  }
+  {
+    let txt = await import_fs.default.promises.readFile(prefix_path + ".asm", { encoding: "utf-8" });
+    let lst = { lines: [], text: txt };
+    let asm_lineno = 0;
+    let c_lineno = 0;
+    let c_path = "";
+    const path4 = step.path;
+    for (let line of txt.split("\n")) {
+      asm_lineno++;
+      let m2 = line.match(/;\s*(\d+), "(.+?)"/);
+      if (m2) {
+        c_lineno = parseInt(m2[1]);
+        c_path = m2[2].split("/").pop();
+      }
+      let m = line.match(/([0-9a-f]+) : ([0-9a-f _]{8}) (.+)/);
+      if (m) {
+        let offset = parseInt(m[1], 16);
+        let hex = m[2];
+        let asm = m[3];
+        if (c_path) {
+          lst.lines.push({
+            line: c_lineno,
+            path: c_path,
+            offset,
+            iscode: true
+          });
+          c_path = "";
+          c_lineno = 0;
+        }
+      }
+    }
+    listings[getFilenamePrefix(step.path) + ".lst"] = lst;
+  }
+  return { output, listings, symbolmap, segments, debuginfo };
+}
 function findBestTool(step) {
   if (!step?.tool)
     throw new Error("No tool specified");
@@ -22543,7 +22678,8 @@ function findBestTool(step) {
   throw new Error(`Tool not found: ${step.tool}`);
 }
 var TOOLS = [
-  Object.assign({}, LLVM_MOS_TOOL, { version: "latest" })
+  Object.assign({}, LLVM_MOS_TOOL, { version: "latest" }),
+  Object.assign({}, OSCAR64_TOOL, { version: "latest" })
 ];
 var ServerBuildEnv = class {
   constructor(rootdir, sessionID, tool) {
@@ -22562,7 +22698,15 @@ var ServerBuildEnv = class {
     if (file.path.match(/[\\\/]/)) {
       throw new Error(`Invalid file path: ${file.path}`);
     }
-    await import_fs.default.promises.writeFile(import_path2.default.join(this.sessionDir, file.path), file.data);
+    let data = file.data;
+    if (typeof data === "string" && data.startsWith("data:base64,")) {
+      let parts = data.split(",");
+      if (parts.length !== 2) {
+        throw new Error(`Invalid data URL: ${data}`);
+      }
+      data = Buffer.from(parts[1], "base64");
+    }
+    await import_fs.default.promises.writeFile(import_path2.default.join(this.sessionDir, file.path), data);
   }
   async build(step, platform) {
     let platformID = platform || getRootBasePlatform(step.platform);
@@ -22577,7 +22721,7 @@ var ServerBuildEnv = class {
     config = Object.assign({}, defaultConfig, config);
     let args = config.args.slice(0);
     let command = config.command;
-    let outfile = import_path2.default.join(this.sessionDir, "a.out");
+    let outfile = import_path2.default.join(this.sessionDir, config.outfile || "a.out");
     for (let i = 0; i < args.length; i++) {
       args[i] = args[i].replace(/\$OUTFILE/g, outfile);
       args[i] = args[i].replace(/\$WORKDIR/g, this.sessionDir);
@@ -22623,13 +22767,12 @@ var ServerBuildEnv = class {
           if (platform === "debug") {
             resolve(this.processDebugInfo(step));
           } else {
-            resolve(this.processOutput(step));
+            resolve(this.tool.processOutput(step, outfile));
           }
         } else {
           errorData = replaceAll(errorData, this.sessionDir, "");
           errorData = replaceAll(errorData, this.rootdir, "");
-          errorData = errorData.replace(/(\/var\/folders\/.+?\/).+?:/g, "");
-          let errorResult = await this.processErrors(step, errorData);
+          let errorResult = await this.tool.processErrors(step, errorData);
           if (errorResult.errors.length === 0) {
             errorResult.errors.push({ line: 0, msg: `Build failed.
 
@@ -22640,16 +22783,7 @@ ${errorData}` });
       });
     });
   }
-  async processErrors(step, errorData) {
-    let errors = [];
-    let errorMatcher = makeErrorMatcher(errors, /([^:/]+):(\d+):(\d+):\s*(.+)/, 2, 4, step.path, 1);
-    for (let line of errorData.split("\n")) {
-      errorMatcher(line);
-    }
-    return { errors };
-  }
-  async processOutput(step) {
-    let outfile = import_path2.default.join(this.sessionDir, "a.out");
+  async processOutput(step, outfile) {
     let output = await import_fs.default.promises.readFile(outfile, { encoding: "base64" });
     return { output };
   }
@@ -22665,7 +22799,7 @@ ${errorData}` });
     }
     try {
       let result = await this.build(step);
-      if (isOutputResult(result)) {
+      if (step.tool == "llvm-mos" && isOutputResult(result)) {
         const debugInfo = await this.build(step, "debug");
         if (isOutputResult(debugInfo)) {
           result.listings = debugInfo.listings;
@@ -22686,11 +22820,22 @@ app.use(import_express.default.json({ limit: 1024 * 1024 }));
 app.get("/info", (req, res) => {
   res.json({ tools: TOOLS });
 });
-app.get("/test", async (req, res, next) => {
+app.get("/test1", async (req, res, next) => {
   try {
     const updates = [{ path: "test.c", data: "int main() { return 0; }" }];
     const buildStep = { tool: "llvm-mos", platform: "c64", files: ["test.c"] };
     const env = new ServerBuildEnv(SERVER_ROOT, "test", TOOLS[0]);
+    const result = await env.compileAndLink(buildStep, updates);
+    res.json(result);
+  } catch (err) {
+    return next(err);
+  }
+});
+app.get("/test2", async (req, res, next) => {
+  try {
+    const updates = [{ path: "test.c", data: "int main() { return 0; }" }];
+    const buildStep = { tool: "oscar64", platform: "c64", files: ["test.c"] };
+    const env = new ServerBuildEnv(SERVER_ROOT, "test", TOOLS[1]);
     const result = await env.compileAndLink(buildStep, updates);
     res.json(result);
   } catch (err) {

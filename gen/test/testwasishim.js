@@ -41,6 +41,9 @@ async function loadDASM() {
 async function loadCC7800() {
     return loadWASM('cc7800');
 }
+async function loadOscar64() {
+    return loadWASM('oscar64');
+}
 describe('test WASI DASM', function () {
     it('dasm help', async function () {
         let shim = await loadDASM();
@@ -101,4 +104,25 @@ describe('test WASI cc7800', function () {
         assert_1.default.ok(stdout.indexOf('Usage: cc7800') >= 0);
     });
 });
+/*
+describe('test WASI oscar64', function () {
+    it('oscar64 compile', async function () {
+        let shim = await loadOscar64();
+        const zipdata = fs.readFileSync(`./src/worker/fs/oscar64-fs.zip`);
+        shim.fs = await unzipWASIFilesystem(zipdata, "/root/");
+        shim.addPreopenDirectory("/root");
+        shim.fs.putSymbolicLink("/proc/self/exe", "/root/bin/oscar64");
+        shim.fs.putFile("/root/main.c", "#include <stdio.h>\nint main() { return 0; }");
+        shim.setArgs(["oscar64", '-v', '-o=foo.prg', 'main.c']);
+        let errno = shim.run();
+        const stdout = shim.fds[1].getBytesAsString();
+        console.log(stdout);
+        const stderr = shim.fds[2].getBytesAsString();
+        console.log(stderr);
+        assert.strictEqual(errno, 0);
+        assert.ok(stdout.indexOf('Starting oscar64') >= 0);
+        console.log(shim.fs.getFile("./foo.asm").getBytesAsString());
+    });
+});
+*/
 //# sourceMappingURL=testwasishim.js.map
