@@ -189,7 +189,7 @@ char music_update() {
 
 void handleInput() {
   char key = 0;
-  char joy = joy_read(0);
+  char joy = joy_read(1);
   if (joy == 0) return;
   if (JOY_UP(joy)) key = 'i';
   if (JOY_DOWN(joy)) key = 'k';

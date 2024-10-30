@@ -3,10 +3,10 @@
 //#link "common.c"
 
 #include "multisprite.h"
-//#link "multisprite.ca65"
+//#link "multisprite.s"
 
 #include "rasterirq.h"
-//#link "rasterirq.ca65"
+//#link "rasterirq.s"
 
 #define NUM_TEST_SPRITES 24
 

@@ -63,7 +63,7 @@ void main(void) {
   clrscr();
   digi_setup();
   while (1) {
-    digi_play(digisound, 0xacf8L);
+    digi_play(digisound, sizeof(digisound));
     printf("\nPress ENTER to restart digi...\n");
     getchar();
   }

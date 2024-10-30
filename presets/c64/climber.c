@@ -7,10 +7,10 @@
 
 #include "sidplaysfx.h"
 //#resource "sidmusic1.bin"
-//#link "sidplaysfx.ca65"
+//#link "sidplaysfx.s"
 
 #include "rasterirq.h"
-//#link "rasterirq.ca65"
+//#link "rasterirq.s"
 
 #include "bcd.h"
 //#link "bcd.c"
@@ -647,7 +647,7 @@ void pickup_object(Actor* actor) {
 }
 
 void move_player() {
-  char joy = joy_read(0);
+  char joy = joy_read(1);
   move_actor(&actors[0], joy, true);
   pickup_object(&actors[0]);
 }

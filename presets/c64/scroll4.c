@@ -72,7 +72,7 @@ void main(void) {
   while (1) {
     static char speed = 1;
     // get joystick bits
-    char joy = joy_read(0);
+    char joy = joy_read(1);
     // speed up scrolling while button pressed
     speed = JOY_BTN_1(joy) ? 2 : 1;
     // move sprite based on arrow keys

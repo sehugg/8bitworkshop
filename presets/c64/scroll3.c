@@ -104,7 +104,7 @@ void main(void) {
   // infinite loop
   while (1) {
     // get joystick bits
-    char joy = joy_read(0);
+    char joy = joy_read(1);
     // move sprite based on arrow keys
     if (JOY_LEFT(joy)) scroll_horiz(-1);
     if (JOY_UP(joy)) scroll_vert(-1);

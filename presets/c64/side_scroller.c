@@ -6,7 +6,7 @@
 //#link "sprites.c"
 
 #include "rasterirq.h"
-//#link "rasterirq.ca65"
+//#link "rasterirq.s"
 
 #include "bcd.h"
 //#link "bcd.c"
@@ -332,7 +332,7 @@ void main() {
     detect_player_collision(bg_coll, spr_coll);
     
     // get joystick bits and move player
-    move_player(joy_read(0));
+    move_player(joy_read(1));
     
     // move obstacle and powerup sprites
     move_items();

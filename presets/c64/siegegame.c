@@ -30,10 +30,10 @@ typedef struct {
   bool human;     // is this player a human?
 } Player;
 
-Player players[2];  // two player structs
+Player players[2];  // player #0 and #1 data
 
-byte frames_per_move;
-byte gameover;
+byte frames_per_move;  // speed of game
+byte gameover;         // = 1 if game is over
 
 #define START_SPEED 12
 #define MAX_SPEED 5
@@ -44,6 +44,7 @@ byte gameover;
 const char BOX_CHARS[8] = { '+', '+', '+', '+',
                             '-', '-', '!', '!'};
 
+// draw a box from coordinate (x,y) to (x2,y2)
 void draw_box(byte x, byte y, byte x2, byte y2, const char* chars) {
   byte x1 = x;
   cputcxy(x, y, chars[2]);
@@ -60,6 +61,7 @@ void draw_box(byte x, byte y, byte x2, byte y2, const char* chars) {
   }
 }
 
+// draw the playfield border and score
 void draw_playfield() {
   draw_box(0,1,COLS-1,ROWS-1,BOX_CHARS);
   cputsxy( 0, 0, "plyr1:");
@@ -68,10 +70,12 @@ void draw_playfield() {
   cputcxy(27, 0, players[1].score+'0');
 }
 
+// constants for the 4 cardinal directions
 typedef enum { D_RIGHT, D_DOWN, D_LEFT, D_UP } dir_t;
 const sbyte DIR_X[4] = { 1, 0, -1, 0 };
 const sbyte DIR_Y[4] = { 0, 1, 0, -1 };
 
+// initialize game and player data
 void init_game() {
   memset(players, 0, sizeof(players));
   players[0].head_attr = '1';
@@ -81,6 +85,7 @@ void init_game() {
   frames_per_move = START_SPEED;
 }
 
+// reset players to initial conditions
 void reset_players() {
   players[0].x = players[0].y = 5;
   players[0].dir = D_RIGHT;
@@ -90,10 +95,12 @@ void reset_players() {
   players[0].collided = players[1].collided = 0;
 }
 
+// draw player character at head
 void draw_player(Player* p) {
   cputcxy(p->x, p->y, p->head_attr);
 }
 
+// move player and detect collision
 void move_player(Player* p) {
   cputcxy(p->x, p->y, p->tail_attr);
   p->x += DIR_X[p->dir];
@@ -103,12 +110,13 @@ void move_player(Player* p) {
   draw_player(p);
 }
 
+// read joystick and move player
 void human_control(Player* p) {
   byte dir = 0xff;
   char joy;
   if (!p->human) return;
   if (!kbhit()) return;
-  joy = joy_read(0);
+  joy = joy_read(1);
   if (JOY_UP(joy)) dir = D_UP;
   if (JOY_LEFT(joy)) dir = D_LEFT;
   if (JOY_RIGHT(joy)) dir = D_RIGHT;
@@ -119,6 +127,9 @@ void human_control(Player* p) {
   }
 }
 
+// AI player: try to move in direction 'dir'
+// the number of squares (1 << shift)
+// return 1 if successful, and change p->dir
 byte ai_try_dir(Player* p, dir_t dir, byte shift) {
   byte x,y;
   dir &= 3;
@@ -133,6 +144,7 @@ byte ai_try_dir(Player* p, dir_t dir, byte shift) {
   }
 }
 
+// AI computer player routine
 void ai_control(Player* p) {
   dir_t dir;
   if (p->human) return;
@@ -147,9 +159,9 @@ void ai_control(Player* p) {
   }
 }
 
+// flash player(s) that collided
 void flash_colliders() {
   byte i;
-  // flash players that collided
   for (i=0; i<56; i++) {
     delay(2);
     revers(players[0].collided && (i&1));
@@ -160,6 +172,7 @@ void flash_colliders() {
   revers(0);
 }
 
+// move both players
 void make_move() {
   byte i;
   for (i=0; i<frames_per_move; i++) {
@@ -176,6 +189,7 @@ void make_move() {
   textcolor(COLOR_WHITE);
 }
 
+// end of game, show the winner
 void declare_winner(byte winner) {
   byte i;
   clrscr();
@@ -190,6 +204,8 @@ void declare_winner(byte winner) {
   gameover = 1;
 }
 
+// play a round of the game
+// if someone got MAX_SCORE points, show the winner
 void play_round() {
   reset_players();
   clrscr();
@@ -214,6 +230,7 @@ void play_round() {
   }
 }
 
+// play a complete game until someone wins
 void play_game() {
   gameover = 0;
   init_game();
@@ -223,6 +240,7 @@ void play_game() {
   }
 }
 
+// main routine
 void main() {
   joy_install (joy_static_stddrv);
   play_game();

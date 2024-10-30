@@ -20,7 +20,7 @@
 #include "sprites.h"
 //#link "sprites.c"
 
-//#link "level1.ca65"
+//#link "level2.s"
 
 extern const byte charset_data[];
 extern const byte charset_attrib_data[];
@@ -152,7 +152,7 @@ void main(void) {
     static char joy;
     static bool slowframe = false;
     // get joystick bits
-    joy = joy_read(0);
+    joy = joy_read(1);
     // speed up scrolling while button pressed
     speed = JOY_BTN_1(joy) ? 3 : 1;
     // if we copied screen memory last frame,

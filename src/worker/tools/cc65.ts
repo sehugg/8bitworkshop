@@ -180,7 +180,6 @@ export function linkLD65(step: BuildStep): BuildStepResult {
             //'--dbgfile', 'main.dbg', // TODO: get proper line numbers
             '-o', 'main',
             '-m', 'main.map'].concat(step.args, libargs);
-        //console.log(args);
         execMain(step, LD65, args);
         if (errors.length)
             return { errors: errors };
@@ -325,7 +324,6 @@ export function compileCC65(step: BuildStep): BuildStepResult {
         var customArgs = params.extra_compiler_args || ['-T', '-g', '-Oirs', '-Cl', '-W', '-pointer-sign,-no-effect'];
         args = args.concat(customArgs, args);
         args.push(step.path);
-        //console.log(args);
         execMain(step, CC65, args);
         if (errors.length)
             return { errors: errors };
