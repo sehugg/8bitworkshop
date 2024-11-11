@@ -11,7 +11,7 @@
 //#link "common.c"
 
 #include "rasterirq.h"
-//#link "rasterirq.ca65"
+//#link "rasterirq.s"
 
 // generated from https://8bitworkshop.com/bitmapfontgenerator/
 // 16 x 32 MSB first y offset 6 Terminus

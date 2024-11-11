@@ -733,6 +733,12 @@ class WASIRunner {
             __syscall_readlinkat: this.path_readlinkat.bind(this),
             __syscall_getcwd() { warning("TODO: getcwd"); return WASIErrors.NOTSUP; },
             __syscall_rmdir() { warning("TODO: rmdir"); return WASIErrors.NOTSUP; },
+            segfault() { warning("TODO: segfault"); return WASIErrors.NOTSUP; },
+            alignfault() { warning("TODO: alignfault"); return WASIErrors.NOTSUP; },
+            __wasilibc_cwd: new WebAssembly.Global({
+                value: 'i32',
+                mutable: true
+            }, 0)
         };
     }
 }

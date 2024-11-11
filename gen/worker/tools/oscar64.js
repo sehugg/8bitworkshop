@@ -49,7 +49,7 @@ async function compileOscar64(step) {
         if (errors.length) {
             return { errors };
         }
-        const output = wasi.fs.getFile(destpath).getBytes();
+        const output = wasi.fs.getFile(rootDir + destpath).getBytes();
         (0, builder_1.putWorkFile)(destpath, output);
         return {
             output,

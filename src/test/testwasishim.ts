@@ -88,10 +88,12 @@ describe('test WASI oscar64', function () {
         let shim = await loadOscar64();
         const zipdata = fs.readFileSync(`./src/worker/fs/oscar64-fs.zip`);
         shim.fs = await unzipWASIFilesystem(zipdata, "/root/");
+        // https://github.com/WebAssembly/wasi-filesystem/issues/24
+        // https://github.com/WebAssembly/wasi-libc/pull/214
         shim.addPreopenDirectory("/root");
         shim.fs.putSymbolicLink("/proc/self/exe", "/root/bin/oscar64");
-        shim.fs.putFile("/root/main.c", "#include <stdio.h>\nint main() { return 0; }");
-        shim.setArgs(["oscar64", '-v', '-o=foo.prg', 'main.c']);
+        shim.fs.putFile("/root/main.c", `#include <stdio.h>\nint main() { printf("FOO"); return 0; }`);
+        shim.setArgs(["oscar64", '-v', '-g', '-O', '-o=foo.prg', 'main.c']);
         let errno = shim.run();
         const stdout = shim.fds[1].getBytesAsString();
         console.log(stdout);
@@ -99,7 +101,7 @@ describe('test WASI oscar64', function () {
         console.log(stderr);
         assert.strictEqual(errno, 0);
         assert.ok(stdout.indexOf('Starting oscar64') >= 0);
-        console.log(shim.fs.getFile("./foo.asm").getBytesAsString());
+        console.log(shim.fs.getFile("/root/foo.asm").getBytesAsString());
     });
 });
 */

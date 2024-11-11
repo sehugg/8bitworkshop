@@ -155,23 +155,23 @@ class C64_WASMMachine extends wasmplatform_1.BaseWASMMachine {
         var mask2 = 0;
         switch (key) {
             case 32:
-                mask = 0x10;
-                break;
+                mask = mask2 = 0x10;
+                break; // FIRE
             case 37:
                 key = 0x8;
-                mask = 0x4;
+                mask = mask2 = 0x4;
                 break; // LEFT
             case 38:
                 key = 0xb;
-                mask = 0x1;
+                mask = mask2 = 0x1;
                 break; // UP
             case 39:
                 key = 0x9;
-                mask = 0x8;
+                mask = mask2 = 0x8;
                 break; // RIGHT
             case 40:
                 key = 0xa;
-                mask = 0x2;
+                mask = mask2 = 0x2;
                 break; // DOWN
             case 113:
                 key = 0xf1;

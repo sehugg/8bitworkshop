@@ -37,7 +37,7 @@ void main(void) {
   // loop forever
   while (1) {
     // get joystick bits
-    joy = joy_read(0);
+    joy = joy_read(1);
     // move sprite based on joystick
     if (JOY_LEFT(joy)) { x -= 1; }   // move left 1 pixel
     if (JOY_RIGHT(joy)) { x += 1; }  // move right 1 pixel

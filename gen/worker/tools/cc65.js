@@ -184,7 +184,6 @@ function linkLD65(step) {
             //'--dbgfile', 'main.dbg', // TODO: get proper line numbers
             '-o', 'main',
             '-m', 'main.map'].concat(step.args, libargs);
-        //console.log(args);
         (0, wasmutils_1.execMain)(step, LD65, args);
         if (errors.length)
             return { errors: errors };
@@ -333,7 +332,6 @@ function compileCC65(step) {
         var customArgs = params.extra_compiler_args || ['-T', '-g', '-Oirs', '-Cl', '-W', '-pointer-sign,-no-effect'];
         args = args.concat(customArgs, args);
         args.push(step.path);
-        //console.log(args);
         (0, wasmutils_1.execMain)(step, CC65, args);
         if (errors.length)
             return { errors: errors };

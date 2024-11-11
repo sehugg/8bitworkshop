@@ -20,7 +20,7 @@
 #include "sprites.h"
 //#link "sprites.c"
 
-//#link "level2.ca65"
+//#link "level2.s"
 
 #define CAMERA_OFFSET_X 158
 #define CAMERA_OFFSET_Y 120
@@ -57,8 +57,8 @@ extern const byte chartileset_tag_data[];
 extern const byte map_data[];
 
 
-static byte framecount;
-static byte framemask;
+static byte framecount; // frame counter
+static byte framemask;  // single bit rotates each frame
 
 const byte BITMASKS[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
 
@@ -112,17 +112,18 @@ static void build_tile_flag_map(void) {
   }
 }
 
-static void draw_cell(word ofs, byte scrn_x, byte scrn_y) {
-  byte ch, color;
+void draw_cell(word ofs, byte scrn_x, byte scrn_y) {
+  byte ch, color; // character and color to draw
+  // get the character and color from the level map
   if (get_cell_at(scrn_x + origin_x, scrn_y + origin_y)) {
-    ch = tilechar;
-    color = chartileset_colour_data[tileindex];
+    ch = tilechar; // character from tileset
+    color = chartileset_colour_data[tileindex]; // color from tileset
   } else {
-    ch = DEFAULT_CHAR;
-    color = DEFAULT_COLOR;
+    ch = DEFAULT_CHAR; // default character
+    color = DEFAULT_COLOR; // default color
   }
-  hidbuf[ofs] = ch;
-  colorbuf[ofs] = color;
+  hidbuf[ofs] = ch; // draw character to hidden buffer
+  colorbuf[ofs] = color; // draw color to color buffer
 }
 
 void scroll_draw_column(byte col) {
@@ -273,12 +274,12 @@ typedef enum {
 } ActorState;
 
 typedef struct Actor {
-  word xx;
-  word yy;
-  sbyte xvel;
-  sbyte yvel;
+  word xx;       // X coord
+  word yy;       // Y coord
+  sbyte xvel;    // X velocity
+  sbyte yvel;    // Y velocity
   ActorState state;
-  bool faceleft;
+  bool faceleft; // facing left?
 } Actor;
 
 Actor actors[MAX_ACTORS];
@@ -290,7 +291,7 @@ void draw_actor(register Actor* actor, byte index) {
   word xpos = actor->xx + pixofs_x + fine_correct_x + ACTOR_OFFSET_X;
   word ypos = actor->yy + pixofs_y + fine_correct_y + ACTOR_OFFSET_Y;
   if (xpos > 320 || ypos > 250) {
-    ypos = 255;
+    ypos = 255; // hide the sprite
   }
   switch (actor->state) {
     case STANDING:
@@ -318,22 +319,9 @@ const char velocity_bitmasks[8] = {
   0b01110101, // 5/8
   0b11101110, // 6/8
   0b11110111, // 7/8
-//  0b11111111, // 8/8
 };
 
 static byte box[4]; // hit box
-
-/*
-void actor_set_position(register Actor* actor,
-                       word world_x,
-                       word world_y,
-                       ActorState state) {
-  actor->xx = world_x;
-  actor->yy = world_y;
-  actor->state = state;
-  actor->tileindex = (world_x>>5) | (world_y>>5)*MAP_COLS;
-}
-*/
 
 void move_actor(register Actor* actor,
                 sbyte cmd_dx,
@@ -553,7 +541,7 @@ void next_frame() {
   // increment frame counter
   framemask = BITMASKS[++framecount & 7];
   // get joystick bits
-  joy = joy_read(0);
+  joy = joy_read(1);
   // move player
   control_actor(player, joy);
   // move enemy
@@ -615,20 +603,12 @@ void main(void) {
   // repaint screen memory w/ the map
   scroll_refresh();
   
-  player->xx = 3*32+8;
-  player->yy = 2*32+8-16;
-  
+  // set player initial position
   player->xx = 0;
   player->yy = 31;
   player->state = STANDING;
-  /*
-  player->xx = 32;
-  player->yy = 0;
-  player->xx = 33;
-  player->yy = 100;
-  player->state = JUMPING;
-  */
-//  actor_set_position(player, 63, 63, STANDING);
+
+  // set other actor's initial position
   actors[1].xx = 128;
 
   // infinite loop

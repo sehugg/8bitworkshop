@@ -9,7 +9,7 @@
 #define CFGFILE c64-sid.cfg
 
 //#resource "sidmusic1.bin"
-//#link "sidplaysfx.ca65"
+//#link "sidplaysfx.s"
 #include "sidplaysfx.h"
 
 static const unsigned char Palette[2] = 
@@ -85,7 +85,7 @@ void main(void) {
 
   while (1) {
     // play sound effect when joystick is moved
-    byte joy = joy_read(0);
+    byte joy = joy_read(1);
     if (joy) {
       sid_sfx(joy & 3);
       // exit when fire button pressed

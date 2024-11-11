@@ -81,6 +81,7 @@ export function execMain(step: BuildStep, mod, args: string[]) {
   var run = mod.callMain || mod.run; // TODO: run?
   run(args);
   endtime(step.tool);
+  console.log('exec', step.tool, args.join(' '));
 }
 
 /// asm.js / WASM / filesystem loading

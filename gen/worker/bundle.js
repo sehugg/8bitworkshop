@@ -5953,6 +5953,7 @@
     var run = mod.callMain || mod.run;
     run(args);
     endtime(step.tool);
+    console.log("exec", step.tool, args.join(" "));
   }
   var fsMeta = {};
   var fsBlob = {};
@@ -7373,7 +7374,19 @@
         __syscall_rmdir() {
           warning("TODO: rmdir");
           return 58;
-        }
+        },
+        segfault() {
+          warning("TODO: segfault");
+          return 58;
+        },
+        alignfault() {
+          warning("TODO: alignfault");
+          return 58;
+        },
+        __wasilibc_cwd: new WebAssembly.Global({
+          value: "i32",
+          mutable: true
+        }, 0)
       };
     }
   };
@@ -14789,7 +14802,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       if (errors.length) {
         return { errors };
       }
-      const output = wasi.fs.getFile(destpath).getBytes();
+      const output = wasi.fs.getFile(rootDir + destpath).getBytes();
       putWorkFile(destpath, output);
       return {
         output,

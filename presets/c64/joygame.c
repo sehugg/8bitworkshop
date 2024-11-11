@@ -117,7 +117,7 @@ void main(void) {
     sprite_update(DEFAULT_SCREEN);
     
     // get joystick bits
-    joy = joy_read(0);
+    joy = joy_read(1);
     move_player(joy);
     // move other objects
     move_non_players();

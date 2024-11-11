@@ -3,7 +3,7 @@
 //#link "common.c"
 
 #include "rasterirq.h"
-//#link "rasterirq.ca65"
+//#link "rasterirq.s"
 
 #include "bcd.h"
 //#link "bcd.c"

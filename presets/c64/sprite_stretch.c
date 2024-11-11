@@ -2,7 +2,7 @@
 //#link "common.c"
 #include "common.h"
 
-//#link "rasterirq.ca65"
+//#link "rasterirq.s"
 #include "rasterirq.h"
 
 //#link "sprites.c"
