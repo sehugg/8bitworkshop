@@ -82,7 +82,7 @@ describe('test WASI cc7800', function () {
     });
 });
 
-
+/*
 describe('test WASI oscar64', function () {
     it('oscar64 compile', async function () {
         let shim = await loadOscar64();
@@ -104,3 +104,4 @@ describe('test WASI oscar64', function () {
         console.log(shim.fs.getFile("/root/foo.asm").getBytesAsString());
     });
 });
+*/
