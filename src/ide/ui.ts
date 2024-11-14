@@ -1774,6 +1774,7 @@ function updateBooksMenu() {
   if (getRootBasePlatform(platform_id) == 'nes') $(".book-nes").addClass("book-active");
   else if (getRootBasePlatform(platform_id) == 'vcs') $(".book-vcs").addClass("book-active");
   else if (getRootBasePlatform(platform_id) == 'verilog') $(".book-verilog").addClass("book-active");
+  else if (getRootBasePlatform(platform_id) == 'c64') $(".book-c64").addClass("book-active");
   else if (platform.getToolForFilename(getCurrentMainFilename()) == 'sdcc') $(".book-arcade").addClass("book-active");
 }
 
