@@ -604,6 +604,8 @@ div.asset_toolbar {
 }
 .book-active span {
   font-weight: bold;
+  color: #339999;
+  font-size: 1.25em;
 }
 .book-active span::after {
   font-size: x-large;

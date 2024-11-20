@@ -1753,6 +1753,8 @@ function updateBooksMenu() {
         $(".book-vcs").addClass("book-active");
     else if ((0, util_1.getRootBasePlatform)(exports.platform_id) == 'verilog')
         $(".book-verilog").addClass("book-active");
+    else if ((0, util_1.getRootBasePlatform)(exports.platform_id) == 'c64')
+        $(".book-c64").addClass("book-active");
     else if (exports.platform.getToolForFilename(getCurrentMainFilename()) == 'sdcc')
         $(".book-arcade").addClass("book-active");
 }
