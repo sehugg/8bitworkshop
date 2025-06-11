@@ -66,6 +66,14 @@ export var PLATFORM_PARAMS = {
       data_size: 0x400,
       stack_end: 0x4800,
     },
+    'pacman': {
+      arch: 'z80',
+      code_start: 0x0,
+      rom_size: 0x6200,
+      data_start: 0x4000,
+      data_size: 0x800,
+      stack_end: 0x4800,
+    },
     'williams': {
       arch: '6809',
       code_start: 0x0,
