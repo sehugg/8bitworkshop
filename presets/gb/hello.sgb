@@ -1,0 +1,116 @@
+
+; Game Boy Background Example in Z80 Assembly (sdasgb syntax)
+; Hardware register definitions
+.equ LCDC,      0xFF40  ; LCD Control register
+.equ BGP,       0xFF47  ; Background palette register
+.equ LY,        0xFF44  ; LCD Y coordinate register
+
+; VRAM addresses
+.equ VRAM_TILES, 0x9000 ; Tile data area
+.equ VRAM_MAP,   0x9800 ; Background tile map
+
+; LCDC flags
+.equ LCDC_ON,    0x80   ; LCD enable
+.equ LCDC_BG_ON, 0x01   ; Background enable
+
+.area _CODE
+
+.globl _main
+
+_main:
+    ; Disable interrupts
+    di
+    
+    ; Turn off LCD
+    ld a, #0x00
+    ldh (LCDC), a
+    
+    ; Load tile data into VRAM
+    ; Copy tile data to VRAM tile 1 (tile 0 is blank by default)
+    ld hl, #tile_data
+    ld de, #(VRAM_TILES + 0x10)  ; Tile 1 starts at offset 0x10
+    ld bc, #16                    ; 16 bytes per tile
+    call memcpy
+    
+    ; Set up background map
+    ; Fill background map with tile index 1
+    ld hl, #VRAM_MAP
+    ld a, #0x01      ; Tile index 1
+    ld bc, #(20*18)  ; 20x18 tiles = 360 tiles
+fill_bg_loop:
+    ld (hl), a
+    inc hl
+    dec bc
+    ld a, b
+    or c
+    jr nz, fill_bg_loop
+    
+    ; Set background palette
+    ld a, #0x12      ; 11 10 01 00 - darkest to lightest
+    ldh (BGP), a
+    
+    ; Turn on LCD with background enabled
+    ld a, #(LCDC_ON | LCDC_BG_ON)
+    ldh (LCDC), a
+    
+    ; Main loop
+main_loop:
+    call wait_vblank
+    jr main_loop
+
+; Wait for vertical blank
+wait_vblank:
+    ldh a, (LY)
+    cp #144          ; VBlank starts at line 144
+    jr nz, wait_vblank
+    ret
+
+; Simple memory copy routine
+; hl = source, de = destination, bc = count
+memcpy:
+    ld a, (hl)
+    ld (de), a
+    inc hl
+    inc de
+    dec bc
+    ld a, b
+    or c
+    jr nz, memcpy
+    ret
+
+; Tile data
+tile_data:
+    .db 1,2,4,8,0x10,0x20,0x40,0x80
+    .db 0x80,0x40,0x20,0x10,8,4,2,1
+
+; ROM header (required for Game Boy)
+.area _HEADER (ABS)
+.org 0x0100
+    nop
+    jp _main
+
+.org 0x0104
+    .db 0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B
+    .db 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D
+    .db 0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E
+    .db 0xDC, 0xCC, 0x6E, 0xE6, 0xDD, 0xDD, 0xD9, 0x99
+    .db 0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC
+    .db 0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
+
+.org 0x0134
+    .ascii "BGTEST"      ; Title (11 bytes max)
+
+.org 0x013F
+    .db 0x00            ; New licensee code
+
+.org 0x0147
+    .db 0x00            ; Cartridge type (ROM only)
+    .db 0x00            ; ROM size (32KB)
+    .db 0x00            ; RAM size (none)
+    .db 0x01            ; Destination (non-Japanese)
+    .db 0x33            ; Old licensee code
+    .db 0x00            ; ROM version
+
+.org 0x014D
+    .db 0x00            ; Header checksum (will be calculated)
+    .db 0x00, 0x00      ; Global checksum (will be calculated)

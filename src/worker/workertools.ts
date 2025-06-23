@@ -15,6 +15,7 @@ import * as acme from './tools/acme'
 import * as cc7800 from './tools/cc7800'
 import * as bataribasic from './tools/bataribasic'
 import * as oscar64 from './tools/oscar64'
+
 import { PLATFORM_PARAMS } from "./platforms";
 
 export const TOOLS = {
@@ -26,6 +27,7 @@ export const TOOLS = {
   //'z80asm': assembleZ80ASM,
   //'sccz80': compileSCCZ80,
   'sdasz80': sdcc.assembleSDASZ80,
+  'sdasgb': sdcc.assembleSDASGB,
   'sdldz80': sdcc.linkSDLDZ80,
   'sdcc': sdcc.compileSDCC,
   'xasm6809': m6809.assembleXASM6809,
@@ -82,6 +84,7 @@ export const TOOL_PRELOADFS = {
   'cc65-exidy': '65-none',
   'ca65-exidy': '65-none',
   'sdasz80': 'sdcc',
+  'sdasgb': 'sdcc',
   'sdcc': 'sdcc',
   'sccz80': 'sccz80',
   'bataribasic': '2600basic',
