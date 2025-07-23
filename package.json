@@ -23,7 +23,8 @@
     "localforage": "^1.9.0",
     "mousetrap": "^1.6.5",
     "octokat": "^0.10.0",
-    "split.js": "^1.6.2"
+    "split.js": "^1.6.2",
+    "wasmboy": "^0.7.1"
   },
   "devDependencies": {
     "@types/bootbox": "^5.1.3",

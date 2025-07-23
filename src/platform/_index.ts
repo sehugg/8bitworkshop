@@ -14,6 +14,8 @@ export function importPlatform(name: string) : Promise<any> {
       case "devel": return import("../platform/devel");
       case "exidy": return import("../platform/exidy");
       case "galaxian": return import("../platform/galaxian");
+      case "gb": return import("../platform/gb");
+      case "gameboy": return import("../platform/gb");
       case "kim1": return import("../platform/kim1");
       case "markdown": return import("../platform/markdown");
       case "msx": return import("../platform/msx");

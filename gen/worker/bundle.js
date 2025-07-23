@@ -5536,6 +5536,14 @@
       extra_compile_args: ["-I./arch/arm/include", "-I./openlibm/include", "-I./openlibm/src", "-I./printf/src"],
       extra_link_files: ["crt0.c", "libc.a"],
       extra_link_args: ["crt0.c", "-lc"]
+    },
+    "gb": {
+      arch: "gbz80",
+      code_start: 0,
+      rom_size: 32768,
+      data_start: 49152,
+      data_size: 8192,
+      stack_end: 57344
     }
   };
   PLATFORM_PARAMS["sms-sms-libcv"] = PLATFORM_PARAMS["sms-sg1000-libcv"];
@@ -7697,6 +7705,29 @@
     }
     return output;
   }
+  function errorMatcherSDASZ80(path, errors) {
+    var match_asm_re1 = / in line (\d+) of (\S+)/;
+    var match_asm_re2 = / <\w> (.+)/;
+    var errline = 0;
+    var errpath = path;
+    var match_asm_fn = (s) => {
+      var m = match_asm_re1.exec(s);
+      if (m) {
+        errline = parseInt(m[1]);
+        errpath = m[2];
+      } else {
+        m = match_asm_re2.exec(s);
+        if (m) {
+          errors.push({
+            line: errline,
+            path: errpath,
+            msg: m[1]
+          });
+        }
+      }
+    };
+    return match_asm_fn;
+  }
   function assembleSDASZ80(step) {
     loadNative("sdasz80");
     var objout, lstout, symout;
@@ -7705,28 +7736,41 @@
     var objpath = step.prefix + ".rel";
     var lstpath = step.prefix + ".lst";
     if (staleFiles(step, [objpath, lstpath])) {
-      var match_asm_re1 = / in line (\d+) of (\S+)/;
-      var match_asm_re2 = / <\w> (.+)/;
-      var errline = 0;
-      var errpath = step.path;
-      var match_asm_fn = (s) => {
-        var m = match_asm_re1.exec(s);
-        if (m) {
-          errline = parseInt(m[1]);
-          errpath = m[2];
-        } else {
-          m = match_asm_re2.exec(s);
-          if (m) {
-            errors.push({
-              line: errline,
-              path: errpath,
-              msg: m[1]
-            });
-          }
-        }
-      };
+      const match_asm_fn = errorMatcherSDASZ80(step.path, errors);
       var ASZ80 = emglobal.sdasz80({
         instantiateWasm: moduleInstFn("sdasz80"),
+        noInitialRun: true,
+        print: match_asm_fn,
+        printErr: match_asm_fn
+      });
+      var FS = ASZ80.FS;
+      populateFiles(step, FS);
+      execMain(step, ASZ80, ["-plosgffwy", step.path]);
+      if (errors.length) {
+        return { errors };
+      }
+      objout = FS.readFile(objpath, { encoding: "utf8" });
+      lstout = FS.readFile(lstpath, { encoding: "utf8" });
+      putWorkFile(objpath, objout);
+      putWorkFile(lstpath, lstout);
+    }
+    return {
+      linktool: "sdldz80",
+      files: [objpath, lstpath],
+      args: [objpath]
+    };
+  }
+  async function assembleSDASGB(step) {
+    loadNative("sdasgb");
+    var objout, lstout, symout;
+    var errors = [];
+    gatherFiles(step, { mainFilePath: "main.asm" });
+    var objpath = step.prefix + ".rel";
+    var lstpath = step.prefix + ".lst";
+    if (staleFiles(step, [objpath, lstpath])) {
+      const match_asm_fn = errorMatcherSDASZ80(step.path, errors);
+      var ASZ80 = await emglobal.sdasgb({
+        instantiateWasm: moduleInstFn("sdasgb"),
         noInitialRun: true,
         print: match_asm_fn,
         printErr: match_asm_fn
@@ -7851,6 +7895,13 @@
           }
         }
       }
+      if (step.params.arch === "gbz80") {
+        var checksum = 0;
+        for (var address = 308; address <= 332; address++) {
+          checksum = checksum - binout[address] - 1;
+        }
+        binout[333] = checksum & 255;
+      }
       return {
         output: binout,
         listings,
@@ -7864,10 +7915,11 @@
     gatherFiles(step, {
       mainFilePath: "main.c"
     });
+    var params = step.params;
+    var isGBZ80 = step.params.arch === "gbz80";
     var outpath = step.prefix + ".asm";
     if (staleFiles(step, [outpath])) {
       var errors = [];
-      var params = step.params;
       loadNative("sdcc");
       var SDCC = emglobal.sdcc({
         instantiateWasm: moduleInstFn("sdcc"),
@@ -7886,16 +7938,17 @@
         code = preproc.code;
       setupStdin(FS, code);
       setupFS(FS, "sdcc");
+      const machineFlags = isGBZ80 ? "-mgbz80" : "-mz80";
       var args = [
         "--vc",
         "--std-sdcc99",
-        "-mz80",
+        machineFlags,
         "--c1mode",
         "--less-pedantic",
         "-o",
         outpath
       ];
-      if (!/^\s*#pragma\s+opt_code/m.exec(code)) {
+      if (!isGBZ80 && !/^\s*#pragma\s+opt_code/m.exec(code)) {
         args.push.apply(args, [
           "--oldralloc",
           "--no-peep",
@@ -7914,7 +7967,7 @@
       putWorkFile(outpath, asmout);
     }
     return {
-      nexttool: "sdasz80",
+      nexttool: isGBZ80 ? "sdasgb" : "sdasz80",
       path: outpath,
       args: [outpath],
       files: [outpath]
@@ -14445,6 +14498,9 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     if (staleFiles(step, [destpath])) {
       let code = getWorkFileAsString(step.path);
       fixParamsWithDefines(step.path, step.params);
+      step.params.libargs = step.params.libargs.filter((arg) => {
+        return arg !== "crt0.o";
+      });
       try {
         compiler.includeDebugInfo = true;
         compiler.parseFile(code, step.path);
@@ -14763,46 +14819,28 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   }
 
   // src/worker/tools/oscar64.ts
-  var oscar64_fs = null;
-  var wasiModule2 = null;
   async function compileOscar64(step) {
-    const errors = [];
-    const rootDir = "/root/";
+    loadNative("oscar64");
+    var params = step.params;
     gatherFiles(step, { mainFilePath: "main.c" });
     const destpath = (step.path || "main.c").replace(/\.[^.]+$/, ".prg");
-    console.log("destpath", destpath);
+    var errors = [];
     if (staleFiles(step, [destpath])) {
-      if (!oscar64_fs) {
-        oscar64_fs = await loadWASIFilesystemZip("oscar64-fs.zip", "/root/");
-      }
-      if (!wasiModule2) {
-        wasiModule2 = new WebAssembly.Module(loadWASMBinary("oscar64"));
-      }
-      const wasi = new WASIRunner();
-      wasi.initSync(wasiModule2);
-      wasi.fs.setParent(oscar64_fs);
-      for (let file of step.files) {
-        wasi.fs.putFile(rootDir + file, store.getFileData(file));
-      }
-      wasi.addPreopenDirectory("/root");
-      wasi.setArgs(["oscar64", "-v", "-g", "-i=/root", step.path]);
-      try {
-        wasi.run();
-      } catch (e) {
-        errors.push(e);
-      }
-      let stdout = wasi.fds[1].getBytesAsString();
-      let stderr = wasi.fds[2].getBytesAsString();
-      console.log("stdout", stdout);
-      console.log("stderr", stderr);
       const matcher = makeErrorMatcher(errors, /\((\d+),\s+(\d+)\)\s+: error (\d+): (.+)/, 1, 4, step.path);
-      for (let line of stderr.split("\n")) {
-        matcher(line);
-      }
-      if (errors.length) {
+      var oscar642 = await emglobal.Oscar64({
+        instantiateWasm: moduleInstFn("oscar64"),
+        noInitialRun: true,
+        print: print_fn,
+        printErr: matcher
+      });
+      var FS = oscar642.FS;
+      populateFiles(step, FS);
+      populateExtraFiles(step, FS, params.extra_compile_files);
+      var args = ["-v", "-g", "-i=/root", step.path];
+      execMain(step, oscar642, args);
+      if (errors.length)
         return { errors };
-      }
-      const output = wasi.fs.getFile(rootDir + destpath).getBytes();
+      var output = FS.readFile(destpath, { encoding: "binary" });
       putWorkFile(destpath, output);
       return {
         output,
@@ -14819,6 +14857,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     "ca65": assembleCA65,
     "ld65": linkLD65,
     "sdasz80": assembleSDASZ80,
+    "sdasgb": assembleSDASGB,
     "sdldz80": linkSDLDZ80,
     "sdcc": compileSDCC,
     "xasm6809": assembleXASM6809,
@@ -14873,6 +14912,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     "cc65-exidy": "65-none",
     "ca65-exidy": "65-none",
     "sdasz80": "sdcc",
+    "sdasgb": "sdcc",
     "sdcc": "sdcc",
     "sccz80": "sccz80",
     "bataribasic": "2600basic",

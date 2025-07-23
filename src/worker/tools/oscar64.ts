@@ -1,53 +1,36 @@
-import { WASIFilesystem, WASIMemoryFilesystem, WASIRunner } from "../../common/wasi/wasishim";
-import { BuildStep, BuildStepResult, gatherFiles, staleFiles, store, putWorkFile } from "../builder";
-import { makeErrorMatcher, msvcErrorMatcher } from "../listingutils";
-import { loadWASIFilesystemZip } from "../wasiutils";
-import { loadWASMBinary } from "../wasmutils";
+import { WorkerError, WorkerResult } from "../../common/workertypes";
+import { BuildStep, gatherFiles, populateExtraFiles, populateFiles, putWorkFile, staleFiles } from "../builder";
+import { makeErrorMatcher } from "../listingutils";
+import { emglobal, execMain, loadNative, moduleInstFn, print_fn, setupFS } from "../wasmutils";
 
-let oscar64_fs: WASIFilesystem | null = null;
-let wasiModule: WebAssembly.Module | null = null;
-
-export async function compileOscar64(step: BuildStep): Promise<BuildStepResult> {
-    const errors = [];
-    const rootDir = "/root/";
+export async function compileOscar64(step: BuildStep): Promise<WorkerResult> {
+    loadNative("oscar64");
+    var params = step.params;
     gatherFiles(step, { mainFilePath: "main.c" });
     const destpath = (step.path || "main.c").replace(/\.[^.]+$/, ".prg");
-    console.log('destpath', destpath);
+    var errors: WorkerError[] = [];
+
     if (staleFiles(step, [destpath])) {
-        if (!oscar64_fs) {
-            oscar64_fs = await loadWASIFilesystemZip("oscar64-fs.zip", "/root/");
-        }
-        if (!wasiModule) {
-            wasiModule = new WebAssembly.Module(loadWASMBinary("oscar64"));
-        }
-        const wasi = new WASIRunner();
-        wasi.initSync(wasiModule);
-        wasi.fs.setParent(oscar64_fs);
-        for (let file of step.files) {
-            wasi.fs.putFile(rootDir + file, store.getFileData(file));
-        }
-        //wasi.addPreopenDirectory("include");
-        wasi.addPreopenDirectory("/root");
-        wasi.setArgs(["oscar64", "-v", "-g", "-i=/root", step.path]);
-        try {
-            wasi.run();
-        } catch (e) {
-            errors.push(e);
-        }
-        // TODO
-        let stdout = wasi.fds[1].getBytesAsString();
-        let stderr = wasi.fds[2].getBytesAsString();
-        console.log('stdout', stdout);
-        console.log('stderr', stderr);
         // (58, 17) : error 3001: Could not open source file. 'stdlib.c'
         const matcher = makeErrorMatcher(errors, /\((\d+),\s+(\d+)\)\s+: error (\d+): (.+)/, 1, 4, step.path);
-        for (let line of stderr.split('\n')) {
-            matcher(line);
-        }
-        if (errors.length) {
-            return { errors };
-        }
-        const output = wasi.fs.getFile(rootDir + destpath).getBytes();
+        var oscar64: EmscriptenModule = await emglobal.Oscar64({
+            instantiateWasm: moduleInstFn('oscar64'),
+            noInitialRun: true,
+            print: print_fn,
+            printErr: matcher,
+        });
+
+        var FS = (oscar64 as any).FS;
+        //setupFS(FS, 'oscar64');
+        populateFiles(step, FS);
+        populateExtraFiles(step, FS, params.extra_compile_files);
+
+        var args = ["-v", "-g", "-i=/root", step.path];
+        execMain(step, oscar64, args);
+        if (errors.length)
+            return { errors: errors };
+
+        var output = FS.readFile(destpath, { encoding: 'binary' });
         putWorkFile(destpath, output);
         return {
             output,

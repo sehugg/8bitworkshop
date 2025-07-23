@@ -618,6 +618,7 @@ export function getToolForFilename_z80(fn:string) : string {
   if (fn.endsWith(".c")) return "sdcc";
   if (fn.endsWith(".h")) return "sdcc";
   if (fn.endsWith(".s")) return "sdasz80";
+  if (fn.endsWith(".sgb")) return "sdasgb";
   if (fn.endsWith(".ns")) return "naken";
   if (fn.endsWith(".scc")) return "sccz80";
   if (fn.endsWith(".z")) return "zmac";

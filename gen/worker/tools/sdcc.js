@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.assembleSDASZ80 = assembleSDASZ80;
+exports.assembleSDASGB = assembleSDASGB;
 exports.linkSDLDZ80 = linkSDLDZ80;
 exports.compileSDCC = compileSDCC;
 const builder_1 = require("../builder");
@@ -47,41 +48,79 @@ function parseIHX(ihx, rom_start, rom_size, errors) {
     }
     return output;
 }
+function errorMatcherSDASZ80(path, errors) {
+    //?ASxxxx-Error-<o> in line 1 of main.asm null
+    //              <o> .org in REL area or directive / mnemonic error
+    // ?ASxxxx-Error-<q> in line 1627 of cosmic.asm
+    //    <q> missing or improper operators, terminators, or delimiters
+    var match_asm_re1 = / in line (\d+) of (\S+)/; // TODO
+    var match_asm_re2 = / <\w> (.+)/; // TODO
+    var errline = 0;
+    var errpath = path;
+    var match_asm_fn = (s) => {
+        var m = match_asm_re1.exec(s);
+        if (m) {
+            errline = parseInt(m[1]);
+            errpath = m[2];
+        }
+        else {
+            m = match_asm_re2.exec(s);
+            if (m) {
+                errors.push({
+                    line: errline,
+                    path: errpath,
+                    msg: m[1]
+                });
+            }
+        }
+    };
+    return match_asm_fn;
+}
 function assembleSDASZ80(step) {
-    (0, wasmutils_1.loadNative)("sdasz80");
+    (0, wasmutils_1.loadNative)('sdasz80');
     var objout, lstout, symout;
     var errors = [];
     (0, builder_1.gatherFiles)(step, { mainFilePath: "main.asm" });
     var objpath = step.prefix + ".rel";
     var lstpath = step.prefix + ".lst";
     if ((0, builder_1.staleFiles)(step, [objpath, lstpath])) {
-        //?ASxxxx-Error-<o> in line 1 of main.asm null
-        //              <o> .org in REL area or directive / mnemonic error
-        // ?ASxxxx-Error-<q> in line 1627 of cosmic.asm
-        //    <q> missing or improper operators, terminators, or delimiters
-        var match_asm_re1 = / in line (\d+) of (\S+)/; // TODO
-        var match_asm_re2 = / <\w> (.+)/; // TODO
-        var errline = 0;
-        var errpath = step.path;
-        var match_asm_fn = (s) => {
-            var m = match_asm_re1.exec(s);
-            if (m) {
-                errline = parseInt(m[1]);
-                errpath = m[2];
-            }
-            else {
-                m = match_asm_re2.exec(s);
-                if (m) {
-                    errors.push({
-                        line: errline,
-                        path: errpath,
-                        msg: m[1]
-                    });
-                }
-            }
-        };
+        const match_asm_fn = errorMatcherSDASZ80(step.path, errors);
         var ASZ80 = wasmutils_1.emglobal.sdasz80({
             instantiateWasm: (0, wasmutils_1.moduleInstFn)('sdasz80'),
+            noInitialRun: true,
+            //logReadFiles:true,
+            print: match_asm_fn,
+            printErr: match_asm_fn,
+        });
+        var FS = ASZ80.FS;
+        (0, builder_1.populateFiles)(step, FS);
+        (0, wasmutils_1.execMain)(step, ASZ80, ['-plosgffwy', step.path]);
+        if (errors.length) {
+            return { errors: errors };
+        }
+        objout = FS.readFile(objpath, { encoding: 'utf8' });
+        lstout = FS.readFile(lstpath, { encoding: 'utf8' });
+        (0, builder_1.putWorkFile)(objpath, objout);
+        (0, builder_1.putWorkFile)(lstpath, lstout);
+    }
+    return {
+        linktool: "sdldz80",
+        files: [objpath, lstpath],
+        args: [objpath]
+    };
+    //symout = FS.readFile("main.sym", {encoding:'utf8'});
+}
+async function assembleSDASGB(step) {
+    (0, wasmutils_1.loadNative)('sdasgb');
+    var objout, lstout, symout;
+    var errors = [];
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.asm" });
+    var objpath = step.prefix + ".rel";
+    var lstpath = step.prefix + ".lst";
+    if ((0, builder_1.staleFiles)(step, [objpath, lstpath])) {
+        const match_asm_fn = errorMatcherSDASZ80(step.path, errors);
+        var ASZ80 = await wasmutils_1.emglobal.sdasgb({
+            instantiateWasm: (0, wasmutils_1.moduleInstFn)('sdasgb'),
             noInitialRun: true,
             //logReadFiles:true,
             print: match_asm_fn,
@@ -213,6 +252,14 @@ function linkSDLDZ80(step) {
                 }
             }
         }
+        // gameboy: compute checksum
+        if (step.params.arch === 'gbz80') {
+            var checksum = 0;
+            for (var address = 0x0134; address <= 0x014C; address++) {
+                checksum = checksum - binout[address] - 1;
+            }
+            binout[0x14D] = checksum & 0xff;
+        }
         return {
             output: binout,
             listings: listings,
@@ -226,10 +273,11 @@ function compileSDCC(step) {
     (0, builder_1.gatherFiles)(step, {
         mainFilePath: "main.c" // not used
     });
+    var params = step.params;
+    var isGBZ80 = step.params.arch === 'gbz80';
     var outpath = step.prefix + ".asm";
     if ((0, builder_1.staleFiles)(step, [outpath])) {
         var errors = [];
-        var params = step.params;
         (0, wasmutils_1.loadNative)('sdcc');
         var SDCC = wasmutils_1.emglobal.sdcc({
             instantiateWasm: (0, wasmutils_1.moduleInstFn)('sdcc'),
@@ -252,7 +300,8 @@ function compileSDCC(step) {
         // pipe file to stdin
         (0, wasmutils_1.setupStdin)(FS, code);
         (0, wasmutils_1.setupFS)(FS, 'sdcc');
-        var args = ['--vc', '--std-sdcc99', '-mz80', //'-Wall',
+        const machineFlags = isGBZ80 ? '-mgbz80' : '-mz80';
+        var args = ['--vc', '--std-sdcc99', machineFlags, //'-Wall',
             '--c1mode',
             //'--debug',
             //'-S', 'main.c',
@@ -272,7 +321,7 @@ function compileSDCC(step) {
             //'--noloopreverse',
             '-o', outpath];
         // if "#pragma opt_code" found do not disable optimziations
-        if (!/^\s*#pragma\s+opt_code/m.exec(code)) {
+        if (!isGBZ80 && !/^\s*#pragma\s+opt_code/m.exec(code)) {
             args.push.apply(args, [
                 '--oldralloc',
                 '--no-peep',
@@ -293,7 +342,7 @@ function compileSDCC(step) {
         (0, builder_1.putWorkFile)(outpath, asmout);
     }
     return {
-        nexttool: "sdasz80",
+        nexttool: isGBZ80 ? 'sdasgb' : 'sdasz80',
         path: outpath,
         args: [outpath],
         files: [outpath],

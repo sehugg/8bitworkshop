@@ -39,6 +39,8 @@ function importPlatform(name) {
         case "devel": return Promise.resolve().then(() => __importStar(require("../platform/devel")));
         case "exidy": return Promise.resolve().then(() => __importStar(require("../platform/exidy")));
         case "galaxian": return Promise.resolve().then(() => __importStar(require("../platform/galaxian")));
+        case "gb": return Promise.resolve().then(() => __importStar(require("../platform/gb")));
+        case "gameboy": return Promise.resolve().then(() => __importStar(require("../platform/gb")));
         case "kim1": return Promise.resolve().then(() => __importStar(require("../platform/kim1")));
         case "markdown": return Promise.resolve().then(() => __importStar(require("../platform/markdown")));
         case "msx": return Promise.resolve().then(() => __importStar(require("../platform/msx")));

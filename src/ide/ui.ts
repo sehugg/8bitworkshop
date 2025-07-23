@@ -115,6 +115,7 @@ const TOOL_TO_SOURCE_STYLE = {
   'nesasm': '6502',
   'z80asm': 'z80',
   'sdasz80': 'z80',
+  'sdasgb': 'z80',
   'sdcc': 'text/x-csrc',
   'verilator': 'verilog',
   'jsasm': 'z80',

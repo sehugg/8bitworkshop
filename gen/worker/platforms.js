@@ -364,6 +364,14 @@ exports.PLATFORM_PARAMS = {
         extra_link_files: ['crt0.c', 'libc.a'],
         extra_link_args: ['crt0.c', '-lc'],
     },
+    'gb': {
+        arch: 'gbz80',
+        code_start: 0x0,
+        rom_size: 0x8000,
+        data_start: 0xc000,
+        data_size: 0x2000,
+        stack_end: 0xe000,
+    },
 };
 exports.PLATFORM_PARAMS['sms-sms-libcv'] = exports.PLATFORM_PARAMS['sms-sg1000-libcv'];
 exports.PLATFORM_PARAMS['sms-gg-libcv'] = exports.PLATFORM_PARAMS['sms-sms-libcv'];

@@ -490,6 +490,8 @@ function getToolForFilename_z80(fn) {
         return "sdcc";
     if (fn.endsWith(".s"))
         return "sdasz80";
+    if (fn.endsWith(".sgb"))
+        return "sdasgb";
     if (fn.endsWith(".ns"))
         return "naken";
     if (fn.endsWith(".scc"))
