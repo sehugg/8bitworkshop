@@ -16,6 +16,10 @@ export function assembleECS(step: BuildStep): BuildStepResult {
     if (staleFiles(step, [destpath])) {
         let code = getWorkFileAsString(step.path);
         fixParamsWithDefines(step.path, step.params);
+        // remove crt0.o from libargs
+        step.params.libargs = step.params.libargs.filter((arg: string) => {
+            return arg !== 'crt0.o';
+        });
         try {
             compiler.includeDebugInfo = true;
             compiler.parseFile(code, step.path);
