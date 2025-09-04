@@ -343,14 +343,15 @@ class AppleII extends devices_1.BasicScanlineMachine {
         return super.advanceCPU();
     }
     setKeyInput(key, code, flags) {
-        //console.log(`setKeyInput: ${key} ${code} ${flags}`);
+        console.log(`setKeyInput: ${key} ${code} ${flags}`);
         if (flags & emu_1.KeyFlags.KeyDown) {
             code = 0;
             switch (key) {
                 case 16:
                 case 17:
                 case 18:
-                    break; // ignore shift/ctrl/etc
+                case 91:
+                    return; // ignore shift/ctrl/alt - don't set any key
                 case 8:
                     code = 8; // left
                     if (flags & emu_1.KeyFlags.Shift) {
@@ -378,57 +379,56 @@ class AppleII extends devices_1.BasicScanlineMachine {
                     code = 10;
                     break; // down
                 case 48:
-                    if (flags & emu_1.KeyFlags.Shift)
-                        code = 0x29;
-                    break; // )
+                    code = (flags & emu_1.KeyFlags.Shift) ? 0x29 : 0x30;
+                    break; // ) or 0
                 case 49:
-                    if (flags & emu_1.KeyFlags.Shift)
-                        code = 0x21;
-                    break; // !
+                    code = (flags & emu_1.KeyFlags.Shift) ? 0x21 : 0x31;
+                    break; // ! or 1
                 case 50:
-                    if (flags & emu_1.KeyFlags.Shift)
-                        code = 0x40;
-                    break; // @
+                    code = (flags & emu_1.KeyFlags.Shift) ? 0x40 : 0x32;
+                    break; // @ or 2
                 case 51:
-                    if (flags & emu_1.KeyFlags.Shift)
-                        code = 0x23;
-                    break; // #
+                    code = (flags & emu_1.KeyFlags.Shift) ? 0x23 : 0x33;
+                    break; // # or 3
                 case 52:
-                    if (flags & emu_1.KeyFlags.Shift)
-                        code = 0x24;
-                    break; // $
+                    code = (flags & emu_1.KeyFlags.Shift) ? 0x24 : 0x34;
+                    break; // $ or 4
                 case 53:
-                    if (flags & emu_1.KeyFlags.Shift)
-                        code = 0x25;
-                    break; // %
+                    code = (flags & emu_1.KeyFlags.Shift) ? 0x25 : 0x35;
+                    break; // % or 5
                 case 54:
-                    if (flags & emu_1.KeyFlags.Shift)
-                        code = 0x5e;
-                    break; // ^
+                    code = (flags & emu_1.KeyFlags.Shift) ? 0x5e : 0x36;
+                    break; // ^ or 6
                 case 55:
-                    if (flags & emu_1.KeyFlags.Shift)
-                        code = 0x26;
-                    break; // &
+                    code = (flags & emu_1.KeyFlags.Shift) ? 0x26 : 0x37;
+                    break; // & or 7
                 case 56:
-                    if (flags & emu_1.KeyFlags.Shift)
-                        code = 0x2a;
-                    break; // *
+                    code = (flags & emu_1.KeyFlags.Shift) ? 0x2a : 0x38;
+                    break; // * or 8
                 case 57:
-                    if (flags & emu_1.KeyFlags.Shift)
-                        code = 0x28;
-                    break; // (
+                    code = (flags & emu_1.KeyFlags.Shift) ? 0x28 : 0x39;
+                    break; // ( or 9
                 case 61:
-                    code = (flags & emu_1.KeyFlags.Shift) ? 0x2b : 0x3d;
-                    break; // +
-                case 173:
                     code = (flags & emu_1.KeyFlags.Shift) ? 0x5f : 0x2d;
-                    break; // _
+                    break; // _ or -
+                case 173:
+                    code = (flags & emu_1.KeyFlags.Shift) ? 0x2b : 0x3d;
+                    break; // + or =
                 case 59:
                     code = (flags & emu_1.KeyFlags.Shift) ? 0x3a : 0x3b;
-                    break;
+                    break; // : or ;
+                case 186:
+                    code = (flags & emu_1.KeyFlags.Shift) ? 0x3a : 0x3b;
+                    break; // : or ;
+                case 187:
+                    code = (flags & emu_1.KeyFlags.Shift) ? 0x2b : 0x3d;
+                    break; // + or =
                 case 188:
                     code = (flags & emu_1.KeyFlags.Shift) ? 0x3c : 0x2c;
                     break;
+                case 189:
+                    code = (flags & emu_1.KeyFlags.Shift) ? 0x5f : 0x2d;
+                    break; // _ or -
                 case 190:
                     code = (flags & emu_1.KeyFlags.Shift) ? 0x3e : 0x2e;
                     break;

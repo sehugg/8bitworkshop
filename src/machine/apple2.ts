@@ -355,12 +355,12 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
   }
 
   setKeyInput(key:number, code:number, flags:number) : void {
-   //console.log(`setKeyInput: ${key} ${code} ${flags}`);
+   console.log(`setKeyInput: ${key} ${code} ${flags}`);
    if (flags & KeyFlags.KeyDown) {
       code = 0;
       switch (key) {
-         case 16: case 17: case 18:
-            break; // ignore shift/ctrl/etc
+         case 16: case 17: case 18: case 91:
+            return; // ignore shift/ctrl/alt - don't set any key
         case 8:
           code=8; // left
           if (flags & KeyFlags.Shift) {
@@ -375,20 +375,23 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
         case 39: code=21; break; // right
         case 38: code=11; break; // up
         case 40: code=10; break; // down
-        case 48: if (flags & KeyFlags.Shift) code = 0x29; break; // )
-        case 49: if (flags & KeyFlags.Shift) code = 0x21; break; // !
-        case 50: if (flags & KeyFlags.Shift) code = 0x40; break; // @
-        case 51: if (flags & KeyFlags.Shift) code = 0x23; break; // #
-        case 52: if (flags & KeyFlags.Shift) code = 0x24; break; // $
-        case 53: if (flags & KeyFlags.Shift) code = 0x25; break; // %
-        case 54: if (flags & KeyFlags.Shift) code = 0x5e; break; // ^
-        case 55: if (flags & KeyFlags.Shift) code = 0x26; break; // &
-        case 56: if (flags & KeyFlags.Shift) code = 0x2a; break; // *
-        case 57: if (flags & KeyFlags.Shift) code = 0x28; break; // (
-        case 61: code = (flags & KeyFlags.Shift) ? 0x2b : 0x3d; break; // +
-        case 173: code = (flags & KeyFlags.Shift) ? 0x5f : 0x2d; break; // _
-        case 59: code = (flags & KeyFlags.Shift) ? 0x3a : 0x3b; break;
+        case 48: code = (flags & KeyFlags.Shift) ? 0x29 : 0x30; break; // ) or 0
+        case 49: code = (flags & KeyFlags.Shift) ? 0x21 : 0x31; break; // ! or 1
+        case 50: code = (flags & KeyFlags.Shift) ? 0x40 : 0x32; break; // @ or 2
+        case 51: code = (flags & KeyFlags.Shift) ? 0x23 : 0x33; break; // # or 3
+        case 52: code = (flags & KeyFlags.Shift) ? 0x24 : 0x34; break; // $ or 4
+        case 53: code = (flags & KeyFlags.Shift) ? 0x25 : 0x35; break; // % or 5
+        case 54: code = (flags & KeyFlags.Shift) ? 0x5e : 0x36; break; // ^ or 6
+        case 55: code = (flags & KeyFlags.Shift) ? 0x26 : 0x37; break; // & or 7
+        case 56: code = (flags & KeyFlags.Shift) ? 0x2a : 0x38; break; // * or 8
+        case 57: code = (flags & KeyFlags.Shift) ? 0x28 : 0x39; break; // ( or 9
+        case 61: code = (flags & KeyFlags.Shift) ? 0x5f : 0x2d; break; // _ or -
+        case 173: code = (flags & KeyFlags.Shift) ? 0x2b : 0x3d; break; // + or =
+        case 59: code = (flags & KeyFlags.Shift) ? 0x3a : 0x3b; break; // : or ;
+        case 186: code = (flags & KeyFlags.Shift) ? 0x3a : 0x3b; break; // : or ;
+        case 187: code = (flags & KeyFlags.Shift) ? 0x2b : 0x3d; break; // + or =
         case 188: code = (flags & KeyFlags.Shift) ? 0x3c : 0x2c; break;
+        case 189: code = (flags & KeyFlags.Shift) ? 0x5f : 0x2d; break; // _ or -
         case 190: code = (flags & KeyFlags.Shift) ? 0x3e : 0x2e; break;
         case 191: code = (flags & KeyFlags.Shift) ? 0x3f : 0x2f; break;
         case 222: code = (flags & KeyFlags.Shift) ? 0x22 : 0x27; break;
