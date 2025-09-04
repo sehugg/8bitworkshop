@@ -23,6 +23,7 @@ git submodule init
 git submodule update
 npm i
 npm run build
+npm run esbuild
 ```
 
 To use GitHub integration locally, download the Firebase config file, e.g. https://8bitworkshop.com/v[version]/config.js
