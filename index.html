@@ -583,21 +583,5 @@ $( ".dropdown-submenu" ).click(function(event) {
 });
 </script>
 
-<!-- Sentry error reporting -->
-<script src='https://js.sentry-cdn.com/1fdd10e76a524c6e8d1e0a47f215fb28.min.js' crossorigin="anonymous"></script>
-<script>
-  if (window.Sentry) Sentry.onLoad(function() {
-      Sentry.init({
-          sampleRate: window.location.host.endsWith('8bitworkshop.com') ? 0.5 : 0.05,
-          beforeSend(event, hint) {
-            const error = hint.originalException;
-            if (error && error.hasOwnProperty('$loc')) return null; // ignore EmuHalt
-            if (error && error.squelchError) return null; // ignore EmuHalt
-            return event;
-          },
-      });
-  });
-</script>
-
 </body>
 </html>
