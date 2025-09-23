@@ -52,8 +52,11 @@ const VCS_PRESETS = [
     { id: 'wiz/finalduck.wiz', name: 'Final Duck (Wiz)' },
     //  {id:'bb/rblast106.bas', name:'Road Blasters (batariBASIC)'},
     { id: 'vcslib/demo_vcslib.c', name: 'VCSLib Demo (C)' },
+    { id: 'helloworld.cc2600', name: 'Hello World (cc2600)' },
 ];
 function getToolForFilename_vcs(fn) {
+    if (fn.endsWith(".cc2600"))
+        return "cc2600";
     if (fn.endsWith("-llvm.c"))
         return "remote:llvm-mos";
     if (fn.endsWith(".wiz"))

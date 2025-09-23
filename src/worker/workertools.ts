@@ -13,6 +13,7 @@ import * as ecs from './tools/ecs'
 import * as remote from './tools/remote'
 import * as acme from './tools/acme'
 import * as cc7800 from './tools/cc7800'
+import * as cc2600 from './tools/cc2600'
 import * as bataribasic from './tools/bataribasic'
 import * as oscar64 from './tools/oscar64'
 
@@ -55,6 +56,7 @@ export const TOOLS = {
   'ecs': ecs.assembleECS,
   'remote': remote.buildRemote,
   'cc7800': cc7800.compileCC7800,
+  'cc2600': cc2600.compilecc2600,
   'armtcc': arm.compileARMTCC,
   'armtcclink': arm.linkARMTCC,
   'oscar64': oscar64.compileOscar64,

@@ -7209,10 +7209,10 @@
     }
     fd_prestat_get(fd, prestat_ptr) {
       const file = this.fds[fd];
-      debug("fd_prestat_get", fd, prestat_ptr, file == null ? void 0 : file.name);
+      debug("fd_prestat_get", fd, prestat_ptr, file == null ? void 0 : file.name, file == null ? void 0 : file.type);
       if (file && file.type === 3) {
         const enc_name = new TextEncoder().encode(file.name);
-        this.poke8(prestat_ptr + 0, 0);
+        this.poke64(prestat_ptr + 0, 0);
         this.poke64(prestat_ptr + 8, enc_name.length);
         return 0;
       }
@@ -14716,6 +14716,60 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       if (errors.length) {
         return { errors };
       }
+      console.log(wasi.fs);
+      const combinedasm = wasi.fs.getFile(destpath).getBytesAsString();
+      putWorkFile(destpath, combinedasm);
+    }
+    return {
+      nexttool: "dasm",
+      path: destpath,
+      args: [destpath],
+      files: [destpath]
+    };
+  }
+
+  // src/worker/tools/cc2600.ts
+  var cc2600_fs = null;
+  var wasiModule2 = null;
+  async function compilecc2600(step) {
+    const errors = [];
+    gatherFiles(step, { mainFilePath: "main.c" });
+    const destpath = "./a.out";
+    if (staleFiles(step, [destpath])) {
+      if (!cc2600_fs) {
+        cc2600_fs = await loadWASIFilesystemZip("cc2600-fs.zip");
+      }
+      if (!wasiModule2) {
+        wasiModule2 = new WebAssembly.Module(loadWASMBinary("cc2600"));
+      }
+      const wasi = new WASIRunner();
+      wasi.initSync(wasiModule2);
+      wasi.fs.setParent(cc2600_fs);
+      for (let file of step.files) {
+        wasi.fs.putFile("./" + file, store.getFileData(file));
+      }
+      wasi.addPreopenDirectory("headers");
+      wasi.addPreopenDirectory(".");
+      wasi.setArgs(["cc2600", "-v", "-g", "-S", "-I", "headers", step.path]);
+      try {
+        wasi.run();
+      } catch (e) {
+        errors.push(e);
+      }
+      let stdout = wasi.fds[1].getBytesAsString();
+      let stderr = wasi.fds[2].getBytesAsString();
+      console.log("stdout", stdout);
+      console.log("stderr", stderr);
+      if (stderr.indexOf("Syntax error:") >= 0) {
+        const matcher = makeErrorMatcher(errors, /^Syntax error: (.+?) on line (\d+) of (.+)/, 2, 1, step.path, 3);
+        for (let line of stderr.split("\n")) {
+          matcher(line);
+        }
+      }
+      if (errors.length) {
+        return { errors };
+      }
+      console.log(wasi.fs);
       const combinedasm = wasi.fs.getFile(destpath).getBytesAsString();
       putWorkFile(destpath, combinedasm);
     }
@@ -14884,6 +14938,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     "ecs": assembleECS,
     "remote": buildRemote,
     "cc7800": compileCC7800,
+    "cc2600": compilecc2600,
     "armtcc": compileARMTCC,
     "armtcclink": linkARMTCC,
     "oscar64": compileOscar64

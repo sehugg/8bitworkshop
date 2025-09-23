@@ -38,6 +38,7 @@ const ecs = __importStar(require("./tools/ecs"));
 const remote = __importStar(require("./tools/remote"));
 const acme = __importStar(require("./tools/acme"));
 const cc7800 = __importStar(require("./tools/cc7800"));
+const cc2600 = __importStar(require("./tools/cc2600"));
 const bataribasic = __importStar(require("./tools/bataribasic"));
 const oscar64 = __importStar(require("./tools/oscar64"));
 exports.TOOLS = {
@@ -77,6 +78,7 @@ exports.TOOLS = {
     'ecs': ecs.assembleECS,
     'remote': remote.buildRemote,
     'cc7800': cc7800.compileCC7800,
+    'cc2600': cc2600.compilecc2600,
     'armtcc': arm.compileARMTCC,
     'armtcclink': arm.linkARMTCC,
     'oscar64': oscar64.compileOscar64,

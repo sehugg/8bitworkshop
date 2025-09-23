@@ -1,33 +1,33 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.compileCC7800 = compileCC7800;
+exports.compilecc2600 = compilecc2600;
 const wasishim_1 = require("../../common/wasi/wasishim");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const wasiutils_1 = require("../wasiutils");
 const wasmutils_1 = require("../wasmutils");
-let cc7800_fs = null;
+let cc2600_fs = null;
 let wasiModule = null;
-async function compileCC7800(step) {
+async function compilecc2600(step) {
     const errors = [];
     (0, builder_1.gatherFiles)(step, { mainFilePath: "main.c" });
     const destpath = "./a.out";
     if ((0, builder_1.staleFiles)(step, [destpath])) {
-        if (!cc7800_fs) {
-            cc7800_fs = await (0, wasiutils_1.loadWASIFilesystemZip)("cc7800-fs.zip");
+        if (!cc2600_fs) {
+            cc2600_fs = await (0, wasiutils_1.loadWASIFilesystemZip)("cc2600-fs.zip");
         }
         if (!wasiModule) {
-            wasiModule = new WebAssembly.Module((0, wasmutils_1.loadWASMBinary)("cc7800"));
+            wasiModule = new WebAssembly.Module((0, wasmutils_1.loadWASMBinary)("cc2600"));
         }
         const wasi = new wasishim_1.WASIRunner();
         wasi.initSync(wasiModule);
-        wasi.fs.setParent(cc7800_fs);
+        wasi.fs.setParent(cc2600_fs);
         for (let file of step.files) {
             wasi.fs.putFile("./" + file, builder_1.store.getFileData(file));
         }
         wasi.addPreopenDirectory("headers");
         wasi.addPreopenDirectory(".");
-        wasi.setArgs(["cc7800", "-v", "-g", "-S", "-I", "headers", step.path]);
+        wasi.setArgs(["cc2600", "-v", "-g", "-S", "-I", "headers", step.path]);
         try {
             wasi.run();
         }
@@ -60,4 +60,4 @@ async function compileCC7800(step) {
         files: [destpath]
     };
 }
-//# sourceMappingURL=cc7800.js.map
+//# sourceMappingURL=cc2600.js.map

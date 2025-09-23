@@ -132,6 +132,7 @@ const TOOL_TO_SOURCE_STYLE = {
     'armips': 'vasm',
     'ecs': 'ecs',
     'remote:llvm-mos': 'text/x-csrc',
+    'cc2600': 'text/x-csrc',
     'cc7800': 'text/x-csrc',
     'armtcc': 'text/x-csrc',
     'oscar64': 'text/x-csrc',

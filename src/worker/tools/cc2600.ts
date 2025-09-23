@@ -4,29 +4,29 @@ import { makeErrorMatcher } from "../listingutils";
 import { loadWASIFilesystemZip } from "../wasiutils";
 import { loadWASMBinary } from "../wasmutils";
 
-let cc7800_fs: WASIFilesystem | null = null;
+let cc2600_fs: WASIFilesystem | null = null;
 let wasiModule: WebAssembly.Module | null = null;
 
-export async function compileCC7800(step: BuildStep): Promise<BuildStepResult> {
+export async function compilecc2600(step: BuildStep): Promise<BuildStepResult> {
     const errors = [];
     gatherFiles(step, { mainFilePath: "main.c" });
     const destpath = "./a.out";
     if (staleFiles(step, [destpath])) {
-        if (!cc7800_fs) {
-            cc7800_fs = await loadWASIFilesystemZip("cc7800-fs.zip");
+        if (!cc2600_fs) {
+            cc2600_fs = await loadWASIFilesystemZip("cc2600-fs.zip");
         }
         if (!wasiModule) {
-            wasiModule = new WebAssembly.Module(loadWASMBinary("cc7800"));
+            wasiModule = new WebAssembly.Module(loadWASMBinary("cc2600"));
         }
         const wasi = new WASIRunner();
         wasi.initSync(wasiModule);
-        wasi.fs.setParent(cc7800_fs);
+        wasi.fs.setParent(cc2600_fs);
         for (let file of step.files) {
             wasi.fs.putFile("./" + file, store.getFileData(file));
         }
         wasi.addPreopenDirectory("headers");
         wasi.addPreopenDirectory(".");
-        wasi.setArgs(["cc7800", "-v", "-g", "-S", "-I", "headers", step.path]);
+        wasi.setArgs(["cc2600", "-v", "-g", "-S", "-I", "headers", step.path]);
         try {
             wasi.run();
         } catch (e) {
