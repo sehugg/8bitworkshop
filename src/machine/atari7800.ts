@@ -11,12 +11,12 @@ import { hex, rgb2bgr } from "../common/util";
 // https://sites.google.com/site/atari7800wiki/
 
 interface Atari7800StateBase {
-  ram : Uint8Array;
+  ram : Uint8Array<ArrayBuffer>;
   regs6532 : Uint8Array;
 }
 
 interface Atari7800ControlsState {
-  inputs : Uint8Array;
+  inputs : Uint8Array<ArrayBuffer>;
 }
 
 interface Atari7800State extends Atari7800StateBase, Atari7800ControlsState {

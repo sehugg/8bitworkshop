@@ -101,12 +101,12 @@ export class OutputSoundFile {
         this.tapData[0x13] = (datalen >> 24) & 0xff;
     }
 
-    getTAPData(): Uint8Array {
+    getTAPData() {
         this.updateTAPHeader();
         return new Uint8Array(this.tapData);
     }
 
-    getSoundData(): Uint8Array {
+    getSoundData() {
         let header = this.getWAVHeader();
         let data = new Uint8Array(header.length + this.soundData.length);
         data.set(header, 0);

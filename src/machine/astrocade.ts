@@ -320,7 +320,7 @@ const _BallyAstrocade = function(arcade:boolean) {
     }
   }
   
-  this.init = (machine:BallyAstrocade, c:Z80, r:Uint8Array, inp:Uint8Array, psgg) => {
+  this.init = (machine:BallyAstrocade, c:Z80, r:Uint8Array, inp:Uint8Array<ArrayBuffer>, psgg) => {
     cpu = c;
     ram = r;
     inputs = inp;
