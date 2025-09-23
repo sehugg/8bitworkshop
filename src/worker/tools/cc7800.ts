@@ -47,6 +47,7 @@ export async function compileCC7800(step: BuildStep): Promise<BuildStepResult> {
         if (errors.length) {
             return { errors };
         }
+        console.log(wasi.fs);
         const combinedasm = wasi.fs.getFile(destpath).getBytesAsString();
         putWorkFile(destpath, combinedasm);
     }

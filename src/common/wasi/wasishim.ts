@@ -560,10 +560,10 @@ export class WASIRunner {
     }
     fd_prestat_get(fd: number, prestat_ptr: number) {
         const file = this.fds[fd];
-        debug("fd_prestat_get", fd, prestat_ptr, file?.name);
+        debug("fd_prestat_get", fd, prestat_ptr, file?.name, file?.type);
         if (file && file.type === FDType.DIRECTORY) {
             const enc_name = new TextEncoder().encode(file.name);
-            this.poke8(prestat_ptr + 0, 0); // __WASI_PREOPENTYPE_DIR
+            this.poke64(prestat_ptr + 0, 0); // __WASI_PREOPENTYPE_DIR
             this.poke64(prestat_ptr + 8, enc_name.length);
             return WASIErrors.SUCCESS;
         }
