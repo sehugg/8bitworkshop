@@ -350,11 +350,11 @@ export class WASIRunner {
         this.#instance = new WebAssembly.Instance(wasmModule, this.getImportObject());
     }
     loadSync(wasmSource: Uint8Array) {
-        let wasmModule = new WebAssembly.Module(wasmSource);
+        let wasmModule = new WebAssembly.Module(wasmSource as Uint8Array<ArrayBuffer>);
         this.initSync(wasmModule);
     }
     async loadAsync(wasmSource: Uint8Array) {
-        let wasmModule = await WebAssembly.compile(wasmSource);
+        let wasmModule = await WebAssembly.compile(wasmSource as Uint8Array<ArrayBuffer>);
         this.#instance = await WebAssembly.instantiate(wasmModule, this.getImportObject());
     }
     setArgs(args: string[]) {

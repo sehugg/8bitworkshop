@@ -178,10 +178,10 @@ export class HDLModuleWASM implements HDLModuleRunner {
     constpool: HDLModuleDef;
     globals: Struct;
     locals: Struct;
-    databuf: Buffer;
-    data8: Uint8Array;
-    data16: Uint16Array;
-    data32: Uint32Array;
+    databuf: ArrayBuffer;
+    data8: Uint8Array<ArrayBuffer>;
+    data16: Uint16Array<ArrayBuffer>;
+    data32: Uint32Array<ArrayBuffer>;
     getFileData = null;
     maxMemoryMB: number;
     optimize: boolean = false;
@@ -449,13 +449,13 @@ export class HDLModuleWASM implements HDLModuleRunner {
 
     private async genModule() {
         var wasmData = this.bmod.emitBinary();
-        var compiled = await WebAssembly.compile(wasmData);
+        var compiled = await WebAssembly.compile(wasmData as Uint8Array<ArrayBuffer>);
         this.instance = await WebAssembly.instantiate(compiled, this.getImportObject());
     }
 
     private genModuleSync() {
         var wasmData = this.bmod.emitBinary();
-        var compiled = new WebAssembly.Module(wasmData);
+        var compiled = new WebAssembly.Module(wasmData as Uint8Array<ArrayBuffer>);
         this.instance = new WebAssembly.Instance(compiled, this.getImportObject());
     }
 

@@ -5,14 +5,14 @@ import { KeyFlags } from "../common/emu"; // TODO
 import { hex, lzgmini, stringToByteArray, RGBA, printFlags, arrayCompare } from "../common/util";
 
 interface AppleIIStateBase {
-  ram : Uint8Array;
+  ram : Uint8Array<ArrayBuffer>;
   soundstate : number;
   auxRAMselected,writeinhibit : boolean;
   auxRAMbank : number;
 }
 
 interface AppleIIControlsState {
-  inputs : Uint8Array; // unused?
+  inputs : Uint8Array<ArrayBuffer>; // unused?
   kbdlatch : number;
 }
 
@@ -135,7 +135,7 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
       auxRAMbank: this.auxRAMbank,
       writeinhibit: this.writeinhibit,
       slots: this.slots.map((slot) => { return slot && slot['saveState'] && slot['saveState']() }),
-      inputs: null
+      inputs: this.ram.slice(0,0) // unused
     };
   }
   loadState(s:AppleIIState) {

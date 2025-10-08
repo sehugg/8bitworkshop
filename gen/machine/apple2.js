@@ -107,7 +107,7 @@ class AppleII extends devices_1.BasicScanlineMachine {
             auxRAMbank: this.auxRAMbank,
             writeinhibit: this.writeinhibit,
             slots: this.slots.map((slot) => { return slot && slot['saveState'] && slot['saveState'](); }),
-            inputs: null
+            inputs: this.ram.slice(0, 0) // unused
         };
     }
     loadState(s) {
