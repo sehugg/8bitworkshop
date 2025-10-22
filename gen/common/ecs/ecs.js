@@ -179,24 +179,15 @@ class Dialect_CA65 {
         return `${name}__Start`;
     }
     align(value) {
-        return `.align ${value}`;
-    }
-    alignSegmentStart() {
-        return this.label('__ALIGNORIGIN');
+        return value > 0 ? `.align ${value}` : '';
     }
     warningIfPageCrossed(startlabel) {
         return `
-.assert >(${startlabel}) = >(*), error, "${startlabel} crosses a page boundary!"`;
+.assert >(${startlabel}) = >(*), warning, "${startlabel} crosses a page boundary!"`;
     }
     warningIfMoreThan(bytes, startlabel) {
         return `
-.assert (* - ${startlabel}) <= ${bytes}, error, .sprintf("${startlabel} does not fit in ${bytes} bytes, it took %d!", (* - ${startlabel}))`;
-    }
-    alignIfLessThan(bytes) {
-        return `
-.if <(* - __ALIGNORIGIN) > 256-${bytes}
-.align $100
-.endif`;
+.assert (* - ${startlabel}) <= ${bytes}, warning, .sprintf("${startlabel} does not fit in ${bytes} bytes, it took %d!", (* - ${startlabel}))`;
     }
     segment(segtype) {
         if (segtype == 'bss') {
@@ -1580,11 +1571,7 @@ class EntityScope {
                 if (allsubs.length == 0) {
                     allsubs = [
                         this.dialect.segment('rodata'),
-                        this.dialect.alignSegmentStart()
                     ];
-                }
-                else if (stats.action.fitbytes) {
-                    allsubs.push(this.dialect.alignIfLessThan(stats.action.fitbytes));
                 }
                 let subcall = this.dialect.call(stats.labels[0]);
                 for (let label of stats.labels) {
@@ -1597,8 +1584,10 @@ class EntityScope {
                     }
                 }
                 let substart = stats.labels[0];
+                let alignment = this.getAlignment(stats.action.fitbytes || 0);
                 let sublines = [
                     this.dialect.segment('rodata'),
+                    this.dialect.align(alignment),
                     this.dialect.label(substart),
                     stats.eventcode,
                     this.dialect.return(),
@@ -1614,6 +1603,15 @@ class EntityScope {
         }
         code += allsubs.join('\n');
         return code;
+    }
+    getAlignment(len) {
+        if (!len)
+            return 0;
+        let align = 2;
+        while (align < len) {
+            align *= 2;
+        }
+        return align;
     }
     showStats() {
         for (let inst of this.instances) {

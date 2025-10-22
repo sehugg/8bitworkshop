@@ -387,7 +387,7 @@ export function fixParamsWithDefines(path: string, params) {
         }
       }
       // find #defines and replace them
-      var re = /^[;]?#define\s+(\w+)\s+(\S+)/gmi; // TODO: empty string?
+      var re = /^[;/]?#define\s+(\w+)\s+(\S+)/gmi; // TODO: empty string?
       var m;
       while (m = re.exec(code)) {
         var ident = m[1];

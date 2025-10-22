@@ -17,6 +17,9 @@ function assembleECS(step) {
     var destpath = step.prefix + '.ca65';
     if ((0, builder_1.staleFiles)(step, [destpath])) {
         let code = (0, builder_1.getWorkFileAsString)(step.path);
+        // TODO
+        step.params.cfgfile = 'atari2600-ecs.cfg';
+        step.params.extra_link_files.push('atari2600-ecs.cfg');
         (0, builder_1.fixParamsWithDefines)(step.path, step.params);
         // remove crt0.o from libargs
         step.params.libargs = step.params.libargs.filter((arg) => {
@@ -40,10 +43,10 @@ function assembleECS(step) {
                         break;
                     compiler.addError(`... ${name}`, obj.$loc); // TODO?
                 }
-                return { errors: compiler.errors };
+                return { errors: compiler.errors, listings, debuginfo };
             }
             else if (e instanceof tokenizer_1.CompileError) {
-                return { errors: compiler.errors };
+                return { errors: compiler.errors, listings, debuginfo };
             }
             else {
                 throw e;
