@@ -258,8 +258,8 @@ VecBRK:    .word __BRK
 
 ;;; end action Init__main_init__1
 .rodata
-__ALIGNORIGIN:
 .rodata
+.align 128
 Kernel6Digit__kernel__13:
 
 ; Display the resulting 48x8 bitmap
@@ -305,14 +305,11 @@ Kernel6Digit__kernel__15__Temp = Kernel6Digit__2__tmp+13
 
  rts
 
-.assert >(Kernel6Digit__kernel__13) = >(*), error, "Kernel6Digit__kernel__13 crosses a page boundary!"
+.assert >(Kernel6Digit__kernel__13) = >(*), warning, "Kernel6Digit__kernel__13 crosses a page boundary!"
 
-.assert (* - Kernel6Digit__kernel__13) <= 72, error, .sprintf("Kernel6Digit__kernel__13 does not fit in 72 bytes, it took %d!", (* - Kernel6Digit__kernel__13))
-
-.if <(* - __ALIGNORIGIN) > 256-98
-.align $100
-.endif
+.assert (* - Kernel6Digit__kernel__13) <= 72, warning, .sprintf("Kernel6Digit__kernel__13 does not fit in 72 bytes, it took %d!", (* - Kernel6Digit__kernel__13))
 .rodata
+.align 128
 Kernel2Digit__kernel__19:
 
 	lda #7
@@ -470,9 +467,9 @@ Kernel2Digit__kernel__21__Loop:
 
  rts
 
-.assert >(Kernel2Digit__kernel__19) = >(*), error, "Kernel2Digit__kernel__19 crosses a page boundary!"
+.assert >(Kernel2Digit__kernel__19) = >(*), warning, "Kernel2Digit__kernel__19 crosses a page boundary!"
 
-.assert (* - Kernel2Digit__kernel__19) <= 98, error, .sprintf("Kernel2Digit__kernel__19 does not fit in 98 bytes, it took %d!", (* - Kernel2Digit__kernel__19))
+.assert (* - Kernel2Digit__kernel__19) <= 98, warning, .sprintf("Kernel2Digit__kernel__19 does not fit in 98 bytes, it took %d!", (* - Kernel2Digit__kernel__19))
 FontTable:
 
 ;;; start action FontTable__FontTable__53

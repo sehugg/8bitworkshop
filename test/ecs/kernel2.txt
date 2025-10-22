@@ -476,8 +476,8 @@ VecBRK:    .word __BRK
 
 ;;; end action Init__main_init__1
 .rodata
-__ALIGNORIGIN:
 .rodata
+.align 32
 SetHorizPos__SetHorizPos__20:
 
 ; SetHorizPos routine
@@ -499,10 +499,11 @@ SetHorizPos__SetHorizPos__20:
 
  rts
 
-.assert >(SetHorizPos__SetHorizPos__20) = >(*), error, "SetHorizPos__SetHorizPos__20 crosses a page boundary!"
+.assert >(SetHorizPos__SetHorizPos__20) = >(*), warning, "SetHorizPos__SetHorizPos__20 crosses a page boundary!"
 
-.assert (* - SetHorizPos__SetHorizPos__20) <= 22, error, .sprintf("SetHorizPos__SetHorizPos__20 does not fit in 22 bytes, it took %d!", (* - SetHorizPos__SetHorizPos__20))
+.assert (* - SetHorizPos__SetHorizPos__20) <= 22, warning, .sprintf("SetHorizPos__SetHorizPos__20 does not fit in 22 bytes, it took %d!", (* - SetHorizPos__SetHorizPos__20))
 .rodata
+.align 256
 Kernel2Sprite__kernel__28:
     
     ldy #192
@@ -583,6 +584,8 @@ Kernel2Sprite__scanline__35__DoDraw2:
 
  rts
 
-.assert >(Kernel2Sprite__kernel__28) = >(*), error, "Kernel2Sprite__kernel__28 crosses a page boundary!"
+.assert >(Kernel2Sprite__kernel__28) = >(*), warning, "Kernel2Sprite__kernel__28 crosses a page boundary!"
+
+.assert (* - Kernel2Sprite__kernel__28) <= 256, warning, .sprintf("Kernel2Sprite__kernel__28 does not fit in 256 bytes, it took %d!", (* - Kernel2Sprite__kernel__28))
 .endscope
 Main__Start = Main::__Start

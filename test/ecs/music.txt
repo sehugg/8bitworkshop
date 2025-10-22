@@ -247,8 +247,8 @@ VecBRK:    .word __BRK
 
 ;;; end action Init__main_init__1
 .rodata
-__ALIGNORIGIN:
 .rodata
+
 MusicPlayer__playmusic__10:
 
   lda	#<^SampleMusic
@@ -260,6 +260,7 @@ MusicPlayer__playmusic__10:
   
  rts
 .rodata
+
 MusicPlayer__playmusic__13:
 
   lda	#<SampleMusic
@@ -271,6 +272,7 @@ MusicPlayer__playmusic__13:
   
  rts
 .rodata
+
 MusicPlayer__musicframe__36:
 
     ldx #0

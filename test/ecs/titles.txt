@@ -797,8 +797,8 @@ JoyButton__postframe__72__NotPressed:
 
 ;;; end action FrameLoop__start__5
 .rodata
-__ALIGNORIGIN:
 .rodata
+.align 64
 Kernel48Pixel__kerneldraw__58:
 
     cpx #2+1
@@ -844,14 +844,11 @@ Kernel48Pixel__kerneldraw__59____skipxhi:
 
  rts
 
-.assert >(Kernel48Pixel__kerneldraw__58) = >(*), error, "Kernel48Pixel__kerneldraw__58 crosses a page boundary!"
+.assert >(Kernel48Pixel__kerneldraw__58) = >(*), warning, "Kernel48Pixel__kerneldraw__58 crosses a page boundary!"
 
-.assert (* - Kernel48Pixel__kerneldraw__58) <= 63, error, .sprintf("Kernel48Pixel__kerneldraw__58 does not fit in 63 bytes, it took %d!", (* - Kernel48Pixel__kerneldraw__58))
-
-.if <(* - __ALIGNORIGIN) > 256-63
-.align $100
-.endif
+.assert (* - Kernel48Pixel__kerneldraw__58) <= 63, warning, .sprintf("Kernel48Pixel__kerneldraw__58 does not fit in 63 bytes, it took %d!", (* - Kernel48Pixel__kerneldraw__58))
 .rodata
+.align 64
 Kernel48Pixel__kerneldraw__63:
 
     cpx #3+1
@@ -897,9 +894,9 @@ Kernel48Pixel__kerneldraw__64____skipxhi:
 
  rts
 
-.assert >(Kernel48Pixel__kerneldraw__63) = >(*), error, "Kernel48Pixel__kerneldraw__63 crosses a page boundary!"
+.assert >(Kernel48Pixel__kerneldraw__63) = >(*), warning, "Kernel48Pixel__kerneldraw__63 crosses a page boundary!"
 
-.assert (* - Kernel48Pixel__kerneldraw__63) <= 63, error, .sprintf("Kernel48Pixel__kerneldraw__63 does not fit in 63 bytes, it took %d!", (* - Kernel48Pixel__kerneldraw__63))
+.assert (* - Kernel48Pixel__kerneldraw__63) <= 63, warning, .sprintf("Kernel48Pixel__kerneldraw__63 does not fit in 63 bytes, it took %d!", (* - Kernel48Pixel__kerneldraw__63))
 .endscope
 Title__Start = Title::__Start
 .scope Title2
@@ -1474,8 +1471,8 @@ Colors__postframe__127____exit:
 
 ;;; end action FrameLoop__start__75
 .rodata
-__ALIGNORIGIN:
 .rodata
+.align 64
 Kernel48Pixel__kerneldraw__111:
 
     cpx #2+1
@@ -1521,9 +1518,9 @@ Kernel48Pixel__kerneldraw__112____skipxhi:
 
  rts
 
-.assert >(Kernel48Pixel__kerneldraw__111) = >(*), error, "Kernel48Pixel__kerneldraw__111 crosses a page boundary!"
+.assert >(Kernel48Pixel__kerneldraw__111) = >(*), warning, "Kernel48Pixel__kerneldraw__111 crosses a page boundary!"
 
-.assert (* - Kernel48Pixel__kerneldraw__111) <= 63, error, .sprintf("Kernel48Pixel__kerneldraw__111 does not fit in 63 bytes, it took %d!", (* - Kernel48Pixel__kerneldraw__111))
+.assert (* - Kernel48Pixel__kerneldraw__111) <= 63, warning, .sprintf("Kernel48Pixel__kerneldraw__111 does not fit in 63 bytes, it took %d!", (* - Kernel48Pixel__kerneldraw__111))
 .endscope
 Title2__Start = Title2::__Start
 .endscope

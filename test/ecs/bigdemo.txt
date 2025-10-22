@@ -707,8 +707,8 @@ VecBRK:    .word __BRK
 
 ;;; end action Init__main_init__1
 .rodata
-__ALIGNORIGIN:
 .rodata
+.align 32
 SetHorizPos__SetHorizPos__20:
 
 ; SetHorizPos routine
@@ -730,10 +730,11 @@ SetHorizPos__SetHorizPos__20:
 
  rts
 
-.assert >(SetHorizPos__SetHorizPos__20) = >(*), error, "SetHorizPos__SetHorizPos__20 crosses a page boundary!"
+.assert >(SetHorizPos__SetHorizPos__20) = >(*), warning, "SetHorizPos__SetHorizPos__20 crosses a page boundary!"
 
-.assert (* - SetHorizPos__SetHorizPos__20) <= 22, error, .sprintf("SetHorizPos__SetHorizPos__20 does not fit in 22 bytes, it took %d!", (* - SetHorizPos__SetHorizPos__20))
+.assert (* - SetHorizPos__SetHorizPos__20) <= 22, warning, .sprintf("SetHorizPos__SetHorizPos__20 does not fit in 22 bytes, it took %d!", (* - SetHorizPos__SetHorizPos__20))
 .rodata
+.align 256
 Kernel2Sprite__kernel__31:
     
     ldy #168
@@ -814,12 +815,11 @@ Kernel2Sprite__scanline__38__DoDraw2:
 
  rts
 
-.assert >(Kernel2Sprite__kernel__31) = >(*), error, "Kernel2Sprite__kernel__31 crosses a page boundary!"
+.assert >(Kernel2Sprite__kernel__31) = >(*), warning, "Kernel2Sprite__kernel__31 crosses a page boundary!"
 
-.if <(* - __ALIGNORIGIN) > 256-72
-.align $100
-.endif
+.assert (* - Kernel2Sprite__kernel__31) <= 256, warning, .sprintf("Kernel2Sprite__kernel__31 does not fit in 256 bytes, it took %d!", (* - Kernel2Sprite__kernel__31))
 .rodata
+.align 128
 Kernel6Digit__kernel__45:
 
 ; Display the resulting 48x8 bitmap
@@ -865,9 +865,9 @@ Kernel6Digit__kernel__47__Temp = Kernel6Digit__10__tmp+13
 
  rts
 
-.assert >(Kernel6Digit__kernel__45) = >(*), error, "Kernel6Digit__kernel__45 crosses a page boundary!"
+.assert >(Kernel6Digit__kernel__45) = >(*), warning, "Kernel6Digit__kernel__45 crosses a page boundary!"
 
-.assert (* - Kernel6Digit__kernel__45) <= 72, error, .sprintf("Kernel6Digit__kernel__45 does not fit in 72 bytes, it took %d!", (* - Kernel6Digit__kernel__45))
+.assert (* - Kernel6Digit__kernel__45) <= 72, warning, .sprintf("Kernel6Digit__kernel__45 does not fit in 72 bytes, it took %d!", (* - Kernel6Digit__kernel__45))
 FontTable:
 
 ;;; start action FontTable__FontTable__82
