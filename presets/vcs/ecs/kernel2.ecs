@@ -93,7 +93,7 @@ system Kernel2Sprite
     iny
     sty VDELP1
 ---
-    on kernel do critical with [KernelSection] 
+    on kernel do critical fit $100 with [KernelSection] 
 ---    
     ldy {{<lines}}
 @LVScan:
