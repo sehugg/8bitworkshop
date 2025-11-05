@@ -1,7 +1,8 @@
 {
   "name":"riscv",
+  "width":32,
   "vars":{
-    "reg":{"bits":5, "toks":["zero","x1","x2","x3","x4","x5","x6","x7","x8","x9","x10","x11","x12","x13","x14","x15"]},
+    "reg":{"bits":5, "toks":["x0","x1","x2","x3","x4","x5","x6","x7","x8","x9","x10","x11","x12","x13","x14","x15"]},
     "brop":{"bits":3, "toks":["beq","bne","bx2","bx3","blt","bge","bltu","bgeu"]},
     "imm5":{"bits":5},
     "imm12":{"bits":12},
