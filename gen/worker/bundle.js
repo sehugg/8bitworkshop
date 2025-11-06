@@ -7556,6 +7556,7 @@
       s = s.replace(/\(/g, "\\(");
       s = s.replace(/\)/g, "\\)");
       s = s.replace(/\./g, "\\.");
+      s = s.replace(/\,/g, "\\s*,\\s*");
       s = s.replace(/~\w+/g, (varname) => {
         varname = varname.substr(1);
         var v = vars[varname];
@@ -7656,10 +7657,11 @@
       var opcode = 0;
       var oplen = 0;
       for (let b of rule.bits) {
-        let n, x;
+        let nbits;
+        let value;
         if (typeof b === "string") {
-          n = b.length;
-          x = parseInt(b, 2);
+          nbits = b.length;
+          value = parseInt(b, 2);
         } else {
           var index = typeof b === "number" ? b : b.a;
           var id = m[index + 1];
@@ -7667,46 +7669,48 @@
           if (!v) {
             return { error: `Could not find matching identifier for '${m[0]}' index ${index}` };
           }
-          n = v.bits;
+          nbits = v.bits;
           var shift = 0;
           if (typeof b !== "number") {
-            n = b.n;
+            nbits = b.n;
             shift = b.b;
           }
           if (v.toks) {
-            x = v.toks.indexOf(id);
-            if (x < 0)
+            value = v.toks.indexOf(id);
+            if (value < 0)
               return { error: "Can't use '" + id + "' here, only one of: " + v.toks.join(", ") };
           } else {
-            x = this.parseConst(id, n);
-            if (isNaN(x)) {
+            value = this.parseConst(id, nbits);
+            if (isNaN(value)) {
               this.fixups.push({
                 sym: id,
                 ofs: this.ip,
                 size: v.bits,
                 line: this.linenum,
-                dstlen: n,
+                dstlen: nbits,
                 dstofs: oplen,
                 srcofs: shift,
                 endian: v.endian,
                 iprel: !!v.iprel,
-                ipofs: v.ipofs + 0,
-                ipmul: v.ipmul || 1
+                ipofs: v.ipofs || 0,
+                ipmul: v.ipmul || 1,
+                rule,
+                m
               });
-              x = 0;
+              value = 0;
             } else {
               var mask = (1 << v.bits) - 1;
-              if ((x & mask) != x)
-                return { error: "Value " + x + " does not fit in " + v.bits + " bits" };
+              if ((value & mask) != value)
+                return { error: "Value " + value + " does not fit in " + v.bits + " bits" };
             }
           }
-          if (v.endian == "little") x = this.swapEndian(x, v.bits);
+          if (v.endian == "little") value = this.swapEndian(value, v.bits);
           if (typeof b !== "number") {
-            x = x >>> shift & (1 << b.n) - 1;
+            value = value >>> shift & (1 << b.n) - 1;
           }
         }
-        opcode = opcode << n | x;
-        oplen += n;
+        opcode = opcode << nbits | value;
+        oplen += nbits;
       }
       if (oplen == 0)
         this.warning("Opcode had zero length");
@@ -7807,10 +7811,11 @@
       } else {
         if (fix.endian == "big") value = this.swapEndian(value, fix.size);
         while (value) {
-          if (value & this.outwords[ofs - this.origin]) {
-            this.warning("Instruction bits overlapped: " + hex2(this.outwords[ofs - this.origin], 8), hex2(value, 8));
+          const v = value & (1 << this.width) - 1;
+          if (v & this.outwords[ofs - this.origin]) {
+            this.warning(`Instruction bits overlapped at bits ${fix.dstofs}:${fix.dstofs + fix.dstlen - 1}: ${fix.rule.fmt} -> "${fix.sym}" ${hex2(this.outwords[ofs - this.origin], 8)} & ${hex2(v, 8)}`, fix.line);
           } else {
-            this.outwords[ofs - this.origin] ^= value & (1 << this.width) - 1;
+            this.outwords[ofs - this.origin] ^= v;
           }
           value >>>= this.width;
           ofs++;
@@ -8638,7 +8643,7 @@
           asmout.errors[i].line += firstline;
           errors.push(asmout.errors[i]);
         }
-        return "";
+        return '`error "inline assembly failed"';
       } else if (asmout.output) {
         let s2 = "";
         var out = asmout.output;

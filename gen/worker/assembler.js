@@ -59,6 +59,7 @@ class Assembler {
         s = s.replace(/\(/g, '\\(');
         s = s.replace(/\)/g, '\\)');
         s = s.replace(/\./g, '\\.');
+        s = s.replace(/\,/g, '\\s*,\\s*'); // TODO?
         // TODO: more escapes?
         s = s.replace(/~\w+/g, (varname) => {
             varname = varname.substr(1);
@@ -165,12 +166,13 @@ class Assembler {
         var oplen = 0;
         // iterate over each component of the rule output ("bits")
         for (let b of rule.bits) {
-            let n, x;
+            let nbits;
+            let value;
             // is a string? then it's a bit constant
             // TODO
             if (typeof b === "string") {
-                n = b.length;
-                x = parseInt(b, 2);
+                nbits = b.length;
+                value = parseInt(b, 2);
             }
             else {
                 // is it a slice {a,b,n} or just a number?
@@ -181,47 +183,49 @@ class Assembler {
                 if (!v) {
                     return { error: `Could not find matching identifier for '${m[0]}' index ${index}` };
                 }
-                n = v.bits;
+                nbits = v.bits;
                 var shift = 0;
                 if (typeof b !== "number") {
-                    n = b.n;
+                    nbits = b.n;
                     shift = b.b;
                 }
                 // is it an enumerated type? look up the index of its keyword
                 if (v.toks) {
-                    x = v.toks.indexOf(id);
-                    if (x < 0)
+                    value = v.toks.indexOf(id);
+                    if (value < 0)
                         return { error: "Can't use '" + id + "' here, only one of: " + v.toks.join(', ') };
                 }
                 else {
                     // otherwise, parse it as a constant
-                    x = this.parseConst(id, n);
+                    value = this.parseConst(id, nbits);
                     // is it a label? add fixup
-                    if (isNaN(x)) {
+                    if (isNaN(value)) {
                         this.fixups.push({
                             sym: id, ofs: this.ip, size: v.bits, line: this.linenum,
-                            dstlen: n, dstofs: oplen, srcofs: shift,
+                            dstlen: nbits, dstofs: oplen, srcofs: shift,
                             endian: v.endian,
-                            iprel: !!v.iprel, ipofs: (v.ipofs + 0), ipmul: v.ipmul || 1
+                            iprel: !!v.iprel, ipofs: (v.ipofs || 0), ipmul: v.ipmul || 1,
+                            rule, m
                         });
-                        x = 0;
+                        //console.log(id, shift, oplen, nbits, v.bits);
+                        value = 0;
                     }
                     else {
                         var mask = (1 << v.bits) - 1;
-                        if ((x & mask) != x)
-                            return { error: "Value " + x + " does not fit in " + v.bits + " bits" };
+                        if ((value & mask) != value)
+                            return { error: "Value " + value + " does not fit in " + v.bits + " bits" };
                     }
                 }
                 // if little endian, we need to swap ordering
                 if (v.endian == 'little')
-                    x = this.swapEndian(x, v.bits);
+                    value = this.swapEndian(value, v.bits);
                 // is it an array slice? slice the bits
                 if (typeof b !== "number") {
-                    x = (x >>> shift) & ((1 << b.n) - 1);
+                    value = (value >>> shift) & ((1 << b.n) - 1);
                 }
             }
-            opcode = (opcode << n) | x;
-            oplen += n;
+            opcode = (opcode << nbits) | value;
+            oplen += nbits;
         }
         if (oplen == 0)
             this.warning("Opcode had zero length");
@@ -310,38 +314,63 @@ class Assembler {
         this.warning(lastError ? lastError : ("Could not decode instruction: " + line));
     }
     applyFixup(fix, sym) {
+        // Calculate the word offset where we'll apply this fixup
+        // fix.ofs is the instruction address, fix.dstofs is bit position within instruction
         var ofs = fix.ofs + Math.floor(fix.dstofs / this.width);
+        // Create mask for the full symbol size (used for range checking)
         var mask = ((1 << fix.size) - 1);
+        // Get the symbol's value (e.g., target address for a branch/jump)
         var value = this.parseConst(sym.value + "", fix.dstlen);
+        // Handle PC-relative addressing (branches, relative jumps)
+        // Converts absolute address to relative offset from current instruction
+        // value = (target - current_pc) * ipmul - ipofs
+        // - ipmul: multiplier for instruction units vs byte units (e.g., 4 for word-addressed)
+        // - ipofs: additional offset adjustment (e.g., for architectures with PC+offset)
         if (fix.iprel)
             value = (value - fix.ofs) * fix.ipmul - fix.ipofs;
+        // Range check: ensure value fits in the destination field
+        // Only check when not extracting a slice (srcofs == 0)
         if (fix.srcofs == 0 && (value > mask || value < -mask))
             this.warning("Symbol " + fix.sym + " (" + value + ") does not fit in " + fix.dstlen + " bits", fix.line);
         //console.log(hex(value,8), fix.srcofs, fix.dstofs, fix.dstlen);
+        // Extract bit slice if needed (e.g., bits [12:5] from a 13-bit immediate)
+        // srcofs is the starting bit position to extract from the value
         if (fix.srcofs > 0)
             value >>>= fix.srcofs;
+        // Mask to only the bits we want to insert (dstlen bits)
         value &= (1 << fix.dstlen) - 1;
+        // Position the value within the instruction word
+        // For 32-bit width: shift value left to align with destination bit position
+        // dstofs is counted from MSB, so we shift to put our bits in the right place
         // TODO: make it work for all widths
         if (this.width == 32) {
             var shift = 32 - fix.dstofs - fix.dstlen;
             value <<= shift;
         }
+        // Apply the fixup to the output
         // TODO: check range
         if (fix.size <= this.width) {
+            // Simple case: fixup fits in one word, just XOR it in
             this.outwords[ofs - this.origin] ^= value;
         }
         else {
+            // Complex case: multi-byte fixup (e.g., 32-bit immediate in 8-bit words)
             // swap if we want big endian (we'll apply in LSB first order)
             if (fix.endian == 'big')
                 value = this.swapEndian(value, fix.size);
-            // apply multi-byte fixup
+            // Apply fixup across multiple words
             while (value) {
-                if (value & this.outwords[ofs - this.origin]) {
-                    this.warning("Instruction bits overlapped: " + hex(this.outwords[ofs - this.origin], 8), hex(value, 8));
+                // Extract the low bits for this word
+                const v = value & ((1 << this.width) - 1);
+                // Check for overlap (trying to set bits that are already set)
+                // TODO: check against mask
+                if (v & this.outwords[ofs - this.origin]) {
+                    this.warning(`Instruction bits overlapped at bits ${fix.dstofs}:${fix.dstofs + fix.dstlen - 1}: ${fix.rule.fmt} -> "${fix.sym}" ${hex(this.outwords[ofs - this.origin], 8)} & ${hex(v, 8)}`, fix.line);
                 }
                 else {
-                    this.outwords[ofs - this.origin] ^= value & ((1 << this.width) - 1);
+                    this.outwords[ofs - this.origin] ^= v;
                 }
+                // Move to next word
                 value >>>= this.width;
                 ofs++;
             }

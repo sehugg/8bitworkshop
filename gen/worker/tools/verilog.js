@@ -128,7 +128,7 @@ function compileInlineASM(code, platform, options, errors, asmlines) {
                 asmout.errors[i].line += firstline;
                 errors.push(asmout.errors[i]);
             }
-            return "";
+            return '`error "inline assembly failed"';
         }
         else if (asmout.output) {
             let s = "";

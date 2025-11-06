@@ -45,7 +45,10 @@ var VERILOG_PRESETS = [
   {id:'cpu16.v', name:'16-Bit CPU'},
   {id:'cpu_platform.v', name:'CPU Platform'},
   {id:'test2.asm', name:'16-bit ASM Game'},
-  {id:'cpu6502.v', name:'6502 CPU'},
+
+  {id:'cpu6502.v', name:'6502 CPU', category:'Extra'},
+  {id:'femtorv32.v', name:'RISC-V CPU'},
+  {id:'framebuffer_riscv.v', name:'RISC-V Frame Buffer'},
 
   {id:'test_pattern.ice', name:'Test Pattern', category:'Silice'},
   {id:'copperbars.ice', name:'Animated Bars'},
