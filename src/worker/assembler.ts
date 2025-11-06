@@ -435,7 +435,6 @@ export class Assembler {
 
     // Apply the fixup to the output
     // TODO: check range
-    console.log(fix, this.width);
     if (fix.size <= this.width) {
       // Simple case: fixup fits in one word, just XOR it in
       this.outwords[ofs - this.origin] ^= value;

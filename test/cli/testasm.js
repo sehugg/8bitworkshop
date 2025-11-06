@@ -273,7 +273,7 @@ WaitVsync:
     .width 32
     FOO:
           add x1,x2,x2
-          sub x3,zero,x2
+          sub x3,x0,x2
           xor x4,x3,x2
           addi x5,x4,1234
           beq x10,x11,FOO3
