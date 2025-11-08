@@ -12,7 +12,7 @@ module frame_buffer_riscv_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
   wire [8:0] vpos;
   output reg [3:0] rgb;
 
-  // Memory: 16KB RAM + 4KB ROM
+  // RAM and ROM
   reg [31:0] ram[0:16383];   // RAM (16384 x 32 bits = 64KB)
   reg [31:0] rom[0:1023];   // ROM (1024 x 32 bits = 4KB)
 
@@ -42,8 +42,12 @@ module frame_buffer_riscv_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
   );
 
   // Memory address decoding
-  wire ram_sel = (mem_addr[15] == 1'b0);   // 0x0000-0xFFFF: RAM (64KB)
-  wire rom_sel = (mem_addr[16:13] == 4'b1000); // 0x10000-0x10FFF: ROM (4KB)
+  // 0x0000-0xFFFF: RAM (64KB)
+  wire ram_sel = (mem_addr[15] == 1'b0);
+  // 0x10000-0x10FFF: ROM (4KB)
+  wire rom_sel = (mem_addr[16:13] == 4'b1000);
+  // 0x18000-0x18FFF: I/O
+  wire io_sel = (mem_addr[16:13] == 4'b1100);
 
   // Memory read logic
   always @(posedge clk) begin
@@ -53,8 +57,15 @@ module frame_buffer_riscv_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
         mem_rdata <= rom[mem_addr[11:2]];  // Word-aligned ROM access
       else if (ram_sel)
         mem_rdata <= ram[mem_addr[15:2]];  // Word-aligned RAM access
-      else
-        mem_rdata <= 32'h00000000;
+      else if (io_sel) begin
+        case (mem_addr[7:0])
+          0: mem_rdata <= {29'h0, vpaddle, hpaddle, display_on};
+          1: mem_rdata <= {7'h0, hpos, 7'h0, vpos};
+          default:
+            mem_rdata <= 32'h00000000; // Unmapped
+        endcase
+      end else
+        mem_rdata <= 32'h00000000; // Unmapped
     end else begin
       mem_rbusy <= 0;
     end
@@ -112,7 +123,7 @@ module frame_buffer_riscv_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
     rom = '{
       __asm
 .arch riscv
-.org 0x8000
+.org 0x10000
 .len 0x400
 
 ; RISC-V test program - fill framebuffer with pattern
@@ -123,7 +134,8 @@ module frame_buffer_riscv_top(clk, reset, hsync, vsync, hpaddle, vpaddle, rgb);
 start:
     lui x2, 0x0           ; x2 = 0x0 (framebuffer start)
     addi x1, x0, 0        ; x1 = 0 (counter)
-    lui x4, 0x20          ; x4 = 0x10000 (0x10 << 12)
+    lui x4, 0x20          ; x4 = 0x20000 (end addr, 0x20 << 12)
+    lui x5, 0x18          ; x5 = I/O address
 
 loop:
     add x3, x1, x0       ; x3 = counter value as pattern
@@ -143,4 +155,3 @@ loop:
 `endif
 
 endmodule
-
