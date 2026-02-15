@@ -1,9 +1,6 @@
 [submodule "javatari.js"]
 	path = javatari.js
 	url = https://github.com/sehugg/javatari.js
-[submodule "codemirror"]
-	path = codemirror
-	url = https://github.com/codemirror/CodeMirror
 [submodule "tss"]
 	path = tss
 	url = https://github.com/sehugg/tss
