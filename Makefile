@@ -22,7 +22,7 @@ distro: buildtsc
 	rm -fr $(TMP) && mkdir -p $(TMP)
 	git archive HEAD | tar x -C $(TMP)
 	cp -rp gen $(TMP)
-	cp -rp codemirror tss $(TMP)
+	cp -rp tss $(TMP)
 	rm -r $(TMP)/doc $(TMP)/scripts $(TMP)/test* $(TMP)/tools $(TMP)/.[a-z]* $(TMP)/ts*.json # $(TMP)/meta
 	rm -f $(TMP)/javatari && mkdir -p $(TMP)/javatari && cp -p javatari.js/release/javatari/* $(TMP)/javatari/
 
