@@ -1,8 +1,21 @@
 
 TSC=./node_modules/typescript/bin/tsc --build
+LEZER=./node_modules/.bin/lezer-generator
 TMP=./tmp/dist
 
-buildtsc:
+buildgrammars:
+	mkdir -p gen/parser
+	$(LEZER) src/parser/lang-6502.grammar -o gen/parser/lang-6502.grammar.js
+
+watchgrammars:
+	while true; do \
+		if [ src/parser/lang-6502.grammar -nt gen/parser/lang-6502.grammar.js ]; then \
+			make buildgrammars; \
+		fi; \
+		sleep 1; \
+	done
+
+buildtsc: buildgrammars
 	npm run esbuild-clean
 	$(TSC) tsconfig.json
 	npm run esbuild
@@ -30,6 +43,7 @@ tsweb:
 	npm run esbuild-clean
 	(ip addr || ifconfig) | grep inet
 	$(TSC) -w --preserveWatchOutput &
+	make watchgrammars &
 	sleep 9999999 | npm run esbuild-worker -- --watch &
 	sleep 9999999 | npm run esbuild-ui -- --watch &
 	python3 scripts/serveit.py 2>> /dev/null #http.out

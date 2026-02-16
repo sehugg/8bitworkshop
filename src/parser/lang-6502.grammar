@@ -1,0 +1,162 @@
+@top Program { Line* }
+
+@skip { space | Comment }
+
+Line {
+  Label? Statement? eol
+}
+
+Statement {
+  Instruction |
+  Directive |
+  MacroDef |
+  MacEnd |
+  ControlOp |
+  ErrorOp
+}
+
+Label { Identifier ":" | Identifier }
+
+Instruction {
+  Opcode Operand?
+}
+
+Register {
+  @specialize<Identifier, "X" | "Y" | "A" | "x" | "y" | "a">
+}
+
+Directive {
+  PseudoOp (Expression)*
+}
+
+PseudoOp {
+  @specialize<Identifier,
+    "ORG" | "EQU" | "END" | "org" | "equ" | "end" |
+    "ds" | "ds.b" | "ds.w" | "dc" | "dc.b" | "dc.w" | "seg" | "seg.u" |
+    "subroutine" |
+    "echo" | "repeat" | "repend" | "set" |
+    "processor" |
+    ".WORD" | ".word" | ".BYTE" | ".byte" | ".END" | ".end"
+  >
+}
+
+Mac { @specialize<Identifier, "mac"> }
+MacEnd { @specialize<Identifier, "endm"> }
+
+ControlOp { @specialize<Identifier, "if" | "else" | "endif"> }
+ErrorOp { @specialize<Identifier, "err"> }
+
+MacroDef {
+  Mac Identifier
+}
+
+CurrentAddress {
+  @specialize<Identifier, ".">
+}
+
+Opcode {
+  @specialize<Identifier,
+    "ADC" | "AND" | "ASL" | "BCC" | "BCS" | "BEQ" | "BIT" | "BMI" |
+    "BNE" | "BPL" | "BRK" | "BVC" | "BVS" | "CLC" | "CLD" | "CLI" |
+    "CLV" | "CMP" | "CPX" | "CPY" | "DEC" | "DEX" | "DEY" | "EOR" |
+    "INC" | "INX" | "INY" | "JMP" | "JSR" | "LDA" | "LDX" | "LDY" |
+    "LSR" | "NOP" | "ORA" | "PHA" | "PHP" | "PLA" | "PLP" | "ROL" |
+    "ROR" | "RTI" | "RTS" | "SBC" | "SEC" | "SED" | "SEI" | "STA" |
+    "STX" | "STY" | "TAX" | "TAY" | "TSX" | "TXA" | "TXS" | "TYA" |
+    "adc" | "and" | "asl" | "bcc" | "bcs" | "beq" | "bit" | "bmi" |
+    "bne" | "bpl" | "brk" | "bvc" | "bvs" | "clc" | "cld" | "cli" |
+    "clv" | "cmp" | "cpx" | "cpy" | "dec" | "dex" | "dey" | "eor" |
+    "inc" | "inx" | "iny" | "jmp" | "jsr" | "lda" | "ldx" | "ldy" |
+    "lsr" | "nop" | "ora" | "pha" | "php" | "pla" | "plp" | "rol" |
+    "ror" | "rti" | "rts" | "sbc" | "sec" | "sed" | "sei" | "sta" |
+    "stx" | "sty" | "tax" | "tay" | "tsx" | "txa" | "txs" | "tya"
+  >
+}
+
+Expression {
+  Expression !logic LogicOp Expression |
+  Expression !bit BitOp Expression |
+  Expression !compare (CompareOp | BinaryLt | BinaryGt) Expression |
+  Expression !term (ArithOp | Plus | Minus | Percent) Expression |
+  UnaryExpression |
+  Value |
+  "(" Expression ")"
+}
+
+UnaryExpression {
+  (Plus | Minus | Not | Tilde | UnaryLt | UnaryGt) Expression
+}
+
+BinaryLt { lt !bin }
+BinaryGt { gt !bin }
+UnaryLt { lt !un }
+UnaryGt { gt !un }
+
+Value {
+  Number |
+  Identifier |
+  CurrentAddress |
+  String |
+  Char
+}
+
+Operand {
+  "#" Expression |
+  "(" Expression Comma Register ")" |
+  Expression (Comma Register)? |
+  Register
+}
+
+@tokens {
+  Identifier { $[a-zA-Z_.] $[a-zA-Z0-9_.]* }
+
+  Number {
+    "$" $[0-9a-fA-F]+ |
+    "%" $[01]+ |
+    $[0-9]+
+  }
+
+  String { '"' (!["\\\n] | "\\" _)* '"' }
+
+  Char { "'" ![\n] "'"? }
+
+  Comment { ";" ![\n]* }
+
+  space { $[ \t]+ }
+  eol { $[\n\r]+ }
+
+  Comma { "," }
+  "#"
+  "(" ")"
+
+  ArithOp { "*" | "/" }
+  Percent { "%" }
+  Plus { "+" }
+  Minus { "-" }
+
+  BitOp { "&" | "|" | "^" | "<<" | ">>" }
+  Tilde { "~" }
+
+  LogicOp { "&&" | "||" }
+  Not { "!" }
+
+  CompareOp { "==" | "!=" | "<=" | ">=" }
+  lt { "<" }
+  gt { ">" }
+
+  @precedence { String, Char, Number, Percent, Identifier }
+}
+
+@precedence {
+  un,
+  term @left,
+  compare @left,
+  bit @left,
+  logic @left,
+  bin @left,
+  PseudoOp,
+  Opcode,
+  Label
+}
+
+@detectDelim

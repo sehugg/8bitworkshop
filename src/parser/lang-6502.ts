@@ -1,96 +1,55 @@
-// CodeMirror 6 language support for 6502 assembly
-// Migrated from CodeMirror 5 mode
-// Original copyright (c) by Marijn Haverbeke and others
-// Distributed under an MIT license: https://codemirror.net/5/LICENSE
+import { LRLanguage, LanguageSupport, delimitedIndent, foldInside, foldNodeProp, indentNodeProp } from "@codemirror/language"
+import { styleTags, tags as t } from "@lezer/highlight"
+import { parser } from "../../gen/parser/lang-6502.grammar.js"
 
-import { StreamLanguage, StreamParser } from "@codemirror/language";
-import { LanguageSupport } from "@codemirror/language";
-
-// TODO: Migrate to CodeMirror 6 Lezer parser.
-const asm6502Parser: StreamParser<{ context: number }> = {
-  startState() {
-    return {
-      context: 0
-    };
-  },
-
-  token(stream, state) {
-    // Labels at start of line
-    if (!stream.column()) {
-      state.context = 0;
-      if (stream.eatWhile(/[\w.]/))
-        return 'labelName';
+export const Lezer6502: LRLanguage = LRLanguage.define({
+    parser: parser.configure({
+        props: [
+            indentNodeProp.add({
+                Application: delimitedIndent({ closing: ")", align: false })
+            }),
+            foldNodeProp.add({
+                Application: foldInside
+            }),
+            styleTags({
+                Identifier: t.variableName,
+                CurrentAddress: t.self,
+                PseudoOp: t.definition(t.variableName),
+                Opcode: t.keyword,
+                Label: t.labelName,
+                String: t.string,
+                Char: t.number,
+                Number: t.number,
+                Register: t.typeName,
+                Comment: t.lineComment,
+                ArithOp: t.arithmeticOperator,
+                Plus: t.arithmeticOperator,
+                Minus: t.arithmeticOperator,
+                Percent: t.arithmeticOperator,
+                BitOp: t.bitwiseOperator,
+                Tilde: t.bitwiseOperator,
+                LogicOp: t.logicOperator,
+                Not: t.logicOperator,
+                CompareOp: t.compareOperator,
+                BinaryLt: t.compareOperator,
+                BinaryGt: t.compareOperator,
+                UnaryLt: t.arithmeticOperator,
+                UnaryGt: t.arithmeticOperator,
+                Mac: t.definitionKeyword,
+                MacEnd: t.definitionKeyword,
+                "MacroDef/Identifier": t.macroName,
+                ControlOp: t.controlKeyword,
+                ErrorOp: t.keyword,
+                Comma: t.separator,
+                "( )": t.paren
+            })
+        ]
+    }),
+    languageData: {
+        commentTokens: { line: ";" }
     }
+})
 
-    if (stream.eatSpace())
-      return null;
-
-    var w;
-    if (stream.eatWhile(/\w/)) {
-      w = stream.current();
-      var cur = w.toLowerCase();
-
-      // Check for directives
-      var style = directives.get(cur);
-      if (style)
-        return style;
-
-      // Check for opcodes (3-letter mnemonics)
-      if (opcodes.test(w)) {
-        state.context = 4;
-        return 'keyword';
-      } else if (state.context == 4 && numbers.test(w)) {
-        return 'number';
-      } else if (stream.match(numbers)) {
-        return 'number';
-      } else {
-        return null;
-      }
-    } else if (stream.eat(';')) {
-      stream.skipToEnd();
-      return 'comment';
-    } else if (stream.eat('"')) {
-      while (w = stream.next()) {
-        if (w == '"')
-          break;
-
-        if (w == '\\')
-          stream.next();
-      }
-      return 'string';
-    } else if (stream.eat('\'')) {
-      if (stream.match(/\\?.'/) || stream.match(/\\?.'/))
-        return 'number';
-    } else if (stream.eat('$') || stream.eat('#')) {
-      if (stream.eatWhile(/[^;]/i))
-        return 'number';
-    } else if (stream.eat('%')) {
-      if (stream.eatWhile(/[01]/))
-        return 'number';
-    } else {
-      stream.next();
-    }
-    return null;
-  }
-};
-
-// Directive keywords
-const directives_list = [
-  'processor',
-  'byte', 'word', 'long',
-  'include', 'seg', 'dc', 'ds', 'dv', 'hex', 'err', 'org', 'rorg', 'echo', 'rend',
-  'align', 'subroutine', 'equ', 'eqm', 'set', 'mac', 'endm', 'mexit', 'ifconst',
-  'ifnconst', 'if', 'else', 'endif', 'eif', 'repeat', 'repend'
-];
-const directives = new Map<string, string>();
-directives_list.forEach(function (s) { directives.set(s, 'keyword'); });
-
-const opcodes = /^[a-z][a-z][a-z]\b/i;
-const numbers = /^([\da-f]+h|[0-7]+o|[01]+b|\d+d?)\b/i;
-
-/**
- * Language support for 6502 assembly language
- */
 export function asm6502(): LanguageSupport {
-  return new LanguageSupport(StreamLanguage.define(asm6502Parser));
+    return new LanguageSupport(Lezer6502)
 }
