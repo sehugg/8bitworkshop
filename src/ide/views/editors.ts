@@ -1,3 +1,5 @@
+import { closeBrackets, deleteBracketPair } from "@codemirror/autocomplete";
+import { defaultKeymap, history, indentWithTab } from "@codemirror/commands";
 import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, foldGutter, indentOnInput, indentUnit } from "@codemirror/language";
@@ -19,9 +21,6 @@ import { current_project, lastDebugState, platform, qs, runToPC } from "../ui";
 import { isMobileDevice, ProjectView } from "./baseviews";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
 import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset } from "./gutter";
-
-import { closeBrackets, deleteBracketPair } from "@codemirror/autocomplete";
-import { defaultKeymap, history, indentWithTab } from "@codemirror/commands";
 import { currentPc, errorMessages, highlightLines, showValue } from "./visuals";
 
 // helper function for editor
@@ -135,7 +134,6 @@ export class SourceEditor implements ProjectView {
         parser = markdown();
         break;
       case 'text/x-csrc':
-        // parser = StreamLanguage.define(clike({ name: "our-clike" }));
         parser = cpp();
         break;
       case 'text/x-wiz':
