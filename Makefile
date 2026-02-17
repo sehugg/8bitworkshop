@@ -6,10 +6,11 @@ TMP=./tmp/dist
 buildgrammars:
 	mkdir -p gen/parser
 	$(LEZER) src/parser/lang-6502.grammar -o gen/parser/lang-6502.grammar.js
+	$(LEZER) src/parser/lang-z80.grammar -o gen/parser/lang-z80.grammar.js
 
 watchgrammars:
 	while true; do \
-		if [ src/parser/lang-6502.grammar -nt gen/parser/lang-6502.grammar.js ]; then \
+		if [ src/parser/lang-6502.grammar -nt gen/parser/lang-6502.grammar.js ] || [ src/parser/lang-z80.grammar -nt gen/parser/lang-z80.grammar.js ]; then \
 			make buildgrammars; \
 		fi; \
 		sleep 1; \

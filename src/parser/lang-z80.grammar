@@ -1,0 +1,166 @@
+@top Program { Line* }
+
+@skip { space | Comment }
+
+Line {
+  Label? Statement? eol
+}
+
+Statement {
+  Instruction |
+  Directive
+}
+
+Label { Identifier ":" | Identifier }
+
+Instruction {
+  Opcode Operand?
+}
+
+Directive {
+  PseudoOp (Expression)*
+}
+
+PseudoOp {
+  @specialize<Identifier, "org" | "equ" | "end" | "public" | "ORG" | "EQU" | "END" | "PUBLIC">
+}
+
+Condition {
+  @specialize<Identifier,
+    "nz" | "z" | "nc" | "po" | "pe" | "p" | "m" |
+    "NZ" | "Z" | "NC" | "PO" | "PE" | "P" | "M"
+  >
+}
+
+Register {
+  @specialize<Identifier,
+    "a" | "b" | "c" | "d" | "e" | "h" | "l" | "i" | "r" | "af" | "bc" | "de" | "hl" | "ix" | "iy" | "sp" | "pc" | "psw" |
+    "A" | "B" | "C" | "D" | "E" | "H" | "L" | "I" | "R" | "AF" | "BC" | "DE" | "HL" | "IX" | "IY" | "SP" | "PC" | "PSW"
+  >
+}
+
+Opcode {
+  @specialize<Identifier,
+    // Z80 Instructions
+    "ld" | "push" | "pop" | "inc" | "dec" | "add" | "adc" | "sub" | "sbc" | "and" | "or" | "xor" |
+    "cp" | "ret" | "jp" | "jr" | "call" | "rst" | "nop" | "halt" | "di" | "ei" |
+    "im" | "ex" | "exx" | "neg" | "cpl" | "ccf" | "scf" | "rlca" | "rla" | "rrca" | "rra" |
+    "rlc" | "rl" | "rrc" | "rr" | "sla" | "sra" | "srl" | "bit" | "set" | "res" |
+    "out" | "in" | "djnz" | "rld" | "rrd" | "ldi" | "ldir" | "ldd" | "lddr" | "cpi" | "cpir" | "cpd" | "cpdr" |
+    "ini" | "inir" | "ind" | "indr" | "outi" | "otir" | "outd" | "otdr" |
+
+    "LD" | "PUSH" | "POP" | "INC" | "DEC" | "ADD" | "ADC" | "SUB" | "SBC" | "AND" | "OR" | "XOR" |
+    "CP" | "RET" | "JP" | "JR" | "CALL" | "RST" | "NOP" | "HALT" | "DI" | "EI" |
+    "IM" | "EX" | "EXX" | "NEG" | "CPL" | "CCF" | "SCF" | "RLCA" | "RLA" | "RRCA" | "RRA" |
+    "RLC" | "RL" | "RRC" | "RR" | "SLA" | "SRA" | "SRL" | "BIT" | "SET" | "RES" |
+    "OUT" | "IN" | "DJNZ" | "RLD" | "RRD" | "LDI" | "LDIR" | "LDD" | "LDDR" | "CPI" | "CPIR" | "CPD" | "CPDR" |
+    "INI" | "INIR" | "IND" | "INDR" | "OUTI" | "OTIR" | "OUTD" | "OTDR" |
+
+    // 8080 Instructions
+    "mov" | "mvi" | "lxi" | "lda" | "sta" | "lhld" | "shld" | "ldax" | "stax" |
+    "adi" | "aci" | "sui" | "sbi" | "sbb" | "ana" | "ani" | "xra" | "xri" | "ora" | "ori" | "cmp" |
+    "inr" | "dcr" | "inx" | "dcx" | "dad" |
+    "daa" | "cma" | "stc" | "cmc" | "ral" | "rar" |
+    "jmp" | "jnz" | "jz" | "jnc" | "jc" | "jpo" | "jpe" | "jm" |
+    "cnz" | "cz" | "cnc" | "cc" | "cpo" | "cpe" | "cm" |
+    "rnz" | "rz" | "rnc" | "rc" | "rpo" | "rpe" | "rp" | "rm" |
+    "pchl" | "sphl" | "xthl" | "xchg" | "hlt" |
+
+    "MOV" | "MVI" | "LXI" | "LDA" | "STA" | "LHLD" | "SHLD" | "LDAX" | "STAX" |
+    "ADI" | "ACI" | "SUI" | "SBI" | "SBB" | "ANA" | "ANI" | "XRA" | "XRI" | "ORA" | "ORI" | "CMP" |
+    "INR" | "DCR" | "INX" | "DCX" | "DAD" |
+    "DAA" | "CMA" | "STC" | "CMC" | "RAL" | "RAR" |
+    "JMP" | "JNZ" | "JZ" | "JNC" | "JC" | "JPO" | "JPE" | "JM" |
+    "CNZ" | "CZ" | "CNC" | "CC" | "CPO" | "CPE" | "CM" |
+    "RNZ" | "RZ" | "RNC" | "RC" | "RPO" | "RPE" | "RP" | "RM" |
+    "PCHL" | "SPHL" | "XTHL" | "XCHG" | "HLT"
+  >
+}
+
+Expression {
+  Expression !logic LogicOp Expression |
+  Expression !bit BitOp Expression |
+  Expression !compare (CompareOp | BinaryLt | BinaryGt) Expression |
+  Expression !term (ArithOp | Plus | Minus | Percent) Expression |
+  UnaryExpression |
+  Value |
+  "(" Expression ")"
+}
+
+UnaryExpression {
+  (Plus | Minus | Not | Tilde | UnaryLt | UnaryGt) Expression
+}
+
+BinaryLt { lt !bin }
+BinaryGt { gt !bin }
+UnaryLt { lt !un }
+UnaryGt { gt !un }
+
+Value {
+  Number |
+  Identifier |
+  Register |
+  Condition |
+  String |
+  Char
+}
+
+Operand {
+  Expression (Comma Expression)*
+}
+
+@tokens {
+  Identifier { $[a-zA-Z_] $[a-zA-Z0-9_]* }
+
+  Hex { ("0x" | "$") $[0-9a-fA-F]+ | $[0-9] $[0-9a-fA-F]* "h" }
+  Bin { "%" $[01]+ | $[01]+ "b" }
+  Oct { "0o" $[0-7]+ | $[0-7]+ "o" }
+  Dec { $[0-9]+ }
+
+  Number { Hex | Bin | Oct | Dec }
+
+  String { '"' (!["\\\n] | "\\" _)* '"' }
+
+  Char { "'" !['\\\n] "'"? }
+
+  Comment { ";" ![\n]* }
+
+  space { $[ \t]+ }
+  eol { $[\n\r]+ }
+
+  Comma { "," }
+  ":"
+  "#"
+  "(" ")"
+
+  ArithOp { "*" | "/" }
+  Percent { "%" }
+  Plus { "+" }
+  Minus { "-" }
+
+  BitOp { "&" | "|" | "^" | "<<" | ">>" }
+  Tilde { "~" }
+
+  LogicOp { "&&" | "||" }
+  Not { "!" }
+
+  CompareOp { "==" | "!=" | "<=" | ">=" }
+  lt { "<" }
+  gt { ">" }
+
+  @precedence { String, Char, Number, Percent, Identifier }
+}
+
+@precedence {
+  un,
+  term @left,
+  compare @left,
+  bit @left,
+  logic @left,
+  bin @left,
+  PseudoOp,
+  Opcode,
+  Label
+}
+
+@detectDelim
