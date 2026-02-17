@@ -19,9 +19,14 @@ import { editorTheme } from "../../themes/editorTheme";
 import { mbo } from "../../themes/mbo";
 import { current_project, lastDebugState, platform, qs, runToPC } from "../ui";
 import { isMobileDevice, ProjectView } from "./baseviews";
+import { debugHighlightTagsTooltip } from "./debug";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
 import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset } from "./gutter";
 import { currentPc, errorMessages, highlightLines, showValue } from "./visuals";
+
+// TODO: make this an easily toggleable debug setting.
+// Debug syntax highlighting. Useful when developing new parsers and themes.
+const debugHighlightTags = false;
 
 // helper function for editor
 function jumpToLine(ed: EditorView, i: number) {
@@ -194,6 +199,7 @@ export class SourceEditor implements ProjectView {
         parser || [],
         theme,
         editorTheme,
+        debugHighlightTags ? debugHighlightTagsTooltip : [],
         EditorState.tabSize.of(8),
         indentUnit.of("        "),
         keymap.of([indentWithTab]),
@@ -563,6 +569,7 @@ export class DisassemblerView implements ProjectView {
         drawSelection(),
         highlightActiveLine(),
         highlightSelectionMatches(),
+        debugHighlightTags ? debugHighlightTagsTooltip : [],
         disassemblyTheme,
         cobalt,
         currentPc.field,
