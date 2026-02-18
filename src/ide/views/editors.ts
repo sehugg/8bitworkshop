@@ -1,5 +1,5 @@
 import { closeBrackets, deleteBracketPair } from "@codemirror/autocomplete";
-import { defaultKeymap, history, indentWithTab } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, foldGutter, indentOnInput, indentUnit } from "@codemirror/language";
@@ -169,6 +169,7 @@ export class SourceEditor implements ProjectView {
 
         // Undo history.
         history(),
+        keymap.of(historyKeymap),
 
         // Code fold gutter.
         foldGutter(),
