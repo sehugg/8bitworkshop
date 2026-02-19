@@ -299,8 +299,12 @@ export class SourceEditor implements ProjectView {
   }
 
   insertText(text: string) {
-    var cur = this.editor.getCursor();
-    this.editor.replaceRange(text, cur, cur);
+    const main = this.editor.state.selection.main;
+    this.editor.dispatch({
+      changes: { from: main.from, to: main.to, insert: text },
+      selection: { anchor: main.from + text.length },
+      userEvent: "input.paste"
+    });
   }
 
   highlightLines(start: number, end: number) {
