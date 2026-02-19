@@ -298,14 +298,12 @@ export class SourceEditor implements ProjectView {
   }
 
   highlightLines(start: number, end: number) {
+    const startLine = this.editor.state.doc.line(start + 1);
     this.editor.dispatch({
-      effects: highlightLines.effect.of({ start, end })
-    });
-    // Scroll to show start of the highlighted range.
-    const startLine = this.editor.state.doc.line(start);
-    const endLine = this.editor.state.doc.line(end);
-    this.editor.dispatch({
-      effects: EditorView.scrollIntoView(startLine.from, { y: "center" })
+      effects: [
+        highlightLines.effect.of({ start: start + 1, end: end + 1 }),
+        EditorView.scrollIntoView(startLine.from, { y: "start", yMargin: 100/*pixels*/ }),
+      ]
     });
   }
 
