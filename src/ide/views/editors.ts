@@ -328,9 +328,9 @@ export class SourceEditor implements ProjectView {
       // only mark errors with this filename, or without any filename
       if (!info.path || this.path.endsWith(info.path)) {
         var numLines = this.editor.state.doc.lines;
-        var line = info.line - 1;
-        if (isNaN(line) || line < 0 || line >= numLines) line = 0;
-        newErrors.set(info.line - 1, info.msg);
+        var line = info.line;
+        if (isNaN(line) || line < 1 || line > numLines) line = 1;
+        newErrors.set(line, info.msg);
       }
     }
     this.editor.dispatch({
