@@ -32,12 +32,6 @@ import { currentPc, errorMessages, highlightLines, showValue } from "./visuals";
 // Debug syntax highlighting. Useful when developing new parsers and themes.
 const debugHighlightTags = false;
 
-function createTextSpan(text: string, className: string): HTMLElement {
-  var span = document.createElement("span");
-  span.setAttribute("class", className);
-  span.appendChild(document.createTextNode(text));
-  return span;
-}
 
 /////
 
@@ -76,7 +70,6 @@ export class SourceEditor implements ProjectView {
   dirtylisting = true;
   sourcefile: SourceFile;
   currentDebugLine: SourceLocation;
-  inspectWidget;
   refreshDelayMsec = 300;
 
   createDiv(parent: HTMLElement) {
@@ -424,8 +417,6 @@ export class SourceEditor implements ProjectView {
   }
 
   setCurrentLine(line: SourceLocation, moveCursor: boolean) {
-    var blocked = platform.isBlocked && platform.isBlocked();
-
     var addCurrentMarker = (line: SourceLocation) => {
       this.editor.dispatch({
         effects: [
@@ -549,9 +540,7 @@ export class SourceEditor implements ProjectView {
 const disasmWindow = 1024; // disassemble this many bytes around cursor
 
 export class DisassemblerView implements ProjectView {
-  disasmview;
-
-  getDisasmView() { return this.disasmview; }
+  disasmview: EditorView;
 
   createDiv(parent: HTMLElement) {
     var div = document.createElement('div');
@@ -691,7 +680,7 @@ export class ListingView extends DisassemblerView implements ProjectView {
     // load listing text into editor
     if (!this.assemblyfile) return;
     var asmtext = this.assemblyfile.text;
-    var disasmview = this.getDisasmView();
+
     // TODO: sometimes it picks one without a text file
     this.disasmview.dispatch({
       changes: { from: 0, to: this.disasmview.state.doc.length, insert: asmtext }
