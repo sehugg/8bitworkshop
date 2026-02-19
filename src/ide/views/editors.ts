@@ -28,12 +28,6 @@ import { currentPc, errorMessages, highlightLines, showValue } from "./visuals";
 // Debug syntax highlighting. Useful when developing new parsers and themes.
 const debugHighlightTags = false;
 
-// helper function for editor
-function jumpToLine(ed: EditorView, i: number) {
-  const line = ed.state.doc.line(i);
-  ed.dispatch({ effects: EditorView.scrollIntoView(line.from, { y: "center" }) });
-}
-
 function createTextSpan(text: string, className: string): HTMLElement {
   var span = document.createElement("span");
   span.setAttribute("class", className);
@@ -647,12 +641,12 @@ export class DisassemblerView implements ProjectView {
       changes: { from: 0, to: this.disasmview.state.doc.length, insert: text }
     })
     if (moveCursor) {
-      const line = this.disasmview.state.doc.line(selline);
+      const line = this.disasmview.state.doc.line(selline + 1);
       this.disasmview.dispatch({
-        selection: { anchor: line.from, head: line.from }
+        selection: { anchor: line.from, head: line.from },
+        effects: EditorView.scrollIntoView(line.from, { y: "center" }),
       });
     }
-    jumpToLine(this.disasmview, selline);
   }
 
   getCursorPC(): number {
@@ -708,11 +702,12 @@ export class ListingView extends DisassemblerView implements ProjectView {
       if (res) {
         // set cursor while debugging
         if (moveCursor) {
+          const line = this.disasmview.state.doc.line(res.line);
           this.disasmview.dispatch({
-            selection: { anchor: res.line - 1, head: res.line - 1 }
+            selection: { anchor: line.from, head: line.from },
+            effects: EditorView.scrollIntoView(line.from, { y: "center" }),
           });
         }
-        jumpToLine(disasmview, res.line - 1);
       }
     }
   }
