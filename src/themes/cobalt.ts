@@ -14,7 +14,7 @@ const cobaltTheme = EditorView.theme({
     borderLeft: "1px solid white"
   },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
-    backgroundColor: "#b36539 !important"
+    backgroundColor: "#f77b35 !important"
   },
   ".cm-gutters": {
     backgroundColor: "#002240",
@@ -22,10 +22,10 @@ const cobaltTheme = EditorView.theme({
     borderRight: "1px solid #aaa"
   },
   ".cm-activeLine": {
-    backgroundColor: "#00339933"
+    backgroundColor: "#0055ff88"
   },
   ".cm-activeLineGutter": {
-    backgroundColor: "#00339933",
+    backgroundColor: "#0055ff88",
     color: "#ffee80"
   },
   "&.cm-focused .cm-matchingBracket": {
