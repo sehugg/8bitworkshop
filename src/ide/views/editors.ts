@@ -11,7 +11,11 @@ import { hex, rpad } from "../../common/util";
 import { SourceFile, SourceLocation, WorkerError } from "../../common/workertypes";
 import { asm6502 } from "../../parser/lang-6502";
 import { basic } from "../../parser/lang-basic";
+import { batariBasic } from "../../parser/lang-bataribasic";
+import { fastBasic } from "../../parser/lang-fastbasic";
+import { inform6 } from "../../parser/lang-inform6";
 import { verilog } from "../../parser/lang-verilog";
+import { wiz } from "../../parser/lang-wiz";
 import { asmZ80 } from "../../parser/lang-z80";
 import { cobalt } from "../../themes/cobalt";
 import { disassemblyTheme } from "../../themes/disassemblyTheme";
@@ -118,16 +122,13 @@ export class SourceEditor implements ProjectView {
         parser = basic();
         break;
       case 'bataribasic':
-        break;
-      case 'ecs':
+        parser = batariBasic();
         break;
       case 'fastbasic':
-        break;
-      case 'gas':
+        parser = fastBasic();
         break;
       case 'inform6':
-        break;
-      case 'javascript':
+        parser = inform6();
         break;
       case 'markdown':
         parser = markdown();
@@ -136,14 +137,16 @@ export class SourceEditor implements ProjectView {
         parser = cpp();
         break;
       case 'text/x-wiz':
-        break;
-      case 'vasm':
+        parser = wiz();
         break;
       case 'verilog':
         parser = verilog();
         break;
       case 'z80':
         parser = asmZ80();
+        break;
+      default:
+        console.warn("Unknown mode: " + this.mode);
         break;
     }
     this.editor = new EditorView({
