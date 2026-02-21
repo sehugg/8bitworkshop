@@ -223,7 +223,6 @@ export class SourceEditor implements ProjectView {
 
         errorMarkers.field,
         errorMarkers.gutter,
-        errorMarkers.shownLinesField,
         errorMessages.field,
 
         currentPcMarker.field,

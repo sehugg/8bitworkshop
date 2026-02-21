@@ -1,99 +1,144 @@
-import { StateEffect, StateField } from "@codemirror/state";
+import { RangeSet, StateEffect, StateField } from "@codemirror/state";
 import { gutter, GutterMarker } from "@codemirror/view";
+import { hex } from "../../common/util";
 
 const setOffset = StateEffect.define<Map<number, number>>();
 const setBytes = StateEffect.define<Map<number, string>>();
 const setClock = StateEffect.define<Map<number, string>>();
-const toggleBreakpoint = StateEffect.define<number>();
-const setCurrentPc = StateEffect.define<number>();
+const toggleBreakpoint = StateEffect.define<number | null>();
+const setCurrentPc = StateEffect.define<number | null>();
 const setErrors = StateEffect.define<Map<number, string>>();
 const showErrorMessage = StateEffect.define<{ line: number, msg: string, toggle?: boolean } | null>();
-
-const offsetField = StateField.define<Map<number, number>>({
-    create() { return new Map(); },
+const offsetField = StateField.define<RangeSet<GutterMarker>>({
+    create() { return RangeSet.empty; },
     update(value, tr) {
-        for (let e of tr.effects) if (e.is(setOffset)) value = e.value;
-        return value;
-    },
-});
-
-const bytesField = StateField.define<Map<number, string>>({
-    create() { return new Map(); },
-    update(value, tr) {
-        for (let e of tr.effects) if (e.is(setBytes)) value = e.value;
-        return value;
-    },
-});
-
-const clockField = StateField.define<Map<number, string>>({
-    create() { return new Map(); },
-    update(value, tr) {
-        for (let e of tr.effects) if (e.is(setClock)) value = e.value;
-        return value;
-    },
-});
-
-const breakpointField = StateField.define<Set<number>>({
-    create() { return new Set(); },
-    update(value, tr) {
+        value = value.map(tr.changes);
         for (let e of tr.effects) {
-            if (e.is(toggleBreakpoint)) {
-                // Multiple breakpoints not yet supported.
-                const newSet = new Set<number>();
-                newSet.add(e.value);
-                return newSet;
-
-                // TODO: multiple breakpoints.
-                // // New set for `lineMarkerChange` detection.
-                // const newSet = new Set(value);
-                // if (newSet.has(e.value)) {
-                //     newSet.delete(e.value);
-                // } else {
-                //     newSet.add(e.value);
-                // }
-                // return newSet;
+            if (e.is(setOffset)) {
+                const map = e.value;
+                const ranges = [];
+                for (let [line, val] of map.entries()) {
+                    if (line >= 1 && line <= tr.state.doc.lines) {
+                        const pos = tr.state.doc.line(line).from;
+                        ranges.push(new OffsetMarker(hex(val, 4)).range(pos));
+                    }
+                }
+                value = RangeSet.of(ranges, true);
             }
         }
         return value;
     },
 });
 
-const currentPcField = StateField.define<number>({
-    create() { return -1; },
+const bytesField = StateField.define<RangeSet<GutterMarker>>({
+    create() { return RangeSet.empty; },
     update(value, tr) {
-        for (let e of tr.effects) if (e.is(setCurrentPc)) value = e.value;
-        return value;
-    },
-});
-
-const errorField = StateField.define<Map<number, string>>({
-    create() { return new Map(); },
-    update(value, tr) {
-        for (let e of tr.effects) if (e.is(setErrors)) value = e.value;
-        return value;
-    },
-});
-
-// Track which lines have error messages currently shown.
-const shownErrorLinesField = StateField.define<Set<number>>({
-    create() { return new Set(); },
-    update(value, tr) {
+        value = value.map(tr.changes);
         for (let e of tr.effects) {
-            if (e.is(showErrorMessage)) {
-                // New set for `lineMarkerChange` detection.
-                const newSet = new Set(value);
-                if (e.value === null) {
-                    // Clear all shown messages
-                    return new Set();
-                } else if (e.value.toggle) {
-                    // Toggle specific line
-                    if (newSet.has(e.value.line)) {
-                        newSet.delete(e.value.line);
-                    } else {
-                        newSet.add(e.value.line);
+            if (e.is(setBytes)) {
+                const map = e.value;
+                const ranges = [];
+                for (let [line, val] of map.entries()) {
+                    if (line >= 1 && line <= tr.state.doc.lines) {
+                        const pos = tr.state.doc.line(line).from;
+                        ranges.push(new BytesMarker(val).range(pos));
                     }
-                    return newSet;
                 }
+                value = RangeSet.of(ranges, true);
+            }
+        }
+        return value;
+    },
+});
+
+const clockField = StateField.define<RangeSet<GutterMarker>>({
+    create() { return RangeSet.empty; },
+    update(value, tr) {
+        value = value.map(tr.changes);
+        for (let e of tr.effects) {
+            if (e.is(setClock)) {
+                const map = e.value;
+                const ranges = [];
+                for (let [line, val] of map.entries()) {
+                    if (line >= 1 && line <= tr.state.doc.lines) {
+                        const pos = tr.state.doc.line(line).from;
+                        ranges.push(new ClockMarker(val).range(pos));
+                    }
+                }
+                value = RangeSet.of(ranges, true);
+            }
+        }
+        return value;
+    },
+});
+
+const breakpointField = StateField.define<RangeSet<GutterMarker>>({
+    create() { return RangeSet.empty; },
+    update(value, tr) {
+        value = value.map(tr.changes);
+        for (let e of tr.effects) {
+            if (e.is(toggleBreakpoint)) {
+                if (e.value === null) {
+                    value = RangeSet.empty;
+                } else {
+                    const line = e.value;
+                    if (line >= 1 && line <= tr.state.doc.lines) {
+                        const pos = tr.state.doc.line(line).from;
+                        // Multiple breakpoints not yet supported.
+                        value = RangeSet.of(BREAKPOINT_MARKER.range(pos));
+
+                        // TODO: multiple breakpoints.
+                        // let hasBreakpoint = false;
+                        // value.between(pos, pos, () => { hasBreakpoint = true; return false; });
+                        // if (hasBreakpoint) {
+                        //     value = value.update({ filter: from => from !== pos });
+                        // } else {
+                        //     value = value.update({ add: [BREAKPOINT_MARKER.range(pos)] });
+                        // }
+                    }
+                }
+            }
+        }
+        return value;
+    },
+});
+
+const currentPcField = StateField.define<RangeSet<GutterMarker>>({
+    create() { return RangeSet.empty; },
+    update(value, tr) {
+        value = value.map(tr.changes);
+        for (let e of tr.effects) {
+            if (e.is(setCurrentPc)) {
+                if (e.value === null) {
+                    value = RangeSet.empty;
+                } else {
+                    const line = e.value;
+                    if (line >= 1 && line <= tr.state.doc.lines) {
+                        const pos = tr.state.doc.line(line).from;
+                        value = RangeSet.of(CURRENT_PC_MARKER.range(pos));
+                    }
+                }
+            }
+        }
+        return value;
+    },
+});
+
+const errorField = StateField.define<RangeSet<GutterMarker>>({
+    create() { return RangeSet.empty; },
+    update(value, tr) {
+        value = value.map(tr.changes);
+        for (let e of tr.effects) {
+            if (e.is(setErrors)) {
+                const map = e.value;
+                const ranges = [];
+                for (let [line, msg] of map.entries()) {
+                    if (line >= 1 && line <= tr.state.doc.lines) {
+                        const pos = tr.state.doc.line(line).from;
+                        ranges.push(new ErrorMarker(line, msg).range(pos));
+                    }
+                }
+                value = RangeSet.of(ranges, true);
             }
         }
         return value;
@@ -103,34 +148,33 @@ const shownErrorLinesField = StateField.define<Set<number>>({
 class OffsetMarker extends GutterMarker {
     constructor(readonly hex: string) { super(); }
     toDOM() { return document.createTextNode(this.hex); }
+    eq(other: OffsetMarker) { return this.hex == other.hex; }
 }
 
 class BytesMarker extends GutterMarker {
     constructor(readonly bytes: string) { super(); }
     toDOM() { return document.createTextNode(this.bytes); }
+    eq(other: BytesMarker) { return this.bytes == other.bytes; }
 }
 
 class ClockMarker extends GutterMarker {
     constructor(readonly clock: string) { super(); }
     toDOM() { return document.createTextNode(this.clock); }
+    eq(other: ClockMarker) { return this.clock == other.clock; }
 }
 
-class BreakpointMarker extends GutterMarker {
-    constructor(readonly line: number) { super(); }
-
+const BREAKPOINT_MARKER = new class extends GutterMarker {
     toDOM() {
         const span = document.createElement("span");
-        span.innerHTML =  "●";
+        span.innerHTML = "●";
         span.style.color = "#ff0000";
         span.style.cursor = "pointer";
         span.title = "Click to run to here"; // "Click to toggle breakpoint";
         return span;
     }
-}
+};
 
-class CurrentPcMarker extends GutterMarker {
-    constructor(readonly line: number) { super(); }
-
+const CURRENT_PC_MARKER = new class extends GutterMarker {
     toDOM() {
         const span = document.createElement("span");
         span.innerHTML = "▶";
@@ -138,7 +182,7 @@ class CurrentPcMarker extends GutterMarker {
         span.title = "Current PC";
         return span;
     }
-}
+};
 
 class ErrorMarker extends GutterMarker {
     constructor(readonly line: number, readonly msg: string) { super(); }
@@ -151,58 +195,28 @@ class ErrorMarker extends GutterMarker {
         span.title = this.msg;
         return span;
     }
+    eq(other: ErrorMarker) { return this.line == other.line && this.msg == other.msg; }
 }
 
 const offsetGutter = gutter({
     class: "gutter-offset",
-    lineMarker(view, line) {
-        const offsets = view.state.field(offsetField);
-        const lineNum = view.state.doc.lineAt(line.from).number;
-        const addr = offsets.get(lineNum);
-        return addr ? new OffsetMarker(addr.toString(16).padStart(4, '0').toUpperCase()) : null;
-    },
-    lineMarkerChange(update) {
-        return update.startState.field(offsetField) !== update.state.field(offsetField);
-    },
+    markers: v => v.state.field(offsetField)
 });
 
 const bytesGutter = gutter({
     class: "gutter-bytes",
-    lineMarker(view, line) {
-        const bytesMap = view.state.field(bytesField);
-        const lineNum = view.state.doc.lineAt(line.from).number;
-        const bytesValue = bytesMap.get(lineNum);
-        return bytesValue ? new BytesMarker(bytesValue) : null;
-    },
-    lineMarkerChange(update) {
-        return update.startState.field(bytesField) !== update.state.field(bytesField);
-    },
+    markers: v => v.state.field(bytesField)
 });
 
 const clockGutter = gutter({
     class: "gutter-clock",
-    lineMarker(view, line) {
-        const clockMap = view.state.field(clockField);
-        const lineNum = view.state.doc.lineAt(line.from).number;
-        const clockValue = clockMap.get(lineNum);
-        return clockValue ? new ClockMarker(clockValue) : null;
-    },
-    lineMarkerChange(update) {
-        return update.startState.field(clockField) !== update.state.field(clockField);
-    },
+    markers: v => v.state.field(clockField)
 });
 
 const breakpointGutter = gutter({
     class: "gutter-breakpoint",
-    lineMarker(view, line) {
-        const breakpoints = view.state.field(breakpointField);
-        const lineNum = view.state.doc.lineAt(line.from).number;
-        return breakpoints.has(lineNum) ? new BreakpointMarker(lineNum) : null;
-    },
-    lineMarkerChange(update) {
-        return update.startState.field(breakpointField) !== update.state.field(breakpointField);
-    },
-    initialSpacer: () => new BreakpointMarker(0),
+    markers: v => v.state.field(breakpointField),
+    initialSpacer: () => BREAKPOINT_MARKER,
     domEventHandlers: {
         click(view, line) {
             const lineNum = view.state.doc.lineAt(line.from).number;
@@ -216,15 +230,8 @@ const breakpointGutter = gutter({
 
 const currentPcGutter = gutter({
     class: "gutter-currentpc",
-    lineMarker(view, line) {
-        const currentPc = view.state.field(currentPcField);
-        const lineNum = view.state.doc.lineAt(line.from).number;
-        return currentPc === lineNum ? new CurrentPcMarker(lineNum) : null;
-    },
-    lineMarkerChange(update) {
-        return update.startState.field(currentPcField) !== update.state.field(currentPcField);
-    },
-    initialSpacer: () => new CurrentPcMarker(0),
+    markers: v => v.state.field(currentPcField),
+    initialSpacer: () => CURRENT_PC_MARKER,
     domEventHandlers: {
         click(view, line) {
             const lineNum = view.state.doc.lineAt(line.from).number;
@@ -238,22 +245,17 @@ const currentPcGutter = gutter({
 
 const errorGutter = gutter({
     class: "cm-error-gutter",
-    lineMarker(view, line) {
-        const errors = view.state.field(errorField);
-        const lineNum = view.state.doc.lineAt(line.from).number;
-        const msg = errors.get(lineNum);
-        return msg ? new ErrorMarker(lineNum, msg) : null;
-    },
-    lineMarkerChange(update) {
-        return update.startState.field(errorField) !== update.state.field(errorField);
-    },
+    markers: v => v.state.field(errorField),
     initialSpacer: () => new ErrorMarker(0, ""),
     domEventHandlers: {
         click(view, line) {
-            const errors = view.state.field(errorField);
-            const lineNum = view.state.doc.lineAt(line.from).number;
-            const msg = errors.get(lineNum);
+            const pos = line.from;
+            let msg = "";
+            view.state.field(errorField).between(pos, pos, (from, to, marker: ErrorMarker) => {
+                msg = marker.msg;
+            });
             if (msg) {
+                const lineNum = view.state.doc.lineAt(line.from).number;
                 view.dispatch({
                     effects: showErrorMessage.of({ line: lineNum, msg, toggle: true })
                 });
@@ -297,6 +299,5 @@ export const errorMarkers = {
     set: setErrors,
     field: errorField,
     gutter: errorGutter,
-    shownLinesField: shownErrorLinesField,
-    showMessage:showErrorMessage
+    showMessage: showErrorMessage
 };
