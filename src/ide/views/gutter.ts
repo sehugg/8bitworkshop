@@ -216,21 +216,6 @@ const clockGutter = gutter({
     initialSpacer: () => new ClockMarker("00")
 });
 
-const breakpointGutter = gutter({
-    class: "gutter-breakpoint",
-    markers: v => v.state.field(breakpointField),
-    initialSpacer: () => BREAKPOINT_MARKER,
-    domEventHandlers: {
-        click(view, line) {
-            const lineNum = view.state.doc.lineAt(line.from).number;
-            view.dispatch({
-                effects: toggleBreakpoint.of(lineNum)
-            });
-            return true;
-        }
-    }
-});
-
 const currentPcGutter = gutter({
     class: "gutter-currentpc",
     markers: v => v.state.field(currentPcField),
@@ -246,21 +231,35 @@ const currentPcGutter = gutter({
     }
 });
 
-const errorGutter = gutter({
-    class: "cm-error-gutter",
-    markers: v => v.state.field(errorField),
-    initialSpacer: () => new ErrorMarker(0, ""),
+const statusGutter = gutter({
+    class: "gutter-status",
+    markers: v => {
+        const errorMarkers = v.state.field(errorField);
+        if (errorMarkers.size > 0) {
+            return errorMarkers;
+        }
+        return v.state.field(breakpointField);
+    },
+    initialSpacer: () => new ErrorMarker(0, "ⓧ"), // "ⓧ" is wider than "●".
     domEventHandlers: {
         click(view, line) {
-            const pos = line.from;
-            let msg = "";
-            view.state.field(errorField).between(pos, pos, (from, to, marker: ErrorMarker) => {
-                msg = marker.msg;
-            });
-            if (msg) {
+            const errorMarkers = view.state.field(errorField);
+            if (errorMarkers.size > 0) {
+                const pos = line.from;
+                let msg = "";
+                errorMarkers.between(pos, pos, (from, to, marker: ErrorMarker) => {
+                    msg = marker.msg;
+                });
+                if (msg) {
+                    const lineNum = view.state.doc.lineAt(line.from).number;
+                    view.dispatch({
+                        effects: showErrorMessage.of({ line: lineNum, msg, toggle: true })
+                    });
+                }
+            } else {
                 const lineNum = view.state.doc.lineAt(line.from).number;
                 view.dispatch({
-                    effects: showErrorMessage.of({ line: lineNum, msg, toggle: true })
+                    effects: toggleBreakpoint.of(lineNum)
                 });
             }
             return true;
@@ -289,7 +288,6 @@ export const clock = {
 export const breakpointMarkers = {
     set: toggleBreakpoint,
     field: breakpointField,
-    gutter: breakpointGutter,
 };
 
 export const currentPcMarker = {
@@ -301,6 +299,9 @@ export const currentPcMarker = {
 export const errorMarkers = {
     set: setErrors,
     field: errorField,
-    gutter: errorGutter,
     showMessage: showErrorMessage
+};
+
+export const statusMarkers = {
+    gutter: statusGutter
 };

@@ -25,7 +25,7 @@ import { current_project, lastDebugState, platform, qs, runToPC } from "../ui";
 import { isMobileDevice, ProjectView } from "./baseviews";
 import { debugHighlightTagsTooltip } from "./debug";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
-import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset } from "./gutter";
+import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset, statusMarkers } from "./gutter";
 import { currentPc, errorMessages, highlightLines, showValue } from "./visuals";
 
 // TODO: make this an easily toggleable debug setting.
@@ -212,7 +212,7 @@ export class SourceEditor implements ProjectView {
         ] : [],
 
         breakpointMarkers.field,
-        breakpointMarkers.gutter,
+        statusMarkers.gutter,
         EditorView.updateListener.of(update => {
           for (let effect of update.transactions.flatMap(tr => tr.effects)) {
             if (effect.is(breakpointMarkers.set) && effect.value != null) {
@@ -222,7 +222,7 @@ export class SourceEditor implements ProjectView {
         }),
 
         errorMarkers.field,
-        errorMarkers.gutter,
+
         errorMessages.field,
 
         currentPcMarker.field,
