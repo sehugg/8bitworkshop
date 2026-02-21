@@ -1,7 +1,7 @@
 
 /// MAME SUPPORT
 
-import { EmuState, DisasmLine, cpuStateToLongString_6502, cpuStateToLongString_Z80 } from "./baseplatform";
+import { DisasmLine, EmuState, cpuStateToLongString_6502, cpuStateToLongString_Z80 } from "./baseplatform";
 import { disassemble6502 } from "./cpu/disasm6502";
 import { disassembleZ80 } from "./cpu/disasmz80";
 import { AnimationTimer, RAM, RasterVideo } from "./emu";
@@ -10,20 +10,20 @@ declare var FS, ENV, Module; // mame emscripten
 
 export abstract class BaseMAMEPlatform {
 
-  loaded : boolean = false;
-  preinitted : boolean = false;
-  started : boolean = false;
-  romfn : string;
-  romdata : Uint8Array;
-  romtype : string = 'cart';
+  loaded: boolean = false;
+  preinitted: boolean = false;
+  started: boolean = false;
+  romfn: string;
+  romdata: Uint8Array;
+  romtype: string = 'cart';
   video;
   running = false;
-  initluavars : boolean = false;
-  luadebugscript : string;
+  initluavars: boolean = false;
+  luadebugscript: string;
   js_lua_string;
   onBreakpointHit;
-  mainElement : HTMLElement;
-  timer : AnimationTimer;
+  mainElement: HTMLElement;
+  timer: AnimationTimer;
 
   constructor(mainElement) {
     this.mainElement = mainElement;
@@ -31,7 +31,7 @@ export abstract class BaseMAMEPlatform {
   }
 
   // http://docs.mamedev.org/techspecs/luaengine.html
-  luacall(s:string) : string {
+  luacall(s: string): string {
     if (!this.js_lua_string) this.js_lua_string = Module.cwrap('_Z13js_lua_stringPKc', 'string', ['string']);
     return this.js_lua_string(s || "");
   }
@@ -83,17 +83,17 @@ export abstract class BaseMAMEPlatform {
     // create canvas
     var video = this.video = new RasterVideo(this.mainElement, opts.width, opts.height);
     video.create();
-    $(video.canvas).attr('id','canvas');
+    $(video.canvas).attr('id', 'canvas');
     // load asm.js module
     console.log("loading", opts.jsfile);
     var modargs = [opts.driver,
       '-debug',
       '-debugger', 'none',
       '-verbose', '-window', '-nokeepaspect',
-      '-resolution', video.canvas.width+'x'+video.canvas.height
+      '-resolution', video.canvas.width + 'x' + video.canvas.height
     ];
     if (romfn) {
-      modargs.push('-'+romtype, romfn);
+      modargs.push('-' + romtype, romfn);
     }
     if (opts.extraargs) {
       modargs = modargs.concat(opts.extraargs);
@@ -104,24 +104,24 @@ export abstract class BaseMAMEPlatform {
       arguments: modargs,
       screenIsReadOnly: true,
       print: this.bufferConsoleOutput,
-      canvas:video.canvas,
-      doNotCaptureKeyboard:true,
-      keyboardListeningElement:video.canvas,
+      canvas: video.canvas,
+      doNotCaptureKeyboard: true,
+      keyboardListeningElement: video.canvas,
       preInit: () => {
         console.log("loading FS");
         ENV.SDL_EMSCRIPTEN_KEYBOARD_ELEMENT = 'canvas';
         if (opts.cfgfile) {
           FS.mkdir('/cfg');
-          FS.writeFile('/cfg/' + opts.cfgfile, opts.cfgdata, {encoding:'utf8'});
+          FS.writeFile('/cfg/' + opts.cfgfile, opts.cfgdata, { encoding: 'utf8' });
         }
         if (opts.biosfile) {
           FS.mkdir('/roms');
           FS.mkdir('/roms/' + opts.driver);
-          FS.writeFile('/roms/' + opts.biosfile, opts.biosdata, {encoding:'binary'});
+          FS.writeFile('/roms/' + opts.biosfile, opts.biosdata, { encoding: 'binary' });
         }
         FS.mkdir('/emulator');
         if (romfn) {
-          FS.writeFile(romfn, romdata, {encoding:'binary'});
+          FS.writeFile(romfn, romdata, { encoding: 'binary' });
         }
         //FS.writeFile('/debug.ini', 'debugger none\n', {encoding:'utf8'});
         if (opts.preInit) {
@@ -131,7 +131,7 @@ export abstract class BaseMAMEPlatform {
       },
       preRun: [
         () => {
-          $(video.canvas).click((e) =>{
+          $(video.canvas).click((e) => {
             video.canvas.focus();
           });
           this.loaded = true;
@@ -176,7 +176,7 @@ export abstract class BaseMAMEPlatform {
     // load WASM
     {
       var oReq2 = new XMLHttpRequest();
-      oReq2.open("GET", 'mame/' + opts.jsfile.replace('.js','.wasm'), true);
+      oReq2.open("GET", 'mame/' + opts.jsfile.replace('.js', '.wasm'), true);
       oReq2.responseType = "arraybuffer";
       oReq2.onload = (oEvent) => {
         console.log("loaded WASM file");
@@ -189,14 +189,14 @@ export abstract class BaseMAMEPlatform {
       oReq2.send();
     }
     // start loading script
-    $.when(fetch_lua, fetch_cfg, fetch_bios, fetch_wasm).done( () => {
+    $.when(fetch_lua, fetch_cfg, fetch_bios, fetch_wasm).done(() => {
       var script = document.createElement('script');
       script.src = 'mame/' + opts.jsfile;
       document.getElementsByTagName('head')[0].appendChild(script);
       console.log("created script element");
     });
     // for debugging via browser console
-    window['mamelua'] = (s:string) => {
+    window['mamelua'] = (s: string) => {
       this.initlua();
       return [s, this.luacall(s)];
     };
@@ -205,7 +205,7 @@ export abstract class BaseMAMEPlatform {
   loadROMFile(data) {
     this.romdata = data;
     if (this.preinitted && this.romfn) {
-      FS.writeFile(this.romfn, data, {encoding:'binary'});
+      FS.writeFile(this.romfn, data, { encoding: 'binary' });
     }
   }
 
@@ -214,8 +214,8 @@ export abstract class BaseMAMEPlatform {
       //this.luacall('cart=manager:machine().images["cart"]\nprint(cart:filename())\ncart:load("' + region + '")\n');
       var s = 'rgn = manager:machine():memory().regions["' + region + '"]\n';
       //s += 'print(rgn.size)\n';
-      for (var i=0; i<data.length; i+=4) {
-        var v = data[i] + (data[i+1]<<8) + (data[i+2]<<16) + (data[i+3]<<24);
+      for (var i = 0; i < data.length; i += 4) {
+        var v = data[i] + (data[i + 1] << 8) + (data[i + 2] << 16) + (data[i + 3] << 24);
         s += 'rgn:write_u32(' + i + ',' + v + ')\n'; // TODO: endian?
       }
       this.luacall(s);
@@ -224,7 +224,7 @@ export abstract class BaseMAMEPlatform {
   }
 
   // DEBUGGING SUPPORT
-  
+
   initlua() {
     if (!this.initluavars) {
       this.luacall(this.luadebugscript);
@@ -232,26 +232,26 @@ export abstract class BaseMAMEPlatform {
       this.initluavars = true;
     }
   }
-  
-  readAddress(a:number) : number {
+
+  readAddress(a: number): number {
     this.initlua();
     return parseInt(this.luacall('return mem:read_u8(' + a + ')'));
   }
-  
-  getCPUReg(reg:string) {
+
+  getCPUReg(reg: string) {
     if (!this.loaded) return 0; // TODO
     this.initlua();
-    return parseInt(this.luacall('return cpu.state.'+reg+'.value'));
+    return parseInt(this.luacall('return cpu.state.' + reg + '.value'));
   }
-  
-  grabState(expr:string) {
+
+  grabState(expr: string) {
     this.initlua();
     return {
-      c:this.getCPUState(),
-      buf:this.luacall("return string.tohex(" + expr + ")")
+      c: this.getCPUState(),
+      buf: this.luacall("return string.tohex(" + expr + ")")
     }
   }
-  
+
   saveState() {
     return this.grabState("manager:machine():buffer_save()");
   }
@@ -307,9 +307,9 @@ export abstract class BaseMAMEPlatform {
   getDebugCategories() {
     return ['CPU'];
   }
-  getDebugInfo(category:string, state:EmuState) : string {
+  getDebugInfo(category: string, state: EmuState): string {
     switch (category) {
-      case 'CPU':   return this.cpuStateToLongString(state.c);
+      case 'CPU': return this.cpuStateToLongString(state.c);
     }
   }
   getDebugTree() {
@@ -324,30 +324,30 @@ export abstract class BaseMAMEPlatform {
     }
   }
 
-  abstract cpuStateToLongString(c) : string;
-  abstract getCPUState() : any;
+  abstract cpuStateToLongString(c): string;
+  abstract getCPUState(): any;
 }
 
 export abstract class BaseMAME6502Platform extends BaseMAMEPlatform {
-  getPC() : number {
+  getPC(): number {
     return this.getCPUReg('PC');
   }
-  getSP() : number {
+  getSP(): number {
     return this.getCPUReg('SP');
   }
-  isStable() 	 { return true; }
-  getCPUState()  {
+  isStable() { return true; }
+  getCPUState() {
     return {
-      PC:this.getPC(),
-      SP:this.getSP(),
-      A:this.getCPUReg('A'),
-      X:this.getCPUReg('X'),
-      Y:this.getCPUReg('Y'),
-      flags:this.getCPUReg('P'),
+      PC: this.getPC(),
+      SP: this.getSP(),
+      A: this.getCPUReg('A'),
+      X: this.getCPUReg('X'),
+      Y: this.getCPUReg('Y'),
+      flags: this.getCPUReg('P'),
     };
   }
-  disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
-    return disassemble6502(pc, read(pc), read(pc+1), read(pc+2));
+  disassemble(pc: number, read: (addr: number) => number): DisasmLine {
+    return disassemble6502(pc, read(pc), read(pc + 1), read(pc + 2));
   }
   cpuStateToLongString(c) {
     return cpuStateToLongString_6502(c);
@@ -355,28 +355,28 @@ export abstract class BaseMAME6502Platform extends BaseMAMEPlatform {
 }
 
 export abstract class BaseMAMEZ80Platform extends BaseMAMEPlatform {
-  getPC() : number {
+  getPC(): number {
     return this.getCPUReg('PC');
   }
-  getSP() : number {
+  getSP(): number {
     return this.getCPUReg('SP');
   }
-  isStable() 	 { return true; }
-  getCPUState()  {
+  isStable() { return true; }
+  getCPUState() {
     return {
-      PC:this.getPC(),
-      SP:this.getSP(),
-      AF:this.getCPUReg('AF'),
-      BC:this.getCPUReg('BC'),
-      DE:this.getCPUReg('DE'),
-      HL:this.getCPUReg('HL'),
-      IX:this.getCPUReg('IX'),
-      IY:this.getCPUReg('IY'),
-      IR:this.getCPUReg('R') + (this.getCPUReg('I') << 8),
+      PC: this.getPC(),
+      SP: this.getSP(),
+      AF: this.getCPUReg('AF'),
+      BC: this.getCPUReg('BC'),
+      DE: this.getCPUReg('DE'),
+      HL: this.getCPUReg('HL'),
+      IX: this.getCPUReg('IX'),
+      IY: this.getCPUReg('IY'),
+      IR: this.getCPUReg('R') + (this.getCPUReg('I') << 8),
     };
   }
-  disassemble(pc:number, read:(addr:number)=>number) : DisasmLine {
-    return disassembleZ80(pc, read(pc), read(pc+1), read(pc+2), read(pc+3));
+  disassemble(pc: number, read: (addr: number) => number): DisasmLine {
+    return disassembleZ80(pc, read(pc), read(pc + 1), read(pc + 2), read(pc + 3));
   }
   cpuStateToLongString(c) {
     return cpuStateToLongString_Z80(c);
