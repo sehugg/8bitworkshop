@@ -200,17 +200,20 @@ class ErrorMarker extends GutterMarker {
 
 const offsetGutter = gutter({
     class: "gutter-offset",
-    markers: v => v.state.field(offsetField)
+    markers: v => v.state.field(offsetField),
+    initialSpacer: () => new OffsetMarker("0000")
 });
 
 const bytesGutter = gutter({
     class: "gutter-bytes",
-    markers: v => v.state.field(bytesField)
+    markers: v => v.state.field(bytesField),
+    initialSpacer: () => new BytesMarker("00 00 00")
 });
 
 const clockGutter = gutter({
     class: "gutter-clock",
-    markers: v => v.state.field(clockField)
+    markers: v => v.state.field(clockField),
+    initialSpacer: () => new ClockMarker("00")
 });
 
 const breakpointGutter = gutter({
