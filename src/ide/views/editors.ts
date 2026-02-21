@@ -21,7 +21,7 @@ import { cobalt } from "../../themes/cobalt";
 import { disassemblyTheme } from "../../themes/disassemblyTheme";
 import { editorTheme } from "../../themes/editorTheme";
 import { mbo } from "../../themes/mbo";
-import { current_project, lastDebugState, platform, qs, runToPC } from "../ui";
+import { clearBreakpoint, current_project, lastDebugState, platform, qs, runToPC } from "../ui";
 import { isMobileDevice, ProjectView } from "./baseviews";
 import { debugHighlightTagsTooltip } from "./debug";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
@@ -215,8 +215,10 @@ export class SourceEditor implements ProjectView {
         statusMarkers.gutter,
         EditorView.updateListener.of(update => {
           for (let effect of update.transactions.flatMap(tr => tr.effects)) {
-            if (effect.is(breakpointMarkers.set) && effect.value != null) {
-              this.toggleBreakpoint(effect.value - 1);
+            if (effect.is(breakpointMarkers.set)) {
+              if (platform.isRunning()) {
+                this.runToBreakpoints(update.state);
+              }
             }
           }
         }),
@@ -523,11 +525,26 @@ export class SourceEditor implements ProjectView {
     undo(this.editor);
   }
 
-  toggleBreakpoint(lineno: number) {
-    // TODO: we have to always start at beginning of frame
-    if (this.sourcefile != null) {
-      var targetPC = this.sourcefile.line2offset[lineno + 1];
-      runToPC(targetPC);
+  getBreakpointPCs(): number[] {
+    if (this.sourcefile == null) return [];
+    const pcs: number[] = [];
+    const bpField = this.editor.state.field(breakpointMarkers.field);
+    const cursor = bpField.iter();
+    while (cursor.value) {
+      const line = this.editor.state.doc.lineAt(cursor.from).number;
+      const pc = this.sourcefile.line2offset[line];
+      if (pc >= 0) pcs.push(pc);
+      cursor.next();
+    }
+    return pcs;
+  }
+
+  runToBreakpoints(state: EditorState) {
+    const pcs = this.getBreakpointPCs();
+    if (pcs.length > 0) {
+      runToPC(pcs);
+    } else {
+      clearBreakpoint();
     }
   }
 }

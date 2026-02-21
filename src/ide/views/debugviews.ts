@@ -582,7 +582,7 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
         }
         if (op == ProbeFlags.EXECUTE) lastpc = addr;
       });
-      if (runpc >= 0) runToPC(runpc);
+      if (runpc >= 0) runToPC([runpc]);
     }
   }
 

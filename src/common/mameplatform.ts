@@ -287,8 +287,10 @@ export abstract class BaseMAMEPlatform {
     this.luacall(s);
     this._resume();
   }
-  runToPC(pc) {
-    this.debugcmd('mamedbg.runTo(' + pc + ')');
+  runToPC(pc: number[]) {
+    // TODO: Support for multiple breakpoints
+    const targetPC = pc[0];
+    this.debugcmd('mamedbg.runTo(' + targetPC + ')');
   }
   runToVsync() {
     this.debugcmd('mamedbg.runToVsync()');

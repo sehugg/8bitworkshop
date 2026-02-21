@@ -84,17 +84,13 @@ const breakpointField = StateField.define<RangeSet<GutterMarker>>({
                     const line = e.value;
                     if (line >= 1 && line <= tr.state.doc.lines) {
                         const pos = tr.state.doc.line(line).from;
-                        // Multiple breakpoints not yet supported.
-                        value = RangeSet.of(BREAKPOINT_MARKER.range(pos));
-
-                        // TODO: multiple breakpoints.
-                        // let hasBreakpoint = false;
-                        // value.between(pos, pos, () => { hasBreakpoint = true; return false; });
-                        // if (hasBreakpoint) {
-                        //     value = value.update({ filter: from => from !== pos });
-                        // } else {
-                        //     value = value.update({ add: [BREAKPOINT_MARKER.range(pos)] });
-                        // }
+                        let hasBreakpoint = false;
+                        value.between(pos, pos, () => { hasBreakpoint = true; return false; });
+                        if (hasBreakpoint) {
+                            value = value.update({ filter: from => from !== pos });
+                        } else {
+                            value = value.update({ add: [BREAKPOINT_MARKER.range(pos)] });
+                        }
                     }
                 }
             }

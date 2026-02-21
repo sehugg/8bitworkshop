@@ -1058,6 +1058,22 @@ function _resume() {
 
 function resume() {
   if (!checkRunReady()) return;
+
+  // If the active editor has breakpoints, resume with them
+  var wnd = projectWindows.getActive();
+  if (wnd instanceof SourceEditor) {
+    var bpPCs = wnd.getBreakpointPCs();
+    if (bpPCs.length > 0) {
+      if (!platform.isRunning()) {
+        projectWindows.refresh(false);
+      }
+      runToPC(bpPCs);
+      userPaused = false;
+      lastViewClicked = null;
+      return;
+    }
+  }
+
   clearBreakpoint();
   if (!platform.isRunning()) {
     projectWindows.refresh(false);
@@ -1090,18 +1106,21 @@ function getEditorPC(): number {
   return wnd && wnd.getCursorPC && wnd.getCursorPC();
 }
 
-export function runToPC(pc: number) {
-  if (!checkRunReady() || !(pc >= 0)) return;
+export function runToPC(pc: number[]) {
+  console.log("runToPC", pc);
+  if (!checkRunReady()) return;
+  if (pc.length === 0 || pc.some(p => !(p >= 0))) return;
   lastDebugState = null;
   hideDebugInfo();
   projectWindows.refresh(false);
   setupBreakpoint("toline");
-  console.log("Run to", pc.toString(16));
+  console.log("Run to", pc.map(p => p.toString(16)));
   if (platform.runToPC) {
     platform.runToPC(pc);
   } else {
+    const pcSet = new Set(pc);
     platform.runEval((c) => {
-      return c.PC == pc;
+      return pcSet.has(c.PC);
     });
   }
 }
@@ -1113,7 +1132,7 @@ function restartAtCursor() {
 }
 
 function runToCursor() {
-  runToPC(getEditorPC());
+  runToPC([getEditorPC()]);
 }
 
 function runUntilReturn() {

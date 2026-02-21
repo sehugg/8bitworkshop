@@ -106,7 +106,7 @@ export interface Platform {
   clearDebug?(): void;
   step?(): void;
   runToVsync?(): void;
-  runToPC?(pc: number): void;
+  runToPC?(pc: number[]): void;
   runUntilReturn?(): void;
   stepBack?(): void;
   runEval?(evalfunc: DebugEvalCondition): void;
@@ -363,10 +363,11 @@ export abstract class BaseDebugPlatform extends BasePlatform {
       }
     });
   }
-  runToPC(pc: number) {
+  runToPC(pc: number[]) {
     this.debugTargetClock++;
+    const pcs = new Set(pc);
     this.runEval((c) => {
-      return c.PC == pc;
+      return pcs.has(c.PC);
     });
   }
   runUntilReturn() {
