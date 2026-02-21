@@ -231,8 +231,28 @@ const currentPcGutter = gutter({
     }
 });
 
+const HOVER_PLACEHOLDER = new class extends GutterMarker {
+    toDOM() {
+        const span = document.createElement("span");
+        span.textContent = "●";
+        span.style.color = "transparent";
+        span.style.cursor = "pointer";
+        span.addEventListener("mouseenter", () => {
+            span.style.color = "rgba(255, 0, 0, 0.5)";
+        });
+        span.addEventListener("mouseleave", () => {
+            span.style.color = "transparent";
+        });
+        return span;
+    }
+};
+
 const statusGutter = gutter({
     class: "gutter-status",
+    lineMarker(view, line, otherMarkers) {
+        // Show invisible placeholder on lines without markers, to enable hover.
+        return otherMarkers.length === 0 ? HOVER_PLACEHOLDER : null;
+    },
     markers: v => {
         const errorMarkers = v.state.field(errorField);
         if (errorMarkers.size > 0) {
