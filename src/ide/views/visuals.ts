@@ -1,7 +1,7 @@
 
 import { errorMarkers } from "./gutter";
 
-import { StateEffect, StateField } from "@codemirror/state";
+import { SelectionRange, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, WidgetType } from "@codemirror/view";
 
 // Highlight program counter line.
@@ -131,7 +131,7 @@ class ShowValueWidget extends WidgetType {
 }
 
 // Effect to pass the position and value to the state.
-const showValueEffect = StateEffect.define<{ pos: number, val: any } | null>();
+const showValueEffect = StateEffect.define<{ range: SelectionRange, val: any } | null>();
 
 const showValueDecorationField = StateField.define({
   create() { return Decoration.none },
@@ -143,12 +143,13 @@ const showValueDecorationField = StateField.define({
         if (e.value === null || !e.value) {
           return Decoration.none;
         }
+        const line = tr.state.doc.lineAt(e.value.range.to);
         return Decoration.set([
           Decoration.widget({
             widget: new ShowValueWidget(e.value.val),
             block: true,
-            side: 1 // Appears after the text
-          }).range(e.value.pos)
+            side: 1 // Appears after the line
+          }).range(line.to)
         ])
       }
     }

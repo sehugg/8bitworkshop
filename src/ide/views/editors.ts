@@ -269,7 +269,7 @@ export class SourceEditor implements ProjectView {
 
     if (!range.empty && result && result.length < 80) {
       update.view.dispatch({
-        effects: showValue.effect.of({ pos: range.to, val: result })
+        effects: showValue.effect.of({ range: range, val: result })
       });
     } else {
       update.view.dispatch({
