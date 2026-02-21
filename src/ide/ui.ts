@@ -1092,6 +1092,9 @@ function getEditorPC(): number {
 
 export function runToPC(pc: number) {
   if (!checkRunReady() || !(pc >= 0)) return;
+  lastDebugState = null;
+  hideDebugInfo();
+  projectWindows.refresh(false);
   setupBreakpoint("toline");
   console.log("Run to", pc.toString(16));
   if (platform.runToPC) {
