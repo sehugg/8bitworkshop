@@ -20,7 +20,18 @@ watchgrammars:
 		sleep 1; \
 	done
 
-buildtsc: buildgrammars
+# git submodules init and update, based on submodule status prefix:
+#   '-' = uninitialized
+#   '+' = different commit
+#   'U' = merge conflict
+#   ' ' = current
+submodules:
+	@if git submodule status --recursive | grep -q '^[-+]'; then \
+		echo "Running `git submodule update --init --recursive`"; \
+		git submodule update --init --recursive; \
+	fi
+
+buildtsc: submodules buildgrammars
 	npm run esbuild-clean
 	$(TSC) tsconfig.json
 	npm run esbuild
