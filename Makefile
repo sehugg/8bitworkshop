@@ -1,9 +1,13 @@
-
 TSC=./node_modules/typescript/bin/tsc --build
 LEZER=./node_modules/.bin/lezer-generator
 TMP=./tmp/dist
 
-buildgrammars:
+# Ensure node_modules is up to date.
+node_modules: package.json
+	npm install
+	@touch node_modules
+
+buildgrammars: node_modules
 	mkdir -p gen/parser
 	$(LEZER) src/parser/lang-6502.grammar -o gen/parser/lang-6502.grammar.js
 	$(LEZER) src/parser/lang-z80.grammar -o gen/parser/lang-z80.grammar.js
