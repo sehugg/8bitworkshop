@@ -8,6 +8,7 @@ const setClock = StateEffect.define<Map<number, string>>();
 const toggleBreakpoint = StateEffect.define<number | null>();
 const setErrors = StateEffect.define<Map<number, string>>();
 const setCurrentPc = StateEffect.define<number | null>();
+const runToLineEffect = StateEffect.define<number>();
 
 const showErrorMessage = StateEffect.define<{ line: number, msg: string, toggle?: boolean } | null>();
 
@@ -181,7 +182,7 @@ const BREAKPOINT_MARKER = new class extends GutterMarker {
     toDOM() {
         const span = document.createElement("span");
         span.innerHTML = "●";
-        span.style.color = "#ff0000";
+        span.style.color = "rgba(255, 0, 0, 1.0)";
         span.style.cursor = "pointer";
         span.title = "Click to run to here"; // "Click to toggle breakpoint";
         return span;
@@ -202,10 +203,28 @@ class ErrorMarker extends GutterMarker {
     eq(other: ErrorMarker) { return this.line == other.line && this.msg == other.msg; }
 }
 
+const CURRENT_PC_PLACEHOLDER_MARKER = new class extends GutterMarker {
+    toDOM() {
+        const span = document.createElement("span");
+        span.textContent = "▶";
+        span.style.color = "transparent";
+        span.style.cursor = "pointer";
+        span.title = "Click to run to here";
+        span.addEventListener("mouseenter", () => {
+            span.style.color = "#ffee66";
+        });
+        span.addEventListener("mouseleave", () => {
+            span.style.color = "transparent";
+        });
+        return span;
+    }
+};
+
 const CURRENT_PC_MARKER = new class extends GutterMarker {
     toDOM() {
         const span = document.createElement("span");
         span.innerHTML = "▶";
+        span.style.color = "#ff66ee";
         span.style.cursor = "pointer";
         span.title = "Current PC";
         return span;
@@ -272,13 +291,17 @@ const statusGutter = gutter({
 
 const currentPcGutter = gutter({
     class: "gutter-currentpc",
+    lineMarker(view, line, otherMarkers) {
+        // Show invisible placeholder on lines without markers, to enable hover.
+        return otherMarkers.length === 0 ? CURRENT_PC_PLACEHOLDER_MARKER : null;
+    },
     markers: v => v.state.field(currentPcField),
     initialSpacer: () => CURRENT_PC_MARKER,
     domEventHandlers: {
         click(view, line) {
             const lineNum = view.state.doc.lineAt(line.from).number;
             view.dispatch({
-                effects: toggleBreakpoint.of(lineNum)
+                effects: runToLineEffect.of(lineNum)
             });
             return true;
         }
@@ -320,6 +343,7 @@ export const statusMarkers = {
 
 export const currentPcMarker = {
     set: setCurrentPc,
+    runToLine: runToLineEffect,
     field: currentPcField,
     gutter: currentPcGutter,
 };

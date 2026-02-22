@@ -220,6 +220,15 @@ export class SourceEditor implements ProjectView {
                 this.runToBreakpoints(update.state);
               }
             }
+            if (effect.is(currentPcMarker.runToLine)) {
+              const lineNum = effect.value;
+              if (this.sourcefile && this.sourcefile.line2offset) {
+                const pc = this.sourcefile.line2offset[lineNum];
+                if (pc >= 0) {
+                  runToPC([pc]);
+                }
+              }
+            }
           }
         }),
 
