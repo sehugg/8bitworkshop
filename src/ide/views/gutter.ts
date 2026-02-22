@@ -6,9 +6,11 @@ const setOffset = StateEffect.define<Map<number, number>>();
 const setBytes = StateEffect.define<Map<number, string>>();
 const setClock = StateEffect.define<Map<number, string>>();
 const toggleBreakpoint = StateEffect.define<number | null>();
-const setCurrentPc = StateEffect.define<number | null>();
 const setErrors = StateEffect.define<Map<number, string>>();
+const setCurrentPc = StateEffect.define<number | null>();
+
 const showErrorMessage = StateEffect.define<{ line: number, msg: string, toggle?: boolean } | null>();
+
 const offsetField = StateField.define<RangeSet<GutterMarker>>({
     create() { return RangeSet.empty; },
     update(value, tr) {
@@ -99,27 +101,6 @@ const breakpointField = StateField.define<RangeSet<GutterMarker>>({
     },
 });
 
-const currentPcField = StateField.define<RangeSet<GutterMarker>>({
-    create() { return RangeSet.empty; },
-    update(value, tr) {
-        value = value.map(tr.changes);
-        for (let e of tr.effects) {
-            if (e.is(setCurrentPc)) {
-                if (e.value === null) {
-                    value = RangeSet.empty;
-                } else {
-                    const line = e.value;
-                    if (line >= 1 && line <= tr.state.doc.lines) {
-                        const pos = tr.state.doc.line(line).from;
-                        value = RangeSet.of(CURRENT_PC_MARKER.range(pos));
-                    }
-                }
-            }
-        }
-        return value;
-    },
-});
-
 const errorField = StateField.define<RangeSet<GutterMarker>>({
     create() { return RangeSet.empty; },
     update(value, tr) {
@@ -135,6 +116,27 @@ const errorField = StateField.define<RangeSet<GutterMarker>>({
                     }
                 }
                 value = RangeSet.of(ranges, true);
+            }
+        }
+        return value;
+    },
+});
+
+const currentPcField = StateField.define<RangeSet<GutterMarker>>({
+    create() { return RangeSet.empty; },
+    update(value, tr) {
+        value = value.map(tr.changes);
+        for (let e of tr.effects) {
+            if (e.is(setCurrentPc)) {
+                if (e.value === null) {
+                    value = RangeSet.empty;
+                } else {
+                    const line = e.value;
+                    if (line >= 1 && line <= tr.state.doc.lines) {
+                        const pos = tr.state.doc.line(line).from;
+                        value = RangeSet.of(CURRENT_PC_MARKER.range(pos));
+                    }
+                }
             }
         }
         return value;
@@ -159,6 +161,22 @@ class ClockMarker extends GutterMarker {
     eq(other: ClockMarker) { return this.clock == other.clock; }
 }
 
+const BREAKPOINT_PLACEHOLDER_MARKER = new class extends GutterMarker {
+    toDOM() {
+        const span = document.createElement("span");
+        span.textContent = "●";
+        span.style.color = "transparent";
+        span.style.cursor = "pointer";
+        span.addEventListener("mouseenter", () => {
+            span.style.color = "rgba(255, 0, 0, 0.5)";
+        });
+        span.addEventListener("mouseleave", () => {
+            span.style.color = "transparent";
+        });
+        return span;
+    }
+};
+
 const BREAKPOINT_MARKER = new class extends GutterMarker {
     toDOM() {
         const span = document.createElement("span");
@@ -166,16 +184,6 @@ const BREAKPOINT_MARKER = new class extends GutterMarker {
         span.style.color = "#ff0000";
         span.style.cursor = "pointer";
         span.title = "Click to run to here"; // "Click to toggle breakpoint";
-        return span;
-    }
-};
-
-const CURRENT_PC_MARKER = new class extends GutterMarker {
-    toDOM() {
-        const span = document.createElement("span");
-        span.innerHTML = "▶";
-        span.style.cursor = "pointer";
-        span.title = "Current PC";
         return span;
     }
 };
@@ -193,6 +201,16 @@ class ErrorMarker extends GutterMarker {
     }
     eq(other: ErrorMarker) { return this.line == other.line && this.msg == other.msg; }
 }
+
+const CURRENT_PC_MARKER = new class extends GutterMarker {
+    toDOM() {
+        const span = document.createElement("span");
+        span.innerHTML = "▶";
+        span.style.cursor = "pointer";
+        span.title = "Current PC";
+        return span;
+    }
+};
 
 const offsetGutter = gutter({
     class: "gutter-offset",
@@ -212,42 +230,11 @@ const clockGutter = gutter({
     initialSpacer: () => new ClockMarker("00")
 });
 
-const currentPcGutter = gutter({
-    class: "gutter-currentpc",
-    markers: v => v.state.field(currentPcField),
-    initialSpacer: () => CURRENT_PC_MARKER,
-    domEventHandlers: {
-        click(view, line) {
-            const lineNum = view.state.doc.lineAt(line.from).number;
-            view.dispatch({
-                effects: toggleBreakpoint.of(lineNum)
-            });
-            return true;
-        }
-    }
-});
-
-const HOVER_PLACEHOLDER = new class extends GutterMarker {
-    toDOM() {
-        const span = document.createElement("span");
-        span.textContent = "●";
-        span.style.color = "transparent";
-        span.style.cursor = "pointer";
-        span.addEventListener("mouseenter", () => {
-            span.style.color = "rgba(255, 0, 0, 0.5)";
-        });
-        span.addEventListener("mouseleave", () => {
-            span.style.color = "transparent";
-        });
-        return span;
-    }
-};
-
 const statusGutter = gutter({
     class: "gutter-status",
     lineMarker(view, line, otherMarkers) {
         // Show invisible placeholder on lines without markers, to enable hover.
-        return otherMarkers.length === 0 ? HOVER_PLACEHOLDER : null;
+        return otherMarkers.length === 0 ? BREAKPOINT_PLACEHOLDER_MARKER : null;
     },
     markers: v => {
         const errorMarkers = v.state.field(errorField);
@@ -283,6 +270,21 @@ const statusGutter = gutter({
     }
 });
 
+const currentPcGutter = gutter({
+    class: "gutter-currentpc",
+    markers: v => v.state.field(currentPcField),
+    initialSpacer: () => CURRENT_PC_MARKER,
+    domEventHandlers: {
+        click(view, line) {
+            const lineNum = view.state.doc.lineAt(line.from).number;
+            view.dispatch({
+                effects: toggleBreakpoint.of(lineNum)
+            });
+            return true;
+        }
+    }
+});
+
 export const offset = {
     set: setOffset,
     field: offsetField,
@@ -306,12 +308,6 @@ export const breakpointMarkers = {
     field: breakpointField,
 };
 
-export const currentPcMarker = {
-    set: setCurrentPc,
-    field: currentPcField,
-    gutter: currentPcGutter,
-};
-
 export const errorMarkers = {
     set: setErrors,
     field: errorField,
@@ -320,4 +316,10 @@ export const errorMarkers = {
 
 export const statusMarkers = {
     gutter: statusGutter
+};
+
+export const currentPcMarker = {
+    set: setCurrentPc,
+    field: currentPcField,
+    gutter: currentPcGutter,
 };
