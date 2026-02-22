@@ -1107,14 +1107,13 @@ function getEditorPC(): number {
 }
 
 export function runToPC(pc: number[]) {
-  console.log("runToPC", pc);
   if (!checkRunReady()) return;
   if (pc.length === 0 || pc.some(p => !(p >= 0))) return;
   lastDebugState = null;
   hideDebugInfo();
   projectWindows.refresh(false);
   setupBreakpoint("toline");
-  console.log("Run to", pc.map(p => p.toString(16)));
+  console.log("runToPC", pc.map(p => p.toString(16)).join(" "));
   if (platform.runToPC) {
     platform.runToPC(pc);
   } else {
