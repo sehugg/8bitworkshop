@@ -87,3 +87,6 @@ syncprod: distro
 	#aws --profile pzp s3 sync --follow-symlinks $(TMP)/ s3://8bitworkshop.com/v$(VERSION)/
 	s3cmd -c ~/.s3pzp sync -MFP --no-mime-magic $(TMP)/ config.js s3://8bitworkshop.com/v$(VERSION)/
 	rsync --stats --del -riltz --chmod=a+rx -e "ssh" $(TMP)/ config.js $(RSYNC_PATH)/v$(VERSION)/
+
+testsync:
+	rsync --dry-run --verbose --stats --del -riltz --chmod=a+rx -e "ssh" index.html $(RSYNC_PATH)/

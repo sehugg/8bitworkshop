@@ -5,8 +5,9 @@
 
 ## Use Online
 
-* Latest release: https://8bitworkshop.com/
-* Latest Github build: https://sehugg.github.io/8bitworkshop/
+Latest release:
+- https://8bitworkshop.com/latest/ or
+- https://sehugg.github.io/8bitworkshop/
 
 ## Install Locally
 
@@ -39,10 +40,12 @@ make tsweb
 ### Run Tests
 
 ```sh
+# To avoid "API rate limited exceeded" errors, set `TEST8BIT_GITHUB_TOKEN`,
+# see: htps://github.com > Settings > Developer settings > Personal access tokens
+export TEST8BIT_GITHUB_TOKEN="<github_personal_access_token>"
+
 npm test
 ```
-
-Note: Github tests may fail due to lack of API key.
 
 ## License
 
