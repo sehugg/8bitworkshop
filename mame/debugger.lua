@@ -39,8 +39,14 @@ function mamedbg.continue()
   debugger:command("g")
 end
 
-function mamedbg.runTo(addr)
-  debugger:command(string.format("g %x", addr))
+function mamedbg.runTo(...)
+  local addrs = {...}
+  local addrStrs = {}
+  for _, addr in ipairs(addrs) do
+    table.insert(addrStrs, string.format("0x%04x", addr))
+    debugger:command(string.format("bpset %x", addr))
+  end
+  debugger:command("g")
   mamedbg.start()
 end
 

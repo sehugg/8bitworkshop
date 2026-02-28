@@ -406,11 +406,11 @@ class AssetEditorView {
         // TODO: make into toolbar?
         if (showing) {
             if (Mousetrap.bind)
-                Mousetrap.bind('ctrl+z', ui_1.projectWindows.undoStep.bind(ui_1.projectWindows));
+                Mousetrap.bind('mod+z', ui_1.projectWindows.undoStep.bind(ui_1.projectWindows));
         }
         else {
             if (Mousetrap.unbind)
-                Mousetrap.unbind('ctrl+z');
+                Mousetrap.unbind('mod+z');
         }
     }
 }

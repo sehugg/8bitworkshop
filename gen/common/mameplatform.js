@@ -263,7 +263,7 @@ class BaseMAMEPlatform {
         this._resume();
     }
     runToPC(pc) {
-        this.debugcmd('mamedbg.runTo(' + pc + ')');
+        this.debugcmd('mamedbg.runTo(' + pc.join(',') + ')');
     }
     runToVsync() {
         this.debugcmd('mamedbg.runToVsync()');

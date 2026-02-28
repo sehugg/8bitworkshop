@@ -21,16 +21,16 @@ exports.isRaster = isRaster;
 exports.hasProbe = hasProbe;
 exports.hasBIOS = hasBIOS;
 exports.hasSerialIO = hasSerialIO;
-const emu_1 = require("./emu");
-const util_1 = require("./util");
 const disasm6502_1 = require("./cpu/disasm6502");
 const disasmz80_1 = require("./cpu/disasmz80");
 const ZilogZ80_1 = require("./cpu/ZilogZ80");
+const emu_1 = require("./emu");
+const util_1 = require("./util");
 const audio_1 = require("./audio");
-const probe_1 = require("./probe");
-const wasmplatform_1 = require("./wasmplatform");
 const _6809_1 = require("./cpu/6809");
 const MOS6502_1 = require("./cpu/MOS6502");
+const probe_1 = require("./probe");
+const wasmplatform_1 = require("./wasmplatform");
 ;
 ;
 class DebugSymbols {
@@ -230,8 +230,9 @@ class BaseDebugPlatform extends BasePlatform {
     }
     runToPC(pc) {
         this.debugTargetClock++;
+        const pcs = new Set(pc);
         this.runEval((c) => {
-            return c.PC == pc;
+            return pcs.has(c.PC);
         });
     }
     runUntilReturn() {
@@ -666,9 +667,11 @@ class BaseMachinePlatform extends BaseDebugPlatform {
         var videoFrequency;
         if (hasVideo(m)) {
             var vp = m.getVideoParams();
-            this.video = new emu_1.RasterVideo(this.mainElement, vp.width, vp.height, { overscan: !!vp.overscan,
+            this.video = new emu_1.RasterVideo(this.mainElement, vp.width, vp.height, {
+                overscan: !!vp.overscan,
                 rotate: vp.rotate | 0,
-                aspect: vp.aspect });
+                aspect: vp.aspect
+            });
             this.video.create();
             m.connectVideo(this.video.getFrameData());
             // TODO: support keyboard w/o video?

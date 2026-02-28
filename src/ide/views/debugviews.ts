@@ -1,18 +1,18 @@
 
-import { newDiv, ProjectView } from "./baseviews";
-import { Segment } from "../../common/workertypes";
-import { platform, current_project, projectWindows, runToPC, setupBreakpoint, getWorkerParams } from "../ui";
-import { hex, lpad, rpad } from "../../common/util";
-import { VirtualList } from "../../common/vlist";
+import { BaseZ80MachinePlatform, BaseZ80Platform } from "../../common/baseplatform";
 import { getMousePos, getVisibleEditorLineHeight, VirtualTextLine, VirtualTextScroller } from "../../common/emu";
 import { ProbeFlags, ProbeRecorder } from "../../common/probe";
-import { BaseZ80MachinePlatform, BaseZ80Platform } from "../../common/baseplatform";
+import { hex, lpad, rpad } from "../../common/util";
+import { VirtualList } from "../../common/vlist";
+import { Segment } from "../../common/workertypes";
+import { current_project, getWorkerParams, platform, projectWindows, runToPC, setupBreakpoint } from "../ui";
+import { newDiv, ProjectView } from "./baseviews";
 
 ///
 
-function ignoreSymbol(sym:string) {
-  return sym.endsWith('_SIZE__') || sym.endsWith('_LAST__') || sym.endsWith('STACKSIZE__') || sym.endsWith('FILEOFFS__') 
-  || sym.startsWith('l__') || sym.startsWith('s__') || sym.startsWith('.__.');
+function ignoreSymbol(sym: string) {
+  return sym.endsWith('_SIZE__') || sym.endsWith('_LAST__') || sym.endsWith('STACKSIZE__') || sym.endsWith('FILEOFFS__')
+    || sym.startsWith('l__') || sym.startsWith('s__') || sym.startsWith('.__.');
 }
 
 // TODO: make it use debug state
@@ -21,12 +21,12 @@ function ignoreSymbol(sym:string) {
 export class MemoryView implements ProjectView {
   memorylist;
   dumplines;
-  maindiv : HTMLElement;
+  maindiv: HTMLElement;
   recreateOnResize = true;
   hibits = 0; // a hack to make it work with 32-bit addresses
   totalRows = 0x1400; // a little more room in case we split lots of lines
 
-  createDiv(parent : HTMLElement) {
+  createDiv(parent: HTMLElement) {
     var div = document.createElement('div');
     div.setAttribute("class", "memdump");
     parent.appendChild(div);
@@ -34,13 +34,13 @@ export class MemoryView implements ProjectView {
     return this.maindiv = div;
   }
 
-  showMemoryWindow(workspace:HTMLElement, parent:HTMLElement) {
+  showMemoryWindow(workspace: HTMLElement, parent: HTMLElement) {
     this.memorylist = new VirtualList({
       w: $(workspace).width(),
       h: $(workspace).height(),
       itemHeight: getVisibleEditorLineHeight(),
       totalRows: this.totalRows,
-      generatorFn: (row : number) => {
+      generatorFn: (row: number) => {
         var s = this.getMemoryLineAt(row);
         var linediv = document.createElement("div");
         if (this.dumplines) {
@@ -58,7 +58,7 @@ export class MemoryView implements ProjectView {
       this.scrollToAddress(compparams.data_start);
   }
 
-  scrollToAddress(addr : number) {
+  scrollToAddress(addr: number) {
     if (this.dumplines) {
       this.hibits = addr & 0xffff0000;
       this.memorylist.scrollToItem(this.findMemoryWindowLine(addr & 0xffff));
@@ -72,7 +72,7 @@ export class MemoryView implements ProjectView {
 
   tick() {
     if (this.memorylist) {
-      $(this.maindiv).find('[data-index]').each( (i,e) => {
+      $(this.maindiv).find('[data-index]').each((i, e) => {
         var div = $(e);
         var row = parseInt(div.attr('data-index'));
         var oldtext = div.text();
@@ -83,7 +83,7 @@ export class MemoryView implements ProjectView {
     }
   }
 
-  getMemoryLineAt(row : number) : string {
+  getMemoryLineAt(row: number): string {
     var offset = row * 16;
     var n1 = 0;
     var n2 = 16;
@@ -99,24 +99,24 @@ export class MemoryView implements ProjectView {
         return '.';
       }
     }
-    var s = hex(offset+n1,4) + ' ';
-    for (var i=0; i<n1; i++) s += '   ';
+    var s = hex(offset + n1, 4) + ' ';
+    for (var i = 0; i < n1; i++) s += '   ';
     if (n1 > 8) s += ' ';
-    for (var i=n1; i<n2; i++) {
-      var read = this.readAddress((offset+i) | this.hibits);
-      if (i==8) s += ' ';
-      s += ' ' + (typeof read == 'number' ? hex(read,2) : '??');
+    for (var i = n1; i < n2; i++) {
+      var read = this.readAddress((offset + i) | this.hibits);
+      if (i == 8) s += ' ';
+      s += ' ' + (typeof read == 'number' ? hex(read, 2) : '??');
     }
-    for (var i=n2; i<16; i++) s += '   ';
+    for (var i = n2; i < 16; i++) s += '   ';
     if (sym) s += '  ' + sym;
     return s;
   }
 
-  readAddress(n : number) {
+  readAddress(n: number) {
     return platform.readAddress(n);
   }
 
-  getDumpLineAt(line : number) {
+  getDumpLineAt(line: number) {
     var d = this.dumplines[line];
     if (d) {
       return d.a + " " + d.s;
@@ -142,7 +142,7 @@ export class MemoryView implements ProjectView {
             var ofs2 = (ofs + 16) & 0xffff0;
             if (ofs2 > nextofs) ofs2 = nextofs;
             //if (ofs < 1000) console.log(ofs, ofs2, nextofs, sym);
-            this.dumplines.push({a:ofs, l:ofs2-ofs, s:sym});
+            this.dumplines.push({ a: ofs, l: ofs2 - ofs, s: sym });
             ofs = ofs2;
           }
         }
@@ -153,22 +153,22 @@ export class MemoryView implements ProjectView {
   }
 
   // TODO: use segments list?
-  getMemorySegment(a:number) : string {
+  getMemorySegment(a: number): string {
     const compparams = getWorkerParams();
     if (compparams) {
-      if (a >= compparams.data_start && a < compparams.data_start+compparams.data_size) {
+      if (a >= compparams.data_start && a < compparams.data_start + compparams.data_size) {
         if (platform.getSP && a >= platform.getSP() - 15)
           return 'stack';
         else
           return 'data';
       }
-      else if (a >= compparams.code_start && a < compparams.code_start+(compparams.code_size||compparams.rom_size))
+      else if (a >= compparams.code_start && a < compparams.code_start + (compparams.code_size || compparams.rom_size))
         return 'code';
     }
     var segments = current_project.segments;
     if (segments) {
       for (var seg of segments) {
-        if (a >= seg.start && a < seg.start+seg.size) {
+        if (a >= seg.start && a < seg.start + seg.size) {
           if (seg.type == 'rom') return 'code';
           if (seg.type == 'ram') return 'data';
           if (seg.type == 'io') return 'io';
@@ -178,8 +178,8 @@ export class MemoryView implements ProjectView {
     return 'unknown';
   }
 
-  findMemoryWindowLine(a:number) : number {
-    for (var i=0; i<this.dumplines.length; i++)
+  findMemoryWindowLine(a: number): number {
+    for (var i = 0; i < this.dumplines.length; i++)
       if (this.dumplines[i].a >= a)
         return i;
   }
@@ -187,10 +187,10 @@ export class MemoryView implements ProjectView {
 
 export class VRAMMemoryView extends MemoryView {
   totalRows = 0x800;
-  readAddress(n : number) {
+  readAddress(n: number) {
     return platform.readVRAMAddress(n);
   }
-  getMemorySegment(a:number) : string {
+  getMemorySegment(a: number): string {
     return 'video';
   }
   getDumpLines() {
@@ -201,51 +201,51 @@ export class VRAMMemoryView extends MemoryView {
 ///
 
 export class BinaryFileView implements ProjectView {
-  vlist : VirtualTextScroller;
-  maindiv : HTMLElement;
-  path:string;
-  data:Uint8Array;
+  vlist: VirtualTextScroller;
+  maindiv: HTMLElement;
+  path: string;
+  data: Uint8Array;
   recreateOnResize = true;
 
-  constructor(path:string, data:Uint8Array) {
+  constructor(path: string, data: Uint8Array) {
     this.path = path;
     this.data = data;
   }
 
-  createDiv(parent : HTMLElement) {
+  createDiv(parent: HTMLElement) {
     this.vlist = new VirtualTextScroller(parent);
-    this.vlist.create(parent, ((this.data.length+15) >> 4), this.getMemoryLineAt.bind(this));
+    this.vlist.create(parent, ((this.data.length + 15) >> 4), this.getMemoryLineAt.bind(this));
     return this.vlist.maindiv;
   }
 
-  getMemoryLineAt(row : number) : VirtualTextLine {
+  getMemoryLineAt(row: number): VirtualTextLine {
     var offset = row * 16;
     var n1 = 0;
     var n2 = 16;
-    var s = hex(offset+n1,4) + ' ';
-    for (var i=0; i<n1; i++) s += '   ';
+    var s = hex(offset + n1, 4) + ' ';
+    for (var i = 0; i < n1; i++) s += '   ';
     if (n1 > 8) s += ' ';
-    for (var i=n1; i<n2; i++) {
-      var read = this.data[offset+i];
-      if (i==8) s += ' ';
-      s += ' ' + (read>=0?hex(read,2):'  ');
+    for (var i = n1; i < n2; i++) {
+      var read = this.data[offset + i];
+      if (i == 8) s += ' ';
+      s += ' ' + (read >= 0 ? hex(read, 2) : '  ');
     }
-    return {text:s};
+    return { text: s };
   }
 
   refresh() {
     this.vlist.refresh();
   }
-  
+
   getPath() { return this.path; }
 }
 
 ///
 
 export class MemoryMapView implements ProjectView {
-  maindiv : JQuery;
+  maindiv: JQuery;
 
-  createDiv(parent : HTMLElement) {
+  createDiv(parent: HTMLElement) {
     this.maindiv = newDiv(parent, 'vertical-scroll');
     this.maindiv.css('display', 'grid');
     this.maindiv.css('grid-template-columns', '5em 40% 40%');
@@ -255,24 +255,24 @@ export class MemoryMapView implements ProjectView {
   }
 
   // TODO: overlapping segments (e.g. ROM + LC)
-  addSegment(seg : Segment, newrow : boolean) {
+  addSegment(seg: Segment, newrow: boolean) {
     if (newrow) {
       var offset = $('<div class="segment-offset" style="grid-column-start:1"/>');
-      offset.text('$'+hex(seg.start,4));
+      offset.text('$' + hex(seg.start, 4));
       this.maindiv.append(offset);
     }
     var segdiv = $('<div class="segment"/>');
     segdiv.text(seg.name);
-    let alttext = `$${hex(seg.start)} - $${hex(seg.last || seg.start+seg.size-1)}`
+    let alttext = `$${hex(seg.start)} - $${hex(seg.last || seg.start + seg.size - 1)}`
     alttext += ` (${seg.size} bytes)`;
     // set alttext of div
     segdiv.attr('title', alttext);
     if (!newrow || seg.source == 'linker')
       segdiv.css('grid-column-start', 3); // make sure it's on right side
-    var pad = Math.max(3.0, Math.log(seg.size+1)) * 0.5;
-    segdiv.css('height', pad+'em');
+    var pad = Math.max(3.0, Math.log(seg.size + 1)) * 0.5;
+    segdiv.css('height', pad + 'em');
     if (seg.type) {
-      segdiv.addClass('segment-'+seg.type);
+      segdiv.addClass('segment-' + seg.type);
     }
     this.maindiv.append(segdiv);
     //var row = $('<div class="row"/>').append(offset, segdiv);
@@ -312,14 +312,14 @@ export class MemoryMapView implements ProjectView {
 const OPAQUE_BLACK = 0xff000000;
 
 export abstract class ProbeViewBaseBase {
-  probe : ProbeRecorder;
-  tooldiv : HTMLElement;
-  cumulativeData : boolean = false;
-  cyclesPerLine : number;
-  totalScanlines : number;
-  sp : number; // stack pointer
+  probe: ProbeRecorder;
+  tooldiv: HTMLElement;
+  cumulativeData: boolean = false;
+  cyclesPerLine: number;
+  totalScanlines: number;
+  sp: number; // stack pointer
 
-  abstract tick() : void;
+  abstract tick(): void;
 
   constructor() {
     var width = 160;
@@ -333,12 +333,12 @@ export abstract class ProbeViewBaseBase {
     this.totalScanlines = height;
   }
 
-  addr2symbol(addr : number) : string {
+  addr2symbol(addr: number): string {
     var _addr2sym = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
     return _addr2sym[addr];
   }
 
-  addr2str(addr : number) : string {
+  addr2str(addr: number): string {
     var sym = this.addr2symbol(addr);
     if (typeof sym === 'string')
       return '$' + hex(addr) + ' (' + sym + ')';
@@ -346,7 +346,7 @@ export abstract class ProbeViewBaseBase {
       return '$' + hex(addr);
   }
 
-  showTooltip(s:string) {
+  showTooltip(s: string) {
     if (s) {
       if (!this.tooldiv) {
         this.tooldiv = document.createElement("div");
@@ -359,7 +359,7 @@ export abstract class ProbeViewBaseBase {
     }
   }
 
-  setVisible(showing : boolean) : void {
+  setVisible(showing: boolean): void {
     if (showing) {
       this.probe = platform.startProbing();
       this.probe.singleFrame = !this.cumulativeData;
@@ -371,22 +371,22 @@ export abstract class ProbeViewBaseBase {
     }
   }
 
-  redraw( eventfn:(op,addr,col,row,clk,value) => void ) {
+  redraw(eventfn: (op, addr, col, row, clk, value) => void) {
     var p = this.probe;
     if (!p || !p.idx) return; // if no probe, or if empty
-    var row=0;
-    var col=0;
-    var clk=0;
+    var row = 0;
+    var col = 0;
+    var clk = 0;
     this.sp = 0;
-    for (var i=0; i<p.idx; i++) {
+    for (var i = 0; i < p.idx; i++) {
       var word = p.buf[i];
       var addr = word & 0xffff;
       var value = (word >> 16) & 0xff;
       var op = word & OPAQUE_BLACK;
       switch (op) {
-        case ProbeFlags.SCANLINE:	row++; col=0; break;
-        case ProbeFlags.FRAME:		row=0; col=0; break;
-        case ProbeFlags.CLOCKS:		col += addr; clk += addr; break;
+        case ProbeFlags.SCANLINE: row++; col = 0; break;
+        case ProbeFlags.FRAME: row = 0; col = 0; break;
+        case ProbeFlags.CLOCKS: col += addr; clk += addr; break;
         case ProbeFlags.SP_PUSH:
         case ProbeFlags.SP_POP:
           this.sp = addr;
@@ -397,59 +397,59 @@ export abstract class ProbeViewBaseBase {
     }
   }
 
-  opToString(op:number, addr?:number, value?:number) {
+  opToString(op: number, addr?: number, value?: number) {
     var s = "";
     switch (op) {
-      case ProbeFlags.EXECUTE:		s = "Exec"; break;
-      case ProbeFlags.MEM_READ:		s = "Read"; break;
-      case ProbeFlags.MEM_WRITE:	s = "Write"; break;
-      case ProbeFlags.IO_READ:		s = "IO Read"; break;
-      case ProbeFlags.IO_WRITE:		s = "IO Write"; break;
-      case ProbeFlags.VRAM_READ:	s = "VRAM Read"; break;
-      case ProbeFlags.VRAM_WRITE:	s = "VRAM Write"; break;
-      case ProbeFlags.DMA_READ:  	s = "DMA Read"; break;
-      case ProbeFlags.DMA_WRITE:	s = "DMA Write"; break;
-      case ProbeFlags.INTERRUPT:	s = "Interrupt"; break;
-      case ProbeFlags.ILLEGAL:		s = "Error"; break;
-      case ProbeFlags.WAIT:		    s = "Wait"; break;
-      case ProbeFlags.SP_PUSH:		s = "Stack Push"; break;
-      case ProbeFlags.SP_POP:     s = "Stack Pop"; break;
-      default:				            return "";
+      case ProbeFlags.EXECUTE: s = "Exec"; break;
+      case ProbeFlags.MEM_READ: s = "Read"; break;
+      case ProbeFlags.MEM_WRITE: s = "Write"; break;
+      case ProbeFlags.IO_READ: s = "IO Read"; break;
+      case ProbeFlags.IO_WRITE: s = "IO Write"; break;
+      case ProbeFlags.VRAM_READ: s = "VRAM Read"; break;
+      case ProbeFlags.VRAM_WRITE: s = "VRAM Write"; break;
+      case ProbeFlags.DMA_READ: s = "DMA Read"; break;
+      case ProbeFlags.DMA_WRITE: s = "DMA Write"; break;
+      case ProbeFlags.INTERRUPT: s = "Interrupt"; break;
+      case ProbeFlags.ILLEGAL: s = "Error"; break;
+      case ProbeFlags.WAIT: s = "Wait"; break;
+      case ProbeFlags.SP_PUSH: s = "Stack Push"; break;
+      case ProbeFlags.SP_POP: s = "Stack Pop"; break;
+      default: return "";
     }
     if (typeof addr == 'number') s += " " + this.addr2str(addr);
-    if ((op & ProbeFlags.HAS_VALUE) && typeof value == 'number') s += " = $" + hex(value,2);
+    if ((op & ProbeFlags.HAS_VALUE) && typeof value == 'number') s += " = $" + hex(value, 2);
     return s;
   }
-  
-  getOpRGB(op:number, addr:number) : number {
+
+  getOpRGB(op: number, addr: number): number {
     switch (op) {
-      case ProbeFlags.EXECUTE:		return 0x018001;
-      case ProbeFlags.MEM_READ:		return 0x800101;
-      case ProbeFlags.MEM_WRITE:	return 0x010180;
-      case ProbeFlags.IO_READ:		return 0x018080;
-      case ProbeFlags.IO_WRITE:		return 0xc00180;
+      case ProbeFlags.EXECUTE: return 0x018001;
+      case ProbeFlags.MEM_READ: return 0x800101;
+      case ProbeFlags.MEM_WRITE: return 0x010180;
+      case ProbeFlags.IO_READ: return 0x018080;
+      case ProbeFlags.IO_WRITE: return 0xc00180;
       case ProbeFlags.DMA_READ:
-      case ProbeFlags.VRAM_READ:	return 0x808001;
+      case ProbeFlags.VRAM_READ: return 0x808001;
       case ProbeFlags.DMA_WRITE:
-      case ProbeFlags.VRAM_WRITE:	return 0x4080c0;
-      case ProbeFlags.INTERRUPT:	return 0x3fbf3f;
-      case ProbeFlags.ILLEGAL:		return 0x3f3fff;
-      case ProbeFlags.WAIT:	    	return 0xff3f3f;
-      default:				            return 0;
+      case ProbeFlags.VRAM_WRITE: return 0x4080c0;
+      case ProbeFlags.INTERRUPT: return 0x3fbf3f;
+      case ProbeFlags.ILLEGAL: return 0x3f3fff;
+      case ProbeFlags.WAIT: return 0xff3f3f;
+      default: return 0;
     }
   }
 }
 
 abstract class ProbeViewBase extends ProbeViewBaseBase {
 
-  maindiv : HTMLElement;
-  canvas : HTMLCanvasElement;
-  ctx : CanvasRenderingContext2D;
+  maindiv: HTMLElement;
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
   recreateOnResize = true;
-    
+
   abstract drawEvent(op, addr, col, row);
 
-  createCanvas(parent:HTMLElement, width:number, height:number) {
+  createCanvas(parent: HTMLElement, width: number, height: number) {
     var div = document.createElement('div');
     var canvas = document.createElement('canvas');
     canvas.width = width;
@@ -462,7 +462,7 @@ abstract class ProbeViewBase extends ProbeViewBaseBase {
     canvas.onmousemove = (e) => {
       var pos = getMousePos(canvas, e);
       this.showTooltip(this.getTooltipText(pos.x, pos.y));
-      $(this.tooldiv).css('left',e.pageX+10).css('top',e.pageY-30);
+      $(this.tooldiv).css('left', e.pageX + 10).css('top', e.pageY - 30);
     }
     canvas.onmouseout = (e) => {
       $(this.tooldiv).hide();
@@ -477,16 +477,16 @@ abstract class ProbeViewBase extends ProbeViewBaseBase {
 
   initCanvas() {
   }
-  
-  getTooltipText(x:number, y:number) : string {
+
+  getTooltipText(x: number, y: number): string {
     return null;
   }
 
-  getOpAtPos(x:number, y:number, mask:number) : number {
-    x = x|0;
-    y = y|0;
+  getOpAtPos(x: number, y: number, mask: number): number {
+    x = x | 0;
+    y = y | 0;
     let result = 0;
-    this.redraw( (op,addr,col,row,clk,value) => {
+    this.redraw((op, addr, col, row, clk, value) => {
       if (!result && row == y && col >= x && (op & mask) != 0) {
         result = op | addr;
       }
@@ -496,7 +496,7 @@ abstract class ProbeViewBase extends ProbeViewBaseBase {
 
   clear() {
   }
-  
+
   tick() {
     this.clear();
     this.redraw(this.drawEvent.bind(this));
@@ -505,25 +505,25 @@ abstract class ProbeViewBase extends ProbeViewBaseBase {
 
 abstract class ProbeBitmapViewBase extends ProbeViewBase {
 
-  imageData : ImageData;
-  datau32 : Uint32Array;
+  imageData: ImageData;
+  datau32: Uint32Array;
   recreateOnResize = false;
-  
-  createDiv(parent : HTMLElement) {
+
+  createDiv(parent: HTMLElement) {
     return this.createCanvas(parent, this.cyclesPerLine, this.totalScanlines);
   }
   initCanvas() {
     this.imageData = this.ctx.createImageData(this.canvas.width, this.canvas.height);
     this.datau32 = new Uint32Array(this.imageData.data.buffer);
   }
-  getTooltipText(x:number, y:number) : string {
-    x = x|0;
-    y = y|0;
+  getTooltipText(x: number, y: number): string {
+    x = x | 0;
+    y = y | 0;
     var s = "";
     var lastroutine = null;
     var symstack = [];
     var lastcol = -1;
-    this.redraw( (op,addr,col,row,clk,value) => {
+    this.redraw((op, addr, col, row, clk, value) => {
       switch (op) {
         case ProbeFlags.EXECUTE:
           lastroutine = this.addr2symbol(addr) || lastroutine;
@@ -543,7 +543,7 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
         if (s == "" && lastroutine) { s += "\n" + lastroutine; }
         s += "\n" + this.opToString(op, addr, value);
       }
-    } );
+    });
     return 'X: ' + x + '  Y: ' + y + ' ' + s;
   }
 
@@ -565,10 +565,10 @@ abstract class ProbeBitmapViewBase extends ProbeViewBase {
 
 export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectView {
 
-  createDiv(parent : HTMLElement) {
+  createDiv(parent: HTMLElement) {
     return this.createCanvas(parent, 256, 256);
   }
-  
+
   initCanvas() {
     super.initCanvas();
     this.canvas.onclick = (e) => {
@@ -576,21 +576,21 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
       var opaddr = Math.floor(pos.x) + Math.floor(pos.y) * 256;
       var lastpc = -1;
       var runpc = -1;
-      this.redraw( (op,addr) => {
+      this.redraw((op, addr) => {
         if (runpc < 0 && lastpc >= 0 && addr == opaddr) {
           runpc = lastpc;
         }
         if (op == ProbeFlags.EXECUTE) lastpc = addr;
       });
-      if (runpc >= 0) runToPC(runpc);
+      if (runpc >= 0) runToPC([runpc]);
     }
   }
 
   clear() {
-    for (var i=0; i<=0xffff; i++) {
+    for (var i = 0; i <= 0xffff; i++) {
       var v = platform.readAddress(i);
       var rgb = (v >> 2) | (v & 0x1f);
-      rgb |= (rgb<<8) | (rgb<<16);
+      rgb |= (rgb << 8) | (rgb << 16);
       this.datau32[i] = rgb | OPAQUE_BLACK;
     }
   }
@@ -605,15 +605,15 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
     data = data | rgb | OPAQUE_BLACK;
     this.datau32[addr & 0xffff] = data;
   }
-  
-  getTooltipText(x:number, y:number) : string {
+
+  getTooltipText(x: number, y: number): string {
     var a = (x & 0xff) + (y << 8);
     var s = "";
     var pc = -1;
     var already = {};
     var lastroutine = null;
     var symstack = [];
-    this.redraw( (op,addr,col,row,clk,value) => {
+    this.redraw((op, addr, col, row, clk, value) => {
       switch (op) {
         case ProbeFlags.EXECUTE:
           pc = addr;
@@ -626,13 +626,13 @@ export class AddressHeatMapView extends ProbeBitmapViewBase implements ProjectVi
           lastroutine = symstack.pop();
           break;
       }
-      var key = op|pc;
+      var key = op | pc;
       if (addr == a && !already[key]) {
         if (s == "" && lastroutine) { s += "\n" + lastroutine; }
         s += "\nPC " + this.addr2str(pc) + " " + this.opToString(op, null, value);
         already[key] = 1;
       }
-    } );
+    });
     return this.addr2str(a) + s;
   }
 }
@@ -671,7 +671,7 @@ export class RasterPCHeatMapView extends ProbeBitmapViewBase implements ProjectV
   drawImage() {
     // fill in the gaps
     let last = OPAQUE_BLACK;
-    for (let i=0; i<this.datau32.length; i++) {
+    for (let i = 0; i < this.datau32.length; i++) {
       if (this.datau32[i] == OPAQUE_BLACK) {
         this.datau32[i] = last;
       } else {
@@ -700,14 +700,14 @@ export class RasterStackMapView extends RasterPCHeatMapView implements ProjectVi
     if (op == ProbeFlags.IO_WRITE) { this.rgb |= 0x1f3f80; }
     if (op == ProbeFlags.IO_READ) { this.rgb |= 0x001f00; }
     if (op == ProbeFlags.WAIT) { this.rgb = 0x008000; }
-      // draw pixels?
+    // draw pixels?
     if (op == ProbeFlags.ILLEGAL || op == ProbeFlags.DMA_READ) {
       this.datau32[iofs] = 0xff0f0f0f;
     } else {
       let data = this.rgb;
       if (op == ProbeFlags.EXECUTE) {
         let sp = this.sp & 15;
-        if (sp >= 8) sp = 16-sp;
+        if (sp >= 8) sp = 16 - sp;
         if (Math.abs(this.lastpc) - addr > 16) { sp += 1; }
         if (Math.abs(this.lastpc) - addr > 256) { sp += 1; }
         data = this.rgb = (0x080808 * sp) + 0x202020;
@@ -722,27 +722,27 @@ export class RasterStackMapView extends RasterPCHeatMapView implements ProjectVi
 }
 
 export class ProbeLogView extends ProbeViewBaseBase {
-  vlist : VirtualTextScroller;
-  maindiv : HTMLElement;
+  vlist: VirtualTextScroller;
+  maindiv: HTMLElement;
   recreateOnResize = true;
   dumplines;
 
-  createDiv(parent : HTMLElement) {
+  createDiv(parent: HTMLElement) {
     this.vlist = new VirtualTextScroller(parent);
-    this.vlist.create(parent, this.cyclesPerLine*this.totalScanlines, this.getMemoryLineAt.bind(this));
+    this.vlist.create(parent, this.cyclesPerLine * this.totalScanlines, this.getMemoryLineAt.bind(this));
     return this.vlist.maindiv;
   }
-  getMemoryLineAt(row : number) : VirtualTextLine {
-    var s : string = "";
-    var c : string = "seg_data";
+  getMemoryLineAt(row: number): VirtualTextLine {
+    var s: string = "";
+    var c: string = "seg_data";
     var line = this.dumplines && this.dumplines[row];
     if (line != null) {
-      var xtra : string = line.info.join(", ");
-      s = "(" + lpad(line.row,4) + ", " + lpad(line.col,4) + ")  " + rpad(line.asm||"",20) + xtra;
+      var xtra: string = line.info.join(", ");
+      s = "(" + lpad(line.row, 4) + ", " + lpad(line.col, 4) + ")  " + rpad(line.asm || "", 20) + xtra;
       if (xtra.indexOf("Write ") >= 0) c = "seg_io";
       // if (xtra.indexOf("Stack ") >= 0) c = "seg_code";
     }
-    return {text:s, clas:c};
+    return { text: s, clas: c };
   }
   refresh() {
     this.tick();
@@ -751,11 +751,11 @@ export class ProbeLogView extends ProbeViewBaseBase {
     const isz80 = platform instanceof BaseZ80MachinePlatform || platform instanceof BaseZ80Platform; // TODO?
     // cache each line in frame
     this.dumplines = {};
-    this.redraw((op,addr,col,row,clk,value) => {
+    this.redraw((op, addr, col, row, clk, value) => {
       if (isz80) clk >>= 2;
       var line = this.dumplines[clk];
       if (line == null) {
-        line = {op:op, addr:addr, row:row, col:col, asm:null, info:[]};
+        line = { op: op, addr: addr, row: row, col: col, asm: null, info: [] };
         this.dumplines[clk] = line;
       }
       switch (op) {
@@ -776,22 +776,22 @@ export class ProbeLogView extends ProbeViewBaseBase {
 }
 
 export class ScanlineIOView extends ProbeViewBaseBase {
-  vlist : VirtualTextScroller;
-  maindiv : HTMLElement;
+  vlist: VirtualTextScroller;
+  maindiv: HTMLElement;
   recreateOnResize = true;
   dumplines;
 
-  createDiv(parent : HTMLElement) {
+  createDiv(parent: HTMLElement) {
     this.vlist = new VirtualTextScroller(parent);
     this.vlist.create(parent, this.totalScanlines, this.getMemoryLineAt.bind(this));
     return this.vlist.maindiv;
   }
-  getMemoryLineAt(row : number) : VirtualTextLine {
-    var s = lpad(row+"",3) + ' ';
+  getMemoryLineAt(row: number): VirtualTextLine {
+    var s = lpad(row + "", 3) + ' ';
     var c = 'seg_code';
     var line = (this.dumplines && this.dumplines[row]) || [];
-    var hblankCycle = Math.round(this.cyclesPerLine/3.3);
-    for (var i=0; i<this.cyclesPerLine; i++) {
+    var hblankCycle = Math.round(this.cyclesPerLine / 3.3);
+    for (var i = 0; i < this.cyclesPerLine; i++) {
       var opaddr = line[i];
       if (opaddr !== undefined) {
         var addr = opaddr & 0xffff;
@@ -804,11 +804,11 @@ export class ScanlineIOView extends ProbeViewBaseBase {
           i += v.length - 1;
         }
       } else {
-        s += (i==hblankCycle) ? '|' : '.';
+        s += (i == hblankCycle) ? '|' : '.';
       }
     }
     if (line[-1]) s += ' ' + line[-1]; // executing symbol
-    return {text:s, clas:c};
+    return { text: s, clas: c };
   }
   refresh() {
     this.tick();
@@ -817,7 +817,7 @@ export class ScanlineIOView extends ProbeViewBaseBase {
     const isz80 = platform instanceof BaseZ80MachinePlatform || platform instanceof BaseZ80Platform; // TODO?
     // cache each line in frame
     this.dumplines = {};
-    this.redraw((op,addr,col,row,clk,value) => {
+    this.redraw((op, addr, col, row, clk, value) => {
       var line = this.dumplines[row];
       if (line == null) {
         this.dumplines[row] = line = [];
@@ -843,14 +843,14 @@ export class ScanlineIOView extends ProbeViewBaseBase {
 ///
 
 export class ProbeSymbolView extends ProbeViewBaseBase {
-  vlist : VirtualTextScroller;
-  keys : string[];
+  vlist: VirtualTextScroller;
+  keys: string[];
   recreateOnResize = true;
   dumplines;
   cumulativeData = true;
 
   // TODO: auto resize
-  createDiv(parent : HTMLElement) {
+  createDiv(parent: HTMLElement) {
     // TODO: what if symbol list changes?
     if (platform.debugSymbols && platform.debugSymbols.symbolmap) {
       this.keys = Array.from(Object.keys(platform.debugSymbols.symbolmap).filter(sym => !ignoreSymbol(sym)));
@@ -862,21 +862,21 @@ export class ProbeSymbolView extends ProbeViewBaseBase {
     return this.vlist.maindiv;
   }
 
-  getMemoryLineAt(row : number) : VirtualTextLine {
+  getMemoryLineAt(row: number): VirtualTextLine {
     // header line
     if (row == 0) {
-      return {text: lpad("Symbol",35)+lpad("Reads",8)+lpad("Writes",8)};
+      return { text: lpad("Symbol", 35) + lpad("Reads", 8) + lpad("Writes", 8) };
     }
-    var sym = this.keys[row-1];
+    var sym = this.keys[row - 1];
     var line = this.dumplines && this.dumplines[sym];
     function getop(op) {
       var n = line[op] | 0;
       return lpad(n ? n.toString() : "", 8);
     }
-    var s : string;
-    var c : string;
+    var s: string;
+    var c: string;
     if (line != null) {
-      s = lpad(sym, 35) 
+      s = lpad(sym, 35)
         + getop(ProbeFlags.MEM_READ)
         + getop(ProbeFlags.MEM_WRITE);
       if (line[ProbeFlags.EXECUTE])
@@ -889,7 +889,7 @@ export class ProbeSymbolView extends ProbeViewBaseBase {
       s = lpad(sym, 35);
       c = 'seg_unknown';
     }
-    return {text:s, clas:c};
+    return { text: s, clas: c };
   }
 
   refresh() {
@@ -899,7 +899,7 @@ export class ProbeSymbolView extends ProbeViewBaseBase {
   tick() {
     // cache each line in frame
     this.dumplines = {};
-    this.redraw((op,addr,col,row,clk,value) => {
+    this.redraw((op, addr, col, row, clk, value) => {
       var sym = platform.debugSymbols.addr2symbol[addr];
       if (sym != null) {
         var line = this.dumplines[sym];

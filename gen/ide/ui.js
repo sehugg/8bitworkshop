@@ -57,26 +57,26 @@ exports.emulationHalted = emulationHalted;
 exports.reloadWorkspaceFile = reloadWorkspaceFile;
 exports.highlightSearch = highlightSearch;
 const localforage = __importStar(require("localforage"));
-const project_1 = require("./project");
-const windows_1 = require("./windows");
 const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
-const toolbar_1 = require("./toolbar");
-const util_1 = require("../common/util");
 const recorder_1 = require("../common/recorder");
-const services_1 = require("./services");
-const Split = require("split.js");
+const util_1 = require("../common/util");
 const _index_1 = require("../platform/_index");
-const editors_1 = require("./views/editors");
-const debugviews_1 = require("./views/debugviews");
+const analytics_1 = require("./analytics");
+const dialogs_1 = require("./dialogs");
+const project_1 = require("./project");
+const services_1 = require("./services");
+const shareexport_1 = require("./shareexport");
+const sync_1 = require("./sync");
+const toolbar_1 = require("./toolbar");
 const asseteditor_1 = require("./views/asseteditor");
 const baseviews_1 = require("./views/baseviews");
+const debugviews_1 = require("./views/debugviews");
+const editors_1 = require("./views/editors");
 const treeviews_1 = require("./views/treeviews");
+const windows_1 = require("./windows");
+const Split = require("split.js");
 const DOMPurify = require("dompurify");
-const dialogs_1 = require("./dialogs");
-const sync_1 = require("./sync");
-const analytics_1 = require("./analytics");
-const shareexport_1 = require("./shareexport");
 /// EXPORTED GLOBALS (TODO: remove)
 exports.qs = (0, util_1.decodeQueryString)(window.location.search || '?');
 // private globals
@@ -1048,6 +1048,20 @@ function _resume() {
 function resume() {
     if (!checkRunReady())
         return;
+    // If the active editor has breakpoints, resume with them
+    var wnd = exports.projectWindows.getActive();
+    if (wnd instanceof editors_1.SourceEditor) {
+        var bpPCs = wnd.getBreakpointPCs();
+        if (bpPCs.length > 0) {
+            if (!exports.platform.isRunning()) {
+                exports.projectWindows.refresh(false);
+            }
+            runToPC(bpPCs);
+            userPaused = false;
+            lastViewClicked = null;
+            return;
+        }
+    }
     clearBreakpoint();
     if (!exports.platform.isRunning()) {
         exports.projectWindows.refresh(false);
@@ -1079,16 +1093,22 @@ function getEditorPC() {
     return wnd && wnd.getCursorPC && wnd.getCursorPC();
 }
 function runToPC(pc) {
-    if (!checkRunReady() || !(pc >= 0))
+    if (!checkRunReady())
         return;
+    if (pc.length === 0 || pc.some(p => !(p >= 0)))
+        return;
+    exports.lastDebugState = null;
+    hideDebugInfo();
+    exports.projectWindows.refresh(false);
     setupBreakpoint("toline");
-    console.log("Run to", pc.toString(16));
+    console.log("runToPC", pc.map(p => p.toString(16)).join(" "));
     if (exports.platform.runToPC) {
         exports.platform.runToPC(pc);
     }
     else {
+        const pcSet = new Set(pc);
         exports.platform.runEval((c) => {
-            return c.PC == pc;
+            return pcSet.has(c.PC);
         });
     }
 }
@@ -1100,7 +1120,7 @@ function restartAtCursor() {
         (0, dialogs_1.alertError)(`Could not restart program at selected line.`);
 }
 function runToCursor() {
-    runToPC(getEditorPC());
+    runToPC([getEditorPC()]);
 }
 function runUntilReturn() {
     if (!checkRunReady())

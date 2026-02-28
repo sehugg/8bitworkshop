@@ -1,44 +1,6 @@
 .dbg_info {
   font-size: 0.8em;
 }
-.gutter-offset {
-  width: 3em;
-}
-.gutter-bytes {
-  width: 6em;
-}
-.gutter-clock {
-  width: 0.5em;
-}
-.gutter-info {
-  width: 1em;
-  cursor: cell;
-}
-.CodeMirror-gutter-elt:hover {
-  text-decoration: underline;
-  cursor: cell;
-}
-.currentpc-span {
-  background-color: #7e2a70;
-}
-.currentpc-marker {
-  color: #ff66ee;
-}
-.currentpc-span-blocked {
-  background-color: #7e2a70;
-}
-.currentpc-marker-blocked {
-  color: #ffee33;
-}
-.hilite-span {
-  background-color: #003399;
-}
-.mark-error {
-  text-decoration-line: underline;
-  text-decoration-style: wavy;
-  text-decoration-color: #ff6666;
-  text-decoration-thickness: 1px;
-}
 .tooltipbox {
     position: relative;
     display: inline-block;
@@ -69,10 +31,6 @@
 .tooltiperrorline {
  color:#ffcccc;
  background-color:#660000;
-}
-.tooltipinfoline {
- color:#ccccff;
- background-color:#000066;
 }
 .tooltiptrack {
     background-color: #666;
@@ -110,8 +68,8 @@
   overflow:hidden;
 }
 div.editor {
-  line-height:1.25;
-  font-size:12pt;
+  font-size: 1.2rem;
+  height: 100%;
 }
 div.memdump {
   background-color: #333;
@@ -619,18 +577,18 @@ div.asset_toolbar {
   font-size: 10pt;
   line-height: 1.2;
 }
-.transcript {  
+.transcript {
   background-color: #fff;
   width: 100%;
   padding: 1.25em;
   user-select: text;
   font-family: Verdana, Geneva, sans-serif;
 }
-.transcript-bottom {  
+.transcript-bottom {
   background-color: #fff;
   width: 100%;
 }
-.transcript-split {  
+.transcript-split {
   padding: 0.5em;
   background: #eee;
   box-shadow: 0 8px 6px -6px RGBA(0,0,0,0.3);

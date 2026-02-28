@@ -1,13 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProbeSymbolView = exports.ScanlineIOView = exports.ProbeLogView = exports.RasterStackMapView = exports.RasterPCHeatMapView = exports.AddressHeatMapView = exports.ProbeViewBaseBase = exports.MemoryMapView = exports.BinaryFileView = exports.VRAMMemoryView = exports.MemoryView = void 0;
-const baseviews_1 = require("./baseviews");
-const ui_1 = require("../ui");
-const util_1 = require("../../common/util");
-const vlist_1 = require("../../common/vlist");
+const baseplatform_1 = require("../../common/baseplatform");
 const emu_1 = require("../../common/emu");
 const probe_1 = require("../../common/probe");
-const baseplatform_1 = require("../../common/baseplatform");
+const util_1 = require("../../common/util");
+const vlist_1 = require("../../common/vlist");
+const ui_1 = require("../ui");
+const baseviews_1 = require("./baseviews");
 ///
 function ignoreSymbol(sym) {
     return sym.endsWith('_SIZE__') || sym.endsWith('_LAST__') || sym.endsWith('STACKSIZE__') || sym.endsWith('FILEOFFS__')
@@ -584,7 +584,7 @@ class AddressHeatMapView extends ProbeBitmapViewBase {
                     lastpc = addr;
             });
             if (runpc >= 0)
-                (0, ui_1.runToPC)(runpc);
+                (0, ui_1.runToPC)([runpc]);
         };
     }
     clear() {

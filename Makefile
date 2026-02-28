@@ -1,8 +1,37 @@
-
 TSC=./node_modules/typescript/bin/tsc --build
+LEZER=./node_modules/.bin/lezer-generator
 TMP=./tmp/dist
 
-buildtsc:
+# Ensure node_modules is up to date.
+node_modules: package.json
+	npm install
+	@touch node_modules
+
+buildgrammars: node_modules
+	mkdir -p gen/parser
+	$(LEZER) src/parser/lang-6502.grammar -o gen/parser/lang-6502.grammar.js
+	$(LEZER) src/parser/lang-z80.grammar -o gen/parser/lang-z80.grammar.js
+
+watchgrammars:
+	while true; do \
+		if [ src/parser/lang-6502.grammar -nt gen/parser/lang-6502.grammar.js ] || [ src/parser/lang-z80.grammar -nt gen/parser/lang-z80.grammar.js ]; then \
+			make buildgrammars; \
+		fi; \
+		sleep 1; \
+	done
+
+# git submodules init and update, based on submodule status prefix:
+#   '-' = uninitialized
+#   '+' = different commit
+#   'U' = merge conflict
+#   ' ' = current
+submodules:
+	@if git submodule status --recursive | grep -q '^[-+]'; then \
+		echo "Running `git submodule update --init --recursive`"; \
+		git submodule update --init --recursive; \
+	fi
+
+buildtsc: submodules buildgrammars
 	npm run esbuild-clean
 	$(TSC) tsconfig.json
 	npm run esbuild
@@ -22,17 +51,20 @@ distro: buildtsc
 	rm -fr $(TMP) && mkdir -p $(TMP)
 	git archive HEAD | tar x -C $(TMP)
 	cp -rp gen $(TMP)
-	cp -rp codemirror tss $(TMP)
+	cp -rp tss $(TMP)
 	rm -r $(TMP)/doc $(TMP)/scripts $(TMP)/test* $(TMP)/tools $(TMP)/.[a-z]* $(TMP)/ts*.json # $(TMP)/meta
 	rm -f $(TMP)/javatari && mkdir -p $(TMP)/javatari && cp -p javatari.js/release/javatari/* $(TMP)/javatari/
 
-tsweb:
+tsweb: submodules node_modules
 	npm run esbuild-clean
 	(ip addr || ifconfig) | grep inet
-	$(TSC) -w --preserveWatchOutput &
-	sleep 9999999 | npm run esbuild-worker -- --watch &
-	sleep 9999999 | npm run esbuild-ui -- --watch &
-	python3 scripts/serveit.py 2>> /dev/null #http.out
+	trap 'kill 0' EXIT; \
+	$(TSC) -w --preserveWatchOutput & \
+	make watchgrammars & \
+	npm run esbuild-worker -- --watch & \
+	npm run esbuild-ui -- --watch & \
+	python3 scripts/serveit.py 2>> /dev/null & \
+	wait
 
 astrolibre.b64.txt: astrolibre.rom
 	lzg -9 $< | base64 -w 0 > $@

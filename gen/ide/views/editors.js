@@ -1,37 +1,52 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ListingView = exports.DisassemblerView = exports.SourceEditor = exports.textMapFunctions = exports.PC_LINE_LOOKAHEAD = void 0;
-const baseviews_1 = require("./baseviews");
-const ui_1 = require("../ui");
+const autocomplete_1 = require("@codemirror/autocomplete");
+const commands_1 = require("@codemirror/commands");
+const lang_cpp_1 = require("@codemirror/lang-cpp");
+const lang_markdown_1 = require("@codemirror/lang-markdown");
+const language_1 = require("@codemirror/language");
+const search_1 = require("@codemirror/search");
+const state_1 = require("@codemirror/state");
+const view_1 = require("@codemirror/view");
 const util_1 = require("../../common/util");
-// helper function for editor
-function jumpToLine(ed, i) {
-    var t = ed.charCoords({ line: i, ch: 0 }, "local").top;
-    var middleHeight = ed.getScrollerElement().offsetHeight / 2;
-    ed.scrollTo(null, t - middleHeight - 5);
-}
-function createTextSpan(text, className) {
-    var span = document.createElement("span");
-    span.setAttribute("class", className);
-    span.appendChild(document.createTextNode(text));
-    return span;
-}
+const lang_6502_1 = require("../../parser/lang-6502");
+const lang_basic_1 = require("../../parser/lang-basic");
+const lang_bataribasic_1 = require("../../parser/lang-bataribasic");
+const lang_fastbasic_1 = require("../../parser/lang-fastbasic");
+const lang_inform6_1 = require("../../parser/lang-inform6");
+const lang_verilog_1 = require("../../parser/lang-verilog");
+const lang_wiz_1 = require("../../parser/lang-wiz");
+const lang_z80_1 = require("../../parser/lang-z80");
+const cobalt_1 = require("../../themes/cobalt");
+const disassemblyTheme_1 = require("../../themes/disassemblyTheme");
+const editorTheme_1 = require("../../themes/editorTheme");
+const mbo_1 = require("../../themes/mbo");
+const ui_1 = require("../ui");
+const baseviews_1 = require("./baseviews");
+const debug_1 = require("./debug");
+const filters_1 = require("./filters");
+const gutter_1 = require("./gutter");
+const visuals_1 = require("./visuals");
+// TODO: make this an easily toggleable debug setting.
+// Debug syntax highlighting. Useful when developing new parsers and themes.
+const debugHighlightTags = false;
 /////
 // look ahead this many bytes when finding source lines for a PC
 exports.PC_LINE_LOOKAHEAD = 64;
 const MAX_ERRORS = 200;
 const MODEDEFS = {
-    default: { theme: 'mbo' }, // NOTE: Not merged w/ other modes
+    default: { theme: mbo_1.mbo }, // NOTE: Not merged w/ other modes
     '6502': { isAsm: true },
     z80: { isAsm: true },
     jsasm: { isAsm: true },
     gas: { isAsm: true },
     vasm: { isAsm: true },
-    inform6: { theme: 'cobalt' },
+    inform6: { theme: cobalt_1.cobalt },
     markdown: { lineWrap: true },
     fastbasic: { noGutters: true },
     basic: { noLineNumbers: true, noGutters: true }, // TODO: not used?
-    ecs: { theme: 'mbo', isAsm: true },
+    ecs: { theme: mbo_1.mbo, isAsm: true },
 };
 exports.textMapFunctions = {
     input: null
@@ -40,9 +55,6 @@ class SourceEditor {
     constructor(path, mode) {
         this.updateTimer = null;
         this.dirtylisting = true;
-        this.errormsgs = [];
-        this.errorwidgets = [];
-        this.errormarks = [];
         this.refreshDelayMsec = 300;
         this.path = path;
         this.mode = mode;
@@ -53,12 +65,10 @@ class SourceEditor {
         parent.appendChild(div);
         var text = ui_1.current_project.getFile(this.path);
         var asmOverride = text && this.mode == 'verilog' && /__asm\b([\s\S]+?)\b__endasm\b/.test(text);
-        this.newEditor(div, asmOverride);
-        if (text) {
-            this.setText(text); // TODO: this calls setCode() and builds... it shouldn't
-            this.editor.setSelection({ line: 0, ch: 0 }, { line: 0, ch: 0 }, { scroll: true }); // move cursor to start
-        }
-        this.setupEditor();
+        this.newEditor(div, text, asmOverride);
+        this.editor.dispatch({
+            effects: (0, filters_1.createTextTransformFilterEffect)(exports.textMapFunctions),
+        });
         if (ui_1.current_project.getToolForFilename(this.path).startsWith("remote:")) {
             this.refreshDelayMsec = 1000; // remote URLs get slower refresh
         }
@@ -69,7 +79,7 @@ class SourceEditor {
             this.editor.focus(); // so that keyboard works when moving between files
         }
     }
-    newEditor(parent, isAsmOverride) {
+    newEditor(parent, text, isAsmOverride) {
         var modedef = MODEDEFS[this.mode] || MODEDEFS.default;
         var isAsm = isAsmOverride || modedef.isAsm;
         var lineWrap = !!modedef.lineWrap;
@@ -79,223 +89,265 @@ class SourceEditor {
             lineNums = false; // no line numbers while embedded
             isAsm = false; // no opcode bytes either
         }
-        var gutters = ["CodeMirror-linenumbers", "gutter-offset", "gutter-info"];
-        if (isAsm)
-            gutters = ["CodeMirror-linenumbers", "gutter-offset", "gutter-bytes", "gutter-clock", "gutter-info"];
-        if (modedef.noGutters || baseviews_1.isMobileDevice)
-            gutters = ["gutter-info"];
-        this.editor = CodeMirror(parent, {
-            theme: theme,
-            lineNumbers: lineNums,
-            matchBrackets: true,
-            tabSize: 8,
-            indentAuto: true,
-            lineWrapping: lineWrap,
-            gutters: gutters
+        const minimalGutters = modedef.noGutters || baseviews_1.isMobileDevice;
+        var parser;
+        switch (this.mode) {
+            case '6502':
+                parser = (0, lang_6502_1.asm6502)();
+                break;
+            case 'basic':
+                parser = (0, lang_basic_1.basic)();
+                break;
+            case 'bataribasic':
+                parser = (0, lang_bataribasic_1.batariBasic)();
+                break;
+            case 'fastbasic':
+                parser = (0, lang_fastbasic_1.fastBasic)();
+                break;
+            case 'inform6':
+                parser = (0, lang_inform6_1.inform6)();
+                break;
+            case 'markdown':
+                parser = (0, lang_markdown_1.markdown)();
+                break;
+            case 'text/x-csrc':
+                parser = (0, lang_cpp_1.cpp)();
+                break;
+            case 'text/x-wiz':
+                parser = (0, lang_wiz_1.wiz)();
+                break;
+            case 'verilog':
+                parser = (0, lang_verilog_1.verilog)();
+                break;
+            case 'z80':
+                parser = (0, lang_z80_1.asmZ80)();
+                break;
+            default:
+                console.warn("Unknown mode: " + this.mode);
+                break;
+        }
+        this.editor = new view_1.EditorView({
+            parent: parent,
+            doc: text,
+            extensions: [
+                // Custom keybindings must appear before default keybindings.
+                view_1.keymap.of([
+                    { key: "Backspace", run: autocomplete_1.deleteBracketPair },
+                ]),
+                view_1.keymap.of(commands_1.defaultKeymap),
+                lineNums ? (0, view_1.lineNumbers)() : [],
+                (0, view_1.highlightSpecialChars)(),
+                // Undo history.
+                (0, commands_1.history)(),
+                view_1.keymap.of(commands_1.historyKeymap),
+                // Code fold gutter.
+                (0, language_1.foldGutter)(),
+                (0, view_1.dropCursor)(),
+                state_1.EditorState.allowMultipleSelections.of(true),
+                (0, view_1.drawSelection)(),
+                (0, language_1.indentOnInput)(),
+                (0, language_1.bracketMatching)(),
+                (0, autocomplete_1.closeBrackets)(),
+                // Rectangular selection and crosshair cursor.
+                (0, view_1.rectangularSelection)(),
+                (0, view_1.crosshairCursor)(),
+                (0, view_1.highlightActiveLine)(),
+                (0, view_1.highlightActiveLineGutter)(),
+                (0, search_1.highlightSelectionMatches)(),
+                (0, search_1.search)({ top: true }),
+                view_1.keymap.of(search_1.searchKeymap),
+                // lintGutter(),
+                // autocompletion(),
+                parser || [],
+                theme,
+                editorTheme_1.editorTheme,
+                debugHighlightTags ? debug_1.debugHighlightTagsTooltip : [],
+                state_1.EditorState.tabSize.of(8),
+                language_1.indentUnit.of("        "),
+                view_1.keymap.of([commands_1.indentWithTab]),
+                lineWrap ? view_1.EditorView.lineWrapping : [],
+                visuals_1.currentPc.field,
+                !minimalGutters ? [
+                    gutter_1.offset.field,
+                    gutter_1.offset.gutter,
+                ] : [],
+                isAsm && !minimalGutters ? [
+                    gutter_1.bytes.field,
+                    gutter_1.bytes.gutter,
+                    gutter_1.clock.field,
+                    gutter_1.clock.gutter,
+                ] : [],
+                gutter_1.breakpointMarkers.field,
+                gutter_1.statusMarkers.gutter,
+                view_1.EditorView.updateListener.of(update => {
+                    for (let effect of update.transactions.flatMap(tr => tr.effects)) {
+                        if (effect.is(gutter_1.breakpointMarkers.set)) {
+                            if (ui_1.platform.isRunning()) {
+                                this.runToBreakpoints(update.state);
+                            }
+                        }
+                        if (effect.is(gutter_1.currentPcMarker.runToLine)) {
+                            const lineNum = effect.value;
+                            if (this.sourcefile && this.sourcefile.line2offset) {
+                                const pc = this.sourcefile.line2offset[lineNum];
+                                if (pc >= 0) {
+                                    (0, ui_1.runToPC)([pc]);
+                                }
+                            }
+                        }
+                    }
+                }),
+                gutter_1.errorMarkers.field,
+                visuals_1.errorMessages.field,
+                gutter_1.currentPcMarker.field,
+                gutter_1.currentPcMarker.gutter,
+                visuals_1.highlightLines.field,
+                filters_1.textTransformFilterCompartment.of([]),
+                // update file in project (and recompile) when edits made
+                view_1.EditorView.updateListener.of(update => {
+                    if (update.docChanged) {
+                        this.editorChanged();
+                    }
+                }),
+                // inspect symbol when it's highlighted (double-click)
+                visuals_1.showValue.field,
+                view_1.EditorView.updateListener.of(update => {
+                    if (update.selectionSet) {
+                        this.inspectUnderCursor(update);
+                    }
+                }),
+            ],
         });
     }
     editorChanged() {
         clearTimeout(this.updateTimer);
         this.updateTimer = setTimeout(() => {
-            ui_1.current_project.updateFile(this.path, this.editor.getValue());
+            ui_1.current_project.updateFile(this.path, this.editor.state.doc.toString());
         }, this.refreshDelayMsec);
-        if (this.markHighlight) {
-            this.markHighlight.clear();
-            this.markHighlight = null;
-        }
     }
-    setupEditor() {
-        // update file in project (and recompile) when edits made
-        this.editor.on('changes', (ed, changeobj) => {
-            this.editorChanged();
-        });
-        // inspect symbol when it's highlighted (double-click)
-        this.editor.on('cursorActivity', (ed) => {
-            this.inspectUnderCursor();
-        });
-        // gutter clicked
-        this.editor.on("gutterClick", (cm, n) => {
-            this.toggleBreakpoint(n);
-        });
-        // set editor mode for highlighting, etc
-        this.editor.setOption("mode", this.mode);
-        // change text?
-        this.editor.on('beforeChange', (cm, chgobj) => {
-            if (exports.textMapFunctions.input && chgobj.text)
-                chgobj.text = chgobj.text.map(exports.textMapFunctions.input);
-        });
-    }
-    inspectUnderCursor() {
-        var start = this.editor.getCursor(true);
-        var end = this.editor.getCursor(false);
-        if (start.line == end.line && start.ch < end.ch && end.ch - start.ch < 80) {
-            var name = this.editor.getSelection();
-            this.inspect(name);
-        }
-        else {
-            this.inspect(null);
-        }
-    }
-    inspect(ident) {
+    inspectUnderCursor(update) {
+        // TODO: handle multi-select
+        const range = update.state.selection.main;
+        const selectedText = update.state.sliceDoc(range.from, range.to).trim();
         var result;
         if (ui_1.platform.inspect) {
-            result = ui_1.platform.inspect(ident);
+            result = ui_1.platform.inspect(selectedText);
         }
-        if (this.inspectWidget) {
-            this.inspectWidget.clear();
-            this.inspectWidget = null;
+        if (!range.empty && result && result.length < 80) {
+            update.view.dispatch({
+                effects: visuals_1.showValue.effect.of({ range: range, val: result })
+            });
         }
-        if (result) {
-            var infospan = createTextSpan(result, "tooltipinfoline");
-            var line = this.editor.getCursor().line;
-            this.inspectWidget = this.editor.addLineWidget(line, infospan, { above: false });
+        else {
+            update.view.dispatch({
+                effects: visuals_1.showValue.effect.of(null)
+            });
         }
     }
     setText(text) {
-        var i, j;
-        var oldtext = this.editor.getValue();
+        var oldtext = this.editor.state.doc.toString();
         if (oldtext != text) {
-            this.editor.setValue(text);
-            /*
-            // find minimum range to undo
-            for (i=0; i<oldtext.length && i<text.length && text[i] == oldtext[i]; i++) { }
-            for (j=0; j<oldtext.length && j<text.length && text[text.length-1-j] == oldtext[oldtext.length-1-j]; j++) { }
-            //console.log(i,j,oldtext.substring(i,oldtext.length-j));
-            this.replaceSelection(i, oldtext.length-j, text.substring(i, text.length-j)); // calls setCode()
-            */
-            // clear history if setting empty editor
-            if (oldtext == '') {
-                this.editor.clearHistory();
-            }
+            this.editor.dispatch({
+                changes: { from: 0, to: this.editor.state.doc.length, insert: text }
+            });
         }
     }
     insertText(text) {
-        var cur = this.editor.getCursor();
-        this.editor.replaceRange(text, cur, cur);
-    }
-    highlightLines(start, end) {
-        //this.editor.setSelection({line:start, ch:0}, {line:end, ch:0});
-        var cls = 'hilite-span';
-        var markOpts = { className: cls, inclusiveLeft: true };
-        this.markHighlight = this.editor.markText({ line: start, ch: 0 }, { line: end, ch: 0 }, markOpts);
-        this.editor.scrollIntoView({ from: { line: start, ch: 0 }, to: { line: end, ch: 0 } });
-    }
-    replaceSelection(start, end, text) {
-        this.editor.setSelection(this.editor.posFromIndex(start), this.editor.posFromIndex(end));
-        this.editor.replaceSelection(text);
-    }
-    getValue() {
-        return this.editor.getValue();
-    }
-    getPath() { return this.path; }
-    addError(info) {
-        // only mark errors with this filename, or without any filename
-        if (!info.path || this.path.endsWith(info.path)) {
-            var numLines = this.editor.lineCount();
-            var line = info.line - 1;
-            if (isNaN(line) || line < 0 || line >= numLines)
-                line = 0;
-            this.addErrorMarker(line, info.msg);
-            if (info.start != null) {
-                var markOpts = { className: "mark-error", inclusiveLeft: true };
-                var start = { line: line, ch: info.end ? info.start : info.start - 1 };
-                var end = { line: line, ch: info.end ? info.end : info.start };
-                var mark = this.editor.markText(start, end, markOpts);
-                this.errormarks.push(mark);
-            }
-        }
-    }
-    addErrorMarker(line, msg) {
-        var div = document.createElement("div");
-        div.setAttribute("class", "tooltipbox tooltiperror");
-        div.appendChild(document.createTextNode("\u24cd"));
-        this.editor.setGutterMarker(line, "gutter-info", div);
-        this.errormsgs.push({ line: line, msg: msg });
-        // expand line widgets when mousing over errors
-        $(div).mouseover((e) => {
-            this.expandErrors();
+        const main = this.editor.state.selection.main;
+        this.editor.dispatch({
+            changes: { from: main.from, to: main.to, insert: text },
+            selection: { anchor: main.from + text.length },
+            userEvent: "input.paste"
         });
     }
-    addErrorLine(line, msg) {
-        var errspan = createTextSpan(msg, "tooltiperrorline");
-        this.errorwidgets.push(this.editor.addLineWidget(line, errspan));
+    highlightLines(start, end) {
+        const startLine = this.editor.state.doc.line(start + 1);
+        this.editor.dispatch({
+            effects: [
+                visuals_1.highlightLines.effect.of({ start: start + 1, end: end + 1 }),
+                view_1.EditorView.scrollIntoView(startLine.from, { y: "start", yMargin: 100 /*pixels*/ }),
+            ]
+        });
     }
-    expandErrors() {
-        var e;
-        while (e = this.errormsgs.shift()) {
-            this.addErrorLine(e.line, e.msg);
-        }
+    getValue() {
+        return this.editor.state.doc.toString();
     }
+    getPath() { return this.path; }
     markErrors(errors) {
         // TODO: move cursor to error line if offscreen?
         this.clearErrors();
         errors = errors.slice(0, MAX_ERRORS);
+        const newErrors = new Map();
         for (var info of errors) {
-            this.addError(info);
+            // only mark errors with this filename, or without any filename
+            if (!info.path || this.path.endsWith(info.path)) {
+                var numLines = this.editor.state.doc.lines;
+                var line = info.line;
+                if (isNaN(line) || line < 1 || line > numLines)
+                    line = 1;
+                newErrors.set(line, info.msg);
+            }
         }
+        this.editor.dispatch({
+            effects: [
+                gutter_1.errorMarkers.set.of(newErrors),
+            ],
+        });
     }
     clearErrors() {
         this.dirtylisting = true;
-        // clear line widgets
-        this.editor.clearGutter("gutter-info");
-        this.errormsgs = [];
-        while (this.errorwidgets.length)
-            this.errorwidgets.shift().clear();
-        while (this.errormarks.length)
-            this.errormarks.shift().clear();
+        this.editor.dispatch({
+            effects: [
+                gutter_1.errorMarkers.set.of(new Map()),
+                gutter_1.errorMarkers.showMessage.of(null),
+            ],
+        });
     }
     getSourceFile() { return this.sourcefile; }
     updateListing() {
         // update editor annotations
         // TODO: recreate editor if gutter-bytes is used (verilog)
         this.clearErrors();
-        this.editor.clearGutter("gutter-bytes");
-        this.editor.clearGutter("gutter-offset");
-        this.editor.clearGutter("gutter-clock");
         var lstlines = this.sourcefile.lines || [];
+        const newOffsets = new Map();
+        const newBytes = new Map();
+        const newClocks = new Map();
         for (var info of lstlines) {
             //if (info.path && info.path != this.path) continue;
             if (info.offset >= 0) {
-                this.setGutter("gutter-offset", info.line - 1, (0, util_1.hex)(info.offset & 0xffff, 4));
+                newOffsets.set(info.line, (0, util_1.hex)(info.offset & 0xffff, 4));
             }
             if (info.insns) {
                 var insnstr = info.insns.length > 9 ? ("...") : info.insns;
-                this.setGutter("gutter-bytes", info.line - 1, insnstr);
+                newBytes.set(info.line, insnstr);
                 if (info.iscode) {
                     // TODO: labels trick this part?
                     if (info.cycles) {
-                        this.setGutter("gutter-clock", info.line - 1, info.cycles + "");
+                        newClocks.set(info.line, info.cycles + "");
                     }
                     else if (ui_1.platform.getOpcodeMetadata) {
                         var opcode = parseInt(info.insns.split(" ")[0], 16);
                         var meta = ui_1.platform.getOpcodeMetadata(opcode, info.offset);
                         if (meta && meta.minCycles) {
                             var clockstr = meta.minCycles + "";
-                            this.setGutter("gutter-clock", info.line - 1, clockstr);
+                            newClocks.set(info.line, clockstr);
                         }
                     }
                 }
             }
         }
-    }
-    setGutter(type, line, text) {
-        var lineinfo = this.editor.lineInfo(line);
-        if (lineinfo && lineinfo.gutterMarkers && lineinfo.gutterMarkers[type]) {
-            // do not replace existing marker
-        }
-        else {
-            var textel = document.createTextNode(text);
-            this.editor.setGutterMarker(line, type, textel);
-        }
-    }
-    setGutterBytes(line, s) {
-        this.setGutter("gutter-bytes", line - 1, s);
+        this.editor.dispatch({
+            effects: [
+                gutter_1.offset.set.of(newOffsets),
+                gutter_1.bytes.set.of(newBytes),
+                gutter_1.clock.set.of(newClocks),
+            ],
+        });
     }
     setTimingResult(result) {
-        this.editor.clearGutter("gutter-bytes");
         if (this.sourcefile == null)
             return;
-        // show the lines
+        var newBytes = new Map();
         for (const line of Object.keys(this.sourcefile.line2offset)) {
             let pc = this.sourcefile.line2offset[line];
             let clocks = result.pc2clockrange[pc];
@@ -309,45 +361,54 @@ class SourceEditor {
                     s = minclocks + "-" + maxclocks;
                 if (maxclocks == result.MAX_CLOCKS)
                     s += "+";
-                this.setGutterBytes(parseInt(line), s);
+                newBytes.set(parseInt(line), s);
             }
         }
+        this.editor.dispatch({
+            effects: [
+                gutter_1.bytes.set.of(newBytes),
+            ],
+        });
     }
     setCurrentLine(line, moveCursor) {
-        var blocked = ui_1.platform.isBlocked && ui_1.platform.isBlocked();
         var addCurrentMarker = (line) => {
-            var div = document.createElement("div");
-            var cls = blocked ? 'currentpc-marker-blocked' : 'currentpc-marker';
-            div.classList.add(cls);
-            div.appendChild(document.createTextNode("\u25b6"));
-            this.editor.setGutterMarker(line.line - 1, "gutter-info", div);
+            this.editor.dispatch({
+                effects: [
+                    gutter_1.currentPcMarker.set.of(line.line),
+                    visuals_1.currentPc.effect.of(line.line),
+                    // Optional: follow the execution point
+                    view_1.EditorView.scrollIntoView(this.editor.state.doc.line(line.line).from, { y: "center" }),
+                ]
+            });
         };
         this.clearCurrentLine(moveCursor);
         if (line) {
             addCurrentMarker(line);
             if (moveCursor) {
-                this.editor.setCursor({ line: line.line - 1, ch: line.start || 0 }, { scroll: true });
+                const targetLine = this.editor.state.doc.line(line.line);
+                const pos = targetLine.from + (line.start || 0);
+                this.editor.dispatch({
+                    selection: { anchor: pos, head: pos },
+                    effects: view_1.EditorView.scrollIntoView(pos, { y: "center" })
+                });
             }
-            var cls = blocked ? 'currentpc-span-blocked' : 'currentpc-span';
-            var markOpts = { className: cls, inclusiveLeft: true };
-            if (line.start || line.end)
-                this.markCurrentPC = this.editor.markText({ line: line.line - 1, ch: line.start }, { line: line.line - 1, ch: line.end || line.start + 1 }, markOpts);
-            else
-                this.markCurrentPC = this.editor.markText({ line: line.line - 1, ch: 0 }, { line: line.line, ch: 0 }, markOpts);
             this.currentDebugLine = line;
         }
     }
     clearCurrentLine(moveCursor) {
         if (this.currentDebugLine) {
-            this.editor.clearGutter("gutter-info");
-            if (moveCursor)
-                this.editor.setSelection(this.editor.getCursor());
+            if (moveCursor) {
+                const pos = this.editor.state.selection.main.head;
+                this.editor.dispatch({ selection: { anchor: pos, head: pos } });
+            }
             this.currentDebugLine = null;
         }
-        if (this.markCurrentPC) {
-            this.markCurrentPC.clear();
-            this.markCurrentPC = null;
-        }
+        this.editor.dispatch({
+            effects: [
+                gutter_1.currentPcMarker.set.of(null),
+                visuals_1.currentPc.effect.of(null),
+            ]
+        });
     }
     getActiveLine() {
         if (this.sourcefile) {
@@ -390,10 +451,11 @@ class SourceEditor {
         this.refreshDebugState(false);
     }
     getLine(line) {
-        return this.editor.getLine(line - 1);
+        return this.editor.state.doc.line(line).text;
     }
     getCurrentLine() {
-        return this.editor.getCursor().line + 1;
+        const pos = this.editor.state.selection.main.head;
+        return this.editor.state.doc.lineAt(pos).number;
     }
     getCursorPC() {
         var line = this.getCurrentLine();
@@ -406,23 +468,30 @@ class SourceEditor {
         return -1;
     }
     undoStep() {
-        this.editor.execCommand('undo');
+        (0, commands_1.undo)(this.editor);
     }
-    toggleBreakpoint(lineno) {
-        // TODO: we have to always start at beginning of frame
-        if (this.sourcefile != null) {
-            var targetPC = this.sourcefile.line2offset[lineno + 1];
-            /*
-            var bpid = "pc" + targetPC;
-            if (platform.hasBreakpoint(bpid)) {
-              platform.clearBreakpoint(bpid);
-            } else {
-              platform.setBreakpoint(bpid, () => {
-                return platform.getPC() == targetPC;
-              });
-            }
-            */
-            (0, ui_1.runToPC)(targetPC);
+    getBreakpointPCs() {
+        if (this.sourcefile == null)
+            return [];
+        const pcs = [];
+        const bpField = this.editor.state.field(gutter_1.breakpointMarkers.field);
+        const cursor = bpField.iter();
+        while (cursor.value) {
+            const line = this.editor.state.doc.lineAt(cursor.from).number;
+            const pc = this.sourcefile.line2offset[line];
+            if (pc >= 0)
+                pcs.push(pc);
+            cursor.next();
+        }
+        return pcs;
+    }
+    runToBreakpoints(state) {
+        const pcs = this.getBreakpointPCs();
+        if (pcs.length > 0) {
+            (0, ui_1.runToPC)(pcs);
+        }
+        else {
+            (0, ui_1.clearBreakpoint)();
         }
     }
 }
@@ -430,7 +499,6 @@ exports.SourceEditor = SourceEditor;
 ///
 const disasmWindow = 1024; // disassemble this many bytes around cursor
 class DisassemblerView {
-    getDisasmView() { return this.disasmview; }
     createDiv(parent) {
         var div = document.createElement('div');
         div.setAttribute("class", "editor");
@@ -439,12 +507,23 @@ class DisassemblerView {
         return div;
     }
     newEditor(parent) {
-        this.disasmview = CodeMirror(parent, {
-            mode: 'z80', // TODO: pick correct one
-            theme: 'cobalt',
-            tabSize: 8,
-            readOnly: true,
-            styleActiveLine: true
+        this.disasmview = new view_1.EditorView({
+            parent: parent,
+            extensions: [
+                (0, view_1.rectangularSelection)(),
+                (0, view_1.crosshairCursor)(),
+                state_1.EditorState.allowMultipleSelections.of(true),
+                (0, view_1.drawSelection)(),
+                (0, view_1.highlightActiveLine)(),
+                (0, search_1.highlightSelectionMatches)(),
+                debugHighlightTags ? debug_1.debugHighlightTagsTooltip : [],
+                disassemblyTheme_1.disassemblyTheme,
+                cobalt_1.cobalt,
+                visuals_1.currentPc.field,
+                state_1.EditorState.tabSize.of(8),
+                state_1.EditorState.readOnly.of(true),
+            ],
+            // mode: 'z80', // TODO: pick correct one
         });
     }
     // TODO: too many globals
@@ -508,18 +587,26 @@ class DisassemblerView {
         };
         var startpc = pc < 0 ? pc - disasmWindow : Math.max(0, pc - disasmWindow); // for 32-bit PCs w/ hi bit set
         let text = disassemble(startpc, pc - startpc) + disassemble(pc, disasmWindow);
-        this.disasmview.setValue(text);
+        this.disasmview.dispatch({
+            changes: { from: 0, to: this.disasmview.state.doc.length, insert: text }
+        });
         if (moveCursor) {
-            this.disasmview.setCursor(selline, 0);
+            const line = this.disasmview.state.doc.line(selline + 1);
+            this.disasmview.dispatch({
+                selection: { anchor: line.from, head: line.from },
+                effects: view_1.EditorView.scrollIntoView(line.from, { y: "center" }),
+            });
         }
-        jumpToLine(this.disasmview, selline);
     }
     getCursorPC() {
-        var line = this.disasmview.getCursor().line;
-        if (line >= 0) {
-            var toks = this.disasmview.getLine(line).trim().split(/\s+/);
+        const pos = this.disasmview.state.selection.main.head;
+        const lineNum = this.disasmview.state.doc.lineAt(pos).number;
+        if (lineNum >= 0) {
+            const lineText = this.disasmview.state.doc.line(lineNum).text;
+            const toks = lineText.trim().split(/\s+/);
             if (toks && toks.length >= 1) {
-                var pc = parseInt(toks[0], 16);
+                const pc = parseInt(toks[0], 16);
+                console.log("getCursorPC", pc);
                 if (pc >= 0)
                     return pc;
             }
@@ -537,7 +624,7 @@ class ListingView extends DisassemblerView {
     refreshListing() {
         // lookup corresponding assemblyfile for this file, using listing
         var lst = ui_1.current_project.getListingForFile(this.path);
-        // TODO? 
+        // TODO?
         this.assemblyfile = lst && (lst.assemblyfile || lst.sourcefile);
     }
     refresh(moveCursor) {
@@ -546,9 +633,10 @@ class ListingView extends DisassemblerView {
         if (!this.assemblyfile)
             return;
         var asmtext = this.assemblyfile.text;
-        var disasmview = this.getDisasmView();
         // TODO: sometimes it picks one without a text file
-        disasmview.setValue(asmtext);
+        this.disasmview.dispatch({
+            changes: { from: 0, to: this.disasmview.state.doc.length, insert: asmtext }
+        });
         // go to PC
         if (!ui_1.platform.saveState)
             return;
@@ -559,9 +647,12 @@ class ListingView extends DisassemblerView {
             if (res) {
                 // set cursor while debugging
                 if (moveCursor) {
-                    disasmview.setCursor(res.line - 1, 0);
+                    const line = this.disasmview.state.doc.line(res.line);
+                    this.disasmview.dispatch({
+                        selection: { anchor: line.from, head: line.from },
+                        effects: view_1.EditorView.scrollIntoView(line.from, { y: "center" }),
+                    });
                 }
-                jumpToLine(disasmview, res.line - 1);
             }
         }
     }
