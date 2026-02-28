@@ -5,8 +5,9 @@
 
 ## Use Online
 
-* Latest release: https://8bitworkshop.com/
-* Latest Github build: https://sehugg.github.io/8bitworkshop/
+Latest release:
+- https://8bitworkshop.com/latest/ or
+- https://sehugg.github.io/8bitworkshop/
 
 ## Install Locally
 
