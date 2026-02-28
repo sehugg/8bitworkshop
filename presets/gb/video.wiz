@@ -1,0 +1,70 @@
+import "gb";
+import "banks";
+import "player";
+
+namespace video {
+    in ram {
+        namespace request {
+            var redraw : u8;
+            var move_snake : u8;
+        }
+    }
+
+    inline func init() {
+        request.redraw = a = 0;
+    }
+
+    inline func wait() {
+        do {
+            a = gb.lcd.stat & gb.lcd.STAT_MODE_MASK;
+        } while a != gb.lcd.STAT_MODE_VBLANK;
+    }
+
+    inline func disable() {
+        wait();
+        gb.lcd.ctrl = a = 0;
+    }
+
+    func request_update() {
+        hl = &request.redraw as u16;
+        ++*(hl as *u8);
+
+        do {
+            halt();
+            a = *(hl as *u8);
+        } while a != 0;
+    }
+
+    func acknowledge_update() {
+        if { a = request.redraw; } && a != 0 {            
+            if { a = request.move_snake; } && a != 0 {
+                // Drop trail.
+                l = a = (player.tail_index << 1) + <:&player.buffer;
+                h = a = >:&player.buffer +# 0;
+                a = *(hl++ as *u8);
+                h = *(hl as *u8);
+                l = a;
+                *(hl as *u8) = 1;
+
+                // Check the tile under the head.
+                l = a = (player.head_index << 1) + <:&player.buffer;
+                h = a = >:&player.buffer +# 0;
+                a = *(hl++ as *u8);
+                h = *(hl as *u8);
+                l = a;
+                a = *(hl as *u8);
+                if a == 0 {
+                    // Die.
+                    disable();
+                } else {
+                    // Reposition head.
+                    *(hl as *u8) = 0;
+                }
+
+                request.move_snake = a = 0;
+            }
+
+            request.redraw = a = 0;
+        }
+    }
+}

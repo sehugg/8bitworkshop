@@ -369,6 +369,8 @@ export var PLATFORM_PARAMS = {
       data_start: 0xc000,
       data_size: 0x2000,
       stack_end: 0xe000,
+      wiz_sys_type: 'gb',
+      wiz_inc_dir: 'gb',
     },
 };
   
