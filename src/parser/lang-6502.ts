@@ -35,6 +35,8 @@ export const Lezer6502: LRLanguage = LRLanguage.define({
                 BinaryGt: t.compareOperator,
                 UnaryLt: t.arithmeticOperator,
                 UnaryGt: t.arithmeticOperator,
+                HexOp: t.definition(t.variableName),
+                HexByte: t.number,
                 Mac: t.definitionKeyword,
                 MacEnd: t.definitionKeyword,
                 "MacroDef/Identifier": t.macroName,
