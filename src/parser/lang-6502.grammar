@@ -9,6 +9,7 @@ Line {
 Statement {
   Instruction |
   Directive |
+  HexDirective |
   MacroDef |
   MacEnd |
   ControlOp |
@@ -43,6 +44,14 @@ PseudoOp {
     "ECHO" | "REPEAT" | "REPEND" | "SET"
   >
 }
+
+HexOp { @specialize<Identifier, "hex" | "HEX"> }
+
+HexDirective {
+  HexOp HexByte*
+}
+
+@external tokens hexTokenizer from "../../src/parser/tokens-6502" { HexByte }
 
 Mac { @specialize<Identifier, "mac"> }
 MacEnd { @specialize<Identifier, "endm"> }
