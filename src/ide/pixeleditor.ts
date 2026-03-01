@@ -767,10 +767,12 @@ export class ImageChooser {
   rgbimgs: Uint32Array[];
   width: number;
   height: number;
+  viewers: Viewer[];
 
   recreate(parentdiv: JQuery, onclick) {
     var agrid = $('<div class="asset_grid"/>'); // grid (or 1) of preview images
     parentdiv.empty().append(agrid);
+    this.viewers = [];
     var cscale = Math.max(2, Math.ceil(16 / this.width)); // TODO
     var imgsperline = this.width <= 8 ? 16 : 8; // TODO
     var span = null;
@@ -786,6 +788,7 @@ export class ImageChooser {
       $(viewer.canvas).click((e) => {
         onclick(i, viewer);
       });
+      this.viewers.push(viewer);
       if (!span) {
         span = $('<span/>');
         agrid.append(span);
@@ -797,6 +800,13 @@ export class ImageChooser {
         span = null;
       }
     });
+  }
+
+  updateImages(rgbimgs: Uint32Array[]) {
+    this.rgbimgs = rgbimgs;
+    for (var i = 0; i < this.viewers.length; i++) {
+      this.viewers[i].updateImage(rgbimgs[i]);
+    }
   }
 }
 
@@ -828,6 +838,15 @@ export class CharmapEditor extends PixNode {
   updateRight() {
     if (equalNestedArrays(this.rgbimgs, this.left.rgbimgs)) return false;
     this.rgbimgs = this.left.rgbimgs;
+    // if chooser already exists with same number of images, update in place
+    if (this.chooser && this.chooser.viewers && this.chooser.viewers.length == this.rgbimgs.length) {
+      this.chooser.updateImages(this.rgbimgs);
+      // keep rgbimgs pointing to viewer buffers so edits propagate back via refreshLeft
+      for (var i = 0; i < this.chooser.viewers.length; i++) {
+        this.rgbimgs[i] = this.chooser.viewers[i].rgbdata;
+      }
+      return true;
+    }
     var adual = newDiv(this.parentdiv.empty(), "asset_dual"); // contains grid and editor
     var agrid = newDiv(adual);
     var aeditor = newDiv(adual, "asset_editor").hide(); // contains editor, when selected
@@ -936,7 +955,8 @@ export class Viewer {
     this.imagedata = pv.imagedata;
     this.rgbdata = pv.rgbdata;
     this.canvas = this.newCanvas();
-    this.peerviewers = [this, pv];
+    pv.peerviewers.push(this);
+    this.peerviewers = pv.peerviewers;
   }
 
   newCanvas(): HTMLCanvasElement {

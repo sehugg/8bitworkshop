@@ -138,7 +138,10 @@ export class ProjectWindows {
     var fileid = this.undofiles.pop();
     var wnd = this.id2window[fileid];
     if (wnd && wnd.undoStep) {
+      // undo source
       wnd.undoStep();
+      // refresh active window from updated source
+      this.refresh(false);
     } else {
       bootbox.alert("No more steps to undo.");
     }

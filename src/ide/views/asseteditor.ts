@@ -372,12 +372,8 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       });
       this.deferrednodes = [];
     } else {
-      // only refresh nodes if not actively editing
-      // since we could be in the middle of an operation that hasn't been committed
       for (var node of this.rootnodes) {
-        if (node !== this.getCurrentEditNode()) {
-          node.refreshRight();
-        }
+        node.refreshRight();
       }
     }
   }
