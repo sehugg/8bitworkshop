@@ -69,7 +69,6 @@ class C64WASMPlatform extends Base6502MachinePlatform<C64_WASMMachine> implement
   newMachine()          { return new C64_WASMMachine('c64'); }
 
   getPresets()          { return C64_PRESETS; }
-  getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.readConst(a); }
   getMemoryMap()        { return C64_MEMORY_MAP; }
   showHelp()            { return "https://8bitworkshop.com/docs/platforms/c64/" }
@@ -87,7 +86,7 @@ abstract class C64MAMEPlatform extends BaseMAME6502Platform {
   getPresets() { return C64_PRESETS; }
   getToolForFilename = getToolForFilename_6502;
   getOpcodeMetadata = getOpcodeMetadata_6502;
-  getDefaultExtension() { return ".c"; }
+  getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
   loadROM(title, data) {
     if (!this.started) {
       this.startModule(this.mainElement, {

@@ -78,8 +78,8 @@ class GameBoyPlatform implements Platform {
     return 0x100; // GameBoy boot vector
   }
 
-  getDefaultExtension() {
-    return ".c";
+  getDefaultExtensions() {
+    return [".c", ".ns", ".s", ".scc", ".sgb", ".z", ".wiz"];
   }
 
   getROMExtension() {

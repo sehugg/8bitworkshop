@@ -13,7 +13,6 @@ class GalaxianPlatform extends BaseZ80MachinePlatform<GalaxianMachine> implement
 
   newMachine()          { return new GalaxianMachine(); }
   getPresets()          { return GALAXIAN_PRESETS; }
-  getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.readConst(a); }
   readVRAMAddress(a)    { return (a < 0x800) ? this.machine.vram[a] : this.machine.oram[a-0x800]; }
   // TODO loadBIOS(bios)	{ this.machine.loadBIOS(a); }

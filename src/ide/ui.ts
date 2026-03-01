@@ -496,13 +496,15 @@ function checkEnteredFilename(fn: string): boolean {
 function _createNewFile(e) {
   // TODO: support spaces
   bootbox.prompt({
-    title: "Enter the name of your new main source file.",
-    placeholder: "newfile" + platform.getDefaultExtension(),
+    title: "Enter the name of your new main source file.<br><br>" +
+      "<span class='dialog-help'>" +
+      platform.getDefaultExtensions().join(" ") + "</span>",
+    placeholder: "newfile" + platform.getDefaultExtensions()[0],
     callback: (filename) => {
       if (filename && filename.trim().length > 0) {
         if (!checkEnteredFilename(filename)) return;
         if (filename.indexOf(".") < 0) {
-          filename += platform.getDefaultExtension();
+          filename += platform.getDefaultExtensions()[0];
         }
         var path = filename;
         gaEvent('workspace', 'file', 'new');
