@@ -1,5 +1,5 @@
 import { closeBrackets, deleteBracketPair } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory, undo } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory, redo, undo } from "@codemirror/commands";
 import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, foldGutter, indentOnInput, indentUnit } from "@codemirror/language";
@@ -533,6 +533,10 @@ export class SourceEditor implements ProjectView {
 
   undoStep() {
     undo(this.editor);
+  }
+
+  redoStep() {
+    redo(this.editor);
   }
 
   getBreakpointPCs(): number[] {

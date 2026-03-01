@@ -381,11 +381,18 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
   setVisible?(showing: boolean): void {
     // TODO: make into toolbar?
     if (showing) {
-      // limit undo to since opening this editor
+      // limit undo/redo to since opening this editor
       projectWindows.undofiles = [];
-      if (Mousetrap.bind) Mousetrap.bind('mod+z', projectWindows.undoStep.bind(projectWindows));
+      projectWindows.redofiles = [];
+      if (Mousetrap.bind) {
+        Mousetrap.bind('mod+z', projectWindows.undoStep.bind(projectWindows));
+        Mousetrap.bind('mod+shift+z', projectWindows.redoStep.bind(projectWindows));
+      }
     } else {
-      if (Mousetrap.unbind) Mousetrap.unbind('mod+z');
+      if (Mousetrap.unbind) {
+        Mousetrap.unbind('mod+z');
+        Mousetrap.unbind('mod+shift+z');
+      }
     }
   }
 

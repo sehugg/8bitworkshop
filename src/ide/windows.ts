@@ -20,11 +20,13 @@ export class ProjectWindows {
   activediv: HTMLElement;
   lasterrors: WorkerError[];
   undofiles: string[];
+  redofiles: string[];
 
   constructor(containerdiv: HTMLElement, project: CodeProject) {
     this.containerdiv = containerdiv;
     this.project = project;
     this.undofiles = [];
+    this.redofiles = [];
   }
   // TODO: delete windows ever?
 
@@ -129,6 +131,7 @@ export class ProjectWindows {
     if (wnd && wnd.setText && typeof data === 'string') {
       wnd.setText(data);
       this.undofiles.push(fileid);
+      this.redofiles = [];
     } else {
       this.project.updateFile(fileid, data);
     }
@@ -138,12 +141,23 @@ export class ProjectWindows {
     var fileid = this.undofiles.pop();
     var wnd = this.id2window[fileid];
     if (wnd && wnd.undoStep) {
-      // undo source
       wnd.undoStep();
-      // refresh active window from updated source
+      this.redofiles.push(fileid);
       this.refresh(false);
     } else {
       bootbox.alert("No more steps to undo.");
+    }
+  }
+
+  redoStep() {
+    var fileid = this.redofiles.pop();
+    var wnd = this.id2window[fileid];
+    if (wnd && wnd.redoStep) {
+      wnd.redoStep();
+      this.undofiles.push(fileid);
+      this.refresh(false);
+    } else {
+      bootbox.alert("No more steps to redo.");
     }
   }
 
