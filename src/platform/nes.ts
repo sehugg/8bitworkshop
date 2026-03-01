@@ -268,7 +268,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
   getOriginPC() {	// TODO: is actually NMI
     return (this.readAddress(0xfffa) | (this.readAddress(0xfffb) << 8)) & 0xffff;
   }
-  getDefaultExtension() { return ".c"; }
+  getDefaultExtensions() { return [...super.getDefaultExtensions(), ".nesasm"]; }
 
   getROMExtension() { return ".nes"; }
 
@@ -558,7 +558,7 @@ class NESMAMEPlatform extends BaseMAME6502Platform implements Platform {
   getPresets() { return JSNES_PRESETS; }
   getToolForFilename = getToolForFilename_6502;
   getOpcodeMetadata = getOpcodeMetadata_6502;
-  getDefaultExtension() { return ".c"; };
+  getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
 
 }
 

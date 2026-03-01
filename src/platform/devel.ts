@@ -167,7 +167,6 @@ class Devel6502Platform extends Base6502MachinePlatform<Devel6502> implements Pl
 
   newMachine()          { return new Devel6502(); }
   getPresets()          { return DEVEL_6502_PRESETS; }
-  getDefaultExtension() { return ".dasm"; };
   readAddress(a)        { return this.machine.readConst(a); }
 
   getMemoryMap = function() { return { main:[

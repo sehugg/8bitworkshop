@@ -33,8 +33,8 @@ class MarkdownPlatform implements Platform {
   getToolForFilename(fn : string) : string {
     return "markdown";
   }
-  getDefaultExtension() : string {
-    return ".md";
+  getDefaultExtensions() {
+    return [".md"];
   }
   getPresets() {
     return [

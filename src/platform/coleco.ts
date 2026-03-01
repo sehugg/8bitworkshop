@@ -25,7 +25,6 @@ class ColecoVisionPlatform extends BaseZ80MachinePlatform<ColecoVision> implemen
 
   newMachine()          { return new ColecoVision(); }
   getPresets()          { return ColecoVision_PRESETS; }
-  getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.read(a); }
   readVRAMAddress(a)    { return this.machine.readVRAMAddress(a); }
   // TODO loadBIOS(bios)	{ this.machine.loadBIOS(a); }
@@ -65,7 +64,7 @@ class ColecoVisionMAMEPlatform extends BaseMAMEZ80Platform implements Platform {
   getPresets() { return ColecoVision_PRESETS; }
 
   getToolForFilename = getToolForFilename_z80;
-  getDefaultExtension() { return ".c"; };
+  getDefaultExtensions() { return [".c", ".ns", ".s", ".scc", ".sgb", ".z", ".wiz"]; }
 }
 
 
