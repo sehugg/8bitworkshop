@@ -450,7 +450,7 @@ export function getToolForFilename_6502(fn: string): string {
   return "dasm"; // .a
 }
 
-export const EXTENSIONS_6502 = [".c", ".s", ".ca65", ".dasm", ".acme", ".wiz", ".ecs", ".cpp"];
+export const EXTENSIONS_6502 = [".c", ".h", ".s", ".ca65", ".dasm", ".acme", ".wiz", ".ecs", ".cpp", ".cc", ".o64"];
 
 // TODO: can merge w/ Z80?
 export abstract class Base6502Platform extends BaseDebugPlatform {
@@ -631,7 +631,7 @@ export function getToolForFilename_z80(fn: string): string {
   return "zmac";
 }
 
-export const EXTENSIONS_Z80 = [".c", ".s", ".ns", ".scc", ".z", ".wiz"];
+export const EXTENSIONS_Z80 = [".c", ".h", ".s", ".ns", ".scc", ".z", ".wiz"];
 
 ////// 6809
 
@@ -658,7 +658,7 @@ export function getToolForFilename_6809(fn: string): string {
   return "cmoc";
 }
 
-export const EXTENSIONS_6809 = [".c", ".xasm", ".lwasm"];
+export const EXTENSIONS_6809 = [".c", ".h", ".xasm", ".lwasm"];
 
 export abstract class Base6809Platform extends BaseZ80Platform {
 
