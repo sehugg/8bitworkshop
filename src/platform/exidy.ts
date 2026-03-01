@@ -10,7 +10,6 @@ class ExidyUGBPlatform extends Base6502MachinePlatform<ExidyUGBv2> implements Pl
 
     newMachine() { return new ExidyUGBv2(); }
     getPresets() { return EXIDY_PRESETS; }
-    getDefaultExtension() { return ".dasm"; };
     readAddress(a) { return this.machine.readConst(a); }
 
     getMemoryMap() {

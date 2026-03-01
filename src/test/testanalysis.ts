@@ -20,7 +20,7 @@ class Test6502Platform implements Platform {
     getToolForFilename(s: string): string {
         throw new Error("Method not implemented.");
     }
-    getDefaultExtension(): string {
+    getDefaultExtensions(): string[] {
         throw new Error("Method not implemented.");
     }
     pause(): void {

@@ -216,7 +216,10 @@ async function testPlatform(platid, romname, maxframes, callback) {
       if (dbgtree != null) JSON.stringify(dbgtree);
     }
     // misc
-    assert.ok(platform.getDefaultExtension().startsWith('.'));
+    var exts = platform.getDefaultExtensions();
+    assert.ok(Array.isArray(exts));
+    assert.ok(exts.length > 0);
+    exts.forEach(ext => assert.ok(ext.startsWith('.')));
     if (platform.getROMExtension) assert.ok(platform.getROMExtension().startsWith("."));
     // load state again
     platform.loadState(state3);

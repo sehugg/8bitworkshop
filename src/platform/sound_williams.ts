@@ -113,7 +113,6 @@ export class WilliamsSoundPlatform extends BaseZ80MachinePlatform<WilliamsSound>
 
   newMachine()          { return new WilliamsSound(); }
   getPresets()          { return WILLIAMS_SOUND_PRESETS; }
-  getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.read(a); }
 
 }

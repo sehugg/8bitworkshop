@@ -15,7 +15,7 @@ Mandatory functions:
 These are for the compiler/editor:
 ~~~
   getToolForFilename(s:string) : string;
-  getDefaultExtension() : string;
+  getDefaultExtensions() : string[];
   getPresets() : Preset[];
 ~~~
 
@@ -205,7 +205,7 @@ class ColecoVisionMAMEPlatform extends BaseMAMEPlatform implements Platform {
 
   getPresets() { return ColecoVision_PRESETS; }
   getToolForFilename = getToolForFilename_z80;
-  getDefaultExtension() { return ".c"; };
+  getDefaultExtensions() { return [".c", ".ns", ".s", ".scc", ".sgb", ".z", ".wiz"]; }
 }
 ~~~
 

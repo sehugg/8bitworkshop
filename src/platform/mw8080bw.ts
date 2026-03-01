@@ -16,7 +16,6 @@ class Midway8080BWPlatform extends BaseZ80MachinePlatform<Midway8080> implements
 
   newMachine()          { return new Midway8080(); }
   getPresets()          { return MW8080BW_PRESETS; }
-  getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.read(a); }
   getMemoryMap = function() { return { main:[
       {name:'Frame Buffer',start:0x2400,size:7168,type:'ram'},

@@ -12,7 +12,6 @@ class KIM1Platform extends Base6502MachinePlatform<KIM1> implements Platform {
 
   newMachine()          { return new KIM1(); }
   getPresets()          { return KIM1_PRESETS; }
-  getDefaultExtension() { return ".dasm"; };
   readAddress(a)        { return this.machine.readConst(a); }
 
   getMemoryMap = function() { return { main:[
