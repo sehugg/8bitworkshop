@@ -713,13 +713,19 @@ var VerilogPlatform = function(mainElement, options) {
     if (!top) return;
     top.tick2(1);
   }
+  static TOOLS = new Map<string, string>([
+    [".v", "verilator"],
+    [".asm", "jsasm"],
+    [".ice", "silice"],
+  ]);
   getToolForFilename(fn) {
-    if (fn.endsWith(".asm")) return "jsasm";
-    else if (fn.endsWith(".ice")) return "silice";
-    else return "verilator";
+    for (const [ext, tool] of _VerilogPlatform.TOOLS) {
+      if (fn.endsWith(ext)) return tool;
+    }
+    return "verilator"; // default
   }
   getDefaultExtension() { return ".v"; };
-  getExtensions() { return [".v", ".asm", ".ice"]; }
+  getExtensions() { return Array.from(_VerilogPlatform.TOOLS.keys()); }
 
   inspect(name:string) : string {
     if (!top) return;

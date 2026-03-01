@@ -1,4 +1,4 @@
-import { DisasmLine, EXTENSIONS_6502, Platform, Preset, getToolForFilename_6502 } from "../common/baseplatform";
+import { DisasmLine, getExtensions_6502, Platform, Preset, getToolForFilename_6502 } from "../common/baseplatform";
 import { Keys, PLATFORMS, RasterVideo } from "../common/emu";
 
 const PCE_PRESETS = [
@@ -48,7 +48,7 @@ class PCEnginePlatform implements Platform {
     getToolForFilename(fn: string): string {
         return getToolForFilename_6502(fn);
     }
-    getExtensions() { return EXTENSIONS_6502; }
+    getExtensions() { return getExtensions_6502(); }
     getDefaultExtension(): string {
         return ".pce";
     }

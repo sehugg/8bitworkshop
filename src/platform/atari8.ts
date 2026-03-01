@@ -1,5 +1,5 @@
 
-import { Platform, EXTENSIONS_6502, getOpcodeMetadata_6502, getToolForFilename_6502, Base6502MachinePlatform, Preset } from "../common/baseplatform";
+import { Platform, TOOLS_6502, getOpcodeMetadata_6502, getToolForFilename_6502, Base6502MachinePlatform, Preset } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 import { BaseMAME6502Platform } from "../common/mameplatform";
 import { Atari5200, Atari800 } from "../machine/atari8";
@@ -35,18 +35,29 @@ const Atari800_MemoryMap = { main:[
   {name:'ROM',start:0xe400,size:0x1c00,type:'rom'},
 ] }
 
+const TOOLS_ATARI8 = new Map<string, string>([
+  ...TOOLS_6502,
+  [".bas", "fastbasic"],
+  [".fb", "fastbasic"],
+  [".fbi", "fastbasic"],
+]);
+
 function getToolForFilename_Atari8(fn:string) {
-  if (fn.endsWith(".bas") || fn.endsWith(".fb") || fn.endsWith(".fbi")) return "fastbasic";
-  else return getToolForFilename_6502(fn);
+  for (const [ext, tool] of TOOLS_ATARI8) {
+    if (fn.endsWith(ext)) return tool;
+  }
+  return "dasm"; // default
 }
 
-const EXTENSIONS_ATARI8 = [...EXTENSIONS_6502, ".bas"];
+function getExtensions_Atari8(): string[] {
+  return Array.from(TOOLS_ATARI8.keys());
+}
 
 class Atari800Platform extends Base6502MachinePlatform<Atari800> {
   newMachine()          { return new Atari800(); }
   getPresets()          { return Atari800_PRESETS; }
   getDefaultExtension() { return ".c"; };
-  getExtensions() { return EXTENSIONS_ATARI8; }
+  getExtensions() { return getExtensions_Atari8(); }
   getToolForFilename = getToolForFilename_Atari8;
   readAddress(a)        { return this.machine.readConst(a); }
   getMemoryMap()        { return Atari800_MemoryMap; }
@@ -85,7 +96,7 @@ class Atari5200Platform extends Atari800Platform {
 abstract class Atari8MAMEPlatform extends BaseMAME6502Platform {
   getPresets() { return Atari8_PRESETS; }
   getToolForFilename = getToolForFilename_Atari8;
-  getExtensions() { return EXTENSIONS_ATARI8; }
+  getExtensions() { return getExtensions_Atari8(); }
   getOpcodeMetadata = getOpcodeMetadata_6502;
   getDefaultExtension() { return ".asm"; };
   showHelp = atari8_showHelp;

@@ -61,14 +61,20 @@ class X86PCPlatform implements Platform {
         //super();
         this.mainElement = mainElement;
     }
+    static TOOLS = new Map<string, string>([
+        [".asm", "yasm"],
+        [".c", "smlrc"],
+    ]);
     getToolForFilename(s: string): string {
-        if (s.endsWith(".c")) return "smlrc";
-        return "yasm";
+        for (const [ext, tool] of X86PCPlatform.TOOLS) {
+            if (s.endsWith(ext)) return tool;
+        }
+        return "yasm"; // default
     }
     getDefaultExtension(): string {
         return ".asm";
     }
-    getExtensions() { return [".asm", ".c"]; }
+    getExtensions() { return Array.from(X86PCPlatform.TOOLS.keys()); }
     getPresets() {
         return PC_PRESETS;
     }

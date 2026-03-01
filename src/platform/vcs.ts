@@ -58,21 +58,29 @@ const VCS_PRESETS : Preset[] = [
   {id:'helloworld.cc2600', name:'Hello World (cc2600)'},
 ];
 
+const TOOLS_VCS = new Map<string, string>([
+  [".dasm", "dasm"],
+  [".c", "cc65"],
+  [".ca65", "ca65"],
+  [".acme", "acme"],
+  [".wiz", "wiz"],
+  [".ecs", "ecs"],
+  [".bas", "bataribasic"],
+  [".bb", "bataribasic"],
+  [".cc2600", "cc2600"],
+]);
+
 function getToolForFilename_vcs(fn: string) {
-  if (fn.endsWith(".cc2600")) return "cc2600";
   if (fn.endsWith("-llvm.c")) return "remote:llvm-mos";
-  if (fn.endsWith(".wiz")) return "wiz";
-  if (fn.endsWith(".bb") || fn.endsWith(".bas")) return "bataribasic";
-  if (fn.endsWith(".ca65")) return "ca65";
-  if (fn.endsWith(".acme")) return "acme";
-  //if (fn.endsWith(".inc")) return "ca65";
-  if (fn.endsWith(".c")) return "cc65";
-  //if (fn.endsWith(".h")) return "cc65";
-  if (fn.endsWith(".ecs")) return "ecs";
-  return "dasm";
+  for (const [ext, tool] of TOOLS_VCS) {
+    if (fn.endsWith(ext)) return tool;
+  }
+  return "dasm"; // default
 }
 
-const EXTENSIONS_VCS = [".dasm", ".c", ".ca65", ".acme", ".wiz", ".ecs", ".bas", ".cc2600"];
+function getExtensions_vcs(): string[] {
+  return Array.from(TOOLS_VCS.keys());
+}
 
 class VCSPlatform extends BasePlatform {
 
@@ -306,7 +314,7 @@ class VCSPlatform extends BasePlatform {
   }
   getToolForFilename = getToolForFilename_vcs;
   getDefaultExtension() { return ".dasm"; }
-  getExtensions() { return EXTENSIONS_VCS; }
+  getExtensions() { return getExtensions_vcs(); }
   getROMExtension() { return ".a26"; }
 
   getDebugCategories() {
@@ -484,7 +492,7 @@ class VCSMAMEPlatform extends BaseMAME6502Platform implements Platform {
 
   getToolForFilename = getToolForFilename_vcs;
   getDefaultExtension() { return ".dasm"; }
-  getExtensions() { return EXTENSIONS_VCS; }
+  getExtensions() { return getExtensions_vcs(); }
   getROMExtension() { return ".a26"; }
 
   getOriginPC = function() {
@@ -543,7 +551,7 @@ class VCSStellaPlatform implements Platform {
   }
   getToolForFilename = getToolForFilename_vcs;
   getDefaultExtension() { return ".dasm"; }
-  getExtensions() { return EXTENSIONS_VCS; }
+  getExtensions() { return getExtensions_vcs(); }
   getROMExtension() { return ".a26"; }
   getPresets() { return VCS_PRESETS }
 }

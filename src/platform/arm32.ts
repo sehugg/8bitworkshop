@@ -34,17 +34,22 @@ const ARM32_PRESETS = [
 export abstract class BaseARMMachinePlatform<T extends Machine> extends BaseMachinePlatform<T> {
 
     //getOpcodeMetadata     = getOpcodeMetadata_z80;
+    static TOOLS = new Map<string, string>([
+      [".c", "armtcc"],
+      [".s", "armtcc"],
+      [".vasm", "vasmarm"],
+      [".armips", "armips"],
+    ]);
     getToolForFilename(fn: string)  {
       fn = fn.toLowerCase();
-      if (fn.endsWith('.vasm')) return "vasmarm";
-      if (fn.endsWith('.armips')) return "armips";
-      if (fn.endsWith('.c')) return "armtcc";
-      if (fn.endsWith('.s')) return "armtcc";
-      return "armtcc";
+      for (const [ext, tool] of BaseARMMachinePlatform.TOOLS) {
+        if (fn.endsWith(ext)) return tool;
+      }
+      return "armtcc"; // default
     }
     getPresets()          { return ARM32_PRESETS; }
     getDefaultExtension() { return ".c"; };
-    getExtensions() { return [".c", ".vasm", ".armips"]; }
+    getExtensions() { return Array.from(BaseARMMachinePlatform.TOOLS.keys()); }
   }
   
 class ARM32Platform extends BaseARMMachinePlatform<ARM32Machine> implements Platform {

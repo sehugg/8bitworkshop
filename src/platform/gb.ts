@@ -1,5 +1,5 @@
 import { WasmBoy } from 'wasmboy';
-import { EXTENSIONS_Z80, getToolForFilename_z80, Platform, Preset } from "../common/baseplatform";
+import { getExtensions_z80, getToolForFilename_z80, Platform, Preset } from "../common/baseplatform";
 import { PLATFORMS, RasterVideo } from "../common/emu";
 
 const GB_PRESETS: Preset[] = [
@@ -86,7 +86,7 @@ class GameBoyPlatform implements Platform {
     return ".gb";
   }
 
-  getExtensions() { return EXTENSIONS_Z80; }
+  getExtensions() { return getExtensions_z80(); }
   getToolForFilename = (fn: string): string => {
     return getToolForFilename_z80(fn);
   }

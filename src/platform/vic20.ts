@@ -1,6 +1,6 @@
 
 import { VIC20_WASMMachine } from "../machine/vic20";
-import { Platform, Base6502MachinePlatform, EXTENSIONS_6502, getToolForFilename_6502, getOpcodeMetadata_6502 } from "../common/baseplatform";
+import { Platform, Base6502MachinePlatform, getExtensions_6502, getToolForFilename_6502, getOpcodeMetadata_6502 } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 import { BaseMAME6502Platform } from "../common/mameplatform";
 
@@ -51,7 +51,7 @@ class VIC20WASMPlatform extends Base6502MachinePlatform<VIC20_WASMMachine> imple
 abstract class VIC20MAMEPlatform extends BaseMAME6502Platform {
   getPresets() { return VIC20_PRESETS; }
   getToolForFilename = getToolForFilename_6502;
-  getExtensions() { return EXTENSIONS_6502; }
+  getExtensions() { return getExtensions_6502(); }
   getOpcodeMetadata = getOpcodeMetadata_6502;
   getDefaultExtension() { return ".c"; }
   loadROM(title, data) {

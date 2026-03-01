@@ -434,23 +434,31 @@ export function inspectSymbol(platform: Platform, sym: string): string {
 
 ////// 6502
 
+export const TOOLS_6502 = new Map<string, string>([
+  [".c", "cc65"],
+  [".h", "cc65"],
+  [".s", "ca65"],
+  [".ca65", "ca65"],
+  [".dasm", "dasm"],
+  [".acme", "acme"],
+  [".wiz", "wiz"],
+  [".ecs", "ecs"],
+  [".cpp", "oscar64"],
+  [".cc", "oscar64"],
+  [".o64", "oscar64"],
+]);
+
 export function getToolForFilename_6502(fn: string): string {
   if (fn.endsWith("-llvm.c")) return "remote:llvm-mos";
-  if (fn.endsWith(".c")) return "cc65";
-  if (fn.endsWith(".h")) return "cc65";
-  if (fn.endsWith(".s")) return "ca65";
-  if (fn.endsWith(".ca65")) return "ca65";
-  if (fn.endsWith(".dasm")) return "dasm";
-  if (fn.endsWith(".acme")) return "acme";
-  if (fn.endsWith(".wiz")) return "wiz";
-  if (fn.endsWith(".ecs")) return "ecs";
-  if (fn.endsWith(".cpp")) return "oscar64";
-  if (fn.endsWith(".cc")) return "oscar64";
-  if (fn.endsWith(".o64")) return "oscar64";
-  return "dasm"; // .a
+  for (const [ext, tool] of TOOLS_6502) {
+    if (fn.endsWith(ext)) return tool;
+  }
+  return "dasm"; // default
 }
 
-export const EXTENSIONS_6502 = [".c", ".h", ".s", ".ca65", ".dasm", ".acme", ".wiz", ".ecs", ".cpp", ".cc", ".o64"];
+export function getExtensions_6502(): string[] {
+  return Array.from(TOOLS_6502.keys());
+}
 
 // TODO: can merge w/ Z80?
 export abstract class Base6502Platform extends BaseDebugPlatform {
@@ -484,7 +492,7 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
   }
   getToolForFilename = getToolForFilename_6502;
   getDefaultExtension() { return ".a"; };
-  getExtensions() { return EXTENSIONS_6502; }
+  getExtensions() { return getExtensions_6502(); }
 
   getDebugCategories() {
     return ['CPU', 'ZPRAM', 'Stack'];
@@ -594,7 +602,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
 
   getToolForFilename = getToolForFilename_z80;
   getDefaultExtension() { return ".c"; };
-  getExtensions() { return EXTENSIONS_Z80; }
+  getExtensions() { return getExtensions_z80(); }
   // TODO: Z80 opcode metadata
   //this.getOpcodeMetadata = function() { }
 
@@ -619,19 +627,27 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
   }
 }
 
+export const TOOLS_Z80 = new Map<string, string>([
+  [".c", "sdcc"],
+  [".h", "sdcc"],
+  [".s", "sdasz80"],
+  [".sgb", "sdasgb"],
+  [".ns", "naken"],
+  [".scc", "sccz80"],
+  [".z", "zmac"],
+  [".wiz", "wiz"],
+]);
+
 export function getToolForFilename_z80(fn: string): string {
-  if (fn.endsWith(".c")) return "sdcc";
-  if (fn.endsWith(".h")) return "sdcc";
-  if (fn.endsWith(".s")) return "sdasz80";
-  if (fn.endsWith(".sgb")) return "sdasgb";
-  if (fn.endsWith(".ns")) return "naken";
-  if (fn.endsWith(".scc")) return "sccz80";
-  if (fn.endsWith(".z")) return "zmac";
-  if (fn.endsWith(".wiz")) return "wiz";
-  return "zmac";
+  for (const [ext, tool] of TOOLS_Z80) {
+    if (fn.endsWith(ext)) return tool;
+  }
+  return "zmac"; // default
 }
 
-export const EXTENSIONS_Z80 = [".c", ".h", ".s", ".ns", ".scc", ".z", ".wiz"];
+export function getExtensions_z80(): string[] {
+  return Array.from(TOOLS_Z80.keys());
+}
 
 ////// 6809
 
@@ -650,15 +666,23 @@ export function cpuStateToLongString_6809(c) {
     ;
 }
 
+export const TOOLS_6809 = new Map<string, string>([
+  [".c", "cmoc"],
+  [".h", "cmoc"],
+  [".xasm", "xasm6809"],
+  [".lwasm", "lwasm"],
+]);
+
 export function getToolForFilename_6809(fn: string): string {
-  if (fn.endsWith(".c")) return "cmoc";
-  if (fn.endsWith(".h")) return "cmoc";
-  if (fn.endsWith(".xasm")) return "xasm6809";
-  if (fn.endsWith(".lwasm")) return "lwasm";
-  return "cmoc";
+  for (const [ext, tool] of TOOLS_6809) {
+    if (fn.endsWith(ext)) return tool;
+  }
+  return "cmoc"; // default
 }
 
-export const EXTENSIONS_6809 = [".c", ".h", ".xasm", ".lwasm"];
+export function getExtensions_6809(): string[] {
+  return Array.from(TOOLS_6809.keys());
+}
 
 export abstract class Base6809Platform extends BaseZ80Platform {
 
@@ -676,7 +700,7 @@ export abstract class Base6809Platform extends BaseZ80Platform {
     return Object.create(CPU6809()).disasm(read(pc), read(pc + 1), read(pc + 2), read(pc + 3), read(pc + 4), pc);
   }
   getDefaultExtension(): string { return ".asm"; };
-  getExtensions() { return EXTENSIONS_6809; }
+  getExtensions() { return getExtensions_6809(); }
   //this.getOpcodeMetadata = function() { }
   getToolForFilename = getToolForFilename_6809;
   getDebugCategories() {
@@ -979,7 +1003,7 @@ export abstract class Base6502MachinePlatform<T extends Machine> extends BaseMac
 
   getOpcodeMetadata = getOpcodeMetadata_6502;
   getToolForFilename(fn) { return getToolForFilename_6502(fn); }
-  getExtensions() { return EXTENSIONS_6502; }
+  getExtensions() { return getExtensions_6502(); }
 
   disassemble(pc: number, read: (addr: number) => number): DisasmLine {
     return disassemble6502(pc, read(pc), read(pc + 1), read(pc + 2));
@@ -1004,7 +1028,7 @@ export abstract class BaseZ80MachinePlatform<T extends Machine> extends BaseMach
 
   //getOpcodeMetadata     = getOpcodeMetadata_z80;
   getToolForFilename = getToolForFilename_z80;
-  getExtensions() { return EXTENSIONS_Z80; }
+  getExtensions() { return getExtensions_z80(); }
 
   getDebugCategories() {
     if (isDebuggable(this.machine))
@@ -1034,7 +1058,7 @@ export abstract class BaseZ80MachinePlatform<T extends Machine> extends BaseMach
 export abstract class Base6809MachinePlatform<T extends Machine> extends BaseMachinePlatform<T> {
 
   getToolForFilename = getToolForFilename_6809;
-  getExtensions() { return EXTENSIONS_6809; }
+  getExtensions() { return getExtensions_6809(); }
 
   getDebugCategories() {
     if (isDebuggable(this.machine))

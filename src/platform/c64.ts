@@ -1,6 +1,6 @@
 
 import { C64_WASMMachine } from "../machine/c64";
-import { Platform, Base6502MachinePlatform, EXTENSIONS_6502, getToolForFilename_6502, getOpcodeMetadata_6502, Preset } from "../common/baseplatform";
+import { Platform, Base6502MachinePlatform, getExtensions_6502, getToolForFilename_6502, getOpcodeMetadata_6502, Preset } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 import { BaseMAME6502Platform } from "../common/mameplatform";
 
@@ -86,7 +86,7 @@ class C64WASMPlatform extends Base6502MachinePlatform<C64_WASMMachine> implement
 abstract class C64MAMEPlatform extends BaseMAME6502Platform {
   getPresets() { return C64_PRESETS; }
   getToolForFilename = getToolForFilename_6502;
-  getExtensions() { return EXTENSIONS_6502; }
+  getExtensions() { return getExtensions_6502(); }
   getOpcodeMetadata = getOpcodeMetadata_6502;
   getDefaultExtension() { return ".c"; }
   loadROM(title, data) {
