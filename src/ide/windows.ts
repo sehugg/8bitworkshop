@@ -22,6 +22,7 @@ export class ProjectWindows {
   undofiles: string[];
   redofiles: string[];
   titlePrefix: string;
+  alerting: boolean;
 
   constructor(containerdiv: HTMLElement, project: CodeProject) {
     this.containerdiv = containerdiv;
@@ -171,7 +172,7 @@ export class ProjectWindows {
       this.redofiles.push(fileid);
       this.refresh(false);
     } else {
-      bootbox.alert("No more steps to undo.");
+      this.showAlert("No more steps to undo.");
     }
   }
 
@@ -183,8 +184,14 @@ export class ProjectWindows {
       this.undofiles.push(fileid);
       this.refresh(false);
     } else {
-      bootbox.alert("No more steps to redo.");
+      this.showAlert("No more steps to redo.");
     }
+  }
+
+  showAlert(msg: string) {
+    if (this.alerting) return;
+    this.alerting = true;
+    bootbox.alert(msg, () => { this.alerting = false; });
   }
 
   updateAllOpenWindows(store) {
