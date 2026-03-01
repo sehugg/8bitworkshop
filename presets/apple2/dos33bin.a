@@ -1,0 +1,112 @@
+; --------------------------------------------------
+; Example showing how to create a DOS 3.3 binary
+; header and program that is automatically loaded
+; into the desired ORIGIN memory address.
+; --------------------------------------------------
+
+        processor 6502
+
+; --------------------------------------------------
+; Desired origin
+; - Origin must be less than $C000
+; - Origin + size must be less than $13000
+; - Origin must be $0803 or aligned to $xx00
+; --------------------------------------------------
+ORIGIN  equ     $2000
+SIZE    equ     END_OF_PRORGAM-ORIGIN
+
+; --------------------------------------------------
+; DOS 3.3 binary header (4 bytes)
+; --------------------------------------------------
+        org ORIGIN - 4 ; Subtract 4 ensures correct memory locations
+        word ORIGIN    ; Origin (2 bytes)
+        word SIZE      ; Size (2 bytes), must be length - 4
+
+; --------------------------------------------------
+; ROM routines
+; --------------------------------------------------
+HOME    equ $FC58
+
+; --------------------------------------------------
+; Origin and start of program
+; --------------------------------------------------
+        org ORIGIN     ; Starting address
+
+
+start
+        ; --------------------------------------------------
+        ; Clear screen
+        ; --------------------------------------------------
+        jsr HOME
+
+        ; --------------------------------------------------
+        ; Print "START $" (7 chars) to $0400..$0406
+        ; --------------------------------------------------
+        ldx #0
+pfx_loop
+        lda prefix,x
+        ora #$80
+        sta $0400,x
+        inx
+        cpx #7
+        bne pfx_loop
+
+
+        ; --------------------------------------------------
+        ; Print origin in hex to $0407 - $040A
+        ; --------------------------------------------------
+
+        ; High byte high nibble
+        lda #>start
+        lsr
+        lsr
+        lsr
+        lsr
+        tax
+        lda hexchar,x
+        ora #$80
+        sta $0407
+
+        ; High byte low nibble
+        lda #>start
+        and #$0F
+        tax
+        lda hexchar,x
+        ora #$80
+        sta $0408
+
+        ; Low byte high nibble
+        lda #<start
+        lsr
+        lsr
+        lsr
+        lsr
+        tax
+        lda hexchar,x
+        ora #$80
+        sta $0409
+
+        ; Low byte low nibble
+        lda #<start
+        and #$0F
+        tax
+        lda hexchar,x
+        ora #$80
+        sta $040A
+
+        ; --------------------------------------------------
+        ; Endless loop (text stays on screen)
+        ; --------------------------------------------------
+done    jmp done
+
+
+; --------------------------------------------------
+; Data
+; --------------------------------------------------
+prefix
+        byte "START $"
+
+hexchar
+        byte "0123456789ABCDEF"
+
+END_OF_PRORGAM ; Don't add instructions after this line
