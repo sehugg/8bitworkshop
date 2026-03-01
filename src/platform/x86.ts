@@ -68,6 +68,7 @@ class X86PCPlatform implements Platform {
     getDefaultExtension(): string {
         return ".asm";
     }
+    getExtensions() { return [".asm", ".c"]; }
     getPresets() {
         return PC_PRESETS;
     }

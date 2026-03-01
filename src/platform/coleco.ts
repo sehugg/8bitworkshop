@@ -1,6 +1,6 @@
 
 import { ColecoVision } from "../machine/coleco";
-import { Platform, BaseZ80MachinePlatform, getToolForFilename_z80 } from "../common/baseplatform";
+import { Platform, BaseZ80MachinePlatform, EXTENSIONS_Z80, getToolForFilename_z80 } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 import { BaseMAMEZ80Platform } from "../common/mameplatform";
 
@@ -65,6 +65,7 @@ class ColecoVisionMAMEPlatform extends BaseMAMEZ80Platform implements Platform {
   getPresets() { return ColecoVision_PRESETS; }
 
   getToolForFilename = getToolForFilename_z80;
+  getExtensions() { return EXTENSIONS_Z80; }
   getDefaultExtension() { return ".c"; };
 }
 

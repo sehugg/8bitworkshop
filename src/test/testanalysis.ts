@@ -23,6 +23,9 @@ class Test6502Platform implements Platform {
     getDefaultExtension(): string {
         throw new Error("Method not implemented.");
     }
+    getExtensions(): string[] {
+        throw new Error("Method not implemented.");
+    }
     pause(): void {
         throw new Error("Method not implemented.");
     }

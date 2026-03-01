@@ -36,6 +36,7 @@ class MarkdownPlatform implements Platform {
   getDefaultExtension() : string {
     return ".md";
   }
+  getExtensions() { return [".md"]; }
   getPresets() {
     return [
       {id:'hello.md', name:'Hello'},

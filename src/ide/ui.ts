@@ -496,7 +496,9 @@ function checkEnteredFilename(fn: string): boolean {
 function _createNewFile(e) {
   // TODO: support spaces
   bootbox.prompt({
-    title: "Enter the name of your new main source file.",
+    title: "Enter the name of your new main source file.<br><br>" +
+      "<span class='dialog-help'>Supported extensions: " +
+      platform.getExtensions().join(" ") + "</span>",
     placeholder: "newfile" + platform.getDefaultExtension(),
     callback: (filename) => {
       if (filename && filename.trim().length > 0) {

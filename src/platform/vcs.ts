@@ -72,6 +72,8 @@ function getToolForFilename_vcs(fn: string) {
   return "dasm";
 }
 
+const EXTENSIONS_VCS = [".dasm", ".c", ".ca65", ".acme", ".wiz", ".ecs", ".bas", ".cc2600"];
+
 class VCSPlatform extends BasePlatform {
 
   lastBreakState; // last breakpoint state
@@ -304,6 +306,7 @@ class VCSPlatform extends BasePlatform {
   }
   getToolForFilename = getToolForFilename_vcs;
   getDefaultExtension() { return ".dasm"; }
+  getExtensions() { return EXTENSIONS_VCS; }
   getROMExtension() { return ".a26"; }
 
   getDebugCategories() {
@@ -481,6 +484,7 @@ class VCSMAMEPlatform extends BaseMAME6502Platform implements Platform {
 
   getToolForFilename = getToolForFilename_vcs;
   getDefaultExtension() { return ".dasm"; }
+  getExtensions() { return EXTENSIONS_VCS; }
   getROMExtension() { return ".a26"; }
 
   getOriginPC = function() {
@@ -539,7 +543,8 @@ class VCSStellaPlatform implements Platform {
   }
   getToolForFilename = getToolForFilename_vcs;
   getDefaultExtension() { return ".dasm"; }
-  getROMExtension() { return ".a26"; }  
+  getExtensions() { return EXTENSIONS_VCS; }
+  getROMExtension() { return ".a26"; }
   getPresets() { return VCS_PRESETS }
 }
 

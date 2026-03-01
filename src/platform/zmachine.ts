@@ -709,6 +709,7 @@ class ZmachinePlatform implements Platform {
     getDefaultExtension(): string {
         return ".inf";
     }
+    getExtensions() { return [".inf"]; }
     showHelp() {
         return "https://www.inform-fiction.org/manual/html/contents.html";
     }

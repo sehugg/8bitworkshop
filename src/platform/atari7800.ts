@@ -1,6 +1,6 @@
 
 import { Atari7800 } from "../machine/atari7800";
-import { Platform, Base6502MachinePlatform, getToolForFilename_6502 } from "../common/baseplatform";
+import { Platform, Base6502MachinePlatform, EXTENSIONS_6502, getToolForFilename_6502 } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 
 var Atari7800_PRESETS = [
@@ -38,6 +38,7 @@ class Atari7800Platform extends Base6502MachinePlatform<Atari7800> implements Pl
     tree['display_list'] = this.machine.getDebugDisplayLists();
     return tree;
   }
+  getExtensions() { return [...EXTENSIONS_6502, ".cc7800"]; }
   getToolForFilename(filename: string) {
     if (filename.endsWith(".cc7800")) return "cc7800";
     if (filename.endsWith(".c78")) return "cc7800";

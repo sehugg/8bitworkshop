@@ -164,6 +164,7 @@ class BASICPlatform implements Platform {
     isBlocked() { return this.tty.waitingfor != null || this.runtime.exited; } // is blocked for input?
     isRunning() { return this.timer.isRunning(); }
     getDefaultExtension() { return ".bas"; }
+    getExtensions() { return [".bas"]; }
     getToolForFilename() { return "basic"; }
     getPresets() { return BASIC_PRESETS; }
 

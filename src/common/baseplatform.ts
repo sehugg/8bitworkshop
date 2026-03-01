@@ -82,6 +82,7 @@ export interface Platform {
   isRunning(): boolean;
   getToolForFilename(s: string): string;
   getDefaultExtension(): string;
+  getExtensions(): string[];
   getPresets?(): Preset[];
   pause(): void;
   resume(): void;
@@ -449,6 +450,8 @@ export function getToolForFilename_6502(fn: string): string {
   return "dasm"; // .a
 }
 
+export const EXTENSIONS_6502 = [".c", ".s", ".ca65", ".dasm", ".acme", ".wiz", ".ecs", ".cpp"];
+
 // TODO: can merge w/ Z80?
 export abstract class Base6502Platform extends BaseDebugPlatform {
 
@@ -481,6 +484,7 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
   }
   getToolForFilename = getToolForFilename_6502;
   getDefaultExtension() { return ".a"; };
+  getExtensions() { return EXTENSIONS_6502; }
 
   getDebugCategories() {
     return ['CPU', 'ZPRAM', 'Stack'];
@@ -590,6 +594,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
 
   getToolForFilename = getToolForFilename_z80;
   getDefaultExtension() { return ".c"; };
+  getExtensions() { return EXTENSIONS_Z80; }
   // TODO: Z80 opcode metadata
   //this.getOpcodeMetadata = function() { }
 
@@ -626,6 +631,8 @@ export function getToolForFilename_z80(fn: string): string {
   return "zmac";
 }
 
+export const EXTENSIONS_Z80 = [".c", ".s", ".ns", ".scc", ".z", ".wiz"];
+
 ////// 6809
 
 export function cpuStateToLongString_6809(c) {
@@ -651,6 +658,8 @@ export function getToolForFilename_6809(fn: string): string {
   return "cmoc";
 }
 
+export const EXTENSIONS_6809 = [".c", ".xasm", ".lwasm"];
+
 export abstract class Base6809Platform extends BaseZ80Platform {
 
   newCPU(membus: MemoryBus) {
@@ -667,6 +676,7 @@ export abstract class Base6809Platform extends BaseZ80Platform {
     return Object.create(CPU6809()).disasm(read(pc), read(pc + 1), read(pc + 2), read(pc + 3), read(pc + 4), pc);
   }
   getDefaultExtension(): string { return ".asm"; };
+  getExtensions() { return EXTENSIONS_6809; }
   //this.getOpcodeMetadata = function() { }
   getToolForFilename = getToolForFilename_6809;
   getDebugCategories() {
@@ -779,6 +789,7 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   abstract newMachine(): T;
   abstract getToolForFilename(s: string): string;
   abstract getDefaultExtension(): string;
+  abstract getExtensions(): string[];
   abstract getPresets(): Preset[];
 
   constructor(mainElement: HTMLElement) {
@@ -968,6 +979,7 @@ export abstract class Base6502MachinePlatform<T extends Machine> extends BaseMac
 
   getOpcodeMetadata = getOpcodeMetadata_6502;
   getToolForFilename(fn) { return getToolForFilename_6502(fn); }
+  getExtensions() { return EXTENSIONS_6502; }
 
   disassemble(pc: number, read: (addr: number) => number): DisasmLine {
     return disassemble6502(pc, read(pc), read(pc + 1), read(pc + 2));
@@ -992,6 +1004,7 @@ export abstract class BaseZ80MachinePlatform<T extends Machine> extends BaseMach
 
   //getOpcodeMetadata     = getOpcodeMetadata_z80;
   getToolForFilename = getToolForFilename_z80;
+  getExtensions() { return EXTENSIONS_Z80; }
 
   getDebugCategories() {
     if (isDebuggable(this.machine))
@@ -1021,6 +1034,7 @@ export abstract class BaseZ80MachinePlatform<T extends Machine> extends BaseMach
 export abstract class Base6809MachinePlatform<T extends Machine> extends BaseMachinePlatform<T> {
 
   getToolForFilename = getToolForFilename_6809;
+  getExtensions() { return EXTENSIONS_6809; }
 
   getDebugCategories() {
     if (isDebuggable(this.machine))

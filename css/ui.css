@@ -813,3 +813,6 @@ div.scripting-cell button:hover {
 div.scripting-cell button.scripting-enabled {
   background-color: #339999;
 }
+span.dialog-help {
+  opacity: 0.4;
+}
