@@ -27,7 +27,7 @@
 ;;;
 
 ; uninitialized zero-page variables
-	seg.u ZEROPAGE	
+	seg.u ZEROPAGE
 	org $0
 PWMBUF	.ds 2
 PWMLEN  .ds 1
@@ -88,14 +88,14 @@ PULWID = 6
    IF {2} == 1
      sta SPKR
    ENDIF
- 
+
 ; increment pointer lo byte
  iny		; 2-1 = 1
- 
+
    IF {2} == 2
      sta SPKR
    ENDIF
- 
+
  bne .noinchi	; 4
 ; increment pointer hi byte
  inc PWMBUF+1
@@ -107,17 +107,17 @@ PULWID = 6
    IF {2} == 3
      sta SPKR
    ENDIF
- 
+
 ; reset X counter
  ldx #8		; 6
- 
+
    IF {2} == 4 || {2} == 5
      sta SPKR
    ENDIF
- 
+
 ; fetch new byte
  lda (PWMBUF),y ; 11
- 
+
   ; a few NOPs to match the normal pulse width
   ; (inx, lsr, branch)
    IF {2} == 6
@@ -130,7 +130,7 @@ PULWID = 6
    ENDIF
   ; make up cycles we missed
    SLEEP2 PULWID*2-6
- 
+
 .noinc
 ; carry flag still valid from lsr
  bcc LVLS{1}
@@ -138,7 +138,7 @@ PULWID = 6
 
 ;;; start of code
 	seg CODE
-	org $803	; starting address
+	org $803	; starting address, do not change
 
 Start
         lda #>(SAMPLE_END-SAMPLES)+1

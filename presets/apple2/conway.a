@@ -51,7 +51,7 @@ EXITDOS       equ $03D0
 ; ------------------------------------
 ; Build Options
 ; ------------------------------------
- 
+
 NOISY           equ 0                           ; 0 = Sound off, 1 = Sound on
 CHARSET         equ 1                           ; 0 = Olde Skoole, 1 = Pixel, 2 = Inverse, 3 = Small O's, 4 = Enhanced
 INIT_PATTERN    equ 0                           ; 0 = Glider gun, 1 = "Random", 2 = Edge test
@@ -125,7 +125,7 @@ y_bottomright   equ dataWidth*2+2
 ; Entry Point
 ; ------------------------------------
                 seg program
-                org $803
+                org $803                        ; Starting address, do not change
 
 start           subroutine
                 lda #0
@@ -146,7 +146,7 @@ runLoop         subroutine
 
 perfTest        subroutine
                 jsr RDKEY
-.startTimer     
+.startTimer
                 lda #50
                 sta .counter
 .loop           jsr iterate
@@ -210,13 +210,13 @@ iterate         subroutine
                 bit CLICK
                 endif
                 ldy #y_topleft                  ; set top left value to one (previous value is stale)
-                lda #1                          
-                sta (altData),y                 
+                lda #1
+                sta (altData),y
                 if soundEnabled
                 bit CLICK                       ; (Pretend I'm not here... I just click the speaker)
                 endif
                 clc
-                INCREMENT top                     
+                INCREMENT top
                 INCREMENT topright
                 INCREMENT left
                 INCREMENT right
@@ -277,9 +277,9 @@ updateData      subroutine
                 cmp #charOff
                 beq .clearTopLeft
                 ldy #y_topleft                  ; set top left value to one (previous value is stale)
-                lda #1                          
+                lda #1
                 sta (altData),y
-                clc                 
+                clc
                 INCREMENT top
                 INCREMENT topright
                 INCREMENT left
