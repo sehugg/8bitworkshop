@@ -1,5 +1,5 @@
 
-import { hex, rgb2bgr, rle_unpack } from "../common/util";
+import { hex, tobin, rgb2bgr, rle_unpack } from "../common/util";
 import { ProjectWindows } from "./windows";
 import { Toolbar } from "./toolbar";
 import Mousetrap = require('mousetrap');
@@ -83,9 +83,9 @@ export function parseHexWords(s: string): number[] {
   var m;
   while (m = pixel_re.exec(s)) {
     var n;
-    if (typeof m[4] !== 'undefined')
+    if (m[4])
       n = parseInt(m[5], 2);
-    else if (m[2].startsWith('%') || m[2].endsWith("b"))
+    else if (m[2].startsWith('%'))
       n = parseInt(m[3], 2);
     else if (m[2].startsWith('x') || m[2].startsWith('$') || m[2].endsWith('h'))
       n = parseInt(m[3], 16);
@@ -96,26 +96,25 @@ export function parseHexWords(s: string): number[] {
   return arr;
 }
 
-export function replaceHexWords(s: string, words: UintArray): string {
+export function replaceHexWords(s: string, words: UintArray, bpw: number): string {
   var result = "";
   var m;
   var li = 0;
   var i = 0;
+  var nibbles = Math.ceil(bpw / 4);
   while (m = pixel_re.exec(s)) {
     result += s.slice(li, pixel_re.lastIndex - m[0].length);
     li = pixel_re.lastIndex;
-    if (typeof m[4] !== 'undefined')
-      result += m[4] + words[i++].toString(2);
+    if (m[4])
+      result += m[4] + tobin(words[i++], parseInt(m[4]));
     else if (m[2].startsWith('%'))
-      result += m[1] + "%" + words[i++].toString(2);
-    else if (m[2].endsWith('b'))
-      result += m[1] + m[2] + words[i++].toString(2); // TODO
+      result += m[1] + m[2] + tobin(words[i++], bpw);
     else if (m[2].endsWith('h'))
-      result += m[1] + m[2] + words[i++].toString(16); // TODO
+      result += m[1] + m[2] + hex(words[i++], parseInt(m[2]));
     else if (m[2].startsWith('x'))
-      result += m[1] + "x" + hex(words[i++]);
+      result += m[1] + "x" + hex(words[i++], nibbles);
     else if (m[2].startsWith('$'))
-      result += m[1] + "$" + hex(words[i++]);
+      result += m[1] + "$" + hex(words[i++], nibbles);
     else
       result += m[1] + words[i++].toString();
   }
@@ -472,15 +471,17 @@ export class TextDataNode extends CodeProjectDataNode {
   text: string;
   start: number;
   end: number;
+  bpw: number;
 
   // TODO: what if file size/layout changes?
-  constructor(project: ProjectWindows, fileid: string, label: string, start: number, end: number) {
+  constructor(project: ProjectWindows, fileid: string, label: string, start: number, end: number, bpw?: number) {
     super();
     this.project = project;
     this.fileid = fileid;
     this.label = label;
     this.start = start;
     this.end = end;
+    this.bpw = bpw || 8;
   }
   updateLeft() {
     if (this.right.words.length != this.words.length)
@@ -488,7 +489,7 @@ export class TextDataNode extends CodeProjectDataNode {
     this.words = this.right.words;
     // TODO: reload editors?
     var datastr = this.text.substring(this.start, this.end);
-    datastr = replaceHexWords(datastr, this.words);
+    datastr = replaceHexWords(datastr, this.words, this.bpw);
     this.text = this.text.substring(0, this.start) + datastr + this.text.substring(this.end);
     this.end = this.start + datastr.length;
     if (this.project) {

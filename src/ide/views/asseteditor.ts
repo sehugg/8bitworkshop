@@ -337,7 +337,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
           }
 
           let label = fileid; // TODO: label
-          let node: pixed.PixNode = new pixed.TextDataNode(projectWindows, fileid, label, frag.start, frag.end);
+          let node: pixed.PixNode = new pixed.TextDataNode(projectWindows, fileid, label, frag.start, frag.end, frag.fmt.bpw);
           let first = node;
           // rle-compressed? TODO: how to edit?
           if (frag.fmt.comp == 'rletag') {
