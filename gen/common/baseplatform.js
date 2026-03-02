@@ -7,6 +7,7 @@ exports.getToolForFilename_6502 = getToolForFilename_6502;
 exports.cpuStateToLongString_6502 = cpuStateToLongString_6502;
 exports.getOpcodeMetadata_6502 = getOpcodeMetadata_6502;
 exports.cpuStateToLongString_Z80 = cpuStateToLongString_Z80;
+exports.cpuStateToLongString_SM83 = cpuStateToLongString_SM83;
 exports.getToolForFilename_z80 = getToolForFilename_z80;
 exports.cpuStateToLongString_6809 = cpuStateToLongString_6809;
 exports.getToolForFilename_6809 = getToolForFilename_6809;
@@ -420,6 +421,15 @@ function cpuStateToLongString_Z80(c) {
     return "PC " + (0, util_1.hex)(c.PC, 4) + "  " + decodeFlags(c.AF) + " " + (c.iff1 ? "I" : "-") + (c.iff2 ? "I" : "-") + "\n"
         + "SP " + (0, util_1.hex)(c.SP, 4) + "  IR " + (0, util_1.hex)(c.IR, 4) + "\n"
         + "IX " + (0, util_1.hex)(c.IX, 4) + "  IY " + (0, util_1.hex)(c.IY, 4) + "\n"
+        + "AF " + (0, util_1.hex)(c.AF, 4) + "  BC " + (0, util_1.hex)(c.BC, 4) + "\n"
+        + "DE " + (0, util_1.hex)(c.DE, 4) + "  HL " + (0, util_1.hex)(c.HL, 4) + "\n";
+}
+function cpuStateToLongString_SM83(c) {
+    function decodeFlags(af) {
+        return (0, util_1.printFlags)(af, ["Z", "N", "H", "C"], true);
+    }
+    return "PC " + (0, util_1.hex)(c.PC, 4) + "  " + decodeFlags(c.AF >> 4) + " " + (c.ime ? "I" : "-") + "\n"
+        + "SP " + (0, util_1.hex)(c.SP, 4) + "\n"
         + "AF " + (0, util_1.hex)(c.AF, 4) + "  BC " + (0, util_1.hex)(c.BC, 4) + "\n"
         + "DE " + (0, util_1.hex)(c.DE, 4) + "  HL " + (0, util_1.hex)(c.HL, 4) + "\n";
 }

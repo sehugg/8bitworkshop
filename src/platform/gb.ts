@@ -1,96 +1,32 @@
-import { WasmBoy } from 'wasmboy';
-import { getToolForFilename_z80, Platform, Preset } from "../common/baseplatform";
-import { PLATFORMS, RasterVideo } from "../common/emu";
+
+import { GameBoyMachine } from "../machine/gb";
+import { BaseMachinePlatform, cpuStateToLongString_SM83, getToolForFilename_z80, Platform, Preset, dumpStackToString, isDebuggable, EmuState, DisasmLine } from "../common/baseplatform";
+import { PLATFORMS } from "../common/emu";
+import { disassembleSM83 } from "../common/cpu/disasmSM83";
 
 const GB_PRESETS: Preset[] = [
   { id: 'hello.sgb', name: 'Hello (ASM)' },
+  { id: 'main.wiz', name: 'Snake Game (Wiz)' },
 ];
 
-class GameBoyPlatform implements Platform {
+class GameBoyPlatform extends BaseMachinePlatform<GameBoyMachine> implements Platform {
 
-  mainElement;
-  video;
-  audioFrequency = 22050;
-  frameIndex = 0;
-
-  machine = { cpuCyclesPerLine: 114 }; // TODO: adjust for GameBoy
-
-  constructor(mainElement) {
-    //super();
-    this.mainElement = mainElement;
-  }
-
-  getPresets() { return GB_PRESETS; }
-
-  async start() {
-    this.video = new RasterVideo(this.mainElement, 160, 144, { overscan: false });
-    this.video.create();
-
-    // Initialize WasmBoy
-    const config = {
-      headless: false,
-      useFrameSkip: false,
-      audioBatchProcessing: false,
-      timersBatchProcessing: false,
-      audioAccumulateSamples: false,
-      graphicsBatchProcessing: false,
-      graphicsDisableScanlineRendering: false,
-      tileRendering: true,
-      tileCaching: true,
-    };
-
-    await WasmBoy.config(config, this.video.canvas, this.audioFrequency);
-  }
-
-  pollControls() {
-    // WasmBoy handles controller polling internally
-    // No need to implement this method
-  }
-
-  advance(novideo: boolean): number {
-    // WasmBoy handles frame timing internally
-    return 70224; // Game Boy CPU cycles per frame
-  }
-
-  async loadROM(title, data) {
-    var romArray = new Uint8Array(data);
-    await WasmBoy.loadROM(romArray);
-    this.frameIndex = 0;
-  }
-
-  reset() {
-    WasmBoy.reset();
-  }
-
-  isRunning() {
-    return WasmBoy.isPlaying();
-  }
-
-  pause() {
-    WasmBoy.pause();
-  }
-
-  resume() {
-    WasmBoy.play();
-  }
+  newMachine()          { return new GameBoyMachine(); }
+  getPresets()          { return GB_PRESETS; }
+  getDefaultExtension() { return ".c"; }
+  getToolForFilename    = getToolForFilename_z80;
+  readAddress(a)        { return this.machine.read(a); }
+  readVRAMAddress(a)    { return this.machine.readVRAMAddress(a); }
 
   getOriginPC() {
-    return 0x100; // GameBoy boot vector
-  }
-
-  getDefaultExtension() {
-    return ".c";
+    return 0x100;
   }
 
   getROMExtension() {
     return ".gb";
   }
 
-  getToolForFilename = (fn: string): string => {
-    return getToolForFilename_z80(fn);
-  }
-
-  getMemoryMap = function () {
+  getMemoryMap() {
     return {
       main: [
         { name: 'ROM Bank 0', start: 0x0000, size: 0x4000, type: 'rom' },
@@ -103,7 +39,32 @@ class GameBoyPlatform implements Platform {
         { name: 'High RAM', start: 0xFF80, size: 0x7F, type: 'ram' },
       ]
     };
-  };
+  }
+
+  getDebugCategories() {
+    if (isDebuggable(this.machine))
+      return this.machine.getDebugCategories();
+    else
+      return ['CPU', 'Stack', 'PPU'];
+  }
+
+  getDebugInfo(category: string, state: EmuState): string {
+    switch (category) {
+      case 'CPU': return cpuStateToLongString_SM83(state.c);
+      case 'Stack': {
+        var sp = (state.c.SP - 1) & 0xFFFF;
+        var start = sp & 0xFF00;
+        var end = start + 0xFF;
+        if (sp == 0) sp = 0x10000;
+        return dumpStackToString(<Platform><any>this, [], start, end, sp, 0xCD);
+      }
+      default: return isDebuggable(this.machine) && this.machine.getDebugInfo(category, state);
+    }
+  }
+
+  disassemble(pc: number, read: (addr: number) => number): DisasmLine {
+    return disassembleSM83(pc, read(pc), read(pc + 1), read(pc + 2));
+  }
 
   showHelp() {
     return "https://8bitworkshop.com/docs/platforms/gameboy/";

@@ -1,0 +1,123 @@
+import "gb";
+import "banks";
+
+config {
+    gbc_compatible = true,
+}
+
+in ram {
+    namespace stack {
+        let SIZE = 256;
+        var data : [u8; SIZE];
+    }
+}
+
+in rom @ 0x150 {
+    import "memory";
+    import "joy";
+    import "video";
+    import "player";
+    import "gbc_util";
+
+    func main() {
+        interrupt = false;
+        hl = &stack.data as u16 + stack.SIZE - 1;
+        sp = hl;
+
+        gbc_util.detect();
+        gbc_util.set_speed(gb.color.SPEED_MASK_TURBO_ON);
+
+        // Turn off the screen.
+        video.disable();
+
+        joy.init();
+        video.init();
+        player.init();
+
+        // Set up a simple black-to-white 4-color palette.
+        gb.mono.palette.bg = a = 0b11100100;
+        if { a = gbc_util.gbc_detected; } && a != 0 {
+            gb.color.palette.bg.index = a = gb.color.palette.INDEX_AUTO_INCREMENT;
+
+            gb.color.palette.bg.data = a = 0b11111111;
+            gb.color.palette.bg.data = a = 0b01111111;
+
+            gb.color.palette.bg.data = a = 0b01100011;
+            gb.color.palette.bg.data = a = 0b00001100;
+
+            gb.color.palette.bg.data = a = 0b11100111;
+            gb.color.palette.bg.data = a = 0b00011100;
+
+            gb.color.palette.bg.data = a = 0b00000000;
+            gb.color.palette.bg.data = a = 0b00000000;
+        }
+
+        // Fill in some very crappy striped tile patterns.
+        memset(&gb.ram.tile[0], 0b11111111, 16);
+        memset(hl as *u8, 0b10101010, 16);
+        memset(hl as *u8, 0b10001000, 16);
+        memset(hl as *u8, 0b00000000, 16);
+
+        // Clear screen.
+        memset(&gb.ram.map[32], 3, 1024 - 64);
+
+        // Draw horizontal walls.
+        memset(&gb.ram.map[0], 0, 20);
+        memset(&gb.ram.map[32 * 17], a, 20);
+
+        // Draw vertical walls.
+        var ptr : *u8 in hl;
+        var stride : u16 in bc;
+
+        ptr = &gb.ram.map[32];
+        stride = 32;
+        inline for let i in 1 .. 17 {
+            *ptr = a;
+            ptr = (ptr as u16 + stride) as *u8;
+        }
+
+        ptr = &gb.ram.map[32 + 19];
+        inline for let i in 1 .. 17 {
+            *ptr = a;
+            ptr = (ptr as u16 + stride) as *u8;
+        }
+
+        // Turn the screen back on, with backgrounds enabled using tileset 2.
+        gb.lcd.ctrl = a = gb.lcd.CTRL_ON | gb.lcd.CTRL_TILESET2 | gb.lcd.CTRL_BG_ON;
+
+        // Enable some basic interrupts.
+        gb.interrupt.flag = a = 0;
+        gb.interrupt.enable = a = gb.interrupt.VBLANK | gb.interrupt.STAT;
+        gb.lcd.stat = a = gb.lcd.STAT_SCANLINE_ENABLE;
+        interrupt = true;
+
+        while true {
+            //debug_break();
+            joy.update();
+            player.update();
+            video.request_update();
+        }
+    }
+
+    #[irq]
+    func draw() {
+        video.acknowledge_update();
+        hl = pop();
+        de = pop();
+        bc = pop();
+        af = pop();
+    }
+
+    #[irq]
+    func stub() {
+        hl = pop();
+        de = pop();
+        bc = pop();
+        af = pop();
+    }
+
+    let stat = stub;
+    let timer = stub;
+    let serial = stub;
+    let joypad = stub;
+}

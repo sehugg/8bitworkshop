@@ -1,0 +1,55 @@
+import "main";
+
+config {
+    title = "SNAKE",
+}
+
+bank rom @ 0x0000 : [constdata; 0x4000];
+bank rom2 @ 0x4000 : [constdata; 0x4000];
+bank ram @ 0xC000 : [vardata; 0x1000];
+bank ram2 @ 0xD000 : [vardata; 0x1000];
+bank hram @ 0xFF80 : [vardata; 0x80];
+
+in rom @ 0x40 {
+    push(af);
+    push(bc);
+    push(de);
+    push(hl);
+    ^goto draw;
+}
+
+in rom @ 0x48 {
+    push(af);
+    push(bc);
+    push(de);
+    push(hl);
+    ^goto stat;
+}
+
+in rom @ 0x50 {
+    push(af);
+    push(bc);
+    push(de);
+    push(hl);
+    ^goto timer;
+}
+
+in rom @ 0x58 {
+    push(af);
+    push(bc);
+    push(de);
+    push(hl);
+    ^goto serial;
+}
+
+in rom @ 0x60 {
+    push(af);
+    push(bc);
+    push(de);
+    push(hl);
+    ^goto joypad;
+}
+
+in rom @ 0x100 {
+    ^goto main;
+}

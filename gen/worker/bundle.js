@@ -5212,7 +5212,9 @@
       rom_size: 32768,
       data_start: 49152,
       data_size: 8192,
-      stack_end: 57344
+      stack_end: 57344,
+      wiz_sys_type: "gb",
+      wiz_inc_dir: "gb"
     }
   };
   PLATFORM_PARAMS["sms-sms-libcv"] = PLATFORM_PARAMS["sms-sg1000-libcv"];
@@ -7368,8 +7370,8 @@
       for (var fn of step.files) {
         if (fn.endsWith(".lst")) {
           var rstout = FS.readFile(fn.replace(".lst", ".rst"), { encoding: "utf8" });
-          var asmlines = parseListing(rstout, /^\s*([0-9A-F]{4})\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]?\s+(\d+) (.*)/i, 4, 1, 2, 3);
-          var srclines = parseSourceLines(rstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4})/i);
+          var asmlines = parseListing(rstout, /^\s*([0-9A-F]{4,6})\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]?\s+(\d+) (.*)/i, 4, 1, 2, 3);
+          var srclines = parseSourceLines(rstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4,6})/i);
           putWorkFile(fn, rstout);
           listings[fn] = {
             asmlines: srclines.length ? asmlines : null,

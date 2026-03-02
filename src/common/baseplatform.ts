@@ -551,6 +551,17 @@ export function cpuStateToLongString_Z80(c) {
     ;
 }
 
+export function cpuStateToLongString_SM83(c) {
+  function decodeFlags(af) {
+    return printFlags(af, ["Z", "N", "H", "C"], true);
+  }
+  return "PC " + hex(c.PC, 4) + "  " + decodeFlags(c.AF >> 4) + " " + (c.ime ? "I" : "-") + "\n"
+    + "SP " + hex(c.SP, 4) + "\n"
+    + "AF " + hex(c.AF, 4) + "  BC " + hex(c.BC, 4) + "\n"
+    + "DE " + hex(c.DE, 4) + "  HL " + hex(c.HL, 4) + "\n"
+    ;
+}
+
 export abstract class BaseZ80Platform extends BaseDebugPlatform {
 
   _cpu;

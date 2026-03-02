@@ -1,0 +1,174 @@
+import "gb";
+import "joy";
+import "banks";
+import "video";
+
+namespace player {
+    in ram {
+        enum Direction : u8 {
+            LEFT = 0,
+            RIGHT = 1,
+            UP = 2,
+            DOWN = 3,
+        }
+
+        struct Point {
+            x : u8,
+            y : u8,
+        }
+
+        var direction : Direction;
+        var last_direction : Direction;
+        var next_step : u8;
+        var position : Point;
+        var head_index : u8;
+        var tail_index : u8;
+
+        let BUFFER_SIZE = 64;
+        var buffer : [*u8; BUFFER_SIZE];
+
+        let NORMAL_DELAY = 12;
+        let POST_TURN_DELAY = 2;
+
+        let START_LENGTH = 7;
+        let START_X = 8;
+        let START_Y = 8;
+
+    }
+
+    func init() {
+        a = Direction.DOWN as u8;
+        direction = a as Direction;
+        last_direction = a as Direction;
+
+        head_index = a = START_LENGTH;
+        tail_index = a = 0;
+
+        position.x = a = START_X;
+        position.y = a = START_Y - 1;
+
+        fill_snake();
+
+        position.x = a = START_X;
+        position.y = a = START_Y;
+
+        update_coordinates();
+    }
+
+    func check_controls() {
+        c = a = joy.pressed;
+
+        d = a = last_direction as u8;
+        if c$joy.bit.LEFT {
+            if a != Direction.RIGHT as u8 {
+                d = Direction.LEFT as u8;
+            }
+        } else if c$joy.bit.RIGHT {
+            if a != Direction.LEFT as u8 {
+                d = Direction.RIGHT as u8;
+            }
+        } else if c$joy.bit.UP {
+            if a != Direction.DOWN as u8 {
+                d = Direction.UP as u8;
+            }
+        } else if c$joy.bit.DOWN {
+            if a != Direction.UP as u8 {
+                d = Direction.DOWN as u8;
+            }
+        }
+
+        if a != d {
+            if { a = next_step; } && a >= POST_TURN_DELAY {
+                next_step = a = POST_TURN_DELAY;
+            }
+        }
+
+        a = d;
+        direction = a as Direction; 
+    }
+
+    func update() {
+        check_controls();
+
+        hl = &next_step as u16;
+        --*(hl as *u8);
+        if zero {
+            a = direction as u8;
+
+            if a == Direction.LEFT as u8 {
+                position.x = a = (position.x - 1) & 0x1F;
+            } else if a == Direction.RIGHT as u8 {
+                position.x = a = (position.x + 1) & 0x1F;
+            } else if a == Direction.UP as u8 {
+                position.y = a = (position.y - 1) & 0x1F;
+            } else if a == Direction.DOWN as u8 {
+                position.y = a = (position.y + 1) & 0x1F;
+            }
+
+            update_coordinates();
+
+            a = direction as u8;
+            last_direction = a as Direction;
+        }
+    }
+
+    func fill_snake() {
+        hl = &gb.ram.map as u16;
+        e = a = position.x;
+        d = 0;
+        c = a = position.y;
+        b = 0;
+        inline for let i in 1 .. 5 {
+            c <<= 1;
+            b <<<<#= 1;
+        }
+        hl = hl + bc + de;
+        e = l;
+        d = h;
+
+        hl = &buffer as u16;
+        do {
+            *(hl++ as *u8) = a = e;
+            *(hl++ as *u8) = a = d;
+            bc++;
+            a = c;
+        } while a != buffer.len;
+    }
+
+    func update_coordinates() {
+        a = head_index; a++;
+        if a >= buffer.len {
+            a = 0;
+        }
+        head_index = a;
+
+        a = tail_index; a++;
+        if a >= buffer.len {
+            a = 0;
+        }
+        tail_index = a;
+
+        hl = &gb.ram.map as u16;
+        e = a = position.x;
+        d = 0;
+        c = a = position.y;
+        b = 0;
+        inline for let i in 1 .. 5 {
+            c <<= 1;
+            b <<<<#= 1;
+        }
+        hl = hl + bc + de;
+        c = l;
+        b = h;
+
+        e = a = head_index << 1;
+        d = 0;
+
+        hl = &buffer as u16 + de;
+        *(hl++ as *u8) = a = c;
+        *(hl++ as *u8) = a = b;
+
+        next_step = a = NORMAL_DELAY;
+        video.request.move_snake = a = 1;
+    }
+}
