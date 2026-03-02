@@ -144,6 +144,13 @@ export class ProjectWindows {
     }
   }
 
+  replaceTextRange(fileid: string, from: number, to: number, text: string) {
+    var wnd = this.id2window[fileid];
+    wnd.replaceTextRange(from, to, text);
+    this.undofiles.push(fileid);
+    this.redofiles = [];
+  }
+
   undoStep() {
     var fileid = this.undofiles.pop();
     var wnd = this.id2window[fileid];
