@@ -22,6 +22,7 @@ const APPLE2_PRESETS = [
     { id: 'deltamod.dasm', name: "Delta Modulation Audio" },
     //  {id:'zap.dasm', name:"ZAP!"},
     //  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
+    { id: 'dos33bin.a', name: "DOS 3.3 Binary" },
 ];
 /// MAME support
 class Apple2MAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
@@ -59,7 +60,8 @@ class NewApple2Platform extends baseplatform_2.Base6502MachinePlatform {
         super(...arguments);
         // TODO loadBIOS(bios)	{ this.machine.loadBIOS(a); }
         this.getMemoryMap = function () {
-            return { main: [
+            return {
+                main: [
                     { name: 'Zero Page RAM', start: 0x0, size: 0x100, type: 'ram' },
                     { name: 'Line Input RAM', start: 0x200, size: 0x100, type: 'ram' },
                     { name: 'RAM', start: 0x300, size: 0xc0, type: 'ram' },
@@ -71,7 +73,8 @@ class NewApple2Platform extends baseplatform_2.Base6502MachinePlatform {
                     { name: 'RAM', start: 0x6000, size: 0x6000, type: 'ram' },
                     { name: 'I/O', start: 0xc000, size: 0x1000, type: 'io' },
                     { name: 'ROM', start: 0xd000, size: 0x3000, type: 'rom' },
-                ] };
+                ]
+            };
         };
         this.getToolForFilename = (fn) => {
             if (fn.endsWith(".lnk"))

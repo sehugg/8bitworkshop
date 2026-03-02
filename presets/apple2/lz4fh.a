@@ -1,21 +1,21 @@
 
-;                              
-; LZ4FH uncompression for 6502 
-; By Andy McFadden             
-; Version 1.0.1, August 2015   
-;                              
-; Refactored for size & speed  
-; by Peter Ferrie.             
-;                              
-; Developed with Merlin-16     
-; Ported to DASM by Steven Hugg 
-; Apache 2.0 license           
+;
+; LZ4FH uncompression for 6502
+; By Andy McFadden
+; Version 1.0.1, August 2015
+;
+; Refactored for size & speed
+; by Peter Ferrie.
+;
+; Developed with Merlin-16
+; Ported to DASM by Steven Hugg
+; Apache 2.0 license
 ; http://www.apache.org/licenses/LICENSE-2.0
-;                              
+;
 
 	processor 6502
 
-	org   $0803
+	org   $0803       ; starting address, do not change
 
 ;
 ; Constants
@@ -47,7 +47,7 @@ entry
         jsr UnpackLZ4FH
 .endless
 	jmp .endless
-        
+
 
 UnpackLZ4FH:
          lda   #<LZDATA     ;copy source address to zero page
@@ -119,9 +119,9 @@ mainloop
          lda   (srcptr),y ;get mixed-length byte
          sta   savmix
          lsr             ;get the literal length
-         lsr   
-         lsr   
-         lsr   
+         lsr
+         lsr
+         lsr
          beq   noliteral
          cmp   #$0f       ;sets carry for >= 15
          bne   shortlit
@@ -413,5 +413,4 @@ LZDATA:
  hex 012d1b1504340d1f0628cc0331030013
  hex c21821000cbc0c130c711536047c6621
  hex 0a005a062c0343b1031a006a000f1500
- hex 000ffe                          
- 
+ hex 000ffe
