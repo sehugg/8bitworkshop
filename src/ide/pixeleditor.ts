@@ -490,6 +490,7 @@ export class TextDataNode extends CodeProjectDataNode {
     var datastr = this.text.substring(this.start, this.end);
     datastr = replaceHexWords(datastr, this.words);
     this.text = this.text.substring(0, this.start) + datastr + this.text.substring(this.end);
+    this.end = this.start + datastr.length;
     if (this.project) {
       this.project.updateFile(this.fileid, this.text);
       //this.project.replaceTextRange(this.fileid, this.start, this.end, datastr);
