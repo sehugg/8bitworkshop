@@ -6,6 +6,15 @@ import { hex, safeident, rgb2bgr } from "../../common/util";
 import * as pixed from "../pixeleditor";
 import Mousetrap = require('mousetrap');
 
+function getLineNumber(data: string, offset: number): number {
+  let line = 1;
+  for (let i = 0; i < offset && i < data.length; i++) {
+    if (data[i] === '\n') line++;
+  }
+  return line;
+}
+
+
 export class AssetEditorView implements ProjectView, pixed.EditorContext {
   maindiv: JQuery;
   cureditordiv: JQuery;
@@ -146,14 +155,21 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         end = data.indexOf(';', start); // C
       }
       //console.log(id, start, end, m[1], data.substring(start,end));
-      if (end > start) {
+      var line = getLineNumber(data, m.index);
+      var header = m[0];
+      if (end < 0) {
+        var closingDelim = platform_id.includes('verilog') ? '"end"' : m[0].startsWith(';;') ? '";;"' : '";"';
+        result.push({ fileid: id, header: header, line: line, error: `No closing ${closingDelim} found after asset header` });
+      } else if (end <= start) {
+        result.push({ fileid: id, header: header, line: line, error: `Empty data block after asset header` });
+      } else {
         try {
           var jsontxt = m[1].replace(/([A-Za-z]+):/g, '"$1":'); // fix lenient JSON
           var json = JSON.parse(jsontxt);
           // TODO: name?
-          result.push({ fileid: id, fmt: json, start: start, end: end });
+          result.push({ fileid: id, header: header, line: line, fmt: json, start: start, end: end });
         } catch (e) {
-          console.log(e);
+          result.push({ fileid: id, header: header, line: line, error: `Invalid asset format: ${e.message}` });
         }
       }
     }
@@ -304,7 +320,22 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     } else if (typeof data === 'string') {
       let textfrags = this.scanFileTextForAssets(fileid, data);
       for (let frag of textfrags) {
+        const block = $('<div class="asset_block"/>').appendTo(this.ensureFileDiv(fileid));
+        var snip = $('<div class="asset_snip"/>').appendTo(block);
+        $('<span class="asset_lineno"/>').text(frag.line).appendTo(snip);
+        snip.append(' ' + frag.header);
+        if (frag.error) {
+          $('<div class="asset_error_msg"/>').text(frag.error).appendTo(block);
+          continue;
+        }
         if (frag.fmt) {
+          // validate data block size before creating editors
+          const assetError = pixed.validateAssetData(data.substring(frag.start, frag.end), frag.fmt);
+          if (assetError) {
+            $('<div class="asset_error_msg"/>').text(assetError).appendTo(block);
+            continue;
+          }
+
           let label = fileid; // TODO: label
           let node: pixed.PixNode = new pixed.TextDataNode(projectWindows, fileid, label, frag.start, frag.end);
           let first = node;
@@ -317,19 +348,19 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
             node = node.addRight(new pixed.NESNametableConverter(this));
             node = node.addRight(new pixed.Palettizer(this, { w: 8, h: 8, bpp: 4 }));
             const fmt = { w: 8 * (frag.fmt.w || 32), h: 8 * (frag.fmt.h || 30), count: 1 }; // TODO: can't do custom sizes
-            node = node.addRight(new pixed.MapEditor(this, newDiv(this.ensureFileDiv(fileid)), fmt));
+            node = node.addRight(new pixed.MapEditor(this, newDiv(block), fmt));
             this.registerAsset("nametable", first, 2);
             nassets++;
           }
           // is this a bitmap?
           else if (frag.fmt.w > 0 && frag.fmt.h > 0) {
-            this.addPixelEditor(this.ensureFileDiv(fileid), node, frag.fmt);
+            this.addPixelEditor(block, node, frag.fmt);
             this.registerAsset("charmap", first, 1);
             nassets++;
           }
           // is this a palette?
           else if (frag.fmt.pal) {
-            this.addPaletteEditor(this.ensureFileDiv(fileid), node, frag.fmt);
+            this.addPaletteEditor(block, node, frag.fmt);
             this.registerAsset("palette", first, 0);
             nassets++;
           }
