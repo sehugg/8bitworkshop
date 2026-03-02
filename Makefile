@@ -59,6 +59,7 @@ tsweb: submodules node_modules
 	npm run esbuild-clean
 	(ip addr || ifconfig) | grep inet
 	trap 'kill 0' EXIT; \
+	make buildgrammars; \
 	$(TSC) -w --preserveWatchOutput & \
 	make watchgrammars & \
 	npm run esbuild-worker -- --watch & \
