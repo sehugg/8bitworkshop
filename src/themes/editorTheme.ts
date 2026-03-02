@@ -16,6 +16,10 @@ export const editorTheme = EditorView.theme({
     ".highlight-lines": {
         backgroundColor: "#003399 !important",
     },
+    ".cm-error-span": {
+        textDecoration: "underline wavy red",
+        backgroundColor: "rgba(255, 0, 0, 0.15)",
+    },
     ".gutter-offset": {
         marginRight: "0.25em",
     },

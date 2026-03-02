@@ -2,6 +2,8 @@ TSC=./node_modules/typescript/bin/tsc --build
 LEZER=./node_modules/.bin/lezer-generator
 TMP=./tmp/dist
 
+all: buildtsc
+
 # Ensure node_modules is up to date.
 node_modules: package.json
 	npm install
