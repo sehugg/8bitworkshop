@@ -331,6 +331,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         $('<span class="asset_lineno"/>').text(frag.startline).appendTo(linenos);
         linenos.append('-');
         $('<span class="asset_lineno"/>').text(frag.endline).appendTo(linenos);
+        linenos.attr('title', 'Jump to source');
         linenos.click(() => {
           var editor = projectWindows.createOrShow(frag.fileid, true);
           if (editor && (editor as any).highlightLines) {
