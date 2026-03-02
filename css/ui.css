@@ -509,6 +509,7 @@ div.asset_block {
 .asset_linenos {
   display: inline-block;
   margin-right: 8px;
+  cursor: pointer;
 }
 .asset_lineno {
   color: #99cc99;
