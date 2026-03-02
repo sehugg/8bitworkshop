@@ -161,19 +161,20 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       //console.log(id, start, end, m[1], data.substring(start,end));
       var line = getLineNumber(data, m.index);
       var header = m[0];
+      var endline = end >= 0 ? getLineNumber(data, end) : '???';
       if (end < 0) {
         var closingDelim = platform_id.includes('verilog') ? '"end"' : m[0].startsWith(';;') ? '";;"' : '";"';
-        result.push({ fileid: id, header: header, line: line, error: `No closing ${closingDelim} found after asset header` });
+        result.push({ fileid: id, header: header, line: line, endline: endline, error: `No closing ${closingDelim} found after asset header` });
       } else if (end <= start) {
-        result.push({ fileid: id, header: header, line: line, error: `Empty data block after asset header` });
+        result.push({ fileid: id, header: header, line: line, endline: endline, error: `Empty data block after asset header` });
       } else {
         try {
           var jsontxt = m[1].replace(/([A-Za-z]+):/g, '"$1":'); // fix lenient JSON
           var json = JSON.parse(jsontxt);
           // TODO: name?
-          result.push({ fileid: id, header: header, line: line, fmt: json, start: start, end: end });
+          result.push({ fileid: id, header: header, line: line, endline: endline, fmt: json, start: start, end: end });
         } catch (e) {
-          result.push({ fileid: id, header: header, line: line, error: `Invalid asset format: ${e.message}` });
+          result.push({ fileid: id, header: header, line: line, endline: endline, error: `Invalid asset format: ${e.message}` });
         }
       }
     }
@@ -326,7 +327,10 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       for (let frag of textfrags) {
         const block = $('<div class="asset_block"/>').appendTo(this.ensureFileDiv(fileid));
         var snip = $('<div class="asset_snip"/>').appendTo(block);
-        $('<span class="asset_lineno"/>').text(frag.line).appendTo(snip);
+        var linenos = $('<span class="asset_linenos"/>').appendTo(snip);
+        $('<span class="asset_lineno"/>').text(frag.line).appendTo(linenos);
+        linenos.append('-');
+        $('<span class="asset_lineno"/>').text(frag.endline).appendTo(linenos);
         snip.append(' ' + frag.header);
         if (frag.error) {
           $('<div class="asset_error_msg"/>').text(frag.error).appendTo(block);

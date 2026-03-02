@@ -506,12 +506,13 @@ div.asset_block {
   border-radius: 8px;
   padding-left: 1em;
 }
+.asset_linenos {
+  display: inline-block;
+  margin-right: 8px;
+}
 .asset_lineno {
   color: #99cc99;
-  display: inline-block;
-  min-width: 4rem;
   text-align: right;
-  margin-right: 8px;
 }
 .asset_error_msg {
   color: #ff6666;
