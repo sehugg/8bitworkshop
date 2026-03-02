@@ -483,6 +483,7 @@ Frame0
 	.byte #%01111100;$18
 	.byte #%11111110;$F2
 	.byte #%00111000;$F4
+;;
 ;; Bitmap data "throwing" position
 ;;{w:8,h:16,brev:1,flip:1};;
 Frame1
@@ -503,6 +504,7 @@ Frame1
 	.byte #%01111100;$18
 	.byte #%11111110;$F2
 	.byte #%00111000;$F4
+;;
 ;; Color data for each line of sprite
 ;;{pal:"vcs"};;
 ColorFrame0
@@ -523,6 +525,7 @@ ColorFrame0
 	.byte #$18;
 	.byte #$F2;
 	.byte #$F4;
+;;
 ;; Enemy cat-head graphics data
 ;;{w:8,h:8,brev:1,flip:1};;
 EnemyFrame0
@@ -535,6 +538,7 @@ EnemyFrame0
         .byte #%01111110;$8E
         .byte #%11000011;$98
         .byte #%10000001;$98
+;;
 ;; Enemy cat-head color data
 ;;{pal:"vcs"};;
 EnemyColorFrame0
