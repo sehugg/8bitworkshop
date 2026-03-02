@@ -334,7 +334,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         linenos.click(() => {
           var editor = projectWindows.createOrShow(frag.fileid, true);
           if (editor && (editor as any).highlightLines) {
-            (editor as any).highlightLines(frag.startline - 1, frag.endline - 1);
+            (editor as any).highlightLines(frag.startline - 1, (frag.endline > 0 ? frag.endline : frag.startline) - 1);
           }
         });
         snip.append(' ' + frag.header);
