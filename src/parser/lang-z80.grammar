@@ -22,7 +22,12 @@ Directive {
 }
 
 PseudoOp {
-  @specialize<Identifier, "org" | "equ" | "end" | "public" | "ORG" | "EQU" | "END" | "PUBLIC">
+  @specialize<Identifier,
+    "defb" | "defw" | "defm" |
+    "DEFB" | "DEFW" | "DEFM" |
+    "org" | "equ" | "end" | "public" |
+    "ORG" | "EQU" | "END" | "PUBLIC"
+  >
 }
 
 Condition {

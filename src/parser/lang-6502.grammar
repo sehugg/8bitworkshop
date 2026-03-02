@@ -9,6 +9,7 @@ Line {
 Statement {
   Instruction |
   Directive |
+  HexDirective |
   MacroDef |
   MacEnd |
   ControlOp |
@@ -22,7 +23,7 @@ Instruction {
 }
 
 Register {
-  @specialize<Identifier, "X" | "Y" | "A" | "x" | "y" | "a">
+  @specialize<Identifier, "a" | "x" | "y" | "A" | "X" | "Y">
 }
 
 Directive {
@@ -31,14 +32,26 @@ Directive {
 
 PseudoOp {
   @specialize<Identifier,
-    "ORG" | "EQU" | "END" | "org" | "equ" | "end" |
+    "org" | "equ" | "end" | ".end" |
+    "ORG" | "EQU" | "END" | ".END" |
     "ds" | "ds.b" | "ds.w" | "dc" | "dc.b" | "dc.w" | "seg" | "seg.u" |
-    "subroutine" |
+    "DS" | "DS.B" | "DS.W" | "DC" | "DC.B" | "DC.W" | "SEG" | "SEG.U" |
+    ".byte" | ".word" |
+    ".BYTE" | ".WORD" |
+    "subroutine" | "SUBROUTINE" |
+    "processor" | "PROCESSOR" |
     "echo" | "repeat" | "repend" | "set" |
-    "processor" |
-    ".WORD" | ".word" | ".BYTE" | ".byte" | ".END" | ".end"
+    "ECHO" | "REPEAT" | "REPEND" | "SET"
   >
 }
+
+HexOp { @specialize<Identifier, "hex" | "HEX"> }
+
+HexDirective {
+  HexOp HexByte*
+}
+
+@external tokens hexTokenizer from "../../src/parser/tokens-6502" { HexByte }
 
 Mac { @specialize<Identifier, "mac"> }
 MacEnd { @specialize<Identifier, "endm"> }
@@ -56,20 +69,20 @@ CurrentAddress {
 
 Opcode {
   @specialize<Identifier,
-    "ADC" | "AND" | "ASL" | "BCC" | "BCS" | "BEQ" | "BIT" | "BMI" |
-    "BNE" | "BPL" | "BRK" | "BVC" | "BVS" | "CLC" | "CLD" | "CLI" |
-    "CLV" | "CMP" | "CPX" | "CPY" | "DEC" | "DEX" | "DEY" | "EOR" |
-    "INC" | "INX" | "INY" | "JMP" | "JSR" | "LDA" | "LDX" | "LDY" |
-    "LSR" | "NOP" | "ORA" | "PHA" | "PHP" | "PLA" | "PLP" | "ROL" |
-    "ROR" | "RTI" | "RTS" | "SBC" | "SEC" | "SED" | "SEI" | "STA" |
-    "STX" | "STY" | "TAX" | "TAY" | "TSX" | "TXA" | "TXS" | "TYA" |
     "adc" | "and" | "asl" | "bcc" | "bcs" | "beq" | "bit" | "bmi" |
     "bne" | "bpl" | "brk" | "bvc" | "bvs" | "clc" | "cld" | "cli" |
     "clv" | "cmp" | "cpx" | "cpy" | "dec" | "dex" | "dey" | "eor" |
     "inc" | "inx" | "iny" | "jmp" | "jsr" | "lda" | "ldx" | "ldy" |
     "lsr" | "nop" | "ora" | "pha" | "php" | "pla" | "plp" | "rol" |
     "ror" | "rti" | "rts" | "sbc" | "sec" | "sed" | "sei" | "sta" |
-    "stx" | "sty" | "tax" | "tay" | "tsx" | "txa" | "txs" | "tya"
+    "stx" | "sty" | "tax" | "tay" | "tsx" | "txa" | "txs" | "tya" |
+    "ADC" | "AND" | "ASL" | "BCC" | "BCS" | "BEQ" | "BIT" | "BMI" |
+    "BNE" | "BPL" | "BRK" | "BVC" | "BVS" | "CLC" | "CLD" | "CLI" |
+    "CLV" | "CMP" | "CPX" | "CPY" | "DEC" | "DEX" | "DEY" | "EOR" |
+    "INC" | "INX" | "INY" | "JMP" | "JSR" | "LDA" | "LDX" | "LDY" |
+    "LSR" | "NOP" | "ORA" | "PHA" | "PHP" | "PLA" | "PLP" | "ROL" |
+    "ROR" | "RTI" | "RTS" | "SBC" | "SEC" | "SED" | "SEI" | "STA" |
+    "STX" | "STY" | "TAX" | "TAY" | "TSX" | "TXA" | "TXS" | "TYA"
   >
 }
 

@@ -38,6 +38,8 @@ exports.Lezer6502 = language_1.LRLanguage.define({
                 BinaryGt: highlight_1.tags.compareOperator,
                 UnaryLt: highlight_1.tags.arithmeticOperator,
                 UnaryGt: highlight_1.tags.arithmeticOperator,
+                HexOp: highlight_1.tags.definition(highlight_1.tags.variableName),
+                HexByte: highlight_1.tags.number,
                 Mac: highlight_1.tags.definitionKeyword,
                 MacEnd: highlight_1.tags.definitionKeyword,
                 "MacroDef/Identifier": highlight_1.tags.macroName,
