@@ -1,5 +1,5 @@
 import { closeBrackets, deleteBracketPair } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyKeymap, indentWithTab, undo } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, undo } from "@codemirror/commands";
 import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, foldGutter, indentOnInput, indentUnit } from "@codemirror/language";
@@ -26,6 +26,7 @@ import { isMobileDevice, ProjectView } from "./baseviews";
 import { debugHighlightTagsTooltip } from "./debug";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
 import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset, statusMarkers } from "./gutter";
+import { tabKeymap } from "./tabs";
 import { currentPc, errorMessages, highlightLines, showValue } from "./visuals";
 
 // TODO: make this an easily toggleable debug setting.
@@ -193,7 +194,7 @@ export class SourceEditor implements ProjectView {
         debugHighlightTags ? debugHighlightTagsTooltip : [],
         EditorState.tabSize.of(8),
         indentUnit.of("        "),
-        keymap.of([indentWithTab]),
+        keymap.of(tabKeymap),
         lineWrap ? EditorView.lineWrapping : [],
 
         currentPc.field,

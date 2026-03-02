@@ -27,6 +27,7 @@ const baseviews_1 = require("./baseviews");
 const debug_1 = require("./debug");
 const filters_1 = require("./filters");
 const gutter_1 = require("./gutter");
+const tabs_1 = require("./tabs");
 const visuals_1 = require("./visuals");
 // TODO: make this an easily toggleable debug setting.
 // Debug syntax highlighting. Useful when developing new parsers and themes.
@@ -164,7 +165,7 @@ class SourceEditor {
                 debugHighlightTags ? debug_1.debugHighlightTagsTooltip : [],
                 state_1.EditorState.tabSize.of(8),
                 language_1.indentUnit.of("        "),
-                view_1.keymap.of([commands_1.indentWithTab]),
+                view_1.keymap.of(tabs_1.tabKeymap),
                 lineWrap ? view_1.EditorView.lineWrapping : [],
                 visuals_1.currentPc.field,
                 !minimalGutters ? [
