@@ -521,6 +521,21 @@ div.asset_block {
   color: #99cc99;
   text-align: right;
 }
+.asset-header-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(153, 204, 153, 0.15);
+  color: #99cc99;
+  font-size: 0.85em;
+  cursor: pointer;
+  opacity: 0.6;
+}
+.asset-header-badge:hover {
+  opacity: 1;
+  background: rgba(153, 204, 153, 0.3);
+  text-decoration: underline;
+}
 .asset_error_msg {
   color: #ff6666;
   background-color: #330000;

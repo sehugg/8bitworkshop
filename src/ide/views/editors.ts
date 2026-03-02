@@ -26,6 +26,7 @@ import { isMobileDevice, ProjectView } from "./baseviews";
 import { debugHighlightTagsTooltip } from "./debug";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
 import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset, statusMarkers } from "./gutter";
+import { createAssetHeaderPlugin } from "./assetdecorations";
 import { tabKeymap } from "./tabs";
 import { currentPc, errorMessages, errorSpans, highlightLines, showValue } from "./visuals";
 
@@ -243,6 +244,10 @@ export class SourceEditor implements ProjectView {
         currentPcMarker.gutter,
 
         highlightLines.field,
+
+        createAssetHeaderPlugin(() => {
+          projectWindows.createOrShow('#asseteditor');
+        }),
 
         textTransformFilterCompartment.of([]),
 
