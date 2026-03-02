@@ -228,6 +228,10 @@ const highlightLinesField = StateField.define({
         return Decoration.set(decorationRanges);
       }
     }
+    // dismiss highlights on user interaction
+    if (decorations !== Decoration.none && (tr.docChanged || tr.selection)) {
+      return Decoration.none;
+    }
     return decorations;
   },
   provide: f => EditorView.decorations.from(f),
