@@ -20,6 +20,7 @@ export interface ProjectView {
     recreateOnResize?: boolean;
     undoStep?(): void;
     redoStep?(): void;
+    replaceTextRange?(from: number, to: number, text: string): void;
 };
 
 // detect mobile (https://stackoverflow.com/questions/3514784/what-is-the-best-way-to-detect-a-mobile-device)

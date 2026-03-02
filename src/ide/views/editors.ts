@@ -302,6 +302,19 @@ export class SourceEditor implements ProjectView {
     }
   }
 
+  replaceTextRange(from: number, to: number, text: string) {
+    const fromline = this.editor.state.doc.lineAt(from).number;
+    const toline = this.editor.state.doc.lineAt(to).number;
+    this.editor.dispatch({
+      changes: { from, to, insert: text },
+      annotations: isolateHistory.of("full"),
+      selection: { anchor: from, head: to },
+      effects: [
+        EditorView.scrollIntoView(this.editor.state.doc.line(fromline).from, { y: "start", yMargin: 100/*pixels*/ }),
+      ]
+    });
+  }
+
   insertLinesBefore(text: string) {
     const pos = this.editor.state.selection.main.from;
     const lineNum = this.editor.state.doc.lineAt(pos).number;
