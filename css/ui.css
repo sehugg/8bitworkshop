@@ -510,6 +510,12 @@ div.asset_block {
   display: inline-block;
   margin-right: 8px;
   cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.asset_linenos:hover {
+  text-decoration: underline;
+  background: rgba(255,255,255,0.1);
 }
 .asset_lineno {
   color: #99cc99;
