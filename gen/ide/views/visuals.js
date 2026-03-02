@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.highlightLines = exports.showValue = exports.currentPc = exports.errorMessages = void 0;
+exports.highlightLines = exports.errorSpans = exports.showValue = exports.currentPc = exports.errorMessages = void 0;
 const gutter_1 = require("./gutter");
 const state_1 = require("@codemirror/state");
 const view_1 = require("@codemirror/view");
@@ -147,6 +147,41 @@ const showValueDecorationField = state_1.StateField.define({
     },
     provide: f => view_1.EditorView.decorations.from(f),
 });
+// Error span decorations for inline column-range highlighting
+const errorSpansEffect = state_1.StateEffect.define();
+const errorSpanDecoration = view_1.Decoration.mark({
+    attributes: { class: "cm-error-span" }
+});
+const errorSpansField = state_1.StateField.define({
+    create() { return view_1.Decoration.none; },
+    update(decorations, tr) {
+        decorations = decorations.map(tr.changes);
+        for (let e of tr.effects) {
+            if (e.is(errorSpansEffect)) {
+                if (e.value === null)
+                    return view_1.Decoration.none;
+                const ranges = [];
+                for (const span of e.value) {
+                    try {
+                        const line = tr.state.doc.line(span.line);
+                        const from = line.from + span.start;
+                        const to = line.from + span.end;
+                        // Clamp to line boundaries
+                        if (from >= line.from && to <= line.to && from < to) {
+                            ranges.push(errorSpanDecoration.range(from, to));
+                        }
+                    }
+                    catch (_a) {
+                        // Line doesn't exist, skip
+                    }
+                }
+                return view_1.Decoration.set(ranges, true);
+            }
+        }
+        return decorations;
+    },
+    provide: f => view_1.EditorView.decorations.from(f),
+});
 const highlightLinesEffect = state_1.StateEffect.define();
 const highlightLinesDecoration = view_1.Decoration.line({
     attributes: { class: "highlight-lines" }
@@ -190,6 +225,10 @@ exports.currentPc = {
 exports.showValue = {
     effect: showValueEffect,
     field: showValueDecorationField,
+};
+exports.errorSpans = {
+    effect: errorSpansEffect,
+    field: errorSpansField,
 };
 exports.highlightLines = {
     effect: highlightLinesEffect,

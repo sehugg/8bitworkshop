@@ -27,7 +27,7 @@ import { debugHighlightTagsTooltip } from "./debug";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
 import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset, statusMarkers } from "./gutter";
 import { tabKeymap } from "./tabs";
-import { currentPc, errorMessages, highlightLines, showValue } from "./visuals";
+import { currentPc, errorMessages, errorSpans, highlightLines, showValue } from "./visuals";
 
 // TODO: make this an easily toggleable debug setting.
 // Debug syntax highlighting. Useful when developing new parsers and themes.
@@ -237,6 +237,8 @@ export class SourceEditor implements ProjectView {
 
         errorMessages.field,
 
+        errorSpans.field,
+
         currentPcMarker.field,
         currentPcMarker.gutter,
 
@@ -329,6 +331,7 @@ export class SourceEditor implements ProjectView {
     this.clearErrors();
     errors = errors.slice(0, MAX_ERRORS);
     const newErrors = new Map<number, string>();
+    const spans: { line: number, start: number, end: number }[] = [];
     for (var info of errors) {
       // only mark errors with this filename, or without any filename
       if (!info.path || this.path.endsWith(info.path)) {
@@ -336,11 +339,16 @@ export class SourceEditor implements ProjectView {
         var line = info.line;
         if (isNaN(line) || line < 1 || line > numLines) line = 1;
         newErrors.set(line, info.msg);
+        // collect column-level spans
+        if (info.start != null && info.end != null && info.end > info.start) {
+          spans.push({ line, start: info.start, end: info.end });
+        }
       }
     }
     this.editor.dispatch({
       effects: [
         errorMarkers.set.of(newErrors),
+        errorSpans.effect.of(spans.length > 0 ? spans : null),
       ],
     });
   }
@@ -351,6 +359,7 @@ export class SourceEditor implements ProjectView {
       effects: [
         errorMarkers.set.of(new Map()),
         errorMarkers.showMessage.of(null),
+        errorSpans.effect.of(null),
       ],
     });
   }

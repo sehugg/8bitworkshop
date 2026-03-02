@@ -158,6 +158,45 @@ const showValueDecorationField = StateField.define({
   provide: f => EditorView.decorations.from(f),
 });
 
+// Error span decorations for inline column-range highlighting
+const errorSpansEffect = StateEffect.define<{ line: number, start: number, end: number }[] | null>();
+
+const errorSpanDecoration = Decoration.mark({
+  attributes: { class: "cm-error-span" }
+});
+
+const errorSpansField = StateField.define({
+  create() { return Decoration.none },
+  update(decorations, tr) {
+    decorations = decorations.map(tr.changes);
+
+    for (let e of tr.effects) {
+      if (e.is(errorSpansEffect)) {
+        if (e.value === null) return Decoration.none;
+
+        const ranges: any[] = [];
+        for (const span of e.value) {
+          try {
+            const line = tr.state.doc.line(span.line);
+            const from = line.from + span.start;
+            const to = line.from + span.end;
+            // Clamp to line boundaries
+            if (from >= line.from && to <= line.to && from < to) {
+              ranges.push(errorSpanDecoration.range(from, to));
+            }
+          } catch {
+            // Line doesn't exist, skip
+          }
+        }
+
+        return Decoration.set(ranges, true);
+      }
+    }
+    return decorations;
+  },
+  provide: f => EditorView.decorations.from(f),
+});
+
 const highlightLinesEffect = StateEffect.define<{ start: number, end: number } | null>();
 
 const highlightLinesDecoration = Decoration.line({
@@ -208,6 +247,11 @@ export const currentPc = {
 export const showValue = {
   effect: showValueEffect,
   field: showValueDecorationField,
+};
+
+export const errorSpans = {
+  effect: errorSpansEffect,
+  field: errorSpansField,
 };
 
 export const highlightLines = {

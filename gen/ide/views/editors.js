@@ -200,6 +200,7 @@ class SourceEditor {
                 }),
                 gutter_1.errorMarkers.field,
                 visuals_1.errorMessages.field,
+                visuals_1.errorSpans.field,
                 gutter_1.currentPcMarker.field,
                 gutter_1.currentPcMarker.gutter,
                 visuals_1.highlightLines.field,
@@ -279,6 +280,7 @@ class SourceEditor {
         this.clearErrors();
         errors = errors.slice(0, MAX_ERRORS);
         const newErrors = new Map();
+        const spans = [];
         for (var info of errors) {
             // only mark errors with this filename, or without any filename
             if (!info.path || this.path.endsWith(info.path)) {
@@ -287,11 +289,16 @@ class SourceEditor {
                 if (isNaN(line) || line < 1 || line > numLines)
                     line = 1;
                 newErrors.set(line, info.msg);
+                // collect column-level spans
+                if (info.start != null && info.end != null && info.end > info.start) {
+                    spans.push({ line, start: info.start, end: info.end });
+                }
             }
         }
         this.editor.dispatch({
             effects: [
                 gutter_1.errorMarkers.set.of(newErrors),
+                visuals_1.errorSpans.effect.of(spans.length > 0 ? spans : null),
             ],
         });
     }
@@ -301,6 +308,7 @@ class SourceEditor {
             effects: [
                 gutter_1.errorMarkers.set.of(new Map()),
                 gutter_1.errorMarkers.showMessage.of(null),
+                visuals_1.errorSpans.effect.of(null),
             ],
         });
     }
