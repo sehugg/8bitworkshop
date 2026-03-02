@@ -365,6 +365,7 @@ EnemyFrame0
         .byte #%01111110;$8E
         .byte #%11000011;$98
         .byte #%10000001;$98
+;;
 ;;{pal:"vcs"};;
 EnemyColorFrame0
 	.byte #8	; height
@@ -376,6 +377,7 @@ EnemyColorFrame0
         .byte #$8E;
         .byte #$98;
         .byte #$94;
+;;
 ;; Player graphics data, such bitmap
 ;;{w:8,h:10,brev:1,flip:1};;
 Frame0

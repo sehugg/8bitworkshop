@@ -19,6 +19,7 @@ export interface ProjectView {
     setTimingResult?(result: CodeAnalyzer): void;
     recreateOnResize?: boolean;
     undoStep?(): void;
+    redoStep?(): void;
 };
 
 // detect mobile (https://stackoverflow.com/questions/3514784/what-is-the-best-way-to-detect-a-mobile-device)

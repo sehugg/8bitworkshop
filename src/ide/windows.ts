@@ -5,45 +5,48 @@ import { WorkerError, FileData } from "../common/workertypes";
 import { getFilenamePrefix, getFilenameForPath } from "../common/util";
 import { ProjectView } from "./views/baseviews";
 
-type WindowCreateFunction = (id:string) => ProjectView;
-type WindowShowFunction = (id:string, view:ProjectView) => void;
+type WindowCreateFunction = (id: string) => ProjectView;
+type WindowShowFunction = (id: string, view: ProjectView) => void;
 
 export class ProjectWindows {
-  containerdiv : HTMLElement;
-  project : CodeProject;
-  id2window : {[id:string]:ProjectView} = {};
-  id2createfn : {[id:string]:WindowCreateFunction} = {};
-  id2showfn : {[id:string]:WindowShowFunction} = {};
-  id2div : {[id:string]:HTMLElement} = {};
-  activeid : string;
-  activewnd : ProjectView;
-  activediv : HTMLElement;
-  lasterrors : WorkerError[];
-  undofiles : string[];
+  containerdiv: HTMLElement;
+  project: CodeProject;
+  id2window: { [id: string]: ProjectView } = {};
+  id2createfn: { [id: string]: WindowCreateFunction } = {};
+  id2showfn: { [id: string]: WindowShowFunction } = {};
+  id2div: { [id: string]: HTMLElement } = {};
+  activeid: string;
+  activewnd: ProjectView;
+  activediv: HTMLElement;
+  lasterrors: WorkerError[];
+  undofiles: string[];
+  redofiles: string[];
+  alerting: boolean;
 
-  constructor(containerdiv:HTMLElement, project:CodeProject) {
+  constructor(containerdiv: HTMLElement, project: CodeProject) {
     this.containerdiv = containerdiv;
     this.project = project;
     this.undofiles = [];
+    this.redofiles = [];
   }
   // TODO: delete windows ever?
 
-  isWindow(id:string) : boolean {
+  isWindow(id: string): boolean {
     return this.id2createfn[id] != null;
   }
 
-  setCreateFunc(id:string, createfn:WindowCreateFunction) : void {
+  setCreateFunc(id: string, createfn: WindowCreateFunction): void {
     this.id2createfn[id] = createfn;
   }
-  
-  setShowFunc(id:string, showfn:WindowShowFunction) : void {
+
+  setShowFunc(id: string, showfn: WindowShowFunction): void {
     this.id2showfn[id] = showfn;
   }
 
-  create(id:string) : ProjectView {
+  create(id: string): ProjectView {
     var wnd = this.id2window[id];
     if (!wnd) {
-      console.log("creating window",id);
+      console.log("creating window", id);
       wnd = this.id2window[id] = this.id2createfn[id](id);
     }
     var div = this.id2div[id];
@@ -54,7 +57,7 @@ export class ProjectWindows {
     return wnd;
   }
 
-  createOrShow(id: string, moveCursor?: boolean) : ProjectView {
+  createOrShow(id: string, moveCursor?: boolean): ProjectView {
     var wnd = this.create(id);
     var div = this.id2div[id];
     if (this.activewnd != wnd) {
@@ -74,27 +77,27 @@ export class ProjectWindows {
     return wnd;
   }
 
-  put(id:string, window:ProjectView) : void {
+  put(id: string, window: ProjectView): void {
     this.id2window[id] = window;
   }
 
-  refresh(moveCursor:boolean) : void {
+  refresh(moveCursor: boolean): void {
     // refresh current window
     if (this.activewnd && this.activewnd.refresh)
       this.activewnd.refresh(moveCursor);
   }
 
-  tick() : void {
+  tick(): void {
     if (this.activewnd && this.activewnd.tick)
       this.activewnd.tick();
   }
 
-  setErrors(errors:WorkerError[]) : void {
+  setErrors(errors: WorkerError[]): void {
     this.lasterrors = errors;
     this.refreshErrors();
   }
 
-  refreshErrors() : void {
+  refreshErrors(): void {
     if (this.activewnd && this.activewnd.markErrors) {
       if (this.lasterrors && this.lasterrors.length)
         this.activewnd.markErrors(this.lasterrors);
@@ -103,18 +106,18 @@ export class ProjectWindows {
     }
   }
 
-  getActive() : ProjectView { return this.activewnd; }
+  getActive(): ProjectView { return this.activewnd; }
 
-  getActiveID() : string { return this.activeid; }
+  getActiveID(): string { return this.activeid; }
 
-  getCurrentText() : string {
+  getCurrentText(): string {
     if (this.activewnd && this.activewnd.getValue)
       return this.activewnd.getValue();
     else
       bootbox.alert("Please switch to an editor window.");
   }
 
-  resize() : void {
+  resize(): void {
     if (this.activeid && this.activewnd && this.activewnd.recreateOnResize) {
       this.activewnd = null;
       this.id2window[this.activeid] = null;
@@ -123,25 +126,46 @@ export class ProjectWindows {
     }
   }
 
-  updateFile(fileid:string, data:FileData) {
+  updateFile(fileid: string, data: FileData) {
     // is there an editor? if so, use it
     var wnd = this.id2window[fileid];
     if (wnd && wnd.setText && typeof data === 'string') {
       wnd.setText(data);
       this.undofiles.push(fileid);
+      this.redofiles = [];
     } else {
       this.project.updateFile(fileid, data);
     }
   }
-  
+
   undoStep() {
     var fileid = this.undofiles.pop();
     var wnd = this.id2window[fileid];
     if (wnd && wnd.undoStep) {
       wnd.undoStep();
+      this.redofiles.push(fileid);
+      this.refresh(false);
     } else {
-      bootbox.alert("No more steps to undo.");
+      this.showAlert("No more steps to undo.");
     }
+  }
+
+  redoStep() {
+    var fileid = this.redofiles.pop();
+    var wnd = this.id2window[fileid];
+    if (wnd && wnd.redoStep) {
+      wnd.redoStep();
+      this.undofiles.push(fileid);
+      this.refresh(false);
+    } else {
+      this.showAlert("No more steps to redo.");
+    }
+  }
+
+  showAlert(msg: string) {
+    if (this.alerting) return;
+    this.alerting = true;
+    bootbox.alert(msg, () => { this.alerting = false; });
   }
 
   updateAllOpenWindows(store) {
@@ -155,11 +179,11 @@ export class ProjectWindows {
     }
   }
 
-  findWindowWithFilePrefix(filename : string) : string {
+  findWindowWithFilePrefix(filename: string): string {
     filename = getFilenameForPath(getFilenamePrefix(filename));
     for (var fileid in this.id2createfn) {
       // ignore include files (TODO)
-      if (fileid.toLowerCase().endsWith('.h') || fileid.toLowerCase().endsWith('.inc')  || fileid.toLowerCase().endsWith('.bas'))
+      if (fileid.toLowerCase().endsWith('.h') || fileid.toLowerCase().endsWith('.inc') || fileid.toLowerCase().endsWith('.bas'))
         continue;
       if (getFilenameForPath(getFilenamePrefix(fileid)) == filename) return fileid;
     }

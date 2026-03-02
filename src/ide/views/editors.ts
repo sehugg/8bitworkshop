@@ -1,5 +1,5 @@
 import { closeBrackets, deleteBracketPair } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyKeymap, indentWithTab, undo } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory, redo, undo } from "@codemirror/commands";
 import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, foldGutter, indentOnInput, indentUnit } from "@codemirror/language";
@@ -293,7 +293,8 @@ export class SourceEditor implements ProjectView {
     var oldtext = this.editor.state.doc.toString();
     if (oldtext != text) {
       this.editor.dispatch({
-        changes: { from: 0, to: this.editor.state.doc.length, insert: text }
+        changes: { from: 0, to: this.editor.state.doc.length, insert: text },
+        annotations: isolateHistory.of("full")
       });
     }
   }
@@ -532,6 +533,10 @@ export class SourceEditor implements ProjectView {
 
   undoStep() {
     undo(this.editor);
+  }
+
+  redoStep() {
+    redo(this.editor);
   }
 
   getBreakpointPCs(): number[] {
