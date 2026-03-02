@@ -192,6 +192,30 @@ export function convertWordsToImages(words: UintArray, fmt: PixelEditorImageForm
   return images;
 }
 
+export function validateAssetData(datastr: string, fmt): string | null {
+  var words = parseHexWords(convertToHexStatements(datastr));
+  if (fmt.w > 0 && fmt.h > 0) {
+    // same variables as convertWordsToImages
+    var count = fmt.count || 1;
+    var bpp = fmt.bpp || 1;
+    var nplanes = fmt.np || 1;
+    var bitsperword = fmt.bpw || 8;
+    var wordsperline = fmt.sl || Math.ceil(fmt.w * bpp / bitsperword);
+    var pofs = fmt.pofs || wordsperline * fmt.h * count;
+    var skip = fmt.skip || 0;
+    var wpimg = fmt.wpimg || wordsperline * fmt.h;
+    var required = wpimg * count + (nplanes > 1 ? (nplanes - 1) * pofs : 0) + skip;
+    if (words.length != required) {
+      return `Expected ${required} value(s), found ${words.length}`;
+    }
+  } else if (fmt.pal) {
+    if (words.length < 1) {
+      return `Palette requires at least 1 value, found ${words.length}`;
+    }
+  }
+  return null;
+}
+
 export function convertImagesToWords(images: Uint8Array[], fmt: PixelEditorImageFormat): number[] {
   if (fmt.destfmt) fmt = fmt.destfmt;
   var width = fmt.w;
