@@ -140,8 +140,8 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     // scan file for assets
     // /*{json}*/ or ;;{json};;
     // TODO: put before ident, look for = {
-    var result = [];
     var re1 = /[/;][*;]([{].+[}])[*;][/;]/g;
+    var result = [];
     var m;
     while (m = re1.exec(data)) {
       var start = m.index + m[0].length;
@@ -151,6 +151,10 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         end = data.indexOf("end", start); // asm
       } else if (m[0].startsWith(';;')) {
         end = data.indexOf(';;', start); // asm
+        if (end == data.indexOf(';;{', start)) {
+          // ignore start of next asset
+          end = -1;
+        }
       } else {
         end = data.indexOf(';', start); // C
       }
