@@ -256,6 +256,7 @@ Frame0
         .byte #%01111100;$18
         .byte #%11111110;$F2
         .byte #%00111000;$F4
+;;
 ;; Color data for each line of sprite
 ;;{pal:"vcs"};;
 ColorFrame0
