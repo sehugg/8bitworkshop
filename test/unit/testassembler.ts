@@ -1,6 +1,6 @@
 import { describe, it } from "mocha";
 import assert from "assert";
-import { Assembler } from "../worker/assembler";
+import { Assembler } from "../../src/worker/assembler";
 
 describe('Assembler', function () {
 

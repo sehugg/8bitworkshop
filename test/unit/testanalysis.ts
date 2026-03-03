@@ -1,7 +1,7 @@
 import { describe } from "mocha";
-import { OpcodeMetadata, Platform } from "../common/baseplatform";
-import { CodeAnalyzer_vcs } from "../common/analysis";
-import { MOS6502 } from "../common/cpu/MOS6502";
+import { OpcodeMetadata, Platform } from "../../src/common/baseplatform";
+import { CodeAnalyzer_vcs } from "../../src/common/analysis";
+import { MOS6502 } from "../../src/common/cpu/MOS6502";
 import assert from "assert";
 
 class Test6502Platform implements Platform {

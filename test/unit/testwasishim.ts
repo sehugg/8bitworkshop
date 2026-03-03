@@ -1,7 +1,7 @@
 import assert from "assert";
-import { WASIRunner } from "../common/wasi/wasishim";
+import { WASIRunner } from "../../src/common/wasi/wasishim";
 import * as fs from "fs";
-import { loadWASIFilesystemZip, unzipWASIFilesystem } from "../worker/wasiutils";
+import { loadWASIFilesystemZip, unzipWASIFilesystem } from "../../src/worker/wasiutils";
 
 async function loadWASM(filename: string) {
     const wasmdata = fs.readFileSync(`./src/worker/wasm/${filename}.wasm`);

@@ -21,7 +21,7 @@
  */
 
 import assert from "assert";
-import { DWARFParser, ELFParser } from "../common/binutils";
+import { DWARFParser, ELFParser } from "../../src/common/binutils";
 
 describe('test ELFParser', () => {
 

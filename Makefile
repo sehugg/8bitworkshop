@@ -35,7 +35,7 @@ submodules:
 
 buildtsc: submodules buildgrammars
 	npm run esbuild-clean
-	$(TSC) tsconfig.json
+	npm run tsbuild
 	npm run esbuild
 
 prepare: buildtsc

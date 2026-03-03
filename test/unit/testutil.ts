@@ -1,11 +1,11 @@
 
 import assert from "assert";
 import { describe } from "mocha";
-import { EmuHalt } from "../common/emu"
-import { lzgmini, isProbablyBinary, hex } from "../common/util";
-import { Tokenizer, TokenType } from "../common/tokenizer";
-import { OPS_6502 } from "../common/cpu/disasm6502";
-import { MOS6502 } from "../common/cpu/MOS6502";
+import { EmuHalt } from "../../src/common/emu"
+import { lzgmini, isProbablyBinary, hex } from "../../src/common/util";
+import { Tokenizer, TokenType } from "../../src/common/tokenizer";
+import { OPS_6502 } from "../../src/common/cpu/disasm6502";
+import { MOS6502 } from "../../src/common/cpu/MOS6502";
 
 var NES_CONIO_ROM_LZG = [
   76, 90, 71, 0, 0, 160, 16, 0, 0, 11, 158, 107, 131, 223, 83, 1, 9, 17, 21, 22, 78, 69, 83, 26, 2, 1, 3, 0, 22, 6, 120, 216,

@@ -2,9 +2,9 @@
 import { spawnSync } from "child_process";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { describe } from "mocha";
-import { Bin, BoxConstraints, Packer } from "../common/ecs/binpack";
-import { ECSCompiler } from "../common/ecs/compiler";
-import { Dialect_CA65, EntityManager, SourceFileExport } from "../common/ecs/ecs";
+import { Bin, BoxConstraints, Packer } from "../../src/common/ecs/binpack";
+import { ECSCompiler } from "../../src/common/ecs/compiler";
+import { Dialect_CA65, EntityManager, SourceFileExport } from "../../src/common/ecs/ecs";
 
 function testCompiler() {
     let em = new EntityManager(new Dialect_CA65()); // TODO

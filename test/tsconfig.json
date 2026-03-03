@@ -1,0 +1,10 @@
+{
+    "extends": "../tsconfig",
+    "include": [
+        "**/*.ts"
+    ],
+    "compilerOptions": {
+        "outDir": "../gen",
+        "rootDir": "..",
+    }
+}

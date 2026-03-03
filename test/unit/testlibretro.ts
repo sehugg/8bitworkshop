@@ -1,6 +1,6 @@
 import assert from "assert";
 import * as fs from "fs";
-import { LibRetroRunner } from "../common/wasi/libretro";
+import { LibRetroRunner } from "../../src/common/wasi/libretro";
 
 async function loadLibretro() {
     const wasmdata = fs.readFileSync(`./wasi/stella2014_libretro_2.wasm`);
