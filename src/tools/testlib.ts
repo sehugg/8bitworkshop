@@ -4,7 +4,7 @@
 
 import * as fs from 'fs';
 import type { WorkerResult, WorkerMessage, WorkerErrorResult, WorkerOutputResult } from "../common/workertypes";
-import { setupNodeEnvironment, handleMessage, store, TOOL_PRELOADFS } from "../worker/workerlib";
+import { setupNodeEnvironment, handleMessage, store, TOOL_PRELOADFS } from "./workerlib";
 import { PLATFORM_PARAMS } from "../worker/platforms";
 import { TOOLS } from "../worker/workertools";
 
