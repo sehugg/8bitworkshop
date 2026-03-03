@@ -5210,9 +5210,17 @@
       arch: "gbz80",
       code_start: 0,
       rom_size: 32768,
-      data_start: 49152,
-      data_size: 8192,
+      data_start: 49312,
+      data_size: 8032,
       stack_end: 57344,
+      extra_link_args: [
+        "-g",
+        "_shadow_OAM=0xC000",
+        "-g",
+        ".STACK=0xE000",
+        "-g",
+        ".refresh_OAM=0xFF80"
+      ],
       wiz_sys_type: "gb",
       wiz_inc_dir: "gb"
     }
