@@ -3,7 +3,7 @@
 // 8bws - 8bitworkshop CLI tool for compilation, ROM execution, and platform info
 
 import * as fs from 'fs';
-import { initialize, compile, compileSourceFile, preload, listTools, listPlatforms, PLATFORM_PARAMS, TOOLS, TOOL_PRELOADFS } from './testlib';
+import { initialize, compile, compileSourceFile, preload, listTools, listPlatforms, getToolForFilename, PLATFORM_PARAMS, TOOLS, TOOL_PRELOADFS } from './testlib';
 
 interface CLIResult {
   success: boolean;
@@ -22,8 +22,8 @@ function usage(): void {
     command: 'help',
     data: {
       commands: {
-        'compile': 'compile --tool <tool> --platform <platform> [--output <file>] <source>',
-        'check': 'check --tool <tool> --platform <platform> <source>',
+        'compile': 'compile --platform <platform> [--tool <tool>] [--output <file>] <source>',
+        'check': 'check --platform <platform> [--tool <tool>] <source>',
         'run': 'run --platform <platform> [--frames N] <rom>',
         'list-tools': 'list-tools',
         'list-platforms': 'list-platforms',
@@ -61,13 +61,18 @@ async function doCompile(args: { [key: string]: string }, positional: string[], 
   var outputFile = args['output'];
   var sourceFile = positional[0];
 
-  if (!tool || !platform || !sourceFile) {
+  if (!platform || !sourceFile) {
     outputJSON({
       success: false,
       command: checkOnly ? 'check' : 'compile',
-      error: 'Required: --tool <tool> --platform <platform> <source>'
+      error: 'Required: --platform <platform> <source> [--tool <tool>]'
     });
     process.exit(1);
+  }
+
+  // Auto-detect tool from filename if not specified
+  if (!tool) {
+    tool = getToolForFilename(sourceFile, platform);
   }
 
   if (!TOOLS[tool]) {

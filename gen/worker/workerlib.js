@@ -1,6 +1,7 @@
 "use strict";
 // workerlib.ts - Node.js-friendly entry point for the worker build system
 // Re-exports core worker functionality without Web Worker onmessage/postMessage wiring
+// FOR TESTING ONLY
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -79,6 +80,14 @@ class Blob {
  */
 function setupNodeEnvironment() {
     // Basic globals expected by various parts of the worker system
+    // Some Emscripten-generated WASM modules check for __filename/__dirname
+    if (typeof globalThis.__filename === 'undefined') {
+        globalThis.__filename = __filename;
+    }
+    if (typeof globalThis.__dirname === 'undefined') {
+        globalThis.__dirname = __dirname;
+        // TODO: support require('path').dirname
+    }
     wasmutils_1.emglobal.window = wasmutils_1.emglobal;
     wasmutils_1.emglobal.exports = {};
     wasmutils_1.emglobal.self = wasmutils_1.emglobal;
