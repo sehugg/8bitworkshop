@@ -9,6 +9,9 @@
     "url": "git+https://github.com/sehugg/8bitworkshop.git"
   },
   "license": "GPL-3.0",
+  "bin": {
+    "8bws": "./gen/cli/8bws.js"
+  },
   "dependencies": {
     "@codemirror/commands": "^6.10.2",
     "@codemirror/lang-cpp": "^6.0.3",
@@ -88,6 +91,7 @@
     "fuzzbasic": "jsfuzz gen/common/basic/fuzz.js ~/basic/corpus/ --versifier false",
     "fuzzhdl": "jsfuzz -r binaryen gen/common/hdl/fuzz.js ~/verilator/corpus/ --versifier false",
     "machine": "node gen/tools/runmachine.js",
+    "cli": "node gen/tools/8bws.js",
     "mkdoc": "typedoc --out web/jsdoc src/common/"
   },
   "keywords": [
