@@ -1,6 +1,7 @@
 
 // workerlib.ts - Node.js-friendly entry point for the worker build system
 // Re-exports core worker functionality without Web Worker onmessage/postMessage wiring
+// FOR TESTING ONLY
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -46,6 +47,14 @@ class Blob {
  */
 export function setupNodeEnvironment() {
   // Basic globals expected by various parts of the worker system
+  // Some Emscripten-generated WASM modules check for __filename/__dirname
+  if (typeof globalThis.__filename === 'undefined') {
+    (globalThis as any).__filename = __filename;
+  }
+  if (typeof globalThis.__dirname === 'undefined') {
+    (globalThis as any).__dirname = __dirname;
+    // TODO: support require('path').dirname
+  }
   emglobal.window = emglobal;
   emglobal.exports = {};
   emglobal.self = emglobal;
