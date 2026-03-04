@@ -304,7 +304,9 @@ function refreshWindowList() {
       projectWindows.setCreateFunc(id, createfn);
       projectWindows.setShowFunc(id, onopen);
       $(a).click((e) => {
-        projectWindows.createOrShow(id);
+        e.preventDefault();
+        var hash = id.startsWith('#') ? id : '#' + encodeURIComponent(id);
+        window.location.hash = hash;
         lastViewClicked = id;
       });
     }
@@ -373,16 +375,16 @@ function refreshWindowList() {
     });
   }
   if (platform.readVRAMAddress) {
-    addWindowItem("#memvram", "VRAM Browser", () => {
+    addWindowItem("#vram", "VRAM Browser", () => {
       return new VRAMMemoryView();
     });
   }
   if (platform.startProbing) {
-    addWindowItem("#memheatmap", "Memory Probe", () => {
+    addWindowItem("#memprobe", "Memory Probe", () => {
       return new AddressHeatMapView();
     });
     // TODO: only if raster
-    addWindowItem("#crtheatmap", "CRT Probe", () => {
+    addWindowItem("#crtprobe", "CRT Probe", () => {
       //return new RasterPCHeatMapView();
       return new RasterStackMapView();
     });
@@ -392,7 +394,7 @@ function refreshWindowList() {
     addWindowItem("#scanlineio", "Scanline I/O", () => {
       return new ScanlineIOView();
     });
-    addWindowItem("#symbolprobe", "Symbol Profiler", () => {
+    addWindowItem("#symbols", "Symbol Profiler", () => {
       return new ProbeSymbolView();
     });
     addWindowItem("#callstack", "Call Stack", () => {
@@ -405,7 +407,7 @@ function refreshWindowList() {
     */
   }
   if (platform.getDebugTree) {
-    addWindowItem("#debugview", "Debug Tree", () => {
+    addWindowItem("#debugtree", "Debug Tree", () => {
       return new DebugBrowserView();
     });
   }
@@ -424,7 +426,12 @@ function highlightLines(path: string, hispec: string) {
   }
 }
 
-function loadMainWindow(preset_id: string) {
+async function loadMainWindow(preset_id: string) {
+  // pre-load dependencies so refreshWindowList sees all files
+  var maindata = current_project.getFile(preset_id);
+  if (typeof maindata === 'string') {
+    await current_project.loadFileDependencies(maindata);
+  }
   // we need this to build create functions for the editor
   refreshWindowList();
   // show main file
@@ -444,11 +451,11 @@ async function loadProject(preset_id: string) {
   var result = await current_project.loadFiles([preset_id]);
   if (result && result.length) {
     // file found; continue
-    loadMainWindow(preset_id);
+    await loadMainWindow(preset_id);
   } else {
     var skel = await getSkeletonFile(preset_id);
     current_project.filedata[preset_id] = skel || "\n";
-    loadMainWindow(preset_id);
+    await loadMainWindow(preset_id);
     // don't alert if we selected "new file"
     if (!qs.newfile) {
       alertInfo("Could not find file \"" + preset_id + "\". Loading default file.");
@@ -1683,7 +1690,37 @@ export function gotoNewLocation(replaceHistory?: boolean, newQueryString?: {}) {
 function replaceURLState() {
   if (platform_id) qs.platform = platform_id;
   delete qs['']; // remove null parameter
-  history.replaceState({}, "", "?" + $.param(qs));
+  history.replaceState({}, "", "?" + $.param(qs) + window.location.hash);
+}
+
+function hashToViewIdResolved(hash: string): string | null {
+  if (!hash || hash === '#') return null;
+  var id = decodeURIComponent(hash.substring(1));
+  // check if it's a registered tool window (e.g. #asseteditor)
+  if (projectWindows.isWindow('#' + id)) return '#' + id;
+  // otherwise treat as a file path (e.g. hello.asm)
+  if (projectWindows.isWindow(id)) return id;
+  return null;
+}
+
+function installHashChangeHandler() {
+  function onHashChange() {
+    const hash = window.location.hash;
+    const viewId = (hash && hash !== '#') ? hashToViewIdResolved(hash) : null;
+    const targetId = viewId || getCurrentMainFilename();
+    if (targetId !== projectWindows.getActiveID()) {
+      projectWindows.createOrShow(targetId);
+    }
+  }
+  window.addEventListener('popstate', onHashChange);
+  window.addEventListener('hashchange', onHashChange);
+}
+
+function navigateToInitialHash(initialHash: string) {
+  if (initialHash && initialHash !== '#') {
+    const viewId = hashToViewIdResolved(initialHash) || getCurrentMainFilename();
+    projectWindows.createOrShow(viewId);
+  }
 }
 
 function addPageFocusHandlers() {
@@ -1768,6 +1805,7 @@ async function startPlatform() {
     qs.file += '.a';
   }
   // start platform and load file
+  var initialHash = window.location.hash;
   replaceURLState();
   installErrorHandler();
   installGAHooks();
@@ -1775,6 +1813,8 @@ async function startPlatform() {
   await loadBIOSFromProject();
   await initProject();
   await loadProject(qs.file);
+  navigateToInitialHash(initialHash);
+  installHashChangeHandler();
   platform.sourceFileFetch = (path) => current_project.filedata[path];
   setupDebugControls();
   addPageFocusHandlers();

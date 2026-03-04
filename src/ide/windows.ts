@@ -35,7 +35,7 @@ export class ProjectWindows {
   setCreateFunc(id:string, createfn:WindowCreateFunction) : void {
     this.id2createfn[id] = createfn;
   }
-  
+
   setShowFunc(id:string, showfn:WindowShowFunction) : void {
     this.id2showfn[id] = showfn;
   }
@@ -71,6 +71,12 @@ export class ProjectWindows {
       this.refresh(moveCursor);
     }
     this.activeid = id;
+    if (typeof window !== 'undefined') {
+      const hash = id.startsWith('#') ? id : '#' + encodeURIComponent(id);
+      if (window.location.hash !== hash) {
+        history.replaceState(null, '', hash);
+      }
+    }
     return wnd;
   }
 
@@ -133,7 +139,7 @@ export class ProjectWindows {
       this.project.updateFile(fileid, data);
     }
   }
-  
+
   undoStep() {
     var fileid = this.undofiles.pop();
     var wnd = this.id2window[fileid];
