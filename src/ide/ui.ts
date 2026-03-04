@@ -426,7 +426,12 @@ function highlightLines(path: string, hispec: string) {
   }
 }
 
-function loadMainWindow(preset_id: string) {
+async function loadMainWindow(preset_id: string) {
+  // pre-load dependencies so refreshWindowList sees all files
+  var maindata = current_project.getFile(preset_id);
+  if (typeof maindata === 'string') {
+    await current_project.loadFileDependencies(maindata);
+  }
   // we need this to build create functions for the editor
   refreshWindowList();
   // show main file
@@ -446,11 +451,11 @@ async function loadProject(preset_id: string) {
   var result = await current_project.loadFiles([preset_id]);
   if (result && result.length) {
     // file found; continue
-    loadMainWindow(preset_id);
+    await loadMainWindow(preset_id);
   } else {
     var skel = await getSkeletonFile(preset_id);
     current_project.filedata[preset_id] = skel || "\n";
-    loadMainWindow(preset_id);
+    await loadMainWindow(preset_id);
     // don't alert if we selected "new file"
     if (!qs.newfile) {
       alertInfo("Could not find file \"" + preset_id + "\". Loading default file.");
