@@ -373,16 +373,16 @@ function refreshWindowList() {
     });
   }
   if (platform.readVRAMAddress) {
-    addWindowItem("#memvram", "VRAM Browser", () => {
+    addWindowItem("#vram", "VRAM Browser", () => {
       return new VRAMMemoryView();
     });
   }
   if (platform.startProbing) {
-    addWindowItem("#memheatmap", "Memory Probe", () => {
+    addWindowItem("#memprobe", "Memory Probe", () => {
       return new AddressHeatMapView();
     });
     // TODO: only if raster
-    addWindowItem("#crtheatmap", "CRT Probe", () => {
+    addWindowItem("#crtprobe", "CRT Probe", () => {
       //return new RasterPCHeatMapView();
       return new RasterStackMapView();
     });
@@ -392,7 +392,7 @@ function refreshWindowList() {
     addWindowItem("#scanlineio", "Scanline I/O", () => {
       return new ScanlineIOView();
     });
-    addWindowItem("#symbolprobe", "Symbol Profiler", () => {
+    addWindowItem("#symbols", "Symbol Profiler", () => {
       return new ProbeSymbolView();
     });
     addWindowItem("#callstack", "Call Stack", () => {
@@ -405,7 +405,7 @@ function refreshWindowList() {
     */
   }
   if (platform.getDebugTree) {
-    addWindowItem("#debugview", "Debug Tree", () => {
+    addWindowItem("#debugtree", "Debug Tree", () => {
       return new DebugBrowserView();
     });
   }
