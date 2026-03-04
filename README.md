@@ -20,11 +20,7 @@ git clone -b master --single-branch git@github.com:sehugg/8bitworkshop.git
 To build the 8bitworkshop IDE:
 
 ```sh
-git submodule init
-git submodule update
-npm i
-npm run build
-npm run esbuild
+make
 ```
 
 To use GitHub integration locally, download the Firebase config file, e.g. https://8bitworkshop.com/v[version]/config.js
@@ -41,7 +37,7 @@ make tsweb
 
 ```sh
 # To avoid "API rate limited exceeded" errors, set `TEST8BIT_GITHUB_TOKEN`,
-# see: htps://github.com > Settings > Developer settings > Personal access tokens
+# see: https://github.com > Settings > Developer settings > Personal access tokens
 export TEST8BIT_GITHUB_TOKEN="<github_personal_access_token>"
 
 npm test
@@ -77,7 +73,7 @@ It likes:
 * Not changing anything described in the 8bitworkshop books too much
 
 The code samples in `presets/` are intended to be studied by humans.
-LLM usage for generating code samples is discouraged, as they tend to hide subtle errors in code and in comments, and it diminishes the human achievment and human-to-human communication aspects of the project.
+LLM usage for generating code samples is discouraged, as they tend to hide subtle errors in code and in comments, and it diminishes the human achievement and human-to-human communication aspects of the project.
 
 Adapting third party sample code with permissive licenses and giving credit to the original author(s) is encouraged.
 
