@@ -37,25 +37,145 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs = __importStar(require("fs"));
 const testlib_1 = require("./testlib");
-function outputJSON(result) {
-    console.log(JSON.stringify(result, null, 2));
+// ANSI color helpers
+const c = {
+    reset: '\x1b[0m',
+    bold: '\x1b[1m',
+    dim: '\x1b[2m',
+    red: '\x1b[31m',
+    green: '\x1b[32m',
+    yellow: '\x1b[33m',
+    blue: '\x1b[34m',
+    magenta: '\x1b[35m',
+    cyan: '\x1b[36m',
+    white: '\x1b[37m',
+    bgRed: '\x1b[41m',
+    bgGreen: '\x1b[42m',
+};
+var jsonMode = false;
+function output(result) {
+    if (jsonMode) {
+        console.log(JSON.stringify(result, null, 2));
+    }
+    else {
+        outputPretty(result);
+    }
 }
-function usage() {
-    outputJSON({
-        success: false,
-        command: 'help',
-        data: {
-            commands: {
-                'compile': 'compile --platform <platform> [--tool <tool>] [--output <file>] <source>',
-                'check': 'check --platform <platform> [--tool <tool>] <source>',
-                'run': 'run --platform <platform> [--frames N] <rom>',
-                'list-tools': 'list-tools',
-                'list-platforms': 'list-platforms',
-            }
-        },
-        error: 'No command specified'
-    });
-    process.exit(1);
+function outputPretty(result) {
+    // Status badge
+    if (result.success) {
+        process.stderr.write(`${c.bgGreen}${c.bold}${c.white} OK ${c.reset} `);
+    }
+    else {
+        process.stderr.write(`${c.bgRed}${c.bold}${c.white} FAIL ${c.reset} `);
+    }
+    // Command name
+    process.stderr.write(`${c.bold}${c.cyan}${result.command}${c.reset}\n`);
+    // Error message
+    if (result.error) {
+        process.stderr.write(`${c.red}Error: ${result.error}${c.reset}\n`);
+    }
+    // Data
+    if (result.data) {
+        formatData(result.command, result.data);
+    }
+}
+function formatData(command, data) {
+    switch (command) {
+        case 'help':
+            formatHelp(data);
+            break;
+        case 'compile':
+        case 'check':
+            formatCompile(data);
+            break;
+        case 'list-tools':
+            formatListTools(data);
+            break;
+        case 'list-platforms':
+            formatListPlatforms(data);
+            break;
+        default:
+            // Fallback: print as indented key-value pairs
+            formatGeneric(data);
+            break;
+    }
+}
+function formatHelp(data) {
+    if (data.commands) {
+        console.log(`\n${c.bold}Usage:${c.reset} 8bws <command> [options]\n`);
+        console.log(`${c.bold}Commands:${c.reset}`);
+        for (var [cmd, usage] of Object.entries(data.commands)) {
+            console.log(`  ${c.green}${cmd}${c.reset}${c.dim} - ${usage}${c.reset}`);
+        }
+        console.log(`\n${c.bold}Global options:${c.reset}`);
+        console.log(`  ${c.yellow}--json${c.reset}${c.dim}  Output raw JSON instead of formatted text${c.reset}`);
+        console.log();
+    }
+}
+function formatCompile(data) {
+    if (data.errors) {
+        for (var err of data.errors) {
+            var loc = '';
+            if (err.path)
+                loc += `${c.cyan}${err.path}${c.reset}`;
+            if (err.line)
+                loc += `${c.dim}:${c.reset}${c.yellow}${err.line}${c.reset}`;
+            if (loc)
+                loc += ` ${c.dim}-${c.reset} `;
+            console.log(`  ${c.red}●${c.reset} ${loc}${err.msg || err.message || JSON.stringify(err)}`);
+        }
+        return;
+    }
+    if (data.tool)
+        console.log(`  ${c.dim}Tool:${c.reset}     ${c.green}${data.tool}${c.reset}`);
+    if (data.platform)
+        console.log(`  ${c.dim}Platform:${c.reset} ${c.green}${data.platform}${c.reset}`);
+    if (data.source)
+        console.log(`  ${c.dim}Source:${c.reset}   ${c.cyan}${data.source}${c.reset}`);
+    if (data.outputSize != null)
+        console.log(`  ${c.dim}Size:${c.reset}     ${c.yellow}${data.outputSize}${c.reset} bytes`);
+    if (data.outputFile)
+        console.log(`  ${c.dim}Output:${c.reset}   ${c.cyan}${data.outputFile}${c.reset}`);
+    if (data.hasListings)
+        console.log(`  ${c.dim}Listings:${c.reset} ${c.green}yes${c.reset}`);
+    if (data.hasSymbolmap)
+        console.log(`  ${c.dim}Symbols:${c.reset}  ${c.green}yes${c.reset}`);
+}
+function formatListTools(data) {
+    console.log(`\n${c.bold}Available tools${c.reset} ${c.dim}(${data.count})${c.reset}\n`);
+    for (var tool of data.tools) {
+        console.log(`  ${c.green}●${c.reset} ${tool}`);
+    }
+    console.log();
+}
+function formatListPlatforms(data) {
+    console.log(`\n${c.bold}Available platforms${c.reset} ${c.dim}(${data.count})${c.reset}\n`);
+    // Group by arch
+    let byArch = {};
+    for (let [name, info] of Object.entries(data.platforms)) {
+        let arch = info.arch || 'unknown';
+        if (!byArch[arch])
+            byArch[arch] = [];
+        byArch[arch].push(name);
+    }
+    for (let [arch, platforms] of Object.entries(byArch).sort()) {
+        console.log(`  ${c.bold}${c.magenta}${arch}${c.reset}`);
+        for (let p of platforms.sort()) {
+            console.log(`    ${c.green}●${c.reset} ${p}`);
+        }
+    }
+    console.log();
+}
+function formatGeneric(data) {
+    for (var [key, value] of Object.entries(data)) {
+        if (typeof value === 'object' && value !== null) {
+            console.log(`  ${c.dim}${key}:${c.reset} ${JSON.stringify(value)}`);
+        }
+        else {
+            console.log(`  ${c.dim}${key}:${c.reset} ${value}`);
+        }
+    }
 }
 function parseArgs(argv) {
     var command = argv[2];
@@ -77,13 +197,30 @@ function parseArgs(argv) {
     }
     return { command, args, positional };
 }
+function usage() {
+    output({
+        success: false,
+        command: 'help',
+        data: {
+            commands: {
+                'compile': 'compile --platform <platform> [--tool <tool>] [--output <file>] <source>',
+                'check': 'check --platform <platform> [--tool <tool>] <source>',
+                'run': 'run (--platform <id> | --machine <module:ClassName>) [--frames N] [--output <file.png>] <rom>',
+                'list-tools': 'list-tools',
+                'list-platforms': 'list-platforms',
+            }
+        },
+        error: 'No command specified'
+    });
+    process.exit(1);
+}
 async function doCompile(args, positional, checkOnly) {
     var tool = args['tool'];
     var platform = args['platform'];
     var outputFile = args['output'];
     var sourceFile = positional[0];
     if (!platform || !sourceFile) {
-        outputJSON({
+        output({
             success: false,
             command: checkOnly ? 'check' : 'compile',
             error: 'Required: --platform <platform> <source> [--tool <tool>]'
@@ -95,7 +232,7 @@ async function doCompile(args, positional, checkOnly) {
         tool = (0, testlib_1.getToolForFilename)(sourceFile, platform);
     }
     if (!testlib_1.TOOLS[tool]) {
-        outputJSON({
+        output({
             success: false,
             command: checkOnly ? 'check' : 'compile',
             error: `Unknown tool: ${tool}. Use list-tools to see available tools.`
@@ -110,7 +247,7 @@ async function doCompile(args, positional, checkOnly) {
     await (0, testlib_1.preload)(tool, platform);
     var result = await (0, testlib_1.compileSourceFile)(tool, platform, sourceFile);
     if (!result.success) {
-        outputJSON({
+        output({
             success: false,
             command: checkOnly ? 'check' : 'compile',
             data: { errors: result.errors }
@@ -118,7 +255,7 @@ async function doCompile(args, positional, checkOnly) {
         process.exit(1);
     }
     if (checkOnly) {
-        outputJSON({
+        output({
             success: true,
             command: 'check',
             data: {
@@ -147,7 +284,7 @@ async function doCompile(args, positional, checkOnly) {
     if (result.output) {
         outputSize = result.output.code ? result.output.code.length : result.output.length;
     }
-    outputJSON({
+    output({
         success: true,
         command: 'compile',
         data: {
@@ -162,39 +299,90 @@ async function doCompile(args, positional, checkOnly) {
     });
 }
 async function doRun(args, positional) {
-    var platform = args['platform'];
+    var platformId = args['platform'];
+    var machine = args['machine'];
     var frames = parseInt(args['frames'] || '1');
+    var outputFile = args['output'];
     var romFile = positional[0];
-    if (!platform || !romFile) {
-        outputJSON({
+    if ((!machine && !platformId) || !romFile) {
+        output({
             success: false,
             command: 'run',
-            error: 'Required: --platform <platform> <rom>'
+            error: 'Required: (--platform <id> | --machine <module:ClassName>) [--frames N] [--output <file.png>] <rom>'
         });
         process.exit(1);
     }
-    // Dynamic import of MachineRunner
-    try {
-        var runmachine = require('./runmachine.js');
-        var MachineRunner = runmachine.MachineRunner;
+    var romData = new Uint8Array(fs.readFileSync(romFile));
+    var pixels = null;
+    var vid = null;
+    if (platformId) {
+        // Platform mode: load platform module, mock video, run via Platform API
+        var { PlatformRunner, loadPlatform } = await Promise.resolve().then(() => __importStar(require('./runmachine')));
+        var platformRunner = new PlatformRunner(await loadPlatform(platformId));
+        await platformRunner.start();
+        platformRunner.loadROM("ROM", romData);
+        for (var i = 0; i < frames; i++) {
+            platformRunner.run();
+        }
+        pixels = platformRunner.pixels;
+        vid = platformRunner.videoParams;
     }
-    catch (e) {
-        outputJSON({
-            success: false,
-            command: 'run',
-            error: `Could not load MachineRunner: ${e.message}`
-        });
-        process.exit(1);
+    else {
+        // Machine mode: load machine class directly
+        var parts = machine.split(':');
+        if (parts.length !== 2) {
+            output({
+                success: false,
+                command: 'run',
+                error: 'Machine must be in format module:ClassName (e.g. apple2:AppleII)'
+            });
+            process.exit(1);
+        }
+        var [modname, clsname] = parts;
+        var { MachineRunner, loadMachine } = await Promise.resolve().then(() => __importStar(require('./runmachine')));
+        var machineInstance = await loadMachine(modname, clsname);
+        var runner = new MachineRunner(machineInstance);
+        runner.setup();
+        machineInstance.loadROM(romData);
+        for (var i = 0; i < frames; i++) {
+            runner.run();
+        }
+        pixels = runner.pixels;
+        vid = pixels ? machineInstance.getVideoParams() : null;
     }
-    outputJSON({
-        success: false,
+    // Encode framebuffer as PNG if video is available
+    var pngData = null;
+    if (pixels && vid) {
+        var { encode } = await Promise.resolve().then(() => __importStar(require('fast-png')));
+        var rgba = new Uint8Array(pixels.buffer);
+        pngData = encode({ width: vid.width, height: vid.height, data: rgba, channels: 4 });
+    }
+    // Write PNG to file if requested
+    if (outputFile && pngData) {
+        fs.writeFileSync(outputFile, pngData);
+    }
+    output({
+        success: true,
         command: 'run',
-        error: 'Run command not yet fully implemented (requires platform machine loading)'
+        data: {
+            platform: platformId || null,
+            machine: machine || null,
+            rom: romFile,
+            frames: frames,
+            width: vid ? vid.width : null,
+            height: vid ? vid.height : null,
+            outputFile: outputFile || null,
+        }
     });
+    // Display image in terminal if connected to a TTY
+    if (pngData && process.stdout.isTTY) {
+        var { displayImageInTerminal } = await Promise.resolve().then(() => __importStar(require('./termimage')));
+        displayImageInTerminal(pngData, vid.width, vid.height);
+    }
 }
 function doListTools() {
     var tools = (0, testlib_1.listTools)();
-    outputJSON({
+    output({
         success: true,
         command: 'list-tools',
         data: {
@@ -211,7 +399,7 @@ function doListPlatforms() {
             arch: testlib_1.PLATFORM_PARAMS[p].arch || 'unknown',
         };
     }
-    outputJSON({
+    output({
         success: true,
         command: 'list-platforms',
         data: {
@@ -225,6 +413,10 @@ async function main() {
         usage();
     }
     var { command, args, positional } = parseArgs(process.argv);
+    // Check for --json flag (can appear before or after the command)
+    if (args['json'] === 'true' || process.argv.includes('--json')) {
+        jsonMode = true;
+    }
     try {
         switch (command) {
             case 'compile':
@@ -247,7 +439,7 @@ async function main() {
                 doListPlatforms();
                 break;
             default:
-                outputJSON({
+                output({
                     success: false,
                     command: command,
                     error: `Unknown command: ${command}`
@@ -256,7 +448,7 @@ async function main() {
         }
     }
     catch (e) {
-        outputJSON({
+        output({
             success: false,
             command: command,
             error: e.message || String(e)

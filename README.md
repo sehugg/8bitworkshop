@@ -49,7 +49,7 @@ npm test
 
 ## License
 
-Copyright © 2016-2024 [Steven E. Hugg](https://github.com/sehugg).
+Copyright © 2016-2026 [Steven E. Hugg](https://github.com/sehugg).
 
 
 This project, unless specifically noted, is multi-licensed.
@@ -58,9 +58,28 @@ You may choose to adhere to the terms of either the [GPL-3.0](https://github.com
 This project includes various dependencies, modules, and components that retain their original licenses. 
 For detailed licensing information for each dependency, please refer to the respective files and documentation.
 
-All included code samples located in the presets/ directory are licensed under
+All included code samples located in the `presets/` directory are licensed under
 [CC0](https://creativecommons.org/publicdomain/zero/1.0/)
 unless a different license is explicitly stated within the specific code sample.
+
+
+## Contributing
+
+Thank you for your contribution!
+
+The 8bitworkshop IDE is intended for a diverse audience using a wide range of devices.
+It likes:
+* Running locally
+* Vanilla TypeScript against Web APIs
+* Stable/mature dependencies
+* Running decently on 10-year old Chromebooks
+* Working (or degrading gracefully) on 5-year old browsers
+* Not changing anything described in the 8bitworkshop books too much
+
+The code samples in `presets/` are intended to be studied by humans.
+LLM usage for generating code samples is discouraged, as they tend to hide subtle errors in code and in comments, and it diminishes the human achievment and human-to-human communication aspects of the project.
+
+Adapting third party sample code with permissive licenses and giving credit to the original author(s) is encouraged.
 
 
 ## Dependencies

@@ -33,10 +33,25 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MachineRunner = void 0;
+exports.MachineRunner = exports.PlatformRunner = void 0;
+exports.loadPlatform = loadPlatform;
+exports.loadMachine = loadMachine;
 const baseplatform_1 = require("../common/baseplatform");
+const emu_1 = require("../common/emu");
+const emu = __importStar(require("../common/emu"));
+const util_1 = require("../common/util");
 global.atob = require('atob');
 global.btoa = require('btoa');
+if (typeof window === 'undefined') {
+    global.window = global;
+    global.window.addEventListener = global.window.addEventListener || function () { };
+    global.window.removeEventListener = global.window.removeEventListener || function () { };
+    global.document = global.document || { addEventListener() { }, removeEventListener() { } };
+}
+try {
+    global.navigator = global.navigator || {};
+}
+catch (e) { }
 class NullAudio {
     feedSample(value, count) {
     }
@@ -79,6 +94,92 @@ class SerialTestHarness {
     }
 }
 ///
+// Headless mock for RasterVideo/VectorVideo (used by Platform.start() in Node)
+// Patches the emu module exports so that platform modules pick up the mock.
+function installHeadlessVideo() {
+    var lastPixels = null;
+    var lastVideoParams = null;
+    emu.RasterVideo = function (_mainElement, width, height, _options) {
+        var buffer = new ArrayBuffer(width * height * 4);
+        var datau8 = new Uint8Array(buffer);
+        var datau32 = new Uint32Array(buffer);
+        lastVideoParams = { width, height };
+        lastPixels = datau32;
+        this.create = function () { this.width = width; this.height = height; };
+        this.setKeyboardEvents = function () { };
+        this.getFrameData = function () { return datau32; };
+        this.getImageData = function () { return { data: datau8, width, height }; };
+        this.updateFrame = function () { };
+        this.clearRect = function () { };
+        this.setupMouseEvents = function () { };
+        this.canvas = this;
+        this.getContext = function () { return this; };
+        this.fillRect = function () { };
+        this.fillStyle = '';
+        this.putImageData = function () { };
+    };
+    emu.VectorVideo = function (_mainElement, _width, _height, _options) {
+        this.create = function () { this.drawops = 0; };
+        this.setKeyboardEvents = function () { };
+        this.clear = function () { };
+        this.drawLine = function () { this.drawops++; };
+    };
+    // Also mock AnimationTimer to be a no-op in headless mode
+    emu.AnimationTimer = function (_fps, _callback) {
+        this.running = false;
+        this.start = function () { };
+        this.stop = function () { };
+        this.isRunning = function () { return this.running; };
+    };
+    return { getPixels: () => lastPixels, getVideoParams: () => lastVideoParams };
+}
+///
+class PlatformRunner {
+    constructor(platform) {
+        this.platform = platform;
+        this.headless = installHeadlessVideo();
+    }
+    async start() {
+        await this.platform.start();
+    }
+    loadROM(title, data) {
+        this.platform.loadROM(title, data);
+    }
+    run() {
+        // nextFrame() is on BaseDebugPlatform, not the Platform interface
+        if (this.platform.nextFrame) {
+            this.platform.nextFrame();
+        }
+        else if (this.platform.advance) {
+            this.platform.advance(false);
+        }
+    }
+    get pixels() {
+        return this.headless.getPixels();
+    }
+    get videoParams() {
+        return this.headless.getVideoParams();
+    }
+}
+exports.PlatformRunner = PlatformRunner;
+async function loadPlatform(platformId) {
+    // Derive the base module name (e.g. "nes" from "nes-asm", "c64" from "c64.wasm")
+    var baseId = (0, util_1.getRootBasePlatform)(platformId);
+    // Dynamically load the platform module which registers into PLATFORMS
+    await Promise.resolve(`${'../platform/' + baseId}`).then(s => __importStar(require(s)));
+    var PlatformClass = emu_1.PLATFORMS[platformId];
+    if (!PlatformClass) {
+        // Try the base platform ID
+        PlatformClass = emu_1.PLATFORMS[baseId];
+    }
+    if (!PlatformClass) {
+        var available = Object.keys(emu_1.PLATFORMS).join(', ');
+        throw new Error(`Platform '${platformId}' not found. Available: ${available}`);
+    }
+    var platform = new PlatformClass(null);
+    return platform;
+}
+///
 class MachineRunner {
     constructor(machine) {
         this.machine = machine;
@@ -103,10 +204,13 @@ class MachineRunner {
     }
 }
 exports.MachineRunner = MachineRunner;
-async function loadMachine(modname, clsname) {
+async function loadMachine(modname, clsname, ...ctorArgs) {
     var mod = await Promise.resolve(`${'../machine/' + modname}`).then(s => __importStar(require(s)));
     var cls = mod[clsname];
-    var machine = new cls();
+    if (!cls) {
+        throw new Error(`Class '${clsname}' not found in module '../machine/${modname}'`);
+    }
+    var machine = new cls(...ctorArgs);
     return machine;
 }
 async function runMachine() {
