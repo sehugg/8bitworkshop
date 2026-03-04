@@ -304,7 +304,9 @@ function refreshWindowList() {
       projectWindows.setCreateFunc(id, createfn);
       projectWindows.setShowFunc(id, onopen);
       $(a).click((e) => {
-        projectWindows.createOrShow(id);
+        e.preventDefault();
+        var hash = id.startsWith('#') ? id : '#' + encodeURIComponent(id);
+        window.location.hash = hash;
         lastViewClicked = id;
       });
     }
@@ -1683,7 +1685,37 @@ export function gotoNewLocation(replaceHistory?: boolean, newQueryString?: {}) {
 function replaceURLState() {
   if (platform_id) qs.platform = platform_id;
   delete qs['']; // remove null parameter
-  history.replaceState({}, "", "?" + $.param(qs));
+  history.replaceState({}, "", "?" + $.param(qs) + window.location.hash);
+}
+
+function hashToViewIdResolved(hash: string): string | null {
+  if (!hash || hash === '#') return null;
+  var id = decodeURIComponent(hash.substring(1));
+  // check if it's a registered tool window (e.g. #asseteditor)
+  if (projectWindows.isWindow('#' + id)) return '#' + id;
+  // otherwise treat as a file path (e.g. hello.asm)
+  if (projectWindows.isWindow(id)) return id;
+  return null;
+}
+
+function installHashChangeHandler() {
+  function onHashChange() {
+    const hash = window.location.hash;
+    const viewId = (hash && hash !== '#') ? hashToViewIdResolved(hash) : null;
+    const targetId = viewId || getCurrentMainFilename();
+    if (targetId !== projectWindows.getActiveID()) {
+      projectWindows.createOrShow(targetId);
+    }
+  }
+  window.addEventListener('popstate', onHashChange);
+  window.addEventListener('hashchange', onHashChange);
+}
+
+function navigateToInitialHash(initialHash: string) {
+  if (initialHash && initialHash !== '#') {
+    const viewId = hashToViewIdResolved(initialHash) || getCurrentMainFilename();
+    projectWindows.createOrShow(viewId);
+  }
 }
 
 function addPageFocusHandlers() {
@@ -1768,6 +1800,7 @@ async function startPlatform() {
     qs.file += '.a';
   }
   // start platform and load file
+  var initialHash = window.location.hash;
   replaceURLState();
   installErrorHandler();
   installGAHooks();
@@ -1775,6 +1808,8 @@ async function startPlatform() {
   await loadBIOSFromProject();
   await initProject();
   await loadProject(qs.file);
+  navigateToInitialHash(initialHash);
+  installHashChangeHandler();
   platform.sourceFileFetch = (path) => current_project.filedata[path];
   setupDebugControls();
   addPageFocusHandlers();
