@@ -4,6 +4,8 @@
 
 import * as fs from 'fs';
 import { initialize, compile, compileSourceFile, preload, listTools, listPlatforms, getToolForFilename, PLATFORM_PARAMS, TOOLS, TOOL_PRELOADFS } from './testlib';
+import { isDebuggable } from '../common/baseplatform';
+import { hex } from '../common/util';
 
 interface CLIResult {
   success: boolean;
@@ -150,6 +152,8 @@ function formatGeneric(data: any): void {
   }
 }
 
+var BOOLEAN_FLAGS = new Set(['json', 'info']);
+
 function parseArgs(argv: string[]): { command: string; args: { [key: string]: string }; positional: string[] } {
   var command = argv[2];
   var args: { [key: string]: string } = {};
@@ -158,7 +162,9 @@ function parseArgs(argv: string[]): { command: string; args: { [key: string]: st
   for (var i = 3; i < argv.length; i++) {
     if (argv[i].startsWith('--')) {
       var key = argv[i].substring(2);
-      if (i + 1 < argv.length && !argv[i + 1].startsWith('--')) {
+      if (BOOLEAN_FLAGS.has(key)) {
+        args[key] = 'true';
+      } else if (i + 1 < argv.length && !argv[i + 1].startsWith('--')) {
         args[key] = argv[++i];
       } else {
         args[key] = 'true';
@@ -179,7 +185,7 @@ function usage(): void {
       commands: {
         'compile': 'compile --platform <platform> [--tool <tool>] [--output <file>] <source>',
         'check': 'check --platform <platform> [--tool <tool>] <source>',
-        'run': 'run (--platform <id> | --machine <module:ClassName>) [--frames N] [--output <file.png>] <rom>',
+        'run': 'run (--platform <id> | --machine <module:ClassName>) [--frames N] [--output <file.png>] [--memdump start,end] [--info] <rom>',
         'list-tools': 'list-tools',
         'list-platforms': 'list-platforms',
       }
@@ -301,11 +307,13 @@ async function doRun(args: { [key: string]: string }, positional: string[]): Pro
   var romData = new Uint8Array(fs.readFileSync(romFile));
   var pixels: Uint32Array | null = null;
   var vid: { width: number; height: number } | null = null;
+  var platformRunner: any = null;
+  var machineInstance: any = null;
 
   if (platformId) {
     // Platform mode: load platform module, mock video, run via Platform API
     var { PlatformRunner, loadPlatform } = await import('./runmachine');
-    var platformRunner = new PlatformRunner(await loadPlatform(platformId));
+    platformRunner = new PlatformRunner(await loadPlatform(platformId));
     await platformRunner.start();
     platformRunner.loadROM("ROM", romData);
     for (var i = 0; i < frames; i++) {
@@ -326,7 +334,7 @@ async function doRun(args: { [key: string]: string }, positional: string[]): Pro
     }
     var [modname, clsname] = parts;
     var { MachineRunner, loadMachine } = await import('./runmachine');
-    var machineInstance = await loadMachine(modname, clsname);
+    machineInstance = await loadMachine(modname, clsname);
     var runner = new MachineRunner(machineInstance);
     runner.setup();
     machineInstance.loadROM(romData);
@@ -335,19 +343,6 @@ async function doRun(args: { [key: string]: string }, positional: string[]): Pro
     }
     pixels = runner.pixels;
     vid = pixels ? (machineInstance as any).getVideoParams() : null;
-  }
-
-  // Encode framebuffer as PNG if video is available
-  var pngData: Uint8Array | null = null;
-  if (pixels && vid) {
-    var { encode } = await import('fast-png');
-    var rgba = new Uint8Array(pixels.buffer);
-    pngData = encode({ width: vid.width, height: vid.height, data: rgba, channels: 4 });
-  }
-
-  // Write PNG to file if requested
-  if (outputFile && pngData) {
-    fs.writeFileSync(outputFile, pngData);
   }
 
   output({
@@ -363,6 +358,90 @@ async function doRun(args: { [key: string]: string }, positional: string[]): Pro
       outputFile: outputFile || null,
     }
   });
+
+  // --info: print debug info for all categories + disassembly at PC
+  if (args['info'] === 'true') {
+    var plat = platformId ? platformRunner.platform : null;
+    var mach = machine ? machineInstance : null;
+    var debugTarget: any = plat || mach;
+    if (debugTarget && isDebuggable(debugTarget)) {
+      var state = plat?.saveState?.() ?? mach?.saveState?.();
+      if (state) {
+        var categories = debugTarget.getDebugCategories();
+        for (var cat of categories) {
+          var info = debugTarget.getDebugInfo(cat, state);
+          if (info) {
+            process.stderr.write(`${c.bold}${c.magenta}[${cat}]${c.reset}\n`);
+            process.stderr.write(info);
+            if (!info.endsWith('\n')) process.stderr.write('\n');
+          }
+        }
+      }
+    }
+    // Disassembly around current PC
+    if (debugTarget?.getPC && debugTarget?.disassemble && debugTarget?.readAddress) {
+      var pc = debugTarget.getPC();
+      var readFn = (addr: number) => debugTarget.readAddress(addr);
+      process.stderr.write(`${c.bold}${c.magenta}[Disassembly]${c.reset}\n`);
+      var addr = pc;
+      for (var i = 0; i < 16; i++) {
+        var disasm = debugTarget.disassemble(addr, readFn);
+        var prefix = (addr === pc) ? `${c.green}>${c.reset}` : ' ';
+        // show hex bytes
+        var bytesStr = '';
+        for (var b = 0; b < disasm.nbytes; b++) {
+          bytesStr += hex(readFn(addr + b)) + ' ';
+        }
+        process.stderr.write(`${prefix}${c.cyan}$${hex(addr, 4)}${c.reset}  ${c.dim}${bytesStr.padEnd(12)}${c.reset} ${disasm.line}\n`);
+        addr += disasm.nbytes;
+      }
+    }
+  }
+
+  // --memdump start,end: hexdump memory range
+  if (args['memdump']) {
+    var mdparts = args['memdump'].split(',');
+    var start = parseInt(mdparts[0], 16);
+    var end = parseInt(mdparts[1], 16);
+    if (isNaN(start) || isNaN(end) || end < start) {
+      output({ success: false, command: 'run', error: `Invalid --memdump range: ${args['memdump']} (use hex addresses like 0000,00ff)` });
+      process.exit(1);
+    }
+    var plat2 = platformId ? platformRunner.platform : null;
+    var mach2 = machine ? machineInstance : null;
+    var readFn2: ((addr: number) => number) | null = null;
+    if (plat2?.readAddress) readFn2 = (addr) => plat2.readAddress(addr);
+    else if (mach2 && typeof (mach2 as any).read === 'function') readFn2 = (addr) => (mach2 as any).read(addr);
+    if (!readFn2) {
+      output({ success: false, command: 'run', error: 'Platform/machine does not support readAddress' });
+      process.exit(1);
+    }
+    var len = end - start + 1;
+    for (var ofs = 0; ofs < len; ofs += 16) {
+      var line = `${c.cyan}$${hex(start + ofs, 4)}${c.reset}:`;
+      var ascii = '';
+      for (var i = 0; i < 16 && ofs + i < len; i++) {
+        if (i === 8) line += ' ';
+        var byte = readFn2(start + ofs + i);
+        line += ` ${hex(byte)}`;
+        ascii += (byte >= 0x20 && byte < 0x7f) ? String.fromCharCode(byte) : '.';
+      }
+      process.stderr.write(`${line}  ${c.dim}${ascii}${c.reset}\n`);
+    }
+  }
+
+  // Encode framebuffer as PNG if video is available
+  var pngData: Uint8Array | null = null;
+  if (pixels && vid) {
+    var { encode } = await import('fast-png');
+    var rgba = new Uint8Array(pixels.buffer);
+    pngData = encode({ width: vid.width, height: vid.height, data: rgba, channels: 4 });
+  }
+
+  // Write PNG to file if requested
+  if (outputFile && pngData) {
+    fs.writeFileSync(outputFile, pngData);
+  }
 
   // Display image in terminal if connected to a TTY
   if (pngData && process.stdout.isTTY) {
@@ -443,6 +522,7 @@ async function main() {
         process.exit(1);
     }
   } catch (e) {
+    console.log(e);
     output({
       success: false,
       command: command,

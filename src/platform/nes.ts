@@ -1,7 +1,7 @@
 
 import { Platform, Base6502Platform, getOpcodeMetadata_6502, getToolForFilename_6502, Preset } from "../common/baseplatform";
 import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, KeyFlags, EmuHalt, ControllerPoller } from "../common/emu";
-import { hex, byteArrayToString } from "../common/util";
+import { hex, byteArrayToString, replaceAll } from "../common/util";
 import { CodeAnalyzer_nes } from "../common/analysis";
 import { SampleAudio } from "../common/audio";
 import { ProbeRecorder } from "../common/probe";
@@ -71,16 +71,17 @@ const JSNES_KEYCODE_MAP = makeKeycodeMap([
 
 class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
 
-  mainElement;
+  mainElement : HTMLElement;
   nes;
-  video;
+  video: RasterVideo;
   audio;
-  timer;
+  timer: AnimationTimer;
   poller : ControllerPoller;
   audioFrequency = 44030; //44100
   frameindex = 0;
-  ntvideo;
-  ntlastbuf;
+  ntvideo: RasterVideo;
+  ntlastbuf: Uint32Array;
+  showDebugView = false;
   
   machine = { cpuCyclesPerLine: 114 }; // TODO: hack for width of probe scope
   
@@ -93,21 +94,22 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
 
   start() {
     this.debugPCDelta = 1;
-    var debugbar = $("<div>").appendTo(this.mainElement);
     this.audio = new SampleAudio(this.audioFrequency);
     this.video = new RasterVideo(this.mainElement,256,224,{overscan:true});
     this.video.create();
     // debugging view
     this.ntvideo = new RasterVideo(this.mainElement,512,480,{overscan:false});
     this.ntvideo.create();
-    $(this.ntvideo.canvas).hide();
+    this.ntvideo.canvas.style.display = 'none';
     this.ntlastbuf = new Uint32Array(0x1000);
     if (Mousetrap.bind) Mousetrap.bind('ctrl+shift+alt+n', () => {
-      $(this.video.canvas).toggle()
-      $(this.ntvideo.canvas).toggle()
+      this.showDebugView = !this.showDebugView;
+      this.video.canvas.style.display = !this.showDebugView ? '' : 'none';
+      this.ntvideo.canvas.style.display = this.showDebugView ? '' : 'none';
     });
     // toggle buttons (TODO)
     /*
+    var debugbar = $("<div>").appendTo(this.mainElement);
     $('<button>').text("Video").appendTo(debugbar).click(() => { $(this.video.canvas).toggle() });
     $('<button>').text("Nametable").appendTo(debugbar).click(() => { $(this.ntvideo.canvas).toggle() });
     */
@@ -162,12 +164,12 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
 
   advance(novideo : boolean) : number {
     this.nes.frame();
-    return 29780; //TODO
+    return 29780; //TODO: PAL or NTSC?
   }
 
   updateDebugViews() {
    // don't update if view is hidden
-   if (! $(this.ntvideo.canvas).is(":visible"))
+   if (!this.showDebugView)
      return;
    var a = 0;
    var attraddr = 0;
@@ -496,28 +498,29 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
   getDebugSymbolFile() {
     var sym = this.debugSymbols.addr2symbol;
     var text = "";
-    $.each(sym, function(k, v) {
+    for (let [k, v] of Object.entries(sym)) {
+      let numK = Number(k);
       let symType;
-      if (k < 0x2000) {
-        k = k % 0x800;
+      if (numK < 0x2000) {
+        numK = numK % 0x800;
         symType = "R";
-      } else if (k < 0x6000) symType = "G";
-      else if (k < 0x8000) {
-        k = k - 0x6000;
+      } else if (numK < 0x6000) symType = "G";
+      else if (numK < 0x8000) {
+        numK = numK - 0x6000;
         symType = "S";
-      } else { 
-        k = k - 0x8000;
+      } else {
+        numK = numK - 0x8000;
         symType = "P";
       }
-      let addr = Number(k).toString(16).padStart(4, '0').toUpperCase();
+      let addr = numK.toString(16).padStart(4, '0').toUpperCase();
       // Mesen doesn't allow lables to start with digits
-      if (v[0] >= '0' && v[0] <= '9') {
-      v = "L" + v;
+      if ((v as string)[0] >= '0' && (v as string)[0] <= '9') {
+        v = "L" + v;
       }
       // nor does it allow dots
-      v = (v as any).replaceAll('.', '_');
+      v = replaceAll(v, '.', '_');
       text += `${symType}:${addr}:${v}\n`;
-    });
+    }
     return {
       extension:".mlb", 
       blob: new Blob([text], {type:"text/plain"})

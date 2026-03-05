@@ -83,6 +83,7 @@ emu.RasterVideo = function(mainElement, width, height, options) {
   this.fillRect = function() { }
   this.fillStyle = '';
   this.putImageData = function() { }
+  this.style = {};
 }
 
 emu.VectorVideo = function(mainElement, width, height, options) {
