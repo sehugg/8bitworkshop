@@ -193,6 +193,9 @@ export function convertWordsToImages(words: UintArray, fmt: PixelEditorImageForm
 
 export function validateAssetData(datastr: string, fmt): string | null {
   var words = parseHexWords(convertToHexStatements(datastr));
+  if (fmt.comp == 'rletag') {
+    words = Array.from(rle_unpack(new Uint8Array(words)));
+  }
   if (fmt.w > 0 && fmt.h > 0) {
     // same variables as convertWordsToImages
     var count = fmt.count || 1;
@@ -202,7 +205,7 @@ export function validateAssetData(datastr: string, fmt): string | null {
     var wordsperline = fmt.sl || Math.ceil(fmt.w * bpp / bitsperword);
     var pofs = fmt.pofs || wordsperline * fmt.h * count;
     var skip = fmt.skip || 0;
-    var wpimg = fmt.wpimg || wordsperline * fmt.h;
+    var wpimg = fmt.wpimg || (fmt.map === 'nesnt' ? 1024 : wordsperline * fmt.h);
 
     var maxOffset = 0;
     for (var n = 0; n < count; n++) {
