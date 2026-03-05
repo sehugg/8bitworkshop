@@ -203,7 +203,26 @@ export function validateAssetData(datastr: string, fmt): string | null {
     var pofs = fmt.pofs || wordsperline * fmt.h * count;
     var skip = fmt.skip || 0;
     var wpimg = fmt.wpimg || wordsperline * fmt.h;
-    var required = wpimg * count + (nplanes > 1 ? (nplanes - 1) * pofs : 0) + skip;
+
+    var maxOffset = 0;
+    for (var n = 0; n < count; n++) {
+      for (var i = 0; i < wpimg; i++) {
+        var offset0 = wpimg * n + i;
+        var offset;
+        if (fmt.reindex) {
+          var maxReindexOfs = 0;
+          for (var x = 0; x < fmt.w; x++) {
+            maxReindexOfs = Math.max(maxReindexOfs, reindexMask(x, fmt.reindex)[0]);
+          }
+          offset = offset0 + maxReindexOfs;
+        } else {
+          offset = remapBits(offset0, fmt.remap);
+        }
+        maxOffset = Math.max(maxOffset, offset);
+      }
+    }
+    var required = maxOffset + (nplanes > 1 ? (nplanes - 1) * pofs : 0) + 1 + skip;
+
     if (words.length != required) {
       return `Expected ${required} value(s), found ${words.length}`;
     }
