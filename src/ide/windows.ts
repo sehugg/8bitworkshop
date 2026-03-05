@@ -165,7 +165,7 @@ export class ProjectWindows {
   }
 
   replaceTextRange(fileid: string, from: number, to: number, text: string) {
-    var wnd = this.id2window[fileid];
+    var wnd = this.id2window[fileid] || this.create(fileid);
     wnd.replaceTextRange(from, to, text);
     this.undofiles.push(fileid);
     this.redofiles = [];
