@@ -1,15 +1,10 @@
 "use strict";
 
-// don't run unless Github token exists
-if (!process.env.TEST8BIT_GITHUB_TOKEN) {
-  return;
-}
-
 var vm = require('vm');
 var fs = require('fs');
 var assert = require('assert');
 
-var wtu = require('./workertestutils.js'); // loads localStorage
+var wtu = require('../cli/workertestutils.js'); // loads localStorage
 var localforage = require("localforage");
 var util = require("gen/common/util.js");
 var prj = require("gen/ide/project.js");
