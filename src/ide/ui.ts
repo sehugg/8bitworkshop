@@ -500,20 +500,62 @@ function checkEnteredFilename(fn: string): boolean {
   return true;
 }
 
-function _createNewFile(e) {
+interface ToolExtensions {
+  tool: string;
+  extensions: string[];
+}
+
+async function _getToolsWithSkeletons(extensions: string[]): Promise<ToolExtensions[]> {
+  var basePlatform = getBasePlatform(platform_id);
+  // group extensions by tool id to avoid duplicate requests
+  var toolToExts: { [tool: string]: string[] } = {};
+  var toolOrder: string[] = [];
+  for (var ext of extensions) {
+    var tool = platform.getToolForFilename("test" + ext);
+    if (!toolToExts[tool]) {
+      toolToExts[tool] = [];
+      toolOrder.push(tool);
+    }
+    toolToExts[tool].push(ext);
+  }
+  // check each tool in parallel
+  var checks = toolOrder.map(tool =>
+    $.ajax({
+      url: "presets/" + basePlatform + "/skeleton." + tool,
+      type: "HEAD"
+    }).then(() => tool, () => null)
+  );
+  var validTools = await Promise.all(checks);
+  var results: ToolExtensions[] = [];
+  for (var validTool of validTools) {
+    if (validTool != null) {
+      results.push({ tool: validTool, extensions: toolToExts[validTool] });
+    }
+  }
+  return results;
+}
+
+async function _createNewFile(e) {
   // TODO: support spaces
-  var extensions = platform.getDefaultExtensions();
+  var toolExts = await _getToolsWithSkeletons(platform.getDefaultExtensions());
+  var allExtensions: string[];
+  var helpText: string;
+  if (toolExts.length === 0) {
+    allExtensions = platform.getDefaultExtensions();
+    helpText = allExtensions.join(" ");
+  } else {
+    allExtensions = toolExts.reduce((acc, te) => acc.concat(te.extensions), [] as string[]);
+    helpText = toolExts.map(te => te.extensions.join(' ')).join("<br>");
+  }
   bootbox.prompt({
     title: "Enter the name of your new main source file.<br><br>" +
-      "<span class='dialog-help'>" +
-      (extensions.length > 1 ? extensions.join(" ") : "") +
-      "</span>",
-    placeholder: "newfile" + extensions[0],
+      "<span class='dialog-help'>" + helpText + "</span>",
+    placeholder: "newfile" + allExtensions[0],
     callback: (filename) => {
       if (filename && filename.trim().length > 0) {
         if (!checkEnteredFilename(filename)) return;
         if (filename.indexOf(".") < 0) {
-          filename += extensions[0];
+          filename += allExtensions[0];
         }
         var path = filename;
         gaEvent('workspace', 'file', 'new');
