@@ -533,6 +533,7 @@ div.asset_block.asset_highlight {
 .asset-header-badge {
   display: inline-block;
   padding: 1px 6px;
+  margin: 0 4px;
   border-radius: 4px;
   background: rgba(153, 204, 153, 0.15);
   color: #99cc99;

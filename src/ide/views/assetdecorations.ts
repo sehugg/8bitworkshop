@@ -33,12 +33,12 @@ function buildAssetHeaderDecorations(view: EditorView, handleClick: (span: HTMLE
       assetHeaderRegex.lastIndex = 0;
       const m = assetHeaderRegex.exec(line);
       if (m) {
-        const lineEnd = lineStart + line.length;
+        const matchEnd = lineStart + m.index + m[0].length;
         widgets.push(
           Decoration.widget({
             widget: new AssetHeaderWidget(m[0], handleClick),
-            side: 1,
-          }).range(lineEnd)
+            side: -1,
+          }).range(matchEnd)
         );
       }
       lineStart += line.length + 1;
