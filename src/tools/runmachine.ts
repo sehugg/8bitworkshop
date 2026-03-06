@@ -1,24 +1,10 @@
 
 import { hasAudio, hasSerialIO, hasVideo, Machine, Platform } from "../common/baseplatform";
-import { SampledAudioSink, SerialIOInterface } from "../common/devices";
+import { SerialIOInterface } from "../common/devices";
 import { PLATFORMS } from "../common/emu";
 import * as emu from "../common/emu";
 import { getRootBasePlatform } from "../common/util";
-
-global.atob = require('atob');
-global.btoa = require('btoa');
-if (typeof window === 'undefined') {
-    (global as any).window = global;
-    (global as any).window.addEventListener = (global as any).window.addEventListener || function () { };
-    (global as any).window.removeEventListener = (global as any).window.removeEventListener || function () { };
-    (global as any).document = (global as any).document || { addEventListener() { }, removeEventListener() { } };
-}
-try { (global as any).navigator = (global as any).navigator || {}; } catch (e) { }
-
-class NullAudio implements SampledAudioSink {
-    feedSample(value: number, count: number): void {
-    }
-}
+import { mockAudio, mockDOM, mockFetch, mockGlobals, NullAudio } from "./nodemock";
 
 // TODO: merge with platform
 class SerialTestHarness implements SerialIOInterface {
@@ -91,6 +77,7 @@ function installHeadlessVideo() {
         this.fillRect = function () { };
         this.fillStyle = '';
         this.putImageData = function () { };
+        this.style = {};
     };
     (emu as any).VectorVideo = function (_mainElement: any, _width: number, _height: number, _options?: any) {
         this.create = function () { this.drawops = 0; };
@@ -115,6 +102,10 @@ export class PlatformRunner {
     private headless: ReturnType<typeof installHeadlessVideo>;
 
     constructor(platform: Platform) {
+        mockGlobals();
+        mockAudio();
+        mockFetch();
+        mockDOM();
         this.platform = platform;
         this.headless = installHeadlessVideo();
     }

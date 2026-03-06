@@ -40,22 +40,7 @@ const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
 const emu = __importStar(require("../common/emu"));
 const util_1 = require("../common/util");
-global.atob = require('atob');
-global.btoa = require('btoa');
-if (typeof window === 'undefined') {
-    global.window = global;
-    global.window.addEventListener = global.window.addEventListener || function () { };
-    global.window.removeEventListener = global.window.removeEventListener || function () { };
-    global.document = global.document || { addEventListener() { }, removeEventListener() { } };
-}
-try {
-    global.navigator = global.navigator || {};
-}
-catch (e) { }
-class NullAudio {
-    feedSample(value, count) {
-    }
-}
+const nodemock_1 = require("./nodemock");
 // TODO: merge with platform
 class SerialTestHarness {
     constructor() {
@@ -117,6 +102,7 @@ function installHeadlessVideo() {
         this.fillRect = function () { };
         this.fillStyle = '';
         this.putImageData = function () { };
+        this.style = {};
     };
     emu.VectorVideo = function (_mainElement, _width, _height, _options) {
         this.create = function () { this.drawops = 0; };
@@ -136,6 +122,10 @@ function installHeadlessVideo() {
 ///
 class PlatformRunner {
     constructor(platform) {
+        (0, nodemock_1.mockGlobals)();
+        (0, nodemock_1.mockAudio)();
+        (0, nodemock_1.mockFetch)();
+        (0, nodemock_1.mockDOM)();
         this.platform = platform;
         this.headless = installHeadlessVideo();
     }
@@ -191,7 +181,7 @@ class MachineRunner {
             this.machine.connectVideo(this.pixels);
         }
         if ((0, baseplatform_1.hasAudio)(this.machine)) {
-            this.machine.connectAudio(new NullAudio());
+            this.machine.connectAudio(new nodemock_1.NullAudio());
         }
         if ((0, baseplatform_1.hasSerialIO)(this.machine)) {
             this.serial = new SerialTestHarness();

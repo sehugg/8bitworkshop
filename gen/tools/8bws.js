@@ -37,6 +37,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs = __importStar(require("fs"));
 const testlib_1 = require("./testlib");
+const baseplatform_1 = require("../common/baseplatform");
+const util_1 = require("../common/util");
 // ANSI color helpers
 const c = {
     reset: '\x1b[0m',
@@ -177,6 +179,7 @@ function formatGeneric(data) {
         }
     }
 }
+var BOOLEAN_FLAGS = new Set(['json', 'info']);
 function parseArgs(argv) {
     var command = argv[2];
     var args = {};
@@ -184,7 +187,10 @@ function parseArgs(argv) {
     for (var i = 3; i < argv.length; i++) {
         if (argv[i].startsWith('--')) {
             var key = argv[i].substring(2);
-            if (i + 1 < argv.length && !argv[i + 1].startsWith('--')) {
+            if (BOOLEAN_FLAGS.has(key)) {
+                args[key] = 'true';
+            }
+            else if (i + 1 < argv.length && !argv[i + 1].startsWith('--')) {
                 args[key] = argv[++i];
             }
             else {
@@ -205,7 +211,7 @@ function usage() {
             commands: {
                 'compile': 'compile --platform <platform> [--tool <tool>] [--output <file>] <source>',
                 'check': 'check --platform <platform> [--tool <tool>] <source>',
-                'run': 'run (--platform <id> | --machine <module:ClassName>) [--frames N] [--output <file.png>] <rom>',
+                'run': 'run (--platform <id> | --machine <module:ClassName>) [--frames N] [--output <file.png>] [--memdump start,end] [--info] <rom>',
                 'list-tools': 'list-tools',
                 'list-platforms': 'list-platforms',
             }
@@ -299,6 +305,7 @@ async function doCompile(args, positional, checkOnly) {
     });
 }
 async function doRun(args, positional) {
+    var _a, _b, _c;
     var platformId = args['platform'];
     var machine = args['machine'];
     var frames = parseInt(args['frames'] || '1');
@@ -315,10 +322,12 @@ async function doRun(args, positional) {
     var romData = new Uint8Array(fs.readFileSync(romFile));
     var pixels = null;
     var vid = null;
+    var platformRunner = null;
+    var machineInstance = null;
     if (platformId) {
         // Platform mode: load platform module, mock video, run via Platform API
         var { PlatformRunner, loadPlatform } = await Promise.resolve().then(() => __importStar(require('./runmachine')));
-        var platformRunner = new PlatformRunner(await loadPlatform(platformId));
+        platformRunner = new PlatformRunner(await loadPlatform(platformId));
         await platformRunner.start();
         platformRunner.loadROM("ROM", romData);
         for (var i = 0; i < frames; i++) {
@@ -340,7 +349,7 @@ async function doRun(args, positional) {
         }
         var [modname, clsname] = parts;
         var { MachineRunner, loadMachine } = await Promise.resolve().then(() => __importStar(require('./runmachine')));
-        var machineInstance = await loadMachine(modname, clsname);
+        machineInstance = await loadMachine(modname, clsname);
         var runner = new MachineRunner(machineInstance);
         runner.setup();
         machineInstance.loadROM(romData);
@@ -349,17 +358,6 @@ async function doRun(args, positional) {
         }
         pixels = runner.pixels;
         vid = pixels ? machineInstance.getVideoParams() : null;
-    }
-    // Encode framebuffer as PNG if video is available
-    var pngData = null;
-    if (pixels && vid) {
-        var { encode } = await Promise.resolve().then(() => __importStar(require('fast-png')));
-        var rgba = new Uint8Array(pixels.buffer);
-        pngData = encode({ width: vid.width, height: vid.height, data: rgba, channels: 4 });
-    }
-    // Write PNG to file if requested
-    if (outputFile && pngData) {
-        fs.writeFileSync(outputFile, pngData);
     }
     output({
         success: true,
@@ -374,6 +372,90 @@ async function doRun(args, positional) {
             outputFile: outputFile || null,
         }
     });
+    // --info: print debug info for all categories + disassembly at PC
+    if (args['info'] === 'true') {
+        var plat = platformId ? platformRunner.platform : null;
+        var mach = machine ? machineInstance : null;
+        var debugTarget = plat || mach;
+        if (debugTarget && (0, baseplatform_1.isDebuggable)(debugTarget)) {
+            var state = (_b = (_a = plat === null || plat === void 0 ? void 0 : plat.saveState) === null || _a === void 0 ? void 0 : _a.call(plat)) !== null && _b !== void 0 ? _b : (_c = mach === null || mach === void 0 ? void 0 : mach.saveState) === null || _c === void 0 ? void 0 : _c.call(mach);
+            if (state) {
+                var categories = debugTarget.getDebugCategories();
+                for (var cat of categories) {
+                    var info = debugTarget.getDebugInfo(cat, state);
+                    if (info) {
+                        process.stderr.write(`${c.bold}${c.magenta}[${cat}]${c.reset}\n`);
+                        process.stderr.write(info);
+                        if (!info.endsWith('\n'))
+                            process.stderr.write('\n');
+                    }
+                }
+            }
+        }
+        // Disassembly around current PC
+        if ((debugTarget === null || debugTarget === void 0 ? void 0 : debugTarget.getPC) && (debugTarget === null || debugTarget === void 0 ? void 0 : debugTarget.disassemble) && (debugTarget === null || debugTarget === void 0 ? void 0 : debugTarget.readAddress)) {
+            var pc = debugTarget.getPC();
+            var readFn = (addr) => debugTarget.readAddress(addr);
+            process.stderr.write(`${c.bold}${c.magenta}[Disassembly]${c.reset}\n`);
+            var addr = pc;
+            for (var i = 0; i < 16; i++) {
+                var disasm = debugTarget.disassemble(addr, readFn);
+                var prefix = (addr === pc) ? `${c.green}>${c.reset}` : ' ';
+                // show hex bytes
+                var bytesStr = '';
+                for (var b = 0; b < disasm.nbytes; b++) {
+                    bytesStr += (0, util_1.hex)(readFn(addr + b)) + ' ';
+                }
+                process.stderr.write(`${prefix}${c.cyan}$${(0, util_1.hex)(addr, 4)}${c.reset}  ${c.dim}${bytesStr.padEnd(12)}${c.reset} ${disasm.line}\n`);
+                addr += disasm.nbytes;
+            }
+        }
+    }
+    // --memdump start,end: hexdump memory range
+    if (args['memdump']) {
+        var mdparts = args['memdump'].split(',');
+        var start = parseInt(mdparts[0], 16);
+        var end = parseInt(mdparts[1], 16);
+        if (isNaN(start) || isNaN(end) || end < start) {
+            output({ success: false, command: 'run', error: `Invalid --memdump range: ${args['memdump']} (use hex addresses like 0000,00ff)` });
+            process.exit(1);
+        }
+        var plat2 = platformId ? platformRunner.platform : null;
+        var mach2 = machine ? machineInstance : null;
+        var readFn2 = null;
+        if (plat2 === null || plat2 === void 0 ? void 0 : plat2.readAddress)
+            readFn2 = (addr) => plat2.readAddress(addr);
+        else if (mach2 && typeof mach2.read === 'function')
+            readFn2 = (addr) => mach2.read(addr);
+        if (!readFn2) {
+            output({ success: false, command: 'run', error: 'Platform/machine does not support readAddress' });
+            process.exit(1);
+        }
+        var len = end - start + 1;
+        for (var ofs = 0; ofs < len; ofs += 16) {
+            var line = `${c.cyan}$${(0, util_1.hex)(start + ofs, 4)}${c.reset}:`;
+            var ascii = '';
+            for (var i = 0; i < 16 && ofs + i < len; i++) {
+                if (i === 8)
+                    line += ' ';
+                var byte = readFn2(start + ofs + i);
+                line += ` ${(0, util_1.hex)(byte)}`;
+                ascii += (byte >= 0x20 && byte < 0x7f) ? String.fromCharCode(byte) : '.';
+            }
+            process.stderr.write(`${line}  ${c.dim}${ascii}${c.reset}\n`);
+        }
+    }
+    // Encode framebuffer as PNG if video is available
+    var pngData = null;
+    if (pixels && vid) {
+        var { encode } = await Promise.resolve().then(() => __importStar(require('fast-png')));
+        var rgba = new Uint8Array(pixels.buffer);
+        pngData = encode({ width: vid.width, height: vid.height, data: rgba, channels: 4 });
+    }
+    // Write PNG to file if requested
+    if (outputFile && pngData) {
+        fs.writeFileSync(outputFile, pngData);
+    }
     // Display image in terminal if connected to a TTY
     if (pngData && process.stdout.isTTY) {
         var { displayImageInTerminal } = await Promise.resolve().then(() => __importStar(require('./termimage')));
@@ -448,6 +530,7 @@ async function main() {
         }
     }
     catch (e) {
+        console.log(e);
         output({
             success: false,
             command: command,

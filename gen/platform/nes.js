@@ -70,6 +70,7 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
         super();
         this.audioFrequency = 44030; //44100
         this.frameindex = 0;
+        this.showDebugView = false;
         this.machine = { cpuCyclesPerLine: 114 }; // TODO: hack for width of probe scope
         this.getToolForFilename = (fn) => {
             //if (fn.endsWith(".asm")) return "ca65"; // .asm uses ca65
@@ -96,22 +97,23 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
     getPresets() { return JSNES_PRESETS; }
     start() {
         this.debugPCDelta = 1;
-        var debugbar = $("<div>").appendTo(this.mainElement);
         this.audio = new audio_1.SampleAudio(this.audioFrequency);
         this.video = new emu_1.RasterVideo(this.mainElement, 256, 224, { overscan: true });
         this.video.create();
         // debugging view
         this.ntvideo = new emu_1.RasterVideo(this.mainElement, 512, 480, { overscan: false });
         this.ntvideo.create();
-        $(this.ntvideo.canvas).hide();
+        this.ntvideo.canvas.style.display = 'none';
         this.ntlastbuf = new Uint32Array(0x1000);
         if (Mousetrap.bind)
             Mousetrap.bind('ctrl+shift+alt+n', () => {
-                $(this.video.canvas).toggle();
-                $(this.ntvideo.canvas).toggle();
+                this.showDebugView = !this.showDebugView;
+                this.video.canvas.style.display = !this.showDebugView ? '' : 'none';
+                this.ntvideo.canvas.style.display = this.showDebugView ? '' : 'none';
             });
         // toggle buttons (TODO)
         /*
+        var debugbar = $("<div>").appendTo(this.mainElement);
         $('<button>').text("Video").appendTo(debugbar).click(() => { $(this.video.canvas).toggle() });
         $('<button>').text("Nametable").appendTo(debugbar).click(() => { $(this.ntvideo.canvas).toggle() });
         */
@@ -165,11 +167,11 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
     pollControls() { this.poller.poll(); }
     advance(novideo) {
         this.nes.frame();
-        return 29780; //TODO
+        return 29780; //TODO: PAL or NTSC?
     }
     updateDebugViews() {
         // don't update if view is hidden
-        if (!$(this.ntvideo.canvas).is(":visible"))
+        if (!this.showDebugView)
             return;
         var a = 0;
         var attraddr = 0;
@@ -477,31 +479,32 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
     getDebugSymbolFile() {
         var sym = this.debugSymbols.addr2symbol;
         var text = "";
-        $.each(sym, function (k, v) {
+        for (let [k, v] of Object.entries(sym)) {
+            let numK = Number(k);
             let symType;
-            if (k < 0x2000) {
-                k = k % 0x800;
+            if (numK < 0x2000) {
+                numK = numK % 0x800;
                 symType = "R";
             }
-            else if (k < 0x6000)
+            else if (numK < 0x6000)
                 symType = "G";
-            else if (k < 0x8000) {
-                k = k - 0x6000;
+            else if (numK < 0x8000) {
+                numK = numK - 0x6000;
                 symType = "S";
             }
             else {
-                k = k - 0x8000;
+                numK = numK - 0x8000;
                 symType = "P";
             }
-            let addr = Number(k).toString(16).padStart(4, '0').toUpperCase();
+            let addr = numK.toString(16).padStart(4, '0').toUpperCase();
             // Mesen doesn't allow lables to start with digits
             if (v[0] >= '0' && v[0] <= '9') {
                 v = "L" + v;
             }
             // nor does it allow dots
-            v = v.replaceAll('.', '_');
+            v = (0, util_1.replaceAll)(v, '.', '_');
             text += `${symType}:${addr}:${v}\n`;
-        });
+        }
         return {
             extension: ".mlb",
             blob: new Blob([text], { type: "text/plain" })
