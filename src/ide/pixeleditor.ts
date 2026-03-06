@@ -698,6 +698,22 @@ export class PaletteFormatToRGB extends PixNode {
   }
 }
 
+export class PaletteEditorView extends PixNode {
+  updateCells: () => void;
+
+  constructor(updateCells: () => void) {
+    super();
+    this.updateCells = updateCells;
+  }
+  updateLeft() {
+    return true;
+  }
+  updateRight() {
+    this.updateCells();
+    return true;
+  }
+}
+
 export abstract class Compositor extends PixNode {
 
   tilemap: Uint8Array[];	// tilemap images
