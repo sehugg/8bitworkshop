@@ -25,8 +25,6 @@ class VicDualPlatform extends baseplatform_1.BaseZ80MachinePlatform {
     }
     newMachine() { return new vicdual_1.VicDual(); }
     getPresets() { return VICDUAL_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
     readAddress(a) { return this.machine.read(a); }
     showHelp() { return "https://8bitworkshop.com/docs/platforms/arcade/index.html#vic-dual"; }
 }

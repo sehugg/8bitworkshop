@@ -43,7 +43,7 @@ export abstract class BaseARMMachinePlatform<T extends Machine> extends BaseMach
       return "armtcc";
     }
     getPresets()          { return ARM32_PRESETS; }
-    getDefaultExtension() { return ".c"; };
+    getDefaultExtensions() { return [".c", ".armips", ".vasm"]; }
   }
   
 class ARM32Platform extends BaseARMMachinePlatform<ARM32Machine> implements Platform {

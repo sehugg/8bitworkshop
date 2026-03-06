@@ -312,7 +312,7 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
         var ram = this.getRAMForState(state);
         return "\n" + (0, emu_1.dumpRAM)(ram, 0x80, 0x80);
     }
-    getDefaultExtension() { return ".dasm"; }
+    getDefaultExtensions() { return [".c", ".bb", ".acme", ".ca65", ".dasm", ".cc2600", ".ecs", ".wiz"]; }
     getROMExtension() { return ".a26"; }
     getDebugCategories() {
         return ['CPU', 'Stack', 'PIA', 'TIA'];
@@ -480,7 +480,7 @@ class VCSMAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
             return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
         };
     }
-    getDefaultExtension() { return ".dasm"; }
+    getDefaultExtensions() { return [".c", ".bb", ".acme", ".ca65", ".dasm", ".cc2600", ".ecs", ".wiz"]; }
     getROMExtension() { return ".a26"; }
 }
 ////////////////
@@ -524,7 +524,7 @@ class VCSStellaPlatform {
     isRunning() {
         return this.running;
     }
-    getDefaultExtension() { return ".dasm"; }
+    getDefaultExtensions() { return [".c", ".bb", ".acme", ".ca65", ".dasm", ".cc2600", ".ecs", ".wiz"]; }
     getROMExtension() { return ".a26"; }
     getPresets() { return VCS_PRESETS; }
 }

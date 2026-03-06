@@ -44,8 +44,7 @@ class BaseARMMachinePlatform extends baseplatform_1.BaseMachinePlatform {
         return "armtcc";
     }
     getPresets() { return ARM32_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
+    getDefaultExtensions() { return [".c", ".armips", ".vasm"]; }
 }
 exports.BaseARMMachinePlatform = BaseARMMachinePlatform;
 class ARM32Platform extends BaseARMMachinePlatform {

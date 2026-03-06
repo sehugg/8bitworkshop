@@ -28,8 +28,6 @@ const VIC20_MEMORY_MAP = { main: [
 class VIC20WASMPlatform extends baseplatform_1.Base6502MachinePlatform {
     newMachine() { return new vic20_1.VIC20_WASMMachine('vic20'); }
     getPresets() { return VIC20_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
     readAddress(a) { return this.machine.readConst(a); }
     getMemoryMap() { return VIC20_MEMORY_MAP; }
     showHelp() {
@@ -53,7 +51,7 @@ class VIC20MAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
         this.getOpcodeMetadata = baseplatform_1.getOpcodeMetadata_6502;
     }
     getPresets() { return VIC20_PRESETS; }
-    getDefaultExtension() { return ".c"; }
+    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
     loadROM(title, data) {
         if (!this.started) {
             this.startModule(this.mainElement, {

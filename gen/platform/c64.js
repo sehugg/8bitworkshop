@@ -65,8 +65,6 @@ const C64_MEMORY_MAP = { main: [
 class C64WASMPlatform extends baseplatform_1.Base6502MachinePlatform {
     newMachine() { return new c64_1.C64_WASMMachine('c64'); }
     getPresets() { return C64_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
     readAddress(a) { return this.machine.readConst(a); }
     getMemoryMap() { return C64_MEMORY_MAP; }
     showHelp() { return "https://8bitworkshop.com/docs/platforms/c64/"; }
@@ -88,7 +86,7 @@ class C64MAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
         this.getOpcodeMetadata = baseplatform_1.getOpcodeMetadata_6502;
     }
     getPresets() { return C64_PRESETS; }
-    getDefaultExtension() { return ".c"; }
+    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
     loadROM(title, data) {
         if (!this.started) {
             this.startModule(this.mainElement, {

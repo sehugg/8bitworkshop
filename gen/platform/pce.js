@@ -44,8 +44,8 @@ class PCEnginePlatform {
     getToolForFilename(fn) {
         return (0, baseplatform_1.getToolForFilename_6502)(fn);
     }
-    getDefaultExtension() {
-        return ".pce";
+    getDefaultExtensions() {
+        return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"];
     }
     readAddress(addr) {
         return this.pce.Get(addr);

@@ -49,8 +49,6 @@ class MSXPlatform extends baseplatform_1.BaseZ80MachinePlatform {
     }
     newMachine() { return new msx_1.MSX1(); }
     getPresets() { return MSX_BIOS_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
     readAddress(a) { return this.machine.read(a); }
     readVRAMAddress(a) { return this.machine.readVRAMAddress(a); }
 }

@@ -46,8 +46,7 @@ class Atari800Platform extends baseplatform_1.Base6502MachinePlatform {
     }
     newMachine() { return new atari8_1.Atari800(); }
     getPresets() { return Atari800_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
+    getDefaultExtensions() { return [...super.getDefaultExtensions(), ".bas"]; }
     readAddress(a) { return this.machine.readConst(a); }
     getMemoryMap() { return Atari800_MemoryMap; }
     async start() {
@@ -87,8 +86,7 @@ class Atari8MAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
         this.showHelp = atari8_showHelp;
     }
     getPresets() { return Atari8_PRESETS; }
-    getDefaultExtension() { return ".asm"; }
-    ;
+    getDefaultExtensions() { return [".c", ".bas", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
 }
 class Atari800MAMEPlatform extends Atari8MAMEPlatform {
     constructor() {

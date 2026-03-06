@@ -20,8 +20,6 @@ const ZX_MEMORY_MAP = { main: [
 class ZXWASMPlatform extends baseplatform_1.BaseZ80MachinePlatform {
     newMachine() { return new zx_1.ZX_WASMMachine('zx'); }
     getPresets() { return ZX_PRESETS; }
-    getDefaultExtension() { return ".asm"; }
-    ;
     readAddress(a) { return this.machine.readConst(a); }
     getMemoryMap() { return ZX_MEMORY_MAP; }
     showHelp() {

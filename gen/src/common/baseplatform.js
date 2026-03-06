@@ -359,7 +359,7 @@ class Base6502Platform extends BaseDebugPlatform {
     disassemble(pc, read) {
         return (0, disasm6502_1.disassemble6502)(pc, read(pc), read(pc + 1), read(pc + 2));
     }
-    getDefaultExtension() { return ".a"; }
+    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
     ;
     getDebugCategories() {
         return ['CPU', 'ZPRAM', 'Stack'];
@@ -468,7 +468,7 @@ class BaseZ80Platform extends BaseDebugPlatform {
         }
         return n;
     }
-    getDefaultExtension() { return ".c"; }
+    getDefaultExtensions() { return [".c", ".ns", ".s", ".scc", ".sgb", ".z", ".wiz"]; }
     ;
     // TODO: Z80 opcode metadata
     //this.getOpcodeMetadata = function() { }
@@ -556,7 +556,7 @@ class Base6809Platform extends BaseZ80Platform {
         // TODO: don't create new CPU
         return Object.create((0, _6809_1.CPU6809)()).disasm(read(pc), read(pc + 1), read(pc + 2), read(pc + 3), read(pc + 4), pc);
     }
-    getDefaultExtension() { return ".asm"; }
+    getDefaultExtensions() { return [".c", ".lwasm", ".xasm"]; }
     ;
     getDebugCategories() {
         return ['CPU', 'Stack'];
@@ -829,6 +829,7 @@ class Base6502MachinePlatform extends BaseMachinePlatform {
         this.getOpcodeMetadata = getOpcodeMetadata_6502;
     }
     getToolForFilename(fn) { return getToolForFilename_6502(fn); }
+    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
     disassemble(pc, read) {
         return (0, disasm6502_1.disassemble6502)(pc, read(pc), read(pc + 1), read(pc + 2));
     }
@@ -854,6 +855,7 @@ class BaseZ80MachinePlatform extends BaseMachinePlatform {
         //getOpcodeMetadata     = getOpcodeMetadata_z80;
         this.getToolForFilename = getToolForFilename_z80;
     }
+    getDefaultExtensions() { return [".c", ".ns", ".s", ".scc", ".sgb", ".z", ".wiz"]; }
     getDebugCategories() {
         if (isDebuggable(this.machine))
             return this.machine.getDebugCategories();
@@ -884,6 +886,7 @@ class Base6809MachinePlatform extends BaseMachinePlatform {
         super(...arguments);
         this.getToolForFilename = getToolForFilename_6809;
     }
+    getDefaultExtensions() { return [".c", ".lwasm", ".xasm"]; }
     getDebugCategories() {
         if (isDebuggable(this.machine))
             return this.machine.getDebugCategories();

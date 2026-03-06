@@ -29,8 +29,8 @@ class MarkdownPlatform {
     getToolForFilename(fn) {
         return "markdown";
     }
-    getDefaultExtension() {
-        return ".md";
+    getDefaultExtensions() {
+        return [".md"];
     }
     getPresets() {
         return [

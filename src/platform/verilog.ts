@@ -718,7 +718,7 @@ var VerilogPlatform = function(mainElement, options) {
     else if (fn.endsWith(".ice")) return "silice";
     else return "verilator";
   }
-  getDefaultExtension() { return ".v"; };
+  getDefaultExtensions() { return [".v", ".asm", ".ice"]; }
 
   inspect(name:string) : string {
     if (!top) return;

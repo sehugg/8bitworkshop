@@ -276,7 +276,7 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
     getOriginPC() {
         return (this.readAddress(0xfffa) | (this.readAddress(0xfffb) << 8)) & 0xffff;
     }
-    getDefaultExtension() { return ".c"; }
+    getDefaultExtensions() { return [...super.getDefaultExtensions(), ".nesasm"]; }
     getROMExtension() { return ".nes"; }
     reset() {
         //this.nes.cpu.reset(); // doesn't work right, crashes
@@ -544,8 +544,7 @@ class NESMAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
         }
     }
     getPresets() { return JSNES_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
+    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
 }
 ///
 emu_1.PLATFORMS['nes'] = JSNESPlatform;

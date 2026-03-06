@@ -21,8 +21,6 @@ class KIM1Platform extends baseplatform_1.Base6502MachinePlatform {
     }
     newMachine() { return new kim1_1.KIM1(); }
     getPresets() { return KIM1_PRESETS; }
-    getDefaultExtension() { return ".dasm"; }
-    ;
     readAddress(a) { return this.machine.readConst(a); }
 }
 ///

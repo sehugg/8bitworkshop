@@ -29,24 +29,18 @@ exports.SMS_PRESETS = [
 class SG1000Platform extends baseplatform_1.BaseZ80MachinePlatform {
     newMachine() { return new sms_1.SG1000(); }
     getPresets() { return exports.SG1000_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
     readAddress(a) { return this.machine.read(a); }
     readVRAMAddress(a) { return this.machine.readVRAMAddress(a); }
 }
 class SMSPlatform extends baseplatform_1.BaseZ80MachinePlatform {
     newMachine() { return new sms_1.SMS(); }
     getPresets() { return exports.SMS_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
     readAddress(a) { return this.machine.read(a); }
     readVRAMAddress(a) { return this.machine.readVRAMAddress(a); }
 }
 class GameGearPlatform extends baseplatform_1.BaseZ80MachinePlatform {
     newMachine() { return new sms_1.GameGear(); }
     getPresets() { return exports.SMS_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
     readAddress(a) { return this.machine.read(a); }
     readVRAMAddress(a) { return this.machine.readVRAMAddress(a); }
 }

@@ -34,8 +34,6 @@ class ColecoVisionPlatform extends baseplatform_1.BaseZ80MachinePlatform {
     }
     newMachine() { return new coleco_1.ColecoVision(); }
     getPresets() { return exports.ColecoVision_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
     readAddress(a) { return this.machine.read(a); }
     readVRAMAddress(a) { return this.machine.readVRAMAddress(a); }
     showHelp() {
@@ -67,8 +65,7 @@ class ColecoVisionMAMEPlatform extends mameplatform_1.BaseMAMEZ80Platform {
         this.loadRegion(":coleco_cart:rom", data);
     }
     getPresets() { return exports.ColecoVision_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
+    getDefaultExtensions() { return [".c", ".ns", ".s", ".scc", ".sgb", ".z", ".wiz"]; }
 }
 ///
 emu_1.PLATFORMS['coleco.mame'] = ColecoVisionMAMEPlatform;

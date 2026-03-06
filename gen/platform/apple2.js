@@ -46,8 +46,7 @@ class Apple2MAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
             },
         });
     }
-    getDefaultExtension() { return ".c"; }
-    ;
+    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
     getPresets() { return APPLE2_PRESETS; }
     loadROM(title, data) {
         this.loadROMFile(data);
@@ -93,8 +92,7 @@ class NewApple2Platform extends baseplatform_2.Base6502MachinePlatform {
     }
     newMachine() { return new apple2_1.AppleII(); }
     getPresets() { return APPLE2_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
+    getDefaultExtensions() { return [...super.getDefaultExtensions(), ".lnk"]; }
     readAddress(a) { return this.machine.readConst(a); }
     getROMExtension(rom) {
         if (rom && rom.length == 35 * 16 * 256)

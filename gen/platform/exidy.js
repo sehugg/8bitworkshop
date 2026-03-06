@@ -9,8 +9,6 @@ var EXIDY_PRESETS = [
 class ExidyUGBPlatform extends baseplatform_1.Base6502MachinePlatform {
     newMachine() { return new exidy_1.ExidyUGBv2(); }
     getPresets() { return EXIDY_PRESETS; }
-    getDefaultExtension() { return ".dasm"; }
-    ;
     readAddress(a) { return this.machine.readConst(a); }
     getMemoryMap() {
         return { main: [

@@ -15,7 +15,7 @@ class GameBoyPlatform extends baseplatform_1.BaseMachinePlatform {
     }
     newMachine() { return new gb_1.GameBoyMachine(); }
     getPresets() { return GB_PRESETS; }
-    getDefaultExtension() { return ".c"; }
+    getDefaultExtensions() { return [".c", ".ns", ".s", ".scc", ".sgb", ".z", ".wiz"]; }
     readAddress(a) { return this.machine.read(a); }
     readVRAMAddress(a) { return this.machine.readVRAMAddress(a); }
     getOriginPC() {

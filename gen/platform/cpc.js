@@ -23,8 +23,6 @@ const CPC_MEMORY_MAP = { main: [
 class CPCWASMPlatform extends baseplatform_1.BaseZ80MachinePlatform {
     newMachine() { return new cpc_1.CPC_WASMMachine('cpc'); }
     getPresets() { return CPC_PRESETS; }
-    getDefaultExtension() { return ".asm"; }
-    ;
     readAddress(a) { return this.machine.readConst(a); }
     getMemoryMap() { return CPC_MEMORY_MAP; }
     showHelp() {

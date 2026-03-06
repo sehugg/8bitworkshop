@@ -616,8 +616,8 @@ class ZmachinePlatform {
     getToolForFilename(s) {
         return "inform6";
     }
-    getDefaultExtension() {
-        return ".inf";
+    getDefaultExtensions() {
+        return [".inf"];
     }
     showHelp() {
         return "https://www.inform-fiction.org/manual/html/contents.html";

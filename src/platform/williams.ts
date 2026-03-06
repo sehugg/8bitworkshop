@@ -479,7 +479,6 @@ class NewWilliamsPlatform extends Base6809MachinePlatform<WilliamsMachine> imple
 
   newMachine()          { return new WilliamsMachine(false); }
   getPresets()          { return WILLIAMS_PRESETS; }
-  getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.readConst(a); }
   getMemoryMap() { 
     return { main:[

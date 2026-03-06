@@ -706,8 +706,8 @@ class ZmachinePlatform implements Platform {
     getToolForFilename(s: string): string {
         return "inform6";
     }
-    getDefaultExtension(): string {
-        return ".inf";
+    getDefaultExtensions() {
+        return [".inf"];
     }
     showHelp() {
         return "https://www.inform-fiction.org/manual/html/contents.html";

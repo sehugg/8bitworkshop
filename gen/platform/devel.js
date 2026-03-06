@@ -148,8 +148,6 @@ class Devel6502Platform extends baseplatform_1.Base6502MachinePlatform {
     }
     newMachine() { return new devel_1.Devel6502(); }
     getPresets() { return DEVEL_6502_PRESETS; }
-    getDefaultExtension() { return ".dasm"; }
-    ;
     readAddress(a) { return this.machine.readConst(a); }
 }
 ///

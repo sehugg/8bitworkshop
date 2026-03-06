@@ -34,7 +34,6 @@ class BallyAstrocadePlatform extends BaseZ80MachinePlatform<BallyAstrocade> impl
 
   newMachine()          { return new BallyAstrocade(false); }
   getPresets()          { return ASTROCADE_PRESETS; }
-  getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.read(a); }
   getMemoryMap = function() { return { main:[
       {name:'BIOS',start:0x0,size:0x2000,type:'rom'},

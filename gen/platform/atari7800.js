@@ -31,8 +31,7 @@ class Atari7800Platform extends baseplatform_1.Base6502MachinePlatform {
     }
     newMachine() { return new atari7800_1.Atari7800(); }
     getPresets() { return Atari7800_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
+    getDefaultExtensions() { return [...super.getDefaultExtensions(), ".cc7800"]; }
     readAddress(a) { return this.machine.readConst(a); }
     getROMExtension() { return ".a78"; }
     getDebugTree() {

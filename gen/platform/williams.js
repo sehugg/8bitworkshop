@@ -458,8 +458,6 @@ var WilliamsDefenderPlatform = function (mainElement, options) {
 class NewWilliamsPlatform extends baseplatform_1.Base6809MachinePlatform {
     newMachine() { return new williams_1.WilliamsMachine(false); }
     getPresets() { return WILLIAMS_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
     readAddress(a) { return this.machine.readConst(a); }
     getMemoryMap() {
         return { main: [

@@ -41,8 +41,8 @@ class X86PCPlatform {
             return "smlrc";
         return "yasm";
     }
-    getDefaultExtension() {
-        return ".asm";
+    getDefaultExtensions() {
+        return [".c", ".asm"];
     }
     getPresets() {
         return PC_PRESETS;

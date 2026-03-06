@@ -686,8 +686,7 @@ var VerilogPlatform = function (mainElement, options) {
             else
                 return "verilator";
         }
-        getDefaultExtension() { return ".v"; }
-        ;
+        getDefaultExtensions() { return [".v", ".asm", ".ice"]; }
         inspect(name) {
             if (!top)
                 return;

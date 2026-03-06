@@ -65,8 +65,8 @@ class X86PCPlatform implements Platform {
         if (s.endsWith(".c")) return "smlrc";
         return "yasm";
     }
-    getDefaultExtension(): string {
-        return ".asm";
+    getDefaultExtensions() {
+        return [".c", ".asm"];
     }
     getPresets() {
         return PC_PRESETS;

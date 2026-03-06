@@ -1,4 +1,3 @@
-
 import { GameBoyMachine } from "../machine/gb";
 import { BaseMachinePlatform, cpuStateToLongString_SM83, getToolForFilename_z80, Platform, Preset, dumpStackToString, isDebuggable, EmuState, DisasmLine } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
@@ -13,7 +12,7 @@ class GameBoyPlatform extends BaseMachinePlatform<GameBoyMachine> implements Pla
 
   newMachine()          { return new GameBoyMachine(); }
   getPresets()          { return GB_PRESETS; }
-  getDefaultExtension() { return ".c"; }
+  getDefaultExtensions() { return [".c", ".ns", ".s", ".scc", ".sgb", ".z", ".wiz"]; }
   getToolForFilename    = getToolForFilename_z80;
   readAddress(a)        { return this.machine.read(a); }
   readVRAMAddress(a)    { return this.machine.readVRAMAddress(a); }

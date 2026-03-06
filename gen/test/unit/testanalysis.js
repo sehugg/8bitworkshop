@@ -24,7 +24,7 @@ class Test6502Platform {
     getToolForFilename(s) {
         throw new Error("Method not implemented.");
     }
-    getDefaultExtension() {
+    getDefaultExtensions() {
         throw new Error("Method not implemented.");
     }
     pause() {

@@ -99,8 +99,6 @@ class WilliamsSound extends devices_1.BasicMachine {
 class WilliamsSoundPlatform extends baseplatform_1.BaseZ80MachinePlatform {
     newMachine() { return new WilliamsSound(); }
     getPresets() { return WILLIAMS_SOUND_PRESETS; }
-    getDefaultExtension() { return ".c"; }
-    ;
     readAddress(a) { return this.machine.read(a); }
 }
 exports.WilliamsSoundPlatform = WilliamsSoundPlatform;

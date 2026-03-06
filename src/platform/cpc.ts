@@ -27,7 +27,6 @@ class CPCWASMPlatform extends BaseZ80MachinePlatform<CPC_WASMMachine> implements
   newMachine()          { return new CPC_WASMMachine('cpc'); }
 
   getPresets()          { return CPC_PRESETS; }
-  getDefaultExtension() { return ".asm"; };
   readAddress(a)        { return this.machine.readConst(a); }
   getMemoryMap()        { return CPC_MEMORY_MAP; }
   showHelp() {
