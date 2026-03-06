@@ -245,8 +245,8 @@ export class SourceEditor implements ProjectView {
 
         highlightLines.field,
 
-        createAssetHeaderPlugin(() => {
-          projectWindows.createOrShow('#asseteditor');
+        createAssetHeaderPlugin((lineNumber: number) => {
+          window.location.hash = 'asseteditor/' + encodeURIComponent(this.path) + '/' + lineNumber;
         }),
 
         textTransformFilterCompartment.of([]),
