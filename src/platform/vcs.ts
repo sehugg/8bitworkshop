@@ -303,7 +303,7 @@ class VCSPlatform extends BasePlatform {
     return "\n" + dumpRAM(ram, 0x80, 0x80);
   }
   getToolForFilename = getToolForFilename_vcs;
-  getDefaultExtensions() { return [".c", ".bb", ".acme", ".ca65", ".dasm", ".cc2600", ".ecs", ".wiz"]; }
+  getDefaultExtensions() { return [".dasm", ".a", ".bb", ".acme", ".ca65", ".cc2600", ".ecs", ".wiz", ".c"]; }
   getROMExtension() { return ".a26"; }
 
   getDebugCategories() {
