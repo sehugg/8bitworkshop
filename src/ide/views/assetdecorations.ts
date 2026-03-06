@@ -2,7 +2,7 @@ import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetTy
 
 // Asset header detection — shows a clickable badge on lines with ;;{json};; or /*{json}*/
 class AssetHeaderWidget extends WidgetType {
-  constructor(readonly header: string, readonly onClick: () => void) { super() }
+  constructor(readonly header: string, readonly handleClick: (span: HTMLElement) => void) { super() }
 
   toDOM() {
     const span = document.createElement("span");
@@ -12,7 +12,7 @@ class AssetHeaderWidget extends WidgetType {
     span.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      this.onClick();
+      this.handleClick(span);
     });
     return span;
   }
@@ -23,7 +23,7 @@ class AssetHeaderWidget extends WidgetType {
 
 const assetHeaderRegex = /[/;][*;](\{.+?\})[*;][/;]/g;
 
-function buildAssetHeaderDecorations(view: EditorView, onClick: () => void): DecorationSet {
+function buildAssetHeaderDecorations(view: EditorView, handleClick: (span: HTMLElement) => void): DecorationSet {
   const widgets: any[] = [];
   for (let { from, to } of view.visibleRanges) {
     const text = view.state.sliceDoc(from, to);
@@ -36,7 +36,7 @@ function buildAssetHeaderDecorations(view: EditorView, onClick: () => void): Dec
         const lineEnd = lineStart + line.length;
         widgets.push(
           Decoration.widget({
-            widget: new AssetHeaderWidget(m[0], onClick),
+            widget: new AssetHeaderWidget(m[0], handleClick),
             side: 1,
           }).range(lineEnd)
         );
@@ -47,15 +47,22 @@ function buildAssetHeaderDecorations(view: EditorView, onClick: () => void): Dec
   return Decoration.set(widgets, true);
 }
 
-export function createAssetHeaderPlugin(onClick: () => void) {
+export function createAssetHeaderPlugin(onClick: (lineNumber: number) => void) {
+  let currentView: EditorView;
+  function handleClick(span: HTMLElement) {
+    const pos = currentView.posAtDOM(span);
+    onClick(currentView.state.doc.lineAt(pos).number);
+  }
   return ViewPlugin.fromClass(class {
     decorations: DecorationSet;
     constructor(view: EditorView) {
-      this.decorations = buildAssetHeaderDecorations(view, onClick);
+      currentView = view;
+      this.decorations = buildAssetHeaderDecorations(view, handleClick);
     }
     update(update: ViewUpdate) {
+      currentView = update.view;
       if (update.docChanged || update.viewportChanged) {
-        this.decorations = buildAssetHeaderDecorations(update.view, onClick);
+        this.decorations = buildAssetHeaderDecorations(update.view, handleClick);
       }
     }
   }, {

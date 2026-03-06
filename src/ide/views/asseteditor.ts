@@ -22,7 +22,6 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
   cureditnode: pixed.PixNode;
   rootnodes: pixed.PixNode[];
   deferrednodes: pixed.PixNode[];
-
   createDiv(parent: HTMLElement) {
     this.maindiv = newDiv(parent, "vertical-scroll");
     return this.maindiv[0];
@@ -134,6 +133,21 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       node = node.left;
     }
     this.cureditnode = node;
+    this.updateHashForSelection(div);
+  }
+
+  updateHashForSelection(div: JQuery) {
+    if (typeof window === 'undefined') return;
+    var block = div ? div.closest('.asset_block[data-fileid]') : null;
+    var fileid = block && block.attr('data-fileid');
+    var startline = block && block.attr('data-startline');
+    var hash = '#asseteditor';
+    if (fileid && startline) {
+      hash += '/' + encodeURIComponent(fileid) + '/' + startline;
+    }
+    if (window.location.hash !== hash) {
+      history.replaceState(null, '', hash);
+    }
   }
 
   scanFileTextForAssets(id: string, data: string) {
@@ -330,7 +344,9 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     } else if (typeof data === 'string') {
       let textfrags = this.scanFileTextForAssets(fileid, data);
       for (let frag of textfrags) {
-        const block = $('<div class="asset_block"/>').appendTo(this.ensureFileDiv(fileid));
+        const block = $('<div class="asset_block"/>')
+          .attr({ 'data-fileid': fileid, 'data-startline': frag.startline })
+          .appendTo(this.ensureFileDiv(fileid));
         var snip = $('<div class="asset_snip"/>').appendTo(block);
         var linenos = $('<span class="asset_linenos"/>').appendTo(snip);
         $('<span class="asset_lineno"/>').text(frag.startline).appendTo(linenos);
@@ -422,11 +438,30 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         }
       });
       this.deferrednodes = [];
+      this.scrollToAssetFromHash();
     } else {
       for (var node of this.rootnodes) {
         node.refreshRight();
       }
     }
+  }
+
+  scrollToAssetFromHash(): void {
+    var hash = window.location.hash;
+    if (!hash || !hash.startsWith('#asseteditor/')) return;
+    var parts = hash.substring(1).split('/'); // ['asseteditor', ...filename, startline]
+    var fileid = decodeURIComponent(parts.slice(1, -1).join('/'));
+    var startline = parts[parts.length - 1];
+    if (!fileid || !startline) return;
+    // defer to allow DOM to settle
+    setTimeout(() => {
+      const block = this.maindiv.find(`.asset_block[data-fileid="${fileid}"][data-startline="${startline}"]`);
+      if (block.length) {
+        block[0].scrollIntoView({ behavior: "smooth", block: "center" });
+        block.addClass('asset_highlight');
+        setTimeout(() => block.removeClass('asset_highlight'), 500);
+      }
+    }, 0);
   }
 
   setVisible?(showing: boolean): void {
