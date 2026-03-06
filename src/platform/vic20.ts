@@ -32,7 +32,6 @@ class VIC20WASMPlatform extends Base6502MachinePlatform<VIC20_WASMMachine> imple
   newMachine()          { return new VIC20_WASMMachine('vic20'); }
 
   getPresets()          { return VIC20_PRESETS; }
-  getDefaultExtension() { return ".c"; };
   readAddress(a)        { return this.machine.readConst(a); }
   getMemoryMap()        { return VIC20_MEMORY_MAP; }
   showHelp() {
@@ -52,7 +51,7 @@ abstract class VIC20MAMEPlatform extends BaseMAME6502Platform {
   getPresets() { return VIC20_PRESETS; }
   getToolForFilename = getToolForFilename_6502;
   getOpcodeMetadata = getOpcodeMetadata_6502;
-  getDefaultExtension() { return ".c"; }
+  getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
   loadROM(title, data) {
     if (!this.started) {
       this.startModule(this.mainElement, {

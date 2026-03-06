@@ -24,7 +24,7 @@ class ZXWASMPlatform extends BaseZ80MachinePlatform<ZX_WASMMachine> implements P
   newMachine()          { return new ZX_WASMMachine('zx'); }
 
   getPresets()          { return ZX_PRESETS; }
-  getDefaultExtension() { return ".asm"; };
+
   readAddress(a)        { return this.machine.readConst(a); }
   getMemoryMap()        { return ZX_MEMORY_MAP; }
   showHelp() {

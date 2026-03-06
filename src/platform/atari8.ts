@@ -43,7 +43,7 @@ function getToolForFilename_Atari8(fn:string) {
 class Atari800Platform extends Base6502MachinePlatform<Atari800> {
   newMachine()          { return new Atari800(); }
   getPresets()          { return Atari800_PRESETS; }
-  getDefaultExtension() { return ".c"; };
+  getDefaultExtensions() { return [...super.getDefaultExtensions(), ".bas"]; }
   getToolForFilename = getToolForFilename_Atari8;
   readAddress(a)        { return this.machine.readConst(a); }
   getMemoryMap()        { return Atari800_MemoryMap; }
@@ -83,7 +83,7 @@ abstract class Atari8MAMEPlatform extends BaseMAME6502Platform {
   getPresets() { return Atari8_PRESETS; }
   getToolForFilename = getToolForFilename_Atari8;
   getOpcodeMetadata = getOpcodeMetadata_6502;
-  getDefaultExtension() { return ".asm"; };
+  getDefaultExtensions() { return [".c", ".bas", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
   showHelp = atari8_showHelp;
 }
 

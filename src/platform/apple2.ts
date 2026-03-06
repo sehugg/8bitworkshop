@@ -47,7 +47,7 @@ class Apple2MAMEPlatform extends BaseMAME6502Platform implements Platform {
   }
 
   getOpcodeMetadata = getOpcodeMetadata_6502;
-  getDefaultExtension() { return ".c"; };
+  getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
   getToolForFilename = getToolForFilename_6502;
 
   getPresets() { return APPLE2_PRESETS; }
@@ -64,7 +64,7 @@ class NewApple2Platform extends Base6502MachinePlatform<AppleII> implements Plat
 
   newMachine() { return new AppleII(); }
   getPresets() { return APPLE2_PRESETS; }
-  getDefaultExtension() { return ".c"; };
+  getDefaultExtensions() { return [...super.getDefaultExtensions(), ".lnk"]; }
   readAddress(a) { return this.machine.readConst(a); }
   // TODO loadBIOS(bios)	{ this.machine.loadBIOS(a); }
   getMemoryMap = function () {
