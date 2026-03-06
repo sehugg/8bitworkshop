@@ -206,10 +206,9 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
   }
 
   // TODO: move to pixeleditor.ts?
-  addPaletteEditorViews(parentdiv: JQuery, pal2rgb: pixed.PaletteFormatToRGB, callback) {
+  addPaletteEditorViews(parentdiv: JQuery, pal2rgb: pixed.PaletteFormatToRGB, callback): () => void {
     var adual = $('<div class="asset_dual"/>').appendTo(parentdiv);
     var aeditor = $('<div class="asset_editor"/>').hide(); // contains editor, when selected
-    // TODO: they need to update when refreshed from right
     var allrgbimgs = [];
     pal2rgb.getAllColors().forEach((rgba) => { allrgbimgs.push(new Uint32Array([rgba])); }); // array of array of 1 rgb color (for picker)
     var atable = $('<table/>').appendTo(adual);
@@ -224,12 +223,16 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         layout.push(["", i, Math.min(len - i, imgsperline)]);
       }
     }
+    var cells: { cell: JQuery, index: number }[] = [];
     function updateCell(cell, j) {
       var val = pal2rgb.words[j];
       var rgb = pal2rgb.palette[j];
       var hexcol = '#' + hex(rgb2bgr(rgb), 6);
       var textcol = (rgb & 0x008000) ? 'black' : 'white';
       cell.text(hex(val, 2)).css('background-color', hexcol).css('color', textcol);
+    }
+    function updateAllCells() {
+      cells.forEach(({ cell, index }) => updateCell(cell, index));
     }
     // iterate over each row of the layout
     layout.forEach(([name, start, len]) => {
@@ -243,6 +246,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
           inds.reverse();
         inds.forEach((i) => {
           var cell = $('<td/>').addClass('asset_cell asset_editable').appendTo(arow);
+          cells.push({ cell, index: i });
           updateCell(cell, i);
           cell.click((e) => {
             var chooser = new pixed.ImageChooser();
@@ -258,6 +262,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         });
       }
     });
+    return updateAllCells;
   }
 
   addPixelEditor(parentdiv: JQuery, firstnode: pixed.PixNode, fmt: pixed.PixelEditorImageFormat) {
@@ -279,9 +284,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     firstnode.addRight(pal2rgb);
     // TODO: refresh twice?
     firstnode.refreshRight();
-    // TODO: add view objects
-    // TODO: show which one is selected?
-    this.addPaletteEditorViews(parentdiv, pal2rgb,
+    var updateAllCells = this.addPaletteEditorViews(parentdiv, pal2rgb,
       (index, newvalue) => {
         console.log('set entry', index, '=', newvalue);
         // TODO: this forces update of palette rgb colors and file data
@@ -290,6 +293,8 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         pal2rgb.updateRight();
         pal2rgb.refreshLeft();
       });
+    // add view node to repaint cells when data changes (e.g. undo)
+    pal2rgb.addRight(new pixed.PaletteEditorView(updateAllCells));
   }
 
   ensureFileDiv(fileid: string): JQuery<HTMLElement> {
