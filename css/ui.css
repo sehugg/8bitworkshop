@@ -497,6 +497,15 @@ div.asset_file_header {
 }
 div.asset_block {
   margin-top: 8px;
+  transition: outline-color 1.5s ease-out;
+  outline: 2px solid transparent;
+  background-color: transparent;
+
+}
+div.asset_block.asset_highlight {
+  outline: 2px solid #99cc99;
+  border-radius: 4px;
+  transition: none;
 }
 .asset_snip {
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;

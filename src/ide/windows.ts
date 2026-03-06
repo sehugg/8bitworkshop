@@ -83,7 +83,8 @@ export class ProjectWindows {
         }
       } else {
         const hash = id.startsWith('#') ? id : '#' + encodeURIComponent(id);
-        if (window.location.hash !== hash) {
+        // don't overwrite an extended hash (e.g. #asseteditor/file/line) with the base hash
+        if (window.location.hash !== hash && !window.location.hash.startsWith(hash + '/')) {
           history.replaceState(null, '', hash);
         }
       }
