@@ -438,8 +438,16 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         }
       });
       this.deferrednodes = [];
+      if (this.maindiv.children().length === 0) {
+        $('<div class="asset_no_assets"/>')
+          .text("No asset declarations found.")
+          .appendTo(this.maindiv);
+      }
       this.scrollToAssetFromHash();
     } else {
+      if (this.rootnodes.length > 0) {
+        this.maindiv.find('.asset_no_assets').remove();
+      }
       for (var node of this.rootnodes) {
         node.refreshRight();
       }
