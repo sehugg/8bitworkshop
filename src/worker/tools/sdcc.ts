@@ -14,22 +14,25 @@ function hexToArray(s, ofs) {
     return arr;
 }
 
-function parseIHX(ihx, rom_start, rom_size, errors) {
+function parseIHX(ihx: string, rom_start: number, rom_size: number, errors: WorkerError[]) {
     var output = new Uint8Array(new ArrayBuffer(rom_size));
     var high_size = 0;
     for (var s of ihx.split("\n")) {
         if (s[0] == ':') {
             var arr = hexToArray(s, 1);
             var count = arr[0];
-            var address = (arr[1] << 8) + arr[2] - rom_start;
+            var offset = (arr[1] << 8) + arr[2] - rom_start;
             var rectype = arr[3];
             //console.log(rectype,address.toString(16),count,arr);
             if (rectype == 0) {
+                if (output[offset] !== 0) {
+                    errors.push({line:0,msg:`IHX overlap offset 0x${(offset).toString(16)}`});
+                }
                 for (var i = 0; i < count; i++) {
                     var b = arr[4 + i];
-                    output[i + address] = b;
+                    output[i + offset] = b;
                 }
-                if (i + address > high_size) high_size = i + address;
+                if (i + offset > high_size) high_size = i + offset;
             } else if (rectype == 1) {
                 break;
             } else {
@@ -144,6 +147,7 @@ export async function assembleSDASGB(step: BuildStep): Promise<BuildStepResult> 
 
 export function linkSDLDZ80(step: BuildStep) {
     loadNative("sdldz80");
+    const arch = step.params.arch || 'z80';
     var errors = [];
     gatherFiles(step);
     var binpath = "main.ihx";
@@ -177,10 +181,10 @@ export function linkSDLDZ80(step: BuildStep) {
             FS.writeFile('crt0.lst', '\n'); // TODO: needed so -u flag works
         }
         var args = ['-mjwxyu',
-            '-i', 'main.ihx', // TODO: main?
-            '-b', '_CODE=0x' + params.code_start.toString(16),
+            '-i', 'main.ihx',
+            '-b', '_CODE=0x' + (params.codeseg_start||params.code_start).toString(16),
             '-b', '_DATA=0x' + params.data_start.toString(16),
-            '-k', '/share/lib/z80',
+            '-k', `/share/lib/z80`, // TODO: $arch for gbz80
             '-l', 'z80'];
         if (params.extra_link_args)
             args.push.apply(args, params.extra_link_args);
