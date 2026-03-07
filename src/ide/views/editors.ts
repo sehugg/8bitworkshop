@@ -21,7 +21,7 @@ import { cobalt } from "../../themes/cobalt";
 import { disassemblyTheme } from "../../themes/disassemblyTheme";
 import { editorTheme } from "../../themes/editorTheme";
 import { mbo } from "../../themes/mbo";
-import { clearBreakpoint, current_project, lastDebugState, platform, qs, runToPC } from "../ui";
+import { clearBreakpoint, current_project, lastDebugState, platform, projectWindows, qs, runToPC } from "../ui";
 import { isMobileDevice, ProjectView } from "./baseviews";
 import { debugHighlightTagsTooltip } from "./debug";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
@@ -448,6 +448,10 @@ export class SourceEditor implements ProjectView {
 
     this.clearCurrentLine(moveCursor);
     if (line) {
+      // Validate line number is within document range (TODO: open disassembler)
+      if (line.line < 1 || line.line > this.editor.state.doc.lines) {
+        return false;
+      }
       addCurrentMarker(line);
       if (moveCursor) {
         const targetLine = this.editor.state.doc.line(line.line);
@@ -458,6 +462,7 @@ export class SourceEditor implements ProjectView {
         });
       }
       this.currentDebugLine = line;
+      return true;
     }
   }
 
