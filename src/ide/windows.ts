@@ -177,6 +177,9 @@ export class ProjectWindows {
     var wnd = this.id2window[fileid];
     if (wnd && wnd.undoStep) {
       wnd.undoStep();
+      if (wnd.getValue) {
+        this.project.updateFile(fileid, wnd.getValue());
+      }
       this.redofiles.push(fileid);
       this.refresh(false);
     } else {
@@ -189,6 +192,9 @@ export class ProjectWindows {
     var wnd = this.id2window[fileid];
     if (wnd && wnd.redoStep) {
       wnd.redoStep();
+      if (wnd.getValue) {
+        this.project.updateFile(fileid, wnd.getValue());
+      }
       this.undofiles.push(fileid);
       this.refresh(false);
     } else {
