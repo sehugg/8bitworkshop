@@ -1,0 +1,1268 @@
+; GingerBread - converted from RGBDS to SDCC sdasgb assembler
+; Original: https://github.com/ahrnbom/gingerbread
+
+; ---------------------------------------------------------------------------
+; --- Conditional assembly flags (define before including this file) ---
+; ---------------------------------------------------------------------------
+; .define GBC_SUPPORT
+; .define SGB_SUPPORT
+; .define ROM_SIZE  0
+; .define RAM_SIZE  1
+
+; ---------------------------------------------------------------------------
+; --- ROM Header ---
+; ---------------------------------------------------------------------------
+
+.ifdef GBC_SUPPORT
+H_GBC_CODE = 0x80
+.else
+H_GBC_CODE = 0x0
+.endif
+
+.ifdef SGB_SUPPORT
+H_SGB_CODE = 0x3
+.else
+H_SGB_CODE = 0x0
+.endif
+
+.ifndef ROM_SIZE
+ROM_SIZE = 0
+.endif
+
+.ifndef RAM_SIZE
+RAM_SIZE = 1
+.endif
+
+; ---------------------------------------------------------------------------
+; --- Hardware constants ---
+; ---------------------------------------------------------------------------
+
+; General
+ROM_BANK_SWITCH     = 0x2000
+SAVEDATA            = 0x0000
+MBC5_RAMB           = 0x4000
+
+; Key status
+KEY_START   = 0b10000000
+KEY_SELECT  = 0b01000000
+KEY_B       = 0b00100000
+KEY_A       = 0b00010000
+KEY_DOWN    = 0b00001000
+KEY_UP      = 0b00000100
+KEY_LEFT    = 0b00000010
+KEY_RIGHT   = 0b00000001
+
+; Graphics palettes (monochrome)
+BG_PALETTE       = 0xFF47
+SPRITE_PALETTE_1 = 0xFF48
+SPRITE_PALETTE_2 = 0xFF49
+
+; GBC palettes
+GBC_BG_PALETTE_INDEX      = 0xFF68
+GBC_BG_PALETTE            = 0xFF69
+GBC_SPRITE_PALETTE_INDEX  = 0xFF6A
+GBC_SPRITE_PALETTE        = 0xFF6B
+
+GBC_VRAM_BANK_SWITCH      = 0xFF4F
+
+; Scrolling
+SCROLL_X = 0xFF43
+SCROLL_Y = 0xFF42
+
+; Memory ranges
+TILEDATA_START              = 0x8000
+BACKGROUND_MAPDATA_START    = 0x9800
+WINDOW_MAPDATA_START        = 0x9C00
+
+SAVEDATA_START     = 0xA000
+
+RAM_START          = 0xC000
+SPRITES_START      = 0xC100
+USER_RAM_START     = 0xC200
+
+HRAM_START         = 0xF800
+OAMRAM_START       = 0xFE00
+AUD3WAVERAM_START  = 0xFF30
+
+DMACODE_START   = 0xFF80
+SPRITES_LENGTH  = 0xA0
+
+STATF_LYC    = 0b01000000
+STATF_MODE10 = 0b00100000
+STATF_MODE01 = 0b00010000
+STATF_MODE00 = 0b00001000
+STATF_LYCF   = 0b00000100
+STATF_HB     = 0b00000000
+STATF_VB     = 0b00000001
+STATF_OAM    = 0b00000010
+STATF_LCD    = 0b00000011
+STATF_BUSY   = 0b00000010
+
+rSTAT = 0xFF41
+
+; Interrupts
+rIF = 0xFF0F
+rIE = 0xFFFF
+
+IEF_HILO   = 0b00010000
+IEF_SERIAL = 0b00001000
+IEF_TIMER  = 0b00000100
+IEF_LCDC   = 0b00000010
+IEF_VBLANK = 0b00000001
+
+; LCD
+rLCDC = 0xFF40
+
+LCDCF_OFF     = 0b00000000
+LCDCF_ON      = 0b10000000
+LCDCF_WIN9800 = 0b00000000
+LCDCF_WIN9C00 = 0b01000000
+LCDCF_WINOFF  = 0b00000000
+LCDCF_WINON   = 0b00100000
+LCDCF_BG8800  = 0b00000000
+LCDCF_BG8000  = 0b00010000
+LCDCF_BG9800  = 0b00000000
+LCDCF_BG9C00  = 0b00001000
+LCDCF_OBJ8    = 0b00000000
+LCDCF_OBJ16   = 0b00000100
+LCDCF_OBJOFF  = 0b00000000
+LCDCF_OBJON   = 0b00000010
+LCDCF_BGOFF   = 0b00000000
+LCDCF_BGON    = 0b00000001
+
+; Sound
+SOUND_VOLUME  = 0xFF24
+SOUND_OUTPUTS = 0xFF25
+SOUND_ONOFF   = 0xFF26
+
+; Channel 1
+SOUND_CH1_START    = 0xFF10
+SOUND_CH1_LENGTH   = 0xFF11
+SOUND_CH1_ENVELOPE = 0xFF12
+SOUND_CH1_LOWFREQ  = 0xFF13
+SOUND_CH1_HIGHFREQ = 0xFF14
+
+; Channel 2
+SOUND_CH2_START    = 0xFF15
+SOUND_CH2_LENGTH   = 0xFF16
+SOUND_CH2_ENVELOPE = 0xFF17
+SOUND_CH2_LOWFREQ  = 0xFF18
+SOUND_CH2_HIGHFREQ = 0xFF19
+
+; Channel 3
+SOUND_CH3_START    = 0xFF1A
+SOUND_CH3_LENGTH   = 0xFF1B
+SOUND_CH3_VOLUME   = 0xFF1C
+SOUND_CH3_LOWFREQ  = 0xFF1D
+SOUND_CH3_HIGHFREQ = 0xFF1E
+
+; Channel 4
+SOUND_CH4_START    = 0xFF1F
+SOUND_CH4_LENGTH   = 0xFF20
+SOUND_CH4_ENVELOPE = 0xFF21
+SOUND_CH4_POLY     = 0xFF22
+SOUND_CH4_OPTIONS  = 0xFF23
+
+; Wave table
+SOUND_WAVE_TABLE_START = 0xFF30
+SOUND_WAVE_TABLE_STOP  = 0xFF3F
+
+rLY  = 0xFF44
+rDMA = 0xFF46
+
+; ---------------------------------------------------------------------------
+; --- Macros ---
+; ---------------------------------------------------------------------------
+
+; WaitForNonBusyLCD - polls rSTAT until LCD is not busy (VRAM safe to access)
+; NOTE: sdasgb .macro arguments use \1, \2 etc.; no-arg macros use no backslash
+.macro WaitForNonBusyLCD
+    ld  a, (rSTAT)
+    and #STATF_BUSY
+    jr  nz, .-5 ; 
+.endm
+
+; WaitForNonBusyLCDSafeA - same but preserves A
+.macro WaitForNonBusyLCDSafeA
+    push af
+    WaitForNonBusyLCD
+    pop af
+.endm
+
+; SGBEarlyExit - returns if not running on SGB
+.macro SGBEarlyExit
+    ld a, (RUNNING_ON_SGB)
+    cp a, #0
+    ret z
+.endm
+
+; GBCEarlyExit - returns if not running on GBC
+.macro GBCEarlyExit
+    ld a, (RUNNING_ON_GBC)
+    cp a, #0
+    ret z
+.endm
+
+; ---------------------------------------------------------------------------
+; --- GingerBread RAM variables ---
+;     $C1A1 onwards (after sprite OAM shadow at $C100-$C1A0)
+; ---------------------------------------------------------------------------
+
+.area _DATA
+
+; Place variables at fixed address $C1A1
+; In sdasgb you can use .org inside a relocatable area only if the linker
+; script pins the area, OR you declare an absolute area.  For fixed addresses,
+; use an absolute area:
+
+.area GB_RAM (ABS)
+.org 0xC1A1
+RUNNING_ON_SGB::
+    .ds 1
+RUNNING_ON_GBC::
+    .ds 1
+
+; ---------------------------------------------------------------------------
+; --- ROM0 sections ---
+; ---------------------------------------------------------------------------
+
+; Interrupt vectors and boot entry go into absolute ROM0 addresses.
+; In sdasgb the linker script must map _HOME to 0x0000.
+; We use absolute areas for the fixed-address sections.
+
+; --- Nintendo logo + ROM header at $0104 ---
+.area GB_HEADER (ABS)
+.org 0x0104
+
+    ; Nintendo logo bytes
+    .db 0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B
+    .db 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D
+    .db 0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E
+    .db 0xDC, 0xCC, 0x6E, 0xE6, 0xDD, 0xDD, 0xD9, 0x99
+    .db 0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC
+    .db 0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
+
+    ; $0134 - Game title (15 bytes, uppercase ASCII, zero-padded)
+    ; NOTE: RGBDS used EQUS + STRLEN for variable-length padding.
+    ; In sdasgb, write the name manually padded to exactly 15 bytes.
+    ; Replace the bytes below with your game name (pad with 0x00).
+    .ascii "GINGERBREAD"   ; 11 characters
+    .db 0x00, 0x00, 0x00, 0x00   ; pad to 15 bytes
+
+    ; $0143 - GBC flag
+    .db H_GBC_CODE
+    ; $0144-$0145 - Licensee code
+    .db 0x00, 0x00
+    ; $0146 - SGB flag
+    .db H_SGB_CODE
+    ; $0147 - Cart type (MBC5 + RAM + battery)
+    .db 0x1B
+    ; $0148 - ROM size
+    .db ROM_SIZE
+    ; $0149 - RAM size
+    .db RAM_SIZE
+    ; $014A - Destination (non-Japan)
+    .db 0x01
+    ; $014B - Old licensee code ($33 required for SGB)
+    .db 0x33
+    ; $014C - Mask ROM version
+    .db 0x00
+    ; $014D - Complement check (RGBFIX / sdcc linker handles this)
+    .db 0x00
+    ; $014E-$014F - Checksum
+    .dw 0x0000
+
+; ---------------------------------------------------------------------------
+; --- Interrupt vectors (absolute ROM0 addresses) ---
+; ---------------------------------------------------------------------------
+
+.area GB_VBLANK (ABS)
+.org 0x0040
+    jp  DMACODE_START       ; VBlank: run DMA from HRAM
+
+.area GB_LCDC (ABS)
+.org 0x0048
+    reti
+
+.area GB_TIMER (ABS)
+.org 0x0050
+    reti
+
+.area GB_SERIAL (ABS)
+.org 0x0058
+    reti
+
+.area GB_JOYPAD (ABS)
+.org 0x0060
+    reti
+
+; ---------------------------------------------------------------------------
+; --- Boot entry point at $0100 ---
+; ---------------------------------------------------------------------------
+
+.area GB_ENTRY (ABS)
+.org 0x0100
+    nop
+.ifdef GBC_SUPPORT
+    jp  CheckIfGBC
+.else
+    jp  GingerBreadBegin
+.endif
+
+; ---------------------------------------------------------------------------
+; --- ROM0 code ---
+; ---------------------------------------------------------------------------
+
+.area _CODE
+
+; ---------------------------------------------------------------------------
+; ReadKeys
+; Reads current keypad status into A.
+; Bit order: Start-Select-B-A-Down-Up-Left-Right
+; ---------------------------------------------------------------------------
+ReadKeys::
+    push bc
+
+    ; Read D-pad
+    ld a, #0x20
+    ld (0xFF00), a
+    ld a, (0xFF00)
+    ld a, (0xFF00)
+    cpl
+    and a, #0x0F
+    ld b, a
+
+    ; Read buttons (Start, Select, B, A)
+    ld a, #0x10
+    ld (0xFF00), a
+    ld a, (0xFF00)
+    ld a, (0xFF00)
+    ld a, (0xFF00)
+    ld a, (0xFF00)
+    ld a, (0xFF00)
+    ld a, (0xFF00)
+    cpl
+    and a, #0x0F
+
+    ; Combine with D-pad
+    swap a
+    or a, b
+    ld b, a
+
+    ld a, #0x30
+    ld (0xFF00), a
+
+    ld a, b
+    pop bc
+    ret
+
+; ---------------------------------------------------------------------------
+; EnableAudio - enables audio on all channels at max volume
+; Overwrites AF
+; ---------------------------------------------------------------------------
+EnableAudio::
+    ld a, #0xFF
+    ld (SOUND_VOLUME), a
+    ld (SOUND_OUTPUTS), a
+    ld (SOUND_ONOFF), a
+    ret
+
+; ---------------------------------------------------------------------------
+; DisableAudio - disables audio to save battery
+; Overwrites AF
+; ---------------------------------------------------------------------------
+DisableAudio::
+    xor a, a
+    ld (SOUND_VOLUME), a
+    ld (SOUND_OUTPUTS), a
+    ld (SOUND_ONOFF), a
+    ret
+
+; ---------------------------------------------------------------------------
+; PlaySoundHL
+; HL -> table: DW channel_start_addr, then 5 data bytes
+; Overwrites AF and HL
+; ---------------------------------------------------------------------------
+PlaySoundHL::
+    push de
+
+    ; Read channel start address into DE
+    ld a, (hl)
+    inc hl
+    ld e, a
+    ld a, (hl)
+    inc hl
+    ld d, a
+
+    ; Write 5 bytes to the channel registers
+    ld a, (hl)
+    inc hl
+    ld (de), a
+    inc de
+
+    ld a, (hl)
+    inc hl
+    ld (de), a
+    inc de
+
+    ld a, (hl)
+    inc hl
+    ld (de), a
+    inc de
+
+    ld a, (hl)
+    inc hl
+    ld (de), a
+    inc de
+
+    ld a, (hl)
+    ld (de), a
+
+    pop de
+    ret
+
+; ---------------------------------------------------------------------------
+; mCopyVRAM
+; LCD-safe copy (slower). Use when LCD is on and src/dst may be VRAM.
+; HL = source, DE = destination, BC = byte count
+; ---------------------------------------------------------------------------
+mCopyVRAM::
+    inc b
+    inc c
+    jr  mCopyVRAM_skip
+mCopyVRAM_loop:
+    di
+        WaitForNonBusyLCD
+        ld a, (hl)
+        inc hl
+        ld (de), a
+    ei
+    inc de
+mCopyVRAM_skip:
+    dec c
+    jr  nz, mCopyVRAM_loop
+    dec b
+    jr  nz, mCopyVRAM_loop
+    ret
+
+; ---------------------------------------------------------------------------
+; mCopy
+; Fast copy (NOT LCD-safe). Only use when LCD is off or src/dst are not VRAM.
+; HL = source, DE = destination, BC = byte count
+; ---------------------------------------------------------------------------
+mCopy::
+    inc b
+    inc c
+    jr  mCopy_skip
+mCopy_loop:
+    ld a, (hl)
+    inc hl
+    ld (de), a
+    inc de
+mCopy_skip:
+    dec c
+    jr  nz, mCopy_loop
+    dec b
+    jr  nz, mCopy_loop
+    ret
+
+; ---------------------------------------------------------------------------
+; mSetVRAM
+; LCD-safe fill. A = value, HL = destination, BC = byte count
+; ---------------------------------------------------------------------------
+mSetVRAM::
+    inc b
+    inc c
+    jr  mSetVRAM_skip
+mSetVRAM_loop:
+    di
+        WaitForNonBusyLCDSafeA
+        ld (hl), a
+        inc hl
+    ei
+mSetVRAM_skip:
+    dec c
+    jr  nz, mSetVRAM_loop
+    dec b
+    jr  nz, mSetVRAM_loop
+    ret
+
+; ---------------------------------------------------------------------------
+; mSet
+; Fast fill (NOT LCD-safe). A = value, HL = destination, BC = byte count
+; ---------------------------------------------------------------------------
+mSet::
+    inc b
+    inc c
+    jr  mSet_skip
+mSet_loop:
+    ld (hl), a
+    inc hl
+mSet_skip:
+    dec c
+    jr  nz, mSet_loop
+    dec b
+    jr  nz, mSet_loop
+    ret
+
+; ---------------------------------------------------------------------------
+; RenderTextToEnd
+; B = end character tile, C = 0 for BG / non-0 for window
+; D = X, E = Y, HL = text address (null-terminated with B)
+; ---------------------------------------------------------------------------
+RenderTextToEnd::
+    push hl
+
+    xor a, a
+    ld h, a
+    ld l, a
+    call XYtoPosition
+
+    ld d, h
+    ld e, l
+    pop hl
+
+    call RenderTextToEndByPosition
+    ret
+
+; ---------------------------------------------------------------------------
+; RenderTextToEndByPosition
+; B = end char, C = 0/BG non-0/win, DE = position, HL = text address
+; ---------------------------------------------------------------------------
+RenderTextToEndByPosition::
+    push hl
+    call InitializePositionForBackgroundOrWindow
+    add hl, de
+
+    ld d, h
+    ld e, l
+    pop hl
+
+    di
+
+    ld a, (hl)
+RenderTextToEndByPosition_draw:
+    WaitForNonBusyLCDSafeA
+    ld (de), a
+    inc de
+
+    inc hl
+    ld a, (hl)
+    cp a, b
+    jr nz, RenderTextToEndByPosition_draw
+
+    reti
+
+; ---------------------------------------------------------------------------
+; RenderTextToLength
+; B = char count, C = 0/BG non-0/win, D = X, E = Y, HL = text address
+; ---------------------------------------------------------------------------
+RenderTextToLength::
+    push hl
+
+    xor a, a
+    ld h, a
+    ld l, a
+    call XYtoPosition
+
+    ld d, h
+    ld e, l
+    pop hl
+
+    call RenderTextToLengthByPosition
+    ret
+
+; ---------------------------------------------------------------------------
+; RenderTextToLengthByPosition
+; B = char count, C = 0/BG non-0/win, DE = position, HL = text address
+; ---------------------------------------------------------------------------
+RenderTextToLengthByPosition::
+    push hl
+    call InitializePositionForBackgroundOrWindow
+    add hl, de
+
+    ld d, h
+    ld e, l
+    pop hl
+
+    di
+RenderTextToLengthByPosition_draw:
+    ld a, (hl)
+    inc hl
+    WaitForNonBusyLCDSafeA
+    ld (de), a
+    inc de
+
+    dec b
+    ld a, b
+    cp a, #0
+    jr z, RenderTextToLengthByPosition_finish
+
+    jr RenderTextToLengthByPosition_draw
+
+RenderTextToLengthByPosition_finish:
+    ei
+    ret
+
+; ---------------------------------------------------------------------------
+; XYtoPosition (internal)
+; D = X, E = Y. Result added onto HL. Overwrites A.
+; ---------------------------------------------------------------------------
+XYtoPosition::
+    push bc
+
+    ; Add X
+    ld c, d
+    ld b, #0
+    add hl, bc
+
+    ; Add Y * 32
+    ld a, e
+    cp a, #0
+    jr z, XYtoPosition_end
+
+    ld c, e
+    ld b, #0
+    .rept 32
+    add hl, bc
+    .endm
+
+XYtoPosition_end:
+    pop bc
+    ret
+
+; ---------------------------------------------------------------------------
+; RenderTwoDecimalNumbers
+; A = two BCD digits, B = tile# of '0', C = 0/BG non-0/win, D = X, E = Y
+; ---------------------------------------------------------------------------
+RenderTwoDecimalNumbers::
+    push af
+    push hl
+
+    xor a, a
+    ld h, a
+    ld l, a
+    call XYtoPosition
+
+    ld d, h
+    ld e, l
+
+    pop hl
+    pop af
+
+    call RenderTwoDecimalNumbersByPosition
+    ret
+
+; ---------------------------------------------------------------------------
+; InitializePositionForBackgroundOrWindow (internal)
+; C = 0 -> HL = BACKGROUND_MAPDATA_START, else HL = WINDOW_MAPDATA_START
+; ---------------------------------------------------------------------------
+InitializePositionForBackgroundOrWindow::
+    ld a, c
+    cp a, #0
+    jr nz, InitPos_useWindow
+
+InitPos_useBackground:
+    ld hl, #BACKGROUND_MAPDATA_START
+    ret
+
+InitPos_useWindow:
+    ld hl, #WINDOW_MAPDATA_START
+    ret
+
+; ---------------------------------------------------------------------------
+; RenderTwoDecimalNumbersByPosition
+; A = two BCD digits, B = tile# of '0', C = 0/BG non-0/win, DE = position
+; ---------------------------------------------------------------------------
+RenderTwoDecimalNumbersByPosition::
+    push hl
+    push af
+
+    call InitializePositionForBackgroundOrWindow
+
+    add hl, de
+
+    pop af
+
+    ld c, a
+
+    ; Left digit
+    and a, #0xF0
+    swap a
+    add a, b
+
+    di
+
+    WaitForNonBusyLCDSafeA
+    ld (hl), a
+    inc hl
+
+    ; Right digit
+    ld a, c
+    and a, #0x0F
+    add a, b
+
+    WaitForNonBusyLCDSafeA
+    ld (hl), a
+
+    pop hl
+    reti
+
+; ---------------------------------------------------------------------------
+; RenderFourDecimalNumbers
+; HL = four BCD digits (H=high pair, L=low pair)
+; B = tile# of '0', C = 0/BG non-0/win, D = X, E = Y
+; ---------------------------------------------------------------------------
+RenderFourDecimalNumbers::
+    ld a, h
+
+    push bc
+    push de
+    push hl
+
+    call RenderTwoDecimalNumbers
+
+    pop hl
+    pop de
+    pop bc
+
+    inc d
+    inc d
+
+    ld a, l
+    call RenderTwoDecimalNumbers
+
+    ret
+
+; ---------------------------------------------------------------------------
+; RenderFourDecimalNumbersByPosition
+; HL = four BCD digits, B = tile# of '0', C = 0/BG non-0/win, DE = position
+; ---------------------------------------------------------------------------
+RenderFourDecimalNumbersByPosition::
+    ld a, h
+
+    push bc
+    push de
+    push hl
+
+    call RenderTwoDecimalNumbersByPosition
+
+    pop hl
+    pop de
+    pop bc
+
+    inc de
+    inc de
+
+    ld a, l
+    call RenderTwoDecimalNumbersByPosition
+
+    ret
+
+; ---------------------------------------------------------------------------
+; Save data
+; ---------------------------------------------------------------------------
+EnableSaveData::
+    ld a, #0x0A
+    ld (SAVEDATA), a
+    ret
+
+DisableSaveData::
+    xor a, a
+    ld (SAVEDATA), a
+    ret
+
+; A = bank number (0x00-0x0F)
+ChooseSaveDataBank::
+    ld (MBC5_RAMB), a
+    ret
+
+; ---------------------------------------------------------------------------
+; --- GBC functionality ---
+; ---------------------------------------------------------------------------
+.ifdef GBC_SUPPORT
+
+; GBCApplyBackgroundPalettes
+; HL = color table, A = palette byte index, B = byte count
+GBCApplyBackgroundPalettes::
+    or a, #0x80
+    ld (GBC_BG_PALETTE_INDEX), a
+
+GBCApplyBGPal_writeByte:
+    ld a, (hl)
+    inc hl
+    ld (GBC_BG_PALETTE), a
+
+    dec b
+    ld a, b
+    cp a, #0
+    ret z
+
+    jr GBCApplyBGPal_writeByte
+
+; GBCApplySpritePalettes
+; HL = color table, A = palette byte index, B = byte count
+GBCApplySpritePalettes::
+    or a, #0x80
+    ld (GBC_SPRITE_PALETTE_INDEX), a
+
+    di
+
+GBCApplySpritePal_writeByte:
+    WaitForNonBusyLCD
+    ld a, (hl)
+    inc hl
+    ld (GBC_SPRITE_PALETTE), a
+
+    dec b
+    ld a, b
+    cp a, #0
+    jr z, GBCApplySpritePal_finish
+
+    jr GBCApplySpritePal_writeByte
+
+GBCApplySpritePal_finish:
+    ei
+    ret
+
+.endif ; GBC_SUPPORT
+
+; ---------------------------------------------------------------------------
+; --- Super Game Boy functionality ---
+; ---------------------------------------------------------------------------
+.ifdef SGB_SUPPORT
+
+SGB_OUT_ADDRESS = 0xFF00
+
+SGB_SEND_ZERO  = 0b00100000
+SGB_SEND_ONE   = 0b00010000
+SGB_SEND_RESET = 0b00000000
+SGB_SEND_NULL  = 0b00110000
+
+; SGB data packets - placed in banked ROM (bank 1)
+; In sdasgb these would normally live in a banked area mapped by the linker.
+; We use a named area which the linker script should place in ROM bank 1.
+.area _CODE_1
+
+SGB_FREEZE:
+    .db 0b10111001  ; MASK_EN, length 1
+    .db 1           ; freeze
+    .db 0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+SGB_UNFREEZE:
+    .db 0b10111001
+    .db 0           ; unfreeze
+    .db 0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+SGB_MLTREQ1:
+    .db 0b10001001
+    .db 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+SGB_MLTREQ2:
+    .db 0b10001001
+    .db 1,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+SGB_VRAMTRANS_TILEDATA1:
+    .db 0b10011001  ; CHR_TRN, length 1
+    .db 0           ; lower tiles
+    .db 0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+SGB_VRAMTRANS_TILEDATA2:
+    .db 0b10011001
+    .db 1           ; upper tiles
+    .db 0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+SGB_VRAMTRANS_TILEMAP:
+    .db 0b10100001  ; PCT_TRN, length 1
+    .db 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+SGB_INIT1:
+    .db 0x79,0x5D,0x08,0x00,0x0B,0x8C,0xD0,0xF4,0x60,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+SGB_INIT2:
+    .db 0x79,0x52,0x08,0x00,0x0B,0xA9,0xE7,0x9F,0x01,0xC0,0x7E,0xE8,0xE8,0xE8,0xE8,0xE0
+SGB_INIT3:
+    .db 0x79,0x47,0x08,0x00,0x0B,0xC4,0xD0,0x16,0xA5,0xCB,0xC9,0x05,0xD0,0x10,0xA2,0x28
+SGB_INIT4:
+    .db 0x79,0x3C,0x08,0x00,0x0B,0xF0,0x12,0xA5,0xC9,0xC9,0xC8,0xD0,0x1C,0xA5,0xCA,0xC9
+SGB_INIT5:
+    .db 0x79,0x31,0x08,0x00,0x0B,0x0C,0xA5,0xCA,0xC9,0x7E,0xD0,0x06,0xA5,0xCB,0xC9,0x7E
+SGB_INIT6:
+    .db 0x79,0x26,0x08,0x00,0x0B,0x39,0xCD,0x48,0x0C,0xD0,0x34,0xA5,0xC9,0xC9,0x80,0xD0
+SGB_INIT7:
+    .db 0x79,0x1B,0x08,0x00,0x0B,0xEA,0xEA,0xEA,0xEA,0xEA,0xA9,0x01,0xCD,0x4F,0x0C,0xD0
+SGB_INIT8:
+    .db 0x79,0x10,0x08,0x00,0x0B,0x4C,0x20,0x08,0xEA,0xEA,0xEA,0xEA,0xEA,0x60,0xEA,0xEA
+
+; SGBStrangeInit - sends all 8 init packets
+SGBStrangeInit::
+    ld hl, #SGB_INIT1
+    call SGBSendData
+    ld hl, #SGB_INIT2
+    call SGBSendData
+    ld hl, #SGB_INIT3
+    call SGBSendData
+    ld hl, #SGB_INIT4
+    call SGBSendData
+    ld hl, #SGB_INIT5
+    call SGBSendData
+    ld hl, #SGB_INIT6
+    call SGBSendData
+    ld hl, #SGB_INIT7
+    call SGBSendData
+    ld hl, #SGB_INIT8
+    call SGBSendData
+    ret
+
+; SGBBorderTransfer macro equivalent (inline expansion)
+; \1 = tiledata address, \2 = CHR_TRN packet addr, \3 = tilemap address
+.macro SGBBorderTransferMacro
+    di
+    call StopLCD
+
+    ld hl, #\1
+    ld de, #TILEDATA_START
+    ld bc, #4096
+    call mCopyVRAM
+
+    ld hl, #\3
+    ld de, #BACKGROUND_MAPDATA_START
+    ld bc, #(32*32)
+    call mCopyVRAM
+
+    call StartLCD
+
+    halt
+
+    ld hl, #\2
+    call SGBSendData
+
+    ei
+
+    .rept 5
+    halt
+    .endm
+.endm
+
+SGBFreeze::
+    ld hl, #SGB_FREEZE
+    call SGBSendData
+    ret
+
+SGBUnfreeze::
+    ld hl, #SGB_UNFREEZE
+    call SGBSendData
+    ret
+
+; SGBSendData - sends 16-byte SGB packet
+; HL = address of packet data
+SGBSendData::
+    di
+    ; B = current byte, C = bytes remaining (16), D = bit counter
+
+    ld a, (hl)
+    ld b, a
+
+    ld c, #16
+
+    xor a, a
+    ld d, a
+
+    ; Pulse reset
+    ld a, #SGB_SEND_RESET
+    ld (SGB_OUT_ADDRESS), a
+
+    ld a, #SGB_SEND_NULL
+    ld (SGB_OUT_ADDRESS), a
+
+SGBSendBit:
+    inc d
+    ld a, d
+    cp a, #9
+    jr z, SGBEndOfByte
+
+    ld a, b
+    and a, #0x01
+    cp a, #0
+    jr z, SGBSendZeroBit
+
+    ; Send ONE
+    ld a, #SGB_SEND_ONE
+    ld (SGB_OUT_ADDRESS), a
+    jr SGBSendBitEnd
+
+SGBSendZeroBit:
+    ld a, #SGB_SEND_ZERO
+    ld (SGB_OUT_ADDRESS), a
+
+SGBSendBitEnd:
+    ld a, #SGB_SEND_NULL
+    ld (SGB_OUT_ADDRESS), a
+
+    ld a, b
+    sra a
+    and a, #0x7F
+    ld b, a
+
+    jr SGBSendBit
+
+SGBEndOfByte:
+    dec c
+    ld a, c
+    cp a, #0
+    jr z, SGBFinalEnd
+
+    inc hl
+    ld a, (hl)
+    ld b, a
+
+    xor a, a
+    ld d, a
+
+    jr SGBSendBit
+
+SGBFinalEnd:
+    call SGBFinish
+    ret
+
+SGBFinish:
+    ld a, #SGB_SEND_ZERO
+    ld (SGB_OUT_ADDRESS), a
+
+    ld a, #SGB_SEND_NULL
+    ld (SGB_OUT_ADDRESS), a
+
+    ei
+    call Wait7000
+    ret
+
+Wait7000:
+    ld de, #7000
+Wait7000_loop:
+    nop
+    nop
+    nop
+    dec de
+    ld a, d
+    or a, e
+    jr nz, Wait7000_loop
+    ret
+
+; CheckSGB - returns carry set if running on SGB
+CheckSGB::
+    ld hl, #SGB_MLTREQ2
+    call SGBSendData
+    di
+    ld a, #1
+    ld (0xFFF9), a
+    ei
+    call Wait7000
+    ld a, (SGB_OUT_ADDRESS)
+    and a, #0x03
+    cp a, #0x03
+    jr nz, CheckSGB_isSGB
+
+    ld a, #0x20
+    ld (SGB_OUT_ADDRESS), a
+    ld a, (SGB_OUT_ADDRESS)
+    ld a, (SGB_OUT_ADDRESS)
+    call Wait7000
+    call Wait7000
+    ld a, #0x30
+    ld (SGB_OUT_ADDRESS), a
+    call Wait7000
+    call Wait7000
+    ld a, #0x10
+    ld (SGB_OUT_ADDRESS), a
+    ld a, (SGB_OUT_ADDRESS)
+    ld a, (SGB_OUT_ADDRESS)
+    ld a, (SGB_OUT_ADDRESS)
+    ld a, (SGB_OUT_ADDRESS)
+    ld a, (SGB_OUT_ADDRESS)
+    ld a, (SGB_OUT_ADDRESS)
+    call Wait7000
+    call Wait7000
+    ld a, #0x30
+    ld (SGB_OUT_ADDRESS), a
+    ld a, (SGB_OUT_ADDRESS)
+    ld a, (SGB_OUT_ADDRESS)
+    ld a, (SGB_OUT_ADDRESS)
+    call Wait7000
+    call Wait7000
+    ld a, (SGB_OUT_ADDRESS)
+    and a, #0x03
+    cp a, #0x03
+    jr nz, CheckSGB_isSGB
+
+    call SendMltReq1Packet
+    and a, a        ; clear carry
+    ret
+
+CheckSGB_isSGB:
+    call SendMltReq1Packet
+    scf
+    ret
+
+SendMltReq1Packet::
+    ld hl, #SGB_MLTREQ1
+    call SGBSendData
+    jp Wait7000
+
+; ---------------------------------------------------------------------------
+; Bank-0 SGB stubs (call into bank 1)
+; These are in ROM0 so they can be called regardless of current ROM bank.
+; ---------------------------------------------------------------------------
+.area _CODE
+
+SGBAbsolutelyFirstInit::
+    call SGBStrangeInit
+    ret
+
+CheckIfSGB::
+    call CheckSGB
+    jr nc, CheckIfSGB_notSGB
+
+    ld a, #1
+    ld (RUNNING_ON_SGB), a
+    jr CheckIfSGB_end
+
+CheckIfSGB_notSGB:
+    xor a, a
+    ld (RUNNING_ON_SGB), a
+
+CheckIfSGB_end:
+    ret
+
+.endif ; SGB_SUPPORT
+
+; ---------------------------------------------------------------------------
+; --- DMA, LCD stop/start ---
+; ---------------------------------------------------------------------------
+
+; initdma - copies DMA routine into HRAM at DMACODE_START
+initdma::
+    ld de, #DMACODE_START
+    ld hl, #dmacode
+    ld bc, #(dmaend - dmacode)
+    call mCopyVRAM
+    ret
+
+; dmacode - this routine gets copied into HRAM and executed from there
+dmacode::
+    push af
+    ld a, #(SPRITES_START / 0x100)
+    ldh (rDMA), a
+    ld a, #0x28
+dma_wait:
+    dec a
+    jr nz, dma_wait
+    pop af
+    reti
+dmaend::
+    nop
+
+; StopLCD - waits for VBlank then turns off LCD
+StopLCD::
+    ld a, (rLCDC)
+    rlca
+    ret nc          ; LCD already off
+
+StopLCD_wait:
+    ld a, (rLY)
+    cp a, #145
+    jr nz, StopLCD_wait
+
+    ld a, (rLCDC)
+    res 7, a
+    ld (rLCDC), a
+    ret
+
+; StartLCD - turns on LCD with standard settings (8x16 sprites, BG on, window off)
+StartLCD::
+    ld a, #(LCDCF_ON|LCDCF_BG8000|LCDCF_BG9800|LCDCF_BGON|LCDCF_OBJ16|LCDCF_OBJON|LCDCF_WIN9C00|LCDCF_WINOFF)
+    ld (rLCDC), a
+    ret
+
+; TurnOnWindow - same as StartLCD but with window enabled
+TurnOnWindow::
+    ld a, #(LCDCF_ON|LCDCF_BG8000|LCDCF_BG9800|LCDCF_BGON|LCDCF_OBJ16|LCDCF_OBJON|LCDCF_WIN9C00|LCDCF_WINON)
+    ld (rLCDC), a
+    ret
+
+; ---------------------------------------------------------------------------
+; --- GBC boot check ---
+; ---------------------------------------------------------------------------
+.ifdef GBC_SUPPORT
+
+.area _CODE
+
+; CheckIfGBC - called at $0100, A=$11 if running on GBC
+CheckIfGBC::
+    cp a, #0x11
+    jr nz, CheckIfGBC_notGBC
+
+CheckIfGBC_isGBC:
+    ld a, #1
+    ld (RUNNING_ON_GBC), a
+    jr GingerBreadBegin
+
+CheckIfGBC_notGBC:
+    xor a, a
+    ld (RUNNING_ON_GBC), a
+    jr GingerBreadBegin
+
+.endif
+
+; ---------------------------------------------------------------------------
+; --- GingerBreadBegin - main initialization routine ---
+; Equivalent to a reset. Your game's "begin" label is jumped to at the end.
+; ---------------------------------------------------------------------------
+GingerBreadBegin::
+    nop
+    di
+
+    ; Initialize stack pointer
+    ld sp, #0xFFFF
+
+    ; Zero user RAM ($C200-$CFFF, 0x0FFF bytes)
+    ld hl, #USER_RAM_START
+    ld bc, #0x0FFF
+    xor a, a
+    call mSet
+
+.ifdef SGB_SUPPORT
+    call SGBAbsolutelyFirstInit
+    call CheckIfSGB
+.endif
+
+    ; Initialize display
+    call StopLCD
+    call initdma
+
+    ld a, #IEF_VBLANK
+    ld (rIE), a
+    ei
+
+    ; Clear VRAM ($8000-$9FFF, 0x1FFF bytes)
+    ld hl, #TILEDATA_START
+    ld bc, #0x1FFF
+    xor a, a
+    call mSet
+
+    ; Default monochrome palettes (%11100100 = darkest->lightest order)
+    ld a, #0b11100100
+    ld (BG_PALETTE), a
+    ld (SPRITE_PALETTE_1), a
+    ld (SPRITE_PALETTE_2), a
+
+    ; Clear OAM shadow
+    ld hl, #SPRITES_START
+    ld bc, #SPRITES_LENGTH
+    xor a, a
+    call mSet
+
+    ; No scrolling
+    xor a, a
+    ld (SCROLL_X), a
+    ld (SCROLL_Y), a
+
+    jp begin    ; Jump to user game code entry point
