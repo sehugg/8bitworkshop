@@ -36,6 +36,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 const testlib_1 = require("./testlib");
 const baseplatform_1 = require("../common/baseplatform");
 const util_1 = require("../common/util");
@@ -111,7 +112,8 @@ function formatHelp(data) {
             console.log(`  ${c.green}${cmd}${c.reset}${c.dim} - ${usage}${c.reset}`);
         }
         console.log(`\n${c.bold}Global options:${c.reset}`);
-        console.log(`  ${c.yellow}--json${c.reset}${c.dim}  Output raw JSON instead of formatted text${c.reset}`);
+        console.log(`  ${c.yellow}--json${c.reset}${c.dim}   Output raw JSON instead of formatted text${c.reset}`);
+        console.log(`  ${c.yellow}--save${c.reset}${c.dim}   Save all intermediate build files to /tmp/8bws-<name>${c.reset}`);
         console.log();
     }
 }
@@ -143,6 +145,28 @@ function formatCompile(data) {
         console.log(`  ${c.dim}Listings:${c.reset} ${c.green}yes${c.reset}`);
     if (data.hasSymbolmap)
         console.log(`  ${c.dim}Symbols:${c.reset}  ${c.green}yes${c.reset}`);
+    // --symbols: dump symbol map
+    if (data.symbolmap) {
+        console.log(`\n${c.bold}Symbols${c.reset} ${c.dim}(${Object.keys(data.symbolmap).length})${c.reset}`);
+        var sorted = Object.entries(data.symbolmap).sort((a, b) => a[1] - b[1]);
+        for (var [name, addr] of sorted) {
+            console.log(`  ${c.cyan}$${(0, util_1.hex)(addr, 4)}${c.reset}  ${name}`);
+        }
+    }
+    // --save: show saved files
+    if (data.saveDir) {
+        console.log(`\n${c.bold}Saved to${c.reset} ${c.cyan}${data.saveDir}${c.reset} ${c.dim}(${data.savedFiles.length} files)${c.reset}`);
+        for (var f of data.savedFiles) {
+            console.log(`  ${c.dim}●${c.reset} ${f}`);
+        }
+    }
+    // --symbols: dump segments
+    if (data.segments) {
+        console.log(`\n${c.bold}Segments${c.reset} ${c.dim}(${data.segments.length})${c.reset}`);
+        for (var seg of data.segments) {
+            console.log(`  ${c.green}${seg.name.padEnd(16)}${c.reset} ${c.cyan}$${(0, util_1.hex)(seg.start, 4)}${c.reset}  ${c.dim}size${c.reset} ${c.yellow}${seg.size}${c.reset}`);
+        }
+    }
 }
 function formatListTools(data) {
     console.log(`\n${c.bold}Available tools${c.reset} ${c.dim}(${data.count})${c.reset}\n`);
@@ -179,7 +203,7 @@ function formatGeneric(data) {
         }
     }
 }
-var BOOLEAN_FLAGS = new Set(['json', 'info']);
+var BOOLEAN_FLAGS = new Set(['json', 'info', 'symbols', 'save']);
 function parseArgs(argv) {
     var command = argv[2];
     var args = {};
@@ -209,7 +233,7 @@ function usage() {
         command: 'help',
         data: {
             commands: {
-                'compile': 'compile --platform <platform> [--tool <tool>] [--output <file>] <source>',
+                'compile': 'compile --platform <platform> [--tool <tool>] [--output <file>] [--symbols] [--save] <source>',
                 'check': 'check --platform <platform> [--tool <tool>] <source>',
                 'run': 'run (--platform <id> | --machine <module:ClassName>) [--frames N] [--output <file.png>] [--memdump start,end] [--info] <rom>',
                 'list-tools': 'list-tools',
@@ -290,18 +314,45 @@ async function doCompile(args, positional, checkOnly) {
     if (result.output) {
         outputSize = result.output.code ? result.output.code.length : result.output.length;
     }
+    var compileData = {
+        tool: tool,
+        platform: platform,
+        source: sourceFile,
+        outputSize: outputSize,
+        outputFile: outputFile || null,
+        hasListings: result.listings ? Object.keys(result.listings).length > 0 : false,
+        hasSymbolmap: !!result.symbolmap,
+    };
+    if (args['symbols'] === 'true') {
+        if (result.symbolmap)
+            compileData.symbolmap = result.symbolmap;
+        if (result.segments)
+            compileData.segments = result.segments;
+    }
+    // --save: write all intermediate build files to /tmp/<dirname>
+    if (args['save'] === 'true') {
+        var baseName = path.basename(sourceFile, path.extname(sourceFile));
+        var saveDir = path.join('/tmp', `8bws-${baseName}`);
+        fs.mkdirSync(saveDir, { recursive: true });
+        var savedFiles = [];
+        for (var [filePath, entry] of Object.entries(testlib_1.store.workfs)) {
+            var outPath = path.join(saveDir, filePath);
+            fs.mkdirSync(path.dirname(outPath), { recursive: true });
+            if (entry.data instanceof Uint8Array) {
+                fs.writeFileSync(outPath, entry.data);
+            }
+            else {
+                fs.writeFileSync(outPath, entry.data);
+            }
+            savedFiles.push(filePath);
+        }
+        compileData.saveDir = saveDir;
+        compileData.savedFiles = savedFiles;
+    }
     output({
         success: true,
         command: 'compile',
-        data: {
-            tool: tool,
-            platform: platform,
-            source: sourceFile,
-            outputSize: outputSize,
-            outputFile: outputFile || null,
-            hasListings: result.listings ? Object.keys(result.listings).length > 0 : false,
-            hasSymbolmap: !!result.symbolmap,
-        }
+        data: compileData,
     });
 }
 async function doRun(args, positional) {

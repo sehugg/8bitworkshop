@@ -1396,35 +1396,38 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
                     this.mbcType = 1;
                     break; // MBC1
                 default:
-                    this.mbcType = 1;
-                    break; // Default to MBC1 for other types
+                    console.log(`Invalid cartridge type @ 0x147: ${data[0x147]}`);
+                    break;
             }
         }
+        else
+            throw new emu_1.EmuHalt("ROM not long enough for header");
         // Determine ROM size and bank mask
         this.rom = new Uint8Array(Math.max(data.length, 0x8000));
         this.rom.set(data);
         var numBanks = Math.max(2, this.rom.length >> 14);
         this.romBankMask = numBanks - 1;
         // Determine RAM size from header
-        if (data.length > 0x149) {
-            switch (data[0x149]) {
-                case 0x00: break; // No RAM
-                case 0x01:
-                    this.extram = new Uint8Array(0x800);
-                    break; // 2KB
-                case 0x02:
-                    this.extram = new Uint8Array(0x2000);
-                    break; // 8KB
-                case 0x03:
-                    this.extram = new Uint8Array(0x8000);
-                    break; // 32KB
-                case 0x04:
-                    this.extram = new Uint8Array(0x20000);
-                    break; // 128KB
-                case 0x05:
-                    this.extram = new Uint8Array(0x10000);
-                    break; // 64KB
-            }
+        switch (data[0x149]) {
+            case 0x00: break; // No RAM
+            case 0x01:
+                this.extram = new Uint8Array(0x800);
+                break; // 2KB
+            case 0x02:
+                this.extram = new Uint8Array(0x2000);
+                break; // 8KB
+            case 0x03:
+                this.extram = new Uint8Array(0x8000);
+                break; // 32KB
+            case 0x04:
+                this.extram = new Uint8Array(0x20000);
+                break; // 128KB
+            case 0x05:
+                this.extram = new Uint8Array(0x10000);
+                break; // 64KB
+            default:
+                console.log(`Invalid RAM size code @ 0x149: ${data[0x149]}`);
+                break;
         }
         this.reset();
     }

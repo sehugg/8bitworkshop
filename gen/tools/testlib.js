@@ -383,6 +383,7 @@ function workerResultToCompileResult(result) {
             output: result.output,
             listings: result.listings,
             symbolmap: result.symbolmap,
+            segments: result.segments,
             params: result.params,
         };
     }

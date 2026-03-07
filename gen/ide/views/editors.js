@@ -392,6 +392,10 @@ class SourceEditor {
         };
         this.clearCurrentLine(moveCursor);
         if (line) {
+            // Validate line number is within document range (TODO: open disassembler)
+            if (line.line < 1 || line.line > this.editor.state.doc.lines) {
+                return false;
+            }
             addCurrentMarker(line);
             if (moveCursor) {
                 const targetLine = this.editor.state.doc.line(line.line);
@@ -402,6 +406,7 @@ class SourceEditor {
                 });
             }
             this.currentDebugLine = line;
+            return true;
         }
     }
     clearCurrentLine(moveCursor) {

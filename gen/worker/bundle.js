@@ -5209,6 +5209,9 @@
     "gb": {
       arch: "gbz80",
       code_start: 0,
+      // ROM starts @ 0x0, header @ 0x100, etc.
+      codeseg_start: 512,
+      // _CODE area starts here
       rom_size: 32768,
       data_start: 49312,
       data_size: 8032,
@@ -7203,14 +7206,17 @@
       if (s[0] == ":") {
         var arr = hexToArray(s, 1);
         var count = arr[0];
-        var address = (arr[1] << 8) + arr[2] - rom_start;
+        var offset = (arr[1] << 8) + arr[2] - rom_start;
         var rectype = arr[3];
         if (rectype == 0) {
+          if (output[offset] !== 0) {
+            errors.push({ line: 0, msg: `IHX overlap offset 0x${offset.toString(16)}` });
+          }
           for (var i = 0; i < count; i++) {
             var b = arr[4 + i];
-            output[i + address] = b;
+            output[i + offset] = b;
           }
-          if (i + address > high_size) high_size = i + address;
+          if (i + offset > high_size) high_size = i + offset;
         } else if (rectype == 1) {
           break;
         } else {
@@ -7313,6 +7319,7 @@
   }
   function linkSDLDZ80(step) {
     loadNative("sdldz80");
+    const arch = step.params.arch || "z80";
     var errors = [];
     gatherFiles(step);
     var binpath = "main.ihx";
@@ -7347,13 +7354,13 @@
         "-mjwxyu",
         "-i",
         "main.ihx",
-        // TODO: main?
         "-b",
-        "_CODE=0x" + params.code_start.toString(16),
+        "_CODE=0x" + (params.codeseg_start || params.code_start).toString(16),
         "-b",
         "_DATA=0x" + params.data_start.toString(16),
         "-k",
-        "/share/lib/z80",
+        `/share/lib/z80`,
+        // TODO: $arch for gbz80
         "-l",
         "z80"
       ];

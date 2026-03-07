@@ -366,7 +366,8 @@ exports.PLATFORM_PARAMS = {
     },
     'gb': {
         arch: 'gbz80',
-        code_start: 0x0,
+        code_start: 0x0, // ROM starts @ 0x0, header @ 0x100, etc.
+        codeseg_start: 0x200, // _CODE area starts here
         rom_size: 0x8000,
         data_start: 0xc0a0,
         data_size: 0x1f60,

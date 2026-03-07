@@ -3,7 +3,8 @@
 // 8bws - 8bitworkshop CLI tool for compilation, ROM execution, and platform info
 
 import * as fs from 'fs';
-import { initialize, compile, compileSourceFile, preload, listTools, listPlatforms, getToolForFilename, PLATFORM_PARAMS, TOOLS, TOOL_PRELOADFS } from './testlib';
+import * as path from 'path';
+import { initialize, compile, compileSourceFile, preload, listTools, listPlatforms, getToolForFilename, PLATFORM_PARAMS, TOOLS, TOOL_PRELOADFS, store } from './testlib';
 import { isDebuggable } from '../common/baseplatform';
 import { hex } from '../common/util';
 
@@ -91,7 +92,8 @@ function formatHelp(data: any): void {
       console.log(`  ${c.green}${cmd}${c.reset}${c.dim} - ${usage}${c.reset}`);
     }
     console.log(`\n${c.bold}Global options:${c.reset}`);
-    console.log(`  ${c.yellow}--json${c.reset}${c.dim}  Output raw JSON instead of formatted text${c.reset}`);
+    console.log(`  ${c.yellow}--json${c.reset}${c.dim}   Output raw JSON instead of formatted text${c.reset}`);
+    console.log(`  ${c.yellow}--save${c.reset}${c.dim}   Save all intermediate build files to /tmp/8bws-<name>${c.reset}`);
     console.log();
   }
 }
@@ -114,6 +116,31 @@ function formatCompile(data: any): void {
   if (data.outputFile) console.log(`  ${c.dim}Output:${c.reset}   ${c.cyan}${data.outputFile}${c.reset}`);
   if (data.hasListings) console.log(`  ${c.dim}Listings:${c.reset} ${c.green}yes${c.reset}`);
   if (data.hasSymbolmap) console.log(`  ${c.dim}Symbols:${c.reset}  ${c.green}yes${c.reset}`);
+
+  // --symbols: dump symbol map
+  if (data.symbolmap) {
+    console.log(`\n${c.bold}Symbols${c.reset} ${c.dim}(${Object.keys(data.symbolmap).length})${c.reset}`);
+    var sorted = Object.entries(data.symbolmap).sort((a: any, b: any) => a[1] - b[1]);
+    for (var [name, addr] of sorted) {
+      console.log(`  ${c.cyan}$${hex(addr as number, 4)}${c.reset}  ${name}`);
+    }
+  }
+
+  // --save: show saved files
+  if (data.saveDir) {
+    console.log(`\n${c.bold}Saved to${c.reset} ${c.cyan}${data.saveDir}${c.reset} ${c.dim}(${data.savedFiles.length} files)${c.reset}`);
+    for (var f of data.savedFiles) {
+      console.log(`  ${c.dim}●${c.reset} ${f}`);
+    }
+  }
+
+  // --symbols: dump segments
+  if (data.segments) {
+    console.log(`\n${c.bold}Segments${c.reset} ${c.dim}(${data.segments.length})${c.reset}`);
+    for (var seg of data.segments) {
+      console.log(`  ${c.green}${seg.name.padEnd(16)}${c.reset} ${c.cyan}$${hex(seg.start, 4)}${c.reset}  ${c.dim}size${c.reset} ${c.yellow}${seg.size}${c.reset}`);
+    }
+  }
 }
 
 function formatListTools(data: any): void {
@@ -152,7 +179,7 @@ function formatGeneric(data: any): void {
   }
 }
 
-var BOOLEAN_FLAGS = new Set(['json', 'info']);
+var BOOLEAN_FLAGS = new Set(['json', 'info', 'symbols', 'save']);
 
 function parseArgs(argv: string[]): { command: string; args: { [key: string]: string }; positional: string[] } {
   var command = argv[2];
@@ -183,7 +210,7 @@ function usage(): void {
     command: 'help',
     data: {
       commands: {
-        'compile': 'compile --platform <platform> [--tool <tool>] [--output <file>] <source>',
+        'compile': 'compile --platform <platform> [--tool <tool>] [--output <file>] [--symbols] [--save] <source>',
         'check': 'check --platform <platform> [--tool <tool>] <source>',
         'run': 'run (--platform <id> | --machine <module:ClassName>) [--frames N] [--output <file.png>] [--memdump start,end] [--info] <rom>',
         'list-tools': 'list-tools',
@@ -273,18 +300,45 @@ async function doCompile(args: { [key: string]: string }, positional: string[], 
     outputSize = result.output.code ? result.output.code.length : result.output.length;
   }
 
+  var compileData: any = {
+    tool: tool,
+    platform: platform,
+    source: sourceFile,
+    outputSize: outputSize,
+    outputFile: outputFile || null,
+    hasListings: result.listings ? Object.keys(result.listings).length > 0 : false,
+    hasSymbolmap: !!result.symbolmap,
+  };
+
+  if (args['symbols'] === 'true') {
+    if (result.symbolmap) compileData.symbolmap = result.symbolmap;
+    if (result.segments) compileData.segments = result.segments;
+  }
+
+  // --save: write all intermediate build files to /tmp/<dirname>
+  if (args['save'] === 'true') {
+    var baseName = path.basename(sourceFile, path.extname(sourceFile));
+    var saveDir = path.join('/tmp', `8bws-${baseName}`);
+    fs.mkdirSync(saveDir, { recursive: true });
+    var savedFiles: string[] = [];
+    for (var [filePath, entry] of Object.entries(store.workfs)) {
+      var outPath = path.join(saveDir, filePath);
+      fs.mkdirSync(path.dirname(outPath), { recursive: true });
+      if (entry.data instanceof Uint8Array) {
+        fs.writeFileSync(outPath, entry.data);
+      } else {
+        fs.writeFileSync(outPath, entry.data);
+      }
+      savedFiles.push(filePath);
+    }
+    compileData.saveDir = saveDir;
+    compileData.savedFiles = savedFiles;
+  }
+
   output({
     success: true,
     command: 'compile',
-    data: {
-      tool: tool,
-      platform: platform,
-      source: sourceFile,
-      outputSize: outputSize,
-      outputFile: outputFile || null,
-      hasListings: result.listings ? Object.keys(result.listings).length > 0 : false,
-      hasSymbolmap: !!result.symbolmap,
-    }
+    data: compileData,
   });
 }
 
