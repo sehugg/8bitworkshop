@@ -546,6 +546,12 @@ div.asset_block.asset_highlight {
   background: rgba(153, 204, 153, 0.3);
   text-decoration: underline;
 }
+.asset_no_assets {
+  color: #999;
+  padding: 2em;
+  text-align: center;
+  font-style: italic;
+}
 .asset_error_msg {
   color: #ff6666;
   background-color: #330000;
