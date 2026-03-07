@@ -479,8 +479,8 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       projectWindows.undofiles = [];
       projectWindows.redofiles = [];
       if (Mousetrap.bind) {
-        Mousetrap.bind('mod+z', projectWindows.undoStep.bind(projectWindows));
-        Mousetrap.bind('mod+shift+z', projectWindows.redoStep.bind(projectWindows));
+        Mousetrap.bind('mod+z', (e) => { projectWindows.undoStep(); return false; });
+        Mousetrap.bind('mod+shift+z', (e) => { projectWindows.redoStep(); return false; });
       }
     } else {
       if (Mousetrap.unbind) {
