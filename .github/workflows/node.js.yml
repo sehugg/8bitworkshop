@@ -32,6 +32,7 @@ jobs:
         TEST8BIT_GITHUB_TOKEN: ${{ secrets.TEST8BIT_GITHUB_TOKEN }}
     - run: make distro
     - name: Deploy
+      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: JamesIves/github-pages-deploy-action@v4.2.5
       with:
         branch: gh-pages
