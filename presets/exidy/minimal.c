@@ -50,7 +50,7 @@ void main() {
   int i;
   
   // copy tile bitmaps
-  memcpy((char*)0x6800, FONT, sizeof(FONT));
+  memcpy((char*)0x4800, FONT, sizeof(FONT));
   // set up screen
   for (i=0; i<32*32; i++) {
     POKE(0x4000+i, i);
@@ -62,9 +62,9 @@ void main() {
 
   while (1) {
     // move sprites
-    POKE(0x5000, 16);	// sprite 0 x
+    POKE(0x5000, -framecount);	// sprite 0 x
     POKE(0x5040, 16);	// sprite 0 y
-    POKE(0x5080, framecount);	// sprite 0 x
+    POKE(0x5080, framecount);	// sprite 1 x
     POKE(0x50C0, 16);	// sprite 1 y
     POKE(0x5100, 0x01);
   }
