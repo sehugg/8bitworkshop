@@ -72,9 +72,16 @@ export class ProjectWindows {
     }
     this.activeid = id;
     if (typeof window !== 'undefined') {
-      const hash = id.startsWith('#') ? id : '#' + encodeURIComponent(id);
-      if (window.location.hash !== hash) {
-        history.replaceState(null, '', hash);
+      const isMainFile = id === this.project.mainPath;
+      if (isMainFile) {
+        if (window.location.hash) {
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      } else {
+        const hash = id.startsWith('#') ? id : '#' + encodeURIComponent(id);
+        if (window.location.hash !== hash) {
+          history.replaceState(null, '', hash);
+        }
       }
     }
     return wnd;
