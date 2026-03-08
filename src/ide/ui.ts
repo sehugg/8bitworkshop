@@ -2058,7 +2058,8 @@ async function loadAndStartPlatform() {
     var module = await importPlatform(getRootBasePlatform(platform_id));
     console.log("starting platform", platform_id); // loaded required <platform_id>.js file
     await startPlatform();
-    document.title = document.title + " [" + platform_id + "] - " + (repo_id ? ('[' + repo_id + '] - ') : '') + current_project.mainPath;
+    projectWindows.titlePrefix = document.title + " [" + platform_id + "] - " + (repo_id ? ('[' + repo_id + '] - ') : '');
+    projectWindows.updateTitle(projectWindows.getActiveID() || current_project.mainPath);
   } catch (e) {
     console.log(e);
     alertError('Platform "' + platform_id + '" failed to load.');
