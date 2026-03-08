@@ -166,7 +166,7 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
       }
       this.bios = Uint8Array.from(data);
    }
-   loadROM(data) {
+   loadROM(data, title?, origin?: number) {
       // is it a 16-sector 35-track disk image?
       if (data.length == 16 * 35 * 256) {
          var diskii = new DiskII(this, data);
@@ -181,17 +181,17 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
             this.HDR_SIZE = 58;
          } else {
             // 4-byte DOS header? (TODO: hacky detection)
-            const origin = this.rom[0] | (this.rom[1] << 8);
+            const hdrOrigin = this.rom[0] | (this.rom[1] << 8);
             const size = this.rom[2] | (this.rom[3] << 8);
-            let isPlausible = origin < 0xc000
-               && origin + size < 0x13000
-               && (origin == 0x803 || (origin & 0xff) == 0);
+            let isPlausible = hdrOrigin < 0xc000
+               && hdrOrigin + size < 0x13000
+               && (hdrOrigin == 0x803 || (hdrOrigin & 0xff) == 0);
             if (size == data.length - 4 && isPlausible) {
-               this.LOAD_BASE = origin;
+               this.LOAD_BASE = hdrOrigin;
                this.HDR_SIZE = 4;
             } else {
-               // default = raw binary @ $803
-               this.LOAD_BASE = 0x803;
+               // Load @ specified origin, fallback to $803
+               this.LOAD_BASE = origin ?? 0x803;
                this.HDR_SIZE = 0;
             }
          }
