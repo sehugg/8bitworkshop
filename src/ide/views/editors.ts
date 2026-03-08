@@ -5,7 +5,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, foldGutter, indentOnInput, indentUnit } from "@codemirror/language";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { EditorState, Extension } from "@codemirror/state";
-import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, highlightSpecialChars, keymap, lineNumbers, rectangularSelection, ViewUpdate } from "@codemirror/view";
+import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, highlightSpecialChars, highlightWhitespace, highlightTrailingWhitespace, keymap, lineNumbers, rectangularSelection, ViewUpdate } from "@codemirror/view";
 import { CodeAnalyzer } from "../../common/analysis";
 import { hex, rpad } from "../../common/util";
 import { SourceFile, SourceLocation, WorkerError } from "../../common/workertypes";
@@ -158,6 +158,8 @@ export class SourceEditor implements ProjectView {
         lineNums ? lineNumbers() : [],
 
         highlightSpecialChars(),
+        highlightWhitespace(),
+        highlightTrailingWhitespace(),
 
         // Undo history.
         history(),
