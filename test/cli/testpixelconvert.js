@@ -62,7 +62,7 @@ describe('Pixel editor', function() {
 
     dumbEqual(node2.images[0], [0,0,0,0,14,15,14,15,14,0,0,0,0,0,0,0,14,14,14,14,15,14,14,14,14,0,0,0,0,14,14,13,14,15,14,15,14,13,14,14,0,0,0,14,14,14,13,13,13,13,13,14,14,14,0,0,0,14,14,14,14,13,13,14,14,14,14,14,0,0,0,0,14,14,14,14,13,14,14,14,14,0,0,0,0,0,14,14,14,14,13,14,14,14,14,0,0,0,0,0,0,0,14,13,13,13,14,0,0,0,0,13,13,13,13,13,14,14,14,14,14,13,13,13,13,0,0,13,14,14,14,14,14,14,14,14,14,14,0,0,0,14,14,0,14,14,14,14,14,0,14,14,0,0,0,14,14,0,14,14,14,14,14,0,14,14,0,0,0,14,14,0,13,13,13,13,13,0,13,14,0,0,0,13,0,0,14,14,0,14,14,0,0,13,0,0,0,0,0,0,14,13,0,14,14,0,0,0,0,0,0,0,0,13,13,13,0,13,13,13,0,0,1,8]);
     assert.equal(" 0x00, 0x03, 0x19, 0x50, 0x52, 0x07, 0x1F, 0x37, 0xE0, 0xA4, 0xFD, 0xFF, 0x38, 0x70, 0x7F, 0x7F, ",
-      pixed.replaceHexWords(paldatastr, pixed.parseHexWords(paldatastr)));
+      pixed.replaceHexWords(paldatastr, pixed.parseHexWords(paldatastr), 8));
     node3.refreshLeft();
     dumbEqual(node2.images[0], [0,0,0,0,14,15,14,15,14,0,0,0,0,0,0,0,14,14,14,14,15,14,14,14,14,0,0,0,0,14,14,13,14,15,14,15,14,13,14,14,0,0,0,14,14,14,13,13,13,13,13,14,14,14,0,0,0,14,14,14,14,13,13,14,14,14,14,14,0,0,0,0,14,14,14,14,13,14,14,14,14,0,0,0,0,0,14,14,14,14,13,14,14,14,14,0,0,0,0,0,0,0,14,13,13,13,14,0,0,0,0,13,13,13,13,13,14,14,14,14,14,13,13,13,13,0,0,13,14,14,14,14,14,14,14,14,14,14,0,0,0,14,14,0,14,14,14,14,14,0,14,14,0,0,0,14,14,0,14,14,14,14,14,0,14,14,0,0,0,14,14,0,13,13,13,13,13,0,13,14,0,0,0,13,0,0,14,14,0,14,14,0,0,13,0,0,0,0,0,0,14,13,0,14,14,0,0,0,0,0,0,0,0,13,13,13,0,13,13,13,0,0,1,8]);
     
@@ -74,13 +74,13 @@ describe('Pixel editor', function() {
     var datastr3 = "      7'o00: bits = 5'b11111; ";
     var words3 = pixed.parseHexWords(datastr3);
     dumbEqual(words3, [31]);
-    assert.equal(datastr3, pixed.replaceHexWords(datastr3, pixed.parseHexWords(datastr3)));
+    assert.equal(datastr3, pixed.replaceHexWords(datastr3, pixed.parseHexWords(datastr3), 8));
     // TODO: test (nplanes > 0 && fmt.sl)
 
     // test comments
     var datastr4 = "        .byte #%01111110;$7E \n .byte #%01111111;$7F";
     var words4 = pixed.parseHexWords(datastr4);
     dumbEqual(words4, [0x7E,0x7F]);
-    assert.notEqual(datastr4, pixed.replaceHexWords(datastr4, pixed.parseHexWords(datastr4))); // removed comment
+    assert.notEqual(datastr4, pixed.replaceHexWords(datastr4, pixed.parseHexWords(datastr4), 8)); // removed comment
   });
 });

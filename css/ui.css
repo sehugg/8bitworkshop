@@ -495,6 +495,71 @@ div.asset_file_header {
   border-radius: 8px;
   padding-left: 1em;
 }
+div.asset_block {
+  margin-top: 8px;
+  transition: outline-color 1.5s ease-out;
+  outline: 2px solid transparent;
+  background-color: transparent;
+
+}
+div.asset_block.asset_highlight {
+  outline: 2px solid #99cc99;
+  border-radius: 4px;
+  transition: none;
+}
+.asset_snip {
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+  font-weight: bold;
+  color: #c1c1b0;
+  background-color: #555;
+  border-radius: 8px;
+  padding-left: 1em;
+}
+.asset_linenos {
+  display: inline-block;
+  margin-right: 8px;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.asset_linenos:hover {
+  text-decoration: underline;
+  background: rgba(255,255,255,0.1);
+}
+.asset_lineno {
+  color: #99cc99;
+  text-align: right;
+}
+.asset-header-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  margin: 0 4px;
+  border-radius: 4px;
+  background: rgba(153, 204, 153, 0.15);
+  color: #99cc99;
+  font-size: 0.85em;
+  cursor: pointer;
+  opacity: 0.6;
+}
+.asset-header-badge:hover {
+  opacity: 1;
+  background: rgba(153, 204, 153, 0.3);
+  text-decoration: underline;
+}
+.asset_no_assets {
+  color: #999;
+  padding: 2em;
+  text-align: center;
+  font-style: italic;
+}
+.asset_error_msg {
+  color: #ff6666;
+  background-color: #330000;
+  padding: 4px 8px;
+  margin: 2px 0;
+  border-left: 3px solid #ff0000;
+  font-family: monospace;
+}
 div.asset_grid {
   line-height:0;
   margin: 1em;
@@ -519,7 +584,7 @@ td.asset_editable {
 }
 div.asset_dual {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
 }
 div.asset_dual table {
   border-spacing: 10px;
