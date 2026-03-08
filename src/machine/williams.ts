@@ -179,9 +179,11 @@ export class WilliamsMachine extends BasicScanlineMachine {
 
     initAudio() {
         this.master = new MasterAudio();
-        this.worker = new Worker("./src/common/audio/z80worker.js");
-        let workerchannel = new WorkerSoundChannel(this.worker);
-        this.master.master.addChannel(workerchannel);
+        if (window.Worker != null) {
+            this.worker = new Worker("./src/common/audio/z80worker.js");
+            let workerchannel = new WorkerSoundChannel(this.worker);
+            this.master.master.addChannel(workerchannel);
+        }
     }
 
     initCPU() {
@@ -345,7 +347,7 @@ export class WilliamsMachine extends BasicScanlineMachine {
     loadSoundROM(data) {
         console.log("loading sound ROM " + data.length + " bytes");
         var soundrom = padBytes(data, 0x4000);
-        this.worker.postMessage({ rom: soundrom });
+        if (this.worker) this.worker.postMessage({ rom: soundrom });
     }
 
     loadROM(data) {
