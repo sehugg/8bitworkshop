@@ -8,6 +8,6 @@
 #ifndef __BGB_EMU_INCLUDE
 #define __BGB_EMU_INCLUDE
 
-#include "gbdk/emu_debug.h"
+#include <gb/emu_debug.h>
 
 #endif

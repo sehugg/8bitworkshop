@@ -4,7 +4,10 @@ import { PLATFORMS } from "../common/emu";
 import { disassembleSM83 } from "../common/cpu/disasmSM83";
 
 const GB_PRESETS: Preset[] = [
-  { id: 'hello.sgb', name: 'Hello (ASM)' },
+  { id: 'hello.c', name: 'Hello World (C)' },
+  { id: 'testdrawing.c', name: 'Drawing Routines (C)' },
+  { id: 'testphys.c', name: 'Sprite Test (C)' },
+  { id: 'hello.sgb', name: 'Hello World (ASM)' },
   { id: 'main.wiz', name: 'Snake Game (Wiz)' },
 ];
 

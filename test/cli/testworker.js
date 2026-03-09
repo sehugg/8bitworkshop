@@ -271,6 +271,9 @@ describe('Worker', function() {
     compile('cc65', '#define CC65_FLAGS -Or,-g,-j\nint main() {\nint x=1;\nreturn x+2;\n}', 'apple2', done, 416+58, 3);
   });
   /*
+  it('should compile gameboy', function(done) {
+    compile('sdcc', '//#link "gb/sfr.sgb"\n//#link "gb/crt0.sgb"\nvoid main(void){}\n', 'gb', done, 416+58, 3);
+  });
   it('should compile ACME', function(done) {
     compile('acme', 'nop', 'c64', done, 416, 3);
   });

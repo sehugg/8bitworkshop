@@ -370,7 +370,9 @@ export var PLATFORM_PARAMS = {
       data_start: 0xc0a0,
       data_size: 0x1f60,
       stack_end: 0xe000,
+      extra_link_files: ['gbz80.lib', 'gb.lib'],
       extra_link_args: [
+        '-l', 'gb',
         '-g', '_shadow_OAM=0xC000',
         '-g', '.STACK=0xE000',
         '-g', '.refresh_OAM=0xFF80',

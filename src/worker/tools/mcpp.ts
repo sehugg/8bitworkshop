@@ -35,9 +35,10 @@ export function preprocessMCPP(step: BuildStep, filesys: string) {
     });
     populateExtraFiles(step, FS, params.extra_compile_files);
     // TODO: make configurable by other compilers
+    var arch = params.arch || 'z80';
     var args = [
         "-D", "__8BITWORKSHOP__",
-        "-D", "__SDCC_z80",
+        "-D", "__SDCC_" + arch,
         "-D", makeCPPSafe(platform.toUpperCase()),
         "-I", "/share/include",
         "-Q",
