@@ -24,17 +24,9 @@ import { loadSettings, registerEditor, settingsExtensions } from "../settings";
 import { clearBreakpoint, current_project, lastDebugState, platform, qs, runToPC } from "../ui";
 import { createAssetHeaderPlugin } from "./assetdecorations";
 import { isMobileDevice, ProjectView } from "./baseviews";
-import { debugHighlightTagsTooltip } from "./debug";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
 import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset, statusMarkers } from "./gutter";
 import { currentPc, errorMessages, errorSpans, highlightLines, showValue } from "./visuals";
-
-// TODO: make this an easily toggleable debug setting.
-// Debug syntax highlighting. Useful when developing new parsers and themes.
-const debugHighlightTags = false;
-
-
-/////
 
 // look ahead this many bytes when finding source lines for a PC
 export const PC_LINE_LOOKAHEAD = 64;
@@ -186,7 +178,6 @@ export class SourceEditor implements ProjectView {
         parser || [],
         theme,
         editorTheme,
-        debugHighlightTags ? debugHighlightTagsTooltip : [],
         lineWrap ? EditorView.lineWrapping : [],
 
         currentPc.field,
@@ -616,7 +607,6 @@ export class DisassemblerView implements ProjectView {
         drawSelection(),
         highlightActiveLine(),
         highlightSelectionMatches(),
-        debugHighlightTags ? debugHighlightTagsTooltip : [],
         disassemblyTheme,
         cobalt,
         currentPc.field,
