@@ -453,16 +453,21 @@ async function loadProject(preset_id: string) {
     // file found; continue
     await loadMainWindow(preset_id);
   } else {
+    // file not found, look for skeleton file
+    var tool = platform.getToolForFilename(preset_id);
     var skel = await getSkeletonFile(preset_id);
     current_project.filedata[preset_id] = skel || "\n";
     await loadMainWindow(preset_id);
-    // don't alert if we selected "new file"
+    // don't alert if we selected "new file" unless there's a problem
     if (!qs.newfile) {
-      var tool = platform.getToolForFilename(preset_id);
       alertInfo("Could not find file \"" + preset_id + "\"<br><br>" +
         "Creating new " + (skel ? tool : "blank") + " file.");
+    } else if (!skel && !tool) {
+      alertError("No build tool for \"" + preset_id + "\" on this platform; project will not build.");
+    } else if (!skel) {
+      alertInfo("No skeleton file for " + tool + " on this platform; using blank file.");
     } else {
-      requestPersistPermission(true, true);
+      requestPersistPermission(true, true); // ask for persist permissions
     }
     delete qs.newfile;
     replaceURLState();
@@ -490,7 +495,7 @@ async function getSkeletonFile(fileid: string): Promise<string> {
   try {
     return await $.get("presets/" + getBasePlatform(platform_id) + "/skeleton." + ext, 'text');
   } catch (e) {
-    // alertError("Could not load skeleton for " + platform_id + "/" + ext + "; using blank file");
+    console.log(e+"");
     return null;
   }
 }
