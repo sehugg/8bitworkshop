@@ -10,7 +10,7 @@ export interface ProjectView {
     getPath?(): string;
     getValue?(): string;
     setText?(text: string): void;
-    insertText?(text: string): void;
+    insertLinesBefore?(text: string): void;
     getCursorPC?(): number;
     getSourceFile?(): SourceFile;
     setGutterBytes?(line: number, s: string): void;
