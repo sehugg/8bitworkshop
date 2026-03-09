@@ -40,7 +40,7 @@ class BasicHeadlessMachine {
         if (!this.rom)
             this.rom = new Uint8Array(this.defaultROMSize);
         if (data.length > this.rom.length)
-            throw new Error(`ROM too big: ${data.length} > ${this.rom.length}}`);
+            throw new Error(`ROM too big: ${data.length} > ${this.rom.length}`);
         this.rom.set(data);
     }
     loadState(state) {

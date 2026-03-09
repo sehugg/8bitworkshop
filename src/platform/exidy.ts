@@ -1,6 +1,6 @@
 import { Base6502MachinePlatform, Platform } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
-import { ExidyUGBv2 } from "../machine/exidy";
+import { ExidyUGBv2, GAME_CONFIG_DEFAULT, GAME_CONFIG_VENTURE } from "../machine/exidy";
 
 var EXIDY_PRESETS = [
     { id: 'minimal.c', name: 'Minimal Example', category: "C" },
@@ -20,12 +20,20 @@ class ExidyUGBPlatform extends Base6502MachinePlatform<ExidyUGBv2> implements Pl
             { name: 'PIA 6821', start: 0x5200, size: 0xf, type: 'io' },
             { name: 'Color Latches', start: 0x5210, size: 0x3, type: 'io' },
             { name: 'Screen RAM', start: 0x4000, size: 0x400, type: 'ram' },
-            { name: 'Character RAM', start: 0x6800, size: 0x800, type: 'ram' },
-            { name: 'Audio ROM', start: 0x5800, size: 0x2800, type: 'rom' },
+            { name: 'Character RAM', start: 0x4800, size: 0x800, type: 'ram' },
             { name: 'Program ROM', start: 0x8000, size: 0x8000, type: 'rom' },
         ]
     } }
 }
 
-PLATFORMS["exidy"] = ExidyUGBPlatform;
+class ExidyVenturePlatform extends ExidyUGBPlatform {
 
+    newMachine() {
+        let machine = new ExidyUGBv2();
+        machine.configure(GAME_CONFIG_VENTURE);
+        return machine;
+    }
+}
+
+PLATFORMS["exidy"] = ExidyUGBPlatform;
+PLATFORMS["exidy.venture"] = ExidyVenturePlatform;

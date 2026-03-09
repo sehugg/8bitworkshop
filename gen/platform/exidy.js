@@ -18,12 +18,19 @@ class ExidyUGBPlatform extends baseplatform_1.Base6502MachinePlatform {
                 { name: 'PIA 6821', start: 0x5200, size: 0xf, type: 'io' },
                 { name: 'Color Latches', start: 0x5210, size: 0x3, type: 'io' },
                 { name: 'Screen RAM', start: 0x4000, size: 0x400, type: 'ram' },
-                { name: 'Character RAM', start: 0x6800, size: 0x800, type: 'ram' },
-                { name: 'Audio ROM', start: 0x5800, size: 0x2800, type: 'rom' },
+                { name: 'Character RAM', start: 0x4800, size: 0x800, type: 'ram' },
                 { name: 'Program ROM', start: 0x8000, size: 0x8000, type: 'rom' },
             ]
         };
     }
 }
+class ExidyVenturePlatform extends ExidyUGBPlatform {
+    newMachine() {
+        let machine = new exidy_1.ExidyUGBv2();
+        machine.configure(exidy_1.GAME_CONFIG_VENTURE);
+        return machine;
+    }
+}
 emu_1.PLATFORMS["exidy"] = ExidyUGBPlatform;
+emu_1.PLATFORMS["exidy.venture"] = ExidyVenturePlatform;
 //# sourceMappingURL=exidy.js.map

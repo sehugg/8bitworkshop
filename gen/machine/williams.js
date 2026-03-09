@@ -161,9 +161,11 @@ class WilliamsMachine extends devices_1.BasicScanlineMachine {
     }
     initAudio() {
         this.master = new audio_1.MasterAudio();
-        this.worker = new Worker("./src/common/audio/z80worker.js");
-        let workerchannel = new audio_1.WorkerSoundChannel(this.worker);
-        this.master.master.addChannel(workerchannel);
+        if (window.Worker != null) {
+            this.worker = new Worker("./src/common/audio/z80worker.js");
+            let workerchannel = new audio_1.WorkerSoundChannel(this.worker);
+            this.master.master.addChannel(workerchannel);
+        }
     }
     initCPU() {
         this.rom = new Uint8Array(this.defaultROMSize);
@@ -328,7 +330,8 @@ class WilliamsMachine extends devices_1.BasicScanlineMachine {
     loadSoundROM(data) {
         console.log("loading sound ROM " + data.length + " bytes");
         var soundrom = (0, emu_1.padBytes)(data, 0x4000);
-        this.worker.postMessage({ rom: soundrom });
+        if (this.worker)
+            this.worker.postMessage({ rom: soundrom });
     }
     loadROM(data) {
         if (data.length > 2) {
