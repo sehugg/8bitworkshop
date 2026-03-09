@@ -1,3 +1,4 @@
+import { insertTab } from "@codemirror/commands";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView, KeyBinding } from "@codemirror/view";
 
@@ -66,7 +67,12 @@ function shiftTab(view: EditorView): boolean {
   return true;
 }
 
-export const tabKeymap: KeyBinding[] = [
+export const spacesSpacesKeymap: KeyBinding[] = [
   { key: "Tab", run: tab },
+  { key: "Shift-Tab", run: shiftTab },
+];
+
+export const insertTabKeymap: KeyBinding[] = [
+  { key: "Tab", run: insertTab },
   { key: "Shift-Tab", run: shiftTab },
 ];
