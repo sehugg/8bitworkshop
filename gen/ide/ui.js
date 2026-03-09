@@ -448,7 +448,9 @@ async function loadProject(preset_id) {
         await loadMainWindow(preset_id);
         // don't alert if we selected "new file"
         if (!exports.qs.newfile) {
-            (0, dialogs_1.alertInfo)("Could not find file \"" + preset_id + "\". Loading default file.");
+            var tool = exports.platform.getToolForFilename(preset_id);
+            (0, dialogs_1.alertInfo)("Could not find file \"" + preset_id + "\"<br><br>" +
+                "Creating new " + (skel ? tool : "blank") + " file.");
         }
         else {
             requestPersistPermission(true, true);
@@ -480,7 +482,8 @@ async function getSkeletonFile(fileid) {
         return await $.get("presets/" + (0, util_1.getBasePlatform)(exports.platform_id) + "/skeleton." + ext, 'text');
     }
     catch (e) {
-        (0, dialogs_1.alertError)("Could not load skeleton for " + exports.platform_id + "/" + ext + "; using blank file");
+        // alertError("Could not load skeleton for " + platform_id + "/" + ext + "; using blank file");
+        return null;
     }
 }
 function checkEnteredFilename(fn) {
