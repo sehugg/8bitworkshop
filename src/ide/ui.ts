@@ -1750,6 +1750,8 @@ function replaceURLState() {
 function hashToViewIdResolved(hash: string): string | null {
   if (!hash || hash === '#') return null;
   var id = decodeURIComponent(hash.substring(1));
+  // check for extended asset editor hash (e.g. #asseteditor/filename/startline)
+  if (id.startsWith('asseteditor/')) return '#asseteditor';
   // check if it's a registered tool window (e.g. #asseteditor)
   if (projectWindows.isWindow('#' + id)) return '#' + id;
   // otherwise treat as a file path (e.g. hello.asm)
@@ -1773,6 +1775,7 @@ function installHashChangeHandler() {
 function navigateToInitialHash(initialHash: string) {
   if (initialHash && initialHash !== '#') {
     const viewId = hashToViewIdResolved(initialHash) || getCurrentMainFilename();
+    history.replaceState(null, '', initialHash);
     projectWindows.createOrShow(viewId);
   }
 }
