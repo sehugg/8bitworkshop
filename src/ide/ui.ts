@@ -931,7 +931,7 @@ async function setCompileOutput(data: WorkerResult) {
       try {
         clearBreakpoint(); // so we can replace memory (TODO: change toolbar btn)
         _resetRecording();
-        await platform.loadROM(getCurrentPresetTitle(), rom);
+        await platform.loadROM(getCurrentPresetTitle(), rom, data.origin);
         current_output = rom;
         if (!userPaused) _resume();
         writeOutputROMFile();
