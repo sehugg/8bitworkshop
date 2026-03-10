@@ -1,8 +1,21 @@
+; --------------------------------------------------
+; Example showing how to create an AppleSingle binary
+; header and program that is automatically loaded
+; into the desired PGM_START memory address.
+; --------------------------------------------------
 
-	processor 6502
+        processor 6502
+
+; --------------------------------------------------
+; Set PGM_START to desired start of program execution
+; - PGM_START must be less than $C000
+; - PGM_START + SIZE must be less than $13000
+; --------------------------------------------------
+PGM_START    equ     $2000
+PGM_LENGTH   equ     PGM_END - PGM_START
 
         seg
-        org $4000
+        org PGM_START - 58 ; Subtract 58 bytes for header
 
 ; --------------------------------------------------
 ; AppleSingle version 2 file header
@@ -22,23 +35,23 @@ __HEADER_BEGIN
         .byte    0, 2                                      ; Number of entries
         .byte    0, 0, 0, 1                                ; Entry ID 1 - Data Fork
         .byte    0, 0, >__DATA_OFFSET, <__DATA_OFFSET      ; Offset
-        .byte    0, 0, >__DATA_LENGTH, <__DATA_LENGTH      ; Length
+        .byte    0, 0, >PGM_LENGTH, <PGM_LENGTH            ; Length
 
         .byte    0, 0, 0, 11                               ; Entry ID 11 - ProDOS File Info
         .byte    0, 0, >__PRODOS_OFFSET, <__PRODOS_OFFSET  ; Offset
         .byte    0, 0, >__PRODOS_LENGTH, <__PRODOS_LENGTH  ; Length
 __PRODOS_INFO
         .byte    0, %11000011                              ; Access - Destroy, Rename, Write, Read
-        .byte    >__FILETYPE__, <__FILETYPE__              ; File Type
+        .byte    0, 6                                      ; File Type - BIN
         .byte    0, 0                                      ; Auxiliary Type high
-        .byte    >__PROGRAM_BEGIN, <__PROGRAM_BEGIN        ; Auxiliary Type low
+        .byte    >PGM_START, <PGM_START                    ; Auxiliary Type low
 __HEADER_END:
 
-__FILETYPE__ = $0006  ; BIN (Auxiliary type is the binary file's loading address)
-__DATA_LENGTH   equ __PROGRAM_END - __PROGRAM_BEGIN
 __DATA_OFFSET   equ __HEADER_END  - __HEADER_BEGIN
 __PRODOS_LENGTH equ __HEADER_END  - __PRODOS_INFO
 __PRODOS_OFFSET equ __PRODOS_INFO - __HEADER_BEGIN
+
+PGM_LENGTH      equ PGM_END - PGM_START
 
 
 ; --------------------------------------------------
@@ -47,20 +60,18 @@ __PRODOS_OFFSET equ __PRODOS_INFO - __HEADER_BEGIN
 HOME    equ $FC58
 
 
-
 ; --------------------------------------------------
 ; Start of program
 ; --------------------------------------------------
-__PROGRAM_BEGIN
+PGM_START
 
-start
         ; --------------------------------------------------
         ; Clear screen
         ; --------------------------------------------------
         jsr HOME
 
         ; --------------------------------------------------
-        ; Print "START $" (7 chars) to $0400..$0406
+        ; Print "PGM_START $" (11 chars) to $0400..$040a
         ; --------------------------------------------------
         ldx #0
 pfx_loop
@@ -68,16 +79,16 @@ pfx_loop
         ora #$80
         sta $0400,x
         inx
-        cpx #7
+        cpx #11
         bne pfx_loop
 
 
         ; --------------------------------------------------
-        ; Print origin in hex to $0407 - $040A
+        ; Print origin in hex to $040b - $040e
         ; --------------------------------------------------
 
         ; High byte high nibble
-        lda #>start
+        lda #>PGM_START
         lsr
         lsr
         lsr
@@ -85,18 +96,18 @@ pfx_loop
         tax
         lda hexchar,x
         ora #$80
-        sta $0407
+        sta $040b
 
         ; High byte low nibble
-        lda #>start
+        lda #>PGM_START
         and #$0F
         tax
         lda hexchar,x
         ora #$80
-        sta $0408
+        sta $040c
 
         ; Low byte high nibble
-        lda #<start
+        lda #<PGM_START
         lsr
         lsr
         lsr
@@ -104,15 +115,15 @@ pfx_loop
         tax
         lda hexchar,x
         ora #$80
-        sta $0409
+        sta $040d
 
         ; Low byte low nibble
-        lda #<start
+        lda #<PGM_START
         and #$0F
         tax
         lda hexchar,x
         ora #$80
-        sta $040A
+        sta $040e
 
         ; --------------------------------------------------
         ; Endless loop (text stays on screen)
@@ -124,12 +135,12 @@ done    jmp done
 ; Data
 ; --------------------------------------------------
 prefix
-        .byte "START $"
+        .byte "PGM_START $"
 
 hexchar
         .byte "0123456789ABCDEF"
 
 
 
-__PROGRAM_END
+PGM_END
  ; Don't add instructions after this line
