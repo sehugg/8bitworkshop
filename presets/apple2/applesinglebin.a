@@ -1,0 +1,135 @@
+
+	processor 6502
+
+        seg
+        org $4000
+
+; --------------------------------------------------
+; AppleSingle version 2 file header
+; --------------------------------------------------
+; - https://github.com/cc65/cc65/blob/master/libsrc/apple2/exehdr.s
+; - https://nulib.com/library/FTN.e00001.htm
+; - https://www.kreativekorp.com/miscpages/a2info/filetypes.shtml
+__HEADER_BEGIN
+        .byte    $00, $05, $16, $00  ; Magic number
+        .byte    $00, $02, $00, $00  ; Version number
+
+        ; Home File System - 16 bytes
+        ; ProDOS
+        .byte    $50,$72,$6F,$44,$4F,$53,$20,$20
+        .byte    $20,$20,$20,$20,$20,$20,$20,$20
+
+        .byte    0, 2                                      ; Number of entries
+        .byte    0, 0, 0, 1                                ; Entry ID 1 - Data Fork
+        .byte    0, 0, >__DATA_OFFSET, <__DATA_OFFSET      ; Offset
+        .byte    0, 0, >__DATA_LENGTH, <__DATA_LENGTH      ; Length
+
+        .byte    0, 0, 0, 11                               ; Entry ID 11 - ProDOS File Info
+        .byte    0, 0, >__PRODOS_OFFSET, <__PRODOS_OFFSET  ; Offset
+        .byte    0, 0, >__PRODOS_LENGTH, <__PRODOS_LENGTH  ; Length
+__PRODOS_INFO
+        .byte    0, %11000011                              ; Access - Destroy, Rename, Write, Read
+        .byte    >__FILETYPE__, <__FILETYPE__              ; File Type
+        .byte    0, 0                                      ; Auxiliary Type high
+        .byte    >__PROGRAM_BEGIN, <__PROGRAM_BEGIN        ; Auxiliary Type low
+__HEADER_END:
+
+__FILETYPE__ = $0006  ; BIN (Auxiliary type is the binary file's loading address)
+__DATA_LENGTH   equ __PROGRAM_END - __PROGRAM_BEGIN
+__DATA_OFFSET   equ __HEADER_END  - __HEADER_BEGIN
+__PRODOS_LENGTH equ __HEADER_END  - __PRODOS_INFO
+__PRODOS_OFFSET equ __PRODOS_INFO - __HEADER_BEGIN
+
+
+; --------------------------------------------------
+; ROM routines
+; --------------------------------------------------
+HOME    equ $FC58
+
+
+
+; --------------------------------------------------
+; Start of program
+; --------------------------------------------------
+__PROGRAM_BEGIN
+
+start
+        ; --------------------------------------------------
+        ; Clear screen
+        ; --------------------------------------------------
+        jsr HOME
+
+        ; --------------------------------------------------
+        ; Print "START $" (7 chars) to $0400..$0406
+        ; --------------------------------------------------
+        ldx #0
+pfx_loop
+        lda prefix,x
+        ora #$80
+        sta $0400,x
+        inx
+        cpx #7
+        bne pfx_loop
+
+
+        ; --------------------------------------------------
+        ; Print origin in hex to $0407 - $040A
+        ; --------------------------------------------------
+
+        ; High byte high nibble
+        lda #>start
+        lsr
+        lsr
+        lsr
+        lsr
+        tax
+        lda hexchar,x
+        ora #$80
+        sta $0407
+
+        ; High byte low nibble
+        lda #>start
+        and #$0F
+        tax
+        lda hexchar,x
+        ora #$80
+        sta $0408
+
+        ; Low byte high nibble
+        lda #<start
+        lsr
+        lsr
+        lsr
+        lsr
+        tax
+        lda hexchar,x
+        ora #$80
+        sta $0409
+
+        ; Low byte low nibble
+        lda #<start
+        and #$0F
+        tax
+        lda hexchar,x
+        ora #$80
+        sta $040A
+
+        ; --------------------------------------------------
+        ; Endless loop (text stays on screen)
+        ; --------------------------------------------------
+done    jmp done
+
+
+; --------------------------------------------------
+; Data
+; --------------------------------------------------
+prefix
+        .byte "START $"
+
+hexchar
+        .byte "0123456789ABCDEF"
+
+
+
+__PROGRAM_END
+ ; Don't add instructions after this line
