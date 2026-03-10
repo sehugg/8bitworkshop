@@ -36,8 +36,8 @@ PseudoOp {
     "ORG" | "EQU" | "END" | ".END" |
     "ds" | "ds.b" | "ds.w" | "dc" | "dc.b" | "dc.w" | "seg" | "seg.u" |
     "DS" | "DS.B" | "DS.W" | "DC" | "DC.B" | "DC.W" | "SEG" | "SEG.U" |
-    ".byte" | ".word" |
-    ".BYTE" | ".WORD" |
+    "byte" | "word" | ".byte" | ".word" |
+    "BYTE" | "WORD" | ".BYTE" | ".WORD" |
     "subroutine" | "SUBROUTINE" |
     "processor" | "PROCESSOR" |
     "echo" | "repeat" | "repend" | "set" |
