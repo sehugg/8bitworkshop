@@ -199,7 +199,7 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS {
       }
    }
    loadRAMWithProgram() {
-      console.log(`Loading program into Apple ][ RAM at \$${this.LOAD_BASE.toString(16)}`);
+      console.log(`Loading program into Apple ][ RAM at \$${this.LOAD_BASE.toString(16)} (${this.HDR_SIZE} bytes skipped for header)`);
       // truncate if needed to fit into RAM
       const exedata = this.rom.slice(this.HDR_SIZE, this.HDR_SIZE + this.ram.length - this.LOAD_BASE);
       this.ram.set(exedata, this.LOAD_BASE);
