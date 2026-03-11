@@ -21,7 +21,7 @@ import { Toolbar } from "./toolbar";
 import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
 import { AddressHeatMapView, BinaryFileView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterStackMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
-import { DisassemblerView, ListingView, PC_LINE_LOOKAHEAD, SourceEditor } from "./views/editors";
+import { DisassemblerView, ListingView, PC_LINE_LOOKAHEAD, SourceEditor, setUppercaseOnly } from "./views/editors";
 import { CallStackView, DebugBrowserView } from "./views/treeviews";
 import { ProjectWindows } from "./windows";
 import Split = require('split.js');
@@ -908,6 +908,9 @@ function showExceptionAsError(err, msg: string) {
 }
 
 async function setCompileOutput(data: WorkerResult) {
+  if ('uppercaseOnly' in data) {
+    setUppercaseOnly(data.uppercaseOnly);
+  }
   // errors? mark them in editor
   if ('errors' in data && data.errors.length > 0) {
     toolbar.addClass("has-errors");
