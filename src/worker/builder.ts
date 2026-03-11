@@ -361,15 +361,16 @@ export function staleFiles(step: BuildStep, targets: string[]) {
 }
 
 export function anyTargetChanged(step: BuildStep, targets: string[]) {
-  if (!step.maxts) throw Error("call populateFiles() first");
-  // see if any target files are more recent than inputs
-  for (var i = 0; i < targets.length; i++) {
-    var entry = store.workfs[targets[i]];
-    if (!entry || entry.ts > step.maxts)
-      return true;
-  }
-  console.log("unchanged", step.maxts, targets);
-  return false;
+  // if (!step.maxts) throw Error("call populateFiles() first");
+  // // see if any target files are more recent than inputs
+  // for (var i = 0; i < targets.length; i++) {
+  //   var entry = store.workfs[targets[i]];
+  //   if (!entry || entry.ts > step.maxts)
+  //     return true;
+  // }
+  // console.log("unchanged", step.maxts, targets);
+  // return false;
+  return true; // always rebuild to keep gutter in sync with source lines
 }
 
 export function fixParamsWithDefines(path: string, params) {
