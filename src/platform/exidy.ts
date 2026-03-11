@@ -1,6 +1,6 @@
 import { Base6502MachinePlatform, Platform } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
-import { ExidyUGBv2, GAME_CONFIG_DEFAULT, GAME_CONFIG_VENTURE } from "../machine/exidy";
+import { ExidyUGBv2 } from "../machine/exidy";
 
 var EXIDY_PRESETS = [
     { id: 'minimal.c', name: 'Minimal Example', category: "C" },
@@ -26,14 +26,4 @@ class ExidyUGBPlatform extends Base6502MachinePlatform<ExidyUGBv2> implements Pl
     } }
 }
 
-class ExidyVenturePlatform extends ExidyUGBPlatform {
-
-    newMachine() {
-        let machine = new ExidyUGBv2();
-        machine.configure(GAME_CONFIG_VENTURE);
-        return machine;
-    }
-}
-
 PLATFORMS["exidy"] = ExidyUGBPlatform;
-PLATFORMS["exidy.venture"] = ExidyVenturePlatform;
