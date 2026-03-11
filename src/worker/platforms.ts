@@ -380,6 +380,14 @@ export var PLATFORM_PARAMS = {
       wiz_sys_type: 'gb',
       wiz_inc_dir: 'gb',
     },
+    'mcr': {
+      arch: 'z80',
+      code_start: 0x0,
+      rom_size: 0xe000,
+      data_start: 0xe000,
+      data_size: 0x800,
+      stack_end: 0xe800,
+    },
 };
   
   PLATFORM_PARAMS['sms-sms-libcv'] = PLATFORM_PARAMS['sms-sg1000-libcv'];
