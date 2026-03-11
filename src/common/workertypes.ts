@@ -138,6 +138,7 @@ export interface WorkerUnchangedResult {
 export interface WorkerErrorResult {
   errors: WorkerError[]
   listings?: CodeListingMap
+  uppercaseOnly?: boolean
 }
 
 export interface WorkerOutputResult<T> {
@@ -147,6 +148,7 @@ export interface WorkerOutputResult<T> {
   params?: {}
   segments?: Segment[]
   debuginfo?: {} // optional info
+  uppercaseOnly?: boolean
 }
 
 export function isUnchanged(result: WorkerResult) : result is WorkerUnchangedResult {
