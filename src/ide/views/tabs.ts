@@ -1,4 +1,5 @@
-import { EditorSelection } from "@codemirror/state";
+import { insertTab } from "@codemirror/commands";
+import { countColumn, EditorSelection } from "@codemirror/state";
 import { EditorView, KeyBinding } from "@codemirror/view";
 
 function tab(view: EditorView): boolean {
@@ -56,17 +57,38 @@ function shiftTab(view: EditorView): boolean {
       if (seen.has(i)) continue;
       seen.add(i);
       const line = view.state.doc.line(i);
-      const firstNonWs = line.text.search(/\S/);
-      if (firstNonWs <= 0) continue;
-      const newCol = Math.floor((firstNonWs - 1) / tabSize) * tabSize;
-      changes.push({ from: line.from + newCol, to: line.from + firstNonWs });
+      const text = line.text;
+      const firstNonWs = text.search(/\S|$/);
+      if (firstNonWs == -1) continue;
+      const wsVisualCol = countColumn(text, tabSize, firstNonWs);
+      const targetCol = Math.floor((wsVisualCol - 1) / tabSize) * tabSize;
+
+      // Find the character index at targetCol
+      let col = 0;
+      let idx = 0;
+      while (idx < firstNonWs && col < targetCol) {
+        if (text[idx] === '\t') {
+          const nextStop = (Math.floor(col / tabSize) + 1) * tabSize;
+          if (nextStop > targetCol) break;
+          col = nextStop;
+        } else {
+          col++;
+        }
+        idx++;
+      }
+      changes.push({ from: line.from + idx, to: line.from + firstNonWs });
     }
   }
   if (changes.length) view.dispatch({ changes });
   return true;
 }
 
-export const tabKeymap: KeyBinding[] = [
+export const spacesSpacesKeymap: KeyBinding[] = [
   { key: "Tab", run: tab },
+  { key: "Shift-Tab", run: shiftTab },
+];
+
+export const insertTabKeymap: KeyBinding[] = [
+  { key: "Tab", run: insertTab },
   { key: "Shift-Tab", run: shiftTab },
 ];

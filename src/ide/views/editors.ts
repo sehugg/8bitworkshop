@@ -1,11 +1,10 @@
-import { closeBrackets, deleteBracketPair } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, undo } from "@codemirror/commands";
 import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
-import { bracketMatching, foldGutter, indentOnInput, indentUnit } from "@codemirror/language";
+import { bracketMatching, foldGutter, indentOnInput } from "@codemirror/language";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { EditorState, Extension } from "@codemirror/state";
-import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, highlightSpecialChars, keymap, lineNumbers, rectangularSelection, ViewUpdate } from "@codemirror/view";
+import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, rectangularSelection, ViewUpdate } from "@codemirror/view";
 import { CodeAnalyzer } from "../../common/analysis";
 import { hex, rpad } from "../../common/util";
 import { SourceFile, SourceLocation, WorkerError } from "../../common/workertypes";
@@ -21,20 +20,12 @@ import { cobalt } from "../../themes/cobalt";
 import { disassemblyTheme } from "../../themes/disassemblyTheme";
 import { editorTheme } from "../../themes/editorTheme";
 import { mbo } from "../../themes/mbo";
-import { clearBreakpoint, current_project, lastDebugState, platform, projectWindows, qs, runToPC } from "../ui";
+import { loadSettings, registerEditor, settingsExtensions } from "../settings";
+import { clearBreakpoint, current_project, lastDebugState, platform, qs, runToPC } from "../ui";
 import { isMobileDevice, ProjectView } from "./baseviews";
-import { debugHighlightTagsTooltip } from "./debug";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
 import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset, statusMarkers } from "./gutter";
-import { tabKeymap } from "./tabs";
 import { currentPc, errorMessages, errorSpans, highlightLines, showValue } from "./visuals";
-
-// TODO: make this an easily toggleable debug setting.
-// Debug syntax highlighting. Useful when developing new parsers and themes.
-const debugHighlightTags = false;
-
-
-/////
 
 // look ahead this many bytes when finding source lines for a PC
 export const PC_LINE_LOOKAHEAD = 64;
@@ -148,15 +139,11 @@ export class SourceEditor implements ProjectView {
       doc: text,
       extensions: [
 
-        // Custom keybindings must appear before default keybindings.
-        keymap.of([
-          { key: "Backspace", run: deleteBracketPair },
-        ]),
+        // Keybindings from settings must appear before default keymap.
+        ...settingsExtensions(loadSettings()),
         keymap.of(defaultKeymap),
 
         lineNums ? lineNumbers() : [],
-
-        highlightSpecialChars(),
 
         // Undo history.
         history(),
@@ -172,7 +159,6 @@ export class SourceEditor implements ProjectView {
 
         indentOnInput(),
         bracketMatching(),
-        closeBrackets(),
 
         // Rectangular selection and crosshair cursor.
         rectangularSelection(),
@@ -191,10 +177,6 @@ export class SourceEditor implements ProjectView {
         parser || [],
         theme,
         editorTheme,
-        debugHighlightTags ? debugHighlightTagsTooltip : [],
-        EditorState.tabSize.of(8),
-        indentUnit.of("        "),
-        keymap.of(tabKeymap),
         lineWrap ? EditorView.lineWrapping : [],
 
         currentPc.field,
@@ -262,6 +244,8 @@ export class SourceEditor implements ProjectView {
         }),
       ],
     });
+    // TODO: unregister when editor is destroyed
+    registerEditor(this.editor);
   }
 
   editorChanged() {
@@ -598,7 +582,6 @@ export class DisassemblerView implements ProjectView {
         drawSelection(),
         highlightActiveLine(),
         highlightSelectionMatches(),
-        debugHighlightTags ? debugHighlightTagsTooltip : [],
         disassemblyTheme,
         cobalt,
         currentPc.field,
