@@ -1,3 +1,6 @@
+// based on https://raw.githubusercontent.com/mamedev/mame/refs/heads/master/src/mame/midway/mcr.cpp
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 
 import { Z80, Z80State } from "../common/cpu/ZilogZ80";
 import { BasicScanlineMachine } from "../common/devices";

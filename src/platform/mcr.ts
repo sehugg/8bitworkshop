@@ -1,3 +1,6 @@
+// based on https://raw.githubusercontent.com/mamedev/mame/refs/heads/master/src/mame/midway/mcr.cpp
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 
 import { MCR2Machine } from "../machine/mcr";
 import { BaseZ80MachinePlatform } from "../common/baseplatform";
