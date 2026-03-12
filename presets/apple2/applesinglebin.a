@@ -1,5 +1,5 @@
 ; --------------------------------------------------
-; Example showing how to create a DOS 3.3 binary
+; Example showing how to create an AppleSingle binary
 ; header and program that is automatically loaded
 ; into the desired PGM_START memory address.
 ; --------------------------------------------------
@@ -15,13 +15,44 @@ PGM_START    equ     $2000
 PGM_LENGTH   equ     PGM_END - PGM_START
 
         seg
-        org PGM_START - 4 ; Subtract 4 bytes for header
+        org PGM_START - 58 ; Subtract 58 bytes for header
 
 ; --------------------------------------------------
-; DOS 3.3 binary header (4 bytes)
+; AppleSingle version 2 file header
 ; --------------------------------------------------
-        word PGM_START    ; Program start address in memory (2 bytes)
-        word PGM_LENGTH   ; Program length (2 bytes), must be file size - 4
+; - https://github.com/cc65/cc65/blob/master/libsrc/apple2/exehdr.s
+; - https://nulib.com/library/FTN.e00001.htm
+; - https://www.kreativekorp.com/miscpages/a2info/filetypes.shtml
+__HEADER_BEGIN
+        .byte    $00, $05, $16, $00  ; Magic number
+        .byte    $00, $02, $00, $00  ; Version number
+
+        ; Home File System - 16 bytes
+        ; ProDOS
+        .byte    $50,$72,$6F,$44,$4F,$53,$20,$20
+        .byte    $20,$20,$20,$20,$20,$20,$20,$20
+
+        .byte    0, 2                                      ; Number of entries
+        .byte    0, 0, 0, 1                                ; Entry ID 1 - Data Fork
+        .byte    0, 0, >__DATA_OFFSET, <__DATA_OFFSET      ; Offset
+        .byte    0, 0, >PGM_LENGTH, <PGM_LENGTH            ; Length
+
+        .byte    0, 0, 0, 11                               ; Entry ID 11 - ProDOS File Info
+        .byte    0, 0, >__PRODOS_OFFSET, <__PRODOS_OFFSET  ; Offset
+        .byte    0, 0, >__PRODOS_LENGTH, <__PRODOS_LENGTH  ; Length
+__PRODOS_INFO
+        .byte    0, %11000011                              ; Access - Destroy, Rename, Write, Read
+        .byte    0, 6                                      ; File Type - BIN
+        .byte    0, 0                                      ; Auxiliary Type high
+        .byte    >PGM_START, <PGM_START                    ; Auxiliary Type low
+__HEADER_END:
+
+__DATA_OFFSET   equ __HEADER_END  - __HEADER_BEGIN
+__PRODOS_LENGTH equ __HEADER_END  - __PRODOS_INFO
+__PRODOS_OFFSET equ __PRODOS_INFO - __HEADER_BEGIN
+
+PGM_LENGTH      equ PGM_END - PGM_START
+
 
 ; --------------------------------------------------
 ; ROM routines

@@ -85,7 +85,7 @@ export interface Platform {
   getPresets?(): Preset[];
   pause(): void;
   resume(): void;
-  loadROM(title: string, rom: any); // TODO: Uint8Array
+  loadROM(title: string, rom: any, origin?: number); // TODO: Uint8Array
   loadBIOS?(title: string, rom: Uint8Array);
   getROMExtension?(rom: FileData): string;
 
@@ -869,8 +869,8 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     }
   }
 
-  loadROM(title, data) {
-    this.machine.loadROM(data, title);
+  loadROM(title, data, origin?: number) {
+    this.machine.loadROM(data, title, origin);
     this.reset();
   }
 
