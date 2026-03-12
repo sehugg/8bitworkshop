@@ -383,10 +383,11 @@ export var PLATFORM_PARAMS = {
     'mcr': {
       arch: 'z80',
       code_start: 0x0,
-      rom_size: 0xe000,
+      rom_size: 0xe000 + 0x4000 + 0x8000,
       data_start: 0xe000,
       data_size: 0x800,
       stack_end: 0xe800,
+      // TODO: IHX can't handle > 64 KB, so ihx2sms looks for segments in a certain order
     },
 };
   
