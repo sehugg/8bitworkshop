@@ -22,7 +22,7 @@ function testCompile(browser, platform_id, platform_name) {
   } else {
     browser.waitForElementVisible('#emuscreen');
     browser.waitForElementVisible('.emuvideo');
-    browser.waitForElementVisible('a[data-wndid="#memmap"]');
+    browser.waitForElementVisible('a[href="#memmap"]');
   }
 }
 
@@ -46,9 +46,9 @@ function testDebugging(browser, platform_id) {
       .waitForElementVisible('#dbg_go.btn_active')
       .waitForElementNotVisible('#mem_info');
       /*
-      .click('a[data-wndid="#disasm"]')
-      .click('a[data-wndid="#memory"]')
-      .click('a[data-wndid="#memmap"]')
+      .click('a[href="#disasm"]')
+      .click('a[href="#memory"]')
+      .click('a[href="#memmap"]')
       */
 }
 
