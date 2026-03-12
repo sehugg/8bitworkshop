@@ -276,8 +276,8 @@ function newDropdownListItem(id, text) {
     var li = document.createElement("li");
     var a = document.createElement("a");
     a.setAttribute("class", "dropdown-item");
-    a.setAttribute("href", "#");
-    a.setAttribute("data-wndid", id);
+    var hash = id.startsWith('#') ? id : '#' + encodeURIComponent(id);
+    a.setAttribute("href", hash);
     if (id == exports.projectWindows.getActiveID())
         $(a).addClass("dropdown-item-checked");
     a.appendChild(document.createTextNode(text));
@@ -302,9 +302,6 @@ function refreshWindowList() {
             exports.projectWindows.setCreateFunc(id, createfn);
             exports.projectWindows.setShowFunc(id, onopen);
             $(a).click((e) => {
-                e.preventDefault();
-                var hash = id.startsWith('#') ? id : '#' + encodeURIComponent(id);
-                window.location.hash = hash;
                 lastViewClicked = id;
             });
         }
@@ -1741,9 +1738,8 @@ function installHashChangeHandler() {
     function onHashChange() {
         const hash = window.location.hash;
         const viewId = (hash && hash !== '#') ? hashToViewIdResolved(hash) : null;
-        const targetId = viewId || getCurrentMainFilename();
-        if (targetId !== exports.projectWindows.getActiveID()) {
-            exports.projectWindows.createOrShow(targetId);
+        if (viewId && viewId !== exports.projectWindows.getActiveID()) {
+            exports.projectWindows.createOrShow(viewId);
         }
     }
     window.addEventListener('popstate', onHashChange);
@@ -2061,7 +2057,8 @@ async function loadAndStartPlatform() {
         var module = await (0, _index_1.importPlatform)((0, util_1.getRootBasePlatform)(exports.platform_id));
         console.log("starting platform", exports.platform_id); // loaded required <platform_id>.js file
         await startPlatform();
-        document.title = document.title + " [" + exports.platform_id + "] - " + (exports.repo_id ? ('[' + exports.repo_id + '] - ') : '') + exports.current_project.mainPath;
+        exports.projectWindows.titlePrefix = document.title + " [" + exports.platform_id + "] - " + (exports.repo_id ? ('[' + exports.repo_id + '] - ') : '');
+        exports.projectWindows.updateTitle(exports.projectWindows.getActiveID() || exports.current_project.mainPath);
     }
     catch (e) {
         console.log(e);

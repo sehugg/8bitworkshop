@@ -20,6 +20,7 @@ export class ProjectWindows {
   activediv : HTMLElement;
   lasterrors : WorkerError[];
   undofiles : string[];
+  titlePrefix : string;
 
   constructor(containerdiv:HTMLElement, project:CodeProject) {
     this.containerdiv = containerdiv;
@@ -72,12 +73,31 @@ export class ProjectWindows {
     }
     this.activeid = id;
     if (typeof window !== 'undefined') {
-      const hash = id.startsWith('#') ? id : '#' + encodeURIComponent(id);
-      if (window.location.hash !== hash) {
-        history.replaceState(null, '', hash);
+      const isMainFile = id === this.project.mainPath;
+      if (isMainFile) {
+        if (window.location.hash) {
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      } else {
+        const hash = id.startsWith('#') ? id : '#' + encodeURIComponent(id);
+        if (window.location.hash !== hash) {
+          history.replaceState(null, '', hash);
+        }
       }
+      this.updateTitle(id);
     }
     return wnd;
+  }
+
+  updateTitle(id: string) : void {
+    if (!this.titlePrefix) return;
+    var mainName = getFilenameForPath(this.project.mainPath);
+    if (id === this.project.mainPath) {
+      document.title = this.titlePrefix + mainName;
+    } else {
+      var viewName = id.startsWith('#') ? id : getFilenameForPath(id);
+      document.title = this.titlePrefix + mainName + ' | ' + viewName;
+    }
   }
 
   put(id:string, window:ProjectView) : void {

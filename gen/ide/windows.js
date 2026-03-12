@@ -55,12 +55,33 @@ class ProjectWindows {
         }
         this.activeid = id;
         if (typeof window !== 'undefined') {
-            const hash = id.startsWith('#') ? id : '#' + encodeURIComponent(id);
-            if (window.location.hash !== hash) {
-                history.replaceState(null, '', hash);
+            const isMainFile = id === this.project.mainPath;
+            if (isMainFile) {
+                if (window.location.hash) {
+                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                }
             }
+            else {
+                const hash = id.startsWith('#') ? id : '#' + encodeURIComponent(id);
+                if (window.location.hash !== hash) {
+                    history.replaceState(null, '', hash);
+                }
+            }
+            this.updateTitle(id);
         }
         return wnd;
+    }
+    updateTitle(id) {
+        if (!this.titlePrefix)
+            return;
+        var mainName = (0, util_1.getFilenameForPath)(this.project.mainPath);
+        if (id === this.project.mainPath) {
+            document.title = this.titlePrefix + mainName;
+        }
+        else {
+            var viewName = id.startsWith('#') ? id : (0, util_1.getFilenameForPath)(id);
+            document.title = this.titlePrefix + mainName + ' | ' + viewName;
+        }
     }
     put(id, window) {
         this.id2window[id] = window;

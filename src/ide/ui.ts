@@ -276,8 +276,8 @@ function newDropdownListItem(id, text) {
   var li = document.createElement("li");
   var a = document.createElement("a");
   a.setAttribute("class", "dropdown-item");
-  a.setAttribute("href", "#");
-  a.setAttribute("data-wndid", id);
+  var hash = id.startsWith('#') ? id : '#' + encodeURIComponent(id);
+  a.setAttribute("href", hash);
   if (id == projectWindows.getActiveID())
     $(a).addClass("dropdown-item-checked");
   a.appendChild(document.createTextNode(text));
@@ -304,9 +304,6 @@ function refreshWindowList() {
       projectWindows.setCreateFunc(id, createfn);
       projectWindows.setShowFunc(id, onopen);
       $(a).click((e) => {
-        e.preventDefault();
-        var hash = id.startsWith('#') ? id : '#' + encodeURIComponent(id);
-        window.location.hash = hash;
         lastViewClicked = id;
       });
     }
@@ -1761,9 +1758,8 @@ function installHashChangeHandler() {
   function onHashChange() {
     const hash = window.location.hash;
     const viewId = (hash && hash !== '#') ? hashToViewIdResolved(hash) : null;
-    const targetId = viewId || getCurrentMainFilename();
-    if (targetId !== projectWindows.getActiveID()) {
-      projectWindows.createOrShow(targetId);
+    if (viewId && viewId !== projectWindows.getActiveID()) {
+      projectWindows.createOrShow(viewId);
     }
   }
   window.addEventListener('popstate', onHashChange);
@@ -2070,7 +2066,8 @@ async function loadAndStartPlatform() {
     var module = await importPlatform(getRootBasePlatform(platform_id));
     console.log("starting platform", platform_id); // loaded required <platform_id>.js file
     await startPlatform();
-    document.title = document.title + " [" + platform_id + "] - " + (repo_id ? ('[' + repo_id + '] - ') : '') + current_project.mainPath;
+    projectWindows.titlePrefix = document.title + " [" + platform_id + "] - " + (repo_id ? ('[' + repo_id + '] - ') : '');
+    projectWindows.updateTitle(projectWindows.getActiveID() || current_project.mainPath);
   } catch (e) {
     console.log(e);
     alertError('Platform "' + platform_id + '" failed to load.');
