@@ -5216,7 +5216,10 @@
       data_start: 49312,
       data_size: 8032,
       stack_end: 57344,
+      extra_link_files: ["gbz80.lib", "gb.lib"],
       extra_link_args: [
+        "-l",
+        "gb",
         "-g",
         "_shadow_OAM=0xC000",
         "-g",
@@ -5226,6 +5229,14 @@
       ],
       wiz_sys_type: "gb",
       wiz_inc_dir: "gb"
+    },
+    "mcr": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 57344,
+      data_start: 57344,
+      data_size: 2048,
+      stack_end: 59392
     }
   };
   PLATFORM_PARAMS["sms-sms-libcv"] = PLATFORM_PARAMS["sms-sg1000-libcv"];
@@ -7150,11 +7161,12 @@
       }
     });
     populateExtraFiles(step, FS, params.extra_compile_files);
+    var arch = params.arch || "z80";
     var args = [
       "-D",
       "__8BITWORKSHOP__",
       "-D",
-      "__SDCC_z80",
+      "__SDCC_" + arch,
       "-D",
       makeCPPSafe(platform.toUpperCase()),
       "-I",
@@ -7359,10 +7371,10 @@
         "-b",
         "_DATA=0x" + params.data_start.toString(16),
         "-k",
-        `/share/lib/z80`,
-        // TODO: $arch for gbz80
+        arch === "z80" ? "/share/lib/z80" : ".",
+        // sm83.lib copied to current (.) directory
         "-l",
-        "z80"
+        arch
       ];
       if (params.extra_link_args)
         args.push.apply(args, params.extra_link_args);
@@ -7442,7 +7454,7 @@
       // not used
     });
     var params = step.params;
-    var isGBZ80 = step.params.arch === "gbz80";
+    var isGBZ80 = params.arch === "gbz80";
     var outpath = step.prefix + ".asm";
     if (staleFiles(step, [outpath])) {
       var errors = [];

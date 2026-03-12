@@ -24,13 +24,5 @@ class ExidyUGBPlatform extends baseplatform_1.Base6502MachinePlatform {
         };
     }
 }
-class ExidyVenturePlatform extends ExidyUGBPlatform {
-    newMachine() {
-        let machine = new exidy_1.ExidyUGBv2();
-        machine.configure(exidy_1.GAME_CONFIG_VENTURE);
-        return machine;
-    }
-}
 emu_1.PLATFORMS["exidy"] = ExidyUGBPlatform;
-emu_1.PLATFORMS["exidy.venture"] = ExidyVenturePlatform;
 //# sourceMappingURL=exidy.js.map

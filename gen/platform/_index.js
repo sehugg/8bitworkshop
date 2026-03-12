@@ -53,6 +53,7 @@ function importPlatform(name) {
         case "gameboy": return Promise.resolve().then(() => __importStar(require("../platform/gb")));
         case "kim1": return Promise.resolve().then(() => __importStar(require("../platform/kim1")));
         case "markdown": return Promise.resolve().then(() => __importStar(require("../platform/markdown")));
+        case "mcr": return Promise.resolve().then(() => __importStar(require("../platform/mcr")));
         case "msx": return Promise.resolve().then(() => __importStar(require("../platform/msx")));
         case "mw8080bw": return Promise.resolve().then(() => __importStar(require("../platform/mw8080bw")));
         case "nes": return Promise.resolve().then(() => __importStar(require("../platform/nes")));

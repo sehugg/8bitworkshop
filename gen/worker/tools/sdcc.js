@@ -186,8 +186,8 @@ function linkSDLDZ80(step) {
             '-i', 'main.ihx',
             '-b', '_CODE=0x' + (params.codeseg_start || params.code_start).toString(16),
             '-b', '_DATA=0x' + params.data_start.toString(16),
-            '-k', `/share/lib/z80`, // TODO: $arch for gbz80
-            '-l', 'z80'];
+            '-k', arch === 'z80' ? '/share/lib/z80' : '.', // sm83.lib copied to current (.) directory
+            '-l', arch];
         if (params.extra_link_args)
             args.push.apply(args, params.extra_link_args);
         args.push.apply(args, step.args);
@@ -278,7 +278,7 @@ function compileSDCC(step) {
         mainFilePath: "main.c" // not used
     });
     var params = step.params;
-    var isGBZ80 = step.params.arch === 'gbz80';
+    var isGBZ80 = params.arch === 'gbz80';
     var outpath = step.prefix + ".asm";
     if ((0, builder_1.staleFiles)(step, [outpath])) {
         var errors = [];

@@ -38,7 +38,7 @@ typedef struct isr_vector_t {
 
     Example:
     \code{.c}
-    #include "gb/isr.h"
+    #include <gb/isr.h>
 
     void TimerISR() __critical __interrupt {
     // some ISR code here
@@ -64,10 +64,6 @@ typedef struct isr_nested_vector_t {
     @param FUNC   ISR function
 
     This cannot be used with the VBLANK interrupt
-
-    The LCD STAT vector (@ref VECTOR_STAT) cannot be used
-    in the same program as `stdio.h` since they install
-    an ISR vector to the same location.
 
     @see ISR_VECTOR
 */

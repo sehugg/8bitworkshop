@@ -9,6 +9,7 @@ const emu_1 = require("../common/emu");
 // http://www.arcaderestoration.com/memorymap/9089/Targ.aspx
 // http://www.arcaderestoration.com/memorymap/3933/Hard+Hat.aspx
 // https://github.com/mamedev/mame/blob/74c4a0c3774e3aeb4895eb13f3c47773d34ce270/src/mame/shared/exidysound.cpp#L13
+// https://www.mamedev.org/roms/
 const EXIDY_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
     [emu_1.Keys.START, 1, -0x1],
     //[Keys.START, 1, -0x2],
@@ -112,23 +113,32 @@ class ExidyUGBv2 extends devices_1.BasicScanlineMachine {
     }
     loadROM(rom) {
         super.loadROM(rom);
-        if (rom.length < 0x8000) {
-            if (rom.length == 11616) { // targ
-                this.rom.set(rom.slice(0x2800, 0x3000), 0x8000); // copy sprites
-                this.rom.set(rom.slice(0x2700, 0x2800), 0x7f00); // copy ff00-ffff
-                this.rom.set(rom.slice(0x0000, 0x2800), 0x0800); // ROM starts @ 0x1800
-                this.scrnbase = 0x4000;
-                this.charbase = 0x4800;
-            }
-            else if (rom.length == 14336) { // spectar
-                this.rom.set(rom.slice(0x3400, 0x3800), 0x8000); // copy sprites
-                this.rom.set(rom.slice(0x2f00, 0x3000), 0x7f00); // copy ff00-ffff
-                this.scrnbase = 0x4000;
-                this.charbase = 0x4800;
-            }
-            else {
-                console.log("Warning: ROM is too small", rom.length);
-            }
+        if (rom.length == 11616) { // targ
+            this.rom.set(rom.slice(0x2800, 0x3000), 0x8000); // copy sprites
+            this.rom.set(rom.slice(0x2700, 0x2800), 0x7f00); // copy ff00-ffff
+            this.rom.set(rom.slice(0x0000, 0x2800), 0x0800); // ROM starts @ 0x1800
+            this.scrnbase = 0x4000;
+            this.charbase = 0x4800;
+        }
+        else if (rom.length == 14336) { // spectar
+            this.rom.set(rom.slice(0x3400, 0x3800), 0x8000); // copy sprites
+            this.rom.set(rom.slice(0x2f00, 0x3000), 0x7f00); // copy ff00-ffff
+            this.scrnbase = 0x4000;
+            this.charbase = 0x4800;
+        }
+        else if (rom.length == 32768) { // hardhat
+            this.rom.set(rom.slice(0x7800, 0x8000), 0x8000); // copy sprites
+            this.rom.set(rom.slice(0x0000, 0x6000), 0x2000); // ROM starts @ 0xa000
+            this.scrnbase = 0x4000;
+            this.charbase = 0x6000;
+            // TODO: configure, colors
+        }
+        else if (rom.length == 45056) { // venture
+            this.configure(GAME_CONFIG_VENTURE);
+            // TODO: colors
+        }
+        else if (rom.length != 45056) {
+            throw new Error("Warning: ROM size not recognized: " + rom.length);
         }
         // sprite ROM follows program ROM at offset 0x8000
         let sprite_ofs = 0x8000;

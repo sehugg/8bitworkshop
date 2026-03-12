@@ -2,15 +2,15 @@
     All Points Addressable (APA) mode drawing library.
 
     Drawing routines originally by Pascal Felber
-    Legendary overhall by Jon Fuge : https://github.com/jf1452
+    Legendary overhall by Jon Fuge <jonny@q-continuum.demon.co.uk>
     Commenting by Michael Hope
 
     Note: The standard text printf() and putchar() cannot be used
     in APA mode - use gprintf() and wrtchr() instead.
 
-    Note: Using drawing.h will cause it's custom LCD ISR
-    (`drawing_lcd`) to be installed. Changing the mode
-    (`mode(M_TEXT_OUT);`) will cause them to be de-installed.
+    Note: Using drawing.h will cause it's custom VBL and LCD ISRs
+    (`drawing_vbl` and `drawing_lcd`) to be installed. Changing
+    the mode (`mode(M_TEXT_OUT);`) will cause them to be de-installed.
 
     The valid coordinate ranges are from (x,y) 0,0 to 159,143.
     There is no built-in clipping, so drawing outside valid
@@ -30,7 +30,7 @@
 #ifndef __DRAWING_H
 #define __DRAWING_H
 
-#include "types.h"
+#include <types.h>
 #include <stdint.h>
 
 /** Size of the screen in pixels */
@@ -55,6 +55,8 @@
 /** Possible values for signed_value in gprintln() and gprintn() */
 #define SIGNED   1
 #define UNSIGNED 0
+
+#include <types.h>
 
 /** Print the string 'str' with no interpretation
     @see gotogxy()
@@ -108,7 +110,7 @@ void plot_point(uint8_t x, uint8_t y) OLDCALL;
 void switch_data(uint8_t x, uint8_t y, uint8_t *src, uint8_t *dst) OLDCALL;
 
 /** Draw a full screen image at __data__ */
-void draw_image(uint8_t *data);
+void draw_image(uint8_t *data) OLDCALL;
 
 /** Draw a line in the current drawing mode and colour from __x1,y1__ to __x2,y2__ */
 void line(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2) OLDCALL;
@@ -136,21 +138,8 @@ void wrtchr(char chr) OLDCALL;
     @see wrtchr() */
 void gotogxy(uint8_t x, uint8_t y) OLDCALL;
 
-/** Set the current __forecolor__ colour, __backcolor__ colour, and
-   draw __mode__
-
-    @param forecolor    The primary drawing color (outlines of
-                        rectangles with @ref box(), letter color
-                        with @ref gprintf(), etc).
-    @param backcolor    Secondary or background color where applicable
-                        (fill color of rectangles with @ref box() when
-                        @ref M_FILL is specifed, background color of text
-                        with @ref gprintf(), etc).
-    @param mode         Drawing style to use. Several settings are available
-                        `SOLID`, `OR`, `XOR`, `AND`.
-
-   In order to completely overwrite existing pixels use `SOLID` for __mode__
-*/
+/** Set the current __foreground__ colour (for pixels), __background__ colour, and
+   draw __mode__ */
 void color(uint8_t forecolor, uint8_t backcolor, uint8_t mode) OLDCALL;
 
 #endif /* __DRAWING_H */

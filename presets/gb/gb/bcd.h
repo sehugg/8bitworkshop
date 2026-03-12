@@ -1,7 +1,7 @@
 #ifndef __BCD_H_INCLUDE
 #define __BCD_H_INCLUDE
 
-#include "types.h"
+#include <types.h>
 #include <stdint.h>
 
 /** @file bcd.h

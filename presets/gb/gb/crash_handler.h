@@ -7,7 +7,7 @@
     @ref __HandleCrash().
 
     \code{.c}
-    #include "gb/crash_handler.h"
+    #include <gb/crash_handler.h>
     \endcode
 
     Also see the `crash` example project included with gbdk.
@@ -15,15 +15,11 @@
 #ifndef __CRASH_HANDLER_INCLUDE
 #define __CRASH_HANDLER_INCLUDE
 
-#include <types.h>
-
 /** Display the crash dump screen.
 
     See the intro for this file for more details.
 */
-void __HandleCrash(void);
-#if defined(__SDCC)
-static void __CRASH_HANDLER_INIT__(void) __naked { __asm__(".globl ___HandleCrash"); }
-#endif
+void __HandleCrash();
+static void * __CRASH_HANDLER_INIT = &__HandleCrash;
 
 #endif

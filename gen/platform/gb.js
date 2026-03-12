@@ -5,7 +5,10 @@ const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
 const disasmSM83_1 = require("../common/cpu/disasmSM83");
 const GB_PRESETS = [
-    { id: 'hello.sgb', name: 'Hello (ASM)' },
+    { id: 'hello.c', name: 'Hello World (C)' },
+    { id: 'testdrawing.c', name: 'Drawing Routines (C)' },
+    { id: 'testphys.c', name: 'Sprite Test (C)' },
+    { id: 'hello.sgb', name: 'Hello World (ASM)' },
     { id: 'main.wiz', name: 'Snake Game (Wiz)' },
 ];
 class GameBoyPlatform extends baseplatform_1.BaseMachinePlatform {
