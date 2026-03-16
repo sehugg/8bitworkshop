@@ -12,6 +12,18 @@ const DMG_PALETTE: number[] = [
   0xFF2d3122, // Darkest (Deep Olive)
 ];
 
+// Convert GBC 15-bit RGB (xBBBBBGGGGGRRRRR) to 32-bit ARGB
+function cgbColorToARGB(lo: number, hi: number): number {
+  var r5 = lo & 0x1F;
+  var g5 = ((lo >> 5) | ((hi & 0x03) << 3)) & 0x1F;
+  var b5 = (hi >> 2) & 0x1F;
+  // Scale 5-bit to 8-bit with GBC gamma correction (approximate)
+  var r8 = (r5 * 527 + 23) >> 6;
+  var g8 = (g5 * 527 + 23) >> 6;
+  var b8 = (b5 * 527 + 23) >> 6;
+  return 0xFF000000 | (b8 << 16) | (g8 << 8) | r8;
+}
+
 var GB_KEYCODE_MAP = makeKeycodeMap([
   // D-pad
   [Keys.RIGHT,   0, 0x01],
@@ -676,6 +688,28 @@ export class GameBoyMachine extends BasicScanlineMachine {
   hram = new Uint8Array(0x80);        // High RAM (FF80-FFFE)
   extram = new Uint8Array(0x2000);    // External/cartridge RAM (A000-BFFF)
 
+  // GBC mode
+  cgbMode: boolean = false;          // True when running in CGB mode
+  forceColor: boolean = false;       // True when platform requests CGB mode
+  vramBank1 = new Uint8Array(0x2000); // VRAM bank 1 (CGB only)
+  vramBankSelect: number = 0;        // FF4F - VBK: VRAM bank select (0 or 1)
+  wramBanks = new Uint8Array(0x7000); // WRAM banks 1-7 (CGB: 7×4KB at D000-DFFF)
+  wramBankSelect: number = 1;        // FF70 - SVBK: WRAM bank select (1-7)
+  bgCRAM = new Uint8Array(64);       // BG color palette RAM (8 palettes × 4 colors × 2 bytes)
+  objCRAM = new Uint8Array(64);      // OBJ color palette RAM
+  bgCRAMIndex: number = 0;           // FF68 - BCPS: BG palette index
+  bgCRAMAutoInc: boolean = false;    // FF68 bit 7: auto-increment
+  objCRAMIndex: number = 0;          // FF6A - OCPS: OBJ palette index
+  objCRAMAutoInc: boolean = false;   // FF6A bit 7: auto-increment
+  doubleSpeed: boolean = false;      // CGB double-speed mode active
+  speedSwitchArmed: boolean = false; // FF4D bit 0: prepare speed switch
+  // HDMA (HBlank DMA)
+  hdmaSrc: number = 0;              // FF51-FF52: source address
+  hdmaDst: number = 0;              // FF53-FF54: destination address
+  hdmaLength: number = 0xFF;        // FF55: length/mode/start
+  hdmaActive: boolean = false;      // General-purpose HDMA active flag
+  hdmaHblank: boolean = false;      // HBlank DMA mode active
+
   // IO registers
   joyp: number = 0xCF;         // FF00 - Joypad
   sb: number = 0;              // FF01 - Serial transfer data
@@ -710,8 +744,8 @@ export class GameBoyMachine extends BasicScanlineMachine {
   ppuDot: number = 0;          // Dot counter within scanline
   windowLine: number = 0;     // Internal window line counter
 
-  // MBC1 state
-  mbcType: number = 0;        // 0=ROM only, 1=MBC1
+  // MBC state
+  mbcType: number = 0;        // 0=ROM only, 1=MBC1, 3=MBC3, 5=MBC5
   romBank: number = 1;
   ramBank: number = 0;
   ramEnabled: boolean = false;
@@ -729,10 +763,12 @@ export class GameBoyMachine extends BasicScanlineMachine {
   read = newAddressDecoder([
     [0x0000, 0x3FFF, 0x3FFF, (a) => { return this.rom ? this.rom[a] : 0xFF; }],
     [0x4000, 0x7FFF, 0x3FFF, (a) => { return this.readBankedROM(a); }],
-    [0x8000, 0x9FFF, 0x1FFF, (a) => { return this.vram[a]; }],
+    [0x8000, 0x9FFF, 0x1FFF, (a) => { return this.readVRAM(a); }],
     [0xA000, 0xBFFF, 0x1FFF, (a) => { return this.readExtRAM(a); }],
-    [0xC000, 0xDFFF, 0x1FFF, (a) => { return this.ram[a]; }],
-    [0xE000, 0xFDFF, 0x1FFF, (a) => { return this.ram[a]; }], // Echo RAM
+    [0xC000, 0xCFFF, 0x0FFF, (a) => { return this.ram[a]; }],
+    [0xD000, 0xDFFF, 0x0FFF, (a) => { return this.readWRAMBank(a); }],
+    [0xE000, 0xEFFF, 0x0FFF, (a) => { return this.ram[a]; }], // Echo RAM
+    [0xF000, 0xFDFF, 0x0FFF, (a) => { return this.readWRAMBank(a); }], // Echo RAM
     [0xFE00, 0xFE9F, 0xFF,   (a) => { return this.oam[a]; }],
     [0xFEA0, 0xFEFF, 0xFF,   (a) => { return 0xFF; }], // Unusable
     [0xFF00, 0xFF7F, 0x7F,   (a) => { return this.readIO(a); }],
@@ -745,10 +781,12 @@ export class GameBoyMachine extends BasicScanlineMachine {
     [0x2000, 0x3FFF, 0x1FFF, (a, v) => { this.writeMBC(0x2000 + a, v); }],
     [0x4000, 0x5FFF, 0x1FFF, (a, v) => { this.writeMBC(0x4000 + a, v); }],
     [0x6000, 0x7FFF, 0x1FFF, (a, v) => { this.writeMBC(0x6000 + a, v); }],
-    [0x8000, 0x9FFF, 0x1FFF, (a, v) => { this.vram[a] = v; }],
+    [0x8000, 0x9FFF, 0x1FFF, (a, v) => { this.writeVRAM(a, v); }],
     [0xA000, 0xBFFF, 0x1FFF, (a, v) => { this.writeExtRAM(a, v); }],
-    [0xC000, 0xDFFF, 0x1FFF, (a, v) => { this.ram[a] = v; }],
-    [0xE000, 0xFDFF, 0x1FFF, (a, v) => { this.ram[a] = v; }], // Echo RAM
+    [0xC000, 0xCFFF, 0x0FFF, (a, v) => { this.ram[a] = v; }],
+    [0xD000, 0xDFFF, 0x0FFF, (a, v) => { this.writeWRAMBank(a, v); }],
+    [0xE000, 0xEFFF, 0x0FFF, (a, v) => { this.ram[a] = v; }], // Echo RAM
+    [0xF000, 0xFDFF, 0x0FFF, (a, v) => { this.writeWRAMBank(a, v); }], // Echo RAM
     [0xFE00, 0xFE9F, 0xFF,   (a, v) => { this.oam[a] = v; }],
     [0xFEA0, 0xFEFF, 0xFF,   (a, v) => { /* unusable */ }],
     [0xFF00, 0xFF7F, 0x7F,   (a, v) => { this.writeIO(a, v); }],
@@ -756,7 +794,27 @@ export class GameBoyMachine extends BasicScanlineMachine {
     [0xFFFF, 0xFFFF, 0,      (a, v) => { this.ie = v; }],
   ]);
 
-  // MBC1 ROM banking
+  // VRAM bank-aware read/write
+  readVRAM(a: number): number {
+    if (this.cgbMode && this.vramBankSelect) return this.vramBank1[a];
+    return this.vram[a];
+  }
+  writeVRAM(a: number, v: number): void {
+    if (this.cgbMode && this.vramBankSelect) this.vramBank1[a] = v;
+    else this.vram[a] = v;
+  }
+
+  // WRAM bank-aware read/write (D000-DFFF)
+  readWRAMBank(a: number): number {
+    if (!this.cgbMode || this.wramBankSelect <= 1) return this.ram[0x1000 + a];
+    return this.wramBanks[(this.wramBankSelect - 1) * 0x1000 + a];
+  }
+  writeWRAMBank(a: number, v: number): void {
+    if (!this.cgbMode || this.wramBankSelect <= 1) this.ram[0x1000 + a] = v;
+    else this.wramBanks[(this.wramBankSelect - 1) * 0x1000 + a] = v;
+  }
+
+  // ROM banking (supports MBC1, MBC3, MBC5)
   readBankedROM(a: number): number {
     if (!this.rom) return 0xFF;
     var bank = this.romBank;
@@ -767,26 +825,61 @@ export class GameBoyMachine extends BasicScanlineMachine {
 
   writeMBC(fullAddr: number, v: number): void {
     if (this.mbcType === 0) return; // ROM-only, ignore writes
+
+    if (this.mbcType === 5) {
+      // MBC5
+      this.writeMBC5(fullAddr, v);
+      return;
+    }
+
+    // MBC1 / MBC3
     if (fullAddr < 0x2000) {
-      // RAM enable
       this.ramEnabled = (v & 0x0F) === 0x0A;
     } else if (fullAddr < 0x4000) {
-      // ROM bank number (lower 5 bits)
-      var bank = v & 0x1F;
-      if (bank === 0) bank = 1;
-      this.romBank = (this.romBank & 0x60) | bank;
-      this.romBank &= this.romBankMask;
-    } else if (fullAddr < 0x6000) {
-      // RAM bank / upper ROM bank bits
-      if (this.mbcMode === 0) {
-        this.romBank = (this.romBank & 0x1F) | ((v & 0x03) << 5);
-        this.romBank &= this.romBankMask;
+      if (this.mbcType === 3) {
+        // MBC3: 7-bit ROM bank
+        var bank = v & 0x7F;
+        if (bank === 0) bank = 1;
+        this.romBank = bank & this.romBankMask;
       } else {
-        this.ramBank = v & 0x03;
+        // MBC1: lower 5 bits
+        var bank = v & 0x1F;
+        if (bank === 0) bank = 1;
+        this.romBank = (this.romBank & 0x60) | bank;
+        this.romBank &= this.romBankMask;
+      }
+    } else if (fullAddr < 0x6000) {
+      if (this.mbcType === 3) {
+        // MBC3: RAM bank 0-3 (or RTC register select)
+        this.ramBank = v & 0x0F;
+      } else {
+        // MBC1: RAM bank / upper ROM bank bits
+        if (this.mbcMode === 0) {
+          this.romBank = (this.romBank & 0x1F) | ((v & 0x03) << 5);
+          this.romBank &= this.romBankMask;
+        } else {
+          this.ramBank = v & 0x03;
+        }
       }
     } else {
-      // Banking mode select
-      this.mbcMode = v & 0x01;
+      // MBC1: banking mode select; MBC3: latch clock data (ignored)
+      if (this.mbcType === 1) this.mbcMode = v & 0x01;
+    }
+  }
+
+  writeMBC5(fullAddr: number, v: number): void {
+    if (fullAddr < 0x2000) {
+      this.ramEnabled = (v & 0x0F) === 0x0A;
+    } else if (fullAddr < 0x3000) {
+      // Low 8 bits of ROM bank
+      this.romBank = (this.romBank & 0x100) | v;
+      this.romBank &= this.romBankMask;
+    } else if (fullAddr < 0x4000) {
+      // Bit 8 of ROM bank
+      this.romBank = (this.romBank & 0xFF) | ((v & 0x01) << 8);
+      this.romBank &= this.romBankMask;
+    } else if (fullAddr < 0x6000) {
+      this.ramBank = v & 0x0F;
     }
   }
 
@@ -837,6 +930,15 @@ export class GameBoyMachine extends BasicScanlineMachine {
       case 0x49: return this.obp1;
       case 0x4A: return this.wy;
       case 0x4B: return this.wx;
+      // GBC registers
+      case 0x4D: return this.cgbMode ? ((this.doubleSpeed ? 0x80 : 0) | (this.speedSwitchArmed ? 0x01 : 0) | 0x7E) : 0xFF;
+      case 0x4F: return this.cgbMode ? (this.vramBankSelect | 0xFE) : 0xFF;
+      case 0x55: return this.cgbMode ? this.hdmaLength : 0xFF;
+      case 0x68: return this.cgbMode ? (this.bgCRAMIndex | (this.bgCRAMAutoInc ? 0x80 : 0)) : 0xFF;
+      case 0x69: return this.cgbMode ? this.bgCRAM[this.bgCRAMIndex & 0x3F] : 0xFF;
+      case 0x6A: return this.cgbMode ? (this.objCRAMIndex | (this.objCRAMAutoInc ? 0x80 : 0)) : 0xFF;
+      case 0x6B: return this.cgbMode ? this.objCRAM[this.objCRAMIndex & 0x3F] : 0xFF;
+      case 0x70: return this.cgbMode ? this.wramBankSelect : 0xFF;
       default: return 0xFF;
     }
   }
@@ -886,6 +988,41 @@ export class GameBoyMachine extends BasicScanlineMachine {
       case 0x49: this.obp1 = v; break;
       case 0x4A: this.wy = v; break;
       case 0x4B: this.wx = v; break;
+      // GBC registers
+      case 0x4D:
+        if (this.cgbMode) this.speedSwitchArmed = !!(v & 0x01);
+        break;
+      case 0x4F:
+        if (this.cgbMode) this.vramBankSelect = v & 0x01;
+        break;
+      case 0x51: if (this.cgbMode) this.hdmaSrc = (this.hdmaSrc & 0x00FF) | (v << 8); break;
+      case 0x52: if (this.cgbMode) this.hdmaSrc = (this.hdmaSrc & 0xFF00) | (v & 0xF0); break;
+      case 0x53: if (this.cgbMode) this.hdmaDst = (this.hdmaDst & 0x00FF) | ((v & 0x1F) << 8); break;
+      case 0x54: if (this.cgbMode) this.hdmaDst = (this.hdmaDst & 0xFF00) | (v & 0xF0); break;
+      case 0x55:
+        if (this.cgbMode) this.startHDMA(v);
+        break;
+      case 0x68:
+        if (this.cgbMode) { this.bgCRAMIndex = v & 0x3F; this.bgCRAMAutoInc = !!(v & 0x80); }
+        break;
+      case 0x69:
+        if (this.cgbMode) {
+          this.bgCRAM[this.bgCRAMIndex & 0x3F] = v;
+          if (this.bgCRAMAutoInc) this.bgCRAMIndex = (this.bgCRAMIndex + 1) & 0x3F;
+        }
+        break;
+      case 0x6A:
+        if (this.cgbMode) { this.objCRAMIndex = v & 0x3F; this.objCRAMAutoInc = !!(v & 0x80); }
+        break;
+      case 0x6B:
+        if (this.cgbMode) {
+          this.objCRAM[this.objCRAMIndex & 0x3F] = v;
+          if (this.objCRAMAutoInc) this.objCRAMIndex = (this.objCRAMIndex + 1) & 0x3F;
+        }
+        break;
+      case 0x70:
+        if (this.cgbMode) { this.wramBankSelect = v & 0x07; if (this.wramBankSelect === 0) this.wramBankSelect = 1; }
+        break;
     }
   }
 
@@ -910,6 +1047,61 @@ export class GameBoyMachine extends BasicScanlineMachine {
     var srcBase = v << 8;
     for (var i = 0; i < 0xA0; i++) {
       this.oam[i] = this.read(srcBase + i);
+    }
+  }
+
+  // HDMA transfer (CGB)
+  startHDMA(v: number): void {
+    if (this.hdmaActive && !(v & 0x80)) {
+      // Cancel active HBlank DMA
+      this.hdmaActive = false;
+      this.hdmaLength = v | 0x80;
+      return;
+    }
+    var length = ((v & 0x7F) + 1) * 0x10;
+    if (v & 0x80) {
+      // HBlank DMA — transfer 0x10 bytes per HBlank
+      this.hdmaActive = true;
+      this.hdmaHblank = true;
+      this.hdmaLength = v & 0x7F;
+    } else {
+      // General-purpose DMA — transfer all at once
+      this.performHDMABlock(length);
+      this.hdmaLength = 0xFF;
+    }
+  }
+
+  performHDMABlock(length: number): void {
+    var src = this.hdmaSrc & 0xFFF0;
+    var dst = (this.hdmaDst & 0x1FF0);
+    for (var i = 0; i < length; i++) {
+      var val = this.read(src + i);
+      if (this.vramBankSelect) this.vramBank1[dst + i] = val;
+      else this.vram[dst + i] = val;
+    }
+    this.hdmaSrc += length;
+    this.hdmaDst += length;
+  }
+
+  // Called during HBlank for HBlank DMA
+  tickHDMA(): void {
+    if (!this.hdmaActive || !this.hdmaHblank) return;
+    this.performHDMABlock(0x10);
+    if (this.hdmaLength === 0) {
+      this.hdmaActive = false;
+      this.hdmaLength = 0xFF;
+    } else {
+      this.hdmaLength--;
+    }
+  }
+
+  // CGB speed switch (executed during STOP instruction)
+  performSpeedSwitch(): void {
+    if (this.cgbMode && this.speedSwitchArmed) {
+      this.doubleSpeed = !this.doubleSpeed;
+      this.speedSwitchArmed = false;
+      // In double speed, CPU runs at 8 MHz but PPU stays at normal speed
+      // We handle this by doubling T-cycles returned from advanceCPU
     }
   }
 
@@ -1006,6 +1198,8 @@ export class GameBoyMachine extends BasicScanlineMachine {
       // Fire STAT interrupts on mode transitions
       if (this.ppuMode === 0 && (this.stat & 0x08)) {
         this.iflag |= 0x02; // HBlank STAT interrupt
+        // CGB HBlank DMA
+        if (this.cgbMode) this.tickHDMA();
       } else if (this.ppuMode === 2 && (this.stat & 0x20)) {
         this.iflag |= 0x02; // OAM STAT interrupt
       }
@@ -1081,16 +1275,20 @@ export class GameBoyMachine extends BasicScanlineMachine {
     var lineOffset = this.scanline * 160;
 
     // Draw background
-    if (this.lcdc & 0x01) {
+    // In CGB mode, LCDC bit 0 controls BG/sprite priority, not BG enable
+    if ((this.lcdc & 0x01) || this.cgbMode) {
       this.drawBGLine(lineOffset);
     } else {
-      // BG disabled — fill with color 0
+      // BG disabled (DMG only) — fill with color 0
       for (var x = 0; x < 160; x++) {
         this.pixels[lineOffset + x] = DMG_PALETTE[0];
+        this.bgPriorityLine[x] = 0;
+        this.bgAttrPriLine[x] = 0;
       }
     }
 
     // Draw window
+    // In CGB mode, window is always available when LCDC bit 5 is set
     if ((this.lcdc & 0x20) && this.scanline >= this.wy) {
       this.drawWindowLine(lineOffset);
     }
@@ -1102,17 +1300,26 @@ export class GameBoyMachine extends BasicScanlineMachine {
 
   }
 
-  // Get color from palette register
+  // Get DMG color from palette register
   getPaletteColor(palette: number, colorIndex: number): number {
     var shade = (palette >> (colorIndex * 2)) & 0x03;
     return DMG_PALETTE[shade];
   }
 
+  // Get CGB color from color palette RAM
+  getCGBColor(cram: Uint8Array, paletteNum: number, colorIndex: number): number {
+    var idx = paletteNum * 8 + colorIndex * 2;
+    return cgbColorToARGB(cram[idx], cram[idx + 1]);
+  }
+
+  // Per-pixel BG priority tracking for CGB sprite priority
+  private bgPriorityLine = new Uint8Array(160);  // stores BG color index per pixel
+  private bgAttrPriLine = new Uint8Array(160);   // stores BG-over-OBJ bit per pixel
+
   // Draw one line of background
   drawBGLine(lineOffset: number): void {
-    var tileMap = (this.lcdc & 0x08) ? 0x1C00 : 0x1800; // BG tile map select
-    var tileData = (this.lcdc & 0x10) ? 0x0000 : 0x0800; // BG & Window tile data select
-    var signed = !(this.lcdc & 0x10); // Use signed tile indices when bit 4 is 0
+    var tileMap = (this.lcdc & 0x08) ? 0x1C00 : 0x1800;
+    var signed = !(this.lcdc & 0x10);
 
     var y = (this.scanline + this.scy) & 0xFF;
     var tileRow = (y >> 3) & 31;
@@ -1122,23 +1329,44 @@ export class GameBoyMachine extends BasicScanlineMachine {
       var scrolledX = (x + this.scx) & 0xFF;
       var tileCol = (scrolledX >> 3) & 31;
       var tileXBit = 7 - (scrolledX & 7);
+      var mapOffset = tileMap + tileRow * 32 + tileCol;
 
-      // Get tile index from map
-      var tileIndex = this.vram[tileMap + tileRow * 32 + tileCol];
+      // Get tile index from map (VRAM bank 0)
+      var tileIndex = this.vram[mapOffset];
       var tileAddr: number;
       if (signed) {
-        // Signed: tile 0 is at 0x9000 (VRAM offset 0x1000)
-        tileAddr = 0x1000 + (((tileIndex << 24) >> 24) * 16); // sign extend
+        tileAddr = 0x1000 + (((tileIndex << 24) >> 24) * 16);
       } else {
         tileAddr = tileIndex * 16;
       }
 
-      // Get pixel from tile data (2bpp)
-      var lo = this.vram[tileAddr + tileYOffset * 2];
-      var hi = this.vram[tileAddr + tileYOffset * 2 + 1];
-      var colorIndex = ((hi >> tileXBit) & 1) << 1 | ((lo >> tileXBit) & 1);
+      if (this.cgbMode) {
+        // CGB: read attributes from VRAM bank 1
+        var attr = this.vramBank1[mapOffset];
+        var cgbPalette = attr & 0x07;
+        var vramBank = (attr & 0x08) ? 1 : 0;
+        var xFlip = !!(attr & 0x20);
+        var yFlip = !!(attr & 0x40);
+        var bgPri = !!(attr & 0x80);
 
-      this.pixels[lineOffset + x] = this.getPaletteColor(this.bgp, colorIndex);
+        var tileY = yFlip ? (7 - tileYOffset) : tileYOffset;
+        var tileBit = xFlip ? (scrolledX & 7) : tileXBit;
+        var bank = vramBank ? this.vramBank1 : this.vram;
+        var lo = bank[tileAddr + tileY * 2];
+        var hi = bank[tileAddr + tileY * 2 + 1];
+        var colorIndex = ((hi >> tileBit) & 1) << 1 | ((lo >> tileBit) & 1);
+
+        this.bgPriorityLine[x] = colorIndex;
+        this.bgAttrPriLine[x] = bgPri ? 1 : 0;
+        this.pixels[lineOffset + x] = this.getCGBColor(this.bgCRAM, cgbPalette, colorIndex);
+      } else {
+        var lo = this.vram[tileAddr + tileYOffset * 2];
+        var hi = this.vram[tileAddr + tileYOffset * 2 + 1];
+        var colorIndex = ((hi >> tileXBit) & 1) << 1 | ((lo >> tileXBit) & 1);
+        this.bgPriorityLine[x] = colorIndex;
+        this.bgAttrPriLine[x] = 0;
+        this.pixels[lineOffset + x] = this.getPaletteColor(this.bgp, colorIndex);
+      }
     }
   }
 
@@ -1147,8 +1375,7 @@ export class GameBoyMachine extends BasicScanlineMachine {
     var wxAdjusted = this.wx - 7;
     if (wxAdjusted >= 160) return;
 
-    var tileMap = (this.lcdc & 0x40) ? 0x1C00 : 0x1800; // Window tile map select
-    var tileData = (this.lcdc & 0x10) ? 0x0000 : 0x0800;
+    var tileMap = (this.lcdc & 0x40) ? 0x1C00 : 0x1800;
     var signed = !(this.lcdc & 0x10);
 
     var winY = this.windowLine;
@@ -1160,8 +1387,9 @@ export class GameBoyMachine extends BasicScanlineMachine {
       var winX = x - wxAdjusted;
       var tileCol = (winX >> 3) & 31;
       var tileXBit = 7 - (winX & 7);
+      var mapOffset = tileMap + tileRow * 32 + tileCol;
 
-      var tileIndex = this.vram[tileMap + tileRow * 32 + tileCol];
+      var tileIndex = this.vram[mapOffset];
       var tileAddr: number;
       if (signed) {
         tileAddr = 0x1000 + (((tileIndex << 24) >> 24) * 16);
@@ -1169,11 +1397,32 @@ export class GameBoyMachine extends BasicScanlineMachine {
         tileAddr = tileIndex * 16;
       }
 
-      var lo = this.vram[tileAddr + tileYOffset * 2];
-      var hi = this.vram[tileAddr + tileYOffset * 2 + 1];
-      var colorIndex = ((hi >> tileXBit) & 1) << 1 | ((lo >> tileXBit) & 1);
+      if (this.cgbMode) {
+        var attr = this.vramBank1[mapOffset];
+        var cgbPalette = attr & 0x07;
+        var vramBank = (attr & 0x08) ? 1 : 0;
+        var xFlip = !!(attr & 0x20);
+        var yFlip = !!(attr & 0x40);
+        var bgPri = !!(attr & 0x80);
 
-      this.pixels[lineOffset + x] = this.getPaletteColor(this.bgp, colorIndex);
+        var tileY = yFlip ? (7 - tileYOffset) : tileYOffset;
+        var tileBit = xFlip ? (winX & 7) : tileXBit;
+        var bank = vramBank ? this.vramBank1 : this.vram;
+        var lo = bank[tileAddr + tileY * 2];
+        var hi = bank[tileAddr + tileY * 2 + 1];
+        var colorIndex = ((hi >> tileBit) & 1) << 1 | ((lo >> tileBit) & 1);
+
+        this.bgPriorityLine[x] = colorIndex;
+        this.bgAttrPriLine[x] = bgPri ? 1 : 0;
+        this.pixels[lineOffset + x] = this.getCGBColor(this.bgCRAM, cgbPalette, colorIndex);
+      } else {
+        var lo = this.vram[tileAddr + tileYOffset * 2];
+        var hi = this.vram[tileAddr + tileYOffset * 2 + 1];
+        var colorIndex = ((hi >> tileXBit) & 1) << 1 | ((lo >> tileXBit) & 1);
+        this.bgPriorityLine[x] = colorIndex;
+        this.bgAttrPriLine[x] = 0;
+        this.pixels[lineOffset + x] = this.getPaletteColor(this.bgp, colorIndex);
+      }
       drawn = true;
     }
     if (drawn) this.windowLine++;
@@ -1196,7 +1445,10 @@ export class GameBoyMachine extends BasicScanlineMachine {
     }
 
     // Sort by X coordinate (lower X = higher priority, ties broken by OAM index)
-    sprites.sort((a, b) => a.x !== b.x ? a.x - b.x : a.index - b.index);
+    // CGB: no X priority sorting, only OAM index order
+    if (!this.cgbMode) {
+      sprites.sort((a, b) => a.x !== b.x ? a.x - b.x : a.index - b.index);
+    }
 
     // Draw sprites in reverse order (lowest priority first, so higher priority overwrites)
     for (var si = sprites.length - 1; si >= 0; si--) {
@@ -1206,19 +1458,21 @@ export class GameBoyMachine extends BasicScanlineMachine {
       var tileIndex = this.oam[spriteIndex * 4 + 2];
       var flags = this.oam[spriteIndex * 4 + 3];
 
-      var palette = (flags & 0x10) ? this.obp1 : this.obp0;
       var xFlip = !!(flags & 0x20);
       var yFlip = !!(flags & 0x40);
       var bgPriority = !!(flags & 0x80);
 
-      if (spriteHeight === 16) tileIndex &= 0xFE; // Ignore bit 0 for 8x16 sprites
+      if (spriteHeight === 16) tileIndex &= 0xFE;
 
       var tileY = this.scanline - yPos;
       if (yFlip) tileY = spriteHeight - 1 - tileY;
 
       var tileAddr = tileIndex * 16 + tileY * 2;
-      var lo = this.vram[tileAddr];
-      var hi = this.vram[tileAddr + 1];
+
+      // CGB: sprites can use VRAM bank 0 or 1
+      var spriteVramBank = (this.cgbMode && (flags & 0x08)) ? this.vramBank1 : this.vram;
+      var lo = spriteVramBank[tileAddr];
+      var hi = spriteVramBank[tileAddr + 1];
 
       for (var px = 0; px < 8; px++) {
         var screenX = xPos + px;
@@ -1228,13 +1482,25 @@ export class GameBoyMachine extends BasicScanlineMachine {
         var colorIndex = ((hi >> bit) & 1) << 1 | ((lo >> bit) & 1);
         if (colorIndex === 0) continue; // Transparent
 
-        // BG priority: sprite hidden behind BG colors 1-3
-        if (bgPriority) {
-          var bgColor = this.pixels[lineOffset + screenX];
-          if (bgColor !== DMG_PALETTE[(this.bgp & 0x03)]) continue; // BG color 0 check
+        if (this.cgbMode) {
+          // CGB priority: BG attribute bit 7 overrides sprite if BG color != 0
+          // Also OAM bit 7 (bgPriority) can hide sprite behind BG
+          var bgMaster = this.lcdc & 0x01; // LCDC bit 0 = BG/Window master priority
+          if (bgMaster) {
+            if (this.bgAttrPriLine[screenX] && this.bgPriorityLine[screenX] !== 0) continue;
+            if (bgPriority && this.bgPriorityLine[screenX] !== 0) continue;
+          }
+          var cgbPalette = flags & 0x07;
+          this.pixels[lineOffset + screenX] = this.getCGBColor(this.objCRAM, cgbPalette, colorIndex);
+        } else {
+          // DMG priority
+          if (bgPriority) {
+            var bgColor = this.pixels[lineOffset + screenX];
+            if (bgColor !== DMG_PALETTE[(this.bgp & 0x03)]) continue;
+          }
+          var palette = (flags & 0x10) ? this.obp1 : this.obp0;
+          this.pixels[lineOffset + screenX] = this.getPaletteColor(palette, colorIndex);
         }
-
-        this.pixels[lineOffset + screenX] = this.getPaletteColor(palette, colorIndex);
       }
     }
   }
@@ -1246,9 +1512,17 @@ export class GameBoyMachine extends BasicScanlineMachine {
       switch (cartType) {
         case 0x00: this.mbcType = 0; break; // ROM only
         case 0x01: case 0x02: case 0x03: this.mbcType = 1; break; // MBC1
-        default: console.log(`Invalid cartridge type @ 0x147: ${data[0x147]}`); break;
+        case 0x0F: case 0x10: case 0x11: case 0x12: case 0x13: this.mbcType = 3; break; // MBC3
+        case 0x19: case 0x1A: case 0x1B: case 0x1C: case 0x1D: case 0x1E: this.mbcType = 5; break; // MBC5
+        default: console.log(`Unhandled cartridge type 0x${cartType.toString(16)} @ 0x147, treating as MBC5`); this.mbcType = 5; break;
       }
     } else throw new EmuHalt("ROM not long enough for header");
+
+    // Detect CGB mode from header byte 0x143
+    if (data.length > 0x143) {
+      var cgbFlag = data[0x143];
+      this.cgbMode = this.forceColor || cgbFlag === 0x80 || cgbFlag === 0xC0;
+    }
 
     // Determine ROM size and bank mask
     this.rom = new Uint8Array(Math.max(data.length, 0x8000));
@@ -1304,6 +1578,28 @@ export class GameBoyMachine extends BasicScanlineMachine {
     this.timerSubCycles = 0;
     this.apuCycleAccum = 0;
     this.apu.reset();
+    // GBC state
+    this.vramBank1.fill(0);
+    this.vramBankSelect = 0;
+    this.wramBanks.fill(0);
+    this.wramBankSelect = 1;
+    this.bgCRAM.fill(0xFF);
+    this.objCRAM.fill(0xFF);
+    this.bgCRAMIndex = 0;
+    this.bgCRAMAutoInc = false;
+    this.objCRAMIndex = 0;
+    this.objCRAMAutoInc = false;
+    this.doubleSpeed = false;
+    this.speedSwitchArmed = false;
+    this.hdmaSrc = 0;
+    this.hdmaDst = 0;
+    this.hdmaLength = 0xFF;
+    this.hdmaActive = false;
+    this.hdmaHblank = false;
+    // CGB boot ROM leaves A=0x11 so games can detect CGB hardware
+    if (this.cgbMode) {
+      this.cpu.A = 0x11;
+    }
   }
 
   preFrame(): void {
@@ -1311,6 +1607,8 @@ export class GameBoyMachine extends BasicScanlineMachine {
   }
 
   readVRAMAddress(a: number): number {
+    // For debug views: addresses 0x0000-0x1FFF = bank 0, 0x2000-0x3FFF = bank 1
+    if (this.cgbMode && a >= 0x2000) return this.vramBank1[a & 0x1FFF];
     return this.vram[a & 0x1FFF];
   }
 
@@ -1336,6 +1634,22 @@ export class GameBoyMachine extends BasicScanlineMachine {
     };
     state['apu'] = this.apu.saveState();
     state['apuCycleAccum'] = this.apuCycleAccum;
+    // GBC state
+    if (this.cgbMode) {
+      state['cgb'] = {
+        vramBank1: this.vramBank1.slice(0),
+        vramBankSelect: this.vramBankSelect,
+        wramBanks: this.wramBanks.slice(0),
+        wramBankSelect: this.wramBankSelect,
+        bgCRAM: this.bgCRAM.slice(0),
+        objCRAM: this.objCRAM.slice(0),
+        bgCRAMIndex: this.bgCRAMIndex, bgCRAMAutoInc: this.bgCRAMAutoInc,
+        objCRAMIndex: this.objCRAMIndex, objCRAMAutoInc: this.objCRAMAutoInc,
+        doubleSpeed: this.doubleSpeed, speedSwitchArmed: this.speedSwitchArmed,
+        hdmaSrc: this.hdmaSrc, hdmaDst: this.hdmaDst,
+        hdmaLength: this.hdmaLength, hdmaActive: this.hdmaActive, hdmaHblank: this.hdmaHblank,
+      };
+    }
     return state;
   }
 
@@ -1359,6 +1673,21 @@ export class GameBoyMachine extends BasicScanlineMachine {
     this.timerSubCycles = io.timerSubCycles;
     if (state.apu) this.apu.loadState(state.apu);
     this.apuCycleAccum = state.apuCycleAccum || 0;
+    // GBC state
+    if (state.cgb) {
+      var cgb = state.cgb;
+      this.vramBank1.set(cgb.vramBank1);
+      this.vramBankSelect = cgb.vramBankSelect;
+      this.wramBanks.set(cgb.wramBanks);
+      this.wramBankSelect = cgb.wramBankSelect;
+      this.bgCRAM.set(cgb.bgCRAM);
+      this.objCRAM.set(cgb.objCRAM);
+      this.bgCRAMIndex = cgb.bgCRAMIndex; this.bgCRAMAutoInc = cgb.bgCRAMAutoInc;
+      this.objCRAMIndex = cgb.objCRAMIndex; this.objCRAMAutoInc = cgb.objCRAMAutoInc;
+      this.doubleSpeed = cgb.doubleSpeed; this.speedSwitchArmed = cgb.speedSwitchArmed;
+      this.hdmaSrc = cgb.hdmaSrc; this.hdmaDst = cgb.hdmaDst;
+      this.hdmaLength = cgb.hdmaLength; this.hdmaActive = cgb.hdmaActive; this.hdmaHblank = cgb.hdmaHblank;
+    }
   }
 
   getDebugCategories() {
@@ -1368,7 +1697,7 @@ export class GameBoyMachine extends BasicScanlineMachine {
   getDebugInfo(category, state) {
     switch (category) {
       case 'PPU':
-        return "LCDC " + hex(this.lcdc, 2) + "  STAT " + hex(this.stat, 2) + "\n"
+        var s = "LCDC " + hex(this.lcdc, 2) + "  STAT " + hex(this.stat, 2) + "\n"
           + "LY   " + hex(this.ly, 2) + "  LYC  " + hex(this.lyc, 2) + "\n"
           + "SCX  " + hex(this.scx, 2) + "  SCY  " + hex(this.scy, 2) + "\n"
           + "WX   " + hex(this.wx, 2) + "  WY   " + hex(this.wy, 2) + "\n"
@@ -1378,6 +1707,12 @@ export class GameBoyMachine extends BasicScanlineMachine {
           + "DIV  " + hex((this.divCounter >> 8) & 0xFF, 2) + "  TIMA " + hex(this.tima, 2) + "\n"
           + "TMA  " + hex(this.tma, 2) + "  TAC  " + hex(this.tac, 2) + "\n"
           + "Bank " + this.romBank + "\n";
+        if (this.cgbMode) {
+          s += "--- CGB ---\n"
+            + "VBK  " + this.vramBankSelect + "  SVBK " + this.wramBankSelect + "\n"
+            + "SPD  " + (this.doubleSpeed ? "2x" : "1x") + "\n";
+        }
+        return s;
     }
   }
 }
