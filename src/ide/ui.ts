@@ -1358,7 +1358,7 @@ function _toggleRecording() {
 
 function addFileToProject(type, ext, linefn) {
   var wnd = projectWindows.getActive();
-  if (wnd && wnd.insertText) {
+  if (wnd && wnd.insertLinesBefore) {
     bootbox.prompt({
       title: "Add " + DOMPurify.sanitize(type) + " File to Project",
       value: "filename" + DOMPurify.sanitize(ext),
@@ -1373,7 +1373,7 @@ function addFileToProject(type, ext, linefn) {
             } else {
               current_project.updateFile(path, "\n");
             }
-            wnd.insertText(newline);
+            wnd.insertLinesBefore(newline);
             refreshWindowList();
           });
         }
