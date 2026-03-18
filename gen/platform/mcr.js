@@ -1,4 +1,7 @@
 "use strict";
+// based on https://raw.githubusercontent.com/mamedev/mame/refs/heads/master/src/mame/midway/mcr.cpp
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 Object.defineProperty(exports, "__esModule", { value: true });
 const mcr_1 = require("../machine/mcr");
 const baseplatform_1 = require("../common/baseplatform");

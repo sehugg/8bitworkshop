@@ -68,6 +68,38 @@ class GameBoyPlatform extends baseplatform_1.BaseMachinePlatform {
         return "https://8bitworkshop.com/docs/platforms/gameboy/";
     }
 }
+const GBC_PRESETS = [
+    { id: 'hello_color.c', name: 'Hello Color World (C)' },
+];
+class GameBoyColorPlatform extends GameBoyPlatform {
+    newMachine() {
+        var m = new gb_1.GameBoyMachine();
+        m.forceColor = true;
+        return m;
+    }
+    getPresets() { return GBC_PRESETS; }
+    getROMExtension() {
+        return ".gbc";
+    }
+    getMemoryMap() {
+        return {
+            main: [
+                { name: 'ROM Bank 0', start: 0x0000, size: 0x4000, type: 'rom' },
+                { name: 'ROM Bank 1+', start: 0x4000, size: 0x4000, type: 'rom' },
+                { name: 'Video RAM B0', start: 0x8000, size: 0x2000, type: 'ram' },
+                { name: 'External RAM', start: 0xA000, size: 0x2000, type: 'ram' },
+                { name: 'Work RAM 0', start: 0xC000, size: 0x1000, type: 'ram' },
+                { name: 'Work RAM 1-7', start: 0xD000, size: 0x1000, type: 'ram' },
+                { name: 'OAM', start: 0xFE00, size: 0xA0, type: 'ram' },
+                { name: 'I/O Registers', start: 0xFF00, size: 0x80, type: 'io' },
+                { name: 'High RAM', start: 0xFF80, size: 0x7F, type: 'ram' },
+            ]
+        };
+    }
+    showHelp() {
+        return "https://8bitworkshop.com/docs/platforms/gameboy/";
+    }
+}
 emu_1.PLATFORMS['gb'] = GameBoyPlatform;
-emu_1.PLATFORMS['gameboy'] = GameBoyPlatform;
+emu_1.PLATFORMS['gb.color'] = GameBoyColorPlatform;
 //# sourceMappingURL=gb.js.map

@@ -44,6 +44,7 @@ function importPlatform(name) {
         case "atari8": return Promise.resolve().then(() => __importStar(require("../platform/atari8")));
         case "basic": return Promise.resolve().then(() => __importStar(require("../platform/basic")));
         case "c64": return Promise.resolve().then(() => __importStar(require("../platform/c64")));
+        case "channelf": return Promise.resolve().then(() => __importStar(require("../platform/channelf")));
         case "coleco": return Promise.resolve().then(() => __importStar(require("../platform/coleco")));
         case "cpc": return Promise.resolve().then(() => __importStar(require("../platform/cpc")));
         case "devel": return Promise.resolve().then(() => __importStar(require("../platform/devel")));

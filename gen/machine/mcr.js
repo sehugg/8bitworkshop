@@ -1,4 +1,7 @@
 "use strict";
+// based on https://raw.githubusercontent.com/mamedev/mame/refs/heads/master/src/mame/midway/mcr.cpp
+// license:BSD-3-Clause
+// copyright-holders:Aaron Giles
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MCR2Machine = void 0;
 const ZilogZ80_1 = require("../common/cpu/ZilogZ80");
@@ -15,7 +18,7 @@ const MCR2_FPS = 30;
 const MCR2_CYCLES_PER_LINE = Math.floor(MCR2_CPU_FREQ / (MCR2_NUM_TOTAL_SCANLINES * MCR2_FPS));
 const MCR2_TILE_COLS = 32;
 const MCR2_TILE_ROWS = 30;
-const MCR2_TILE_SIZE = 16;
+const MCR2_TILE_SIZE = 8; // double-pixels for BG
 const INITIAL_WATCHDOG = 16;
 function pal3bit(v) {
     v &= 7;
@@ -40,11 +43,11 @@ const MCR2_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
 ]);
 // ROM blob layout
 const ROM_PROGRAM_START = 0x0;
-const ROM_PROGRAM_SIZE = 0xC000;
-const ROM_BG_GFX_START = 0xC000;
+const ROM_PROGRAM_SIZE = 0xE000;
+const ROM_BG_GFX_START = ROM_PROGRAM_SIZE;
 const ROM_BG_GFX_SIZE = 0x4000; // 16KB background tiles (2 bitplanes × 8KB)
-const ROM_SPR_GFX_START = 0x12000;
-const ROM_SPR_GFX_SIZE = 2 * 0x8000; // 32KB sprites (4 bitplanes × 8KB)
+const ROM_SPR_GFX_START = ROM_BG_GFX_START + ROM_BG_GFX_SIZE;
+const ROM_SPR_GFX_SIZE = 0x8000; // 32KB sprites (4 bitplanes × 8KB)
 const SSIO_ROM_SIZE = 0x4000;
 const ROM_TOTAL_SIZE = ROM_PROGRAM_SIZE + ROM_BG_GFX_SIZE + ROM_SPR_GFX_SIZE + SSIO_ROM_SIZE;
 class MCR2Machine extends devices_1.BasicScanlineMachine {
@@ -68,16 +71,16 @@ class MCR2Machine extends devices_1.BasicScanlineMachine {
         this.ctcVector = 0;
         // Main CPU memory read
         this.read = (0, emu_1.newAddressDecoder)([
-            [0x0000, 0xBFFF, 0xFFFF, (a) => { return this.rom ? this.rom[a] : 0; }],
-            [0xC000, 0xDFFF, 0x7FF, (a) => { return this.ram[a]; }],
-            [0xE000, 0xE7FF, 0x1FF, (a) => { return this.sprram[a]; }],
+            [0x0000, 0xDFFF, 0xFFFF, (a) => { return this.rom ? this.rom[a] : 0; }],
+            [0xE000, 0xE7FF, 0x7FF, (a) => { return this.ram[a]; }],
+            [0xE800, 0xEFFF, 0x1FF, (a) => { return this.sprram[a]; }],
             [0xF000, 0xF7FF, 0x7FF, (a) => { return this.vram[a]; }],
             [0xF800, 0xFFFF, 0x7F, (a) => { return this.palram[a]; }],
         ]);
         // Main CPU memory write
         this.write = (0, emu_1.newAddressDecoder)([
-            [0xC000, 0xDFFF, 0x7FF, (a, v) => { this.ram[a] = v; }],
-            [0xE000, 0xE7FF, 0x1FF, (a, v) => { this.sprram[a] = v; }],
+            [0xE000, 0xE7FF, 0x7FF, (a, v) => { this.ram[a] = v; }],
+            [0xE800, 0xEFFF, 0x1FF, (a, v) => { this.sprram[a] = v; }],
             [0xF000, 0xF7FF, 0x7FF, (a, v) => { this.vram[a] = v; }],
             [0xF800, 0xFFFF, 0x7F, (a, v) => {
                     this.palram[a] = v;
@@ -157,22 +160,25 @@ class MCR2Machine extends devices_1.BasicScanlineMachine {
         if (sl >= MCR2_NUM_VISIBLE_SCANLINES)
             return;
         let pixofs = sl * MCR2_CANVAS_WIDTH;
-        let tileRow = Math.floor(sl / MCR2_TILE_SIZE);
-        let tileY = sl % MCR2_TILE_SIZE;
-        // Draw background tiles
-        if (tileRow < MCR2_TILE_ROWS) {
-            for (let tileCol = 0; tileCol < MCR2_TILE_COLS; tileCol++) {
-                let vramOfs = (tileRow * MCR2_TILE_COLS + tileCol) * 2;
-                let byte0 = this.vram[vramOfs];
-                let byte1 = this.vram[vramOfs + 1];
-                // 91490 tile format
-                let tileCode = byte0 | ((byte1 & 0x03) << 8);
-                let tilePalette = (byte1 >> 4) & 0x03;
-                let flipX = (byte1 & 0x04) != 0;
-                let flipY = (byte1 & 0x08) != 0;
-                let ty = flipY ? (15 - tileY) : tileY;
-                let pixX = tileCol * MCR2_TILE_SIZE;
-                this.drawTileLine(pixofs + pixX, tileCode, ty, tilePalette, flipX);
+        if ((sl & 1) == 0) {
+            sl >>= 1;
+            let tileRow = Math.floor(sl / MCR2_TILE_SIZE);
+            let tileY = sl % MCR2_TILE_SIZE;
+            // Draw background tiles
+            if (tileRow < MCR2_TILE_ROWS) {
+                for (let tileCol = 0; tileCol < MCR2_TILE_COLS; tileCol++) {
+                    let vramOfs = (tileRow * MCR2_TILE_COLS + tileCol) * 2;
+                    let byte0 = this.vram[vramOfs];
+                    let byte1 = this.vram[vramOfs + 1];
+                    // 91490 tile format
+                    let tileCode = byte0 | ((byte1 & 0x03) << 8);
+                    let tilePalette = (byte1 >> 4) & 0x03;
+                    let flipX = (byte1 & 0x04) != 0;
+                    let flipY = (byte1 & 0x08) != 0;
+                    let ty = flipY ? (15 - tileY) : tileY;
+                    let pixX = tileCol * MCR2_TILE_SIZE * 2;
+                    this.drawTileLine(pixofs + pixX, tileCode, ty, tilePalette, flipX);
+                }
             }
         }
         // Draw sprites on this scanline
@@ -182,28 +188,19 @@ class MCR2Machine extends devices_1.BasicScanlineMachine {
     drawTileLine(outOfs, tileCode, row, palette, flipX) {
         let gfxBase = ROM_BG_GFX_START;
         let halfSize = ROM_BG_GFX_SIZE / 2; // 8KB per bitplane
-        // Tile layout: 32 bytes per tile per bitplane
-        // Left 8 pixels in bytes 0-15 (one byte per row), right 8 pixels in bytes 16-31
+        // Tile layout: 8 bytes per tile per bitplane
         let tileOfs = tileCode * 32;
-        let leftByteOfs = tileOfs + (row < 8 ? row : row); // rows 0-15
-        let rightByteOfs = tileOfs + 16 + (row < 8 ? row : row);
-        let p0L = this.rom[gfxBase + leftByteOfs] || 0;
-        let p1L = this.rom[gfxBase + halfSize + leftByteOfs] || 0;
-        let p0R = this.rom[gfxBase + rightByteOfs] || 0;
-        let p1R = this.rom[gfxBase + halfSize + rightByteOfs] || 0;
+        let byteOfs = tileOfs + (row < 8 ? row : row); // rows 0-15
+        let p0L = this.rom[gfxBase + byteOfs] || 0;
+        let p1L = this.rom[gfxBase + halfSize + byteOfs] || 0;
         let colorBase = palette * 4;
-        // Draw 16 pixels (left 8 + right 8)
         for (let x = 0; x < 8; x++) {
             let bit = 7 - x;
-            let srcX = flipX ? (15 - x) : x;
+            let srcX = flipX ? (14 - x * 2) : x * 2;
             let color = ((p0L >> bit) & 1) | (((p1L >> bit) & 1) << 1);
-            this.pixels[outOfs + srcX] = this.palette[colorBase + color];
-        }
-        for (let x = 0; x < 8; x++) {
-            let bit = 7 - x;
-            let srcX = flipX ? (7 - x) : (8 + x);
-            let color = ((p0R >> bit) & 1) | (((p1R >> bit) & 1) << 1);
-            this.pixels[outOfs + srcX] = this.palette[colorBase + color];
+            this.pixels[outOfs + srcX] = this.pixels[outOfs + srcX + 512]
+                = this.pixels[outOfs + srcX + 1] = this.pixels[outOfs + srcX + 513]
+                    = this.palette[colorBase + color];
         }
     }
     // Render sprites intersecting a given scanline (91464 sprite board, 4bpp)

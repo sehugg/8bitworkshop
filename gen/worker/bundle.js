@@ -5233,10 +5233,11 @@
     "mcr": {
       arch: "z80",
       code_start: 0,
-      rom_size: 57344,
+      rom_size: 57344 + 16384 + 32768,
       data_start: 57344,
       data_size: 2048,
       stack_end: 59392
+      // TODO: IHX can't handle > 64 KB, so ihx2sms looks for segments in a certain order
     }
   };
   PLATFORM_PARAMS["sms-sms-libcv"] = PLATFORM_PARAMS["sms-sg1000-libcv"];
