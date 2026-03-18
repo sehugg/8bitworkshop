@@ -254,13 +254,15 @@ class SourceEditor {
             });
         }
     }
-    insertText(text) {
-        const main = this.editor.state.selection.main;
+    insertLinesBefore(text) {
+        const pos = this.editor.state.selection.main.from;
+        const lineNum = this.editor.state.doc.lineAt(pos).number;
+        const lineFrom = this.editor.state.doc.lineAt(pos).from;
+        const insertedLineCount = text.split("\n").length - 1;
         this.editor.dispatch({
-            changes: { from: main.from, to: main.to, insert: text },
-            selection: { anchor: main.from + text.length },
-            userEvent: "input.paste"
+            changes: { from: lineFrom, insert: text },
         });
+        this.highlightLines(lineNum - 1, lineNum + insertedLineCount - 2);
     }
     highlightLines(start, end) {
         const startLine = this.editor.state.doc.line(start + 1);

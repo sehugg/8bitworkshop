@@ -209,6 +209,10 @@ const highlightLinesField = state_1.StateField.define({
                 return view_1.Decoration.set(decorationRanges);
             }
         }
+        // dismiss highlights on user interaction
+        if (decorations !== view_1.Decoration.none && (tr.docChanged || tr.selection)) {
+            return view_1.Decoration.none;
+        }
         return decorations;
     },
     provide: f => view_1.EditorView.decorations.from(f),
