@@ -40,7 +40,7 @@ function __createCanvas(doc, mainElement, width, height) {
     canvas.width = width;
     canvas.height = height;
     canvas.classList.add("emuvideo");
-    canvas.tabIndex = -1; // Make it focusable
+    canvas.tabIndex = 0; // Make it focusable and tabbable
     mainElement.appendChild(canvas);
     return canvas;
 }
