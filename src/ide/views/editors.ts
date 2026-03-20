@@ -351,6 +351,7 @@ export class SourceEditor implements ProjectView {
         EditorView.scrollIntoView(targetLine.from, { y: "center" }),
       ],
     });
+    this.editor.focus();
   }
 
   getValue(): string {
