@@ -341,6 +341,18 @@ export class SourceEditor implements ProjectView {
     });
   }
 
+  navigateToLine(line: number) {
+    if (line < 1 || line > this.editor.state.doc.lines) return;
+    const targetLine = this.editor.state.doc.line(line);
+    this.editor.dispatch({
+      selection: { anchor: targetLine.from },
+      effects: [
+        highlightLines.effect.of({ start: line, end: line }),
+        EditorView.scrollIntoView(targetLine.from, { y: "center" }),
+      ],
+    });
+  }
+
   getValue(): string {
     return this.editor.state.doc.toString();
   }

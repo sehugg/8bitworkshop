@@ -870,7 +870,7 @@ function getErrorElement(err: WorkerError) {
       link.click((ev) => {
         var wnd = projectWindows.createOrShow(path);
         if (wnd instanceof SourceEditor) {
-          wnd.setCurrentLine(err, true);
+          wnd.navigateToLine(err.line);
         }
       });
     }
