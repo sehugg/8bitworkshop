@@ -700,11 +700,22 @@ export function getMousePos(canvas: HTMLCanvasElement, evt): { x: number, y: num
   // [Math.floor(rect.left/top), Math.floor(rect.left/top) + Math.floor(rect.width/height)],
   // which may not be the same as [Math.floor(rect.left/top), Math.floor(rect.right/bottom)].
   var rect = canvas.getBoundingClientRect(), // abs. size of element
-    scaleX = canvas.width / Math.floor(rect.width - 2 * delta),
-    scaleY = canvas.height / Math.floor(rect.height - 2 * delta),
-    x = (evt.clientX - delta - Math.floor(rect.left)) * scaleX, // scale mouse coordinates after they have
-    y = (evt.clientY - delta - Math.floor(rect.top)) * scaleY;  // been adjusted to be relative to element
+    // Ignore canvas borders and padding, so mouse position is relative to canvas content.
+    style = window.getComputedStyle(canvas),
+    left = parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft),
+    right = parseFloat(style.borderRightWidth) + parseFloat(style.paddingRight),
+    top = parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop),
+    bottom = parseFloat(style.borderBottomWidth) + parseFloat(style.paddingBottom),
+    width = rect.width - left - right,
+    height = rect.height - top - bottom,
 
+    // Determine scale factors to map mouse coordinates to canvas coordinates.
+    scaleX = canvas.width / Math.floor(width - 2 * delta),
+    scaleY = canvas.height / Math.floor(height - 2 * delta),
+
+    // Scale coordinates after they've been adjusted to be relative to canvas content.
+    x = (evt.clientX - delta - rect.left - left) * scaleX,
+    y = (evt.clientY - delta - rect.top - top) * scaleY;
   return {
     // Clamp to [0, canvas.width/height] to prevent non-integer rect position
     // and size, and potentially `delta`, from returning out of bounds values.
