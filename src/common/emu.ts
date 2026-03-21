@@ -83,8 +83,9 @@ export class RasterVideo {
   datau32: Uint32Array;
   vcanvas: JQuery;
 
-  paddle_x = 255;
-  paddle_y = 255;
+  // Start paddles/joystick centered in [0,255] range.
+  paddle_x = 128;
+  paddle_y = 128;
 
   setRotate(rotate: number) {
     var canvas = this.canvas;
