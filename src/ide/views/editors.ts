@@ -541,11 +541,7 @@ export class SourceEditor implements ProjectView {
       return;
     }
 
-    // TODO: remove after compilation
-    this.clearCurrentLine(moveCursor);
-    if (line) {
-      this.setCurrentLine(line, moveCursor);
-    }
+    this.setCurrentLine(line, moveCursor);
   }
 
   refreshListing() {
