@@ -691,7 +691,10 @@ async function getLocalFilesystem(repoid: string): Promise<ProjectFilesystem> {
       return contents;
     },
     setFileData: async (path, data) => {
-      //let vh = await dirHandle.getFileHandle(path, { create: true });
+      const fileHandle = await dirHandle.getFileHandle(path, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(data);
+      await writable.close();
     }
   }
 }
