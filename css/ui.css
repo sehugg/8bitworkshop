@@ -258,6 +258,7 @@ div.emuspacer {
   margin-right:3%;
   width:94%;
   pointer-events:auto;
+  cursor: crosshair;
 }
 .emuvideo:focus {
   border-color:#888;
