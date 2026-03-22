@@ -683,11 +683,11 @@ async function getLocalFilesystem(repoid: string): Promise<ProjectFilesystem> {
     getFileData: async (path) => {
       console.log('getFileData', path);
       let fileHandle = await dirHandle.getFileHandle(path, { create: false });
-      console.log('getFileData', fileHandle);
       let file = await fileHandle.getFile();
-      console.log('getFileData', file);
-      let contents = await (isProbablyBinary(path) ? file.binary() : file.text());
-      console.log(fileHandle, file, contents);
+      let contents = await (isProbablyBinary(path) ? file.arrayBuffer() : file.text());
+      if (contents instanceof ArrayBuffer) {
+        return new Uint8Array(contents);
+      }
       return contents;
     },
     setFileData: async (path, data) => {
