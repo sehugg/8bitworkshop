@@ -19,6 +19,8 @@ interface AppleIIState extends AppleIIStateBase, AppleIIControlsState {
    c: MOS6502State;
    grswitch: number;
    slots: SlotDevice[];
+   paddleValues: number[];
+   paddleButtons: boolean[];
 }
 
 interface SlotDevice extends Bus {
@@ -140,6 +142,8 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS, Accept
          auxRAMbank: this.auxRAMbank,
          writeinhibit: this.writeinhibit,
          slots: this.slots.map((slot) => { return slot && slot['saveState'] && slot['saveState']() }),
+         paddleValues: this.paddleValues.slice(),
+         paddleButtons: this.paddleButtons.slice(),
          inputs: this.ram.slice(0, 0) // unused
       };
    }
@@ -156,6 +160,8 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS, Accept
       for (var i = 0; i < this.slots.length; i++)
          if (this.slots[i] && this.slots[i]['loadState'])
             this.slots[i]['loadState'](s.slots[i]);
+      this.paddleValues = s.paddleValues.slice();
+      this.paddleButtons = s.paddleButtons.slice();
       this.ap2disp.invalidate(); // repaint entire screen
    }
    saveControlsState(): AppleIIControlsState {
