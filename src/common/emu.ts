@@ -86,6 +86,8 @@ export class RasterVideo {
   // Start paddles/joystick centered in [0,255] range.
   paddle_x = 128;
   paddle_y = 128;
+  // Platforms can support up to three buttons.
+  paddle_buttons: boolean[] = [false, false, false];
 
   setRotate(rotate: number) {
     var canvas = this.canvas;
@@ -148,6 +150,13 @@ export class RasterVideo {
       var new_y = Math.round(pos.y * 255 / this.canvas.height);
       this.paddle_x = clamp(0, 255, new_x);
       this.paddle_y = clamp(0, 255, new_y);
+    }).mousedown((e) => {
+      // TODO Allows users to specify mapping in settings.
+      this.paddle_buttons[0] = !e.shiftKey && !e.altKey;
+      this.paddle_buttons[1] = e.shiftKey && !e.altKey;
+      this.paddle_buttons[2] = e.altKey && !e.shiftKey;
+    }).mouseup((e) => {
+      this.paddle_buttons.fill(false);
     });
   };
 }

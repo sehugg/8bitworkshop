@@ -112,6 +112,7 @@ export interface AcceptsKeyInput {
 
 export interface AcceptsPaddleInput {
   setPaddleInput(controller: number, value: number): void;
+  setPaddleButton?(index: number, pressed: boolean): void;
 }
 
 // TODO: interface not yet used (setKeyInput() handles joystick)

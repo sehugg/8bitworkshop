@@ -62,6 +62,7 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS, Accept
    bank2wroffset = 0;
    // Paddle/joystick, PDL0-PDL3 values (0-255).
    paddleValues = [0, 0, 0, 0];
+   paddleButtons = [false, false, false];
    paddleLastTriggered = 0;
    // disk II
    slots: SlotDevice[] = new Array(8);
@@ -282,8 +283,12 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS, Accept
                   case 1: // $C061 / $C069 - GAME SW0
                   case 2: // $C062 / $C06A - GAME SW1
                   case 3: // $C063 / $C06B - GAME SW2
-                     // buttons (off)
-                     return this.floatbus() & 0x7f;
+                     // buttons
+                     var btn = (address & 7) - 1;
+                     if (this.paddleButtons[btn])
+                        return this.floatbus() | 0x80;
+                     else
+                        return this.floatbus() & 0x7f;
                   case 4: // $C064 / $C06C - GAME PDL0
                   case 5: // $C065 / $C06D - GAME PDL1
                   case 6: // $C066 / $C06E - GAME PDL2
@@ -438,6 +443,12 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS, Accept
    setPaddleInput(controller: number, value: number): void {
       if (controller >= 0 && controller < this.paddleValues.length) {
          this.paddleValues[controller] = value & 0xff;
+      }
+   }
+
+   setPaddleButton(index: number, pressed: boolean): void {
+      if (index >= 0 && index < this.paddleButtons.length) {
+         this.paddleButtons[index] = pressed;
       }
    }
 
