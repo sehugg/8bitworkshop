@@ -536,10 +536,13 @@ export class SourceEditor implements ProjectView {
   }
 
   refreshDebugState(moveCursor: boolean) {
-    // TODO: only if line changed
+    var line = this.getActiveLine();
+    if (!line && !this.currentDebugLine && !moveCursor) {
+      return;
+    }
+
     // TODO: remove after compilation
     this.clearCurrentLine(moveCursor);
-    var line = this.getActiveLine();
     if (line) {
       this.setCurrentLine(line, moveCursor);
     }
