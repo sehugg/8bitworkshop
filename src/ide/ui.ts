@@ -697,6 +697,7 @@ async function getLocalFilesystem(repoid: string): Promise<ProjectFilesystem> {
     alertError(`Could not get permission to access filesystem.`);
     return;
   }
+  const lastWriteTime: { [path: string]: number } = {};
   return {
     getFileData: async (path) => {
       console.log('getFileData', path);
@@ -709,6 +710,7 @@ async function getLocalFilesystem(repoid: string): Promise<ProjectFilesystem> {
       return contents;
     },
     setFileData: async (path, data) => {
+      lastWriteTime[path] = Date.now();
       const fileHandle = await dirHandle.getFileHandle(path, { create: true });
       const writable = await fileHandle.createWritable();
       await writable.write(data);
@@ -725,7 +727,12 @@ async function getLocalFilesystem(repoid: string): Promise<ProjectFilesystem> {
           // TODO Handle different types of changes intelligently.
           // https://developer.mozilla.org/docs/Web/API/FileSystemChangeRecord#type
           if (record.changedHandle) {
-            callback(record.changedHandle.name);
+            const path = record.changedHandle.name;
+            // Ignore filesystem notifications that are likely from our own recent writes,
+            // so that onFileChanged in ui.ts doesn't call assets editor's refresh(true).
+            // TODO: Consider better options than a time based threshold.
+            if (Date.now() - (lastWriteTime[path] || 0) < 2000) continue;
+            callback(path);
           }
         }
       });
