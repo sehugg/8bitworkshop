@@ -193,7 +193,8 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       }
     }
     // look for DEF_METASPRITE_2x2(playerRStand, 0xd8, 0)
-    // TODO: could also look in ROM
+    // TODO: this feature was never implemented, it would require a totally new type of editor and stuff
+    /*
     var re2 = /DEF_METASPRITE_(\d+)x(\d+)[(](\w+),\s*(\w+),\s*(\w+)/gi;
     while (m = re2.exec(data)) {
       var width = parseInt(m[1]);
@@ -210,6 +211,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       var meta = { defs: metadefs, width: width * 8, height: height * 8 };
       result.push({ fileid: id, label: ident, meta: meta });
     }
+    */
     // TODO: look for decode <ident> --- ... ---
     /*
     var re3 = /\bdecode\s+(\w+)\s*---(.+?)---/gims;

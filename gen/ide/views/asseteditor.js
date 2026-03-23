@@ -219,23 +219,25 @@ class AssetEditorView {
             }
         }
         // look for DEF_METASPRITE_2x2(playerRStand, 0xd8, 0)
-        // TODO: could also look in ROM
+        // TODO: this feature was never implemented, it would require a totally new type of editor and stuff
+        /*
         var re2 = /DEF_METASPRITE_(\d+)x(\d+)[(](\w+),\s*(\w+),\s*(\w+)/gi;
         while (m = re2.exec(data)) {
-            var width = parseInt(m[1]);
-            var height = parseInt(m[2]);
-            var ident = m[3];
-            var tile = parseInt(m[4]);
-            var attr = parseInt(m[5]);
-            var metadefs = [];
-            for (var x = 0; x < width; x++) {
-                for (var y = 0; y < height; y++) {
-                    metadefs.push({ x: x * 8, y: y * 8, tile: tile, attr: attr });
-                }
+          var width = parseInt(m[1]);
+          var height = parseInt(m[2]);
+          var ident = m[3];
+          var tile = parseInt(m[4]);
+          var attr = parseInt(m[5]);
+          var metadefs = [];
+          for (var x = 0; x < width; x++) {
+            for (var y = 0; y < height; y++) {
+              metadefs.push({ x: x * 8, y: y * 8, tile: tile, attr: attr });
             }
-            var meta = { defs: metadefs, width: width * 8, height: height * 8 };
-            result.push({ fileid: id, label: ident, meta: meta });
+          }
+          var meta = { defs: metadefs, width: width * 8, height: height * 8 };
+          result.push({ fileid: id, label: ident, meta: meta });
         }
+        */
         // TODO: look for decode <ident> --- ... ---
         /*
         var re3 = /\bdecode\s+(\w+)\s*---(.+?)---/gims;
