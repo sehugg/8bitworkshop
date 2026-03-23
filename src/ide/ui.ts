@@ -262,7 +262,7 @@ async function initProject() {
   current_project.callbackBuildStatus = (busy: boolean) => {
     setBusyStatus(busy);
   };
-  // Update views when file contents change.
+  // Update file views when file contents change.
   current_project.onFileChanged = (path: string, data: FileData) => {
     var wnd = projectWindows.id2window[path];
     if (wnd) {
@@ -273,6 +273,11 @@ async function initProject() {
       } else {
         console.warn('onFileChanged: unknown view or data type');
       }
+    }
+    // Also refresh the asset editor if it's the active view.
+    var assetWnd = projectWindows.id2window['#asseteditor'];
+    if (assetWnd && assetWnd === projectWindows.getActive()) {
+      assetWnd.refresh(true);
     }
   };
 }
