@@ -262,6 +262,19 @@ async function initProject() {
   current_project.callbackBuildStatus = (busy: boolean) => {
     setBusyStatus(busy);
   };
+  // Update views when file contents change.
+  current_project.onFileChanged = (path: string, data: FileData) => {
+    var wnd = projectWindows.id2window[path];
+    if (wnd) {
+      if (wnd instanceof SourceEditor && typeof data === 'string') {
+        wnd.setText(data);
+      } else if (wnd instanceof BinaryFileView && data instanceof Uint8Array) {
+        wnd.setData(data);
+      } else {
+        console.warn('onFileChanged: unknown view or data type');
+      }
+    }
+  };
 }
 
 function setBusyStatus(busy: boolean) {

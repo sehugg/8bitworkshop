@@ -118,6 +118,7 @@ export class CodeProject {
 
   callbackBuildResult: BuildResultCallback;
   callbackBuildStatus: BuildStatusCallback;
+  onFileChanged: (path: string, data: FileData) => void;
 
   constructor(worker, platform_id: string, platform, filesystem: ProjectFilesystem) {
     this.worker = worker;
@@ -128,6 +129,16 @@ export class CodeProject {
     worker.onmessage = (e) => {
       this.receiveWorkerMessage(e.data);
     };
+
+    filesystem.onFileSystemUpdate(async (path: string) => {
+      if (path in this.filedata) {
+        var data = await this.filesystem.getFileData(path);
+        if (data) {
+          this.updateFile(path, data);
+          if (this.onFileChanged) this.onFileChanged(path, data);
+        }
+      }
+    });
   }
 
   receiveWorkerMessage(data: WorkerResult) {
