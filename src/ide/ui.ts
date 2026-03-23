@@ -695,6 +695,23 @@ async function getLocalFilesystem(repoid: string): Promise<ProjectFilesystem> {
       const writable = await fileHandle.createWritable();
       await writable.write(data);
       await writable.close();
+    },
+    onFileSystemUpdate: (callback: (path: string) => void) => {
+      // Experimental API:
+      // https://developer.mozilla.org/docs/Web/API/FileSystemObserver
+      if (typeof (window as any).FileSystemObserver === 'undefined') {
+        return;
+      }
+      const observer = new (window as any).FileSystemObserver((records, observer) => {
+        for (const record of records) {
+          // TODO Handle different types of changes intelligently.
+          // https://developer.mozilla.org/docs/Web/API/FileSystemChangeRecord#type
+          if (record.changedHandle) {
+            callback(record.changedHandle.name);
+          }
+        }
+      });
+      observer.observe(dirHandle, { recursive: true });
     }
   }
 }

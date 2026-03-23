@@ -7,6 +7,7 @@ import { CodeListing, CodeListingMap, Dependency, FileData, Segment, SourceFile,
 export interface ProjectFilesystem {
   getFileData(path: string): Promise<FileData>;
   setFileData(path: string, data: FileData): Promise<void>;
+  onFileSystemUpdate(callback: (path: string) => void): void;
 }
 
 export class WebPresetsFileSystem implements ProjectFilesystem {
@@ -29,6 +30,9 @@ export class WebPresetsFileSystem implements ProjectFilesystem {
   async setFileData(path: string, data: FileData): Promise<void> {
     // not implemented
   }
+  onFileSystemUpdate(callback: (path: string) => void): void {
+    // not implemented
+  }
 }
 
 export class NullFilesystem implements ProjectFilesystem {
@@ -42,7 +46,9 @@ export class NullFilesystem implements ProjectFilesystem {
     this.sets.push(path);
     return;
   }
-
+  onFileSystemUpdate(callback: (path: string) => void): void {
+    // not implemented
+  }
 }
 
 export class OverlayFilesystem implements ProjectFilesystem {
@@ -64,6 +70,10 @@ export class OverlayFilesystem implements ProjectFilesystem {
     await this.overlayfs.setFileData(path, data);
     return this.basefs.setFileData(path, data);
   }
+  onFileSystemUpdate(callback: (path: string) => void): void {
+    this.overlayfs.onFileSystemUpdate(callback);
+    this.basefs.onFileSystemUpdate(callback);
+  }
 }
 
 export class LocalForageFilesystem implements ProjectFilesystem {
@@ -76,6 +86,9 @@ export class LocalForageFilesystem implements ProjectFilesystem {
   }
   async setFileData(path: string, data: FileData): Promise<void> {
     return this.store.setItem(path, data);
+  }
+  onFileSystemUpdate(callback: (path: string) => void): void {
+    // not implemented
   }
 }
 

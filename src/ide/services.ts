@@ -395,4 +395,7 @@ export class FirebaseProjectFilesystem implements ProjectFilesystem {
       filedata: data
     });
   }
+  onFileSystemUpdate(callback: (path: string) => void): void {
+    // not implemented
+  }
 }
