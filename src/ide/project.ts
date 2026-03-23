@@ -66,7 +66,7 @@ export class OverlayFilesystem implements ProjectFilesystem {
   }
 }
 
-export class LocalForageFilesystem {
+export class LocalForageFilesystem implements ProjectFilesystem {
   store: any;
   constructor(store: any) {
     this.store = store;
