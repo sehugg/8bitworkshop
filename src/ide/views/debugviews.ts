@@ -202,6 +202,7 @@ export class VRAMMemoryView extends MemoryView {
 
 export class BinaryFileView implements ProjectView {
   vlist: VirtualTextScroller;
+  parent: HTMLElement;
   maindiv: HTMLElement;
   path: string;
   data: Uint8Array;
@@ -212,10 +213,21 @@ export class BinaryFileView implements ProjectView {
     this.data = data;
   }
 
+  private populateVlist() {
+    $(this.vlist.maindiv).empty();
+    this.vlist.create(this.parent, ((this.data.length + 15) >> 4), this.getMemoryLineAt.bind(this));
+  }
+
   createDiv(parent: HTMLElement) {
-    this.vlist = new VirtualTextScroller(parent);
-    this.vlist.create(parent, ((this.data.length + 15) >> 4), this.getMemoryLineAt.bind(this));
+    this.parent = parent;
+    this.vlist = new VirtualTextScroller(this.parent);
+    this.populateVlist();
     return this.vlist.maindiv;
+  }
+
+  setData(data: Uint8Array) {
+    this.data = data;
+    this.populateVlist();
   }
 
   getMemoryLineAt(row: number): VirtualTextLine {
