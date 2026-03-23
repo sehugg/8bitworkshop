@@ -27,6 +27,7 @@ const baseviews_1 = require("./baseviews");
 const debug_1 = require("./debug");
 const filters_1 = require("./filters");
 const gutter_1 = require("./gutter");
+const assetdecorations_1 = require("./assetdecorations");
 const tabs_1 = require("./tabs");
 const visuals_1 = require("./visuals");
 // TODO: make this an easily toggleable debug setting.
@@ -204,6 +205,9 @@ class SourceEditor {
                 gutter_1.currentPcMarker.field,
                 gutter_1.currentPcMarker.gutter,
                 visuals_1.highlightLines.field,
+                (0, assetdecorations_1.createAssetHeaderPlugin)((lineNumber) => {
+                    window.location.hash = 'asseteditor/' + encodeURIComponent(this.path) + '/' + lineNumber;
+                }),
                 filters_1.textTransformFilterCompartment.of([]),
                 // update file in project (and recompile) when edits made
                 view_1.EditorView.updateListener.of(update => {
@@ -250,9 +254,22 @@ class SourceEditor {
         var oldtext = this.editor.state.doc.toString();
         if (oldtext != text) {
             this.editor.dispatch({
-                changes: { from: 0, to: this.editor.state.doc.length, insert: text }
+                changes: { from: 0, to: this.editor.state.doc.length, insert: text },
+                annotations: commands_1.isolateHistory.of("full")
             });
         }
+    }
+    replaceTextRange(from, to, text) {
+        const fromline = this.editor.state.doc.lineAt(from).number;
+        const toline = this.editor.state.doc.lineAt(to).number;
+        this.editor.dispatch({
+            changes: { from, to, insert: text },
+            annotations: commands_1.isolateHistory.of("full"),
+            selection: { anchor: from, head: to },
+            effects: [
+                view_1.EditorView.scrollIntoView(this.editor.state.doc.line(fromline).from, { y: "start", yMargin: 100 /*pixels*/ }),
+            ]
+        });
     }
     insertLinesBefore(text) {
         const pos = this.editor.state.selection.main.from;
@@ -485,6 +502,9 @@ class SourceEditor {
     }
     undoStep() {
         (0, commands_1.undo)(this.editor);
+    }
+    redoStep() {
+        (0, commands_1.redo)(this.editor);
     }
     getBreakpointPCs() {
         if (this.sourcefile == null)

@@ -1726,6 +1726,9 @@ function hashToViewIdResolved(hash) {
     if (!hash || hash === '#')
         return null;
     var id = decodeURIComponent(hash.substring(1));
+    // check for extended asset editor hash (e.g. #asseteditor/filename/startline)
+    if (id.startsWith('asseteditor/'))
+        return '#asseteditor';
     // check if it's a registered tool window (e.g. #asseteditor)
     if (exports.projectWindows.isWindow('#' + id))
         return '#' + id;
@@ -1748,6 +1751,7 @@ function installHashChangeHandler() {
 function navigateToInitialHash(initialHash) {
     if (initialHash && initialHash !== '#') {
         const viewId = hashToViewIdResolved(initialHash) || getCurrentMainFilename();
+        history.replaceState(null, '', initialHash);
         exports.projectWindows.createOrShow(viewId);
     }
 }

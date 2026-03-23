@@ -12,6 +12,7 @@ class ProjectWindows {
         this.containerdiv = containerdiv;
         this.project = project;
         this.undofiles = [];
+        this.redofiles = [];
     }
     // TODO: delete windows ever?
     isWindow(id) {
@@ -63,7 +64,8 @@ class ProjectWindows {
             }
             else {
                 const hash = id.startsWith('#') ? id : '#' + encodeURIComponent(id);
-                if (window.location.hash !== hash) {
+                // don't overwrite an extended hash (e.g. #asseteditor/file/line) with the base hash
+                if (window.location.hash !== hash && !window.location.hash.startsWith(hash + '/')) {
                     history.replaceState(null, '', hash);
                 }
             }
@@ -129,20 +131,53 @@ class ProjectWindows {
         if (wnd && wnd.setText && typeof data === 'string') {
             wnd.setText(data);
             this.undofiles.push(fileid);
+            this.redofiles = [];
         }
         else {
             this.project.updateFile(fileid, data);
         }
+    }
+    replaceTextRange(fileid, from, to, text) {
+        var wnd = this.id2window[fileid] || this.create(fileid);
+        wnd.replaceTextRange(from, to, text);
+        this.undofiles.push(fileid);
+        this.redofiles = [];
     }
     undoStep() {
         var fileid = this.undofiles.pop();
         var wnd = this.id2window[fileid];
         if (wnd && wnd.undoStep) {
             wnd.undoStep();
+            if (wnd.getValue) {
+                this.project.updateFile(fileid, wnd.getValue());
+            }
+            this.redofiles.push(fileid);
+            this.refresh(false);
         }
         else {
-            bootbox.alert("No more steps to undo.");
+            this.showAlert("No more steps to undo.");
         }
+    }
+    redoStep() {
+        var fileid = this.redofiles.pop();
+        var wnd = this.id2window[fileid];
+        if (wnd && wnd.redoStep) {
+            wnd.redoStep();
+            if (wnd.getValue) {
+                this.project.updateFile(fileid, wnd.getValue());
+            }
+            this.undofiles.push(fileid);
+            this.refresh(false);
+        }
+        else {
+            this.showAlert("No more steps to redo.");
+        }
+    }
+    showAlert(msg) {
+        if (this.alerting)
+            return;
+        this.alerting = true;
+        bootbox.alert(msg, () => { this.alerting = false; });
     }
     updateAllOpenWindows(store) {
         for (var fileid in this.id2window) {

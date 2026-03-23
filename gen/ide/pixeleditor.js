@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TwoWayMapper = exports.Viewer = exports.MapEditor = exports.CharmapEditor = exports.ImageChooser = exports.NESNametableConverter = exports.MetaspriteCompositor = exports.Compositor = exports.PaletteFormatToRGB = exports.Palettizer = exports.Mapper = exports.Compressor = exports.TextDataNode = exports.FileDataNode = exports.PixNode = void 0;
+exports.TwoWayMapper = exports.Viewer = exports.MapEditor = exports.CharmapEditor = exports.ImageChooser = exports.NESNametableConverter = exports.MetaspriteCompositor = exports.Compositor = exports.PaletteEditorView = exports.PaletteFormatToRGB = exports.Palettizer = exports.Mapper = exports.Compressor = exports.TextDataNode = exports.FileDataNode = exports.PixNode = void 0;
 exports.parseHexWords = parseHexWords;
 exports.replaceHexWords = replaceHexWords;
 exports.convertWordsToImages = convertWordsToImages;
+exports.validateAssetData = validateAssetData;
 exports.convertImagesToWords = convertImagesToWords;
 exports.convertPaletteBytes = convertPaletteBytes;
 exports.getPaletteLength = getPaletteLength;
@@ -28,9 +29,9 @@ function parseHexWords(s) {
     var m;
     while (m = pixel_re.exec(s)) {
         var n;
-        if (typeof m[4] !== 'undefined')
+        if (m[4])
             n = parseInt(m[5], 2);
-        else if (m[2].startsWith('%') || m[2].endsWith("b"))
+        else if (m[2].startsWith('%'))
             n = parseInt(m[3], 2);
         else if (m[2].startsWith('x') || m[2].startsWith('$') || m[2].endsWith('h'))
             n = parseInt(m[3], 16);
@@ -40,26 +41,25 @@ function parseHexWords(s) {
     }
     return arr;
 }
-function replaceHexWords(s, words) {
+function replaceHexWords(s, words, bpw) {
     var result = "";
     var m;
     var li = 0;
     var i = 0;
+    var nibbles = Math.ceil(bpw / 4);
     while (m = pixel_re.exec(s)) {
         result += s.slice(li, pixel_re.lastIndex - m[0].length);
         li = pixel_re.lastIndex;
-        if (typeof m[4] !== 'undefined')
-            result += m[4] + words[i++].toString(2);
+        if (m[4])
+            result += m[4] + (0, util_1.tobin)(words[i++], parseInt(m[4]));
         else if (m[2].startsWith('%'))
-            result += m[1] + "%" + words[i++].toString(2);
-        else if (m[2].endsWith('b'))
-            result += m[1] + m[2] + words[i++].toString(2); // TODO
+            result += m[1] + m[2] + (0, util_1.tobin)(words[i++], bpw);
         else if (m[2].endsWith('h'))
-            result += m[1] + m[2] + words[i++].toString(16); // TODO
+            result += m[1] + m[2] + (0, util_1.hex)(words[i++], parseInt(m[2]));
         else if (m[2].startsWith('x'))
-            result += m[1] + "x" + (0, util_1.hex)(words[i++]);
+            result += m[1] + "x" + (0, util_1.hex)(words[i++], nibbles);
         else if (m[2].startsWith('$'))
-            result += m[1] + "$" + (0, util_1.hex)(words[i++]);
+            result += m[1] + "$" + (0, util_1.hex)(words[i++], nibbles);
         else
             result += m[1] + words[i++].toString();
     }
@@ -135,6 +135,51 @@ function convertWordsToImages(words, fmt) {
         images.push(new Uint8Array(imgdata));
     }
     return images;
+}
+function validateAssetData(datastr, fmt) {
+    var words = parseHexWords(convertToHexStatements(datastr));
+    if (fmt.comp == 'rletag') {
+        words = Array.from((0, util_1.rle_unpack)(new Uint8Array(words)));
+    }
+    if (fmt.w > 0 && fmt.h > 0) {
+        // same variables as convertWordsToImages
+        var count = fmt.count || 1;
+        var bpp = fmt.bpp || 1;
+        var nplanes = fmt.np || 1;
+        var bitsperword = fmt.bpw || 8;
+        var wordsperline = fmt.sl || Math.ceil(fmt.w * bpp / bitsperword);
+        var pofs = fmt.pofs || wordsperline * fmt.h * count;
+        var skip = fmt.skip || 0;
+        var wpimg = fmt.wpimg || (fmt.map === 'nesnt' ? 1024 : wordsperline * fmt.h);
+        var maxOffset = 0;
+        for (var n = 0; n < count; n++) {
+            for (var i = 0; i < wpimg; i++) {
+                var offset0 = wpimg * n + i;
+                var offset;
+                if (fmt.reindex) {
+                    var maxReindexOfs = 0;
+                    for (var x = 0; x < fmt.w; x++) {
+                        maxReindexOfs = Math.max(maxReindexOfs, reindexMask(x, fmt.reindex)[0]);
+                    }
+                    offset = offset0 + maxReindexOfs;
+                }
+                else {
+                    offset = remapBits(offset0, fmt.remap);
+                }
+                maxOffset = Math.max(maxOffset, offset);
+            }
+        }
+        var required = maxOffset + (nplanes > 1 ? (nplanes - 1) * pofs : 0) + 1 + skip;
+        if (words.length != required) {
+            return `Expected ${required} value(s), found ${words.length}`;
+        }
+    }
+    else if (fmt.pal) {
+        if (words.length < 1) {
+            return `Palette requires at least 1 value, found ${words.length}`;
+        }
+    }
+    return null;
 }
 function convertImagesToWords(images, fmt) {
     if (fmt.destfmt)
@@ -371,13 +416,14 @@ class FileDataNode extends CodeProjectDataNode {
 exports.FileDataNode = FileDataNode;
 class TextDataNode extends CodeProjectDataNode {
     // TODO: what if file size/layout changes?
-    constructor(project, fileid, label, start, end) {
+    constructor(project, fileid, label, start, end, bpw) {
         super();
         this.project = project;
         this.fileid = fileid;
         this.label = label;
         this.start = start;
         this.end = end;
+        this.bpw = bpw || 8;
     }
     updateLeft() {
         if (this.right.words.length != this.words.length)
@@ -385,12 +431,12 @@ class TextDataNode extends CodeProjectDataNode {
         this.words = this.right.words;
         // TODO: reload editors?
         var datastr = this.text.substring(this.start, this.end);
-        datastr = replaceHexWords(datastr, this.words);
-        this.text = this.text.substring(0, this.start) + datastr + this.text.substring(this.end);
+        datastr = replaceHexWords(datastr, this.words, this.bpw);
         if (this.project) {
-            this.project.updateFile(this.fileid, this.text);
-            //this.project.replaceTextRange(this.fileid, this.start, this.end, datastr);
+            this.project.replaceTextRange(this.fileid, this.start, this.end, datastr);
         }
+        this.text = this.text.substring(0, this.start) + datastr + this.text.substring(this.end);
+        this.end = this.start + datastr.length;
         return true;
     }
     updateRight() {
@@ -549,6 +595,20 @@ class PaletteFormatToRGB extends PixNode {
     }
 }
 exports.PaletteFormatToRGB = PaletteFormatToRGB;
+class PaletteEditorView extends PixNode {
+    constructor(updateCells) {
+        super();
+        this.updateCells = updateCells;
+    }
+    updateLeft() {
+        return true;
+    }
+    updateRight() {
+        this.updateCells();
+        return true;
+    }
+}
+exports.PaletteEditorView = PaletteEditorView;
 class Compositor extends PixNode {
     constructor(context) {
         super();
@@ -647,6 +707,7 @@ class ImageChooser {
     recreate(parentdiv, onclick) {
         var agrid = $('<div class="asset_grid"/>'); // grid (or 1) of preview images
         parentdiv.empty().append(agrid);
+        this.viewers = [];
         var cscale = Math.max(2, Math.ceil(16 / this.width)); // TODO
         var imgsperline = this.width <= 8 ? 16 : 8; // TODO
         var span = null;
@@ -662,6 +723,7 @@ class ImageChooser {
             $(viewer.canvas).click((e) => {
                 onclick(i, viewer);
             });
+            this.viewers.push(viewer);
             if (!span) {
                 span = $('<span/>');
                 agrid.append(span);
@@ -673,6 +735,12 @@ class ImageChooser {
                 span = null;
             }
         });
+    }
+    updateImages(rgbimgs) {
+        this.rgbimgs = rgbimgs;
+        for (var i = 0; i < this.viewers.length; i++) {
+            this.viewers[i].updateImage(rgbimgs[i]);
+        }
     }
 }
 exports.ImageChooser = ImageChooser;
@@ -698,6 +766,15 @@ class CharmapEditor extends PixNode {
         if (equalNestedArrays(this.rgbimgs, this.left.rgbimgs))
             return false;
         this.rgbimgs = this.left.rgbimgs;
+        // if chooser already exists with same number of images, update in place
+        if (this.chooser && this.chooser.viewers && this.chooser.viewers.length == this.rgbimgs.length) {
+            this.chooser.updateImages(this.rgbimgs);
+            // keep rgbimgs pointing to viewer buffers so edits propagate back via refreshLeft
+            for (var i = 0; i < this.chooser.viewers.length; i++) {
+                this.rgbimgs[i] = this.chooser.viewers[i].rgbdata;
+            }
+            return true;
+        }
         var adual = newDiv(this.parentdiv.empty(), "asset_dual"); // contains grid and editor
         var agrid = newDiv(adual);
         var aeditor = newDiv(adual, "asset_editor").hide(); // contains editor, when selected
@@ -790,7 +867,8 @@ class Viewer {
         this.imagedata = pv.imagedata;
         this.rgbdata = pv.rgbdata;
         this.canvas = this.newCanvas();
-        this.peerviewers = [this, pv];
+        pv.peerviewers.push(this);
+        this.peerviewers = pv.peerviewers;
     }
     newCanvas() {
         var c = document.createElement('canvas');

@@ -39,6 +39,14 @@ const ui_1 = require("../ui");
 const util_1 = require("../../common/util");
 const pixed = __importStar(require("../pixeleditor"));
 const Mousetrap = require("mousetrap");
+function getLineNumber(data, offset) {
+    let line = 1;
+    for (let i = 0; i < offset && i < data.length; i++) {
+        if (data[i] === '\n')
+            line++;
+    }
+    return line;
+}
 class AssetEditorView {
     createDiv(parent) {
         this.maindiv = (0, baseviews_1.newDiv)(parent, "vertical-scroll");
@@ -147,13 +155,28 @@ class AssetEditorView {
             node = node.left;
         }
         this.cureditnode = node;
+        this.updateHashForSelection(div);
+    }
+    updateHashForSelection(div) {
+        if (typeof window === 'undefined')
+            return;
+        var block = div ? div.closest('.asset_block[data-fileid]') : null;
+        var fileid = block && block.attr('data-fileid');
+        var startline = block && block.attr('data-startline');
+        var hash = '#asseteditor';
+        if (fileid && startline) {
+            hash += '/' + encodeURIComponent(fileid) + '/' + startline;
+        }
+        if (window.location.hash !== hash) {
+            history.replaceState(null, '', hash);
+        }
     }
     scanFileTextForAssets(id, data) {
         // scan file for assets
         // /*{json}*/ or ;;{json};;
         // TODO: put before ident, look for = {
-        var result = [];
         var re1 = /[/;][*;]([{].+[}])[*;][/;]/g;
+        var result = [];
         var m;
         while (m = re1.exec(data)) {
             var start = m.index + m[0].length;
@@ -164,20 +187,34 @@ class AssetEditorView {
             }
             else if (m[0].startsWith(';;')) {
                 end = data.indexOf(';;', start); // asm
+                if (end == data.indexOf(';;{', start)) {
+                    // ignore start of next asset
+                    end = -1;
+                }
             }
             else {
                 end = data.indexOf(';', start); // C
             }
             //console.log(id, start, end, m[1], data.substring(start,end));
-            if (end > start) {
+            var startline = getLineNumber(data, m.index);
+            var header = m[0];
+            var endline = end >= 0 ? getLineNumber(data, end) : '???';
+            if (end < 0) {
+                var closingDelim = ui_1.platform_id.includes('verilog') ? '"end"' : m[0].startsWith(';;') ? '";;"' : '";"';
+                result.push({ fileid: id, header: header, startline: startline, endline: endline, error: `No closing ${closingDelim} found after asset header` });
+            }
+            else if (end <= start) {
+                result.push({ fileid: id, header: header, startline: startline, endline: endline, error: `Empty data block after asset header` });
+            }
+            else {
                 try {
                     var jsontxt = m[1].replace(/([A-Za-z]+):/g, '"$1":'); // fix lenient JSON
                     var json = JSON.parse(jsontxt);
                     // TODO: name?
-                    result.push({ fileid: id, fmt: json, start: start, end: end });
+                    result.push({ fileid: id, header: header, startline: startline, endline: endline, fmt: json, start: start, end: end });
                 }
                 catch (e) {
-                    console.log(e);
+                    result.push({ fileid: id, header: header, startline: startline, endline: endline, error: `Invalid asset format: ${e.message}` });
                 }
             }
         }
@@ -211,7 +248,6 @@ class AssetEditorView {
     addPaletteEditorViews(parentdiv, pal2rgb, callback) {
         var adual = $('<div class="asset_dual"/>').appendTo(parentdiv);
         var aeditor = $('<div class="asset_editor"/>').hide(); // contains editor, when selected
-        // TODO: they need to update when refreshed from right
         var allrgbimgs = [];
         pal2rgb.getAllColors().forEach((rgba) => { allrgbimgs.push(new Uint32Array([rgba])); }); // array of array of 1 rgb color (for picker)
         var atable = $('<table/>').appendTo(adual);
@@ -226,12 +262,16 @@ class AssetEditorView {
                 layout.push(["", i, Math.min(len - i, imgsperline)]);
             }
         }
+        var cells = [];
         function updateCell(cell, j) {
             var val = pal2rgb.words[j];
             var rgb = pal2rgb.palette[j];
             var hexcol = '#' + (0, util_1.hex)((0, util_1.rgb2bgr)(rgb), 6);
             var textcol = (rgb & 0x008000) ? 'black' : 'white';
             cell.text((0, util_1.hex)(val, 2)).css('background-color', hexcol).css('color', textcol);
+        }
+        function updateAllCells() {
+            cells.forEach(({ cell, index }) => updateCell(cell, index));
         }
         // iterate over each row of the layout
         layout.forEach(([name, start, len]) => {
@@ -245,6 +285,7 @@ class AssetEditorView {
                     inds.reverse();
                 inds.forEach((i) => {
                     var cell = $('<td/>').addClass('asset_cell asset_editable').appendTo(arow);
+                    cells.push({ cell, index: i });
                     updateCell(cell, i);
                     cell.click((e) => {
                         var chooser = new pixed.ImageChooser();
@@ -260,6 +301,7 @@ class AssetEditorView {
                 });
             }
         });
+        return updateAllCells;
     }
     addPixelEditor(parentdiv, firstnode, fmt) {
         // data -> pixels
@@ -279,9 +321,7 @@ class AssetEditorView {
         firstnode.addRight(pal2rgb);
         // TODO: refresh twice?
         firstnode.refreshRight();
-        // TODO: add view objects
-        // TODO: show which one is selected?
-        this.addPaletteEditorViews(parentdiv, pal2rgb, (index, newvalue) => {
+        var updateAllCells = this.addPaletteEditorViews(parentdiv, pal2rgb, (index, newvalue) => {
             console.log('set entry', index, '=', newvalue);
             // TODO: this forces update of palette rgb colors and file data
             firstnode.words[index] = newvalue;
@@ -289,6 +329,8 @@ class AssetEditorView {
             pal2rgb.updateRight();
             pal2rgb.refreshLeft();
         });
+        // add view node to repaint cells when data changes (e.g. undo)
+        pal2rgb.addRight(new pixed.PaletteEditorView(updateAllCells));
     }
     ensureFileDiv(fileid) {
         var divid = this.getFileDivId(fileid);
@@ -324,9 +366,35 @@ class AssetEditorView {
         else if (typeof data === 'string') {
             let textfrags = this.scanFileTextForAssets(fileid, data);
             for (let frag of textfrags) {
+                const block = $('<div class="asset_block"/>')
+                    .attr({ 'data-fileid': fileid, 'data-startline': frag.startline })
+                    .appendTo(this.ensureFileDiv(fileid));
+                var snip = $('<div class="asset_snip"/>').appendTo(block);
+                var linenos = $('<span class="asset_linenos"/>').appendTo(snip);
+                $('<span class="asset_lineno"/>').text(frag.startline).appendTo(linenos);
+                linenos.append('-');
+                $('<span class="asset_lineno"/>').text(frag.endline).appendTo(linenos);
+                linenos.attr('title', 'Jump to source');
+                linenos.click(() => {
+                    var editor = ui_1.projectWindows.createOrShow(frag.fileid, true);
+                    if (editor && editor.highlightLines) {
+                        editor.highlightLines(frag.startline - 1, (frag.endline > 0 ? frag.endline : frag.startline) - 1);
+                    }
+                });
+                snip.append(' ' + frag.header);
+                if (frag.error) {
+                    $('<div class="asset_error_msg"/>').text(frag.error).appendTo(block);
+                    continue;
+                }
                 if (frag.fmt) {
+                    // validate data block size before creating editors
+                    const assetError = pixed.validateAssetData(data.substring(frag.start, frag.end), frag.fmt);
+                    if (assetError) {
+                        $('<div class="asset_error_msg"/>').text(assetError).appendTo(block);
+                        continue;
+                    }
                     let label = fileid; // TODO: label
-                    let node = new pixed.TextDataNode(ui_1.projectWindows, fileid, label, frag.start, frag.end);
+                    let node = new pixed.TextDataNode(ui_1.projectWindows, fileid, label, frag.start, frag.end, frag.fmt.bpw);
                     let first = node;
                     // rle-compressed? TODO: how to edit?
                     if (frag.fmt.comp == 'rletag') {
@@ -337,19 +405,19 @@ class AssetEditorView {
                         node = node.addRight(new pixed.NESNametableConverter(this));
                         node = node.addRight(new pixed.Palettizer(this, { w: 8, h: 8, bpp: 4 }));
                         const fmt = { w: 8 * (frag.fmt.w || 32), h: 8 * (frag.fmt.h || 30), count: 1 }; // TODO: can't do custom sizes
-                        node = node.addRight(new pixed.MapEditor(this, (0, baseviews_1.newDiv)(this.ensureFileDiv(fileid)), fmt));
+                        node = node.addRight(new pixed.MapEditor(this, (0, baseviews_1.newDiv)(block), fmt));
                         this.registerAsset("nametable", first, 2);
                         nassets++;
                     }
                     // is this a bitmap?
                     else if (frag.fmt.w > 0 && frag.fmt.h > 0) {
-                        this.addPixelEditor(this.ensureFileDiv(fileid), node, frag.fmt);
+                        this.addPixelEditor(block, node, frag.fmt);
                         this.registerAsset("charmap", first, 1);
                         nassets++;
                     }
                     // is this a palette?
                     else if (frag.fmt.pal) {
-                        this.addPaletteEditor(this.ensureFileDiv(fileid), node, frag.fmt);
+                        this.addPaletteEditor(block, node, frag.fmt);
                         this.registerAsset("palette", first, 0);
                         nassets++;
                     }
@@ -391,26 +459,57 @@ class AssetEditorView {
                 }
             });
             this.deferrednodes = [];
+            if (this.maindiv.children().length === 0) {
+                $('<div class="asset_no_assets"/>')
+                    .text("No asset declarations found.")
+                    .appendTo(this.maindiv);
+            }
+            this.scrollToAssetFromHash();
         }
         else {
-            // only refresh nodes if not actively editing
-            // since we could be in the middle of an operation that hasn't been committed
+            if (this.rootnodes.length > 0) {
+                this.maindiv.find('.asset_no_assets').remove();
+            }
             for (var node of this.rootnodes) {
-                if (node !== this.getCurrentEditNode()) {
-                    node.refreshRight();
-                }
+                node.refreshRight();
             }
         }
+    }
+    scrollToAssetFromHash() {
+        var hash = window.location.hash;
+        if (!hash || !hash.startsWith('#asseteditor/'))
+            return;
+        var parts = hash.substring(1).split('/'); // ['asseteditor', ...filename, startline]
+        var fileid = decodeURIComponent(parts.slice(1, -1).join('/'));
+        var startline = parts[parts.length - 1];
+        if (!fileid || !startline)
+            return;
+        // defer to allow DOM to settle
+        setTimeout(() => {
+            const block = this.maindiv.find(`.asset_block[data-fileid="${fileid}"][data-startline="${startline}"]`);
+            if (block.length) {
+                block[0].scrollIntoView({ behavior: "smooth", block: "center" });
+                block.addClass('asset_highlight');
+                setTimeout(() => block.removeClass('asset_highlight'), 500);
+            }
+        }, 0);
     }
     setVisible(showing) {
         // TODO: make into toolbar?
         if (showing) {
-            if (Mousetrap.bind)
-                Mousetrap.bind('mod+z', ui_1.projectWindows.undoStep.bind(ui_1.projectWindows));
+            // limit undo/redo to since opening this editor
+            ui_1.projectWindows.undofiles = [];
+            ui_1.projectWindows.redofiles = [];
+            if (Mousetrap.bind) {
+                Mousetrap.bind('mod+z', (e) => { ui_1.projectWindows.undoStep(); return false; });
+                Mousetrap.bind('mod+shift+z', (e) => { ui_1.projectWindows.redoStep(); return false; });
+            }
         }
         else {
-            if (Mousetrap.unbind)
+            if (Mousetrap.unbind) {
                 Mousetrap.unbind('mod+z');
+                Mousetrap.unbind('mod+shift+z');
+            }
         }
     }
 }
