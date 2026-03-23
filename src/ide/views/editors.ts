@@ -1,5 +1,5 @@
 import { closeBrackets, deleteBracketPair } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyKeymap, undo } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory, redo, undo } from "@codemirror/commands";
 import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, foldGutter, indentOnInput, indentUnit } from "@codemirror/language";
@@ -26,6 +26,7 @@ import { isMobileDevice, ProjectView } from "./baseviews";
 import { debugHighlightTagsTooltip } from "./debug";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
 import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset, statusMarkers } from "./gutter";
+import { createAssetHeaderPlugin } from "./assetdecorations";
 import { tabKeymap } from "./tabs";
 import { currentPc, errorMessages, errorSpans, highlightLines, showValue } from "./visuals";
 
@@ -244,6 +245,10 @@ export class SourceEditor implements ProjectView {
 
         highlightLines.field,
 
+        createAssetHeaderPlugin((lineNumber: number) => {
+          window.location.hash = 'asseteditor/' + encodeURIComponent(this.path) + '/' + lineNumber;
+        }),
+
         textTransformFilterCompartment.of([]),
 
         // update file in project (and recompile) when edits made
@@ -296,9 +301,23 @@ export class SourceEditor implements ProjectView {
     var oldtext = this.editor.state.doc.toString();
     if (oldtext != text) {
       this.editor.dispatch({
-        changes: { from: 0, to: this.editor.state.doc.length, insert: text }
+        changes: { from: 0, to: this.editor.state.doc.length, insert: text },
+        annotations: isolateHistory.of("full")
       });
     }
+  }
+
+  replaceTextRange(from: number, to: number, text: string) {
+    const fromline = this.editor.state.doc.lineAt(from).number;
+    const toline = this.editor.state.doc.lineAt(to).number;
+    this.editor.dispatch({
+      changes: { from, to, insert: text },
+      annotations: isolateHistory.of("full"),
+      selection: { anchor: from, head: to },
+      effects: [
+        EditorView.scrollIntoView(this.editor.state.doc.line(fromline).from, { y: "start", yMargin: 100/*pixels*/ }),
+      ]
+    });
   }
 
   insertLinesBefore(text: string) {
@@ -549,6 +568,10 @@ export class SourceEditor implements ProjectView {
 
   undoStep() {
     undo(this.editor);
+  }
+
+  redoStep() {
+    redo(this.editor);
   }
 
   getBreakpointPCs(): number[] {
