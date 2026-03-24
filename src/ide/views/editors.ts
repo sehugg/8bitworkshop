@@ -1,11 +1,10 @@
-import { closeBrackets, deleteBracketPair } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory, redo, undo } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, indentSelection, isolateHistory, redo, undo } from "@codemirror/commands";
 import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
-import { bracketMatching, foldGutter, indentOnInput, indentUnit } from "@codemirror/language";
+import { bracketMatching, foldGutter, indentOnInput, indentService, indentUnit } from "@codemirror/language";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { EditorState, Extension } from "@codemirror/state";
-import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, highlightSpecialChars, keymap, lineNumbers, rectangularSelection, ViewUpdate } from "@codemirror/view";
+import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, rectangularSelection, ViewUpdate } from "@codemirror/view";
 import { CodeAnalyzer } from "../../common/analysis";
 import { hex, rpad } from "../../common/util";
 import { SourceFile, SourceLocation, WorkerError } from "../../common/workertypes";
@@ -21,21 +20,13 @@ import { cobalt } from "../../themes/cobalt";
 import { disassemblyTheme } from "../../themes/disassemblyTheme";
 import { editorTheme } from "../../themes/editorTheme";
 import { mbo } from "../../themes/mbo";
-import { clearBreakpoint, current_project, lastDebugState, platform, projectWindows, qs, runToPC } from "../ui";
+import { loadSettings, registerEditor, settingsExtensions } from "../settings";
+import { clearBreakpoint, current_project, lastDebugState, platform, qs, runToPC } from "../ui";
+import { createAssetHeaderPlugin } from "./assetdecorations";
 import { isMobileDevice, ProjectView } from "./baseviews";
-import { debugHighlightTagsTooltip } from "./debug";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
 import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset, statusMarkers } from "./gutter";
-import { createAssetHeaderPlugin } from "./assetdecorations";
-import { tabKeymap } from "./tabs";
 import { currentPc, errorMessages, errorSpans, highlightLines, showValue } from "./visuals";
-
-// TODO: make this an easily toggleable debug setting.
-// Debug syntax highlighting. Useful when developing new parsers and themes.
-const debugHighlightTags = false;
-
-
-/////
 
 // look ahead this many bytes when finding source lines for a PC
 export const PC_LINE_LOOKAHEAD = 64;
@@ -52,8 +43,8 @@ const MODEDEFS = {
   inform6: { theme: cobalt },
   markdown: { lineWrap: true },
   fastbasic: { noGutters: true },
-  basic: { noLineNumbers: true, noGutters: true }, // TODO: not used?
-  ecs: { theme: mbo, isAsm: true },
+  basic: { noLineNumbers: true, noGutters: true },
+  ecs: { theme: mbo }, // TODO: is actually mixed-mode, as is verilog
 }
 
 export var textMapFunctions = {
@@ -101,7 +92,7 @@ export class SourceEditor implements ProjectView {
     var isAsm = isAsmOverride || modedef.isAsm;
     var lineWrap = !!modedef.lineWrap;
     var theme = modedef.theme || MODEDEFS.default.theme;
-    var lineNums = !modedef.noLineNumbers && !isMobileDevice;
+    var lineNums = !isAsm && !modedef.noLineNumbers && !isMobileDevice;
     if (qs['embed']) {
       lineNums = false; // no line numbers while embedded
       isAsm = false; // no opcode bytes either
@@ -149,15 +140,29 @@ export class SourceEditor implements ProjectView {
       doc: text,
       extensions: [
 
-        // Custom keybindings must appear before default keybindings.
+        // Non-asm: 2-space indent (placed before settings so it takes precedence over tabSize-based indentUnit)
+        isAsm ? [] : indentUnit.of("  "),
+        // Asm: copy previous line's indentation since asm parsers lack proper indent rules
+        isAsm ? indentService.of((context, pos) => {
+          let lineNum = context.state.doc.lineAt(pos).number;
+          if (lineNum >= 0) {
+            let prevLine = context.state.doc.line(lineNum);
+            if (prevLine.text.trim()) {
+              return context.lineIndent(prevLine.from);
+            }
+          }
+          return 0;
+        }) : [],
+
+        // Keybindings from settings must appear before default keymap.
+        ...settingsExtensions(loadSettings()),
         keymap.of([
-          { key: "Backspace", run: deleteBracketPair },
+          { key: "Ctrl-Shift-i", run: indentSelection },
+          { key: "Cmd-Shift-i", run: indentSelection },
         ]),
         keymap.of(defaultKeymap),
 
         lineNums ? lineNumbers() : [],
-
-        highlightSpecialChars(),
 
         // Undo history.
         history(),
@@ -173,7 +178,6 @@ export class SourceEditor implements ProjectView {
 
         indentOnInput(),
         bracketMatching(),
-        closeBrackets(),
 
         // Rectangular selection and crosshair cursor.
         rectangularSelection(),
@@ -192,10 +196,6 @@ export class SourceEditor implements ProjectView {
         parser || [],
         theme,
         editorTheme,
-        debugHighlightTags ? debugHighlightTagsTooltip : [],
-        EditorState.tabSize.of(8),
-        indentUnit.of("        "),
-        keymap.of(tabKeymap),
         lineWrap ? EditorView.lineWrapping : [],
 
         currentPc.field,
@@ -267,6 +267,8 @@ export class SourceEditor implements ProjectView {
         }),
       ],
     });
+    // TODO: unregister when editor is destroyed
+    registerEditor(this.editor);
   }
 
   editorChanged() {
@@ -636,7 +638,6 @@ export class DisassemblerView implements ProjectView {
         drawSelection(),
         highlightActiveLine(),
         highlightSelectionMatches(),
-        debugHighlightTags ? debugHighlightTagsTooltip : [],
         disassemblyTheme,
         cobalt,
         currentPc.field,
