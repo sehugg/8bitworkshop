@@ -87,6 +87,7 @@ export function applySettingsToAll(settings: EditorSettings) {
 export function openSettings() {
   var settings = loadSettings();
   bootbox.dialog({
+    onEscape: true,
     title: "Settings",
     message: `<form id="settingsForm" onsubmit="return false">
        <h5>Editor preferences</h5>
