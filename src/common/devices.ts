@@ -68,7 +68,7 @@ export interface SampledAudioSource {
 }
 
 export interface AcceptsROM {
-  loadROM(data: Uint8Array, title?: string): void;
+  loadROM(data: Uint8Array, title?: string, origin?: number): void;
 }
 
 export interface AcceptsBIOS {
@@ -247,7 +247,7 @@ export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, P
   reset() {
     this.cpu.reset();
   }
-  loadROM(data: Uint8Array, title?: string): void {
+  loadROM(data: Uint8Array, title?: string, origin?: number): void {
     if (!this.rom) this.rom = new Uint8Array(this.defaultROMSize);
     if (data.length > this.rom.length)
       throw new Error(`ROM too big: ${data.length} > ${this.rom.length}`);

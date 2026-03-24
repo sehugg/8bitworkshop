@@ -870,7 +870,7 @@ function getErrorElement(err: WorkerError) {
       link.click((ev) => {
         var wnd = projectWindows.createOrShow(path);
         if (wnd instanceof SourceEditor) {
-          wnd.setCurrentLine(err, true);
+          wnd.navigateToLine(err.line);
         }
       });
     }
@@ -934,7 +934,7 @@ async function setCompileOutput(data: WorkerResult) {
       try {
         clearBreakpoint(); // so we can replace memory (TODO: change toolbar btn)
         _resetRecording();
-        await platform.loadROM(getCurrentPresetTitle(), rom);
+        await platform.loadROM(getCurrentPresetTitle(), rom, data.origin);
         current_output = rom;
         if (!userPaused) _resume();
         writeOutputROMFile();
