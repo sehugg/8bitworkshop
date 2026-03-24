@@ -30,6 +30,8 @@ const basicParser: StreamParser<BasicState> = {
 
   indent(state, textAfter, context) {
     const unit = context.unit;
+    // Numbered BASIC lines don't use indentation
+    if (/^\s*\d/.test(textAfter)) return 0;
     const closing = /^(?:next|end|wend|else|to|then)\b/i;
     if (closing.test(textAfter)) {
       return (state.currentIndent - 1) * unit;

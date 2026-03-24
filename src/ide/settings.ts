@@ -3,7 +3,7 @@ import { indentUnit } from "@codemirror/language";
 import { Compartment, EditorState, Extension } from "@codemirror/state";
 import { EditorView, highlightSpecialChars, highlightTrailingWhitespace, highlightWhitespace, keymap } from "@codemirror/view";
 import { debugHighlightTagsTooltip } from "./views/debug";
-import { insertTabKeymap, spacesSpacesKeymap } from "./views/tabs";
+import { insertTabKeymap, smartIndentKeymap } from "./views/tabs";
 
 declare var bootbox;
 declare var $: JQueryStatic;
@@ -31,10 +31,10 @@ const SETTINGS_KEY = "8bitworkshop/editorSettings";
 const defaultSettings: EditorSettings = {
   tabSize: 8,
   tabsToSpaces: true,
-  highlightSpecialChars: true,
-  highlightWhitespace: true,
-  highlightTrailingWhitespace: true,
-  closeBrackets: true,
+  highlightSpecialChars: false,
+  highlightWhitespace: false,
+  highlightTrailingWhitespace: false,
+  closeBrackets: false,
   debugHighlightTags: false,
 };
 
@@ -54,7 +54,7 @@ export function saveSettings(settings: EditorSettings) {
 
 const compartmentValues: [Compartment, (s: EditorSettings) => Extension][] = [
   [tabSizeCompartment, s => [EditorState.tabSize.of(s.tabSize), indentUnit.of(" ".repeat(s.tabSize))]],
-  [tabsToSpacesCompartment, s => keymap.of(s.tabsToSpaces ? spacesSpacesKeymap : insertTabKeymap)],
+  [tabsToSpacesCompartment, s => keymap.of(s.tabsToSpaces ? smartIndentKeymap : insertTabKeymap)],
   [highlightSpecialCharsCompartment, s => s.highlightSpecialChars ? highlightSpecialChars() : []],
   [highlightWhitespaceCompartment, s => s.highlightWhitespace ? highlightWhitespace() : []],
   [highlightTrailingWhitespaceCompartment, s => s.highlightTrailingWhitespace ? highlightTrailingWhitespace() : []],
