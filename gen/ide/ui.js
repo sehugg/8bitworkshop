@@ -854,7 +854,7 @@ function getErrorElement(err) {
             link.click((ev) => {
                 var wnd = exports.projectWindows.createOrShow(path);
                 if (wnd instanceof editors_1.SourceEditor) {
-                    wnd.setCurrentLine(err, true);
+                    wnd.navigateToLine(err.line);
                 }
             });
         }

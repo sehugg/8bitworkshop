@@ -290,6 +290,19 @@ class SourceEditor {
             ]
         });
     }
+    navigateToLine(line) {
+        if (line < 1 || line > this.editor.state.doc.lines)
+            return;
+        const targetLine = this.editor.state.doc.line(line);
+        this.editor.dispatch({
+            selection: { anchor: targetLine.from },
+            effects: [
+                visuals_1.highlightLines.effect.of({ start: line, end: line }),
+                view_1.EditorView.scrollIntoView(targetLine.from, { y: "center" }),
+            ],
+        });
+        this.editor.focus();
+    }
     getValue() {
         return this.editor.state.doc.toString();
     }
