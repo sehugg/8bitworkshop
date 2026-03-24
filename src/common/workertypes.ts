@@ -147,6 +147,7 @@ export interface WorkerOutputResult<T> {
   params?: {}
   segments?: Segment[]
   debuginfo?: {} // optional info
+  origin?: number
 }
 
 export function isUnchanged(result: WorkerResult) : result is WorkerUnchangedResult {

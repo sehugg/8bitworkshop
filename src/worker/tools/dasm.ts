@@ -133,6 +133,24 @@ function parseSymbolMap(asym: string) {
     return symbolmap;
 }
 
+// Determine likely origin address from listing
+function getMinListingOffset(listings: CodeListingMap): number | undefined {
+    let minOffset: number | undefined;
+    for (let key in listings) {
+        let lst = listings[key];
+        if (lst && lst.lines) {
+            for (let line of lst.lines) {
+                if (line.iscode && line.offset > 0) {
+                    if (minOffset === undefined || line.offset < minOffset) {
+                        minOffset = line.offset;
+                    }
+                }
+            }
+        }
+    }
+    return minOffset;
+}
+
 export function assembleDASM(step: BuildStep): BuildStepResult {
     load("dasm");
     var unresolved = {};
@@ -216,6 +234,7 @@ export function assembleDASM(step: BuildStep): BuildStepResult {
         listings: listings,
         errors: errors,
         symbolmap: symbolmap,
+        origin: getMinListingOffset(listings),
     };
 }
 
@@ -268,6 +287,7 @@ export function assembleDASM2(step: BuildStep): BuildStepResult {
         output,
         errors,
         listings,
-        symbolmap
+        symbolmap,
+        origin: getMinListingOffset(listings),
     };
 }
