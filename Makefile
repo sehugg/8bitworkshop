@@ -57,9 +57,17 @@ distro: buildtsc
 	rm -r $(TMP)/doc $(TMP)/scripts $(TMP)/test* $(TMP)/tools $(TMP)/.[a-z]* $(TMP)/ts*.json # $(TMP)/meta
 	rm -f $(TMP)/javatari && mkdir -p $(TMP)/javatari && cp -p javatari.js/release/javatari/* $(TMP)/javatari/
 
-tsweb: submodules node_modules
+getip:
+	@if command -v ip > /dev/null; then \
+		ip addr | grep -w inet; \
+	elif command -v ifconfig > /dev/null; then \
+		ifconfig | grep -w inet; \
+	else \
+		ipconfig | grep IPv4; \
+	fi
+
+tsweb: submodules node_modules getip
 	npm run esbuild-clean
-	(ip addr || ifconfig) | grep inet
 	trap 'kill 0' EXIT; \
 	make buildgrammars; \
 	$(TSC) -w --preserveWatchOutput & \
