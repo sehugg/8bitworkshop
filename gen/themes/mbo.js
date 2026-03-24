@@ -37,7 +37,14 @@ exports.mboTheme = view_1.EditorView.theme({
     },
     ".cm-matchingBracket": {
         color: "#33ff33 !important"
-    }
+    },
+    ".cm-highlightSpace": {
+        backgroundImage: "radial-gradient(circle at 50% 55%, #aaa5 11%, transparent 5%)"
+    },
+    ".cm-highlightTab": {
+        backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="20"><path stroke="%23aaa5" stroke-width="1" fill="none" d="M0 10H10L7 6M10 10L7 14"/></svg>')`,
+        backgroundPosition: "left 50%"
+    },
 }, { dark: true });
 exports.mboHighlightStyle = language_1.HighlightStyle.define([
     { tag: highlight_1.tags.keyword, color: "#ffb928" },

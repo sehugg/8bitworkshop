@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ListingView = exports.DisassemblerView = exports.SourceEditor = exports.textMapFunctions = exports.PC_LINE_LOOKAHEAD = void 0;
-const autocomplete_1 = require("@codemirror/autocomplete");
 const commands_1 = require("@codemirror/commands");
 const lang_cpp_1 = require("@codemirror/lang-cpp");
 const lang_markdown_1 = require("@codemirror/lang-markdown");
@@ -22,18 +21,13 @@ const cobalt_1 = require("../../themes/cobalt");
 const disassemblyTheme_1 = require("../../themes/disassemblyTheme");
 const editorTheme_1 = require("../../themes/editorTheme");
 const mbo_1 = require("../../themes/mbo");
+const settings_1 = require("../settings");
 const ui_1 = require("../ui");
+const assetdecorations_1 = require("./assetdecorations");
 const baseviews_1 = require("./baseviews");
-const debug_1 = require("./debug");
 const filters_1 = require("./filters");
 const gutter_1 = require("./gutter");
-const assetdecorations_1 = require("./assetdecorations");
-const tabs_1 = require("./tabs");
 const visuals_1 = require("./visuals");
-// TODO: make this an easily toggleable debug setting.
-// Debug syntax highlighting. Useful when developing new parsers and themes.
-const debugHighlightTags = false;
-/////
 // look ahead this many bytes when finding source lines for a PC
 exports.PC_LINE_LOOKAHEAD = 64;
 const MAX_ERRORS = 200;
@@ -47,8 +41,8 @@ const MODEDEFS = {
     inform6: { theme: cobalt_1.cobalt },
     markdown: { lineWrap: true },
     fastbasic: { noGutters: true },
-    basic: { noLineNumbers: true, noGutters: true }, // TODO: not used?
-    ecs: { theme: mbo_1.mbo, isAsm: true },
+    basic: { noLineNumbers: true, noGutters: true },
+    ecs: { theme: mbo_1.mbo }, // TODO: is actually mixed-mode, as is verilog
 };
 exports.textMapFunctions = {
     input: null
@@ -86,7 +80,7 @@ class SourceEditor {
         var isAsm = isAsmOverride || modedef.isAsm;
         var lineWrap = !!modedef.lineWrap;
         var theme = modedef.theme || MODEDEFS.default.theme;
-        var lineNums = !modedef.noLineNumbers && !baseviews_1.isMobileDevice;
+        var lineNums = !isAsm && !modedef.noLineNumbers && !baseviews_1.isMobileDevice;
         if (ui_1.qs['embed']) {
             lineNums = false; // no line numbers while embedded
             isAsm = false; // no opcode bytes either
@@ -132,13 +126,27 @@ class SourceEditor {
             parent: parent,
             doc: text,
             extensions: [
-                // Custom keybindings must appear before default keybindings.
+                // Non-asm: 2-space indent (placed before settings so it takes precedence over tabSize-based indentUnit)
+                isAsm ? [] : language_1.indentUnit.of("  "),
+                // Asm: copy previous line's indentation since asm parsers lack proper indent rules
+                isAsm ? language_1.indentService.of((context, pos) => {
+                    let lineNum = context.state.doc.lineAt(pos).number;
+                    if (lineNum >= 0) {
+                        let prevLine = context.state.doc.line(lineNum);
+                        if (prevLine.text.trim()) {
+                            return context.lineIndent(prevLine.from);
+                        }
+                    }
+                    return 0;
+                }) : [],
+                // Keybindings from settings must appear before default keymap.
+                ...(0, settings_1.settingsExtensions)((0, settings_1.loadSettings)()),
                 view_1.keymap.of([
-                    { key: "Backspace", run: autocomplete_1.deleteBracketPair },
+                    { key: "Ctrl-Shift-i", run: commands_1.indentSelection },
+                    { key: "Cmd-Shift-i", run: commands_1.indentSelection },
                 ]),
                 view_1.keymap.of(commands_1.defaultKeymap),
                 lineNums ? (0, view_1.lineNumbers)() : [],
-                (0, view_1.highlightSpecialChars)(),
                 // Undo history.
                 (0, commands_1.history)(),
                 view_1.keymap.of(commands_1.historyKeymap),
@@ -149,7 +157,6 @@ class SourceEditor {
                 (0, view_1.drawSelection)(),
                 (0, language_1.indentOnInput)(),
                 (0, language_1.bracketMatching)(),
-                (0, autocomplete_1.closeBrackets)(),
                 // Rectangular selection and crosshair cursor.
                 (0, view_1.rectangularSelection)(),
                 (0, view_1.crosshairCursor)(),
@@ -163,10 +170,6 @@ class SourceEditor {
                 parser || [],
                 theme,
                 editorTheme_1.editorTheme,
-                debugHighlightTags ? debug_1.debugHighlightTagsTooltip : [],
-                state_1.EditorState.tabSize.of(8),
-                language_1.indentUnit.of("        "),
-                view_1.keymap.of(tabs_1.tabKeymap),
                 lineWrap ? view_1.EditorView.lineWrapping : [],
                 visuals_1.currentPc.field,
                 !minimalGutters ? [
@@ -224,6 +227,8 @@ class SourceEditor {
                 }),
             ],
         });
+        // TODO: unregister when editor is destroyed
+        (0, settings_1.registerEditor)(this.editor);
     }
     editorChanged() {
         clearTimeout(this.updateTimer);
@@ -565,7 +570,6 @@ class DisassemblerView {
                 (0, view_1.drawSelection)(),
                 (0, view_1.highlightActiveLine)(),
                 (0, search_1.highlightSelectionMatches)(),
-                debugHighlightTags ? debug_1.debugHighlightTagsTooltip : [],
                 disassemblyTheme_1.disassemblyTheme,
                 cobalt_1.cobalt,
                 visuals_1.currentPc.field,

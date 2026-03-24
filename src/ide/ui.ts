@@ -13,6 +13,7 @@ import { FileData, WorkerError, WorkerResult } from "../common/workertypes";
 import { importPlatform } from "../platform/_index";
 import { gaEvent, gaPageView } from "./analytics";
 import { alertError, alertInfo, fatalError, setWaitDialog } from "./dialogs";
+import { openSettings } from "./settings";
 import { CodeProject, createNewPersistentStore, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
 import { getRepos, parseGithubURL } from "./services";
 import { _downloadAllFilesZipFile, _downloadCassetteFile, _downloadProjectZipFile, _downloadROMImage, _downloadSourceFile, _downloadSymFile, _getCassetteFunction, _recordVideo, _shareEmbedLink } from "./shareexport";
@@ -1495,6 +1496,7 @@ function setupDebugControls() {
   $("#item_addfile_include").click(_addIncludeFile);
   $("#item_addfile_link").click(_addLinkFile);
   $("#item_request_persist").click(() => requestPersistPermission(true, false));
+  $("#item_settings").click(openSettings);
   updateDebugWindows();
   // code analyzer?
   if (platform.newCodeAnalyzer) {

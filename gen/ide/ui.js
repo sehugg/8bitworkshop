@@ -64,6 +64,7 @@ const util_1 = require("../common/util");
 const _index_1 = require("../platform/_index");
 const analytics_1 = require("./analytics");
 const dialogs_1 = require("./dialogs");
+const settings_1 = require("./settings");
 const project_1 = require("./project");
 const services_1 = require("./services");
 const shareexport_1 = require("./shareexport");
@@ -1476,6 +1477,7 @@ function setupDebugControls() {
     $("#item_addfile_include").click(_addIncludeFile);
     $("#item_addfile_link").click(_addLinkFile);
     $("#item_request_persist").click(() => requestPersistPermission(true, false));
+    $("#item_settings").click(settings_1.openSettings);
     updateDebugWindows();
     // code analyzer?
     if (exports.platform.newCodeAnalyzer) {
