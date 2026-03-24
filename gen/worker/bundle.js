@@ -7048,6 +7048,22 @@
     }
     return symbolmap;
   }
+  function getMinListingOffset(listings) {
+    let minOffset;
+    for (let key in listings) {
+      let lst = listings[key];
+      if (lst && lst.lines) {
+        for (let line of lst.lines) {
+          if (line.iscode && line.offset > 0) {
+            if (minOffset === void 0 || line.offset < minOffset) {
+              minOffset = line.offset;
+            }
+          }
+        }
+      }
+    }
+    return minOffset;
+  }
   function assembleDASM(step) {
     load("dasm");
     var unresolved = {};
@@ -7129,7 +7145,8 @@
       output: aout,
       listings,
       errors,
-      symbolmap
+      symbolmap,
+      origin: getMinListingOffset(listings)
     };
   }
 

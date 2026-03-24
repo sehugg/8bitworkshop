@@ -36,7 +36,7 @@ class BasicHeadlessMachine {
     reset() {
         this.cpu.reset();
     }
-    loadROM(data, title) {
+    loadROM(data, title, origin) {
         if (!this.rom)
             this.rom = new Uint8Array(this.defaultROMSize);
         if (data.length > this.rom.length)

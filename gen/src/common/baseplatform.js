@@ -725,8 +725,8 @@ class BaseMachinePlatform extends BaseDebugPlatform {
             }
         }
     }
-    loadROM(title, data) {
-        this.machine.loadROM(data, title);
+    loadROM(title, data, origin) {
+        this.machine.loadROM(data, title, origin);
         this.reset();
     }
     pollControls() {

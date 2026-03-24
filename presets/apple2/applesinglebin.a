@@ -1,0 +1,146 @@
+; --------------------------------------------------
+; Example showing how to create an AppleSingle binary
+; header and program that is automatically loaded
+; into the desired PGM_START memory address.
+; --------------------------------------------------
+
+        processor 6502
+
+; --------------------------------------------------
+; Set PGM_START to desired start of program execution
+; - PGM_START must be less than $C000
+; - PGM_START + SIZE must be less than $13000
+; --------------------------------------------------
+PGM_START    equ     $2000
+PGM_LENGTH   equ     PGM_END - PGM_START
+
+        seg
+        org PGM_START - 58 ; Subtract 58 bytes for header
+
+; --------------------------------------------------
+; AppleSingle version 2 file header
+; --------------------------------------------------
+; - https://github.com/cc65/cc65/blob/master/libsrc/apple2/exehdr.s
+; - https://nulib.com/library/FTN.e00001.htm
+; - https://www.kreativekorp.com/miscpages/a2info/filetypes.shtml
+__HEADER_BEGIN
+        .byte    $00, $05, $16, $00  ; Magic number
+        .byte    $00, $02, $00, $00  ; Version number
+
+        ; Home File System - 16 bytes
+        ; ProDOS
+        .byte    $50,$72,$6F,$44,$4F,$53,$20,$20
+        .byte    $20,$20,$20,$20,$20,$20,$20,$20
+
+        .byte    0, 2                                      ; Number of entries
+        .byte    0, 0, 0, 1                                ; Entry ID 1 - Data Fork
+        .byte    0, 0, >__DATA_OFFSET, <__DATA_OFFSET      ; Offset
+        .byte    0, 0, >PGM_LENGTH, <PGM_LENGTH            ; Length
+
+        .byte    0, 0, 0, 11                               ; Entry ID 11 - ProDOS File Info
+        .byte    0, 0, >__PRODOS_OFFSET, <__PRODOS_OFFSET  ; Offset
+        .byte    0, 0, >__PRODOS_LENGTH, <__PRODOS_LENGTH  ; Length
+__PRODOS_INFO
+        .byte    0, %11000011                              ; Access - Destroy, Rename, Write, Read
+        .byte    0, 6                                      ; File Type - BIN
+        .byte    0, 0                                      ; Auxiliary Type high
+        .byte    >PGM_START, <PGM_START                    ; Auxiliary Type low
+__HEADER_END:
+
+__DATA_OFFSET   equ __HEADER_END  - __HEADER_BEGIN
+__PRODOS_LENGTH equ __HEADER_END  - __PRODOS_INFO
+__PRODOS_OFFSET equ __PRODOS_INFO - __HEADER_BEGIN
+
+PGM_LENGTH      equ PGM_END - PGM_START
+
+
+; --------------------------------------------------
+; ROM routines
+; --------------------------------------------------
+HOME    equ $FC58
+
+
+; --------------------------------------------------
+; Start of program
+; --------------------------------------------------
+PGM_START
+
+        ; --------------------------------------------------
+        ; Clear screen
+        ; --------------------------------------------------
+        jsr HOME
+
+        ; --------------------------------------------------
+        ; Print "PGM_START $" (11 chars) to $0400..$040a
+        ; --------------------------------------------------
+        ldx #0
+pfx_loop
+        lda prefix,x
+        ora #$80
+        sta $0400,x
+        inx
+        cpx #11
+        bne pfx_loop
+
+
+        ; --------------------------------------------------
+        ; Print origin in hex to $040b - $040e
+        ; --------------------------------------------------
+
+        ; High byte high nibble
+        lda #>PGM_START
+        lsr
+        lsr
+        lsr
+        lsr
+        tax
+        lda hexchar,x
+        ora #$80
+        sta $040b
+
+        ; High byte low nibble
+        lda #>PGM_START
+        and #$0F
+        tax
+        lda hexchar,x
+        ora #$80
+        sta $040c
+
+        ; Low byte high nibble
+        lda #<PGM_START
+        lsr
+        lsr
+        lsr
+        lsr
+        tax
+        lda hexchar,x
+        ora #$80
+        sta $040d
+
+        ; Low byte low nibble
+        lda #<PGM_START
+        and #$0F
+        tax
+        lda hexchar,x
+        ora #$80
+        sta $040e
+
+        ; --------------------------------------------------
+        ; Endless loop (text stays on screen)
+        ; --------------------------------------------------
+done    jmp done
+
+
+; --------------------------------------------------
+; Data
+; --------------------------------------------------
+prefix
+        .byte "PGM_START $"
+
+hexchar
+        .byte "0123456789ABCDEF"
+
+
+
+PGM_END
+ ; Don't add instructions after this line

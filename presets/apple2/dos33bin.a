@@ -1,46 +1,46 @@
 ; --------------------------------------------------
 ; Example showing how to create a DOS 3.3 binary
 ; header and program that is automatically loaded
-; into the desired ORIGIN memory address.
+; into the desired PGM_START memory address.
 ; --------------------------------------------------
 
         processor 6502
 
 ; --------------------------------------------------
-; Desired origin
-; - Origin must be less than $C000
-; - Origin + size must be less than $13000
-; - Origin must be $0803 or aligned to $xx00
+; Set PGM_START to desired start of program execution
+; - PGM_START must be less than $C000
+; - PGM_START + SIZE must be less than $13000
 ; --------------------------------------------------
-ORIGIN  equ     $2000
-SIZE    equ     END_OF_PRORGAM-ORIGIN
+PGM_START    equ     $2000
+PGM_LENGTH   equ     PGM_END - PGM_START
+
+        seg
+        org PGM_START - 4 ; Subtract 4 bytes for header
 
 ; --------------------------------------------------
 ; DOS 3.3 binary header (4 bytes)
 ; --------------------------------------------------
-        org ORIGIN - 4 ; Subtract 4 ensures correct memory locations
-        word ORIGIN    ; Origin (2 bytes)
-        word SIZE      ; Size (2 bytes), must be length - 4
+        word PGM_START    ; Program start address in memory (2 bytes)
+        word PGM_LENGTH   ; Program length (2 bytes), must be file size - 4
 
 ; --------------------------------------------------
 ; ROM routines
 ; --------------------------------------------------
 HOME    equ $FC58
 
-; --------------------------------------------------
-; Origin and start of program
-; --------------------------------------------------
-        org ORIGIN     ; Starting address
 
+; --------------------------------------------------
+; Start of program
+; --------------------------------------------------
+PGM_START
 
-start
         ; --------------------------------------------------
         ; Clear screen
         ; --------------------------------------------------
         jsr HOME
 
         ; --------------------------------------------------
-        ; Print "START $" (7 chars) to $0400..$0406
+        ; Print "PGM_START $" (11 chars) to $0400..$040a
         ; --------------------------------------------------
         ldx #0
 pfx_loop
@@ -48,16 +48,16 @@ pfx_loop
         ora #$80
         sta $0400,x
         inx
-        cpx #7
+        cpx #11
         bne pfx_loop
 
 
         ; --------------------------------------------------
-        ; Print origin in hex to $0407 - $040A
+        ; Print origin in hex to $040b - $040e
         ; --------------------------------------------------
 
         ; High byte high nibble
-        lda #>start
+        lda #>PGM_START
         lsr
         lsr
         lsr
@@ -65,18 +65,18 @@ pfx_loop
         tax
         lda hexchar,x
         ora #$80
-        sta $0407
+        sta $040b
 
         ; High byte low nibble
-        lda #>start
+        lda #>PGM_START
         and #$0F
         tax
         lda hexchar,x
         ora #$80
-        sta $0408
+        sta $040c
 
         ; Low byte high nibble
-        lda #<start
+        lda #<PGM_START
         lsr
         lsr
         lsr
@@ -84,15 +84,15 @@ pfx_loop
         tax
         lda hexchar,x
         ora #$80
-        sta $0409
+        sta $040d
 
         ; Low byte low nibble
-        lda #<start
+        lda #<PGM_START
         and #$0F
         tax
         lda hexchar,x
         ora #$80
-        sta $040A
+        sta $040e
 
         ; --------------------------------------------------
         ; Endless loop (text stays on screen)
@@ -104,9 +104,12 @@ done    jmp done
 ; Data
 ; --------------------------------------------------
 prefix
-        byte "START $"
+        .byte "PGM_START $"
 
 hexchar
-        byte "0123456789ABCDEF"
+        .byte "0123456789ABCDEF"
 
-END_OF_PRORGAM ; Don't add instructions after this line
+
+
+PGM_END
+ ; Don't add instructions after this line

@@ -138,7 +138,7 @@ class AppleII extends devices_1.BasicScanlineMachine {
         }
         this.bios = Uint8Array.from(data);
     }
-    loadROM(data) {
+    loadROM(data, title, origin) {
         // is it a 16-sector 35-track disk image?
         if (data.length == 16 * 35 * 256) {
             var diskii = new DiskII(this, data);
@@ -155,18 +155,18 @@ class AppleII extends devices_1.BasicScanlineMachine {
             }
             else {
                 // 4-byte DOS header? (TODO: hacky detection)
-                const origin = this.rom[0] | (this.rom[1] << 8);
+                const hdrOrigin = this.rom[0] | (this.rom[1] << 8);
                 const size = this.rom[2] | (this.rom[3] << 8);
-                let isPlausible = origin < 0xc000
-                    && origin + size < 0x13000
-                    && (origin == 0x803 || (origin & 0xff) == 0);
+                let isPlausible = hdrOrigin < 0xc000
+                    && hdrOrigin + size < 0x13000
+                    && (hdrOrigin == 0x803 || (hdrOrigin & 0xff) == 0);
                 if (size == data.length - 4 && isPlausible) {
-                    this.LOAD_BASE = origin;
+                    this.LOAD_BASE = hdrOrigin;
                     this.HDR_SIZE = 4;
                 }
                 else {
-                    // default = raw binary @ $803
-                    this.LOAD_BASE = 0x803;
+                    // Load @ specified origin, fallback to $803
+                    this.LOAD_BASE = origin !== null && origin !== void 0 ? origin : 0x803;
                     this.HDR_SIZE = 0;
                 }
             }
@@ -174,7 +174,7 @@ class AppleII extends devices_1.BasicScanlineMachine {
         }
     }
     loadRAMWithProgram() {
-        console.log(`Loading program into Apple ][ RAM at \$${this.LOAD_BASE.toString(16)}`);
+        console.log(`Loading program into Apple ][ RAM at \$${this.LOAD_BASE.toString(16)} (${this.HDR_SIZE} bytes skipped for header)`);
         // truncate if needed to fit into RAM
         const exedata = this.rom.slice(this.HDR_SIZE, this.HDR_SIZE + this.ram.length - this.LOAD_BASE);
         this.ram.set(exedata, this.LOAD_BASE);

@@ -24,6 +24,7 @@ const APPLE2_PRESETS: Preset[] = [
   //  {id:'zap.dasm', name:"ZAP!"},
   //  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
   { id: 'dos33bin.a', name: "DOS 3.3 Binary" },
+  { id: 'applesinglebin.a', name: "AppleSingle Binary" },
 ];
 
 /// MAME support

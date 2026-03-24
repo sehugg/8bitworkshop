@@ -135,6 +135,23 @@ function parseSymbolMap(asym) {
     }
     return symbolmap;
 }
+// Determine likely origin address from listing
+function getMinListingOffset(listings) {
+    let minOffset;
+    for (let key in listings) {
+        let lst = listings[key];
+        if (lst && lst.lines) {
+            for (let line of lst.lines) {
+                if (line.iscode && line.offset > 0) {
+                    if (minOffset === undefined || line.offset < minOffset) {
+                        minOffset = line.offset;
+                    }
+                }
+            }
+        }
+    }
+    return minOffset;
+}
 function assembleDASM(step) {
     (0, wasmutils_1.load)("dasm");
     var unresolved = {};
@@ -224,6 +241,7 @@ function assembleDASM(step) {
         listings: listings,
         errors: errors,
         symbolmap: symbolmap,
+        origin: getMinListingOffset(listings),
     };
 }
 let wasiModule = null;
@@ -275,7 +293,8 @@ function assembleDASM2(step) {
         output,
         errors,
         listings,
-        symbolmap
+        symbolmap,
+        origin: getMinListingOffset(listings),
     };
 }
 //# sourceMappingURL=dasm.js.map
