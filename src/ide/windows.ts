@@ -71,7 +71,7 @@ export class ProjectWindows {
       this.refreshErrors();
       wnd.setVisible && wnd.setVisible(true);
       this.id2showfn[id] && this.id2showfn[id](id, wnd);
-    } else {
+    } else if (moveCursor) {
       this.refresh(moveCursor);
     }
     this.activeid = id;
