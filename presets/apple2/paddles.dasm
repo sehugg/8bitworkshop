@@ -1,0 +1,107 @@
+        processor 6502
+        org $0803
+
+; --- CONSTANTS ---
+BASL    equ $28
+BASH    equ $29
+PREAD   equ $FB1E
+SW0     equ $C061
+SW1     equ $C062
+SW2     equ $C063
+HOME    equ $FC58
+TABV    equ $FB5B
+
+; --- ZERO PAGE VARIABLES ---
+PREVX   equ $06
+PREVY   equ $07
+NEWX    equ $08
+NEWY    equ $09
+BRUSH   equ $0A
+
+; --- PROGRAM ---
+SETUP:
+        jsr HOME
+        lda #$00
+        sta PREVX
+        sta PREVY
+
+LOOP:
+        ; CHECK FOR MOVEMENT
+        lda NEWX
+        cmp PREVX
+        bne SELECT_BRUSH
+        lda NEWY
+        cmp PREVY
+        beq NOPAINT
+
+SELECT_BRUSH:
+        ; PAINT PREVIOUS X/Y
+        lda SW0
+        bpl NOSW0
+        lda #$20 ; INVERSE SPACE
+        jmp PAINT
+NOSW0:  lda SW1
+        bpl NOSW1
+        lda #$60 ; FLASHING SPACE
+        jmp PAINT
+NOSW1:  lda SW2
+        bpl NOSW2
+        lda #$AE ; PERIOD
+        jmp PAINT
+NOSW2:  lda #$A0 ; SPACE
+
+PAINT:
+        sta BRUSH
+        lda PREVY
+        jsr TABV
+        ldy PREVX
+        lda BRUSH
+        sta (BASL),Y
+
+        ; SAVE PREVIOUS X/Y
+        lda NEWX
+        sta PREVX
+        lda NEWY
+        sta PREVY
+NOPAINT:
+        ; CALCULATE NEW X (0-39)
+        ldx #$00
+        jsr PREAD
+        lda XTABLE,Y
+        sta NEWX
+
+        ; CALCULATE NEW Y (0-23)
+        ldx #$01
+        jsr PREAD
+        lda YTABLE,Y
+        sta NEWY
+
+; DRAW CURSOR
+        lda NEWY
+        jsr TABV
+        ldy NEWX
+
+        lda #$20 ; INVERSE SPACE
+        sta (BASL),Y
+NODRAW:
+        jmp LOOP
+
+
+; --- LOOKUP TABLES ---
+
+XTABLE:
+        ; MAP [0,255] -> [0,39]
+X       set 0
+        repeat 256
+        .byte X * 40 / 256
+X       set X + 1
+        repend
+
+YTABLE:
+        ; MAP [0,255] -> [0,23]
+Y       set 0
+        repeat 256
+        .byte Y * 24 / 256
+Y       set Y + 1
+        repend
+

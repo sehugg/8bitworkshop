@@ -881,6 +881,11 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     if (hasPaddleInput(this.machine)) {
       this.machine.setPaddleInput(0, this.video.paddle_x);
       this.machine.setPaddleInput(1, this.video.paddle_y);
+      if (this.machine.setPaddleButton && this.video.paddle_buttons != null) {
+        this.machine.setPaddleButton(0, this.video.paddle_buttons[0]);
+        this.machine.setPaddleButton(1, this.video.paddle_buttons[1]);
+        this.machine.setPaddleButton(2, this.video.paddle_buttons[2]);
+      }
     }
     // TODO: put into interface
     if (this.machine['pollControls']) {
