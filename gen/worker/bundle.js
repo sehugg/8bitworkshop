@@ -5982,7 +5982,7 @@
         if (parser.errors.length == 0) throw e;
       }
       if (parser.errors.length) {
-        return { errors: parser.errors };
+        return { errors: parser.errors, uppercaseOnly: parser.opts.uppercaseOnly };
       }
       var json = JSON.stringify(ast, (key, value) => {
         return key == "$loc" ? void 0 : value;
@@ -5990,7 +5990,8 @@
       putWorkFile(jsonpath, json);
       if (anyTargetChanged(step, [jsonpath])) return {
         output: ast,
-        listings: parser.getListings()
+        listings: parser.getListings(),
+        uppercaseOnly: parser.opts.uppercaseOnly
       };
     }
   }

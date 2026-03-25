@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ListingView = exports.DisassemblerView = exports.SourceEditor = exports.textMapFunctions = exports.PC_LINE_LOOKAHEAD = void 0;
+exports.setUppercaseOnly = setUppercaseOnly;
 const commands_1 = require("@codemirror/commands");
 const lang_cpp_1 = require("@codemirror/lang-cpp");
 const lang_markdown_1 = require("@codemirror/lang-markdown");
@@ -47,6 +48,9 @@ const MODEDEFS = {
 exports.textMapFunctions = {
     input: null
 };
+function setUppercaseOnly(uppercaseOnly) {
+    exports.textMapFunctions.input = uppercaseOnly ? (s) => s.toUpperCase() : null;
+}
 class SourceEditor {
     constructor(path, mode) {
         this.updateTimer = null;

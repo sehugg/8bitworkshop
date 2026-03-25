@@ -889,6 +889,9 @@ function showExceptionAsError(err, msg) {
     }
 }
 async function setCompileOutput(data) {
+    if ('uppercaseOnly' in data) {
+        (0, editors_1.setUppercaseOnly)(data.uppercaseOnly);
+    }
     // errors? mark them in editor
     if ('errors' in data && data.errors.length > 0) {
         toolbar.addClass("has-errors");

@@ -166,7 +166,7 @@ function compileBASIC(step) {
                 throw e;
         }
         if (parser.errors.length) {
-            return { errors: parser.errors };
+            return { errors: parser.errors, uppercaseOnly: parser.opts.uppercaseOnly };
         }
         // put AST into JSON (sans source locations) to see if it has changed
         var json = JSON.stringify(ast, (key, value) => { return (key == '$loc' ? undefined : value); });
@@ -175,6 +175,7 @@ function compileBASIC(step) {
             return {
                 output: ast,
                 listings: parser.getListings(),
+                uppercaseOnly: parser.opts.uppercaseOnly,
             };
     }
 }

@@ -1,7 +1,6 @@
 
 import { Platform, BreakpointCallback, DebugCondition, DebugEvalCondition } from "../common/baseplatform";
 import { PLATFORMS, AnimationTimer, EmuHalt } from "../common/emu";
-import * as editors from "../ide/views/editors";
 import { BASICRuntime } from "../common/basic/runtime";
 import { BASICProgram } from "../common/basic/compiler";
 import { TeleTypeWithKeyboard } from "../common/teletype";
@@ -133,8 +132,6 @@ class BASICPlatform implements Platform {
         this.program = data;
         var resumePC = this.runtime.load(data);
         this.tty.uppercaseOnly = true; // this.program.opts.uppercaseOnly; //TODO?
-        // map editor to uppercase-only if need be
-        editors.textMapFunctions.input = this.program.opts.uppercaseOnly ? (s) => s.toUpperCase() : null;
         // only reset if we exited, or couldn't restart at label (PC reset to 0)
         if (!this.hotReload || didExit || !resumePC)
             this.reset();

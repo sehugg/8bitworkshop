@@ -51,6 +51,10 @@ export var textMapFunctions = {
   input: null as ((text: string) => string) | null
 };
 
+export function setUppercaseOnly(uppercaseOnly: boolean) {
+  textMapFunctions.input = uppercaseOnly ? (s) => s.toUpperCase() : null;
+}
+
 export class SourceEditor implements ProjectView {
   constructor(path: string, mode: string) {
     this.path = path;
