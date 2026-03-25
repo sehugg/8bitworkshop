@@ -128,7 +128,7 @@ export function compileBASIC(step: BuildStep): WorkerResult {
             if (parser.errors.length == 0) throw e;
         }
         if (parser.errors.length) {
-            return { errors: parser.errors };
+            return { errors: parser.errors, uppercaseOnly: parser.opts.uppercaseOnly };
         }
         // put AST into JSON (sans source locations) to see if it has changed
         var json = JSON.stringify(ast, (key, value) => { return (key == '$loc' ? undefined : value) });
@@ -136,6 +136,7 @@ export function compileBASIC(step: BuildStep): WorkerResult {
         if (anyTargetChanged(step, [jsonpath])) return {
             output: ast,
             listings: parser.getListings(),
+            uppercaseOnly: parser.opts.uppercaseOnly,
         };
     }
 }
