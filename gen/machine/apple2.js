@@ -17,6 +17,8 @@ class AppleII extends devices_1.BasicScanlineMachine {
         this.numVisibleScanlines = 192;
         this.numTotalScanlines = 262;
         this.defaultROMSize = 0x13000; // we'll never need one that big, but...
+        this.cpuCyclesPaddleUnit = 11; // ~11 cycles per paddle unit
+        this.cpuCyclesPaddleMax = 255 * this.cpuCyclesPaddleUnit;
         // these are set later
         this.LOAD_BASE = 0;
         this.HDR_SIZE = 0;
@@ -34,6 +36,10 @@ class AppleII extends devices_1.BasicScanlineMachine {
         // bank 1 is E000-FFFF, bank 2 is D000-DFFF
         this.bank2rdoffset = 0;
         this.bank2wroffset = 0;
+        // Paddle/joystick, PDL0-PDL3 values (0-255).
+        this.paddleValues = [0, 0, 0, 0];
+        this.paddleButtons = [false, false, false];
+        this.paddleLastTriggered = 0;
         // disk II
         this.slots = new Array(8);
         // fake disk drive that loads program into RAM
@@ -107,6 +113,8 @@ class AppleII extends devices_1.BasicScanlineMachine {
             auxRAMbank: this.auxRAMbank,
             writeinhibit: this.writeinhibit,
             slots: this.slots.map((slot) => { return slot && slot['saveState'] && slot['saveState'](); }),
+            paddleValues: this.paddleValues.slice(),
+            paddleButtons: this.paddleButtons.slice(),
             inputs: this.ram.slice(0, 0) // unused
         };
     }
@@ -123,6 +131,8 @@ class AppleII extends devices_1.BasicScanlineMachine {
         for (var i = 0; i < this.slots.length; i++)
             if (this.slots[i] && this.slots[i]['loadState'])
                 this.slots[i]['loadState'](s.slots[i]);
+        this.paddleValues = s.paddleValues.slice();
+        this.paddleButtons = s.paddleButtons.slice();
         this.ap2disp.invalidate(); // repaint entire screen
     }
     saveControlsState() {
@@ -236,15 +246,15 @@ class AppleII extends devices_1.BasicScanlineMachine {
             this.probe.logIORead(address, 0); // TODO: value
             var slot = (address >> 4) & 0x0f;
             switch (slot) {
-                case 0:
+                case 0: // $C00x
                     return this.kbdlatch;
-                case 1:
+                case 1: // $C01x
                     this.kbdlatch &= 0x7f;
                     break;
-                case 3:
+                case 3: // $C03x
                     this.soundstate = this.soundstate ^ 1;
                     break;
-                case 5:
+                case 5: // $C05x
                     if ((address & 0x0f) < 8) {
                         // graphics
                         if ((address & 1) != 0)
@@ -253,34 +263,47 @@ class AppleII extends devices_1.BasicScanlineMachine {
                             this.grparams.grswitch &= ~(1 << ((address >> 1) & 0x07));
                     }
                     break;
-                case 6:
+                case 6: // $C06x
                     // tapein, joystick, buttons
                     switch (address & 7) {
-                        // buttons (off)
-                        case 1:
-                        case 2:
-                        case 3:
-                            return this.floatbus() & 0x7f;
-                        // joystick
-                        case 4:
-                        case 5:
-                            return this.floatbus() | 0x80;
+                        case 1: // $C061 / $C069 - GAME SW0
+                        case 2: // $C062 / $C06A - GAME SW1
+                        case 3: // $C063 / $C06B - GAME SW2
+                            // buttons
+                            var btn = (address & 7) - 1;
+                            if (this.paddleButtons[btn])
+                                return this.floatbus() | 0x80;
+                            else
+                                return this.floatbus() & 0x7f;
+                        case 4: // $C064 / $C06C - GAME PDL0
+                        case 5: // $C065 / $C06D - GAME PDL1
+                        case 6: // $C066 / $C06E - GAME PDL2
+                        case 7: // $C067 / $C06F - GAME PDL3
+                            var pdl = (address & 0x0f) - 4;
+                            var elapsed = this.frameCycles - this.paddleLastTriggered;
+                            // Bit 7 remains high until paddle value reached.
+                            if (elapsed < this.paddleValues[pdl] * this.cpuCyclesPaddleUnit)
+                                return this.floatbus() | 0x80;
+                            else
+                                return this.floatbus() & 0x7f;
                         default:
                             return this.floatbus();
                     }
-                case 7:
-                    // joy reset
-                    if (address == 0xc070)
+                case 7: // $C07x
+                    // Strobing PTRIG ($C070) triggers paddles.
+                    if (address == 0xc070) {
+                        this.paddleLastTriggered = this.frameCycles;
                         return this.floatbus() | 0x80;
-                case 8:
+                    }
+                case 8: // $C08x
                     return this.doLanguageCardIO(address);
-                case 9:
-                case 10:
-                case 11:
-                case 12:
-                case 13:
-                case 14:
-                case 15:
+                case 9: // $C09x
+                case 10: // $C0Ax
+                case 11: // $C0Bx
+                case 12: // $C0Cx
+                case 13: // $C0Dx
+                case 14: // $C0Ex
+                case 15: // $C0Fx
                     return (this.slots[slot - 8] && this.slots[slot - 8].read(address & 0xf)) | 0;
             }
         }
@@ -337,6 +360,13 @@ class AppleII extends devices_1.BasicScanlineMachine {
         var clocks = super.advanceFrame(trap);
         this.ap2disp && this.ap2disp.updateScreen();
         return clocks;
+    }
+    postFrame() {
+        this.paddleLastTriggered -= this.frameCycles;
+        // Prevent extreme negative values if paddles aren't read.
+        if (this.paddleLastTriggered < -this.cpuCyclesPaddleMax) {
+            this.paddleLastTriggered = -this.cpuCyclesPaddleMax;
+        }
     }
     advanceCPU() {
         this.audio.feedSample(this.soundstate, 1);
@@ -452,6 +482,16 @@ class AppleII extends devices_1.BasicScanlineMachine {
             if (code) {
                 this.kbdlatch = (code | 0x80) & 0xff;
             }
+        }
+    }
+    setPaddleInput(controller, value) {
+        if (controller >= 0 && controller < this.paddleValues.length) {
+            this.paddleValues[controller] = value & 0xff;
+        }
+    }
+    setPaddleButton(index, pressed) {
+        if (index >= 0 && index < this.paddleButtons.length) {
+            this.paddleButtons[index] = pressed;
         }
     }
     doLanguageCardIO(address) {

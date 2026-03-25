@@ -71,8 +71,11 @@ function _setKeyboardEvents(canvas, callback) {
 ;
 class RasterVideo {
     constructor(mainElement, width, height, options) {
-        this.paddle_x = 255;
-        this.paddle_y = 255;
+        // Start paddles/joystick centered in [0,255] range.
+        this.paddle_x = 128;
+        this.paddle_y = 128;
+        // Platforms can support up to three buttons.
+        this.paddle_buttons = [false, false, false];
         this.mainElement = mainElement;
         this.width = width;
         this.height = height;
@@ -130,10 +133,17 @@ class RasterVideo {
             el = this.canvas;
         $(el).mousemove((e) => {
             var pos = getMousePos(el, e);
-            var new_x = Math.floor(pos.x * 255 / this.canvas.width);
-            var new_y = Math.floor(pos.y * 255 / this.canvas.height);
+            var new_x = Math.round(pos.x * 255 / this.canvas.width);
+            var new_y = Math.round(pos.y * 255 / this.canvas.height);
             this.paddle_x = (0, util_1.clamp)(0, 255, new_x);
             this.paddle_y = (0, util_1.clamp)(0, 255, new_y);
+        }).mousedown((e) => {
+            // TODO Allows users to specify mapping in settings.
+            this.paddle_buttons[0] = !e.shiftKey && !e.altKey;
+            this.paddle_buttons[1] = e.shiftKey && !e.altKey;
+            this.paddle_buttons[2] = e.altKey && !e.shiftKey;
+        }).mouseup((e) => {
+            this.paddle_buttons.fill(false);
         });
     }
     ;
@@ -635,12 +645,25 @@ function newAddressDecoder(table, options) {
 }
 // https://stackoverflow.com/questions/17130395/real-mouse-position-in-canvas
 function getMousePos(canvas, evt) {
+    // Improves reachability of min and max values at edges of canvas. Without delta,
+    // min and max values would be represented by 1/2 as many pixels as other values.
+    const delta = .5;
+    // Canvas HTML element has integer `width` and `height`, but getBoundingClientRect() pos & size
+    // are scaled to non-integer values. Mouse events return integer x/y values in the range
+    // [Math.floor(rect.left/top), Math.floor(rect.left/top) + Math.floor(rect.width/height)],
+    // which may not be the same as [Math.floor(rect.left/top), Math.floor(rect.right/bottom)].
     var rect = canvas.getBoundingClientRect(), // abs. size of element
-    scaleX = canvas.width / rect.width, // relationship bitmap vs. element for X
-    scaleY = canvas.height / rect.height; // relationship bitmap vs. element for Y
+    // Ignore canvas borders and padding, so mouse position is relative to canvas content.
+    style = window.getComputedStyle(canvas), left = parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft), right = parseFloat(style.borderRightWidth) + parseFloat(style.paddingRight), top = parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop), bottom = parseFloat(style.borderBottomWidth) + parseFloat(style.paddingBottom), width = rect.width - left - right, height = rect.height - top - bottom, 
+    // Determine scale factors to map mouse coordinates to canvas coordinates.
+    scaleX = canvas.width / Math.floor(width - 2 * delta), scaleY = canvas.height / Math.floor(height - 2 * delta), 
+    // Scale coordinates after they've been adjusted to be relative to canvas content.
+    x = (evt.clientX - delta - rect.left - left) * scaleX, y = (evt.clientY - delta - rect.top - top) * scaleY;
     return {
-        x: (evt.clientX - rect.left) * scaleX, // scale mouse coordinates after they have
-        y: (evt.clientY - rect.top) * scaleY // been adjusted to be relative to element
+        // Clamp to [0, canvas.width/height] to prevent non-integer rect position
+        // and size, and potentially `delta`, from returning out of bounds values.
+        x: Math.max(0, Math.min(canvas.width, x)),
+        y: Math.max(0, Math.min(canvas.height, y))
     };
 }
 ///

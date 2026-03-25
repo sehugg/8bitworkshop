@@ -20,6 +20,7 @@ const APPLE2_PRESETS = [
     { id: 'conway.a', name: "Conway's Game of Life" },
     { id: 'lz4fh.a', name: "LZ4FH Decompressor" },
     { id: 'deltamod.dasm', name: "Delta Modulation Audio" },
+    { id: 'paddles.dasm', name: "Paddles/Joystick" },
     //  {id:'zap.dasm', name:"ZAP!"},
     //  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
     { id: 'dos33bin.a', name: "DOS 3.3 Binary" },
