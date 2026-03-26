@@ -97,6 +97,8 @@ export function parseHexWords(s: string): number[] {
 }
 
 export function replaceHexWords(s: string, words: UintArray, bpw: number): string {
+  // convert 'hex ...' format to 0x prefixed values for regex matching
+  s = convertToHexStatements(s);
   var result = "";
   var m;
   var li = 0;
