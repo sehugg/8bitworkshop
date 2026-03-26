@@ -10,6 +10,7 @@ type WindowShowFunction = (id: string, view: ProjectView) => void;
 
 interface UndoEntry {
   fileid: string;
+  data?: Uint8Array;
 }
 
 export class ProjectWindows {
@@ -158,15 +159,21 @@ export class ProjectWindows {
   }
 
   updateFile(fileid: string, data: FileData) {
-    // is there an editor? if so, use it
-    var wnd = this.id2window[fileid];
-    if (wnd && wnd.setText && typeof data === 'string') {
-      wnd.setText(data);
-      this.undoStack.push({ fileid });
-      this.redoStack = [];
-    } else {
+    if (data instanceof Uint8Array) {
+      var prev = this.project.getFile(fileid);
+      this.undoStack.push({ fileid, data: prev instanceof Uint8Array ? new Uint8Array(prev) : undefined });
       this.project.updateFile(fileid, data);
+    } else {
+      var wnd = this.id2window[fileid];
+      if (wnd && wnd.setText && typeof data === 'string') {
+        wnd.setText(data);
+        this.undoStack.push({ fileid });
+      } else {
+        this.project.updateFile(fileid, data);
+        return;
+      }
     }
+    this.redoStack = [];
   }
 
   replaceTextRange(fileid: string, from: number, to: number, text: string) {
@@ -178,32 +185,54 @@ export class ProjectWindows {
 
   undoStep() {
     var entry = this.undoStack.pop();
-    var wnd = entry && this.id2window[entry.fileid];
-    if (wnd && wnd.undoStep) {
-      wnd.undoStep();
-      if (wnd.getValue) {
-        this.project.updateFile(entry.fileid, wnd.getValue());
-      }
-      this.redoStack.push({ fileid: entry.fileid });
-      this.refresh(false);
-    } else {
+    if (!entry) {
       this.showAlert("No more steps to undo.");
+      return;
     }
+    if (entry.data) {
+      var current = this.project.getFile(entry.fileid);
+      this.redoStack.push({ fileid: entry.fileid, data: current instanceof Uint8Array ? new Uint8Array(current) : undefined });
+      this.project.updateFile(entry.fileid, entry.data);
+    } else {
+      var wnd = this.id2window[entry.fileid];
+      if (wnd && wnd.undoStep) {
+        wnd.undoStep();
+        if (wnd.getValue) {
+          this.project.updateFile(entry.fileid, wnd.getValue());
+        }
+        this.redoStack.push({ fileid: entry.fileid });
+      } else {
+        this.showAlert("No more steps to undo.");
+        return;
+      }
+    }
+    this.refresh(false);
   }
 
   redoStep() {
     var entry = this.redoStack.pop();
-    var wnd = entry && this.id2window[entry.fileid];
-    if (wnd && wnd.redoStep) {
-      wnd.redoStep();
-      if (wnd.getValue) {
-        this.project.updateFile(entry.fileid, wnd.getValue());
-      }
-      this.undoStack.push({ fileid: entry.fileid });
-      this.refresh(false);
-    } else {
+    if (!entry) {
       this.showAlert("No more steps to redo.");
+      return;
     }
+    if (entry.data) {
+      var current = this.project.getFile(entry.fileid);
+      this.undoStack.push({ fileid: entry.fileid, data: current instanceof Uint8Array ? new Uint8Array(current) : undefined });
+      this.project.updateFile(entry.fileid, entry.data);
+    } else {
+      var wnd = this.id2window[entry.fileid];
+      if (wnd && wnd.redoStep) {
+        wnd.redoStep();
+        if (wnd.getValue) {
+          this.project.updateFile(entry.fileid, wnd.getValue());
+        }
+        this.undoStack.push({ fileid: entry.fileid });
+      } else {
+        this.showAlert("No more steps to redo.");
+        return;
+      }
+    }
+    this.refresh(false);
   }
 
   showAlert(msg: string) {
