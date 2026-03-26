@@ -480,8 +480,8 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       // ensure asset editor is safe to perform synchronous reads/writes
       projectWindows.flushAllWindows();
       // limit undo/redo to since opening this asset editor
-      projectWindows.undofiles = [];
-      projectWindows.redofiles = [];
+      projectWindows.undoStack = [];
+      projectWindows.redoStack = [];
       if (Mousetrap.bind) {
         Mousetrap.bind('mod+z', (e) => { projectWindows.undoStep(); return false; });
         Mousetrap.bind('mod+shift+z', (e) => { projectWindows.redoStep(); return false; });

@@ -8,6 +8,10 @@ import { ProjectView } from "./views/baseviews";
 type WindowCreateFunction = (id: string) => ProjectView;
 type WindowShowFunction = (id: string, view: ProjectView) => void;
 
+interface UndoEntry {
+  fileid: string;
+}
+
 export class ProjectWindows {
   containerdiv: HTMLElement;
   project: CodeProject;
@@ -19,16 +23,16 @@ export class ProjectWindows {
   activewnd: ProjectView;
   activediv: HTMLElement;
   lasterrors: WorkerError[];
-  undofiles: string[];
-  redofiles: string[];
+  undoStack: UndoEntry[];
+  redoStack: UndoEntry[];
   titlePrefix: string;
   alerting: boolean;
 
   constructor(containerdiv: HTMLElement, project: CodeProject) {
     this.containerdiv = containerdiv;
     this.project = project;
-    this.undofiles = [];
-    this.redofiles = [];
+    this.undoStack = [];
+    this.redoStack = [];
   }
   // TODO: delete windows ever?
 
@@ -158,8 +162,8 @@ export class ProjectWindows {
     var wnd = this.id2window[fileid];
     if (wnd && wnd.setText && typeof data === 'string') {
       wnd.setText(data);
-      this.undofiles.push(fileid);
-      this.redofiles = [];
+      this.undoStack.push({ fileid });
+      this.redoStack = [];
     } else {
       this.project.updateFile(fileid, data);
     }
@@ -168,19 +172,19 @@ export class ProjectWindows {
   replaceTextRange(fileid: string, from: number, to: number, text: string) {
     var wnd = this.id2window[fileid] || this.create(fileid);
     wnd.replaceTextRange(from, to, text);
-    this.undofiles.push(fileid);
-    this.redofiles = [];
+    this.undoStack.push({ fileid });
+    this.redoStack = [];
   }
 
   undoStep() {
-    var fileid = this.undofiles.pop();
-    var wnd = this.id2window[fileid];
+    var entry = this.undoStack.pop();
+    var wnd = entry && this.id2window[entry.fileid];
     if (wnd && wnd.undoStep) {
       wnd.undoStep();
       if (wnd.getValue) {
-        this.project.updateFile(fileid, wnd.getValue());
+        this.project.updateFile(entry.fileid, wnd.getValue());
       }
-      this.redofiles.push(fileid);
+      this.redoStack.push({ fileid: entry.fileid });
       this.refresh(false);
     } else {
       this.showAlert("No more steps to undo.");
@@ -188,14 +192,14 @@ export class ProjectWindows {
   }
 
   redoStep() {
-    var fileid = this.redofiles.pop();
-    var wnd = this.id2window[fileid];
+    var entry = this.redoStack.pop();
+    var wnd = entry && this.id2window[entry.fileid];
     if (wnd && wnd.redoStep) {
       wnd.redoStep();
       if (wnd.getValue) {
-        this.project.updateFile(fileid, wnd.getValue());
+        this.project.updateFile(entry.fileid, wnd.getValue());
       }
-      this.undofiles.push(fileid);
+      this.undoStack.push({ fileid: entry.fileid });
       this.refresh(false);
     } else {
       this.showAlert("No more steps to redo.");
