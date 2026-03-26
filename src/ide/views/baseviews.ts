@@ -20,6 +20,7 @@ export interface ProjectView {
     recreateOnResize?: boolean;
     undoStep?(): void;
     redoStep?(): void;
+    flushChanges?(): void;
     replaceTextRange?(from: number, to: number, text: string): void;
 };
 

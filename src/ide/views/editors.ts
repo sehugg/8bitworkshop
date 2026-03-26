@@ -282,6 +282,14 @@ export class SourceEditor implements ProjectView {
     }, this.refreshDelayMsec);
   }
 
+  flushChanges() {
+    if (this.updateTimer) {
+      clearTimeout(this.updateTimer);
+      this.updateTimer = null;
+      current_project.updateFile(this.path, this.editor.state.doc.toString());
+    }
+  }
+
   inspectUnderCursor(update: ViewUpdate) {
     // TODO: handle multi-select
     const range = update.state.selection.main;

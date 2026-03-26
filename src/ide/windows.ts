@@ -208,6 +208,15 @@ export class ProjectWindows {
     bootbox.alert(msg, () => { this.alerting = false; });
   }
 
+  flushAllWindows() {
+    for (var fileid in this.id2window) {
+      var wnd = this.id2window[fileid];
+      if (wnd && wnd.flushChanges) {
+        wnd.flushChanges();
+      }
+    }
+  }
+
   updateAllOpenWindows(store) {
     for (var fileid in this.id2window) {
       var wnd = this.id2window[fileid];

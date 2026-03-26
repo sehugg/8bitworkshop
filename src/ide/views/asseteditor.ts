@@ -477,7 +477,9 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
   setVisible?(showing: boolean): void {
     // TODO: make into toolbar?
     if (showing) {
-      // limit undo/redo to since opening this editor
+      // ensure asset editor is safe to perform synchronous reads/writes
+      projectWindows.flushAllWindows();
+      // limit undo/redo to since opening this asset editor
       projectWindows.undofiles = [];
       projectWindows.redofiles = [];
       if (Mousetrap.bind) {
