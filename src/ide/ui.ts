@@ -262,6 +262,24 @@ async function initProject() {
   current_project.callbackBuildStatus = (busy: boolean) => {
     setBusyStatus(busy);
   };
+  // Update file views when file contents change.
+  current_project.onFileChanged = (path: string, data: FileData) => {
+    var wnd = projectWindows.id2window[path];
+    if (wnd) {
+      if (wnd instanceof SourceEditor && typeof data === 'string') {
+        wnd.setText(data);
+      } else if (wnd instanceof BinaryFileView && data instanceof Uint8Array) {
+        wnd.setData(data);
+      } else {
+        console.warn('onFileChanged: unknown view or data type');
+      }
+    }
+    // Also refresh the asset editor if it's the active view.
+    var assetWnd = projectWindows.id2window['#asseteditor'];
+    if (assetWnd && assetWnd === projectWindows.getActive()) {
+      assetWnd.refresh(true);
+    }
+  };
 }
 
 function setBusyStatus(busy: boolean) {
@@ -679,19 +697,46 @@ async function getLocalFilesystem(repoid: string): Promise<ProjectFilesystem> {
     alertError(`Could not get permission to access filesystem.`);
     return;
   }
+  const lastWriteTime: { [path: string]: number } = {};
   return {
     getFileData: async (path) => {
       console.log('getFileData', path);
       let fileHandle = await dirHandle.getFileHandle(path, { create: false });
-      console.log('getFileData', fileHandle);
       let file = await fileHandle.getFile();
-      console.log('getFileData', file);
-      let contents = await (isProbablyBinary(path) ? file.binary() : file.text());
-      console.log(fileHandle, file, contents);
+      let contents = await (isProbablyBinary(path) ? file.arrayBuffer() : file.text());
+      if (contents instanceof ArrayBuffer) {
+        return new Uint8Array(contents);
+      }
       return contents;
     },
     setFileData: async (path, data) => {
-      //let vh = await dirHandle.getFileHandle(path, { create: true });
+      lastWriteTime[path] = Date.now();
+      const fileHandle = await dirHandle.getFileHandle(path, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(data);
+      await writable.close();
+    },
+    onFileSystemUpdate: (callback: (path: string) => void) => {
+      // Experimental API:
+      // https://developer.mozilla.org/docs/Web/API/FileSystemObserver
+      if (typeof (window as any).FileSystemObserver === 'undefined') {
+        return;
+      }
+      const observer = new (window as any).FileSystemObserver((records, observer) => {
+        for (const record of records) {
+          // TODO Handle different types of changes intelligently.
+          // https://developer.mozilla.org/docs/Web/API/FileSystemChangeRecord#type
+          if (record.changedHandle) {
+            const path = record.changedHandle.name;
+            // Ignore filesystem notifications that are likely from our own recent writes,
+            // so that onFileChanged in ui.ts doesn't call assets editor's refresh(true).
+            // TODO: Consider better options than a time based threshold.
+            if (Date.now() - (lastWriteTime[path] || 0) < 2000) continue;
+            callback(path);
+          }
+        }
+      });
+      observer.observe(dirHandle, { recursive: true });
     }
   }
 }

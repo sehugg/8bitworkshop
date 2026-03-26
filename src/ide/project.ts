@@ -1,32 +1,36 @@
 
-import { FileData, Dependency, SourceLine, SourceFile, CodeListing, CodeListingMap, WorkerError, Segment, WorkerResult, WorkerOutputResult, isUnchanged, isOutputResult, WorkerMessage, WorkerItemUpdate, WorkerErrorResult, isErrorResult } from "../common/workertypes";
-import { getFilenamePrefix, getFolderForPath, isProbablyBinary, getBasePlatform, getWithBinary } from "../common/util";
-import { Platform } from "../common/baseplatform";
 import localforage from "localforage";
+import { Platform } from "../common/baseplatform";
+import { getBasePlatform, getFilenamePrefix, getFolderForPath, getWithBinary, isProbablyBinary } from "../common/util";
+import { CodeListing, CodeListingMap, Dependency, FileData, Segment, SourceFile, WorkerErrorResult, WorkerItemUpdate, WorkerMessage, WorkerOutputResult, WorkerResult, isErrorResult, isOutputResult } from "../common/workertypes";
 
 export interface ProjectFilesystem {
-  getFileData(path: string) : Promise<FileData>;
-  setFileData(path: string, data: FileData) : Promise<void>;
+  getFileData(path: string): Promise<FileData>;
+  setFileData(path: string, data: FileData): Promise<void>;
+  onFileSystemUpdate(callback: (path: string) => void): void;
 }
 
 export class WebPresetsFileSystem implements ProjectFilesystem {
-  preset_id : string;
+  preset_id: string;
   constructor(platform_id: string) {
     this.preset_id = getBasePlatform(platform_id); // remove .suffix from preset name
   }
   async getRemoteFile(path: string): Promise<FileData> {
-    return new Promise( (yes,no)=> {
+    return new Promise((yes, no) => {
       return getWithBinary(path, yes, isProbablyBinary(path) ? 'arraybuffer' : 'text');
     });
   }
-  async getFileData(path: string) : Promise<FileData> {
+  async getFileData(path: string): Promise<FileData> {
     // found on remote fetch?
     var webpath = "presets/" + this.preset_id + "/" + path;
     var data = await this.getRemoteFile(webpath);
-    if (data) console.log("read",webpath,data.length,'bytes');
+    if (data) console.log("read", webpath, data.length, 'bytes');
     return data;
   }
-  async setFileData(path: string, data: FileData) : Promise<void> {
+  async setFileData(path: string, data: FileData): Promise<void> {
+    // not implemented
+  }
+  onFileSystemUpdate(callback: (path: string) => void): void {
     // not implemented
   }
 }
@@ -42,7 +46,9 @@ export class NullFilesystem implements ProjectFilesystem {
     this.sets.push(path);
     return;
   }
-  
+  onFileSystemUpdate(callback: (path: string) => void): void {
+    // not implemented
+  }
 }
 
 export class OverlayFilesystem implements ProjectFilesystem {
@@ -64,9 +70,13 @@ export class OverlayFilesystem implements ProjectFilesystem {
     await this.overlayfs.setFileData(path, data);
     return this.basefs.setFileData(path, data);
   }
+  onFileSystemUpdate(callback: (path: string) => void): void {
+    this.overlayfs.onFileSystemUpdate(callback);
+    this.basefs.onFileSystemUpdate(callback);
+  }
 }
 
-export class LocalForageFilesystem {
+export class LocalForageFilesystem implements ProjectFilesystem {
   store: any;
   constructor(store: any) {
     this.store = store;
@@ -77,36 +87,40 @@ export class LocalForageFilesystem {
   async setFileData(path: string, data: FileData): Promise<void> {
     return this.store.setItem(path, data);
   }
+  onFileSystemUpdate(callback: (path: string) => void): void {
+    // not implemented
+  }
 }
 
-type BuildResultCallback = (result:WorkerResult) => void;
-type BuildStatusCallback = (busy:boolean) => void;
-type IterateFilesCallback = (path:string, data:FileData) => void;
+type BuildResultCallback = (result: WorkerResult) => void;
+type BuildStatusCallback = (busy: boolean) => void;
+type IterateFilesCallback = (path: string, data: FileData) => void;
 
-function isEmptyString(text : FileData) {
+function isEmptyString(text: FileData) {
   return typeof text == 'string' && text.trim && text.trim().length == 0;
 }
 
 export class CodeProject {
-  filedata : {[path:string]:FileData} = {};
-  listings : CodeListingMap;
-  segments : Segment[];
-  mainPath : string;
+  filedata: { [path: string]: FileData } = {};
+  listings: CodeListingMap;
+  segments: Segment[];
+  mainPath: string;
   pendingWorkerMessages = 0;
   tools_preloaded = {};
-  worker : Worker;
-  platform_id : string;
-  platform : Platform;
-  isCompiling : boolean = false;
+  worker: Worker;
+  platform_id: string;
+  platform: Platform;
+  isCompiling: boolean = false;
   filename2path = {}; // map stripped paths to full paths
-  filesystem : ProjectFilesystem;
-  dataItems : WorkerItemUpdate[];
-  remoteTool? : string;
+  filesystem: ProjectFilesystem;
+  dataItems: WorkerItemUpdate[];
+  remoteTool?: string;
 
-  callbackBuildResult : BuildResultCallback;
-  callbackBuildStatus : BuildStatusCallback;
+  callbackBuildResult: BuildResultCallback;
+  callbackBuildStatus: BuildStatusCallback;
+  onFileChanged: (path: string, data: FileData) => void;
 
-  constructor(worker, platform_id:string, platform, filesystem: ProjectFilesystem) {
+  constructor(worker, platform_id: string, platform, filesystem: ProjectFilesystem) {
     this.worker = worker;
     this.platform_id = platform_id;
     this.platform = platform;
@@ -115,9 +129,19 @@ export class CodeProject {
     worker.onmessage = (e) => {
       this.receiveWorkerMessage(e.data);
     };
+
+    filesystem.onFileSystemUpdate(async (path: string) => {
+      if (path in this.filedata) {
+        var data = await this.filesystem.getFileData(path);
+        if (data) {
+          this.updateFile(path, data);
+          if (this.onFileChanged) this.onFileChanged(path, data);
+        }
+      }
+    });
   }
 
-  receiveWorkerMessage(data : WorkerResult) {
+  receiveWorkerMessage(data: WorkerResult) {
     var notfinal = this.pendingWorkerMessages > 1;
     if (notfinal) {
       this.sendBuild();
@@ -144,15 +168,15 @@ export class CodeProject {
     }
   }
 
-  preloadWorker(path:string) {
+  preloadWorker(path: string) {
     var tool = this.getToolForFilename(path);
     if (tool && !this.tools_preloaded[tool]) {
-      this.worker.postMessage({preload:tool, platform:this.platform_id});
+      this.worker.postMessage({ preload: tool, platform: this.platform_id });
       this.tools_preloaded[tool] = true;
     }
   }
 
-  pushAllFiles(files:string[], fn:string) {
+  pushAllFiles(files: string[], fn: string) {
     // look for local and preset files
     files.push(fn);
     // look for files in current (main file) folder
@@ -162,7 +186,7 @@ export class CodeProject {
   }
 
   // TODO: use tool id to parse files, not platform
-  parseIncludeDependencies(text:string):string[] {
+  parseIncludeDependencies(text: string): string[] {
     let files = [];
     let m;
     if (this.platform_id.startsWith('verilog')) {
@@ -179,7 +203,7 @@ export class CodeProject {
       // include .arch (json) statements
       let re2 = /^\s*([.]arch)\s+(\w+)/gmi;
       while (m = re2.exec(text)) {
-        this.pushAllFiles(files, m[2]+".json");
+        this.pushAllFiles(files, m[2] + ".json");
       }
       // include $readmem[bh] (TODO)
       let re3 = /\$readmem[bh]\("(.+?)"/gmi;
@@ -226,7 +250,7 @@ export class CodeProject {
     return files;
   }
 
-  parseLinkDependencies(text:string):string[] {
+  parseLinkDependencies(text: string): string[] {
     let files = [];
     let m;
     if (this.platform_id.startsWith('verilog')) {
@@ -240,8 +264,8 @@ export class CodeProject {
     }
     return files;
   }
-  
-  loadFileDependencies(text:string) : Promise<Dependency[]> {
+
+  loadFileDependencies(text: string): Promise<Dependency[]> {
     let includes = this.parseIncludeDependencies(text);
     let linkfiles = this.parseLinkDependencies(text);
     let allfiles = includes.concat(linkfiles);
@@ -256,49 +280,51 @@ export class CodeProject {
     });
   }
 
-  okToSend():boolean {
+  okToSend(): boolean {
     return this.pendingWorkerMessages++ == 0 && this.mainPath != null;
   }
 
-  updateFileInStore(path:string, text:FileData) {
+  updateFileInStore(path: string, text: FileData) {
     this.filesystem.setFileData(path, text);
   }
 
   // TODO: test duplicate files, local paths mixed with presets
-  buildWorkerMessage(depends:Dependency[]) : WorkerMessage {
+  buildWorkerMessage(depends: Dependency[]): WorkerMessage {
     this.preloadWorker(this.mainPath);
-    var msg : WorkerMessage = {updates:[], buildsteps:[]};
+    var msg: WorkerMessage = { updates: [], buildsteps: [] };
     // TODO: add preproc directive for __MAINFILE__
     var mainfilename = this.stripLocalPath(this.mainPath);
     var maintext = this.getFile(this.mainPath);
     var depfiles = [];
-    msg.updates.push({path:mainfilename, data:maintext});
+    msg.updates.push({ path: mainfilename, data: maintext });
     this.filename2path[mainfilename] = this.mainPath;
     const tool = this.getToolForFilename(this.mainPath);
     let usesRemoteTool = tool.startsWith('remote:');
     for (var dep of depends) {
       // remote tools send both includes and linked files in one build step
       if (!dep.link || usesRemoteTool) {
-        msg.updates.push({path:dep.filename, data:dep.data});
+        msg.updates.push({ path: dep.filename, data: dep.data });
         depfiles.push(dep.filename);
       }
       this.filename2path[dep.filename] = dep.path;
     }
     msg.buildsteps.push({
-      path:mainfilename,
-      files:[mainfilename].concat(depfiles),
-      platform:this.platform_id,
-      tool:this.getToolForFilename(this.mainPath),
-      mainfile:true});
+      path: mainfilename,
+      files: [mainfilename].concat(depfiles),
+      platform: this.platform_id,
+      tool: this.getToolForFilename(this.mainPath),
+      mainfile: true
+    });
     for (var dep of depends) {
       if (dep.data && dep.link) {
         this.preloadWorker(dep.filename);
-        msg.updates.push({path:dep.filename, data:dep.data});
+        msg.updates.push({ path: dep.filename, data: dep.data });
         msg.buildsteps.push({
-          path:dep.filename,
-          files:[dep.filename].concat(depfiles),
-          platform:this.platform_id,
-          tool:this.getToolForFilename(dep.path)});
+          path: dep.filename,
+          files: [dep.filename].concat(depfiles),
+          platform: this.platform_id,
+          tool: this.getToolForFilename(dep.path)
+        });
       }
     }
     if (this.dataItems) msg.setitems = this.dataItems;
@@ -306,14 +332,14 @@ export class CodeProject {
   }
 
   // TODO: get local file as well as presets?
-  async loadFiles(paths:string[]) : Promise<Dependency[]> {
-    var result : Dependency[] = [];
-    var addResult = (path:string, data:FileData) => {
+  async loadFiles(paths: string[]): Promise<Dependency[]> {
+    var result: Dependency[] = [];
+    var addResult = (path: string, data: FileData) => {
       result.push({
-        path:path,
-        filename:this.stripLocalPath(path),
-        link:true,
-        data:data
+        path: path,
+        filename: this.stripLocalPath(path),
+        link: true,
+        data: data
       });
     }
     for (var path of paths) {
@@ -336,12 +362,12 @@ export class CodeProject {
     return result;
   }
 
-  getFile(path:string):FileData {
+  getFile(path: string): FileData {
     return this.filedata[path];
   }
 
   // TODO: purge files not included in latest build?
-  iterateFiles(callback:IterateFilesCallback) {
+  iterateFiles(callback: IterateFilesCallback) {
     for (var path in this.filedata) {
       callback(path, this.getFile(path));
     }
@@ -354,18 +380,18 @@ export class CodeProject {
     if (maindata instanceof Uint8Array) {
       this.isCompiling = true;
       this.receiveWorkerMessage({
-        output:maindata,
-        errors:[],
-        listings:null,
-        symbolmap:null,
-        params:{}
+        output: maindata,
+        errors: [],
+        listings: null,
+        symbolmap: null,
+        params: {}
       });
       return;
     }
     // otherwise, make it a string
     var text = typeof maindata === "string" ? maindata : '';
     // TODO: load dependencies of non-main files
-    return this.loadFileDependencies(text).then( (depends) => {
+    return this.loadFileDependencies(text).then((depends) => {
       if (!depends) depends = [];
       var workermsg = this.buildWorkerMessage(depends);
       this.worker.postMessage(workermsg);
@@ -373,7 +399,7 @@ export class CodeProject {
     });
   }
 
-  updateFile(path:string, text:FileData) {
+  updateFile(path: string, text: FileData) {
     if (this.filedata[path] == text) return; // unchanged, don't update
     this.updateFileInStore(path, text); // TODO: isBinary
     this.filedata[path] = text;
@@ -383,7 +409,7 @@ export class CodeProject {
     }
   };
 
-  setMainFile(path:string) {
+  setMainFile(path: string) {
     this.mainPath = path;
     if (this.callbackBuildStatus) this.callbackBuildStatus(true);
     this.sendBuild();
@@ -410,25 +436,25 @@ export class CodeProject {
 
   processBuildSegments(data: WorkerOutputResult<any>) {
     // save and sort segment list
-    var segs : Segment[] = (this.platform.getMemoryMap && this.platform.getMemoryMap()["main"]) || [];
+    var segs: Segment[] = (this.platform.getMemoryMap && this.platform.getMemoryMap()["main"]) || [];
     if (segs?.length) { segs.forEach(seg => seg.source = 'native'); }
     if (data.segments) {
       data.segments.forEach(seg => seg.source = 'linker');
       segs = segs.concat(data.segments || []);
     }
-    segs.sort((a,b) => {return a.start-b.start});
+    segs.sort((a, b) => { return a.start - b.start });
     this.segments = segs;
   }
 
-  getListings() : CodeListingMap {
+  getListings(): CodeListingMap {
     return this.listings;
   }
 
   // returns first listing in format [prefix].lst (TODO: could be better)
-  getListingForFile(path: string) : CodeListing {
+  getListingForFile(path: string): CodeListing {
     // ignore include files (TODO)
     //if (path.toLowerCase().endsWith('.h') || path.toLowerCase().endsWith('.inc'))
-      //return;
+    //return;
     var fnprefix = getFilenamePrefix(this.stripLocalPath(path));
     // find listing with matching prefix
     var listings = this.getListings();
@@ -442,13 +468,13 @@ export class CodeProject {
       }
     }
   }
-  
-  stripLocalPath(path : string) : string {
+
+  stripLocalPath(path: string): string {
     if (this.mainPath) {
       var folder = getFolderForPath(this.mainPath);
       // TODO: kinda weird if folder is same name as file prefix
-      if (folder != '' && path.startsWith(folder+'/')) {
-        path = path.substring(folder.length+1);
+      if (folder != '' && path.startsWith(folder + '/')) {
+        path = path.substring(folder.length + 1);
       }
     }
     return path;
@@ -463,7 +489,7 @@ export class CodeProject {
 
 }
 
-export function createNewPersistentStore(storeid:string) : LocalForage {
+export function createNewPersistentStore(storeid: string): LocalForage {
   var store = localforage.createInstance({
     name: "__" + storeid,
     version: 2.0
