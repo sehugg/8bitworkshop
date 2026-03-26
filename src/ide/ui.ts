@@ -6,7 +6,7 @@ import { DebugEvalCondition, DebugSymbols, EmuState, isDebuggable, Platform, Pre
 import { EmuHalt, PLATFORMS } from "../common/emu";
 import { StateRecorderImpl } from "../common/recorder";
 import {
-  byteArrayToUTF8, decodeQueryString, getBasePlatform, getCookie, getFilenameForPath, getFilenamePrefix,
+  arrayCompare, byteArrayToUTF8, decodeQueryString, getBasePlatform, getCookie, getFilenameForPath, getFilenamePrefix,
   getRootBasePlatform, getWithBinary, hex, highlightDifferences, isProbablyBinary, loadScript, parseBool, stringToByteArray
 } from "../common/util";
 import { FileData, WorkerError, WorkerResult } from "../common/workertypes";
@@ -932,20 +932,24 @@ async function setCompileOutput(data: WorkerResult) {
     // load ROM
     var rom = data.output;
     if (rom != null) {
-      try {
-        clearBreakpoint(); // so we can replace memory (TODO: change toolbar btn)
-        _resetRecording();
-        await platform.loadROM(getCurrentPresetTitle(), rom, data.origin);
-        current_output = rom;
-        if (!userPaused) _resume();
-        writeOutputROMFile();
-      } catch (e) {
-        console.log(e);
-        toolbar.addClass("has-errors");
-        showExceptionAsError(e, e + "");
-        current_output = null;
-        refreshWindowList();
-        return;
+      if (current_output && arrayCompare(rom, current_output)) {
+        console.log("unchanged, skipping loadROM");
+      } else {
+        try {
+          clearBreakpoint(); // so we can replace memory (TODO: change toolbar btn)
+          _resetRecording();
+          await platform.loadROM(getCurrentPresetTitle(), rom, data.origin);
+          current_output = rom;
+          if (!userPaused) _resume();
+          writeOutputROMFile();
+        } catch (e) {
+          console.log(e);
+          toolbar.addClass("has-errors");
+          showExceptionAsError(e, e + "");
+          current_output = null;
+          refreshWindowList();
+          return;
+        }
       }
     }
     // update all windows (listings)
