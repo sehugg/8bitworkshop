@@ -10,6 +10,7 @@ export interface ProjectView {
     getPath?(): string;
     getValue?(): string;
     setText?(text: string): void;
+    setData?(data: any): void;
     insertLinesBefore?(text: string): void;
     getCursorPC?(): number;
     getSourceFile?(): SourceFile;

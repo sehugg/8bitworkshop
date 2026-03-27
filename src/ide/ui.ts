@@ -493,7 +493,7 @@ async function getSkeletonFile(fileid: string): Promise<string> {
   try {
     return await $.get("presets/" + getBasePlatform(platform_id) + "/skeleton." + ext, 'text');
   } catch (e) {
-    console.log(e+"");
+    console.log(e + "");
     return null;
   }
 }
@@ -707,19 +707,27 @@ export function getCurrentEditorFilename(): string {
 
 function _revertFile(e) {
   var wnd = projectWindows.getActive();
-  if (wnd && wnd.setText) {
-    var fn = projectWindows.getActiveID();
-    $.get("presets/" + getBasePlatform(platform_id) + "/" + fn, (text) => {
-      bootbox.confirm("Reset '" + DOMPurify.sanitize(fn) + "' to default?", (ok) => {
-        if (ok) {
-          wnd.setText(text);
-        }
-      });
-    }, 'text')
-      .fail(() => {
+  var fn = projectWindows.getActiveID();
+  var isBinary = wnd && wnd.setData && !wnd.setText;
+  if (wnd && (wnd.setText || wnd.setData)) {
+    var url = "presets/" + getBasePlatform(platform_id) + "/" + fn;
+    getWithBinary(url, (data) => {
+      if (data == null) {
         if (repo_id) alertError("Can only revert built-in examples. If you want to revert all files, You can pull from the repository.");
         else alertError("Can only revert built-in examples.");
+        return;
+      }
+      bootbox.confirm("Reset '" + DOMPurify.sanitize(fn) + "' to default?", (ok) => {
+        if (ok) {
+          if (isBinary) {
+            wnd.setData(data as Uint8Array);
+            current_project.updateFile(fn, data as Uint8Array);
+          } else {
+            wnd.setText(data as string);
+          }
+        }
       });
+    }, isBinary ? 'arraybuffer' : 'text');
   } else {
     alertError("Cannot revert the active window. Please choose a text file.");
   }
