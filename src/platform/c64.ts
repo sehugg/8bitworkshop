@@ -42,6 +42,7 @@ const C64_PRESETS : Preset[] = [
   {id:'hello.dasm', name:'Hello World (DASM)', category:'Assembly Language'},
   {id:'hello.acme', name:'Hello World (ACME)'},
   {id:'hello.wiz', name:'Hello Wiz (Wiz)'},
+  // {id:'kitchensink.dasm', name:'Kitchensink (DASM)'},
 ];
 
 const C64_MEMORY_MAP = { main:[
@@ -72,7 +73,7 @@ class C64WASMPlatform extends Base6502MachinePlatform<C64_WASMMachine> implement
   readAddress(a)        { return this.machine.readConst(a); }
   getMemoryMap()        { return C64_MEMORY_MAP; }
   showHelp()            { return "https://8bitworkshop.com/docs/platforms/c64/" }
-  getROMExtension(rom:Uint8Array) { 
+  getROMExtension(rom:Uint8Array) {
     /*
     if (rom && rom[0] == 0x00 && rom[1] == 0x80 && rom[2+4] == 0xc3 && rom[2+5] == 0xc2) return ".crt";
     */
