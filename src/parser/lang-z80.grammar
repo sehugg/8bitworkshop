@@ -8,10 +8,13 @@ Line {
 
 Statement {
   Instruction |
-  Directive
+  Directive |
+  MacroDef |
+  MacEnd |
+  ControlOp
 }
 
-Label { Identifier ":" | Identifier }
+Label { Identifier Colon Colon? | Identifier }
 
 Instruction {
   Opcode Operand?
@@ -21,66 +24,16 @@ Directive {
   PseudoOp (Expression)*
 }
 
-PseudoOp {
-  @specialize<Identifier,
-    "defb" | "defw" | "defm" |
-    "DEFB" | "DEFW" | "DEFM" |
-    "org" | "equ" | "end" | "public" |
-    "ORG" | "EQU" | "END" | "PUBLIC"
-  >
+MacroDef {
+  Mac Identifier
 }
 
-Condition {
-  @specialize<Identifier,
-    "nz" | "z" | "nc" | "po" | "pe" | "p" | "m" |
-    "NZ" | "Z" | "NC" | "PO" | "PE" | "P" | "M"
-  >
-}
-
-Register {
-  @specialize<Identifier,
-    "a" | "b" | "c" | "d" | "e" | "h" | "l" | "i" | "r" | "af" | "bc" | "de" | "hl" | "ix" | "iy" | "sp" | "pc" | "psw" |
-    "A" | "B" | "C" | "D" | "E" | "H" | "L" | "I" | "R" | "AF" | "BC" | "DE" | "HL" | "IX" | "IY" | "SP" | "PC" | "PSW"
-  >
-}
-
-Opcode {
-  @specialize<Identifier,
-    // Z80 Instructions
-    "ld" | "push" | "pop" | "inc" | "dec" | "add" | "adc" | "sub" | "sbc" | "and" | "or" | "xor" |
-    "cp" | "ret" | "jp" | "jr" | "call" | "rst" | "nop" | "halt" | "di" | "ei" |
-    "im" | "ex" | "exx" | "neg" | "cpl" | "ccf" | "scf" | "rlca" | "rla" | "rrca" | "rra" |
-    "rlc" | "rl" | "rrc" | "rr" | "sla" | "sra" | "srl" | "bit" | "set" | "res" |
-    "out" | "in" | "djnz" | "rld" | "rrd" | "ldi" | "ldir" | "ldd" | "lddr" | "cpi" | "cpir" | "cpd" | "cpdr" |
-    "ini" | "inir" | "ind" | "indr" | "outi" | "otir" | "outd" | "otdr" |
-
-    "LD" | "PUSH" | "POP" | "INC" | "DEC" | "ADD" | "ADC" | "SUB" | "SBC" | "AND" | "OR" | "XOR" |
-    "CP" | "RET" | "JP" | "JR" | "CALL" | "RST" | "NOP" | "HALT" | "DI" | "EI" |
-    "IM" | "EX" | "EXX" | "NEG" | "CPL" | "CCF" | "SCF" | "RLCA" | "RLA" | "RRCA" | "RRA" |
-    "RLC" | "RL" | "RRC" | "RR" | "SLA" | "SRA" | "SRL" | "BIT" | "SET" | "RES" |
-    "OUT" | "IN" | "DJNZ" | "RLD" | "RRD" | "LDI" | "LDIR" | "LDD" | "LDDR" | "CPI" | "CPIR" | "CPD" | "CPDR" |
-    "INI" | "INIR" | "IND" | "INDR" | "OUTI" | "OTIR" | "OUTD" | "OTDR" |
-
-    // 8080 Instructions
-    "mov" | "mvi" | "lxi" | "lda" | "sta" | "lhld" | "shld" | "ldax" | "stax" |
-    "adi" | "aci" | "sui" | "sbi" | "sbb" | "ana" | "ani" | "xra" | "xri" | "ora" | "ori" | "cmp" |
-    "inr" | "dcr" | "inx" | "dcx" | "dad" |
-    "daa" | "cma" | "stc" | "cmc" | "ral" | "rar" |
-    "jmp" | "jnz" | "jz" | "jnc" | "jc" | "jpo" | "jpe" | "jm" |
-    "cnz" | "cz" | "cnc" | "cc" | "cpo" | "cpe" | "cm" |
-    "rnz" | "rz" | "rnc" | "rc" | "rpo" | "rpe" | "rp" | "rm" |
-    "pchl" | "sphl" | "xthl" | "xchg" | "hlt" |
-
-    "MOV" | "MVI" | "LXI" | "LDA" | "STA" | "LHLD" | "SHLD" | "LDAX" | "STAX" |
-    "ADI" | "ACI" | "SUI" | "SBI" | "SBB" | "ANA" | "ANI" | "XRA" | "XRI" | "ORA" | "ORI" | "CMP" |
-    "INR" | "DCR" | "INX" | "DCX" | "DAD" |
-    "DAA" | "CMA" | "STC" | "CMC" | "RAL" | "RAR" |
-    "JMP" | "JNZ" | "JZ" | "JNC" | "JC" | "JPO" | "JPE" | "JM" |
-    "CNZ" | "CZ" | "CNC" | "CC" | "CPO" | "CPE" | "CM" |
-    "RNZ" | "RZ" | "RNC" | "RC" | "RPO" | "RPE" | "RP" | "RM" |
-    "PCHL" | "SPHL" | "XTHL" | "XCHG" | "HLT"
-  >
-}
+@external specialize {Identifier} pseudoOpSpecializer from "../../src/parser/tokens-z80" { PseudoOp }
+@external specialize {Identifier} macSpecializer from "../../src/parser/tokens-z80" { Mac, MacEnd }
+@external specialize {Identifier} controlOpSpecializer from "../../src/parser/tokens-z80" { ControlOp }
+@external specialize {Identifier} opcodeSpecializer from "../../src/parser/tokens-z80" { Opcode }
+@external specialize {Identifier} registerSpecializer from "../../src/parser/tokens-z80" { Register }
+@external specialize {Identifier} conditionSpecializer from "../../src/parser/tokens-z80" { Condition }
 
 Expression {
   Expression !logic LogicOp Expression |
@@ -115,12 +68,12 @@ Operand {
 }
 
 @tokens {
-  Identifier { $[a-zA-Z_] $[a-zA-Z0-9_]* }
+  Identifier { $[a-zA-Z_.?] $[a-zA-Z0-9_.?]* }
 
-  Hex { ("0x" | "$") $[0-9a-fA-F]+ | $[0-9] $[0-9a-fA-F]* "h" }
-  Bin { "%" $[01]+ | $[01]+ "b" }
-  Oct { "0o" $[0-7]+ | $[0-7]+ "o" }
-  Dec { $[0-9]+ }
+  Hex { ("0x" | "0X" | "$") $[0-9a-fA-F]+ | $[0-9] $[0-9a-fA-F]* $[hH] }
+  Bin { $[01]+ $[bB] }
+  Oct { ("0o" | "0O") $[0-7]+ | $[0-7]+ $[oOqQ] }
+  Dec { $[0-9]+ $[dD]? }
 
   Number { Hex | Bin | Oct | Dec }
 
@@ -134,7 +87,7 @@ Operand {
   eol { $[\n\r]+ }
 
   Comma { "," }
-  ":"
+  Colon { ":" }
   "#"
   "(" ")"
 

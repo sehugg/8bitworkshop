@@ -46,17 +46,19 @@ export const mboTheme = EditorView.theme({
 }, { dark: true });
 
 export const mboHighlightStyle = HighlightStyle.define([
-  { tag: t.keyword, color: "#ffb928" },
+  { tag: t.standard(t.keyword), color: "#ffb928" },
   { tag: [t.name, t.standard(t.name)], color: "#ffffec" },
   { tag: t.variableName, color: "#9ddfe9" },
-  { tag: [t.deleted, t.macroName], color: "#00a8c6" }, // maps to cm-variable-2
-  { tag: [t.processingInstruction, t.string, t.inserted], color: "#b4fdb7" }, // Updated string color
-  { tag: t.number, color: "#33aadd" }, // Updated number color
+  { tag: t.local(t.variableName), color: "#7eb8c4" },
+  { tag: [t.deleted, t.macroName], color: "#00a8c6" },
+  { tag: [t.processingInstruction, t.keyword, t.controlKeyword], color: "#c792ea" },
+  { tag: [t.string, t.inserted], color: "#b4fdb7" },
+  { tag: [t.number, t.constant(t.modifier)], color: "#33aadd" },
   { tag: [t.atom, t.bool, t.special(t.variableName)], color: "#00a8c6" },
   { tag: t.definition(t.variableName), color: "#ffb928" },
-  { tag: [t.propertyName, t.attributeName, t.tagName], color: "#9ddfe9" },
-  { tag: t.definition(t.name), color: "#88eeff" }, // maps to cm-def
-  { tag: t.typeName, color: "#ffb928" }, // maps to cm-variable-3
+  { tag: [t.propertyName, t.attributeName, t.tagName, t.self], color: "#9ddfe9" },
+  { tag: t.definition(t.name), color: "#88eeff" },
+  { tag: t.typeName, color: "#ffb928" },
   { tag: t.bracket, color: "#fffffc", fontWeight: "bold" },
   { tag: t.comment, color: "#95958a" },
   { tag: t.link, color: "#f54b07" },

@@ -7,15 +7,15 @@ export const LezerZ80: LRLanguage = LRLanguage.define({
         props: [
             styleTags({
                 Identifier: t.variableName,
-                PseudoOp: t.definition(t.variableName),
-                Opcode: t.keyword,
-                Register: t.typeName,
-                Condition: t.className,
+                PseudoOp: t.keyword,
+                Opcode: t.standard(t.keyword),
+                Register: t.standard(t.modifier),
+                Condition: t.constant(t.modifier),
                 Label: t.labelName,
                 String: t.string,
-                Char: t.number,
+                Char: t.character,
                 Number: t.number,
-                Comment: t.lineComment,
+                Comment: t.comment,
                 ArithOp: t.arithmeticOperator,
                 Plus: t.arithmeticOperator,
                 Minus: t.arithmeticOperator,
@@ -29,7 +29,12 @@ export const LezerZ80: LRLanguage = LRLanguage.define({
                 BinaryGt: t.compareOperator,
                 UnaryLt: t.arithmeticOperator,
                 UnaryGt: t.arithmeticOperator,
+                Mac: t.definitionKeyword,
+                MacEnd: t.definitionKeyword,
+                "MacroDef/Identifier": t.macroName,
+                ControlOp: t.controlKeyword,
                 Comma: t.separator,
+                Colon: t.separator,
                 "( )": t.paren
             })
         ]

@@ -13,15 +13,27 @@ export const Lezer6502: LRLanguage = LRLanguage.define({
             }),
             styleTags({
                 Identifier: t.variableName,
+                LocalIdentifier: t.local(t.variableName),
                 CurrentAddress: t.self,
-                PseudoOp: t.definition(t.variableName),
-                Opcode: t.keyword,
+                // t.constant()
+                // t.function()
+                // t.standard()
+                // t.local()
+
+                // t.literal
+                // t.modifier
+                // t.quote
+                // t.processingInstruction
+                PseudoOp: t.keyword,
+                Equals: t.keyword,
+                Opcode: t.standard(t.keyword),
                 Label: t.labelName,
                 String: t.string,
-                Char: t.number,
+                Char: t.character,
                 Number: t.number,
-                Register: t.typeName,
-                Comment: t.lineComment,
+                Register: t.standard(t.modifier),
+                OnOff: t.bool,
+                Comment: t.comment,
                 ArithOp: t.arithmeticOperator,
                 Plus: t.arithmeticOperator,
                 Minus: t.arithmeticOperator,
@@ -35,14 +47,15 @@ export const Lezer6502: LRLanguage = LRLanguage.define({
                 BinaryGt: t.compareOperator,
                 UnaryLt: t.arithmeticOperator,
                 UnaryGt: t.arithmeticOperator,
-                HexOp: t.definition(t.variableName),
+                HexOp: t.keyword,
                 HexByte: t.number,
                 Mac: t.definitionKeyword,
                 MacEnd: t.definitionKeyword,
                 "MacroDef/Identifier": t.macroName,
                 ControlOp: t.controlKeyword,
-                ErrorOp: t.keyword,
+                ImmediatePrefix: t.constant(t.modifier),
                 Comma: t.separator,
+                Colon: t.separator,
                 "( )": t.paren
             })
         ]
