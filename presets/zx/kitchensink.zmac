@@ -1,0 +1,777 @@
+; ===========================================================================
+; kitchensink.zmac - Z80 grammar Kitchen Sink
+; ===========================================================================
+; Z80 parser and formatter test for zmac assembler
+; https://48k.ca/zmac.html
+; ===========================================================================
+; TODO: Uncomment `;;;` lines once ZMAC is updated
+
+; -------------------------------------------------------------------
+; Code generation mode
+; -------------------------------------------------------------------
+;;;       .z80
+
+; -------------------------------------------------------------------
+; ORG
+; -------------------------------------------------------------------
+          org  $5CCB
+          .org 0x5CCB
+          ORG  $5CCB
+          .ORG 0x5CCB
+
+; -------------------------------------------------------------------
+; Labels: global, global with colon, global with double colon (public)
+; -------------------------------------------------------------------
+GlobalLabel
+GlobalColon:
+GlobalPublic::
+
+; ===================================================================
+; Runnable entry point
+; ===================================================================
+          org  $8000
+start:    jp   start               ; infinite loop so program can run
+
+; -------------------------------------------------------------------
+; Instructions: 8-bit load group
+; -------------------------------------------------------------------
+          ld   a,b
+          ld   a,c
+          ld   a,d
+          ld   a,e
+          ld   a,h
+          ld   a,l
+          ld   a,(hl)
+          ld   a,a
+          ld   b,42
+          ld   c,$FF
+          ld   d,10101010b
+          ld   e,0x1A
+          ld   h,0FFh
+          ld   l,0
+
+; -------------------------------------------------------------------
+; Instructions: 16-bit load group
+; -------------------------------------------------------------------
+          ld   bc,$1234
+          ld   de,$5678
+          ld   hl,$9ABC
+          ld   sp,$DEF0
+          ld   ix,$1111
+          ld   iy,$2222
+          ld   hl,($C000)
+          ld   ($C000),hl
+          ld   bc,($C002)
+          ld   ($C002),bc
+          ld   de,($C004)
+          ld   ($C004),de
+          ld   sp,($C006)
+          ld   ($C006),sp
+          ld   ix,($C008)
+          ld   ($C008),ix
+          ld   iy,($C00A)
+          ld   ($C00A),iy
+
+; -------------------------------------------------------------------
+; Instructions: stack operations
+; -------------------------------------------------------------------
+          push af
+          push bc
+          push de
+          push hl
+          push ix
+          push iy
+          pop  af
+          pop  bc
+          pop  de
+          pop  hl
+          pop  ix
+          pop  iy
+
+; -------------------------------------------------------------------
+; Instructions: exchange, block transfer, search
+; -------------------------------------------------------------------
+          ex   de,hl
+          ex   af,af'
+          exx
+          ex   (sp),hl
+          ex   (sp),ix
+          ex   (sp),iy
+          ldi
+          ldir
+          ldd
+          lddr
+          cpi
+          cpir
+          cpd
+          cpdr
+
+; -------------------------------------------------------------------
+; Instructions: 8-bit arithmetic and logic
+; -------------------------------------------------------------------
+          add  a,b
+          add  a,$10
+          add  a,(hl)
+          add  a,(ix+5)
+          add  a,(iy-3)
+          adc  a,c
+          adc  a,$20
+          sub  d
+          sub  $30
+          sbc  a,e
+          sbc  a,$40
+          and  h
+          and  $0F
+          or   l
+          or   $F0
+          xor  a
+          xor  $AA
+          cp   b
+          cp   $55
+          inc  a
+          inc  b
+          inc  (hl)
+          inc  (ix+2)
+          dec  c
+          dec  (iy+4)
+
+; -------------------------------------------------------------------
+; Instructions: 16-bit arithmetic
+; -------------------------------------------------------------------
+          add  hl,bc
+          add  hl,de
+          add  hl,hl
+          add  hl,sp
+          adc  hl,bc
+          sbc  hl,de
+          add  ix,bc
+          add  ix,de
+          add  ix,ix
+          add  ix,sp
+          add  iy,bc
+          add  iy,de
+          add  iy,iy
+          add  iy,sp
+          inc  bc
+          inc  de
+          inc  hl
+          inc  sp
+          inc  ix
+          inc  iy
+          dec  bc
+          dec  de
+          dec  hl
+          dec  sp
+          dec  ix
+          dec  iy
+
+; -------------------------------------------------------------------
+; Instructions: general-purpose AF operations
+; -------------------------------------------------------------------
+          daa
+          cpl
+          neg
+          ccf
+          scf
+
+; -------------------------------------------------------------------
+; Instructions: rotate and shift
+; -------------------------------------------------------------------
+          rlca
+          rrca
+          rla
+          rra
+          rlc  b
+          rlc  (hl)
+          rrc  c
+          rrc  (ix+1)
+          rl   d
+          rl   (iy+2)
+          rr   e
+          sla  h
+          sla  (hl)
+          sra  l
+          srl  a
+          srl  (ix+3)
+          rld
+          rrd
+
+; -------------------------------------------------------------------
+; Instructions: bit set, reset, test
+; -------------------------------------------------------------------
+          bit  0,a
+          bit  7,(hl)
+          bit  3,(ix+1)
+          set  0,b
+          set  5,(hl)
+          set  2,(iy+4)
+          res  7,c
+          res  4,(hl)
+          res  6,(ix+2)
+
+; -------------------------------------------------------------------
+; Instructions: jump group
+; -------------------------------------------------------------------
+          jp   $8000
+          jp   nz,$8000
+          jp   z,$8000
+          jp   nc,$8000
+          jp   c,$8000
+          jp   po,$8000
+          jp   pe,$8000
+          jp   p,$8000
+          jp   m,$8000
+          jp   (hl)
+          jp   (ix)
+          jp   (iy)
+jr_target:
+          jr   jr_target
+          jr   nz,jr_target
+          jr   z,jr_target
+          jr   nc,jr_target
+          jr   c,jr_target
+          djnz jr_target
+
+; -------------------------------------------------------------------
+; Instructions: call and return group
+; -------------------------------------------------------------------
+          call $8000
+          call nz,$8000
+          call z,$8000
+          call nc,$8000
+          call c,$8000
+          call po,$8000
+          call pe,$8000
+          call p,$8000
+          call m,$8000
+          ret
+          ret  nz
+          ret  z
+          ret  nc
+          ret  c
+          ret  po
+          ret  pe
+          ret  p
+          ret  m
+          reti
+          retn
+
+; -------------------------------------------------------------------
+; Instructions: restart group
+; -------------------------------------------------------------------
+          rst  $00
+          rst  $08
+          rst  $10
+          rst  $18
+          rst  $20
+          rst  $28
+          rst  $30
+          rst  $38
+
+; -------------------------------------------------------------------
+; Instructions: input and output group
+; -------------------------------------------------------------------
+          in   a,($FE)
+          in   b,(c)
+          in   c,(c)
+          in   d,(c)
+          in   e,(c)
+          in   h,(c)
+          in   l,(c)
+          in   a,(c)
+          ini
+          inir
+          ind
+          indr
+          out  ($FE),a
+          out  (c),b
+          out  (c),c
+          out  (c),d
+          out  (c),e
+          out  (c),h
+          out  (c),l
+          out  (c),a
+          outi
+          otir
+          outd
+          otdr
+
+; -------------------------------------------------------------------
+; Instructions: CPU control
+; -------------------------------------------------------------------
+          nop
+          halt
+          di
+          ei
+          im   0
+          im   1
+          im   2
+          ld   i,a
+          ld   a,i
+          ld   r,a
+          ld   a,r
+
+; -------------------------------------------------------------------
+; Instructions: memory-referenced loads
+; -------------------------------------------------------------------
+          ld   a,($1234)
+          ld   ($1234),a
+          ld   a,(bc)
+          ld   a,(de)
+          ld   (bc),a
+          ld   (de),a
+          ld   a,(ix+0)
+          ld   a,(iy+127)
+          ld   (ix-128),b
+          ld   (iy+10),c
+          ld   sp,hl
+          ld   sp,ix
+          ld   sp,iy
+
+; -------------------------------------------------------------------
+; Undocumented instructions
+; -------------------------------------------------------------------
+          sl1  b                   ; shift left, set bit 0
+          in   (c)                 ; input but discard result
+          out  (c),0               ; output zero
+
+; -------------------------------------------------------------------
+; Undocumented: IX/IY half registers
+; -------------------------------------------------------------------
+          ld   a,ixh
+          ld   a,ixl
+          ld   a,iyh
+          ld   a,iyl
+          ld   ixh,a
+          ld   ixl,b
+          ld   iyh,c
+          ld   iyl,d
+          add  a,ixh
+          sub  ixl
+          and  iyh
+          or   iyl
+          cp   ixh
+          inc  ixl
+          dec  iyh
+
+; -------------------------------------------------------------------
+; Number formats
+; -------------------------------------------------------------------
+          ld   a,$FF               ; hex with $ prefix
+          ld   a,255               ; decimal
+
+          ld   a,0xFF              ; hex with 0x prefix
+          ld   a,0XFF              ; hex with 0X prefix
+          ld   a,0FFh              ; hex with h suffix
+          ld   a,0FFH              ; hex with H suffix
+          ld   a,10101010b         ; binary with b suffix
+          ld   a,10101010B         ; binary with B suffix
+          ld   a,377o              ; octal with o suffix
+          ld   a,377O              ; octal with O suffix
+          ld   a,377q              ; octal with q suffix
+          ld   a,377Q              ; octal with Q suffix
+          ld   a,255d              ; decimal with d suffix
+          ld   a,255D              ; decimal with D suffix
+
+          ld   a,'A'               ; character constant
+
+; -------------------------------------------------------------------
+; Current address ($)
+; -------------------------------------------------------------------
+          jp   $                   ; current address
+
+; -------------------------------------------------------------------
+; Pseudo-ops: EQU (fixed constant)
+; -------------------------------------------------------------------
+CONST1    equ  $10
+CONST2    EQU  $20
+CONST3    equ  CONST1 + CONST2
+
+; -------------------------------------------------------------------
+; Pseudo-ops: DEFL / SET (reassignable)
+; -------------------------------------------------------------------
+COUNTER   defl 0
+COUNTER   DEFL COUNTER + 1
+COUNTER   set  COUNTER + 1
+COUNTER   SET  COUNTER + 1
+
+; -------------------------------------------------------------------
+; Pseudo-ops: compound assignment operators
+; -------------------------------------------------------------------
+COUNTER	+= 5
+COUNTER	-= 2
+COUNTER	*= 3
+
+; -------------------------------------------------------------------
+; Pseudo-ops: increment/decrement
+; -------------------------------------------------------------------
+COUNTER	++
+COUNTER	--
+
+; -------------------------------------------------------------------
+; Data: DEFB / DB / BYTE / ASCII / TEXT / DEFM / DM
+; -------------------------------------------------------------------
+          defb $EE,$FF
+          DEFB $EE,$FF
+          db   1,2,3
+          DB   1,2,3
+          byte $AA,$BB
+          BYTE $AA,$BB
+          defm "Hello, World!"
+          DEFM "Hello, World!"
+;;;       dm   "Test"
+;;;       DM   "Test"
+          ascii "ABC"
+          ASCII "ABC"
+          text "xyz"
+          TEXT "xyz"
+
+; -------------------------------------------------------------------
+; Data: DEFW / DW / WORD
+; -------------------------------------------------------------------
+          defw $ABCD
+          DEFW $ABCD
+          dw   $1234,$5678
+          DW   $1234,$5678
+          word $9ABC
+          WORD $9ABC
+
+; -------------------------------------------------------------------
+; Data: DEF3 / D3 (24-bit)
+; -------------------------------------------------------------------
+;;;       def3 $123456
+;;;       DEF3 $123456
+;;;       d3   $ABCDEF
+;;;       D3   $ABCDEF
+
+; -------------------------------------------------------------------
+; Data: DEFD / DWORD (32-bit)
+; -------------------------------------------------------------------
+          defd $12345678
+          DEFD $12345678
+          dword $DEADBEEF
+          DWORD $DEADBEEF
+
+; -------------------------------------------------------------------
+; Data: DEFS / DS / BLOCK / RMEM (reserve space)
+; -------------------------------------------------------------------
+          defs 4
+          DEFS 4
+          ds   8
+          DS   8
+          block 16
+          BLOCK 16
+          rmem 2
+          RMEM 2
+
+; -------------------------------------------------------------------
+; Data: DC (string with high bit set on last char / repeat fill)
+; -------------------------------------------------------------------
+          dc   'Hello'
+          DC   10,$FF
+
+; -------------------------------------------------------------------
+; Data: INCBIN
+; -------------------------------------------------------------------
+;;;       incbin "garagesink.bin"
+;;;       INCBIN "garagesink.bin"
+
+; -------------------------------------------------------------------
+; Strings and characters
+; -------------------------------------------------------------------
+          defb 'A'                 ; single char in single quotes
+          DEFB 'String too'        ; string in single quotes
+          defb "Hello"             ; string in double quotes
+          defw 1234h               ; two-char constant = 'H'*256 + 'L'
+          DEFW 1234h               ; two-char constant = 'H'*256 + 'L'
+;;;       defw 'LH'                ; two-char constant = 'H'*256 + 'L'
+
+; -------------------------------------------------------------------
+; Include directives
+; -------------------------------------------------------------------
+          include "kitchensink2.zmac"
+          INCLUDE "kitchensink2.zmac"
+          read "kitchensink2.zmac"
+          READ "kitchensink2.zmac"
+
+          include "kitchensink3.lib"
+          maclib "kitchensink3.lib"
+          MACLIB "kitchensink3.lib"
+
+; -------------------------------------------------------------------
+; PHASE / DEPHASE (relocatable code)
+; -------------------------------------------------------------------
+          phase $C000
+          nop
+          dephase
+
+          PHASE $C000
+          nop
+          DEPHASE
+
+          .phase $D000
+          nop
+          .dephase
+
+          .PHASE $D000
+          nop
+          .DEPHASE
+
+; -------------------------------------------------------------------
+; Macros: MACRO / ENDM / EXITM / LOCAL
+; -------------------------------------------------------------------
+LoadImm   macro val
+          ld   a,val
+          exitm
+          endm
+
+AddPair   MACRO r1,r2,?skip
+          LOCAL dummy
+          add  a,r1
+          jr   nc,?skip
+          inc  r2
+?skip:
+          EXITM
+          ENDM
+
+WithLocal macro arg
+          local done
+          ld   a,arg
+          or   a
+          jr   z,done
+          inc  a
+done:
+          endm
+
+          ; Macro invocations
+          LoadImm 42
+          AddPair b,c
+          WithLocal $FF
+
+; -------------------------------------------------------------------
+; Conditionals: IF / ELSE / ENDIF
+; -------------------------------------------------------------------
+          if   CONST1 == $10
+          nop
+          else
+          halt
+          endif
+
+          IF   CONST2 != $10
+          nop
+          ELSE
+          halt
+          ENDIF
+
+; -------------------------------------------------------------------
+; Conditionals: IFDEF / IFNDEF
+; -------------------------------------------------------------------
+          ifdef CONST1
+          nop
+          endif
+
+          IFDEF CONST1
+          ENDIF
+
+          ifndef UNDEFINED_SYMBOL
+          nop
+          endif
+
+; -------------------------------------------------------------------
+; Conditionals: COND / ENDC (synonyms for IF / ENDIF)
+; -------------------------------------------------------------------
+          cond CONST1
+          nop
+          endc
+
+          COND CONST1
+          nop
+          ENDC
+
+; -------------------------------------------------------------------
+; Conditionals: IFEQ / IFNE / IFLT / IFGT
+; -------------------------------------------------------------------
+;;;       ifeq CONST1,$10
+;;;       nop
+;;;       endif
+
+;;;       ifne CONST1,$20
+;;;       nop
+;;;       endif
+
+;;;       iflt CONST1,$20
+;;;       nop
+;;;       endif
+
+;;;       ifgt CONST2,$10
+;;;       nop
+;;;       endif
+
+; -------------------------------------------------------------------
+; REPT (repeat block)
+; -------------------------------------------------------------------
+          rept 4
+          nop
+          endm
+
+          REPT 4
+          nop
+          ENDM
+
+; -------------------------------------------------------------------
+; IRP (iterate with replacement parameter)
+; -------------------------------------------------------------------
+          irp  reg,<b,c,d>
+          inc  reg
+          endm
+
+          IRP  reg,<b,c,d>
+          inc  reg
+          ENDM
+
+; -------------------------------------------------------------------
+; IRPC (iterate characters)
+; -------------------------------------------------------------------
+          irpc ch,ABC
+          defb 'ch'
+          endm
+
+          IRPC ch,ABC
+          defb 'ch'
+          ENDM
+
+; -------------------------------------------------------------------
+; Expressions: arithmetic operators
+; -------------------------------------------------------------------
+EXPR_ADD  equ  1 + 2
+EXPR_SUB  equ  10 - 3
+EXPR_MUL  equ  4 * 5
+EXPR_DIV  equ  20 / 4
+EXPR_MOD  equ  17 % 5
+
+; -------------------------------------------------------------------
+; Expressions: bitwise operators
+; -------------------------------------------------------------------
+EXPR_AND  equ  $FF & $0F
+EXPR_OR   equ  $F0 | $0F
+EXPR_XOR  equ  $FF ^ $AA
+EXPR_SHL  equ  1 << 4
+EXPR_SHR  equ  $80 >> 3
+
+; -------------------------------------------------------------------
+; Expressions: comparison operators
+; -------------------------------------------------------------------
+EXPR_EQ   equ  [1 == 1]
+EXPR_NE   equ  [1 != 2]
+EXPR_LT   equ  [1 < 2]
+EXPR_GT   equ  [2 > 1]
+EXPR_LE   equ  [1 <= 1]
+EXPR_GE   equ  [2 >= 1]
+
+; -------------------------------------------------------------------
+; Expressions: logical operators
+; -------------------------------------------------------------------
+EXPR_LAND equ  [1 && 1]
+EXPR_LOR  equ  [0 || 1]
+
+; -------------------------------------------------------------------
+; Expressions: unary operators
+; -------------------------------------------------------------------
+EXPR_NEG  equ  -1
+EXPR_NOT  equ  !0
+EXPR_CPL  equ  ~$FF
+EXPR_LO   equ  low $1234
+EXPR_HI   equ  high $1234
+
+; -------------------------------------------------------------------
+; Expressions: parentheses and bracket grouping
+; -------------------------------------------------------------------
+EXPR_PARNS equ (2 + 3) * 4
+EXPR_BRACK equ [2 + 3] * 4
+
+; -------------------------------------------------------------------
+; Expressions: complex nested
+; -------------------------------------------------------------------
+EXPR_COMPLEX equ [[1 + 2] * [3 + 4]] & $FF
+
+; -------------------------------------------------------------------
+; Expressions: word synonym operators
+; -------------------------------------------------------------------
+EXPR_MOD2 equ  17 mod 5
+EXPR_SHL2 equ  1 shl 4
+EXPR_SHR2 equ  $80 shr 3
+EXPR_AND2 equ  $FF and $0F
+EXPR_OR2  equ  $F0 or $0F
+EXPR_XOR2 equ  $FF xor $AA
+EXPR_NOT2 equ  not 0
+EXPR_EQ2  equ  [1 eq 1]
+EXPR_NE2  equ  [1 ne 2]
+EXPR_LT2  equ  [1 lt 2]
+EXPR_GT2  equ  [2 gt 1]
+EXPR_LE2  equ  [1 le 1]
+EXPR_GE2  equ  [2 ge 1]
+
+; -------------------------------------------------------------------
+; Cycle counting: SETT / T()
+; -------------------------------------------------------------------
+cycle_start:
+          nop
+          nop
+          nop
+cycle_end:
+CYCLES    equ  t(cycle_end) - t(cycle_start)
+
+; -------------------------------------------------------------------
+; ASSERT
+; -------------------------------------------------------------------
+          assert CONST1 == $10
+          ASSERT CONST1 == $10
+
+; -------------------------------------------------------------------
+; Listing pseudo-ops
+; -------------------------------------------------------------------
+          list 1
+          LIST -1
+          title 'Kitchen Sink Test'
+          TITLE 'Kitchen Sink Test'
+
+; -------------------------------------------------------------------
+; NAME
+; -------------------------------------------------------------------
+          name 'kitchensink'
+          NAME 'kitchensink'
+
+; -------------------------------------------------------------------
+; JR promotion
+; -------------------------------------------------------------------
+          jrpromote 1              ; enable JR->JP promotion
+          JRPROMOTE 1              ; enable JR->JP promotion
+
+; -------------------------------------------------------------------
+; Segments (for .rel output)
+; -------------------------------------------------------------------
+          aseg
+          cseg
+          dseg
+
+          ASEG
+          CSEG
+          DSEG
+
+; -------------------------------------------------------------------
+; EXTERN / PUBLIC (for .rel output)
+; -------------------------------------------------------------------
+          extern ExtSym1,ExtSym2
+          EXTERN ExtSym1,ExtSym2
+          public start
+          PUBLIC start
+
+; -------------------------------------------------------------------
+; END
+; -------------------------------------------------------------------
+          end  start               ; assembly stops, entry address = start
+          END  start               ; assembly stops, entry address = start
+
+; ===========================================================================
+; End of kitchen sink
+; ===========================================================================
