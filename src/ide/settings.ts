@@ -8,12 +8,12 @@ import { insertTabKeymap, smartIndentKeymap } from "./views/tabs";
 declare var bootbox;
 declare var $: JQueryStatic;
 
+export const tabSizeCompartment = new Compartment();
+export const tabsToSpacesCompartment = new Compartment();
 export const highlightSpecialCharsCompartment = new Compartment();
 export const highlightWhitespaceCompartment = new Compartment();
 export const highlightTrailingWhitespaceCompartment = new Compartment();
-export const tabSizeCompartment = new Compartment();
 export const closeBracketsCompartment = new Compartment();
-export const tabsToSpacesCompartment = new Compartment();
 export const debugHighlightTagsCompartment = new Compartment();
 
 export interface EditorSettings {
@@ -94,12 +94,12 @@ export function openSettings() {
        <div class="form-group"><label>Tab size: <input type="number" id="setting_tabSize" min="1" max="40" value="${settings.tabSize}" style="width:4em"></label></div>
        <div class="checkbox"><label><input type="checkbox" id="setting_tabsToSpaces" ${settings.tabsToSpaces ? 'checked' : ''}> Insert spaces when pressing TAB</label></div>
        <div class="checkbox"><label><input type="checkbox" id="setting_highlightSpecialChars" ${settings.highlightSpecialChars ? 'checked' : ''}> Highlight special characters</label></div>
-       <div class="checkbox"><label><input type="checkbox" id="setting_highlightWhitespace" ${settings.highlightWhitespace ? 'checked' : ''}> Highlight whitespace</label></div>
-       <div class="checkbox"><label><input type="checkbox" id="setting_highlightTrailingWhitespace" ${settings.highlightTrailingWhitespace ? 'checked' : ''}> Highlight unwanted trailing whitespace</label></div>
+       <div class="checkbox"><label><input type="checkbox" id="setting_highlightWhitespace" ${settings.highlightWhitespace ? 'checked' : ''}> Highlight all whitespace</label></div>
+       <div class="checkbox"><label><input type="checkbox" id="setting_highlightTrailingWhitespace" ${settings.highlightTrailingWhitespace ? 'checked' : ''}> Highlight trailing whitespace</label></div>
        <div class="checkbox"><label><input type="checkbox" id="setting_closeBrackets" ${settings.closeBrackets ? 'checked' : ''}> Automatically add and remove closing brackets</label></div>
        <hr>
        <h5>8bitworkshop IDE internal settings</h5>
-       <div class="checkbox"><label><input type="checkbox" id="setting_debugHighlightTags" ${settings.debugHighlightTags ? 'checked' : ''}> Debug editor syntax highlighting tags</label></div>
+       <div class="checkbox"><label><input type="checkbox" id="setting_debugHighlightTags" ${settings.debugHighlightTags ? 'checked' : ''}> Debug parser and syntax highlighting</label></div>
       </form>`,
     buttons: {
       cancel: {
