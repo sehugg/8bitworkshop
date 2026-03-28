@@ -96,9 +96,7 @@ export class SourceEditor implements ProjectView {
     var isAsm = isAsmOverride || modedef.isAsm;
     var lineWrap = !!modedef.lineWrap;
     var theme = modedef.theme || MODEDEFS.default.theme;
-    var lineNums = !isAsm && !modedef.noLineNumbers && !isMobileDevice;
     if (qs['embed']) {
-      lineNums = false; // no line numbers while embedded
       isAsm = false; // no opcode bytes either
     }
     const minimalGutters = modedef.noGutters || isMobileDevice;
@@ -165,8 +163,6 @@ export class SourceEditor implements ProjectView {
           { key: "Cmd-Shift-i", run: indentSelection },
         ]),
         keymap.of(defaultKeymap),
-
-        lineNums ? lineNumbers() : [],
 
         // Undo history.
         history(),
