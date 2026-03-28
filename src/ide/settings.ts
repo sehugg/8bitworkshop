@@ -53,7 +53,7 @@ export function saveSettings(settings: EditorSettings) {
 }
 
 const compartmentValues: [Compartment, (s: EditorSettings) => Extension][] = [
-  [tabSizeCompartment, s => [EditorState.tabSize.of(s.tabSize), indentUnit.of(" ".repeat(s.tabSize))]],
+  [tabSizeCompartment, s => [EditorState.tabSize.of(s.tabSize), indentUnit.of(s.tabsToSpaces ? " ".repeat(s.tabSize) : "\t")]],
   [tabsToSpacesCompartment, s => keymap.of(s.tabsToSpaces ? smartIndentKeymap : insertTabKeymap)],
   [highlightSpecialCharsCompartment, s => s.highlightSpecialChars ? highlightSpecialChars() : []],
   [highlightWhitespaceCompartment, s => s.highlightWhitespace ? highlightWhitespace() : []],
