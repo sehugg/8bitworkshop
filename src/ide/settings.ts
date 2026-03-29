@@ -35,7 +35,7 @@ const defaultSettings: EditorSettings = {
   tabSize: 8,
   tabsToSpaces: true,
   showLineNumbers: !isMobileDevice,
-  highlightSpecialChars: false,
+  highlightSpecialChars: true,
   highlightWhitespace: false,
   highlightTrailingWhitespace: false,
   closeBrackets: false,
