@@ -91,7 +91,7 @@ export function applySettingsToAll(settings: EditorSettings) {
 
 export function openSettings() {
   var settings = loadSettings();
-  bootbox.dialog({
+  var dialog = bootbox.dialog({
     onEscape: true,
     title: "Settings",
     message: `<form id="settingsForm" onsubmit="return false">
@@ -128,6 +128,15 @@ export function openSettings() {
           applySettingsToAll(settings);
         }
       }
+    }
+  });
+  dialog.on('shown.bs.modal', () => {
+    $('#setting_tabSize').focus().select();
+  });
+  dialog.on('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      dialog.find('.btn-primary').trigger('click');
     }
   });
 }
