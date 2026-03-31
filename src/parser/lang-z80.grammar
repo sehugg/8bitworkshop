@@ -77,9 +77,9 @@ Operand {
 
   Number { Hex | Bin | Oct | Dec }
 
-  String { '"' (!["\\\n] | "\\" _)* '"' }
+  String { '"' !["\n]* '"' }
 
-  Char { "'" !['\\\n] "'"? }
+  Char { "'" !['\n] "'"? }
 
   Comment { ";" ![\n]* }
 

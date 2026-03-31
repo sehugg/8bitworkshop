@@ -10,7 +10,7 @@ export const LezerZ80: LRLanguage = LRLanguage.define({
                 PseudoOp: t.keyword,
                 Opcode: t.standard(t.keyword),
                 Register: t.standard(t.modifier),
-                Condition: t.constant(t.modifier),
+                Condition: t.standard(t.modifier),
                 Label: t.labelName,
                 String: t.string,
                 Char: t.character,

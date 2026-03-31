@@ -59,7 +59,7 @@ const registers = new Set([
 ])
 
 const conditions = new Set([
-    "nz", "z", "nc", "po", "pe", "p", "m",
+    "nz", "z", "nc", "c", "po", "pe", "p", "m",
 ])
 
 export function pseudoOpSpecializer(value: string) {

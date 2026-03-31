@@ -53,7 +53,7 @@ export const mboHighlightStyle = HighlightStyle.define([
   { tag: [t.deleted, t.macroName], color: "#00a8c6" },
   { tag: [t.processingInstruction, t.keyword, t.controlKeyword], color: "#c792ea" },
   { tag: [t.string, t.inserted], color: "#b4fdb7" },
-  { tag: [t.number, t.constant(t.modifier)], color: "#33aadd" },
+  { tag: [t.number, t.modifier], color: "#33aadd" },
   { tag: [t.atom, t.bool, t.special(t.variableName)], color: "#00a8c6" },
   { tag: t.definition(t.variableName), color: "#ffb928" },
   { tag: [t.propertyName, t.attributeName, t.tagName, t.self], color: "#9ddfe9" },
