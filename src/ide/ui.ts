@@ -2168,15 +2168,6 @@ function writeOutputROMFile() {
     alternateLocalFilesystem.setFileData(`bin/${prefix}${suffix}`, current_output);
   }
 }
-export function highlightSearch(query: string) { // TODO: filename?
-  var wnd = projectWindows.getActive();
-  if (wnd instanceof SourceEditor) {
-    var sc = wnd.editor.getSearchCursor(query);
-    if (sc.findNext()) {
-      wnd.editor.setSelection(sc.pos.to, sc.pos.from);
-    }
-  }
-}
 
 function startUIWhenVisible() {
   let started = false;
