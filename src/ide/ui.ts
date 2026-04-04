@@ -126,7 +126,7 @@ const TOOL_TO_SOURCE_STYLE = {
   'bataribasic': 'bataribasic',
   'markdown': 'markdown',
   'js': 'javascript',
-  'xasm6809': 'z80',
+  'xasm6809': '6809',
   'cmoc': 'text/x-csrc',
   'yasm': 'gas',
   'smlrc': 'text/x-csrc',
