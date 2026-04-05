@@ -319,7 +319,7 @@ export class SourceEditor implements ProjectView {
     this.editor.dispatch({
       changes: { from, to, insert: text },
       annotations: isolateHistory.of("full"),
-      selection: { anchor: from, head: to },
+      selection: { anchor: from, head: from + text.length },
       effects: [
         EditorView.scrollIntoView(this.editor.state.doc.line(fromline).from, { y: "start", yMargin: 100/*pixels*/ }),
       ]
