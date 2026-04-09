@@ -49,6 +49,14 @@ export interface BuildStep extends WorkerBuildStep {
 
 ///
 
+export function fixLineEndings(data: any): any {
+  if (typeof data === 'string') {
+    // C build tools require LF line endings.
+    return data.replace(/\r\n/g, '\n');
+  }
+  return data;
+}
+
 export class FileWorkingStore implements WorkingStore {
   workfs: { [path: string]: FileEntry } = {};
   workerseq: number = 0;
@@ -89,7 +97,7 @@ export class FileWorkingStore implements WorkingStore {
     let data = this.getFileData(path);
     if (data != null && typeof data !== 'string')
       throw new Error(`${path}: expected string`)
-    return data as string; // TODO
+    return fixLineEndings(data) as string; // TODO
   }
   getFileEntry(path: string): FileEntry {
     return this.workfs[path];
@@ -256,6 +264,7 @@ export function populateEntry(fs, path: string, entry: FileEntry, options: Build
   if (options && options.processFn) {
     data = options.processFn(path, data);
   }
+  data = fixLineEndings(data);
   // create subfolders
   var toks = path.split('/');
   if (toks.length > 1) {
