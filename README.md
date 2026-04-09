@@ -20,6 +20,8 @@ git clone -b master --single-branch git@github.com:sehugg/8bitworkshop.git
 To build the 8bitworkshop IDE:
 
 ```sh
+# On Windows, use the `UCRT64` shell from https://msys2.org/
+# On Linux/macOS, just type:
 make
 ```
 
@@ -51,7 +53,7 @@ Copyright © 2016-2026 [Steven E. Hugg](https://github.com/sehugg).
 This project, unless specifically noted, is multi-licensed.
 You may choose to adhere to the terms of either the [GPL-3.0](https://github.com/sehugg/8bitworkshop/blob/master/LICENSE) License for the entire project or respect the individual licenses of its dependencies and included code samples, as applicable.
 
-This project includes various dependencies, modules, and components that retain their original licenses. 
+This project includes various dependencies, modules, and components that retain their original licenses.
 For detailed licensing information for each dependency, please refer to the respective files and documentation.
 
 All included code samples located in the `presets/` directory are licensed under

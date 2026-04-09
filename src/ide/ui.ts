@@ -489,7 +489,7 @@ function reloadProject(id: string) {
 }
 
 async function getSkeletonFile(fileid: string): Promise<string> {
-  var ext = platform.getToolForFilename(fileid);
+  var ext = platform.getToolForFilename(fileid).replace(/^remote:/, "");
   try {
     return await $.get("presets/" + getBasePlatform(platform_id) + "/skeleton." + ext, 'text');
   } catch (e) {
