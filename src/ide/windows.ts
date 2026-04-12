@@ -1,8 +1,8 @@
 
 import $ = require("jquery");
+import { getFilenameForPath, getFilenamePrefix } from "../common/util";
+import { FileData, WorkerError } from "../common/workertypes";
 import { CodeProject } from "./project";
-import { WorkerError, FileData } from "../common/workertypes";
-import { getFilenamePrefix, getFilenameForPath } from "../common/util";
 import { ProjectView } from "./views/baseviews";
 
 type WindowCreateFunction = (id: string) => ProjectView;
@@ -176,11 +176,35 @@ export class ProjectWindows {
     this.redoStack = [];
   }
 
-  replaceTextRange(fileid: string, from: number, to: number, text: string) {
+  setAssetRange(fileid: string, id: string, from: number, to: number) {
     var wnd = this.id2window[fileid] || this.create(fileid);
-    wnd.replaceTextRange(from, to, text);
+    if (wnd.setAssetRange) {
+      wnd.setAssetRange(id, from, to);
+    }
+  }
+
+  getAssetText(fileid: string, id: string): string | null {
+    var wnd = this.id2window[fileid] || this.create(fileid);
+    if (wnd.getAssetText) {
+      return wnd.getAssetText(id);
+    }
+    return null;
+  }
+
+  replaceAssetText(fileid: string, id: string, text: string) {
+    var wnd = this.id2window[fileid] || this.create(fileid);
+    if (wnd.replaceAssetText) {
+      wnd.replaceAssetText(id, text);
+    }
     this.undoStack.push({ fileid });
     this.redoStack = [];
+  }
+
+  clearAssetRanges(fileid: string) {
+    var wnd = this.id2window[fileid];
+    if (wnd && wnd.clearAssetRanges) {
+      wnd.clearAssetRanges();
+    }
   }
 
   undoStep() {

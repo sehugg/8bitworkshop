@@ -22,7 +22,10 @@ export interface ProjectView {
     undoStep?(): void;
     redoStep?(): void;
     flushChanges?(): void;
-    replaceTextRange?(from: number, to: number, text: string): void;
+    setAssetRange?(id: string, from: number, to: number): void;
+    getAssetText?(id: string): string | null;
+    replaceAssetText?(id: string, text: string): void;
+    clearAssetRanges?(): void;
 };
 
 // detect mobile (https://stackoverflow.com/questions/3514784/what-is-the-best-way-to-detect-a-mobile-device)

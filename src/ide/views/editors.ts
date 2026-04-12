@@ -3,7 +3,7 @@ import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, foldGutter, indentOnInput, indentService, indentUnit } from "@codemirror/language";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
-import { EditorState, Extension } from "@codemirror/state";
+import { EditorState, Extension, StateEffect, StateField } from "@codemirror/state";
 import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, rectangularSelection, ViewUpdate } from "@codemirror/view";
 import { CodeAnalyzer } from "../../common/analysis";
 import { hex, rpad } from "../../common/util";
@@ -30,6 +30,39 @@ import { currentPc, errorMessages, errorSpans, highlightLines, showValue } from 
 
 // look ahead this many bytes when finding source lines for a PC
 export const PC_LINE_LOOKAHEAD = 64;
+
+// Asset range tracking. Positions are automatically remapped through
+// document changes (edits, undo, redo) by CodeMirror's transaction system.
+const setAssetRangesEffect = StateEffect.define<{id: string, from: number, to: number}[]>();
+const clearAssetRangesEffect = StateEffect.define<void>();
+
+const assetRangesField = StateField.define<Map<string, {from: number, to: number}>>({
+  create() { return new Map(); },
+  update(ranges, tr) {
+    let result = ranges;
+    for (let e of tr.effects) {
+      if (e.is(clearAssetRangesEffect)) {
+        result = new Map();
+      } else if (e.is(setAssetRangesEffect)) {
+        if (result === ranges) result = new Map(ranges);
+        for (let r of e.value) {
+          result.set(r.id, { from: r.from, to: r.to });
+        }
+      }
+    }
+    if (!tr.changes.empty) {
+      const mapped = new Map<string, {from: number, to: number}>();
+      for (const [id, r] of result) {
+        mapped.set(id, {
+          from: tr.changes.mapPos(r.from, -1),
+          to: tr.changes.mapPos(r.to, 1)
+        });
+      }
+      return mapped;
+    }
+    return result;
+  }
+});
 
 const MAX_ERRORS = 200;
 
@@ -249,6 +282,8 @@ export class SourceEditor implements ProjectView {
 
         highlightLines.field,
 
+        assetRangesField,
+
         createAssetHeaderPlugin((lineNumber: number) => {
           window.location.hash = 'asseteditor/' + encodeURIComponent(this.path) + '/' + lineNumber;
         }),
@@ -323,7 +358,6 @@ export class SourceEditor implements ProjectView {
 
   replaceTextRange(from: number, to: number, text: string) {
     const fromline = this.editor.state.doc.lineAt(from).number;
-    const toline = this.editor.state.doc.lineAt(to).number;
     this.editor.dispatch({
       changes: { from, to, insert: text },
       annotations: isolateHistory.of("full"),
@@ -331,6 +365,30 @@ export class SourceEditor implements ProjectView {
       effects: [
         EditorView.scrollIntoView(this.editor.state.doc.line(fromline).from, { y: "start", yMargin: 100/*pixels*/ }),
       ]
+    });
+  }
+
+  setAssetRange(id: string, from: number, to: number) {
+    this.editor.dispatch({
+      effects: setAssetRangesEffect.of([{ id, from, to }])
+    });
+  }
+
+  getAssetText(id: string): string | null {
+    var range = this.editor.state.field(assetRangesField).get(id);
+    if (!range) return null;
+    return this.editor.state.doc.sliceString(range.from, range.to);
+  }
+
+  replaceAssetText(id: string, text: string) {
+    var range = this.editor.state.field(assetRangesField).get(id);
+    if (!range) return;
+    this.replaceTextRange(range.from, range.to, text);
+  }
+
+  clearAssetRanges() {
+    this.editor.dispatch({
+      effects: clearAssetRangesEffect.of(undefined)
     });
   }
 

@@ -1,7 +1,7 @@
 
-import { hex, tobin, rgb2bgr, rle_unpack } from "../common/util";
-import { ProjectWindows } from "./windows";
+import { hex, rgb2bgr, rle_unpack, tobin } from "../common/util";
 import { Toolbar } from "./toolbar";
+import { ProjectWindows } from "./windows";
 import Mousetrap = require('mousetrap');
 
 export type UintArray = number[] | Uint8Array | Uint16Array | Uint32Array; //{[i:number]:number};
@@ -496,43 +496,37 @@ export class FileDataNode extends CodeProjectDataNode {
 }
 
 export class TextDataNode extends CodeProjectDataNode {
-  text: string;
-  start: number;
-  end: number;
   bpw: number;
+  rangeId: string;
 
-  // TODO: what if file size/layout changes?
+  private static nextRangeId = 0;
+
   constructor(project: ProjectWindows, fileid: string, label: string, start: number, end: number, bpw?: number) {
     super();
     this.project = project;
     this.fileid = fileid;
     this.label = label;
-    this.start = start;
-    this.end = end;
     this.bpw = bpw || 8;
+    this.rangeId = `asset_${TextDataNode.nextRangeId++}`;
+    this.project.setAssetRange(this.fileid, this.rangeId, start, end);
   }
+
   updateLeft() {
     if (this.right.words.length != this.words.length)
       throw Error("Cannot put " + this.right.words.length + " image bytes into array of " + this.words.length + " bytes");
     this.words = this.right.words;
-    // TODO: reload editors?
-    var datastr = this.text.substring(this.start, this.end);
+    var datastr = this.project.getAssetText(this.fileid, this.rangeId);
     datastr = replaceHexWords(datastr, this.words, this.bpw);
-    if (this.project) {
-      this.project.replaceTextRange(this.fileid, this.start, this.end, datastr);
-    }
-    this.text = this.text.substring(0, this.start) + datastr + this.text.substring(this.end);
-    this.end = this.start + datastr.length;
+    // CM6 state field automatically remaps all tracked ranges.
+    this.project.replaceAssetText(this.fileid, this.rangeId, datastr);
     return true;
   }
+
   updateRight() {
-    if (this.project) {
-      this.text = this.project.project.getFile(this.fileid) as string;
-    }
-    var datastr = this.text.substring(this.start, this.end);
-    datastr = convertToHexStatements(datastr); // TODO?
+    var datastr = this.project.getAssetText(this.fileid, this.rangeId);
+    datastr = convertToHexStatements(datastr);
     var words = parseHexWords(datastr);
-    this.words = words; //new Uint8Array(words); // TODO: 16/32?
+    this.words = words;
     return true;
   }
 }
