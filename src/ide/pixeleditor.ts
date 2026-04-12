@@ -6,6 +6,10 @@ import Mousetrap = require('mousetrap');
 
 export type UintArray = number[] | Uint8Array | Uint16Array | Uint32Array; //{[i:number]:number};
 
+const MAX_SIZE_X = 800;
+const MAX_SIZE_Y = 1000;
+const MAX_SCALE = 16;
+
 // TODO: separate view/controller
 export interface EditorContext {
   setCurrentEditor(div: JQuery, editing: JQuery, node: PixNode): void;
@@ -921,9 +925,13 @@ export class CharmapEditor extends PixNode {
     chooser.width = this.fmt.w || 1;
     chooser.height = this.fmt.h || 1;
     chooser.recreate(agrid, (index, viewer) => {
-      var yscale = Math.ceil(256 / this.fmt.w); // TODO: variable scale?
-      var xscale = yscale * (this.fmt.aspect || 1.0);
-      var editview = this.createEditor(aeditor, viewer, xscale, yscale);
+      // TODO: variable scale?
+      const aspect = this.fmt.aspect || 1.0;
+      const yscale = Math.min(MAX_SCALE,
+        MAX_SIZE_X / this.fmt.w * aspect,
+        MAX_SIZE_Y / this.fmt.h);
+      const xscale = yscale * aspect;
+      this.createEditor(aeditor, viewer, xscale, yscale);
       this.context.setCurrentEditor(aeditor, $(viewer.canvas), this);
       this.rgbimgs[index] = viewer.rgbdata;
     });
@@ -953,9 +961,6 @@ export class CharmapEditor extends PixNode {
     im.updateImage();
     var w = viewer.width * xscale;
     var h = viewer.height * yscale;
-    while (w > 500 || h > 500) {
-      w /= 2; h /= 2;
-    }
     im.canvas.style.width = w + 'px'; // TODO
     im.canvas.style.height = h + 'px'; // TODO
     im.makeEditable(this, aeditor, this.left.palette);
