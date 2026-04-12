@@ -590,6 +590,7 @@ td.asset_editable {
 div.asset_dual {
   display: flex;
   align-items: flex-start;
+  flex-wrap: wrap;
 }
 div.asset_dual table {
   border-spacing: 10px;
