@@ -357,13 +357,13 @@ export class SourceEditor implements ProjectView {
   }
 
   replaceTextRange(from: number, to: number, text: string) {
-    const fromline = this.editor.state.doc.lineAt(from).number;
+    const lineStart = this.editor.state.doc.lineAt(from).from;
     this.editor.dispatch({
       changes: { from, to, insert: text },
       annotations: isolateHistory.of("full"),
-      selection: { anchor: from, head: to },
+      selection: { anchor: from + text.length, head: from },
       effects: [
-        EditorView.scrollIntoView(this.editor.state.doc.line(fromline).from, { y: "start", yMargin: 100/*pixels*/ }),
+        EditorView.scrollIntoView(lineStart, { y: "start", yMargin: 100/*pixels*/ }),
       ]
     });
   }
