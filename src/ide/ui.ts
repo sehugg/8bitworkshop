@@ -1509,6 +1509,7 @@ function setupDebugControls() {
   $("#item_request_persist").click(() => requestPersistPermission(true, false));
   $("#item_settings").click(openSettings);
   $("#item_keyboard_shortcuts").click(openKeyboardShortcuts);
+  $("#item_asset_editor_help").click(openAssetEditorHelp);
   updateDebugWindows();
   // code analyzer?
   if (platform.newCodeAnalyzer) {
@@ -1566,6 +1567,55 @@ function openKeyboardShortcuts() {
     buttons: {
       ok: { label: "OK", className: "btn-primary" }
     }
+  });
+}
+
+function openAssetEditorHelp() {
+  const row = (field: string, dflt: string, desc: string) =>
+    `<tr><td><code>${field}</code></td><td>${dflt}</td><td>${desc}</td></tr>`;
+  bootbox.dialog({
+    title: "Asset Editor Reference",
+    onEscape: true,
+    message: `
+    <p>Add asset headers in source code as comments containing JSON format descriptors:</p>
+    <p>
+      C: <code>/*{w:8,h:8}*/</code> followed by data, terminated by <code>;</code><br>
+      ASM: <code>;;{w:8,h:8};;</code> followed by data, terminated by <code>;;</code>
+    </p>
+    <table class="help">
+      <tr><th colspan="3">Image Format</th></tr>
+      <tr><td><b>Field</b></td><td><b>Default</b></td><td><b>Description</b></td></tr>
+      ${row('w', '<i>required</i>', 'Width in pixels')}
+      ${row('h', '<i>required</i>', 'Height in pixels')}
+      ${row('count', '1', 'Number of images')}
+      ${row('bpp', '1', 'Bits per pixel')}
+      ${row('np', '1', 'Number of bitplanes (total colors = 2<sup>bpp&times;np</sup>)')}
+      ${row('bpw', '8', 'Bits per word (8, 16, 32)')}
+      ${row('sl', 'ceil(w&times;bpp/bpw)', 'Words per scanline (stride)')}
+      ${row('brev', 'false', 'Bit reverse: true = MSB is leftmost pixel')}
+      ${row('flip', 'false', 'Flip vertically (y=0 is bottom row)')}
+      ${row('skip', '0', 'Skip bytes at start of each image')}
+      ${row('pofs', 'sl&times;h&times;count', 'Offset between bitplanes')}
+      ${row('remap', '&mdash;', 'Bit remapping table for address lines')}
+      ${row('reindex', '&mdash;', 'Pixel-to-byte/bit remapping')}
+      ${row('wpimg', 'sl&times;h', 'Words per image')}
+      ${row('aspect', '1', 'Pixel aspect ratio for display')}
+      ${row('xform', '&mdash;', 'CSS transform on canvas')}
+      <tr><th colspan="3">Palette Format</th></tr>
+      <tr><td><b>Field</b></td><td><b>Default</b></td><td><b>Description</b></td></tr>
+      ${row('pal', '&mdash;', 'Palette: number (e.g. 332 = 3R,3G,2B) or name (nes, vcs, c64, ap2lores, astrocade)')}
+      ${row('n', '&mdash;', 'Number of palette entries')}
+      ${row('layout', '&mdash;', 'Palette editor layout (nes, astrocade)')}
+      <tr><th colspan="3">Examples</th></tr>
+      <tr><td colspan="2"><code>/*{w:8,h:8,bpp:1,brev:1}*/</code></td><td>8x8 1bpp, MSB first (NES-style)</td></tr>
+      <tr><td colspan="2"><code>;;{w:7,h:8};;</code></td><td>7x8 1bpp, LSB first (Apple II HGR)</td></tr>
+      <tr><td colspan="2"><code>/*{w:16,h:16,bpp:4,np:1}*/</code></td><td>16x16 4bpp</td></tr>
+      <tr><td colspan="2"><code>/*{pal:332,n:16}*/</code></td><td>16-entry RGB332 palette</pre></td></tr>
+    </table>`,
+    buttons: {
+      ok: { label: "OK", className: "btn-primary" }
+    },
+    size: "large"
   });
 }
 
