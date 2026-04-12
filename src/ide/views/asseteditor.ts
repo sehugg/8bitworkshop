@@ -351,6 +351,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
           .appendTo(this.ensureFileDiv(fileid));
         var snip = $('<div class="asset_snip"/>').appendTo(block);
         var linenos = $('<span class="asset_linenos"/>').appendTo(snip);
+        $('<span class="asset_lineno"/>').text('↗ ').appendTo(linenos);
         $('<span class="asset_lineno"/>').text(frag.startline).appendTo(linenos);
         linenos.append('-');
         $('<span class="asset_lineno"/>').text(frag.endline).appendTo(linenos);

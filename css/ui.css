@@ -513,7 +513,7 @@ div.asset_block.asset_highlight {
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
   font-weight: bold;
   color: #c1c1b0;
-  background-color: #555;
+  background-color: #4a4a4a;
   border-radius: 8px;
   padding-left: 1em;
 }
@@ -523,6 +523,7 @@ div.asset_block.asset_highlight {
   cursor: pointer;
   padding: 1px 4px;
   border-radius: 4px;
+  background: rgba(153, 204, 153, 0.15);
 }
 .asset_linenos:hover {
   text-decoration: underline;
