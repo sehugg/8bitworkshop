@@ -48,8 +48,13 @@ export type PixelEditorImageFormat = {
   il?: boolean	// interleave images row by row
   aspect?: number	// aspect ratio
   xform?: string		// CSS transform
+  art?: number		// artifact color, Apple II
   destfmt?: PixelEditorImageFormat
 };
+
+function getArtBit(fmt: PixelEditorImageFormat): number | null {
+  return fmt.art ? (fmt.brev ? 0 : 7) : null;
+}
 
 export type PixelEditorPaletteFormat = {
   pal?: number | string
@@ -836,6 +841,7 @@ export class ImageChooser {
   rgbimgs: Uint32Array[];
   width: number;
   height: number;
+  gapX: number | null = null;
   viewers: Viewer[];
 
   recreate(parentdiv: JQuery, onclick) {
@@ -849,8 +855,9 @@ export class ImageChooser {
       var viewer = new Viewer();
       viewer.width = this.width;
       viewer.height = this.height;
+      viewer.gapX = this.gapX;
       viewer.recreate();
-      viewer.canvas.style.width = (viewer.width * cscale) + 'px'; // TODO
+      viewer.canvas.style.width = (viewer.displayWidth * cscale) + 'px'; // TODO
       viewer.canvas.title = '$' + hex(i);
       viewer.updateImage(imdata);
       $(viewer.canvas).addClass('asset_cell');
@@ -909,6 +916,7 @@ export class CharmapEditor extends PixNode {
     this.rgbimgs = this.left.rgbimgs;
     // if chooser already exists with same number of images, update in place
     if (this.chooser && this.chooser.viewers && this.chooser.viewers.length == this.rgbimgs.length) {
+      this.updateArtInfo();
       this.chooser.updateImages(this.rgbimgs);
       // keep rgbimgs pointing to viewer buffers so edits propagate back via refreshLeft
       for (var i = 0; i < this.chooser.viewers.length; i++) {
@@ -924,17 +932,27 @@ export class CharmapEditor extends PixNode {
     chooser.rgbimgs = this.rgbimgs;
     chooser.width = this.fmt.w || 1;
     chooser.height = this.fmt.h || 1;
+    var artBit = getArtBit(this.fmt);
+    if (artBit != null) {
+      chooser.gapX = this.fmt.brev ? artBit + 1 : artBit;
+    }
     chooser.recreate(agrid, (index, viewer) => {
       // TODO: variable scale?
       const aspect = this.fmt.aspect || 1.0;
       const yscale = Math.min(MAX_SCALE,
-        MAX_SIZE_X / this.fmt.w * aspect,
+        MAX_SIZE_X / viewer.displayWidth * aspect,
         MAX_SIZE_Y / this.fmt.h);
       const xscale = yscale * aspect;
       this.createEditor(aeditor, viewer, xscale, yscale);
       this.context.setCurrentEditor(aeditor, $(viewer.canvas), this);
       this.rgbimgs[index] = viewer.rgbdata;
     });
+    this.updateArtInfo();
+    if (this.fmt.art) {
+      for (var i = 0; i < this.chooser.viewers.length; i++) {
+        this.chooser.viewers[i].updateImage();
+      }
+    }
     // add palette selector
     // TODO: only view when editing?
     var palizer = this.left;
@@ -955,11 +973,27 @@ export class CharmapEditor extends PixNode {
     return true;
   }
 
+  updateArtInfo() {
+    if (!this.fmt.art || !this.chooser || !this.chooser.viewers) return;
+    var bitsperword = this.fmt.bpw || 8;
+    var artBit = getArtBit(this.fmt)!;
+    var indexedImages = this.left.images;
+    if (!indexedImages) return;
+    for (var i = 0; i < this.chooser.viewers.length; i++) {
+      var viewer = this.chooser.viewers[i];
+      viewer.artInfo = {
+        artBit: artBit,
+        bitsperword: bitsperword,
+        indexedImage: indexedImages[i]
+      };
+    }
+  }
+
   createEditor(aeditor: JQuery, viewer: Viewer, xscale: number, yscale: number): PixEditor {
     var im = new PixEditor();
     im.createWith(viewer);
     im.updateImage();
-    var w = viewer.width * xscale;
+    var w = im.displayWidth * xscale;
     var h = viewer.height * yscale;
     im.canvas.style.width = w + 'px'; // TODO
     im.canvas.style.height = h + 'px'; // TODO
@@ -1006,32 +1040,50 @@ export class Viewer {
 
   width: number;
   height: number;
+  gapX: number | null = null;
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   imagedata: ImageData;
   rgbdata: Uint32Array;
+  displayImageData: ImageData;
+  displayRgbData: Uint32Array;
   peerviewers: Viewer[];
+  artInfo: { artBit: number, bitsperword: number, indexedImage: Uint8Array } | null = null;
+
+  get displayWidth(): number {
+    return this.width + (this.gapX != null ? 1 : 0);
+  }
 
   recreate() {
     this.canvas = this.newCanvas();
     this.imagedata = this.ctx.createImageData(this.width, this.height);
     this.rgbdata = new Uint32Array(this.imagedata.data.buffer);
+    if (this.gapX != null) {
+      this.displayImageData = this.ctx.createImageData(this.displayWidth, this.height);
+      this.displayRgbData = new Uint32Array(this.displayImageData.data.buffer);
+    }
     this.peerviewers = [this];
   }
 
   createWith(pv: Viewer) {
     this.width = pv.width;
     this.height = pv.height;
+    this.gapX = pv.gapX;
     this.imagedata = pv.imagedata;
     this.rgbdata = pv.rgbdata;
     this.canvas = this.newCanvas();
+    if (this.gapX != null) {
+      this.displayImageData = this.ctx.createImageData(this.displayWidth, this.height);
+      this.displayRgbData = new Uint32Array(this.displayImageData.data.buffer);
+    }
     pv.peerviewers.push(this);
     this.peerviewers = pv.peerviewers;
+    this.artInfo = pv.artInfo;
   }
 
   newCanvas(): HTMLCanvasElement {
     var c = document.createElement('canvas');
-    c.width = this.width;
+    c.width = this.displayWidth;
     c.height = this.height;
     //if (fmt.xform) c.style.transform = fmt.xform;
     c.classList.add("pixels");
@@ -1045,7 +1097,24 @@ export class Viewer {
       this.rgbdata.set(imdata);
     }
     for (let v of this.peerviewers) {
-      v.ctx.putImageData(this.imagedata, 0, 0);
+      if (v.gapX != null && v.displayRgbData) {
+        var gx = v.gapX;
+        var dw = v.displayWidth;
+        for (var y = 0; y < this.height; y++) {
+          var srcOfs = y * this.width;
+          var dstOfs = y * dw;
+          for (var x = 0; x < gx; x++) {
+            v.displayRgbData[dstOfs + x] = this.rgbdata[srcOfs + x];
+          }
+          v.displayRgbData[dstOfs + gx] = 0x00000000; // Transparent gap column.
+          for (var x = gx; x < this.width; x++) {
+            v.displayRgbData[dstOfs + x + 1] = this.rgbdata[srcOfs + x];
+          }
+        }
+        v.ctx.putImageData(v.displayImageData, 0, 0);
+      } else {
+        v.ctx.putImageData(this.imagedata, 0, 0);
+      }
     }
   }
 }
@@ -1059,9 +1128,11 @@ class PixEditor extends Viewer {
   palbtns: JQuery[];
   offscreen: Map<string, number> = new Map();
 
-  getPositionFromEvent(e) {
-    var x = Math.floor(e.offsetX * this.width / $(this.canvas).width());
+  getPositionFromEvent(e): { x: number, y: number } {
+    var dw = this.displayWidth;
+    var x = Math.floor(e.offsetX * dw / $(this.canvas).width());
     var y = Math.floor(e.offsetY * this.height / $(this.canvas).height());
+    if (this.gapX != null && x > this.gapX) x--;
     return { x: x, y: y };
   }
 
@@ -1084,8 +1155,20 @@ class PixEditor extends Viewer {
     var dragging = false;
 
     var pxls = $(this.canvas);
+    var artDragIdx = -1;
     pxls.mousedown((e) => {
       var pos = this.getPositionFromEvent(e);
+      if (this.isArtPixel(pos.x)) {
+        artDragIdx = this.toggleArtPixel(pos.x, pos.y);
+        dragging = true;
+        $(document).mouseup((e) => {
+          $(document).off('mouseup');
+          dragging = false;
+          artDragIdx = -1;
+          this.commit();
+        });
+        return;
+      }
       dragcol = this.getPixel(pos.x, pos.y) == this.currgba ? this.palette[0] : this.currgba;
       this.setPixel(pos.x, pos.y, this.currgba);
       dragging = true;
@@ -1099,7 +1182,10 @@ class PixEditor extends Viewer {
     })
       .mousemove((e) => {
         var pos = this.getPositionFromEvent(e);
-        if (dragging) {
+        if (!dragging) return;
+        if (artDragIdx >= 0 && this.isArtPixel(pos.x)) {
+          this.setArtPixel(pos.x, pos.y, artDragIdx);
+        } else if (artDragIdx < 0 && !this.isArtPixel(pos.x)) {
           this.setPixel(pos.x, pos.y, dragcol);
         }
       });
@@ -1109,6 +1195,31 @@ class PixEditor extends Viewer {
     aeditor.append(this.canvas);
     aeditor.append(this.createPaletteButtons());
     this.setPaletteColor(1);
+  }
+
+  isArtPixel(x: number): boolean {
+    if (!this.artInfo) return false;
+    return (x % this.artInfo.bitsperword) == this.artInfo.artBit;
+  }
+
+  toggleArtPixel(x: number, y: number): number {
+    var info = this.artInfo;
+    if (!info) return -1;
+    var ofs = y * this.width + x;
+    var newIdx = info.indexedImage[ofs] ? 0 : 1;
+    this.setArtPixel(x, y, newIdx);
+    return newIdx;
+  }
+
+  setArtPixel(x: number, y: number, idx: number): void {
+    var info = this.artInfo;
+    if (!info) return;
+    if (x < 0 || x >= this.width || y < 0 || y >= this.height) return;
+    var ofs = y * this.width + x;
+    if (info.indexedImage[ofs] == idx) return;
+    info.indexedImage[ofs] = idx;
+    this.rgbdata[ofs] = this.palette[idx];
+    this.updateImage();
   }
 
   getPixel(x: number, y: number): number {
@@ -1175,16 +1286,47 @@ class PixEditor extends Viewer {
     }
   }
 
+  copyNonArtPixels(dst: Uint32Array, dstWidth: number, src: Uint32Array, srcWidth: number) {
+    for (var y = 0; y < this.height; y++) {
+      var si = 0, di = 0;
+      for (var x = 0; x < this.width; x++) {
+        var isArt = this.isArtPixel(x);
+        if (!isArt)
+          dst[y * dstWidth + di] = src[y * srcWidth + si];
+        if (!isArt || srcWidth === this.width) si++;
+        if (!isArt || dstWidth === this.width) di++;
+      }
+    }
+  }
+
   remapPixels(mapfn: (x: number, y: number) => number) {
+    // Strip art bit columns so transforms ignore them.
+    var savedRgb = this.rgbdata;
+    var savedWidth = this.width;
+    if (this.artInfo) {
+      var bpw = this.artInfo.bitsperword;
+      var strippedWidth = this.width - Math.floor(this.width / bpw);
+      var stripped = new Uint32Array(strippedWidth * this.height);
+      this.copyNonArtPixels(stripped, strippedWidth, this.rgbdata, this.width);
+      this.rgbdata = stripped;
+      this.width = strippedWidth;
+    }
+    // Apply the transform.
     var i = 0;
     var pixels = new Uint32Array(this.rgbdata.length);
     for (var y = 0; y < this.height; y++) {
       for (var x = 0; x < this.width; x++) {
-        pixels[i] = mapfn(x, y);
-        i++;
+        pixels[i++] = mapfn(x, y);
       }
     }
-    this.rgbdata.set(pixels);
+    // Restore art bit columns from the original data.
+    this.rgbdata = savedRgb;
+    this.width = savedWidth;
+    if (this.artInfo) {
+      this.copyNonArtPixels(this.rgbdata, this.width, pixels, strippedWidth);
+    } else {
+      this.rgbdata.set(pixels);
+    }
     this.commit();
   }
 

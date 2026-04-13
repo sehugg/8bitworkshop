@@ -1602,6 +1602,7 @@ function openAssetEditorHelp() {
       ${row('wpimg', 'sl&times;h', 'Words per image')}
       ${row('aspect', '1', 'Pixel aspect ratio for display')}
       ${row('xform', '&mdash;', 'CSS transform on canvas')}
+      ${row('art', 'false', 'Artifact color mode: true = Apple II HGR (bit 7 toggles artifact color)')}
       <tr><th colspan="3">Palette Format</th></tr>
       <tr><td><b>Field</b></td><td><b>Default</b></td><td><b>Description</b></td></tr>
       ${row('pal', '&mdash;', 'Palette: number (e.g. 332 = 3R,3G,2B) or name (nes, vcs, c64, ap2lores, astrocade)')}
@@ -1611,6 +1612,7 @@ function openAssetEditorHelp() {
       <tr><td colspan="2"><code>/*{w:8,h:8,bpp:1,brev:1}*/</code></td><td>8x8 1bpp, MSB first (NES-style)</td></tr>
       <tr><td colspan="2"><code>;;{w:8,h:5,count:4,il:1};;</code></td><td>4 interleaved 8x5 chars (stored as 32x5 block)</td></tr>
       <tr><td colspan="2"><code>;;{w:7,h:8};;</code></td><td>7x8 1bpp, LSB first (Apple II HGR)</td></tr>
+      <tr><td colspan="2"><code>;;{w:8,h:8,art:true};;</code></td><td>8x8 with artifact color (Apple II HGR, bit 7 toggle)</td></tr>
       <tr><td colspan="2"><code>/*{w:16,h:16,bpp:4,np:1}*/</code></td><td>16x16 4bpp</td></tr>
       <tr><td colspan="2"><code>/*{pal:332,n:16}*/</code></td><td>16-entry RGB332 palette</pre></td></tr>
     </table>`,
