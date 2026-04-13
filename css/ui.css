@@ -276,14 +276,23 @@ canvas.pixelated {
   -ms-interpolation-mode: nearest-neighbor;   /* IE                            */
 }
 .palbtn {
-  width:2em;
-  height:2em;
-  border-style:none;
+  width: 2em;
+  height: 2em;
+  border-style: none;
+  position: relative;
+  border: none;
 }
-.palbtn.selected {
-  border-width:2px;
-  border-color:white;
-  border-style:dotted;
+.palbtn.selected::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px dotted #888;
+  border-radius: inherit;
+  mix-blend-mode: difference;
+  pointer-events: none;
 }
 #javatari-screen canvas {
   box-sizing: content-box;
