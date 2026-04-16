@@ -1596,6 +1596,7 @@ function openAssetEditorHelp() {
       ${row('flip', 'false', 'Flip vertically (y=0 is bottom row)')}
       ${row('skip', '0', 'Skip bytes at start of each image')}
       ${row('pofs', 'sl&times;h&times;count', 'Offset between bitplanes')}
+      ${row('il', '0', 'Interleave images row by row (data stored as one wide block)')}
       ${row('remap', '&mdash;', 'Bit remapping table for address lines')}
       ${row('reindex', '&mdash;', 'Pixel-to-byte/bit remapping')}
       ${row('wpimg', 'sl&times;h', 'Words per image')}
@@ -1608,6 +1609,7 @@ function openAssetEditorHelp() {
       ${row('layout', '&mdash;', 'Palette editor layout (nes, astrocade)')}
       <tr><th colspan="3">Examples</th></tr>
       <tr><td colspan="2"><code>/*{w:8,h:8,bpp:1,brev:1}*/</code></td><td>8x8 1bpp, MSB first (NES-style)</td></tr>
+      <tr><td colspan="2"><code>;;{w:8,h:5,count:4,il:1};;</code></td><td>4 interleaved 8x5 chars (stored as 32x5 block)</td></tr>
       <tr><td colspan="2"><code>;;{w:7,h:8};;</code></td><td>7x8 1bpp, LSB first (Apple II HGR)</td></tr>
       <tr><td colspan="2"><code>/*{w:16,h:16,bpp:4,np:1}*/</code></td><td>16x16 4bpp</td></tr>
       <tr><td colspan="2"><code>/*{pal:332,n:16}*/</code></td><td>16-entry RGB332 palette</pre></td></tr>

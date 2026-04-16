@@ -45,6 +45,7 @@ export type PixelEditorImageFormat = {
   flip?: boolean		// flip vertically
   skip?: number		// skip bytes
   wpimg?: number		// words per image
+  il?: boolean	// interleave images row by row
   aspect?: number	// aspect ratio
   xform?: string		// CSS transform
   destfmt?: PixelEditorImageFormat
@@ -169,12 +170,14 @@ export function convertWordsToImages(words: UintArray, fmt: PixelEditorImageForm
   var pofs = fmt.pofs || wordsperline * height * count;
   var skip = fmt.skip || 0;
   var wpimg = fmt.wpimg || wordsperline * height;
+  var rowstride = wordsperline;
+  if (fmt.il) { wpimg = wordsperline; rowstride = wordsperline * count; }
   var images = [];
   for (var n = 0; n < count; n++) {
     var imgdata = [];
     for (var y = 0; y < height; y++) {
       var yp = fmt.flip ? height - 1 - y : y;
-      var ofs0 = wpimg * n + yp * wordsperline;
+      var ofs0 = wpimg * n + yp * rowstride;
       var shift = 0;
       for (var x = 0; x < width; x++) {
         var color = 0;
@@ -256,21 +259,24 @@ export function convertImagesToWords(images: Uint8Array[], fmt: PixelEditorImage
   var pofs = fmt.pofs || wordsperline * height * count;
   var skip = fmt.skip || 0;
   var wpimg = fmt.wpimg || wordsperline * height;
+  var rowstride = wordsperline;
+  if (fmt.il) { wpimg = wordsperline; rowstride = wordsperline * count; }
 
+  var totalwords = fmt.il ? rowstride * height : wpimg * count;
   var words;
   if (nplanes > 0 && fmt.sl) // TODO?
-    words = new Uint8Array(wpimg * count);
+    words = new Uint8Array(totalwords);
   else if (bitsperword <= 8)
-    words = new Uint8Array(wpimg * count * nplanes);
+    words = new Uint8Array(totalwords * nplanes);
   else
-    words = new Uint32Array(wpimg * count * nplanes);
+    words = new Uint32Array(totalwords * nplanes);
 
   for (var n = 0; n < count; n++) {
     var imgdata = images[n];
     var i = 0;
     for (var y = 0; y < height; y++) {
       var yp = fmt.flip ? height - 1 - y : y;
-      var ofs0 = n * wpimg + yp * wordsperline;
+      var ofs0 = n * wpimg + yp * rowstride;
       var shift = 0;
       for (var x = 0; x < width; x++) {
         var color = imgdata[i++];
