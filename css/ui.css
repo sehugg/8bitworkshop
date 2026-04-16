@@ -1,6 +1,19 @@
 .dbg_info {
   font-size: 0.8em;
 }
+.help th {
+  padding-top: 8px;
+}
+.help td {
+  vertical-align: top;
+  padding: 0 6px;
+}
+.help td:first-child {
+  text-align: right;
+  padding-right: 12px;
+  padding-bottom: 2px;
+  min-width: 160px;
+}
 .tooltipbox {
     position: relative;
     display: inline-block;
@@ -267,6 +280,7 @@ div.emuspacer {
   border-color:#888;
 }
 canvas.pixelated {
+  cursor: crosshair;
   image-rendering: optimizeSpeed;             /* Older versions of FF          */
   image-rendering: -moz-crisp-edges;          /* FF 6.0+                       */
   image-rendering: -webkit-optimize-contrast; /* Safari                        */
@@ -275,14 +289,23 @@ canvas.pixelated {
   -ms-interpolation-mode: nearest-neighbor;   /* IE                            */
 }
 .palbtn {
-  width:2em;
-  height:2em;
-  border-style:none;
+  width: 2em;
+  height: 2em;
+  border-style: none;
+  position: relative;
+  border: none;
 }
-.palbtn.selected {
-  border-width:2px;
-  border-color:white;
-  border-style:dotted;
+.palbtn.selected::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px dotted #888;
+  border-radius: inherit;
+  mix-blend-mode: difference;
+  pointer-events: none;
 }
 #javatari-screen canvas {
   box-sizing: content-box;
@@ -513,7 +536,7 @@ div.asset_block.asset_highlight {
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
   font-weight: bold;
   color: #c1c1b0;
-  background-color: #555;
+  background-color: #4a4a4a;
   border-radius: 8px;
   padding-left: 1em;
 }
@@ -523,6 +546,7 @@ div.asset_block.asset_highlight {
   cursor: pointer;
   padding: 1px 4px;
   border-radius: 4px;
+  background: rgba(153, 204, 153, 0.15);
 }
 .asset_linenos:hover {
   text-decoration: underline;
@@ -572,6 +596,7 @@ div.asset_grid span {
 .asset_cell {
   padding: 0px;
   border: 1px solid black;
+  cursor: crosshair;
 }
 .asset_cell:hover {
   border: 1px solid white;
@@ -587,6 +612,7 @@ td.asset_editable {
 div.asset_dual {
   display: flex;
   align-items: flex-start;
+  flex-wrap: wrap;
 }
 div.asset_dual table {
   border-spacing: 10px;

@@ -10,6 +10,7 @@ export interface ProjectView {
     getPath?(): string;
     getValue?(): string;
     setText?(text: string): void;
+    setData?(data: any): void;
     insertLinesBefore?(text: string): void;
     getCursorPC?(): number;
     getSourceFile?(): SourceFile;
@@ -20,7 +21,11 @@ export interface ProjectView {
     recreateOnResize?: boolean;
     undoStep?(): void;
     redoStep?(): void;
-    replaceTextRange?(from: number, to: number, text: string): void;
+    flushChanges?(): void;
+    setAssetRange?(id: string, from: number, to: number): void;
+    getAssetText?(id: string): string | null;
+    replaceAssetText?(id: string, text: string): void;
+    clearAssetRanges?(): void;
 };
 
 // detect mobile (https://stackoverflow.com/questions/3514784/what-is-the-best-way-to-detect-a-mobile-device)

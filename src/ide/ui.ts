@@ -493,7 +493,7 @@ async function getSkeletonFile(fileid: string): Promise<string> {
   try {
     return await $.get("presets/" + getBasePlatform(platform_id) + "/skeleton." + ext, 'text');
   } catch (e) {
-    console.log(e+"");
+    console.log(e + "");
     return null;
   }
 }
@@ -707,19 +707,27 @@ export function getCurrentEditorFilename(): string {
 
 function _revertFile(e) {
   var wnd = projectWindows.getActive();
-  if (wnd && wnd.setText) {
-    var fn = projectWindows.getActiveID();
-    $.get("presets/" + getBasePlatform(platform_id) + "/" + fn, (text) => {
-      bootbox.confirm("Reset '" + DOMPurify.sanitize(fn) + "' to default?", (ok) => {
-        if (ok) {
-          wnd.setText(text);
-        }
-      });
-    }, 'text')
-      .fail(() => {
+  var fn = projectWindows.getActiveID();
+  var isBinary = wnd && wnd.setData && !wnd.setText;
+  if (wnd && (wnd.setText || wnd.setData)) {
+    var url = "presets/" + getBasePlatform(platform_id) + "/" + fn;
+    getWithBinary(url, (data) => {
+      if (data == null) {
         if (repo_id) alertError("Can only revert built-in examples. If you want to revert all files, You can pull from the repository.");
         else alertError("Can only revert built-in examples.");
+        return;
+      }
+      bootbox.confirm("Reset '" + DOMPurify.sanitize(fn) + "' to default?", (ok) => {
+        if (ok) {
+          if (isBinary) {
+            wnd.setData(data as Uint8Array);
+            current_project.updateFile(fn, data as Uint8Array);
+          } else {
+            wnd.setText(data as string);
+          }
+        }
       });
+    }, isBinary ? 'arraybuffer' : 'text');
   } else {
     alertError("Cannot revert the active window. Please choose a text file.");
   }
@@ -1500,6 +1508,8 @@ function setupDebugControls() {
   $("#item_addfile_link").click(_addLinkFile);
   $("#item_request_persist").click(() => requestPersistPermission(true, false));
   $("#item_settings").click(openSettings);
+  $("#item_keyboard_shortcuts").click(openKeyboardShortcuts);
+  $("#item_asset_editor_help").click(openAssetEditorHelp);
   updateDebugWindows();
   // code analyzer?
   if (platform.newCodeAnalyzer) {
@@ -1523,6 +1533,94 @@ function setupDebugControls() {
     $("#help_menu").append(li);
     $(a).click(() => window.open(toolhelpurl, '_8bws_help'));
   }
+}
+
+function openKeyboardShortcuts() {
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+  const mod = isMac ? '&#8984;' : 'Ctrl';
+  const alt = isMac ? '&#8997;' : 'Alt';
+  const shift = isMac ? '&#8679;' : 'Shift';
+  const shortcut = (keys: string, desc: string) =>
+    `<tr><td><kbd>${keys}</kbd></td><td>${desc}</td></tr>`;
+  bootbox.dialog({
+    title: "Keyboard shortcuts",
+    onEscape: true,
+    message: `
+    <table class="help">
+      <tr><th colspan="2">Custom</th></tr>
+      ${shortcut(`${shift}+${alt}+F`, 'Format document, or selected range(s)')}
+      ${shortcut('Tab', 'Insert to next tab stop, or indent selected range(s)')}
+      ${shortcut(`${shift}+Tab`, 'Outdent line(s) or selected range(s)')}
+      ${shortcut(`Enter`, 'Insert newline, keep cursor at same column pos')}
+      <tr><th colspan="2">Standard</th></tr>
+      <tr>
+        <td>Built-in</td>
+        <td>
+          Included CodeMirror shortcuts:<br>
+          <a target="_blank" href="https://codemirror.net/docs/ref/#commands.defaultKeymap">defaultKeymap</a>,
+          <a target="_blank" href="https://codemirror.net/docs/ref/#commands.standardKeymap">standardKeymap</a>,
+          <a target="_blank" href="https://codemirror.net/docs/ref/#commands.historyKeymap">historyKeymap</a>,
+          <a target="_blank" href="https://codemirror.net/docs/ref/#search.searchKeymap">searchKeymap</a>
+        </td>
+      </tr>
+    </table>`,
+    buttons: {
+      ok: { label: "OK", className: "btn-primary" }
+    }
+  });
+}
+
+function openAssetEditorHelp() {
+  const row = (field: string, dflt: string, desc: string) =>
+    `<tr><td><code>${field}</code></td><td>${dflt}</td><td>${desc}</td></tr>`;
+  bootbox.dialog({
+    title: "Asset Editor Reference",
+    onEscape: true,
+    message: `
+    <p>Add asset headers in source code as comments containing JSON format descriptors:</p>
+    <p>
+      C: <code>/*{w:8,h:8}*/</code> followed by data, terminated by <code>;</code><br>
+      ASM: <code>;;{w:8,h:8};;</code> followed by data, terminated by <code>;;</code>
+    </p>
+    <table class="help">
+      <tr><th colspan="3">Image Format</th></tr>
+      <tr><td><b>Field</b></td><td><b>Default</b></td><td><b>Description</b></td></tr>
+      ${row('w', '<i>required</i>', 'Width in pixels')}
+      ${row('h', '<i>required</i>', 'Height in pixels')}
+      ${row('count', '1', 'Number of images')}
+      ${row('bpp', '1', 'Bits per pixel')}
+      ${row('np', '1', 'Number of bitplanes (total colors = 2<sup>bpp&times;np</sup>)')}
+      ${row('bpw', '8', 'Bits per word (8, 16, 32)')}
+      ${row('sl', 'ceil(w&times;bpp/bpw)', 'Words per scanline (stride)')}
+      ${row('brev', 'false', 'Bit reverse: true = MSB is leftmost pixel')}
+      ${row('flip', 'false', 'Flip vertically (y=0 is bottom row)')}
+      ${row('skip', '0', 'Skip bytes at start of each image')}
+      ${row('pofs', 'sl&times;h&times;count', 'Offset between bitplanes')}
+      ${row('il', '0', 'Interleave images row by row (data stored as one wide block)')}
+      ${row('remap', '&mdash;', 'Bit remapping table for address lines')}
+      ${row('reindex', '&mdash;', 'Pixel-to-byte/bit remapping')}
+      ${row('wpimg', 'sl&times;h', 'Words per image')}
+      ${row('aspect', '1', 'Pixel aspect ratio for display')}
+      ${row('xform', '&mdash;', 'CSS transform on canvas')}
+      ${row('art', 'false', 'Artifact color mode: true = Apple II HGR (bit 7 toggles artifact color)')}
+      <tr><th colspan="3">Palette Format</th></tr>
+      <tr><td><b>Field</b></td><td><b>Default</b></td><td><b>Description</b></td></tr>
+      ${row('pal', '&mdash;', 'Palette: number (e.g. 332 = 3R,3G,2B) or name (nes, vcs, c64, ap2lores, astrocade)')}
+      ${row('n', '&mdash;', 'Number of palette entries')}
+      ${row('layout', '&mdash;', 'Palette editor layout (nes, astrocade)')}
+      <tr><th colspan="3">Examples</th></tr>
+      <tr><td colspan="2"><code>/*{w:8,h:8,bpp:1,brev:1}*/</code></td><td>8x8 1bpp, MSB first (NES-style)</td></tr>
+      <tr><td colspan="2"><code>;;{w:8,h:5,count:4,il:1};;</code></td><td>4 interleaved 8x5 chars (stored as 32x5 block)</td></tr>
+      <tr><td colspan="2"><code>;;{w:7,h:8};;</code></td><td>7x8 1bpp, LSB first (Apple II HGR)</td></tr>
+      <tr><td colspan="2"><code>;;{w:8,h:8,art:true};;</code></td><td>8x8 with artifact color (Apple II HGR, bit 7 toggle)</td></tr>
+      <tr><td colspan="2"><code>/*{w:16,h:16,bpp:4,np:1}*/</code></td><td>16x16 4bpp</td></tr>
+      <tr><td colspan="2"><code>/*{pal:332,n:16}*/</code></td><td>16-entry RGB332 palette</pre></td></tr>
+    </table>`,
+    buttons: {
+      ok: { label: "OK", className: "btn-primary" }
+    },
+    size: "large"
+  });
 }
 
 function setupReplaySlider() {
