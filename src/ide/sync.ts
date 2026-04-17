@@ -94,6 +94,10 @@ export function _importProjectFromGithub(e) {
     var modal = $("#importGithubModal");
     var btn = $("#importGithubButton");
     modal.modal('show');
+    modal.off('shown.bs.modal').on('shown.bs.modal', () => $("#importGithubURL").trigger('focus'));
+    $("#importGithubURL").off('keydown').on('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); btn.trigger('click'); }
+    });
     btn.off('click').on('click', () => {
         var githuburl = $("#importGithubURL").val() + "";
         modal.modal('hide');
