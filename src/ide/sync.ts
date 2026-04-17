@@ -43,7 +43,7 @@ export async function importProjectFromGithub(githuburl: string, replaceURL: boo
     var sess: GHSession;
     var urlparse = parseGithubURL(githuburl);
     if (!urlparse) {
-        alertError('Could not parse Github URL.');
+        alertError('Could not parse GitHub URL.');
         return;
     }
     // redirect to repo if exists
@@ -70,14 +70,14 @@ export async function importProjectFromGithub(githuburl: string, replaceURL: boo
     }).catch((e) => {
         setWaitDialog(false);
         console.log(e);
-        alertError("Could not import " + githuburl + "." + e);
+        alertError("Could not import " + githuburl + ". " + e);
     });
 }
 
 export async function _loginToGithub(e) {
     var gh = await getGithubService();
     gh.login().then(() => {
-        alertInfo("You are signed in to Github.");
+        alertInfo("You are signed in to GitHub.");
     }).catch((e) => {
         alertError("Could not sign in." + e);
     });
@@ -86,7 +86,7 @@ export async function _loginToGithub(e) {
 export async function _logoutOfGithub(e) {
     var gh = await getGithubService();
     gh.logout().then(() => {
-        alertInfo("You are logged out of Github.");
+        alertInfo("You are logged out of GitHub.");
     });
 }
 
@@ -94,6 +94,10 @@ export function _importProjectFromGithub(e) {
     var modal = $("#importGithubModal");
     var btn = $("#importGithubButton");
     modal.modal('show');
+    modal.off('shown.bs.modal').on('shown.bs.modal', () => $("#importGithubURL").trigger('focus'));
+    $("#importGithubURL").off('keydown').on('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); btn.trigger('click'); }
+    });
     btn.off('click').on('click', () => {
         var githuburl = $("#importGithubURL").val() + "";
         modal.modal('hide');
@@ -103,7 +107,7 @@ export function _importProjectFromGithub(e) {
 
 export function _publishProjectToGithub(e) {
     if (repo_id) {
-        if (!confirm("This project (" + getCurrentProject().mainPath + ") is already bound to a Github repository. Do you want to re-publish to a new repository? (You can instead choose 'Push Changes' to update files in the existing repository.)"))
+        if (!confirm("This project (" + getCurrentProject().mainPath + ") is already bound to a GitHub repository. Do you want to re-publish to a new repository? (You can instead choose 'Push Changes' to update files in the existing repository.)"))
             return;
     }
     var modal = $("#publishGithubModal");
