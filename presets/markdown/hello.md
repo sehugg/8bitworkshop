@@ -79,7 +79,7 @@ of text
 If you DO want to add soft line breaks (which translate to `<br>` in HTML) to a paragraph, 
 you can do so by adding 3 space characters to the end of the line (`  `).
 
-You can also force every line break in paragraphs to translate to `<br>` (as Github does) by
+You can also force every line break in paragraphs to translate to `<br>` (as GitHub does) by
 enabling the option **`simpleLineBreaks`**.
 
 ## Headings
