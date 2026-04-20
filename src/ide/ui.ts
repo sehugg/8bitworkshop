@@ -13,16 +13,16 @@ import { FileData, WorkerError, WorkerResult } from "../common/workertypes";
 import { importPlatform } from "../platform/_index";
 import { gaEvent, gaPageView } from "./analytics";
 import { alertError, alertInfo, fatalError, setWaitDialog } from "./dialogs";
-import { openSettings } from "./settings";
 import { CodeProject, createNewPersistentStore, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
 import { getRepos, parseGithubURL } from "./services";
+import { detectAndApplyAsmTabStops, openSettings } from "./settings";
 import { _downloadAllFilesZipFile, _downloadCassetteFile, _downloadProjectZipFile, _downloadROMImage, _downloadSourceFile, _downloadSymFile, _getCassetteFunction, _recordVideo, _shareEmbedLink } from "./shareexport";
 import { _importProjectFromGithub, _loginToGithub, _logoutOfGithub, _publishProjectToGithub, _pullProjectFromGithub, _pushProjectToGithub, _removeRepository, importProjectFromGithub } from "./sync";
 import { Toolbar } from "./toolbar";
 import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
 import { AddressHeatMapView, BinaryFileView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterStackMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
-import { DisassemblerView, ListingView, PC_LINE_LOOKAHEAD, SourceEditor, setUppercaseOnly } from "./views/editors";
+import { DisassemblerView, ListingView, PC_LINE_LOOKAHEAD, setUppercaseOnly, SourceEditor } from "./views/editors";
 import { CallStackView, DebugBrowserView } from "./views/treeviews";
 import { ProjectWindows } from "./windows";
 import Split = require('split.js');
@@ -126,7 +126,7 @@ const TOOL_TO_SOURCE_STYLE = {
   'bataribasic': 'bataribasic',
   'markdown': 'markdown',
   'js': 'javascript',
-  'xasm6809': 'z80',
+  'xasm6809': '6809',
   'cmoc': 'text/x-csrc',
   'yasm': 'gas',
   'smlrc': 'text/x-csrc',
@@ -145,6 +145,12 @@ const TOOL_TO_SOURCE_STYLE = {
   'oscar64': 'text/x-csrc',
 }
 
+const ASM_MODES = new Set(['6502', 'z80', '6809', 'gas', 'vasm', 'jsasm']);
+
+export function isAsmMode(mode: string): boolean {
+  return ASM_MODES.has(mode);
+}
+
 // TODO: move into tool class
 const TOOL_TO_HELPURL = {
   'dasm': 'https://raw.githubusercontent.com/sehugg/dasm/master/doc/dasm.txt',
@@ -160,6 +166,16 @@ const TOOL_TO_HELPURL = {
   'cmoc': "http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html",
   'remote:llvm-mos': 'https://llvm-mos.org/wiki/Welcome',
   'acme': 'https://raw.githubusercontent.com/sehugg/acme/main/docs/QuickRef.txt',
+}
+
+export function getModeForPath(path: string) {
+  var tool = platform.getToolForFilename(path);
+  // hack because .h files can be DASM or CC65
+  if (tool == 'dasm' && path.endsWith(".h") && getCurrentMainFilename().endsWith(".c")) {
+    tool = 'cc65';
+  }
+  var mode = tool && TOOL_TO_SOURCE_STYLE[tool];
+  return mode;
 }
 
 function newWorker(): Worker {
@@ -310,21 +326,11 @@ function refreshWindowList() {
     }
   }
 
-  function loadEditor(path: string) {
-    var tool = platform.getToolForFilename(path);
-    // hack because .h files can be DASM or CC65
-    if (tool == 'dasm' && path.endsWith(".h") && getCurrentMainFilename().endsWith(".c")) {
-      tool = 'cc65';
-    }
-    var mode = tool && TOOL_TO_SOURCE_STYLE[tool];
-    return new SourceEditor(path, mode);
-  }
-
   function addEditorItem(id: string) {
     addWindowItem(id, getFilenameForPath(id), () => {
       var data = current_project.getFile(id);
       if (typeof data === 'string')
-        return loadEditor(id);
+        return new SourceEditor(id, getModeForPath(id));
       else if (data instanceof Uint8Array)
         return new BinaryFileView(id, data as Uint8Array);
     });
@@ -429,6 +435,8 @@ async function loadMainWindow(preset_id: string) {
   var maindata = current_project.getFile(preset_id);
   if (typeof maindata === 'string') {
     await current_project.loadFileDependencies(maindata);
+    // Update column settings for asm {opcode, operand, comments}.
+    detectAndApplyAsmTabStops(preset_id, maindata);
   }
   // we need this to build create functions for the editor
   refreshWindowList();
@@ -493,7 +501,7 @@ async function getSkeletonFile(fileid: string): Promise<string> {
   try {
     return await $.get("presets/" + getBasePlatform(platform_id) + "/skeleton." + ext, 'text');
   } catch (e) {
-    console.log(e+"");
+    console.log(e + "");
     return null;
   }
 }
@@ -1500,6 +1508,7 @@ function setupDebugControls() {
   $("#item_addfile_link").click(_addLinkFile);
   $("#item_request_persist").click(() => requestPersistPermission(true, false));
   $("#item_settings").click(openSettings);
+  $("#item_keyboard_shortcuts").click(openKeyboardShortcuts);
   updateDebugWindows();
   // code analyzer?
   if (platform.newCodeAnalyzer) {
@@ -1523,6 +1532,41 @@ function setupDebugControls() {
     $("#help_menu").append(li);
     $(a).click(() => window.open(toolhelpurl, '_8bws_help'));
   }
+}
+
+function openKeyboardShortcuts() {
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+  const mod = isMac ? '&#8984;' : 'Ctrl';
+  const alt = isMac ? '&#8997;' : 'Alt';
+  const shift = isMac ? '&#8679;' : 'Shift';
+  const shortcut = (keys: string, desc: string) =>
+    `<tr><td><kbd>${keys}</kbd></td><td>${desc}</td></tr>`;
+  bootbox.dialog({
+    title: "Keyboard shortcuts",
+    onEscape: true,
+    message: `
+    <table class="help">
+      <tr><th colspan="2">Custom</th></tr>
+      ${shortcut(`${shift}+${alt}+F`, 'Format document, or selected range(s)')}
+      ${shortcut('Tab', 'Insert to next tab stop, or indent selected range(s)')}
+      ${shortcut(`${shift}+Tab`, 'Outdent line(s) or selected range(s)')}
+      ${shortcut(`Enter`, 'Insert newline, keep cursor at same column pos')}
+      <tr><th colspan="2">Standard</th></tr>
+      <tr>
+        <td>Built-in</td>
+        <td>
+          Included CodeMirror shortcuts:<br>
+          <a target="_blank" href="https://codemirror.net/docs/ref/#commands.defaultKeymap">defaultKeymap</a>,
+          <a target="_blank" href="https://codemirror.net/docs/ref/#commands.standardKeymap">standardKeymap</a>,
+          <a target="_blank" href="https://codemirror.net/docs/ref/#commands.historyKeymap">historyKeymap</a>,
+          <a target="_blank" href="https://codemirror.net/docs/ref/#search.searchKeymap">searchKeymap</a>
+        </td>
+      </tr>
+    </table>`,
+    buttons: {
+      ok: { label: "OK", className: "btn-primary" }
+    }
+  });
 }
 
 function setupReplaySlider() {
@@ -2166,15 +2210,6 @@ function writeOutputROMFile() {
     var suffix = (platform.getROMExtension && platform.getROMExtension(current_output))
       || "-" + getBasePlatform(platform_id) + ".bin";
     alternateLocalFilesystem.setFileData(`bin/${prefix}${suffix}`, current_output);
-  }
-}
-export function highlightSearch(query: string) { // TODO: filename?
-  var wnd = projectWindows.getActive();
-  if (wnd instanceof SourceEditor) {
-    var sc = wnd.editor.getSearchCursor(query);
-    if (sc.findNext()) {
-      wnd.editor.setSelection(sc.pos.to, sc.pos.from);
-    }
   }
 }
 

@@ -1,0 +1,598 @@
+; ===========================================================================
+; kitchensync.dasm - 6502 grammar Kitchen Sink
+; ===========================================================================
+; 6502 parser and formatter test
+; ===========================================================================
+; TODO: Uncomment `;;;` lines once DASM is updated
+
+; -------------------------------------------------------------------
+; PROCESSOR
+; -------------------------------------------------------------------
+          processor 6502
+          PROCESSOR 6502
+          .processor 6502
+          .PROCESSOR 6502
+
+; -------------------------------------------------------------------
+; Segment: uninitialized variables
+; -------------------------------------------------------------------
+          seg.u variables
+;;;       .seg.u variables
+          SEG.U variables
+;;;       .SEG.U variables
+          org  $80
+var1      ds   1
+var2      ds   2
+var3      ds.w 1
+
+; -------------------------------------------------------------------
+; Segments (SEG, SEG.U)
+; -------------------------------------------------------------------
+          seg  code
+          .seg code
+          SEG  code
+          .SEG code
+
+
+; ===================================================================
+; Runnable entry point
+; ===================================================================
+          org  $0810
+start     jmp  start               ; infinite loop so program can run
+
+; -------------------------------------------------------------------
+; Labels: global, global with colon, local (.name)
+; -------------------------------------------------------------------
+GlobalLabel
+GlobalColon:
+          SUBROUTINE
+.local
+.temp     nop
+
+; -------------------------------------------------------------------
+; Instructions: every 6502 opcode (lowercase)
+; -------------------------------------------------------------------
+          adc  #$01
+          and  #$FF
+;;;       asl  a
+          asl
+          bcc  .temp
+          bcs  .temp
+          beq  .temp
+          bit  $44
+          bmi  .temp
+          bne  .temp
+          bpl  .temp
+          brk
+          bvc  .temp
+          bvs  .temp
+          clc
+          cld
+          cli
+          clv
+          cmp  #$00
+          cpx  #$10
+          cpy  #$20
+          dec  $44
+          dex
+          dey
+          eor  #$AA
+          inc  $44
+          inx
+          iny
+          jmp  start
+          jsr  start
+          lda  #$42
+          ldx  #$00
+          ldy  #$00
+;;;       lsr  a
+          nop
+          ora  #$0F
+          pha
+          php
+          pla
+          plp
+;;;       rol  a
+;;;       ror  a
+          rti
+          rts
+          sbc  #$01
+          sec
+          sed
+          sei
+          sta  $44
+          stx  $45
+          sty  $46
+          tax
+          tay
+          tsx
+          txa
+          txs
+          tya
+
+; -------------------------------------------------------------------
+; Instructions: every 6502 opcode (UPPERCASE)
+; -------------------------------------------------------------------
+          ADC  #$02
+          AND  #$FE
+;;;       ASL  A
+          BCC  .temp
+          BCS  .temp
+          BEQ  .temp
+          BIT  $44
+          BMI  .temp
+          BNE  .temp
+          BPL  .temp
+          BRK
+          BVC  .temp
+          BVS  .temp
+          CLC
+          CLD
+          CLI
+          CLV
+          CMP  #$01
+          CPX  #$11
+          CPY  #$21
+          DEC  $44
+          DEX
+          DEY
+          EOR  #$BB
+          INC  $44
+          INX
+          INY
+          JMP  start
+          JSR  start
+          LDA  #$43
+          LDX  #$01
+          LDY  #$01
+;;;       LSR  A
+          NOP
+          ORA  #$F0
+          PHA
+          PHP
+          PLA
+          PLP
+;;;       ROL  A
+;;;       ROR  A
+          RTI
+          RTS
+          SBC  #$02
+          SEC
+          SED
+          SEI
+          STA  $44
+          STX  $45
+          STY  $46
+          TAX
+          TAY
+          TSX
+          TXA
+          TXS
+          TYA
+
+; -------------------------------------------------------------------
+; Addressing modes
+; -------------------------------------------------------------------
+          lda  #$FF                ; immediate
+          lda  $44                 ; zero page
+          lda  $44,x               ; zero page,X
+          ldx  $44,y               ; zero page,Y
+          lda  $1234               ; absolute
+          lda  $1234,x             ; absolute,X
+          lda  $1234,y             ; absolute,Y
+          lda  ($44,x)             ; indirect,X
+          lda  ($44),y             ; indirect,Y
+          jmp  ($FFFE)             ; indirect
+
+; -------------------------------------------------------------------
+; Register operands (all cases)
+; -------------------------------------------------------------------
+;;;       asl  a
+;;;       asl  A
+
+; -------------------------------------------------------------------
+; Number formats
+; -------------------------------------------------------------------
+          lda  #$FF                ; hexadecimal
+          lda  #%10101010          ; binary
+          lda  #255                ; decimal
+          lda  #'A                 ; character constant
+          lda  #0                  ; zero
+
+; -------------------------------------------------------------------
+; Current address (.)
+; -------------------------------------------------------------------
+          jmp  .                   ; current address
+
+; -------------------------------------------------------------------
+; Pseudo-ops: ORG
+; -------------------------------------------------------------------
+          org  $0900
+          ORG  $0A00
+
+; -------------------------------------------------------------------
+; Pseudo-ops: EQU / = assignment
+; -------------------------------------------------------------------
+CONST1    equ  $10
+CONST2    EQU  $20
+CONST3    =    $30
+CONST4    =    CONST1 + CONST2
+
+; -------------------------------------------------------------------
+; Pseudo-ops: SET (reassignable)
+; -------------------------------------------------------------------
+COUNTER   set  0
+COUNTER   set  COUNTER + 1
+COUNTER   SET  COUNTER + 1
+
+; -------------------------------------------------------------------
+; Pseudo-ops: EQM (expression macro)
+; -------------------------------------------------------------------
+DOUBLE    eqm  . * 2
+DOUBLE    EQM  . * 2
+
+; -------------------------------------------------------------------
+; Pseudo-ops: SETSTR
+; -------------------------------------------------------------------
+;;;NAME      setstr "Hello"
+;;;NAME      SETSTR "World"
+
+; -------------------------------------------------------------------
+; Data: BYTE / WORD / LONG (all size extensions)
+; -------------------------------------------------------------------
+          BYTE $EE,$FF
+          word $ABCD
+          WORD $1234
+          long $12345678
+          LONG $DEADBEEF
+
+; -------------------------------------------------------------------
+; Data: HEX
+; -------------------------------------------------------------------
+          hex  1A2B3C
+          hex  FF 00 AA BB
+          HEX  DEADBEEF
+          HEX  01 02 03 04
+
+; -------------------------------------------------------------------
+; Data: DC (all size extensions)
+; -------------------------------------------------------------------
+          dc   1,2,3
+          dc.b $AA,$BB
+          dc.w $1234,$5678
+          dc.l $12345678
+          dc.s "AB"
+          DC   4,5,6
+          DC.B $CC,$DD
+          DC.W $9ABC,$DEF0
+          DC.L $DEADBEEF
+          DC.S "CD"
+          byte 7,8,9
+
+; -------------------------------------------------------------------
+; Data: DS (declare space, all size extensions)
+; -------------------------------------------------------------------
+          ds   4
+          ds   4,$FF
+          ds.b 2,42
+          ds.w 2,3,4
+          ds.l 1
+          ds.s 1
+          DS   8,$00
+          DS.B 3
+          DS.W 3
+          DS.L 5,6,7,8
+          DS.S 2
+
+; -------------------------------------------------------------------
+; Data: DV (declare via EQM, all size extensions)
+; -------------------------------------------------------------------
+XFORM     eqm  .. + 1
+          dv   XFORM 0,1,2
+          dv.b XFORM 3,4
+          dv.w XFORM 5,6
+          dv.l XFORM 7,8
+          dv.s XFORM 7,8
+          DV   XFORM 9
+          DV.B XFORM 10
+          DV.W XFORM 11
+          DV.L XFORM 12
+          DV.S XFORM 12
+
+; -------------------------------------------------------------------
+; Strings and characters
+; -------------------------------------------------------------------
+          dc   "Hello, World!"
+          dc   'A
+          dc   'Z
+
+; -------------------------------------------------------------------
+; Include directives
+; -------------------------------------------------------------------
+          include "kitchensink2.dasm"
+          INCLUDE "kitchensink2.dasm"
+          .include "kitchensink2.dasm"
+          .INCLUDE "kitchensink2.dasm"
+
+          incbin "kitchensink/kitchensink.bin"
+          INCBIN "kitchensink/kitchensink.bin",2
+          .incbin "kitchensink/kitchensink.bin"
+          .INCBIN "kitchensink/kitchensink.bin",2
+
+          incdir "kitchensink/"
+          INCDIR "kitchensink/"
+          .incdir "kitchensink/"
+          .INCDIR "kitchensink/"
+
+; -------------------------------------------------------------------
+; ALIGN
+; -------------------------------------------------------------------
+          align 256
+          ALIGN 256
+          align 16,$EA
+          ALIGN 16,$EA
+
+; -------------------------------------------------------------------
+; RORG / REND
+; -------------------------------------------------------------------
+          rorg $C000
+          nop
+          rend
+          RORG $D000
+          nop
+          REND
+
+          .rorg $C000
+          nop
+          .rend
+          .RORG $D000
+          nop
+          .REND
+
+; -------------------------------------------------------------------
+; SUBROUTINE (local label scoping)
+; -------------------------------------------------------------------
+MyFunc    SUBROUTINE
+.loop     dex
+          bne  .loop
+          rts
+MyFunc2   subroutine
+.loop     dey
+          bne  .loop
+          rts
+MyFunc3   .subroutine
+.loop     rts
+MyFunc4   .SUBROUTINE
+.loop     rts
+
+; -------------------------------------------------------------------
+; ECHO
+; -------------------------------------------------------------------
+          echo "Build starting"
+          .echo "Build starting"
+          ECHO "Value=",CONST1
+          .ECHO "Value=",CONST1
+          echo "Sum=",[CONST1+CONST2]
+          .echo "Sum=",[CONST1+CONST2]
+
+; -------------------------------------------------------------------
+; LIST
+; -------------------------------------------------------------------
+          list on
+          .list on
+          list off
+          .list off
+          LIST ON
+          .LIST ON
+          LIST OFF
+          .LIST OFF
+
+; -------------------------------------------------------------------
+; Macros: MAC / MACRO / MEXIT / ENDM
+; -------------------------------------------------------------------
+          mac  LoadImm
+          lda  #{1}
+          mexit
+          endm
+
+          .mac LoadImm
+          lda  #{1}
+          .mexit
+          .endm
+
+          MAC  StoreZP
+          sta  {1}
+          MEXIT
+          ENDM
+
+          .MAC StoreZP
+          sta  {1}
+          .MEXIT
+          .ENDM
+
+;;;       macro LdxImm
+;;;       ldx  #{1}
+;;;       endm
+
+;;;       MACRO LdyImm
+;;;       ldy  #{1}
+;;;       ENDM
+
+; -------------------------------------------------------------------
+; Conditionals: IF / ELSE / ENDIF / EIF
+; -------------------------------------------------------------------
+          if   CONST1 == $10
+          nop
+          else
+          brk
+          endif
+
+          IF   CONST2 != $10
+          nop
+          ELSE
+          brk
+          ENDIF
+
+          .if  CONST1 == $10
+          nop
+          .else
+          brk
+          .endif
+
+          .IF  CONST2 != $10
+          nop
+          .ELSE
+          brk
+          .ENDIF
+
+; -------------------------------------------------------------------
+; Conditionals: IFCONST / IFNCONST
+; -------------------------------------------------------------------
+          ifconst CONST1
+          nop
+          endif
+
+          IFCONST CONST2
+          nop
+          ENDIF
+
+          .ifnconst UNDEFINED_SYMBOL
+          nop
+          .endif
+
+          .IFNCONST UNDEFINED_SYMBOL
+          nop
+          .ENDIF
+
+; -------------------------------------------------------------------
+; REPEAT / REPEND
+; -------------------------------------------------------------------
+I         SET  0
+          REPEAT 4
+          dc.b I
+I         SET  I + 1
+          REPEND
+
+I         set  0
+          repeat 4
+          dc.b I
+I         set  I + 1
+          repend
+
+I         .SET 0
+          .REPEAT 4
+          dc.b I
+I         .SET I + 1
+          .REPEND
+
+I         .set 0
+          .repeat 4
+          dc.b I
+I         .set I + 1
+          .repend
+
+          repeat 2
+          nop
+          repend
+
+
+; -------------------------------------------------------------------
+; Expressions: arithmetic operators
+; -------------------------------------------------------------------
+EXPR_ADD  =    1 + 2
+EXPR_SUB  =    10 - 3
+EXPR_MUL  =    4 * 5
+EXPR_DIV  =    20 / 4
+EXPR_MOD  =    17 % 5
+
+; -------------------------------------------------------------------
+; Expressions: bitwise operators
+; -------------------------------------------------------------------
+EXPR_AND  =    $FF & $0F
+EXPR_OR   =    $F0 | $0F
+EXPR_XOR  =    $FF ^ $AA
+EXPR_SHL  =    1 << 4
+EXPR_SHR  =    $80 >> 3
+
+; -------------------------------------------------------------------
+; Expressions: comparison operators
+; -------------------------------------------------------------------
+EXPR_EQ   =    [1 == 1]
+EXPR_NE   =    [1 != 2]
+EXPR_LT   =    [1 < 2]
+EXPR_GT   =    [2 > 1]
+EXPR_LE   =    [1 <= 1]
+EXPR_GE   =    [2 >= 1]
+
+; -------------------------------------------------------------------
+; Expressions: logical operators
+; -------------------------------------------------------------------
+EXPR_LAND =    [1 && 1]
+EXPR_LOR  =    [0 || 1]
+
+; -------------------------------------------------------------------
+; Expressions: ternary operator
+; -------------------------------------------------------------------
+EXPR_TERN =    [1 ? 42]
+
+; -------------------------------------------------------------------
+; Expressions: unary operators
+; -------------------------------------------------------------------
+EXPR_NEG  =    -1
+;;;EXPR_POS  =    +1
+EXPR_NOT  =    !0
+EXPR_CPL  =    ~$FF
+EXPR_LO   =    <$1234
+EXPR_HI   =    >$1234
+
+; -------------------------------------------------------------------
+; Expressions: bracket grouping
+; -------------------------------------------------------------------
+EXPR_PARENS =  (2 + 3) * 4
+EXPR_BRACK =   [2 + 3] * 4
+
+; -------------------------------------------------------------------
+; Expressions: complex nested
+; -------------------------------------------------------------------
+EXPR_COMPLEX = [[1 + 2] * [3 + 4]] & $FF
+
+; -------------------------------------------------------------------
+; C-style block comments
+; -------------------------------------------------------------------
+;;;/* This is a single-line block comment */
+
+;;;/*
+;;; * This is a multi-line
+;;; * block comment
+;;; */
+
+;;;       nop  /* inline block comment */
+
+;;;       lda  /* mid-instruction comment */ #$42
+
+; -------------------------------------------------------------------
+; Mixed comment styles
+; -------------------------------------------------------------------
+          nop                      ; semicolon comment /* block comment */
+;;;       nop  /* block comment */ ; then semicolon comment
+
+
+; -------------------------------------------------------------------
+; END
+; -------------------------------------------------------------------
+          end                      ; assembly stops here
+          END                      ; would've stopped assembly
+          .end                     ; would've stopped assembly
+          .END                     ; would've stopped assembly
+
+; -------------------------------------------------------------------
+; ERR
+; -------------------------------------------------------------------
+          err                      ; would've aborted assembly
+          ERR                      ; would've aborted assembly
+          .err                     ; would've aborted assembly
+          .ERR                     ; would've aborted assembly
+
+; ===========================================================================
+; End of kitchen sink
+; ===========================================================================
