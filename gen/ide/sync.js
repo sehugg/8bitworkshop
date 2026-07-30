@@ -50,7 +50,7 @@ async function importProjectFromGithub(githuburl, replaceURL) {
     var sess;
     var urlparse = (0, services_1.parseGithubURL)(githuburl);
     if (!urlparse) {
-        (0, dialogs_1.alertError)('Could not parse Github URL.');
+        (0, dialogs_1.alertError)('Could not parse GitHub URL.');
         return;
     }
     // redirect to repo if exists
@@ -77,13 +77,13 @@ async function importProjectFromGithub(githuburl, replaceURL) {
     }).catch((e) => {
         (0, dialogs_1.setWaitDialog)(false);
         console.log(e);
-        (0, dialogs_1.alertError)("Could not import " + githuburl + "." + e);
+        (0, dialogs_1.alertError)("Could not import " + githuburl + ". " + e);
     });
 }
 async function _loginToGithub(e) {
     var gh = await getGithubService();
     gh.login().then(() => {
-        (0, dialogs_1.alertInfo)("You are signed in to Github.");
+        (0, dialogs_1.alertInfo)("You are signed in to GitHub.");
     }).catch((e) => {
         (0, dialogs_1.alertError)("Could not sign in." + e);
     });
@@ -91,13 +91,20 @@ async function _loginToGithub(e) {
 async function _logoutOfGithub(e) {
     var gh = await getGithubService();
     gh.logout().then(() => {
-        (0, dialogs_1.alertInfo)("You are logged out of Github.");
+        (0, dialogs_1.alertInfo)("You are logged out of GitHub.");
     });
 }
 function _importProjectFromGithub(e) {
     var modal = $("#importGithubModal");
     var btn = $("#importGithubButton");
     modal.modal('show');
+    modal.off('shown.bs.modal').on('shown.bs.modal', () => $("#importGithubURL").trigger('focus'));
+    $("#importGithubURL").off('keydown').on('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            btn.trigger('click');
+        }
+    });
     btn.off('click').on('click', () => {
         var githuburl = $("#importGithubURL").val() + "";
         modal.modal('hide');
@@ -106,7 +113,7 @@ function _importProjectFromGithub(e) {
 }
 function _publishProjectToGithub(e) {
     if (ui_1.repo_id) {
-        if (!confirm("This project (" + (0, ui_1.getCurrentProject)().mainPath + ") is already bound to a Github repository. Do you want to re-publish to a new repository? (You can instead choose 'Push Changes' to update files in the existing repository.)"))
+        if (!confirm("This project (" + (0, ui_1.getCurrentProject)().mainPath + ") is already bound to a GitHub repository. Do you want to re-publish to a new repository? (You can instead choose 'Push Changes' to update files in the existing repository.)"))
             return;
     }
     var modal = $("#publishGithubModal");
