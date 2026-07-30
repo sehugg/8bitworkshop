@@ -22,7 +22,7 @@ try {
     console.log('warning: need ./github.json with {token:"..."}')
 }
 
-exports['test import Github'] = async function (browser) {
+exports['test import GitHub'] = async function (browser) {
 
     await browser.url(`${IDEURL}?${QS_GITHUBURL}`)
         .waitForElementNotPresent('#step-0')
