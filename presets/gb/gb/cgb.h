@@ -17,7 +17,7 @@
 #ifndef _CGB_H
 #define _CGB_H
 
-#include <types.h>
+#include "types.h"
 #include <stdint.h>
 
 /** Macro to create a CGB palette color entry out of 5-bit color components.

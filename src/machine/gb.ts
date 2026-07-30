@@ -2,15 +2,8 @@
 import { SM83, SM83State } from "../common/cpu/SM83";
 import { BasicScanlineMachine, Bus } from "../common/devices";
 import { newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler, EmuHalt } from "../common/emu";
+import { DMG_PALETTE } from "../common/gbpalette";
 import { hex } from "../common/util";
-
-// Game Boy DMG palette: 4 shades of green (darkest to lightest)
-const DMG_PALETTE: number[] = [
-  0xFFd0d884, // Lightest (Warm Mint)
-  0xFF87a84c, // Light Mid
-  0xFF526b34, // Dark Mid
-  0xFF2d3122, // Darkest (Deep Olive)
-];
 
 // Convert GBC 15-bit RGB (xBBBBBGGGGGRRRRR) to 32-bit ARGB
 function cgbColorToARGB(lo: number, hi: number): number {
