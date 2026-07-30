@@ -480,8 +480,8 @@ export class SourceEditor implements ProjectView {
         effects: [
           currentPcMarker.set.of(line.line),
           currentPc.effect.of(line.line),
-          // Optional: follow the execution point
-          EditorView.scrollIntoView(this.editor.state.doc.line(line.line).from, { y: "center" }),
+          // Follow the execution point when stepping/hitting breakpoints.
+          ...(moveCursor ? [EditorView.scrollIntoView(this.editor.state.doc.line(line.line).from, { y: "center" })] : []),
         ]
       });
     }

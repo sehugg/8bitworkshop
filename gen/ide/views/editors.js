@@ -426,8 +426,8 @@ class SourceEditor {
                 effects: [
                     gutter_1.currentPcMarker.set.of(line.line),
                     visuals_1.currentPc.effect.of(line.line),
-                    // Optional: follow the execution point
-                    view_1.EditorView.scrollIntoView(this.editor.state.doc.line(line.line).from, { y: "center" }),
+                    // Follow the execution point when stepping/hitting breakpoints.
+                    ...(moveCursor ? [view_1.EditorView.scrollIntoView(this.editor.state.doc.line(line.line).from, { y: "center" })] : []),
                 ]
             });
         };
