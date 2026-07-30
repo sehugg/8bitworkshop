@@ -1,345 +1,409 @@
 import { Z80, Z80State } from "../common/cpu/ZilogZ80";
 import { BasicScanlineMachine } from "../common/devices";
-import { KeyFlags, newAddressDecoder, padBytes, noise, Keys, makeKeycodeMap, newKeyboardHandler, EmuHalt } from "../common/emu";
-import { TssChannelAdapter, MasterAudio } from "../common/audio";
-import { hex } from "../common/util";
+import { padBytes, Keys, makeKeycodeMap, newKeyboardHandler, EmuHalt } from "../common/emu";
 
 const PACMAN_KEYCODE_MAP = makeKeycodeMap([
-    [Keys.UP, 0, 0x1],     // UP
-    [Keys.LEFT, 0, 0x2],   // LEFT 
-    [Keys.RIGHT, 0, 0x4],  // RIGHT
-    [Keys.DOWN, 0, 0x8],   // DOWN
-    [Keys.VK_5, 0, 0x20],  // COIN1
-    [Keys.VK_6, 0, 0x40],  // COIN2
-    [Keys.START, 1, 0x20], // START1
-    [Keys.VK_2, 1, 0x40],  // START2
-    // Removed SERVICE mapping to prevent accidental service mode activation
-    // [Keys.SELECT, 1, 0x10], // SERVICE
+    [Keys.UP,    0, 0x1],
+    [Keys.LEFT,  0, 0x2],
+    [Keys.RIGHT, 0, 0x4],
+    [Keys.DOWN,  0, 0x8],
+    [Keys.VK_5,  0, 0x20],  // COIN1
+    [Keys.VK_6,  0, 0x40],  // COIN2
+    [Keys.A,     0, 0x80],  // FIRE (Space) — homebrew
+    [Keys.START, 1, 0x20],  // START1
+    [Keys.VK_2,  1, 0x40],  // START2
 ]);
 
-// Pacman palette colors (4-bit RGB conversion)
-const bitcolors = [
-    0x00000000, // 0
-    0x00000f00, // 1 - red
-    0x000f0000, // 2 - green  
-    0x000f0f00, // 3 - yellow
-    0x0f000000, // 4 - blue
-    0x0f000f00, // 5 - magenta
-    0x0f0f0000, // 6 - cyan
-    0x0f0f0f00, // 7 - white
-];
+const SCREEN_W = 224;
+const SCREEN_H = 288;
 
-// Pacman video rendering - proper tile-based version
-const PacmanVideo = function (machine, charROM: Uint8Array, vram: Uint8Array, cram: Uint8Array, oram: Uint8Array, palette: Uint32Array, options) {
-    var self = this;
-    this.machine = machine;
-    this.charROM = charROM;
-    this.frameCounter = 0;
+/**
+ * Pacman video — ported from pac-c's proven decode/draw path.
+ * ROM layout in combined image:
+ *   0x4000 tile ROM (4KB), 0x5000 sprite ROM (4KB),
+ *   0x6000 color PROM (32B), 0x6100 palette PROM (256B)
+ */
+class PacmanVideo {
+    tiles = new Uint8Array(256 * 64);     // decoded 8x8 tiles, 2bpp index per pixel
+    sprites = new Uint8Array(64 * 256);   // decoded 16x16 sprites
+    colors = new Uint32Array(32);         // RGB from color PROM
+    paletteRom = new Uint8Array(0x100);   // 64 palettes × 4 pens
+    spritePos = new Uint8Array(16);       // coords at 0x5060-0x506f
 
-    this.advanceFrame = function () {
-        this.frameCounter = (this.frameCounter + 1) & 0xff;
+    constructor(
+        public rom: Uint8Array,
+        public vram: Uint8Array,
+        public cram: Uint8Array,
+        public ram: Uint8Array,
+    ) {
+        this.rebuild();
     }
 
-    this.drawScanline = function (pixels, sl) {
-        var pixofs = sl * 224;
-        
-        // Pacman screen is rotated 90 degrees, 28x36 characters visible
-        // Clear scanline with black
-        for (var i = 0; i < 224; i++) {
-            pixels[pixofs + i] = 0xff000000;
+    rebuild() {
+        // Color PROM → RGBA (MAME resistor weights; must match pixeleditor pal:"pacman")
+        for (var i = 0; i < 32; i++) {
+            var d = this.rom[0x6000 + i];
+            var r = ((d >> 0) & 1) * 0x21 + ((d >> 1) & 1) * 0x47 + ((d >> 2) & 1) * 0x97;
+            var g = ((d >> 3) & 1) * 0x21 + ((d >> 4) & 1) * 0x47 + ((d >> 5) & 1) * 0x97;
+            var b = ((d >> 6) & 1) * 0x51 + ((d >> 7) & 1) * 0xae;
+            this.colors[i] = 0xff000000 | (b << 16) | (g << 8) | r;
         }
-        
-        // Draw character tiles
-        // Pacman screen: 28 columns (visible), each 8 pixels wide = 224 pixels
-        // Due to rotation, we need to read vertically from VRAM
-        var sy = sl;
-        var ty = Math.floor(sy / 8); // tile Y (0-35)
-        var py = sy & 7;             // pixel Y within tile (0-7)
-        
-        if (ty < 36) { // valid tile row
-            for (var tx = 0; tx < 28; tx++) { // 28 visible columns
-                var sx = tx * 8;
-                
-                // Calculate VRAM address - Pacman has rotated layout
-                // First 2 rows and last 2 rows are at different positions
-                var vramAddr;
-                if (ty < 2) {
-                    // Top 2 rows (score area) - use columns 0-31 
-                    vramAddr = ty * 32 + (tx + 2);
-                } else if (ty >= 34) {
-                    // Bottom 2 rows (lives/fruit area) - use columns 0-31
-                    vramAddr = (ty - 32) * 32 + (tx + 2);
-                } else {
-                    // Main play area - rotated columns, right to left
-                    // Columns are stored as: rightmost column first
-                    var col = 29 - tx; // reverse column order
-                    var row = ty - 2;  // adjust for top 2 rows
-                    vramAddr = (col * 32) + row + 64; // offset past first 2 rows
-                }
-                
-                if (vramAddr < 0x400) {
-                    var tileCode = vram[vramAddr];
-                    var tileColor = cram[vramAddr];
-                    
-                    // Get tile graphics from character ROM
-                    // MAME format: Each character is 16 bytes
-                    // Bytes 0-7: pixels 0-3 of rows 0-7 (left half) - CORRECTED
-                    // Bytes 8-15: pixels 4-7 of rows 0-7 (right half) - CORRECTED
-                    // Within each byte: bits 0-3 = bitplane 0, bits 4-7 = bitplane 1
-                    var charBase = tileCode * 16;
-                    
-                    // Draw 8 pixels of the character
-                    var color0 = (tileColor & 0x3f) << 2; // Base color from color RAM
-                    for (var px = 0; px < 8; px++) {
-                        var colorIndex;
-                        
-                        // Try swapping px and py for 90-degree rotation, with column flip for upside-down fix
-                        var readRow = px;     // Use px as the row to read from
-                        var readCol = 7 - py; // Use (7-py) as the column to read from (flipped)
-                        
-                        if (readCol < 4) {
-                            // Read from bytes 0-7 (left half)
-                            var byteAddr = charBase + readRow; // bytes 0-7
-                            var data = this.charROM[byteAddr];
-                            var bitpos = readCol; // Column position
-                            var bit0 = (data >> bitpos) & 1;      // bitplane 0
-                            var bit1 = (data >> (bitpos + 4)) & 1; // bitplane 1
-                            colorIndex = color0 + bit0 + (bit1 << 1);
-                        } else {
-                            // Read from bytes 8-15 (right half)
-                            var byteAddr = charBase + 8 + readRow; // bytes 8-15
-                            var data = this.charROM[byteAddr];
-                            var bitpos = readCol - 4; // Column position
-                            var bit0 = (data >> bitpos) & 1;      // bitplane 0
-                            var bit1 = (data >> (bitpos + 4)) & 1; // bitplane 1
-                            colorIndex = color0 + bit0 + (bit1 << 1);
-                        }
-                        
-                        // Use black for color 0, otherwise use palette color
-                        var color = (colorIndex & 3) ? palette[colorIndex & 31] : 0xff000000;
-                        // Apply horizontal mirroring by drawing pixels in reverse order
-                        var mirroredPx = 7 - px; // Horizontal flip: 0->7, 1->6, 2->5, etc.
-                        pixels[pixofs + sx + mirroredPx] = color;
-                    }
-                }
+        this.paletteRom.set(this.rom.subarray(0x6100, 0x6200));
+
+        // Decode tiles (pac-c decode_strip, mirrored)
+        var tileRom = this.rom.subarray(0x4000, 0x5000);
+        for (var t = 0; t < 256; t++) {
+            var out = this.tiles.subarray(t * 64, t * 64 + 64);
+            var src = tileRom.subarray(t * 16, t * 16 + 16);
+            this.decodeStrip(src, 0, out, 0, 4, 8);
+            this.decodeStrip(src, 8, out, 0, 0, 8);
+        }
+
+        // Decode sprites
+        var sprRom = this.rom.subarray(0x5000, 0x6000);
+        for (var s = 0; s < 64; s++) {
+            var sout = this.sprites.subarray(s * 256, s * 256 + 256);
+            var ssrc = sprRom.subarray(s * 64, s * 64 + 64);
+            this.decodeStrip(ssrc, 0 * 8, sout, 8, 12, 16);
+            this.decodeStrip(ssrc, 1 * 8, sout, 8, 0, 16);
+            this.decodeStrip(ssrc, 2 * 8, sout, 8, 4, 16);
+            this.decodeStrip(ssrc, 3 * 8, sout, 8, 8, 16);
+            this.decodeStrip(ssrc, 4 * 8, sout, 0, 12, 16);
+            this.decodeStrip(ssrc, 5 * 8, sout, 0, 0, 16);
+            this.decodeStrip(ssrc, 6 * 8, sout, 0, 4, 16);
+            this.decodeStrip(ssrc, 7 * 8, sout, 0, 8, 16);
+        }
+    }
+
+    // Exact port of pac-c decode_strip — bitmaps are stored mirrored
+    decodeStrip(input: Uint8Array, inOff: number, output: Uint8Array, bx: number, by: number, imgWidth: number) {
+        var base = by * imgWidth + bx;
+        for (var x = 0; x < 8; x++) {
+            var strip = input[inOff + x];
+            for (var y = 0; y < 4; y++) {
+                var i = (3 - y) * imgWidth + (7 - x);
+                var pen = ((strip >> y) & 1) | (((strip >> (y + 4)) & 1) << 1);
+                output[base + i] = pen;
             }
         }
     }
-};
+
+    getPalette(palNo: number, out: Uint8Array) {
+        palNo &= 0x3f;
+        var o = palNo * 4;
+        out[0] = this.paletteRom[o];
+        out[1] = this.paletteRom[o + 1];
+        out[2] = this.paletteRom[o + 2];
+        out[3] = this.paletteRom[o + 3];
+    }
+
+    drawTile(pixels: Uint32Array, tileNo: number, pal: Uint8Array, x: number, y: number) {
+        if (x < 0 || x >= SCREEN_W) return;
+        var tile = this.tiles.subarray(tileNo * 64, tileNo * 64 + 64);
+        for (var i = 0; i < 64; i++) {
+            var px = i & 7;
+            var py = i >> 3;
+            var sx = x + px;
+            if (sx < 0 || sx >= SCREEN_W) continue;
+            var pen = pal[tile[i] & 3];
+            pixels[(y + py) * SCREEN_W + sx] = this.colors[pen & 31];
+        }
+    }
+
+    drawSprite(pixels: Uint32Array, spriteNo: number, pal: Uint8Array, x: number, y: number, flipX: boolean, flipY: boolean) {
+        if (x <= -16 || x > SCREEN_W) return;
+        var spr = this.sprites.subarray(spriteNo * 256, spriteNo * 256 + 256);
+        for (var i = 0; i < 256; i++) {
+            var px = i & 15;
+            var py = i >> 4;
+            var penIdx = spr[i] & 3;
+            if (pal[penIdx] === 0) continue; // transparent
+            var xPos = flipX ? 15 - px : px;
+            var yPos = flipY ? 15 - py : py;
+            var sx = x + xPos;
+            var sy = y + yPos;
+            if (sx < 0 || sx >= SCREEN_W || sy < 0 || sy >= SCREEN_H) continue;
+            pixels[sy * SCREEN_W + sx] = this.colors[pal[penIdx] & 31];
+        }
+    }
+
+    // Full-frame draw matching pac-c pac_draw()
+    drawFrame(pixels: Uint32Array) {
+        pixels.fill(0xff000000);
+        var pal = new Uint8Array(4);
+
+        // Bottom two rows (VRAM 0x00-0x3f): right→left, y=34..35
+        var addr = 0;
+        for (var y = 34; y < 36; y++) {
+            for (var x = 31; x >= 0; x--) {
+                this.getPalette(this.cram[addr], pal);
+                this.drawTile(pixels, this.vram[addr], pal, (x - 2) * 8, y * 8);
+                addr++;
+            }
+        }
+
+        // Middle playfield (VRAM 0x40-0x3bf): columns right→left, rows top→bottom
+        addr = 0x40;
+        for (var x = 29; x >= 2; x--) {
+            for (var y = 2; y <= 33; y++) {
+                this.getPalette(this.cram[addr], pal);
+                this.drawTile(pixels, this.vram[addr], pal, (x - 2) * 8, y * 8);
+                addr++;
+            }
+        }
+
+        // Top two rows (VRAM 0x3c0-0x3ff): right→left, y=0..1
+        addr = 0x3c0;
+        for (var y = 0; y < 2; y++) {
+            for (var x = 31; x >= 0; x--) {
+                this.getPalette(this.cram[addr], pal);
+                this.drawTile(pixels, this.vram[addr], pal, (x - 2) * 8, y * 8);
+                addr++;
+            }
+        }
+
+        // 8 sprites (reverse order). Coords are from bottom-right origin.
+        for (var s = 7; s >= 0; s--) {
+            var info = this.ram[0x7f0 + s * 2];       // 0x4ff0
+            var palNo = this.ram[0x7f0 + s * 2 + 1];
+            var sx = SCREEN_W - this.spritePos[s * 2] + 15;
+            var sy = SCREEN_H - this.spritePos[s * 2 + 1] - 16;
+            this.getPalette(palNo, pal);
+            this.drawSprite(pixels, info >> 2, pal, sx, sy, !!(info & 2), !!(info & 1));
+        }
+    }
+}
 
 const XTAL = 18432000.0;
-const scanlinesPerFrame = 264;
-const cpuFrequency = XTAL / 6; // 3.072 MHz
-const hsyncFrequency = XTAL / 3 / 192 / 2; // 16 kHz
-const vsyncFrequency = hsyncFrequency / 132 / 2; // 60.606060 Hz
+const cpuFrequency = XTAL / 6;
+const hsyncFrequency = XTAL / 3 / 192 / 2;
 const cpuCyclesPerLine = cpuFrequency / hsyncFrequency;
-const INITIAL_WATCHDOG = 8;
-
-const audioSampleRate = 60 * scanlinesPerFrame;
+const INITIAL_WATCHDOG = 256;
 
 export class PacmanMachine extends BasicScanlineMachine {
 
     cpuFrequency = cpuFrequency;
-    canvasWidth = 224;
-    numTotalScanlines = 288;
-    numVisibleScanlines = 224;  // Only 224 lines are visible in Pacman
-    defaultROMSize = 0x6200;    // Program ROM (16KB) + Graphics ROM (8KB) + Palette space
-    sampleRate = audioSampleRate;
+    canvasWidth = SCREEN_W;
+    numTotalScanlines = SCREEN_H;
+    numVisibleScanlines = SCREEN_H;
+    defaultROMSize = 0x8000;
     cpuCyclesPerLine = cpuCyclesPerLine | 0;
-    rotate = 0;  // Try no rotation to fix text orientation
-    
-    palBase = 0x6000;  // Palette location in ROM
-    gfxBase = 0x4000;  // Graphics ROM location in ROM
+    sampleRate = 60 * 264;
+    rotate = 0;
 
     cpu: Z80 = new Z80();
     ram = new Uint8Array(0x800);
-    vram = new Uint8Array(0x400);  // Video RAM
-    cram = new Uint8Array(0x400);  // Color RAM  
-    oram = new Uint8Array(0x100);  // Object/Sprite RAM
-    charROM: Uint8Array;           // Character graphics ROM
-    palette: Uint32Array;
-    gfx; // PacmanVideo
-    audioadapter;
-    watchdog_counter: number = 0;
-    interruptEnabled: number = 0;
-    soundEnabled: number = 0;
-    flipScreen: number = 0;
-    defaultInputs: number[] = [0xff, 0xff]; // Pacman inputs are active low
-    keyMap = PACMAN_KEYCODE_MAP;
-    handler;
-    
-    // Debug tracking
-    lastPC: number = 0;
-    pcStuckCounter: number = 0;
-    frameCounter: number = 0;
-    debugLogNextInstructions: number = 0; // Counter for logging next N instructions
+    vram = new Uint8Array(0x400);
+    cram = new Uint8Array(0x400);
+    oram = new Uint8Array(0x100); // kept for platform debug tree compat
+    gfx: PacmanVideo;
 
-    // LS259 mainlatch outputs (8-bit addressable latch)
-    mainlatch: number = 0;
-    
-    // Cycle-based interrupt timing like pac-c emulator
-    cpuCycleCounter: number = 0;
-    
-    // IM 0 interrupt vector (set via port 0)
-    interruptVector: number = 0xFA;  // Default to 0xFA as ROM sets this via port 0
+    interruptEnabled = 0;
+    interruptVector = 0xff;
+    /** VBlank ISR vectored at end of frame; drained before next frame's audio. */
+    pendingVBlankIsr = false;
+    watchdog_counter = INITIAL_WATCHDOG;
+    flipScreen = 0;
+    soundEnabled = 0;
+    soundRegs = new Uint8Array(0x20);
+    soundAcc = new Uint32Array(3);
+    waveforms: Uint8Array = PacmanMachine.WAVEFORMS;
+    keyMap = PACMAN_KEYCODE_MAP;
+    frameDrawn = false;
+
+    // Built-in 8 × 32 4-bit waveforms (stand-in for missing 82s126.1m/.3m)
+    static WAVEFORMS = PacmanMachine.buildWaveforms();
+
+    static buildWaveforms(): Uint8Array {
+        var waves = new Uint8Array(8 * 32);
+        for (var s = 0; s < 32; s++) {
+            var t = s / 32;
+            // 0: sine-ish
+            waves[0 * 32 + s] = (8 + Math.sin(t * Math.PI * 2) * 7.5) | 0;
+            // 1: square
+            waves[1 * 32 + s] = s < 16 ? 15 : 0;
+            // 2: triangle
+            waves[2 * 32 + s] = s < 16 ? s : (31 - s);
+            // 3: saw
+            waves[3 * 32 + s] = (s >> 1);
+            // 4-7: variants
+            waves[4 * 32 + s] = s < 8 ? 15 : (s < 16 ? 0 : (s < 24 ? 10 : 0));
+            waves[5 * 32 + s] = (8 + Math.sin(t * Math.PI * 4) * 7.5) | 0;
+            waves[6 * 32 + s] = s & 1 ? 12 : 2;
+            waves[7 * 32 + s] = ((s * 3) & 15);
+        }
+        return waves;
+    }
 
     constructor() {
         super();
-        this.cpu = new Z80();
-        this.cpu.connectIOBus(this.newIOBus());
-        this.cpu.connectMemoryBus(this.newMemoryBus());
-        
-        // Initialize ROM and character ROM arrays
+        this.cpu.connectIOBus({
+            read: (_p) => 0xff,
+            write: (port, val) => { if ((port & 0xff) === 0) this.interruptVector = val & 0xff; }
+        });
+        this.cpu.connectMemoryBus({ read: this.readByte, write: this.writeByte });
+        this.cpu.retryInterrupts = true;
         this.rom = new Uint8Array(this.defaultROMSize);
-        this.charROM = new Uint8Array(0x2000); // 8KB character ROM (correct Pacman size)
-        
-        // Initialize palette
-        this.palette = new Uint32Array(32);
-        
-        this.gfx = new PacmanVideo(this, this.charROM, this.vram, this.cram, this.oram, this.palette, {});
-        
-        // Initialize inputs and keyboard handler
-        this.inputs.set(this.defaultInputs);
+        this.gfx = new PacmanVideo(this.rom, this.vram, this.cram, this.ram);
+        this.inputs.fill(0);
         this.handler = newKeyboardHandler(this.inputs, this.keyMap);
-        
-        console.log("Pacman machine initialized with keymap:", this.keyMap);
-        console.log("Initial inputs:", Array.from(this.inputs).map(x => x.toString(16)));
-        
-        // Initialize cycle counter
-        this.cpuCycleCounter = 0;
     }
 
-    newMemoryBus() {
-        return {
-            read: this.readByteHook,
-            write: this.writeByteHook
-        };
-    }
-
-    readByteHook = (a) => {
-        var val = 0;
-        if (a < 0x4000) {  
-            val = this.rom ? this.rom[a] : 0;
-        } else if (a >= 0x4000 && a < 0x4400) {
-            val = this.vram[a - 0x4000];
-        } else if (a >= 0x4400 && a < 0x4800) {
-            val = this.cram[a - 0x4400];
-        } else if (a >= 0x4800 && a < 0x4FF0) {
-            val = this.ram[a - 0x4800];
-        } else if (a >= 0x4FF0 && a < 0x5000) {
-            val = this.oram[a - 0x4FF0];
-        } else if (a >= 0x5000 && a < 0x5100) {
-            // Handle mirrored input reads based on address
-            if ((a & 0xc0) == 0x00) {  // 0x5000-0x503F - Input Port 0 (IN0)
-                val = this.defaultInputs[0] ^ this.inputs[0];  // Active low inputs
-                val |= 0x10;  // Force Rack Test OFF (bit 0x10 = 1) to prevent service mode
-            } else if ((a & 0xc0) == 0x40) {  // 0x5040-0x507F - Input Port 1 (IN1)  
-                val = this.defaultInputs[1] ^ this.inputs[1];  // Active low inputs
-                val |= 0x80;  // Force Cabinet to UPRIGHT (bit 0x80 = 1) instead of TABLE
-                val |= 0x10;  // Force board_test OFF (bit 0x10 = 1) to prevent service mode
-            } else if ((a & 0xc0) == 0x80) {  // 0x5080-0x50BF - DIP switches
-                // DIP switch settings (correct MAME defaults)
-                // Bits 0-1: Coinage (01 = 1 coin/1 credit), Bits 2-3: Lives (00 = 3 lives)  
-                // Bits 4-5: Bonus (00 = 10K bonus), Bits 6-7: Difficulty & Ghost Names
-                val = 0x51;  // MAME setting "1010001": 1 coin/1 credit, 3 lives, 10K bonus
-            } else {
-                val = 0xFF;  // Unmapped reads return 0xFF
-            }
-        } else if (a >= 0x8000) {
-            // ROM mirror at 0x8000-0xBFFF (for proper MAME compatibility)
-            val = this.rom ? this.rom[a & 0x3FFF] : 0;
+    readByte = (a: number): number => {
+        a &= 0xffff;
+        if (a < 0x4000) return this.rom[a];
+        if (a < 0x4400) return this.vram[a - 0x4000];
+        if (a < 0x4800) return this.cram[a - 0x4400];
+        if (a < 0x5000) return this.ram[a - 0x4800];
+        if (a < 0x5100) {
+            var io = a & 0xc0;
+            if (io === 0x00) return ((~this.inputs[0]) & 0xff) | 0x10;       // IN0
+            if (io === 0x40) return ((~this.inputs[1]) & 0x6f) | 0x90;       // IN1 upright, service off
+            if (io === 0x80) return 0xc9;                                     // DSW1
+            return 0xff;
         }
-        
-        return val;
-    }
-    
-    writeByteHook = (a, val) => {
-        if (a < 0x4000) {
-            // ROM - cannot write, ignore
-        } else if (a >= 0x4000 && a < 0x4400) {
-            this.vram[a - 0x4000] = val;
-        } else if (a >= 0x4400 && a < 0x4800) {
-            this.cram[a - 0x4400] = val;
-        } else if (a >= 0x4800 && a < 0x4FF0) {
-            this.ram[a - 0x4800] = val;
-        } else if (a >= 0x4FF0 && a < 0x5000) {
-            this.oram[a - 0x4FF0] = val;
-        } else if (a >= 0x5000 && a < 0x5100) {
-            // I/O writes - handle LS259 mainlatch and other hardware
-            if ((a & 0x00F8) == 0x0000) {  // 0x5000-0x5007 - LS259 mainlatch
-                var latch_bit = a & 7;
-                var old_mainlatch = this.mainlatch;
-                
-                // Update the specific bit in mainlatch
-                if (val & 1) {
-                    this.mainlatch |= (1 << latch_bit);
-                } else {
-                    this.mainlatch &= ~(1 << latch_bit);
-                }
-                
-                // Handle specific latch functions based on MAME
-                switch (latch_bit) {
-                    case 0: // Interrupt enable
-                        var old_int = this.interruptEnabled;
-                        this.interruptEnabled = (this.mainlatch >> 0) & 1;
-                        if (old_int !== this.interruptEnabled) {
-                            console.log(`*** INTERRUPT ${this.interruptEnabled ? 'ENABLED' : 'DISABLED'} at PC=${this.cpu.getPC().toString(16)} ***`);
-                        }
-                        break;
-                    case 1: // Sound enable
-                        this.soundEnabled = (this.mainlatch >> 1) & 1;
-                        break;
-                    case 3: // Flip screen
-                        this.flipScreen = (this.mainlatch >> 3) & 1;
-                        break;
-                }
-            } else if ((a & 0x00E0) == 0x0040) {  // 0x5040-0x505F - Sound registers
-                // TODO: Implement Namco WSG sound chip
-            } else if ((a & 0x00F0) == 0x0060) {  // 0x5060-0x506F - Sprite coordinates
-                this.oram[0x10 + (a & 0xF)] = val;
-            } else if ((a & 0x00C0) == 0x00C0) {  // 0x50C0-0x50FF - Watchdog reset
-                console.log(`WATCHDOG RESET at ${a.toString(16)} = ${val.toString(16)} (frame ${this.frameCounter}, PC=${this.cpu.getPC().toString(16)})`);
-                this.watchdog_counter = INITIAL_WATCHDOG;
-            }
-        }
+        if (a >= 0x8000) return this.rom[a & 0x3fff];
+        return 0xff;
     }
 
-    // Z80 port I/O handlers - this is crucial for IM 0 interrupt mode!
-    readPortHook = (port) => {
-        // No input ports via I/O on Pacman - all are memory mapped
-        return 0xFF;
-    }
-    
-    writePortHook = (port, val) => {
-        // Port 0 is used to set interrupt vector for IM 0/IM 2 mode
-        if (port === 0) {
-            this.interruptVector = val;
-            console.log(`*** INTERRUPT VECTOR SET TO ${val.toString(16)} via port 0 (IM mode) ***`);
+    writeByte = (a: number, v: number): void => {
+        a &= 0xffff;
+        if (a < 0x4000) return;
+        if (a < 0x4400) { this.vram[a - 0x4000] = v; return; }
+        if (a < 0x4800) { this.cram[a - 0x4400] = v; return; }
+        if (a < 0x5000) { this.ram[a - 0x4800] = v; return; }
+        if ((a & 0xfff8) === 0x5000) {
+            var bit = a & 7;
+            if (bit === 0) this.interruptEnabled = v & 1;
+            if (bit === 1) this.soundEnabled = v & 1;
+            if (bit === 3) this.flipScreen = v & 1;
+        } else if (a >= 0x5040 && a <= 0x505f) {
+            this.soundRegs[a - 0x5040] = v & 0x0f;
+        } else if ((a & 0xfff0) === 0x5060) {
+            this.gfx.spritePos[a & 0xf] = v;
+        } else if ((a & 0xffc0) === 0x50c0) {
+            this.watchdog_counter = INITIAL_WATCHDOG;
         }
-    }
-
-    newIOBus() {
-        return {
-            read: this.readPortHook,
-            write: this.writePortHook
-        };
     }
 
     reset() {
         super.reset();
         this.cpu.reset();
         this.watchdog_counter = INITIAL_WATCHDOG;
-        
-        // Extract character ROM from ROM (8KB at gfxBase)
-        console.log(`Extracting character ROM from offset ${this.gfxBase.toString(16)}`);
-        if (this.rom.length >= this.gfxBase + 0x2000) {
-            for (var i = 0; i < 0x2000; i++) {
-                this.charROM[i] = this.rom[this.gfxBase + i];
-            }
-            console.log(`Character ROM loaded: ${this.charROM.length} bytes (2 bitplanes of 4KB each)`);
-        } else {
-            console.log(`ERROR: ROM too small for character data at ${this.gfxBase.toString(16)}`);
+        this.interruptEnabled = 0;
+        this.interruptVector = 0xff;
+        this.pendingVBlankIsr = false;
+        this.soundEnabled = 0;
+        this.soundRegs.fill(0);
+        this.soundAcc.fill(0);
+        this.extractROMData();
+    }
+
+    loadROM(data) {
+        this.rom.set(padBytes(data, this.defaultROMSize));
+        this.extractROMData();
+    }
+
+    extractROMData() {
+        this.gfx = new PacmanVideo(this.rom, this.vram, this.cram, this.ram);
+        // Prefer editable wave ROM at 0x6200 (8×32 samples); fall back to built-ins
+        var custom = this.rom.subarray(0x6200, 0x6300);
+        var hasCustom = false;
+        for (var i = 0; i < custom.length; i++) {
+            if (custom[i]) { hasCustom = true; break; }
         }
+        this.waveforms = hasCustom ? custom : PacmanMachine.WAVEFORMS;
+    }
+
+    advanceCPU() { return this.cpu.advanceInsn(); }
+
+    /** Rebuild voice frequency from low-nibble registers. Voice 0 is 20-bit; 1/2 are 16-bit. */
+    private voiceFreq(v: number): number {
+        var r = this.soundRegs;
+        if (v === 0) {
+            return r[0x10] | (r[0x11] << 4) | (r[0x12] << 8) | (r[0x13] << 12) | (r[0x14] << 16);
+        }
+        if (v === 1) {
+            return (r[0x16] | (r[0x17] << 4) | (r[0x18] << 8) | (r[0x19] << 12)) << 4;
+        }
+        return (r[0x1b] | (r[0x1c] << 4) | (r[0x1d] << 8) | (r[0x1e] << 12)) << 4;
+    }
+
+    private voiceVol(v: number): number {
+        if (v === 0) return this.soundRegs[0x15];
+        if (v === 1) return this.soundRegs[0x1a];
+        return this.soundRegs[0x1f];
+    }
+
+    private voiceWave(v: number): number {
+        if (v === 0) return this.soundRegs[0x05] & 7;
+        if (v === 1) return this.soundRegs[0x0a] & 7;
+        return this.soundRegs[0x0f] & 7;
+    }
+
+    startScanline() {
+        if (!this.audio || !this.soundEnabled) return;
+        // sampleRate = 60*264 ≈ one sample per scanline; WSG runs faster — step acc multiple times
+        var steps = 6; // ~96kHz / (60*264) ≈ 6
+        var sum = 0;
+        for (var step = 0; step < steps; step++) {
+            var mix = 0;
+            for (var v = 0; v < 3; v++) {
+                var vol = this.voiceVol(v);
+                if (!vol) continue;
+                var freq = this.voiceFreq(v);
+                if (!freq) continue;
+                this.soundAcc[v] = (this.soundAcc[v] + freq) & 0xfffff;
+                var idx = (this.soundAcc[v] >> 15) & 31; // top 5 of 20 bits
+                var samp = this.waveforms[this.voiceWave(v) * 32 + idx] & 0x0f;
+                mix += (samp - 8) * vol;
+            }
+            sum += mix;
+        }
+        // Normalize to roughly [-1, 1]
+        this.audio.feedSample(sum / (steps * 3 * 15 * 8), 1);
+    }
+
+    drawScanline() {
+        // Render the full frame once on the first scanline (pac-c style full-frame draw)
+        if (this.scanline === 0) {
+            this.gfx.drawFrame(this.pixels);
+        }
+    }
+
+    /**
+     * Z80 interrupt()/NMI() only vector PC — the ISR body runs on later advanceCPU().
+     * If we leave that until mid-frame, music register writes land on uneven scanlines
+     * and notes sound early/late. Drain the ISR here, between frames, before audio.
+     */
+    private drainVBlankIsr() {
+        if (!this.pendingVBlankIsr) return;
+        this.pendingVBlankIsr = false;
+        // After vectoring, return PC is on the stack; RETN restores SP to this value.
+        var spDone = this.cpu.getSP() + 2;
+        var guard = 100000;
+        while (this.cpu.getSP() !== spDone && --guard > 0) {
+            this.advanceCPU();
+        }
+    }
+
+    advanceFrame(trap) {
+        this.drainVBlankIsr();
+
+        var steps = super.advanceFrame(trap);
+        if (--this.watchdog_counter <= 0) {
+            throw new EmuHalt("WATCHDOG FIRED");
+        }
+        if (this.interruptEnabled) {
+            // Real Pac-Man ROM uses IM 2; C demos use NMI @ 0x66 (like Galaxian)
+            if (this.cpu.saveState().im === 2) {
+                this.cpu.interrupt(this.interruptVector);
+            } else {
+                this.cpu.NMI();
+            }
+            this.pendingVBlankIsr = true;
+        }
+        return steps;
     }
 
     loadState(state) {
@@ -347,9 +411,10 @@ export class PacmanMachine extends BasicScanlineMachine {
         this.ram.set(state.ram);
         this.vram.set(state.vr);
         this.cram.set(state.cr);
-        this.oram.set(state.or);
+        this.gfx.spritePos.set(state.sp || []);
         this.watchdog_counter = state.wdc;
         this.interruptEnabled = state.ie;
+        this.pendingVBlankIsr = !!state.pvi;
         this.loadControlsState(state);
     }
 
@@ -360,183 +425,15 @@ export class PacmanMachine extends BasicScanlineMachine {
             vr: this.vram.slice(0),
             cr: this.cram.slice(0),
             or: this.oram.slice(0),
+            sp: this.gfx.spritePos.slice(0),
             wdc: this.watchdog_counter,
             ie: this.interruptEnabled,
-            inputs: this.inputs.slice(0)
+            pvi: this.pendingVBlankIsr,
+            inputs: this.inputs.slice(0),
         };
     }
 
-    setKeyInput(key: number, code: number, flags: number): void {
-        console.log(`setKeyInput called: key=${key} code=${code} flags=${flags}`);
-        console.log(`Inputs before:`, Array.from(this.inputs).map(x => x.toString(16)));
-        super.setKeyInput(key, code, flags);
-        console.log(`Inputs after:`, Array.from(this.inputs).map(x => x.toString(16)));
-    }
-
-    advanceCPU() {
-        // Track PC for reset detection
-        var currentPC = this.cpu.getPC();
-        if (currentPC === 0x0000 && this.lastPC !== 0x0000) {
-            console.log(`*** RESET DETECTED: PC jumped to 0x0000 from ${this.lastPC.toString(16)} ***`);
-            console.log(`Frame: ${this.frameCounter}, Interrupt enabled: ${this.interruptEnabled}`);
-        }
-        this.lastPC = currentPC;
-        
-        // Execute one CPU instruction and track cycles (like pac-c emulator)
-        var elapsed_cycles = this.cpu.advanceInsn();
-        this.cpuCycleCounter += elapsed_cycles;
-        
-        // Check for VBLANK interrupt every PAC_CYCLES_PER_FRAME cycles (like pac-c emulator)
-        var PAC_CYCLES_PER_FRAME = this.cpuFrequency / 60; // 60 FPS
-        
-        if (this.cpuCycleCounter >= PAC_CYCLES_PER_FRAME) {
-            this.cpuCycleCounter -= PAC_CYCLES_PER_FRAME;
-            
-            // Trigger VBLANK interrupt if enabled (like pac-c emulator)
-            if (this.interruptEnabled) {
-                // The ROM uses IM 2 mode with interrupt vector 0xFA
-                // In IM 2, the interrupt vector forms the low byte of the address
-                // The I register (set to 0x3F by ROM) forms the high byte  
-                // So interrupt jumps to address (I << 8) | interruptVector = 0x3FFA
-                // But the Z80 emulator expects the data byte for IM 0 mode
-                // Since our Z80 is in IM 0 mode, we use the interrupt vector directly
-                this.cpu.interrupt(this.interruptVector);
-            }
-        }
-        
-        return elapsed_cycles;
-    }
-
-    startScanline() {
-        // Remove scanline-based interrupt - we now use cycle-based timing
-        // This method can be empty or handle other scanline-specific tasks
-    }
-
-    drawScanline() {
-        this.gfx.drawScanline(this.pixels, this.scanline);
-    }
-
-    advanceFrame(trap) {
-        var steps = super.advanceFrame(trap);
-        this.gfx.advanceFrame();
-        this.frameCounter++;
-        
-        // Watchdog - enable proper behavior like other machines
-        this.watchdog_counter--;
-        if (this.watchdog_counter <= 0) {
-            console.log(`*** WATCHDOG TIMEOUT: Fired at frame ${this.frameCounter}, PC=${this.cpu.getPC().toString(16)} ***`);
-            throw new EmuHalt("WATCHDOG FIRED - Game should reset");
-        }
-        
-        return steps;
-    }
-    
-    // Helper methods for ROM analysis
-    getInstructionName(opcode: number): string {
-        const opcodeNames = {
-            0x76: 'HALT', 0xFB: 'EI', 0xF3: 'DI', 0xC3: 'JP', 0xCD: 'CALL',
-            0xC9: 'RET', 0x00: 'NOP', 0x3E: 'LD A,n', 0x21: 'LD HL,nn'
-        };
-        return opcodeNames[opcode] || `UNKNOWN(${opcode?.toString(16)})`;
-    }
-    
-    analyzeROMPhase(pc: number): string {
-        if (pc < 0x1000) return "INTERRUPT_VECTORS";
-        if (pc >= 0x2300 && pc <= 0x2400) return "INITIALIZATION";
-        if (pc >= 0x1000 && pc <= 0x2000) return "MAIN_PROGRAM";
-        if (pc >= 0x3000) return "GAME_LOGIC"; 
-        return `UNKNOWN_AREA(${pc.toString(16)})`;
-    }
-    
-    analyzeVRAMActivity(): string {
-        var nonZeroCount = 0;
-        var nonSpaceCount = 0;
-        for (var i = 0; i < this.vram.length; i++) {
-            if (this.vram[i] !== 0) nonZeroCount++;
-            if (this.vram[i] !== 0x40) nonSpaceCount++; // 0x40 is typically space character
-        }
-        
-        if (nonSpaceCount > 50) return `ACTIVE_GRAPHICS(${nonSpaceCount}_tiles)`;
-        if (nonZeroCount > 0) return `CLEARING_SCREEN(${nonZeroCount}_spaces)`;
-        return "NO_ACTIVITY";
-    }
-    
-    checkForAttractMode(): void {
-        // Look for signs that ROM has moved to attract mode
-        var pc = this.cpu.getPC();
-        var vramActive = this.analyzeVRAMActivity();
-        
-        if (vramActive.includes("ACTIVE_GRAPHICS")) {
-            console.log("🎉 SUCCESS: ROM appears to have reached game/attract mode!");
-            console.log(`   Graphics are being drawn: ${vramActive}`);
-        } else if (pc < 0x2000 && pc !== 0x234a) {
-            console.log("🔄 PROGRESS: ROM has moved beyond initialization phase");
-            console.log(`   Now executing in main program area: PC=${pc.toString(16)}`);
-        } else {
-            // Check if we're still in initialization
-            if (pc === 0x234a) {
-                console.log("⏳ STILL INITIALIZING: ROM still in HALT/interrupt cycle");
-                console.log("   This is normal - real Pacman hardware takes time to initialize");
-            }
-        }
-    }
-
-    loadROM(data) {
-        this.rom.set(padBytes(data, this.defaultROMSize));
-        
-        console.log(`ROM loaded: ${data.length} bytes, padded to ${this.defaultROMSize}`);
-        console.log(`First few ROM bytes: ${Array.from(this.rom.slice(0, 16)).map(x => x.toString(16).padStart(2, '0')).join(' ')}`);
-        
-        // DEBUG: Check interrupt vectors and important code locations
-        console.log(`=== INTERRUPT VECTOR DEBUG ===`);
-        console.log(`RST 0x00 (0x0000): ${Array.from(this.rom.slice(0x00, 0x08)).map(x => x.toString(16).padStart(2, '0')).join(' ')}`);
-        console.log(`RST 0x08 (0x0008): ${Array.from(this.rom.slice(0x08, 0x10)).map(x => x.toString(16).padStart(2, '0')).join(' ')}`);
-        console.log(`RST 0x10 (0x0010): ${Array.from(this.rom.slice(0x10, 0x18)).map(x => x.toString(16).padStart(2, '0')).join(' ')}`);
-        console.log(`RST 0x18 (0x0018): ${Array.from(this.rom.slice(0x18, 0x20)).map(x => x.toString(16).padStart(2, '0')).join(' ')}`);
-        console.log(`RST 0x20 (0x0020): ${Array.from(this.rom.slice(0x20, 0x28)).map(x => x.toString(16).padStart(2, '0')).join(' ')}`);
-        console.log(`RST 0x28 (0x0028): ${Array.from(this.rom.slice(0x28, 0x30)).map(x => x.toString(16).padStart(2, '0')).join(' ')}`);
-        console.log(`RST 0x30 (0x0030): ${Array.from(this.rom.slice(0x30, 0x38)).map(x => x.toString(16).padStart(2, '0')).join(' ')}`);
-        console.log(`RST 0x38 (0x0038): ${Array.from(this.rom.slice(0x38, 0x40)).map(x => x.toString(16).padStart(2, '0')).join(' ')}`);
-        console.log(`NMI vector (0x0066): ${Array.from(this.rom.slice(0x66, 0x70)).map(x => x.toString(16).padStart(2, '0')).join(' ')}`);
-        
-        // Extract graphics and palette data if present in ROM
-        if (this.rom.length >= this.gfxBase + 0x2000) {
-            // Extract character ROM (8KB at 0x4000)
-            this.charROM = new Uint8Array(0x2000);
-            this.charROM.set(this.rom.slice(this.gfxBase, this.gfxBase + 0x2000));
-            console.log(`Character ROM extracted: ${this.charROM.length} bytes from ${this.gfxBase.toString(16)}`);
-        }
-        
-        if (this.rom.length >= this.palBase + 32) {
-            // Extract palette data (32 bytes at 0x6000)
-            var palette_data = this.rom.slice(this.palBase, this.palBase + 32);
-            this.palette = new Uint32Array(32);
-            for (var i = 0; i < 32; i++) {
-                // Convert 4-bit RGB to 32-bit RGBA
-                var val = palette_data[i];
-                var r = ((val >> 0) & 1) * 0x21 + ((val >> 1) & 1) * 0x47 + ((val >> 2) & 1) * 0x97;
-                var g = ((val >> 3) & 1) * 0x21 + ((val >> 4) & 1) * 0x47 + ((val >> 5) & 1) * 0x97;
-                var b = ((val >> 6) & 1) * 0x51 + ((val >> 7) & 1) * 0xae;
-                this.palette[i] = 0xFF000000 | (b << 16) | (g << 8) | r;
-            }
-            console.log(`Palette extracted: 32 colors from ${this.palBase.toString(16)}`);
-        }
-        
-        // Initialize graphics system
-        this.gfx = new PacmanVideo(this, this.charROM, this.vram, this.cram, this.oram, this.palette, {});
-        console.log("Graphics system initialized");
-    }
-
-    // Required interface methods - delegate to hooks
-    read(a: number): number {
-        return this.readByteHook(a);
-    }
-    
-    write(a: number, val: number): void {
-        this.writeByteHook(a, val);
-    }
-    
-    readConst(a: number): number {
-        return this.readByteHook(a);
-    }
-} 
+    read(a: number) { return this.readByte(a); }
+    write(a: number, v: number) { this.writeByte(a, v); }
+    readConst(a: number) { return this.readByte(a); }
+}

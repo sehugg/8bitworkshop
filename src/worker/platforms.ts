@@ -69,10 +69,10 @@ export var PLATFORM_PARAMS = {
     'pacman': {
       arch: 'z80',
       code_start: 0x0,
-      rom_size: 0x6200,
-      data_start: 0x4000,
-      data_size: 0x800,
-      stack_end: 0x4800,
+      rom_size: 0x8000,   // 16KB prog + 8KB gfx + palette, padded to 32KB
+      data_start: 0x4800, // Pacman RAM starts at 0x4800
+      data_size: 0x7f0,   // 0x4800-0x4fef
+      stack_end: 0x4fc0,  // top of usable RAM (sprite attrs at 0x4ff0-0x4fff)
     },
     'williams': {
       arch: '6809',

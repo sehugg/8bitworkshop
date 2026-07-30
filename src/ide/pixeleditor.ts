@@ -44,6 +44,10 @@ export type PixelEditorImageFormat = {
   aspect?: number	// aspect ratio
   xform?: string		// CSS transform
   destfmt?: PixelEditorImageFormat
+  // Pac-Man / Namco arcade: 8-byte vertical strips (4 rows × 8 cols),
+  // 2bpp packed as bit y + bit (y+4), X/Y mirrored within each strip.
+  // Tiles (8×8): 2 strips. Sprites (16×16): 8 strips in hardware order.
+  pacstrip?:boolean|number
 };
 
 export type PixelEditorPaletteFormat = {
@@ -151,7 +155,89 @@ function reindexMask(x: number, inds: number[]): [number, number] {
   return [i >> 3, i & 7];
 }
 
-export function convertWordsToImages(words: UintArray, fmt: PixelEditorImageFormat): Uint8Array[] {
+// Pac-Man strip layouts (must match src/machine/pacman.ts PacmanVideo)
+const PAC_TILE_STRIPS: [number, number, number][] = [
+  // [byteOffset, bx, by]
+  [0, 0, 4],
+  [8, 0, 0],
+];
+const PAC_SPRITE_STRIPS: [number, number, number][] = [
+  [0, 8, 12], [8, 8, 0], [16, 8, 4], [24, 8, 8],
+  [32, 0, 12], [40, 0, 0], [48, 0, 4], [56, 0, 8],
+];
+
+function pacStripDecode(input: UintArray, inOff: number, output: number[], bx: number, by: number, imgWidth: number) {
+  for (var x = 0; x < 8; x++) {
+    var strip = input[inOff + x] || 0;
+    for (var y = 0; y < 4; y++) {
+      var i = (3 - y) * imgWidth + (7 - x);
+      var pen = ((strip >> y) & 1) | (((strip >> (y + 4)) & 1) << 1);
+      output[by * imgWidth + bx + i] = pen;
+    }
+  }
+}
+
+function pacStripEncode(output: number[], outOff: number, pixels: Uint8Array|number[], bx: number, by: number, imgWidth: number) {
+  for (var x = 0; x < 8; x++) {
+    var strip = 0;
+    for (var y = 0; y < 4; y++) {
+      var i = (3 - y) * imgWidth + (7 - x);
+      var pen = (pixels[by * imgWidth + bx + i] || 0) & 3;
+      if (pen & 1) strip |= (1 << y);
+      if (pen & 2) strip |= (1 << (y + 4));
+    }
+    output[outOff + x] = strip;
+  }
+}
+
+function pacStripLayouts(fmt: PixelEditorImageFormat): [number, number, number][] {
+  if (fmt.w === 16 && fmt.h === 16) return PAC_SPRITE_STRIPS;
+  return PAC_TILE_STRIPS;
+}
+
+function pacStripBytesPerImage(fmt: PixelEditorImageFormat): number {
+  return pacStripLayouts(fmt).length * 8;
+}
+
+function convertPacStripWordsToImages(words: UintArray, fmt: PixelEditorImageFormat): Uint8Array[] {
+  var width = fmt.w;
+  var height = fmt.h;
+  var count = fmt.count || 1;
+  var wpimg = fmt.wpimg || pacStripBytesPerImage(fmt);
+  var layouts = pacStripLayouts(fmt);
+  var images = [];
+  for (var n = 0; n < count; n++) {
+    var pix: number[] = new Array(width * height).fill(0);
+    var base = n * wpimg;
+    for (var s = 0; s < layouts.length; s++) {
+      var [off, bx, by] = layouts[s];
+      pacStripDecode(words, base + off, pix, bx, by, width);
+    }
+    images.push(new Uint8Array(pix));
+  }
+  return images;
+}
+
+function convertPacStripImagesToWords(images: Uint8Array[], fmt: PixelEditorImageFormat): number[] {
+  var width = fmt.w;
+  var height = fmt.h;
+  var count = fmt.count || images.length;
+  var wpimg = fmt.wpimg || pacStripBytesPerImage(fmt);
+  var layouts = pacStripLayouts(fmt);
+  var words = new Array(wpimg * count).fill(0);
+  for (var n = 0; n < count; n++) {
+    var pix = images[n] || new Uint8Array(width * height);
+    var base = n * wpimg;
+    for (var s = 0; s < layouts.length; s++) {
+      var [off, bx, by] = layouts[s];
+      pacStripEncode(words, base + off, pix, bx, by, width);
+    }
+  }
+  return words;
+}
+
+export function convertWordsToImages(words:UintArray, fmt:PixelEditorImageFormat) : Uint8Array[] {
+  if (fmt.pacstrip) return convertPacStripWordsToImages(words, fmt);
   var width = fmt.w;
   var height = fmt.h;
   var count = fmt.count || 1;
@@ -243,6 +329,7 @@ export function validateAssetData(datastr: string, fmt): string | null {
 
 export function convertImagesToWords(images: Uint8Array[], fmt: PixelEditorImageFormat): number[] {
   if (fmt.destfmt) fmt = fmt.destfmt;
+  if (fmt.pacstrip) return convertPacStripImagesToWords(images, fmt);
   var width = fmt.w;
   var height = fmt.h;
   var count = fmt.count || 1;
@@ -303,13 +390,27 @@ export function convertPaletteBytes(arr: UintArray, r0, r1, g0, g1, b0, b1): num
   return result;
 }
 
+/**
+ * Pac-Man / Namco color PROM byte → RGBA.
+ * Must match src/machine/pacman.ts PacmanVideo.rebuild() (MAME resistor weights).
+ * Encoding: RRR (bits 0-2), GGG (3-5), BB (6-7).
+ */
+export function decodePacmanColorPromByte(d: number): number {
+  var r = ((d >> 0) & 1) * 0x21 + ((d >> 1) & 1) * 0x47 + ((d >> 2) & 1) * 0x97;
+  var g = ((d >> 3) & 1) * 0x21 + ((d >> 4) & 1) * 0x47 + ((d >> 5) & 1) * 0x97;
+  var b = ((d >> 6) & 1) * 0x51 + ((d >> 7) & 1) * 0xae;
+  return 0xff000000 | (b << 16) | (g << 8) | r;
+}
+
 export function getPaletteLength(palfmt: PixelEditorPaletteFormat): number {
   var pal = palfmt.pal;
   if (typeof pal === 'number') {
     var rr = Math.floor(Math.abs(pal / 100) % 10);
     var gg = Math.floor(Math.abs(pal / 10) % 10);
     var bb = Math.floor(Math.abs(pal) % 10);
-    return 1 << (rr + gg + bb);
+    return 1<<(rr+gg+bb);
+  } else if (pal === 'pacman') {
+    return 256; // every PROM encoding byte → a color
   } else {
     var paltable = PREDEF_PALETTES[pal];
     if (paltable) {
@@ -331,7 +432,11 @@ export function convertPaletteFormat(palbytes: UintArray, palfmt: PixelEditorPal
     if (pal >= 0)
       newpalette = convertPaletteBytes(palbytes, 0, rr, rr, gg, rr + gg, bb);
     else
-      newpalette = convertPaletteBytes(palbytes, rr + gg, bb, rr, gg, 0, rr);
+      newpalette = convertPaletteBytes(palbytes, rr+gg, bb, rr, gg, 0, rr);
+  } else if (pal === 'pacman') {
+    newpalette = [];
+    for (var i = 0; i < palbytes.length; i++)
+      newpalette.push(decodePacmanColorPromByte(palbytes[i]));
   } else {
     var paltable = PREDEF_PALETTES[pal];
     if (paltable) {
@@ -396,6 +501,19 @@ var PREDEF_LAYOUTS: { [id: string]: PixelEditorPaletteLayout } = {
   'astrocade': [
     ['Left', 0x00, -4],
     ['Right', 0x04, -4]
+  ],
+  // Pac-Man: each palette PROM entry is 4 pens (indices into the 32-color PROM).
+  // Arrays tagged layout:"pacman" should store those pens as already-resolved color-PROM bytes.
+  'pacman':[
+    ['Pal 01', 0x00, 4],
+    ['Pal 03', 0x04, 4],
+    ['Pal 05', 0x08, 4],
+    ['Pal 07', 0x0c, 4],
+    ['Pal 09', 0x10, 4],
+    ['Pal 10', 0x14, 4],
+    ['Pal 11', 0x18, 4],
+    ['Pal 14', 0x1c, 4],
+    ['Pal 19', 0x20, 4],
   ],
 };
 
@@ -605,7 +723,11 @@ export class Palettizer extends PixNode {
   constructor(context: EditorContext, fmt: PixelEditorImageFormat) {
     super();
     this.context = context;
-    this.ncolors = 1 << ((fmt.bpp || 1) * (fmt.np || 1));
+    // Pac-Man strip bitmaps are always 2bpp (4 pens), even if bpp is omitted.
+    if (fmt.pacstrip)
+      this.ncolors = 4;
+    else
+      this.ncolors = 1 << ((fmt.bpp||1) * (fmt.np||1));
   }
   updateLeft() {
     if (this.right) { this.rgbimgs = this.right.rgbimgs; } // TODO: check is for unit test, remove?
@@ -690,7 +812,11 @@ export class PaletteFormatToRGB extends PixNode {
   updateRight() {
     if (equalArrays(this.words, this.left.words)) return false;
     this.words = this.left.words;
-    this.palette = dedupPalette(convertPaletteFormat(this.words, this.palfmt));
+    var cols = convertPaletteFormat(this.words, this.palfmt);
+    // Keep exact PROM colors for Pac-Man (and any layout slices). Dedup is only
+    // for flat palette grids where identical swatches need unique edit identities.
+    this.palette = (this.palfmt.layout || this.palfmt.pal === 'pacman')
+      ? new Uint32Array(cols) : dedupPalette(cols);
     this.layout = PREDEF_LAYOUTS[this.palfmt.layout];
     this.rgbimgs = [];
     this.palette.forEach((rgba: number) => {
