@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.builder = exports.Builder = exports.store = exports.FileWorkingStore = exports.PWORKER = void 0;
+exports.fixLineEndings = fixLineEndings;
 exports.errorResult = errorResult;
 exports.starttime = starttime;
 exports.endtime = endtime;
@@ -23,6 +24,13 @@ const PSRC = "../../src/";
 exports.PWORKER = PSRC + "worker/";
 ;
 ///
+function fixLineEndings(data) {
+    if (typeof data === 'string') {
+        // C build tools require LF line endings.
+        return data.replace(/\r\n/g, '\n');
+    }
+    return data;
+}
 class FileWorkingStore {
     constructor() {
         this.workfs = {};
@@ -61,7 +69,7 @@ class FileWorkingStore {
         let data = this.getFileData(path);
         if (data != null && typeof data !== 'string')
             throw new Error(`${path}: expected string`);
-        return data; // TODO
+        return fixLineEndings(data); // TODO
     }
     getFileEntry(path) {
         return this.workfs[path];
@@ -223,6 +231,7 @@ function populateEntry(fs, path, entry, options) {
     if (options && options.processFn) {
         data = options.processFn(path, data);
     }
+    data = fixLineEndings(data);
     // create subfolders
     var toks = path.split('/');
     if (toks.length > 1) {

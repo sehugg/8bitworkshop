@@ -5246,6 +5246,12 @@
   // src/worker/builder.ts
   var PSRC = "../../src/";
   var PWORKER = PSRC + "worker/";
+  function fixLineEndings(data) {
+    if (typeof data === "string") {
+      return data.replace(/\r\n/g, "\n");
+    }
+    return data;
+  }
   var FileWorkingStore = class {
     constructor() {
       this.workfs = {};
@@ -5284,7 +5290,7 @@
       let data = this.getFileData(path);
       if (data != null && typeof data !== "string")
         throw new Error(`${path}: expected string`);
-      return data;
+      return fixLineEndings(data);
     }
     getFileEntry(path) {
       return this.workfs[path];
@@ -5428,6 +5434,7 @@
     if (options && options.processFn) {
       data = options.processFn(path, data);
     }
+    data = fixLineEndings(data);
     var toks = path.split("/");
     if (toks.length > 1) {
       for (var i = 0; i < toks.length - 1; i++)

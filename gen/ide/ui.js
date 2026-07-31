@@ -482,7 +482,7 @@ function reloadProject(id) {
     gotoNewLocation();
 }
 async function getSkeletonFile(fileid) {
-    var ext = exports.platform.getToolForFilename(fileid);
+    var ext = exports.platform.getToolForFilename(fileid).replace(/^remote:/, "");
     try {
         return await $.get("presets/" + (0, util_1.getBasePlatform)(exports.platform_id) + "/skeleton." + ext, 'text');
     }
