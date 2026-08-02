@@ -202,7 +202,7 @@ void form_set_frame(byte spark) {
     spark ? &solarian_tiles[T_FORM_B * 32]
           : &solarian_tiles[T_FORM_A * 32];
   form_spark = spark;
-  pce_load_tiles(TILE0 + T_FORM_A, src, T_FORM_NTILE);
+  pce_load_tiles_planar(TILE0 + T_FORM_A, src, T_FORM_NTILE);
 }
 
 void draw_formation_slot(byte fi) {
@@ -560,7 +560,7 @@ static void setup_gfx(void) {
   pce_disp_off();
   pce_load_palette(0, solarian_bg_pal, 16);
   pce_load_palette(256, solarian_spr_pal, 16);
-  pce_load_tiles(TILE0, solarian_tiles, SOLARIAN_NTILE);
+  pce_load_tiles_planar(TILE0, solarian_tiles, SOLARIAN_NTILE);
   pce_load_sprites(SPR0, solarian_sprites, SOLARIAN_NSPR);
   pce_satb_clear();
   pce_satb_update();

@@ -79,8 +79,9 @@ void pce_disp_on(void) {
 }
 
 void pce_scroll(word x, word y) {
-  vdc_reg(VDC_BXR, x);
+  /* BYR is latched before BXR each scanline — write Y first. */
   vdc_reg(VDC_BYR, y);
+  vdc_reg(VDC_BXR, x);
 }
 
 /* Asm: pcegfx_tia.s */
@@ -189,45 +190,110 @@ void pce_load_palette(word index, const word *colors, word count) {
   }
 }
 
+void pce_load_nes_pal(word base, const word *colors) {
+  byte p, c;
+  for (p = 0; p < 4; p++) {
+    word idx = (word)(base + ((word)p << 4));
+    VCE_ADDR_LO = (unsigned char)idx;
+    VCE_ADDR_HI = (unsigned char)(idx >> 8);
+    for (c = 0; c < 4; c++) {
+      word col = colors[(word)p * 4 + c];
+      VCE_DATA_LO = (unsigned char)col;
+      VCE_DATA_HI = (unsigned char)(col >> 8);
+    }
+  }
+}
+
+/* Word-by-word VRAM poke (no TIA). Large ROM→VRAM TIA transfers were only
+ * committing the first tile pattern(s) in Chase; poke is slower but reliable. */
+static void vram_poke_words(word vaddr, const word *data, byte n) {
+  const unsigned char *p = (const unsigned char *)data;
+  VDC_CTRL = VDC_MAWR;
+  VDC_DATA_LO = (unsigned char)vaddr;
+  VDC_DATA_HI = (unsigned char)(vaddr >> 8);
+  VDC_CTRL = VDC_VWR;
+  while (n--) {
+    VDC_DATA_LO = *p++;
+    VDC_DATA_HI = *p++;
+  }
+}
+
 void pce_load_tiles(word tile_index, const void *data, word ntiles) {
-  pce_load_vram((word)(tile_index << 4), data, (word)(ntiles << 4));
+  const unsigned char *p = (const unsigned char *)data;
+  while (ntiles--) {
+    byte i;
+    word addr = (word)(tile_index << 4);
+    VDC_CTRL = VDC_MAWR;
+    VDC_DATA_LO = (unsigned char)addr;
+    VDC_DATA_HI = (unsigned char)(addr >> 8);
+    VDC_CTRL = VDC_VWR;
+    for (i = 0; i < 32; i += 2) {
+      VDC_DATA_LO = p[i];
+      VDC_DATA_HI = p[i + 1];
+    }
+    p += 32;
+    tile_index++;
+  }
+}
+
+/* SMS/4-plane row format → VDC bitplane-pair format (one tile at a time). */
+void pce_load_tiles_planar(word tile_index, const void *data, word ntiles) {
+  const unsigned char *p = (const unsigned char *)data;
+  unsigned char buf[32];
+  while (ntiles--) {
+    byte y;
+    for (y = 0; y < 8; y++) {
+      buf[y * 2] = p[y * 4];
+      buf[y * 2 + 1] = p[y * 4 + 1];
+      buf[16 + y * 2] = p[y * 4 + 2];
+      buf[16 + y * 2 + 1] = p[y * 4 + 3];
+    }
+    pce_load_tiles(tile_index, buf, 1);
+    p += 32;
+    tile_index++;
+  }
 }
 
 void pce_load_sprites(word pattern, const void *data, word npatterns) {
-  pce_load_vram((word)(pattern << 5), data, (word)(npatterns << 6));
-}
-
-void pce_put_tile(byte x, byte y, word bat) {
-  word w = bat;
-  pce_vram_burst(PCE_BAT_ADDR_XY(x, y), &w, 2);
+  const unsigned char *p = (const unsigned char *)data;
+  while (npatterns--) {
+    byte i;
+    word addr = (word)(pattern << 5);
+    VDC_CTRL = VDC_MAWR;
+    VDC_DATA_LO = (unsigned char)addr;
+    VDC_DATA_HI = (unsigned char)(addr >> 8);
+    VDC_CTRL = VDC_VWR;
+    for (i = 0; i < 128; i += 2) {
+      VDC_DATA_LO = p[i];
+      VDC_DATA_HI = p[i + 1];
+    }
+    p += 128;
+    pattern += 2;
+  }
 }
 
 void pce_put_bat_row(byte x, byte y, const word *bats, byte n) {
   if (!n) return;
-  pce_vram_burst(PCE_BAT_ADDR_XY(x, y), bats, (unsigned int)n << 1);
+  vram_poke_words(PCE_BAT_ADDR_XY(x, y), bats, n);
 }
 
+/* pce_put_tile is in pcegfx_tia.s. This 4-byte-arg variant keeps bat off AX. */
+void pce_put_tile_raw(byte x, byte y, byte bat_lo, byte bat_hi) {
+  word addr = (word)(((word)y << 5) + x);
+  VDC_CTRL = VDC_MAWR;
+  VDC_DATA_LO = (unsigned char)addr;
+  VDC_DATA_HI = (unsigned char)(addr >> 8);
+  VDC_CTRL = VDC_VWR;
+  VDC_DATA_LO = bat_lo;
+  VDC_DATA_HI = bat_hi;
+}
+
+
 void pce_fill_bat(byte x, byte y, byte w, byte h, word bat) {
-  byte row;
-  unsigned char lo = (unsigned char)bat;
-  unsigned char hi = (unsigned char)(bat >> 8);
-  byte i;
-
-  for (i = 0; i < 64; i += 2) {
-    fillbuf[i] = lo;
-    fillbuf[i + 1] = hi;
-  }
-
-  for (row = 0; row < h; ++row) {
-    word addr = PCE_BAT_ADDR_XY(x, (byte)(y + row));
-    word left = w;
-    while (left) {
-      byte chunk = left > 32 ? 32 : (byte)left;
-      pce_vram_burst(addr, fillbuf, (unsigned int)chunk << 1);
-      addr += chunk;
-      left = (word)(left - chunk);
-    }
-  }
+  byte row, col;
+  for (row = 0; row < h; ++row)
+    for (col = 0; col < w; ++col)
+      pce_put_tile((byte)(x + col), (byte)(y + row), bat);
 }
 
 void pce_load_bat(byte x, byte y, const word *map, byte w, byte h) {

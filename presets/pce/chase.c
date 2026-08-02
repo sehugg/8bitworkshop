@@ -21,6 +21,8 @@
 #define TILE0 PCE_TILE_BASE
 #define SPR0  PCE_SPR_BASE
 
+void load_level_palette(byte li);
+
 #define MAP_W        16
 #define MAP_H        13
 #define MAP_Y0       1   /* tile-rows above map[0] (HUD) */
@@ -175,16 +177,24 @@ byte font_code(char ch) {
   return TILE_EMPTY;
 }
 
+void put_char_pal(byte x, byte y, char ch, byte pal) {
+  pce_put_tile(x, y, PCE_BAT(TILE0 + font_code(ch), pal));
+}
+
 void put_char(byte x, byte y, char ch) {
-  pce_put_tile(x, y, PCE_BAT(TILE0 + font_code(ch), 0));
+  put_char_pal(x, y, ch, PAL_HUD);
+}
+
+void put_string_pal(byte x, byte y, const char* s, byte pal) {
+  while (*s) put_char_pal(x++, y, *s++, pal);
 }
 
 void put_string(byte x, byte y, const char* s) {
-  while (*s) put_char(x++, y, *s++);
+  put_string_pal(x, y, s, PAL_HUD);
 }
 
 void put_digit(byte x, byte y, byte d) {
-  pce_put_tile(x, y, PCE_BAT(TILE0 + TILE_DIGIT + (d % 10), 0));
+  pce_put_tile(x, y, PCE_BAT(TILE0 + TILE_DIGIT + (d % 10), PAL_HUD));
 }
 
 void hide_all_sprites(void) {
@@ -194,16 +204,16 @@ void hide_all_sprites(void) {
   pce_satb_update_n(ACTORS_MAX);
 }
 
-void set_cell_tiles(byte mx, byte my, byte tl, byte tr, byte bl, byte br) {
+void set_cell_tiles(byte mx, byte my, byte tl, byte tr, byte bl, byte br, byte pal) {
   byte sx = (byte)(mx << 1);
   byte sy = (byte)((byte)(MAP_Y0 + my) << 1);
   static word row[2];
   word addr = PCE_BAT_ADDR_XY(sx, sy);
-  row[0] = PCE_BAT(TILE0 + tl, 0);
-  row[1] = PCE_BAT(TILE0 + tr, 0);
+  row[0] = PCE_BAT(TILE0 + tl, pal);
+  row[1] = PCE_BAT(TILE0 + tr, pal);
   pce_vram_burst(addr, row, 4);
-  row[0] = PCE_BAT(TILE0 + bl, 0);
-  row[1] = PCE_BAT(TILE0 + br, 0);
+  row[0] = PCE_BAT(TILE0 + bl, pal);
+  row[1] = PCE_BAT(TILE0 + br, pal);
   pce_vram_burst((word)(addr + PCE_BAT_W), row, 4);
 }
 
@@ -216,19 +226,22 @@ void gem_set_frame(byte spark) {
     spark ? &chase_tiles[TILE_GEM1_TL * 32]
           : &chase_tiles[TILE_GEM0_TL * 32];
   gem_spark = spark;
-  pce_load_tiles(TILE0 + TILE_GEM0_TL, src, 4);
+  pce_load_tiles_planar(TILE0 + TILE_GEM0_TL, src, 4);
 }
 
 void draw_cell(byte x, byte y) {
   byte t = map_at(x, y);
+  /* Alternate wall subpals 1/3 like NES attribute checkerboard */
+  byte wall_pal = (byte)(((x ^ y) & 1) ? PAL_WALLB : PAL_WALL);
   if (t == T_WALL)
-    set_cell_tiles(x, y, TILE_WALL_TL, TILE_WALL_TR, TILE_WALL_BL, TILE_WALL_BR);
+    set_cell_tiles(x, y, TILE_WALL_TL, TILE_WALL_TR, TILE_WALL_BL, TILE_WALL_BR, wall_pal);
   else if (t == T_ITEM)
-    set_cell_tiles(x, y, TILE_GEM0_TL, TILE_GEM0_TR, TILE_GEM0_BL, TILE_GEM0_BR);
+    /* NES: floor + gems share attr pal 2 (black, floor bg, 2 gem colours) */
+    set_cell_tiles(x, y, TILE_GEM0_TL, TILE_GEM0_TR, TILE_GEM0_BL, TILE_GEM0_BR, PAL_FLOOR);
   else if (t == T_FLOOR)
-    set_cell_tiles(x, y, TILE_FLOOR, TILE_FLOOR, TILE_FLOOR, TILE_FLOOR);
+    set_cell_tiles(x, y, TILE_FLOOR, TILE_FLOOR, TILE_FLOOR, TILE_FLOOR, PAL_FLOOR);
   else
-    set_cell_tiles(x, y, TILE_EMPTY, TILE_EMPTY, TILE_EMPTY, TILE_EMPTY);
+    set_cell_tiles(x, y, TILE_EMPTY, TILE_EMPTY, TILE_EMPTY, TILE_EMPTY, PAL_HUD);
 }
 
 void draw_hud(void) {
@@ -300,7 +313,10 @@ void load_level(byte li) {
   gem_n = 0;
   game_level = li;
   gem_set_frame(0);
-  pce_fill_bat(0, 0, 32, 28, PCE_BAT(TILE0 + TILE_EMPTY, 0));
+  pce_disp_off();
+  load_level_palette(li);
+  __asm__("sei");
+  pce_fill_bat(0, 0, 32, 28, PCE_BAT(TILE0 + TILE_EMPTY, PAL_HUD));
   hide_all_sprites();
   for (y = 0; y < MAP_H; y++) {
     row = levels[li][y];
@@ -345,12 +361,13 @@ void load_level(byte li) {
   for (y = 0; y < MAP_H; y++)
     for (x = 0; x < MAP_W; x++)
       draw_cell(x, y);
+  __asm__("cli");
   spawn_wait = (byte)(actor_n << 4);
+  pce_disp_on();
 }
 
 void draw_actors(void) {
   byte i;
-  word attr = PCE_SPR_PRI | PCE_SPR_PAL(0);
   for (i = 0; i < ACTORS_MAX; i++)
     PCE_SPR_HIDE(i);
   for (i = 0; i < actor_n; i++) {
@@ -358,12 +375,15 @@ void draw_actors(void) {
     word px = (word)(PCE_SPR_X0 + (a->x >> FP_BITS));
     word py = (word)(PCE_SPR_Y0 + (MAP_Y0 * TILE_SIZE) + (a->y >> FP_BITS));
     byte shape;
+    word attr;
     if (a->wait && (a->wait >= 16 || (a->wait & 2)))
       continue;
+    /* NES: player pal 0, enemy1/2/3 → spr pal 1/2/3 */
+    attr = PCE_SPR_PRI | PCE_SPR_PAL(a->kind & 3);
     if (a->kind == 0)
       shape = (frame_cnt & 8) ? SPR_PLAYER2 : SPR_PLAYER;
     else
-      shape = SPR_ENEMY;
+      shape = (frame_cnt & 8) ? SPR_ENEMY2 : SPR_ENEMY;
     PCE_SPR_SET(i, px, py, PCE_SPR_PATTERN(shape), attr);
   }
   pce_satb_update_n(ACTORS_MAX);
@@ -463,46 +483,222 @@ void wait_for_fire(void) {
   while (joy_fire) { wait_frame(); read_controls(); }
 }
 
+void load_level_palette(byte li) {
+  /* NES 4×4 pack → PCE BG pals 0..3 */
+  pce_load_nes_pal(0, chase_level_pal[li]);
+}
+
 void setup_gfx(void) {
   pce_gfx_init();
   pce_disp_off();
-  pce_load_palette(0, chase_bg_pal, 16);
-  pce_load_palette(256, chase_spr_pal, 16);
-  pce_load_tiles(TILE0, chase_tiles, CHASE_NTILE);
+  pce_load_nes_pal(0, chase_bg_pal);
+  pce_load_nes_pal(256, chase_spr_pal);
+  pce_load_tiles_planar(TILE0, chase_tiles, CHASE_NTILE);
   pce_load_sprites(SPR0, chase_sprites, CHASE_NSPR);
   pce_satb_clear();
   pce_satb_update();
   pce_disp_on();
 }
 
+void draw_title_bat_at(int y_off_tiles) {
+  byte dy;
+  static word blank_row[32];
+  static byte blank_init;
+  if (!blank_init) {
+    byte x;
+    for (x = 0; x < 32; x++)
+      blank_row[x] = PCE_BAT(TILE0 + TILE_EMPTY, 0);
+    blank_init = 1;
+  }
+  for (dy = 0; dy < 28; dy++) {
+    int src = (int)dy - y_off_tiles;
+    if (src >= 0 && src < (int)CHASE_TITLE_H)
+      pce_put_bat_row(0, dy, &chase_title_bat[(word)src * CHASE_TITLE_W], 32);
+    else
+      pce_put_bat_row(0, dy, blank_row, 32);
+  }
+}
+
+/* Only rewrite rows that change. Blank→blank is skipped (BYR wrap isn't
+ * viable here: title is taller than the empty gap on a 32-row BAT). */
+void draw_title_bat_delta(int old_off, int new_off) {
+  byte dy;
+  static word blank_row[32];
+  static byte blank_init;
+  if (!blank_init) {
+    byte x;
+    for (x = 0; x < 32; x++)
+      blank_row[x] = PCE_BAT(TILE0 + TILE_EMPTY, 0);
+    blank_init = 1;
+  }
+  if (old_off == new_off) return;
+  for (dy = 0; dy < 28; dy++) {
+    int src_o = (int)dy - old_off;
+    int src_n = (int)dy - new_off;
+    byte on_o = (byte)(src_o >= 0 && src_o < (int)CHASE_TITLE_H);
+    byte on_n = (byte)(src_n >= 0 && src_n < (int)CHASE_TITLE_H);
+    if (!on_o && !on_n) continue;
+    if (on_o && on_n && src_o == src_n) continue;
+    if (on_n)
+      pce_put_bat_row(0, dy, &chase_title_bat[(word)src_n * CHASE_TITLE_W], 32);
+    else
+      pce_put_bat_row(0, dy, blank_row, 32);
+  }
+}
+
+void draw_title_bat(void) {
+  draw_title_bat_at(0);
+}
+
+void draw_level_bat(void) {
+  byte y;
+  for (y = 0; y < CHASE_LEVEL_H; y++)
+    pce_put_bat_row(0, y, &chase_level_bat[(word)y * CHASE_LEVEL_W], 32);
+}
+
+/* NES largeNums: digit 1..5 as 2×3 tiles at nametable (20,12). */
+void put_large_digit(byte digit) {
+  byte j, r;
+  if (digit < 1) digit = 1;
+  if (digit > 5) digit = 5;
+  j = (byte)((digit - 1) << 1);
+  for (r = 0; r < 3; r++) {
+    pce_put_tile(20, (byte)(12 + r), PCE_BAT(TILE0 + chase_large_nums[j], PAL_HUD));
+    pce_put_tile(21, (byte)(12 + r), PCE_BAT(TILE0 + chase_large_nums[j + 1], PAL_HUD));
+    j = (byte)(j + 10);
+  }
+}
+
+/* NES blink colors: 0x0f black, 0x20 gray/white */
+#define COL_BLINK_OFF  PCE_RGB(0, 0, 0)
+#define COL_BLINK_ON   PCE_RGB(5, 5, 5)
+/* NES scroll(-8,…): content nudged right (BXR decreases). */
+#define TITLE_BXR      ((word)(0x400 - 8))
+/* NES scroll(-4,…) on level banner */
+#define LEVEL_BXR      ((word)(0x400 - 4))
+
 void title_screen(void) {
+  byte wait;
+  int iy, dy;
+  byte i;
+  int last_tiles;
+
   hide_all_sprites();
-  pce_fill_bat(0, 0, 32, 28, PCE_BAT(TILE0 + TILE_EMPTY, 0));
-  put_string(13, 10, "CHASE");
-  put_string(9, 14, "PRESS RUN / I");
-  wait_for_fire();
+  pce_disp_off();
+  pce_band_disable();
+  pce_load_nes_pal(0, chase_title_pal);
+  pce_load_nes_pal(256, chase_spr_pal);
+  pce_scroll(TITLE_BXR, 0);
+  pce_satb_clear();
+  pce_satb_update();
+
+  /*
+   * Soft tile offset (no BYR wrap): title starts fully above the screen
+   * and drops in from the top. iy is in pixels (NES FP units).
+   */
+  iy = -(224 << FP_BITS);
+  dy = 8 << FP_BITS;
+  last_tiles = -100;
+  draw_title_bat_at(iy >> (FP_BITS + 3));
+  last_tiles = iy >> (FP_BITS + 3);
+  pce_disp_on();
+
+  wait_frames(20);
+  wait = 160;
+  frame_cnt = 0;
+  read_controls();
+  fire_prev = 1;
+
+  while (1) {
+    int tiles;
+    wait_frame();
+    tiles = iy >> (FP_BITS + 3);
+    if (tiles != last_tiles) {
+      draw_title_bat_delta(last_tiles, tiles);
+      last_tiles = tiles;
+    }
+
+    read_controls();
+    if (joy_fire && !fire_prev) break;
+    fire_prev = joy_fire;
+
+    iy += dy;
+    if (iy > 0) {
+      iy = 0;
+      dy = -dy >> 1;
+    }
+    if (dy < (8 << FP_BITS)) dy += 2;
+
+    if (wait)
+      --wait;
+    else {
+      pce_set_color(2, (frame_cnt & 32) ? COL_BLINK_OFF : COL_BLINK_ON);
+      ++frame_cnt;
+    }
+  }
+
+  if (last_tiles != 0)
+    draw_title_bat_delta(last_tiles, 0);
+  for (i = 0; i < 16; i++) {
+    pce_set_color(2, (i & 1) ? COL_BLINK_OFF : COL_BLINK_ON);
+    wait_frames(4);
+  }
+  pce_scroll(0, 0);
 }
 
 void show_level_banner(void) {
   hide_all_sprites();
-  pce_fill_bat(0, 0, 32, 28, PCE_BAT(TILE0 + TILE_EMPTY, 0));
-  put_string(11, 12, "LEVEL");
-  put_digit(17, 12, (byte)(game_level + 1));
+  pce_disp_off();
+  load_level_palette(game_level);
+  pce_fill_bat(0, 0, 32, 28, PCE_BAT(TILE0 + TILE_EMPTY, PAL_HUD));
+  draw_level_bat();
+  put_large_digit((byte)(game_level + 1));
+  pce_scroll(LEVEL_BXR, 0);
+  pce_disp_on();
   wait_frames(50);
+  pce_scroll(0, 0);
 }
 
 void show_game_over(void) {
+  byte blink = 0;
   hide_all_sprites();
-  pce_fill_bat(0, 0, 32, 28, PCE_BAT(TILE0 + TILE_EMPTY, 0));
+  pce_disp_off();
+  pce_fill_bat(0, 0, 32, 28, PCE_BAT(TILE0 + TILE_EMPTY, PAL_HUD));
   put_string(11, 12, "GAME OVER");
-  wait_for_fire();
+  pce_disp_on();
+  read_controls();
+  fire_prev = 1;
+  while (1) {
+    wait_frame();
+    read_controls();
+    blink++;
+    if ((blink & 1) == 0)
+      pce_set_color(2, (blink & 2) ? PCE_RGB(5, 1, 4) : PCE_RGB(2, 4, 7));
+    if (joy_fire && !fire_prev) break;
+    fire_prev = joy_fire;
+  }
+  while (joy_fire) { wait_frame(); read_controls(); }
 }
 
 void show_well_done(void) {
+  byte blink = 0;
   hide_all_sprites();
-  pce_fill_bat(0, 0, 32, 28, PCE_BAT(TILE0 + TILE_EMPTY, 0));
+  pce_disp_off();
+  pce_fill_bat(0, 0, 32, 28, PCE_BAT(TILE0 + TILE_EMPTY, PAL_HUD));
   put_string(11, 12, "WELL DONE");
-  wait_for_fire();
+  pce_disp_on();
+  read_controls();
+  fire_prev = 1;
+  while (1) {
+    wait_frame();
+    read_controls();
+    blink++;
+    if ((blink & 1) == 0)
+      pce_set_color(2, (blink & 2) ? PCE_RGB(0, 3, 6) : PCE_RGB(2, 4, 7));
+    if (joy_fire && !fire_prev) break;
+    fire_prev = joy_fire;
+  }
+  while (joy_fire) { wait_frame(); read_controls(); }
 }
 
 void game_loop(void) {

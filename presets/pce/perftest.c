@@ -165,7 +165,7 @@ static void paint_chart(void) {
   word star = PCE_BAT(TILE0 + 4, 0);
 
   /* TIA tests may have clobbered tile data at $1000 — reload. */
-  pce_load_tiles(TILE0, gfxtest_tiles, GFXTEST_NTILE);
+  pce_load_tiles_planar(TILE0, gfxtest_tiles, GFXTEST_NTILE);
   pce_satb_clear();
   pce_satb_update();
 
@@ -235,7 +235,7 @@ static void setup(void) {
   pce_disp_off();
   pce_load_palette(0, gfxtest_bg_pal, 16);
   pce_load_palette(256, gfxtest_spr_pal, 16);
-  pce_load_tiles(TILE0, gfxtest_tiles, GFXTEST_NTILE);
+  pce_load_tiles_planar(TILE0, gfxtest_tiles, GFXTEST_NTILE);
   pce_load_sprites(SPR0, gfxtest_sprites, GFXTEST_NSPR);
   for (bi = 0; bi < sizeof(burst_buf); bi++)
     burst_buf[bi] = (unsigned char)bi;

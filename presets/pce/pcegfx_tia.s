@@ -17,12 +17,16 @@
         .export         _pce_band_scroll_enable
         .export         _pce_band_scroll_disable
         .export         _pce_band_catchup
+        .export         _pce_put_tile
         .import         popax
+        .import         popa
         .importzp       tmp1, tmp2, ptr1, vdc_flags
 
 VDC_CTRL        = $0200
 VDC_DATA_LO     = $0202
 VDC_DATA_HI     = $0203
+VDC_MAWR        = 0
+VDC_VWR         = 2
 STATUS_VB       = $20
 STATUS_BUSY     = $40
 STATUS_SATBEND  = $08
@@ -31,16 +35,13 @@ STATUS_RCR      = $04
 VDC_RCR         = 6
 VDC_BXR         = 7
 
-; RAM trampoline: TIA + RTS (copied from ROM by crt0 with .DATA)
-.segment        "DATA"
-tia_stub:
-        .byte   $E3             ; TIA
-        .word   $FFFF           ; src (patched)
-        .word   $0202           ; VDC data port
-        .word   $FFFF           ; length (patched)
-        .byte   $60             ; RTS
-
+; BSS trampoline: rebuilt every call so we never depend on .DATA init
+; surviving (BSS clear / stack smash / bank quirks can wipe DATA).
 .segment        "BSS"
+tia_stub:
+        .res    8                  ; TIA src,dest,len + RTS
+put_tile_bat:
+        .res    2                  ; bat lo/hi for pce_put_tile
 _pce_vsync_overruns:
         .res    2                  ; word — byte wrapped mid-bench
 _pce_busy_wait_iters:
@@ -48,17 +49,65 @@ _pce_busy_wait_iters:
 
 .segment        "CODE"
 
-; Patch and run TIA. nbytes in tmp1/tmp2, src in ptr1.
+; Build and run TIA. nbytes in tmp1/tmp2, src in ptr1.
 .proc   tia_run
+        lda     #$E3               ; TIA opcode
+        sta     tia_stub
         lda     ptr1
         sta     tia_stub+1
         lda     ptr1+1
         sta     tia_stub+2
+        lda     #<$0202            ; VDC data port
+        sta     tia_stub+3
+        lda     #>$0202
+        sta     tia_stub+4
         lda     tmp1
         sta     tia_stub+5
         lda     tmp2
         sta     tia_stub+6
+        lda     #$60               ; RTS
+        sta     tia_stub+7
         jmp     tia_stub
+.endproc
+
+; void __fastcall__ pce_put_tile(unsigned char x, unsigned char y,
+;                                unsigned int bat);
+; bat in A/X. Soft stack [y][x] (y at TOS) per cc65 call setup.
+; Bat saved in BSS — ZP tmp1/tmp2 are clobbered by IRQ wait helpers.
+.proc   _pce_put_tile
+        sta     put_tile_bat       ; bat lo
+        stx     put_tile_bat+1     ; bat hi
+        jsr     popa               ; y
+        sta     ptr1
+        stz     ptr1+1
+        asl     ptr1
+        rol     ptr1+1
+        asl     ptr1
+        rol     ptr1+1
+        asl     ptr1
+        rol     ptr1+1
+        asl     ptr1
+        rol     ptr1+1
+        asl     ptr1
+        rol     ptr1+1             ; ptr1 = y << 5
+        jsr     popa               ; x
+        clc
+        adc     ptr1
+        sta     ptr1
+        bcc     :+
+        inc     ptr1+1
+:       stz     VDC_CTRL           ; MAWR
+        lda     ptr1
+        sta     VDC_DATA_LO
+        lda     ptr1+1
+        sta     VDC_DATA_HI
+        lda     #VDC_VWR
+        sta     VDC_CTRL
+        lda     put_tile_bat
+        sta     VDC_DATA_LO
+        lda     put_tile_bat+1
+        sta     VDC_DATA_HI
+        rts
 .endproc
 
 ; void __fastcall__ pce_tia_vdc(const void *src, unsigned int nbytes);
@@ -144,10 +193,10 @@ wait_edge:
         stz     _pce_busy_wait_iters
         stz     _pce_busy_wait_iters+1
         stz     tmp1               ; busy-seen flag
-        ldy     #4                 ; 4 × 256 polls max
+        ldx     #4                 ; 4 × 256 polls max (X — Y used by band writes)
 loop:
         lda     VDC_CTRL
-        sta     tmp2               ; preserve status (X gets clobbered)
+        sta     tmp2               ; preserve status
         and     #STATUS_RCR
         beq     :+
         jsr     band_rcr_from_poll
@@ -167,7 +216,7 @@ cont:
         inc     _pce_busy_wait_iters
         bne     loop
         inc     _pce_busy_wait_iters+1
-        dey
+        dex
         bne     loop
 done:   rts
 .endproc

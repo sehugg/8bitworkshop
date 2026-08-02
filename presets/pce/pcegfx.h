@@ -88,14 +88,24 @@ void pce_fill_vram(word vaddr, word value, word nwords);
 /* Palette index 0..255 BG, 256..511 sprites; count = # of colors */
 void pce_load_palette(word index, const word *colors, word count);
 void pce_set_color(word index, word color);
+/*
+ * NES-style 4×4 pack → 4 consecutive PCE palettes.
+ * colors[0..3] → VCE base+0..3, [4..7] → base+16..19, etc.
+ * Use base 0 for BG, 256 for sprites.
+ */
+void pce_load_nes_pal(word base, const word *colors);
 
-/* BG tiles: 32 bytes / 16 words each. tile_index is BAT character code. */
+/* BG tiles: 32 bytes / 16 words each. tile_index is BAT character code.
+ * pce_load_tiles() expects native VDC planar (bitplane pairs).
+ * pce_load_tiles_planar() expects SMS-style planar (editable in 8bw). */
 void pce_load_tiles(word tile_index, const void *data, word ntiles);
+void pce_load_tiles_planar(word tile_index, const void *data, word ntiles);
 
 /* Sprite patterns: 128 bytes / 64 words each (16x16). pattern = VRAM>>5. */
 void pce_load_sprites(word pattern, const void *data, word npatterns);
 
 void pce_put_tile(byte x, byte y, word bat);
+void pce_put_tile_raw(byte x, byte y, byte bat_lo, byte bat_hi);
 /* Burst-write `n` BAT words starting at (x,y) — one MAWR, then stream. */
 void pce_put_bat_row(byte x, byte y, const word *bats, byte n);
 void pce_fill_bat(byte x, byte y, byte w, byte h, word bat);
