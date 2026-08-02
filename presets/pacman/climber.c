@@ -12,28 +12,6 @@
 //#link "pacman_common.c"
 #include "pacman_common.h"
 
-void start(void) __naked {
-__asm
-        ld      sp, #0x4fc0
-        ld      bc, #l__INITIALIZER
-        ld      a, b
-        or      a, c
-        jr      z, 00001$
-        ld      de, #s__INITIALIZED
-        ld      hl, #s__INITIALIZER
-        ldir
-00001$:
-        jp      _main
-        .ds     0x66 - (. - _start)
-        push    af
-        ld      a, (_video_framecount)
-        inc     a
-        ld      (_video_framecount), a
-        pop     af
-        retn
-__endasm;
-}
-
 #define COLS 28
 #define VIEW_H 28
 #define VIEW_Y0 4
@@ -493,7 +471,7 @@ void play_scene(void) {
 
 void main(void) {
   video_framecount = 0;
-  interrupt_enable = 1;
+  pac_irq_enable();
   sound_enable = 1;
   flip_screen = 0;
   watchdog = 0;

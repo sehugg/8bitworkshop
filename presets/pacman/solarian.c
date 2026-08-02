@@ -1,36 +1,3 @@
-/*
- * Solarian — Galaxian-style shooter for Pac-Man hardware.
- * Ported from presets/galaxian-scramble/shoot2.c
- *
- * Controls: Left/Right move, Space fire, Enter/Start to begin.
- * Graphics for this file are appended at the bottom (private copy).
- */
-//#link "pacman_common.c"
-#include "pacman_common.h"
-
-/* Startup + NMI @ 0x0066 (must be in the main object so it links at 0x0000) */
-void start(void) __naked {
-__asm
-        ld      sp, #0x4fc0
-        ld      bc, #l__INITIALIZER
-        ld      a, b
-        or      a, c
-        jr      z, 00001$
-        ld      de, #s__INITIALIZED
-        ld      hl, #s__INITIALIZER
-        ldir
-00001$:
-        jp      _main
-        .ds     0x66 - (. - _start)
-        push    af
-        ld      a, (_video_framecount)
-        inc     a
-        ld      (_video_framecount), a
-        pop     af
-        retn
-__endasm;
-}
-
 
 #define ENEMIES_PER_ROW 7
 #define ENEMY_ROWS 4
@@ -467,7 +434,7 @@ void play_round(void) {
 }
 
 void main(void) {
-  interrupt_enable = 1;
+  pac_irq_enable();
   sound_enable = 1;
   flip_screen = 0;
   watchdog = 0;

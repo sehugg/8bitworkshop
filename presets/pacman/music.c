@@ -3,7 +3,7 @@
  * Score + player logic ported from presets/coleco/musicplayer.c
  * ("Making Arcade Games in C" style note stream).
  *
- * Music advances in the VBlank NMI so tempo stays steady while the
+ * Music advances in the VBLANK IRQ hook so tempo stays steady while the
  * main loop draws meters / handles input.
  *
  * Controls: Start restarts the tune. Left/Right pick waveform 0-7.
@@ -12,40 +12,6 @@
 #include "pacman_common.h"
 
 void music_update(void);
-
-void start(void) __naked {
-__asm
-        ld      sp, #0x4fc0
-        ld      bc, #l__INITIALIZER
-        ld      a, b
-        or      a, c
-        jr      z, 00001$
-        ld      de, #s__INITIALIZED
-        ld      hl, #s__INITIALIZER
-        ldir
-00001$:
-        jp      _main
-        .ds     0x66 - (. - _start)
-        ; NMI @ 0x0066 — frame tick + music player
-        push    af
-        push    bc
-        push    de
-        push    hl
-        push    ix
-        push    iy
-        ld      a, (_video_framecount)
-        inc     a
-        ld      (_video_framecount), a
-        call    _music_update
-        pop     iy
-        pop     ix
-        pop     hl
-        pop     de
-        pop     bc
-        pop     af
-        retn
-__endasm;
-}
 
 /* Note → WSG frequency (voice-0 scale, ≈ Hz * 11). Same indexing as Coleco. */
 const word note_table[64] = {
@@ -325,7 +291,7 @@ void music_update(void) {
 
 void music_start(const byte* music) {
   byte i;
-  music_enable = 0; /* pause NMI player while resetting */
+  music_enable = 0; /* pause IRQ player while resetting */
   music_ptr = music;
   cur_duration = 0;
   rr_ch = 2;
@@ -361,7 +327,8 @@ void main(void) {
   byte left_prev = 0;
   byte right_prev = 0;
 
-  interrupt_enable = 1;
+  pac_vblank_hook = music_update;
+  pac_irq_enable();
   sound_enable = 1;
   flip_screen = 0;
   watchdog = 0;

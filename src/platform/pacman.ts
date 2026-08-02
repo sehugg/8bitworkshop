@@ -22,14 +22,15 @@ class PacmanPlatform extends BaseZ80MachinePlatform<PacmanMachine> implements Pl
   readVRAMAddress(a)    { 
     if (a < 0x400) return this.machine.vram[a]; 
     else if (a < 0x800) return this.machine.cram[a-0x400];
-    else return this.machine.ram[0x7f0 + ((a-0x800) & 0xf)]; 
+    else return this.machine.ram[0x3f0 + ((a-0x800) & 0xf)]; 
   }
   
   getMemoryMap = function() { return { main:[
     {name:'Program ROM', start:0x0000,size:0x4000,type:'rom'},
     {name:'Video RAM',   start:0x4000,size:0x400, type:'ram'},
     {name:'Color RAM',   start:0x4400,size:0x400, type:'ram'},
-    {name:'Work RAM',    start:0x4800,size:0x7f0, type:'ram'},
+    {name:'Open Bus',    start:0x4800,size:0x400, type:'ram'},
+    {name:'Work RAM',    start:0x4c00,size:0x3f0, type:'ram'},
     {name:'Sprite RAM',  start:0x4ff0,size:0x10,  type:'ram'},
     {name:'I/O Regs',    start:0x5000,size:0x100, type:'io'},
     {name:'Color PROM',  start:0x6000,size:0x20,  type:'rom'},
@@ -55,7 +56,7 @@ class PacmanPlatform extends BaseZ80MachinePlatform<PacmanMachine> implements Pl
       $$: () => {
         let spriteData = {};
         for (let i = 0; i < 8; i++) {
-          let base = 0x7f0 + i * 2;
+          let base = 0x3f0 + i * 2;
           spriteData[`sprite_${i}`] = {
             shape: '$' + this.machine.ram[base].toString(16).padStart(2, '0'),
             color: '$' + this.machine.ram[base + 1].toString(16).padStart(2, '0'),

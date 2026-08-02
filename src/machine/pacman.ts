@@ -164,8 +164,8 @@ class PacmanVideo {
 
         // 8 sprites (reverse order). Coords are from bottom-right origin.
         for (var s = 7; s >= 0; s--) {
-            var info = this.ram[0x7f0 + s * 2];       // 0x4ff0
-            var palNo = this.ram[0x7f0 + s * 2 + 1];
+            var info = this.ram[0x3f0 + s * 2];       // 0x4ff0
+            var palNo = this.ram[0x3f0 + s * 2 + 1];
             var sx = SCREEN_W - this.spritePos[s * 2] + 15;
             var sy = SCREEN_H - this.spritePos[s * 2 + 1] - 16;
             this.getPalette(palNo, pal);
@@ -192,7 +192,8 @@ export class PacmanMachine extends BasicScanlineMachine {
     rotate = 0;
 
     cpu: Z80 = new Z80();
-    ram = new Uint8Array(0x800);
+    /** Work RAM 0x4C00-0x4FFF (real PCB; 0x4800-0x4BFF is open bus). */
+    ram = new Uint8Array(0x400);
     vram = new Uint8Array(0x400);
     cram = new Uint8Array(0x400);
     oram = new Uint8Array(0x100); // kept for platform debug tree compat
@@ -254,7 +255,9 @@ export class PacmanMachine extends BasicScanlineMachine {
         if (a < 0x4000) return this.rom[a];
         if (a < 0x4400) return this.vram[a - 0x4000];
         if (a < 0x4800) return this.cram[a - 0x4400];
-        if (a < 0x5000) return this.ram[a - 0x4800];
+        // 0x4800-0x4BFF: open bus on real Pac-Man (MAME returns 0xBF / nop)
+        if (a < 0x4c00) return 0xbf;
+        if (a < 0x5000) return this.ram[a - 0x4c00];
         if (a < 0x5100) {
             var io = a & 0xc0;
             if (io === 0x00) return ((~this.inputs[0]) & 0xff) | 0x10;       // IN0
@@ -271,7 +274,8 @@ export class PacmanMachine extends BasicScanlineMachine {
         if (a < 0x4000) return;
         if (a < 0x4400) { this.vram[a - 0x4000] = v; return; }
         if (a < 0x4800) { this.cram[a - 0x4400] = v; return; }
-        if (a < 0x5000) { this.ram[a - 0x4800] = v; return; }
+        if (a < 0x4c00) return; // open bus — writes discarded (matches MAME nopw)
+        if (a < 0x5000) { this.ram[a - 0x4c00] = v; return; }
         if ((a & 0xfff8) === 0x5000) {
             var bit = a & 7;
             if (bit === 0) this.interruptEnabled = v & 1;
@@ -379,7 +383,7 @@ export class PacmanMachine extends BasicScanlineMachine {
     private drainVBlankIsr() {
         if (!this.pendingVBlankIsr) return;
         this.pendingVBlankIsr = false;
-        // After vectoring, return PC is on the stack; RETN restores SP to this value.
+        // After vectoring, return PC is on the stack; RETI restores SP to this value.
         var spDone = this.cpu.getSP() + 2;
         var guard = 100000;
         while (this.cpu.getSP() !== spDone && --guard > 0) {
@@ -395,13 +399,13 @@ export class PacmanMachine extends BasicScanlineMachine {
             throw new EmuHalt("WATCHDOG FIRED");
         }
         if (this.interruptEnabled) {
-            // Real Pac-Man ROM uses IM 2; C demos use NMI @ 0x66 (like Galaxian)
-            if (this.cpu.saveState().im === 2) {
-                this.cpu.interrupt(this.interruptVector);
-            } else {
-                this.cpu.NMI();
+            // Real hardware / MAME: maskable VBLANK IRQ (IM2 + OUT vector).
+            // Only mark pending if the CPU actually took the IRQ (IFF1 set).
+            var spBefore = this.cpu.getSP();
+            this.cpu.interrupt(this.interruptVector);
+            if (this.cpu.getSP() !== spBefore) {
+                this.pendingVBlankIsr = true;
             }
-            this.pendingVBlankIsr = true;
         }
         return steps;
     }

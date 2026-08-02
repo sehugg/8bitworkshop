@@ -4,6 +4,9 @@
  * Link helpers only:
  *   //#link "pacman_common.c"
  *
+ * CRT0 (reset + IM2 VBLANK IRQ) lives in pacman_common — do not define start().
+ * Optional per-frame work: set pac_vblank_hook, then pac_irq_enable().
+ *
  * Each demo owns its own graphics (tile/sprite/PROM data appended at the
  * end of that .c file). Do not share one gfx object across demos.
  *
@@ -28,10 +31,16 @@ void main(void);
 
 extern volatile byte video_framecount;
 
+/* Optional VBLANK callback (Namco sound engine, etc.). NULL = none. */
+extern void (*pac_vblank_hook)(void);
+void pac_run_vblank_hook(void);
+void pac_irq_enable(void);
+
 #define UP1    (!(input0 & 0x01))
 #define LEFT1  (!(input0 & 0x02))
 #define RIGHT1 (!(input0 & 0x04))
 #define DOWN1  (!(input0 & 0x08))
+/* Homebrew: Space in 8bw. On real PCB IN0 bit7 is SERVICE1 (active low). */
 #define FIRE1  (!(input0 & 0x80))
 #define COIN1  (!(input0 & 0x20))
 #define START1 (!(input1 & 0x20))
@@ -77,6 +86,7 @@ extern volatile byte video_framecount;
 
 word vram_addr(byte x, byte y);
 void poke_tile(byte x, byte y, byte tile, byte pal);
+void poke_pal(byte x, byte y, byte pal);
 byte peek_tile(byte x, byte y);
 void clrscr(byte pal);
 void wait_vblank(void);

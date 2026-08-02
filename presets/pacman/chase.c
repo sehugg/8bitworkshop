@@ -10,35 +10,6 @@
 
 void music_update(void);
 
-void start(void) __naked {
-__asm
-        ld      sp, #0x4fc0
-        ld      bc, #l__INITIALIZER
-        ld      a, b
-        or      a, c
-        jr      z, 00001$
-        ld      de, #s__INITIALIZED
-        ld      hl, #s__INITIALIZER
-        ldir
-00001$:
-        jp      _main
-        .ds     0x66 - (. - _start)
-        push    af
-        push    bc
-        push    de
-        push    hl
-        ld      a, (_video_framecount)
-        inc     a
-        ld      (_video_framecount), a
-        call    _music_update
-        pop     hl
-        pop     de
-        pop     bc
-        pop     af
-        retn
-__endasm;
-}
-
 /* 14×13 cells × 16px = 28×26 tiles — fills the Pac-Man playfield */
 #define MAP_W        14
 #define MAP_H        13
@@ -855,7 +826,8 @@ void game_loop(void) {
 }
 
 void main(void) {
-  interrupt_enable = 1;
+  pac_vblank_hook = music_update;
+  pac_irq_enable();
   sound_enable = 1;
   flip_screen = 0;
   watchdog = 0;
