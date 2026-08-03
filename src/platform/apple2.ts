@@ -49,7 +49,7 @@ class Apple2MAMEPlatform extends BaseMAME6502Platform implements Platform {
   }
 
   getOpcodeMetadata = getOpcodeMetadata_6502;
-  getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
+  getDefaultExtensions() { return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
   getToolForFilename = getToolForFilename_6502;
 
   getPresets() { return APPLE2_PRESETS; }
