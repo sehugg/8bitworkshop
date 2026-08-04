@@ -544,7 +544,7 @@ class NESMAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
         }
     }
     getPresets() { return JSNES_PRESETS; }
-    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
+    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
 }
 ///
 emu_1.PLATFORMS['nes'] = JSNESPlatform;

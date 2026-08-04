@@ -9175,7 +9175,7 @@
     loadNative("nesasm");
     var re_filename = /\#\[(\d+)\]\s+(\S+)/;
     var re_insn = /\s+(\d+)\s+([0-9A-F]+):([0-9A-F]+)/;
-    var re_error = /\s+(.+)/;
+    var re_error2 = /\s+(.+)/;
     var errors = [];
     var state = 0;
     var lineno = 0;
@@ -9195,7 +9195,7 @@
           }
           break;
         case 1:
-          m2 = re_error.exec(s2);
+          m2 = re_error2.exec(s2);
           if (m2) {
             errors.push({ path: filename, line: lineno, msg: m2[1] });
             state = 0;
@@ -14078,6 +14078,131 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     }
   }
 
+  // src/worker/tools/xa.ts
+  var re_listing = /^\s*(\d+) (\w):([0-9a-f]+)  (.*)$/i;
+  var LABEL_COL = 25;
+  var SOURCE_COL = 35;
+  var re_error = /^(\S.*?):line (\d+): (?:[0-9a-f]+:)?\s*(.+)$/;
+  var re_label = /^(\S+),\s*0x([0-9a-f]+)/i;
+  function parseXALabels(text) {
+    const symbolmap = {};
+    for (const line of text.split(re_crlf)) {
+      const m = re_label.exec(line);
+      if (m) {
+        symbolmap[m[1]] = parseInt(m[2], 16);
+      }
+    }
+    return symbolmap;
+  }
+  function parseXAListing(lsttext, listings) {
+    let path = null;
+    let listing = null;
+    let lastline = 0;
+    const lastlines = {};
+    for (const line of lsttext.split(re_crlf)) {
+      const m = re_listing.exec(line);
+      if (!m) {
+        const newpath = line.trim();
+        if (listings[newpath]) {
+          if (path) lastlines[path] = lastline;
+          path = newpath;
+          listing = listings[path];
+          lastline = lastlines[path] || 0;
+        }
+        continue;
+      }
+      const linenum = parseInt(m[1]);
+      const offset = parseInt(m[3], 16);
+      const rest = m[4];
+      const insns = rest.substring(0, LABEL_COL).replace("...", "").trim();
+      const source = rest.substring(SOURCE_COL).trim();
+      if (insns && listing && linenum > lastline) {
+        listing.lines.push({
+          line: linenum,
+          offset,
+          insns,
+          iscode: !source.startsWith(".")
+        });
+      }
+      if (linenum > lastline) lastline = linenum;
+    }
+  }
+  function getListingOrigin(listings) {
+    let origin;
+    for (const key in listings) {
+      for (const line of listings[key].lines) {
+        if (origin === void 0 || line.offset < origin) origin = line.offset;
+      }
+    }
+    return origin;
+  }
+  var wasiModule3 = null;
+  function assembleXA(step) {
+    var _a, _b, _c, _d;
+    const errors = [];
+    gatherFiles(step, { mainFilePath: "main.xa" });
+    const binpath = step.prefix + ".bin";
+    const lstpath = step.prefix + ".lst";
+    const sympath = step.prefix + ".lbl";
+    if (staleFiles(step, [binpath])) {
+      if (!wasiModule3) {
+        wasiModule3 = new WebAssembly.Module(loadWASMBinary("xa"));
+      }
+      const wasi = new WASIRunner();
+      wasi.initSync(wasiModule3);
+      for (const file of step.files) {
+        wasi.fs.putFile("./" + file, store.getFileData(file));
+      }
+      wasi.addPreopenDirectory(".");
+      const args = ["xa", "-E", "-o", binpath, "-l", sympath, "-P", lstpath];
+      if ((_a = step.params) == null ? void 0 : _a.xaargs) {
+        args.push.apply(args, step.params.xaargs);
+      }
+      args.push("-D__8BITWORKSHOP__=1");
+      if (step.mainfile) {
+        args.push("-D__MAIN__=1");
+      }
+      args.push(step.path);
+      wasi.setArgs(args);
+      try {
+        wasi.run();
+      } catch (e) {
+        errors.push({ line: 0, msg: e + "" });
+      }
+      const stderr = wasi.fds[2].getBytesAsString();
+      for (const line of stderr.split(re_crlf)) {
+        const m = re_error.exec(line);
+        if (m) {
+          errors.push({ path: m[1], line: parseInt(m[2]), msg: m[3] });
+        }
+      }
+      if (errors.length) {
+        return { errors };
+      }
+      const lstout = ((_b = wasi.fs.getFile("./" + lstpath)) == null ? void 0 : _b.getBytesAsString()) || "";
+      const symout = ((_c = wasi.fs.getFile("./" + sympath)) == null ? void 0 : _c.getBytesAsString()) || "";
+      const output = (_d = wasi.fs.getFile("./" + binpath)) == null ? void 0 : _d.getBytes();
+      if (!output) {
+        return { errors: [{ line: 0, msg: "xa did not produce an output file" }] };
+      }
+      const listings = {};
+      for (const path of step.files) {
+        listings[path] = { lines: [] };
+      }
+      parseXAListing(lstout, listings);
+      putWorkFile(binpath, output);
+      putWorkFile(lstpath, lstout);
+      putWorkFile(sympath, symout);
+      return {
+        output,
+        errors,
+        listings,
+        symbolmap: parseXALabels(symout),
+        origin: getListingOrigin(listings)
+      };
+    }
+  }
+
   // src/worker/workertools.ts
   var TOOLS = {
     "dasm": assembleDASM,
@@ -14119,7 +14244,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     "cc2600": compilecc2600,
     "armtcc": compileARMTCC,
     "armtcclink": linkARMTCC,
-    "oscar64": compileOscar64
+    "oscar64": compileOscar64,
+    "xa": assembleXA
   };
   var TOOL_PRELOADFS = {
     "cc65-apple2": "65-apple2",

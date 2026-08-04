@@ -441,6 +441,7 @@ export function getToolForFilename_6502(fn: string): string {
   if (fn.endsWith(".ca65")) return "ca65";
   if (fn.endsWith(".dasm")) return "dasm";
   if (fn.endsWith(".acme")) return "acme";
+  if (fn.endsWith(".xa")) return "xa";
   if (fn.endsWith(".wiz")) return "wiz";
   if (fn.endsWith(".ecs")) return "ecs";
   if (fn.endsWith(".cpp")) return "oscar64";
@@ -480,7 +481,7 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
     return disassemble6502(pc, read(pc), read(pc + 1), read(pc + 2));
   }
   getToolForFilename = getToolForFilename_6502;
-  getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; };
+  getDefaultExtensions() { return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; };
 
   getDebugCategories() {
     return ['CPU', 'ZPRAM', 'Stack'];
@@ -984,7 +985,7 @@ export abstract class Base6502MachinePlatform<T extends Machine> extends BaseMac
 
   getOpcodeMetadata = getOpcodeMetadata_6502;
   getToolForFilename(fn) { return getToolForFilename_6502(fn); }
-  getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
+  getDefaultExtensions() { return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
 
   disassemble(pc: number, read: (addr: number) => number): DisasmLine {
     return disassemble6502(pc, read(pc), read(pc + 1), read(pc + 2));

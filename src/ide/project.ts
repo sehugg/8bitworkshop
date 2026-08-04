@@ -42,7 +42,7 @@ export class NullFilesystem implements ProjectFilesystem {
     this.sets.push(path);
     return;
   }
-  
+
 }
 
 export class OverlayFilesystem implements ProjectFilesystem {
@@ -222,6 +222,7 @@ export class CodeProject {
       while (m = re7.exec(text)) {
         this.pushAllFiles(files, m[1]);
       }
+      // TODO: for xa assembler
     }
     return files;
   }
@@ -240,7 +241,7 @@ export class CodeProject {
     }
     return files;
   }
-  
+
   loadFileDependencies(text:string) : Promise<Dependency[]> {
     let includes = this.parseIncludeDependencies(text);
     let linkfiles = this.parseLinkDependencies(text);
@@ -442,7 +443,7 @@ export class CodeProject {
       }
     }
   }
-  
+
   stripLocalPath(path : string) : string {
     if (this.mainPath) {
       var folder = getFolderForPath(this.mainPath);

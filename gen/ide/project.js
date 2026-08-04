@@ -204,6 +204,7 @@ class CodeProject {
             while (m = re7.exec(text)) {
                 this.pushAllFiles(files, m[1]);
             }
+            // TODO: for xa assembler
         }
         return files;
     }

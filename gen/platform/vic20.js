@@ -51,7 +51,7 @@ class VIC20MAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
         this.getOpcodeMetadata = baseplatform_1.getOpcodeMetadata_6502;
     }
     getPresets() { return VIC20_PRESETS; }
-    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
+    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
     loadROM(title, data) {
         if (!this.started) {
             this.startModule(this.mainElement, {

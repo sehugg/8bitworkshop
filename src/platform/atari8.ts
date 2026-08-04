@@ -83,7 +83,7 @@ abstract class Atari8MAMEPlatform extends BaseMAME6502Platform {
   getPresets() { return Atari8_PRESETS; }
   getToolForFilename = getToolForFilename_Atari8;
   getOpcodeMetadata = getOpcodeMetadata_6502;
-  getDefaultExtensions() { return [".c", ".bas", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
+  getDefaultExtensions() { return [".c", ".bas", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
   showHelp = atari8_showHelp;
 }
 

@@ -117,6 +117,7 @@ function getWorkerParams() {
 const TOOL_TO_SOURCE_STYLE = {
     'dasm': '6502',
     'acme': '6502',
+    'xa': '6502',
     'cc65': 'text/x-csrc',
     'ca65': '6502',
     'nesasm': '6502',
@@ -163,6 +164,7 @@ const TOOL_TO_HELPURL = {
     'cmoc': "http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html",
     'remote:llvm-mos': 'https://llvm-mos.org/wiki/Welcome',
     'acme': 'https://raw.githubusercontent.com/sehugg/acme/main/docs/QuickRef.txt',
+    'xa': 'https://www.floodgap.com/retrotech/xa/',
 };
 function newWorker() {
     // TODO: return new Worker("https://8bitworkshop.com.s3-website-us-east-1.amazonaws.com/dev/gen/worker/bundle.js");
@@ -1388,6 +1390,8 @@ function _addIncludeFile() {
         addFileToProject("Include", ".ecs", (s) => { return 'import "' + s + '"'; });
     else if (tool == 'acme')
         addFileToProject("Include", ".acme", (s) => { return '!src "' + s + '"'; });
+    else if (tool == 'xa')
+        addFileToProject("Include", ".xa", (s) => { return '#include "' + s + '"'; });
     else
         (0, dialogs_1.alertError)("Can't add include file to this project type (" + tool + ")");
 }

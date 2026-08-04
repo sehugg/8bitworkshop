@@ -86,7 +86,7 @@ class Atari8MAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
         this.showHelp = atari8_showHelp;
     }
     getPresets() { return Atari8_PRESETS; }
-    getDefaultExtensions() { return [".c", ".bas", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
+    getDefaultExtensions() { return [".c", ".bas", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
 }
 class Atari800MAMEPlatform extends Atari8MAMEPlatform {
     constructor() {

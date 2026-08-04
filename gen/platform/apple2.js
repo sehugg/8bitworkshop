@@ -48,7 +48,7 @@ class Apple2MAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
             },
         });
     }
-    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
+    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
     getPresets() { return APPLE2_PRESETS; }
     loadROM(title, data) {
         this.loadROMFile(data);

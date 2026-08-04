@@ -49,7 +49,7 @@ class PCEnginePlatform implements Platform {
         return getToolForFilename_6502(fn);
     }
     getDefaultExtensions() {
-        return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"];
+        return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"];
     }
     readAddress(addr: number): number {
         return this.pce.Get(addr);

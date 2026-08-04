@@ -16,6 +16,7 @@ import * as cc7800 from './tools/cc7800'
 import * as cc2600 from './tools/cc2600'
 import * as bataribasic from './tools/bataribasic'
 import * as oscar64 from './tools/oscar64'
+import * as xa from './tools/xa'
 
 import { PLATFORM_PARAMS } from "./platforms";
 
@@ -60,6 +61,7 @@ export const TOOLS = {
   'armtcc': arm.compileARMTCC,
   'armtcclink': arm.linkARMTCC,
   'oscar64': oscar64.compileOscar64,
+  'xa': xa.assembleXA,
 }
 
 export const TOOL_PRELOADFS = {
