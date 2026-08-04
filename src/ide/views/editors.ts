@@ -42,10 +42,10 @@ const MODEDEFS = {
   gas: { isAsm: true },
   vasm: { isAsm: true },
   inform6: { theme: cobalt },
-  dialog: { noLineNumbers: true, theme: cobalt, lineWrap: true },
+  dialog: { theme: cobalt, lineWrap: true },
   markdown: { lineWrap: true },
   fastbasic: { noGutters: true },
-  basic: { noLineNumbers: true, noGutters: true },
+  basic: { noGutters: true },
   ecs: { theme: mbo }, // TODO: is actually mixed-mode, as is verilog
 }
 
@@ -98,7 +98,7 @@ export class SourceEditor implements ProjectView {
     var isAsm = isAsmOverride || modedef.isAsm;
     var lineWrap = !!modedef.lineWrap;
     var theme = modedef.theme || MODEDEFS.default.theme;
-    var lineNums = !isAsm && !modedef.noLineNumbers && !isMobileDevice;
+    var lineNums = modedef.useLineNumbers && !isMobileDevice;
     if (qs['embed']) {
       lineNums = false; // no line numbers while embedded
       isAsm = false; // no opcode bytes either
