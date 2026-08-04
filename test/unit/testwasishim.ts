@@ -82,6 +82,45 @@ describe('test WASI cc7800', function () {
     });
 });
 
+describe('test WASI dialogc', function () {
+    async function loadDialogc() {
+        let shim = await loadWASM('dialogc');
+        const zipdata = fs.readFileSync(`./src/worker/fs/dialog-fs.zip`);
+        shim.fs.setParent(await unzipWASIFilesystem(zipdata as any, "./"));
+        shim.addPreopenDirectory(".");
+        return shim;
+    }
+    it('dialogc compile', async function () {
+        let shim = await loadDialogc();
+        const src = fs.readFileSync('./presets/zmachine/hello.dg', 'utf8');
+        shim.fs.putFile("./hello.dg", src);
+        shim.setArgs(["dialogc", "-t", "z8", "-o", "hello.z8", "hello.dg", "stdlib.dg"]);
+        let errno = shim.run();
+        assert.strictEqual(shim.fds[2].getBytesAsString(), "");
+        assert.strictEqual(errno, 0);
+        const zfile = shim.fs.getFile("./hello.z8").getBytes();
+        assert.ok(zfile.length > 1000);
+        assert.strictEqual(zfile[0], 8); // z-machine version 8
+    });
+    it('dialogc syntax error', async function () {
+        let shim = await loadDialogc();
+        shim.fs.putFile("./bad.dg", "(room #room)\n(current player #player\n");
+        shim.setArgs(["dialogc", "-t", "z8", "-o", "bad.z8", "bad.dg", "stdlib.dg"]);
+        let errno = shim.run();
+        assert.strictEqual(errno, 1);
+        const stderr = shim.fds[2].getBytesAsString();
+        assert.ok(stderr.indexOf('Error: bad.dg, line ') >= 0, stderr);
+    });
+    it('dialogc missing source file', async function () {
+        let shim = await loadDialogc();
+        shim.setArgs(["dialogc", "-t", "z8", "-o", "x.z8", "nosuch.dg", "stdlib.dg"]);
+        let errno = shim.run();
+        assert.strictEqual(errno, 1);
+        const stderr = shim.fds[2].getBytesAsString();
+        assert.ok(stderr.indexOf('Error: Failed to open "nosuch.dg"') >= 0, stderr);
+    });
+});
+
 /*
 describe('test WASI oscar64', function () {
     it('oscar64 compile', async function () {

@@ -11,6 +11,7 @@ import { SourceFile, SourceLocation, WorkerError } from "../../common/workertype
 import { asm6502 } from "../../parser/lang-6502";
 import { basic } from "../../parser/lang-basic";
 import { batariBasic } from "../../parser/lang-bataribasic";
+import { dialog } from "../../parser/lang-dialog";
 import { fastBasic } from "../../parser/lang-fastbasic";
 import { inform6 } from "../../parser/lang-inform6";
 import { verilog } from "../../parser/lang-verilog";
@@ -41,6 +42,7 @@ const MODEDEFS = {
   gas: { isAsm: true },
   vasm: { isAsm: true },
   inform6: { theme: cobalt },
+  dialog: { noLineNumbers: true, theme: cobalt, lineWrap: true },
   markdown: { lineWrap: true },
   fastbasic: { noGutters: true },
   basic: { noLineNumbers: true, noGutters: true },
@@ -116,6 +118,9 @@ export class SourceEditor implements ProjectView {
         break;
       case 'fastbasic':
         parser = fastBasic();
+        break;
+      case 'dialog':
+        parser = dialog();
         break;
       case 'inform6':
         parser = inform6();
