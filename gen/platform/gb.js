@@ -8,6 +8,8 @@ const GB_PRESETS = [
     { id: 'hello.c', name: 'Hello World (C)' },
     { id: 'testdrawing.c', name: 'Drawing Routines (C)' },
     { id: 'testphys.c', name: 'Sprite Test (C)' },
+    { id: 'chase.c', name: "Shiru's Chase Game" },
+    { id: 'pakupaku.c', name: 'Paku Paku' },
     { id: 'hello.sgb', name: 'Hello World (ASM)' },
     { id: 'main.wiz', name: 'Snake Game (Wiz)' },
 ];

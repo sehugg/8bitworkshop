@@ -4,14 +4,8 @@ exports.GameBoyMachine = void 0;
 const SM83_1 = require("../common/cpu/SM83");
 const devices_1 = require("../common/devices");
 const emu_1 = require("../common/emu");
+const gbpalette_1 = require("../common/gbpalette");
 const util_1 = require("../common/util");
-// Game Boy DMG palette: 4 shades of green (darkest to lightest)
-const DMG_PALETTE = [
-    0xFFd0d884, // Lightest (Warm Mint)
-    0xFF87a84c, // Light Mid
-    0xFF526b34, // Dark Mid
-    0xFF2d3122, // Darkest (Deep Olive)
-];
 // Convert GBC 15-bit RGB (xBBBBBGGGGGRRRRR) to 32-bit ARGB
 function cgbColorToARGB(lo, hi) {
     var r5 = lo & 0x1F;
@@ -1483,7 +1477,7 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
         else {
             // BG disabled (DMG only) — fill with color 0
             for (var x = 0; x < 160; x++) {
-                this.pixels[lineOffset + x] = DMG_PALETTE[0];
+                this.pixels[lineOffset + x] = gbpalette_1.DMG_PALETTE[0];
                 this.bgPriorityLine[x] = 0;
                 this.bgAttrPriLine[x] = 0;
             }
@@ -1501,7 +1495,7 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
     // Get DMG color from palette register
     getPaletteColor(palette, colorIndex) {
         var shade = (palette >> (colorIndex * 2)) & 0x03;
-        return DMG_PALETTE[shade];
+        return gbpalette_1.DMG_PALETTE[shade];
     }
     // Get CGB color from color palette RAM
     getCGBColor(cram, paletteNum, colorIndex) {
@@ -1675,7 +1669,7 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
                     // DMG priority
                     if (bgPriority) {
                         var bgColor = this.pixels[lineOffset + screenX];
-                        if (bgColor !== DMG_PALETTE[(this.bgp & 0x03)])
+                        if (bgColor !== gbpalette_1.DMG_PALETTE[(this.bgp & 0x03)])
                             continue;
                     }
                     var palette = (flags & 0x10) ? this.obp1 : this.obp0;

@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AssetEditorView = void 0;
 const baseviews_1 = require("./baseviews");
 const ui_1 = require("../ui");
+const gbpalette_1 = require("../../common/gbpalette");
 const util_1 = require("../../common/util");
 const pixed = __importStar(require("../pixeleditor"));
 const Mousetrap = require("mousetrap");
@@ -106,6 +107,19 @@ class AssetEditorView {
                 node = node.right;
             }
         });
+        // Game Boy: default to LCD green scale (0=light … 3=dark) when no project palette
+        if (result.length == 0 && ui_1.platform_id && ui_1.platform_id.startsWith('gb')) {
+            if (matchlen == 4) {
+                result.push({ node: null, name: "DMG Green", palette: new Uint32Array(gbpalette_1.DMG_PALETTE) });
+            }
+            else if (matchlen == 2) {
+                result.push({
+                    node: null,
+                    name: "DMG Green",
+                    palette: new Uint32Array([gbpalette_1.DMG_PALETTE[0], gbpalette_1.DMG_PALETTE[3]]),
+                });
+            }
+        }
         return result;
     }
     getTilemaps(matchlen) {
