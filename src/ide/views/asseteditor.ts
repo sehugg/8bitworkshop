@@ -1,6 +1,7 @@
 
 import { newDiv, ProjectView } from "./baseviews";
 import { platform_id, current_project, projectWindows } from "../ui";
+import { DMG_PALETTE } from "../../common/gbpalette";
 import { FileData } from "../../common/workertypes";
 import { hex, safeident, rgb2bgr } from "../../common/util";
 import * as pixed from "../pixeleditor";
@@ -80,6 +81,18 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         node = node.right;
       }
     });
+    // Game Boy: default to LCD green scale (0=light … 3=dark) when no project palette
+    if (result.length == 0 && platform_id && platform_id.startsWith('gb')) {
+      if (matchlen == 4) {
+        result.push({ node: null, name: "DMG Green", palette: new Uint32Array(DMG_PALETTE) });
+      } else if (matchlen == 2) {
+        result.push({
+          node: null,
+          name: "DMG Green",
+          palette: new Uint32Array([DMG_PALETTE[0], DMG_PALETTE[3]]),
+        });
+      }
+    }
     return result;
   }
 

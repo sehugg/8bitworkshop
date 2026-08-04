@@ -14,7 +14,7 @@ export interface EditorContext {
 }
 
 export type SelectablePalette = {
-  node: PixNode
+  node: PixNode | null
   name: string
   palette: Uint32Array
 }
@@ -224,7 +224,11 @@ export function validateAssetData(datastr: string, fmt): string | null {
         maxOffset = Math.max(maxOffset, offset);
       }
     }
-    var required = maxOffset + (nplanes > 1 ? (nplanes - 1) * pofs : 0) + 1 + skip;
+    // Planar formats (e.g. NES pofs>=wpimg) store extra planes past each image block.
+    // Interleaved formats (GB/SMS pofs < wpimg) already include plane bytes in maxOffset.
+    var planeExtent = (nplanes > 1) ? (nplanes - 1) * pofs : 0;
+    if (planeExtent < wpimg) planeExtent = 0;
+    var required = maxOffset + planeExtent + 1 + skip;
 
     if (words.length != required) {
       return `Expected ${required} value(s), found ${words.length}`;
@@ -341,6 +345,10 @@ export function convertPaletteFormat(palbytes: UintArray, palfmt: PixelEditorPal
 
 // TODO: illegal colors?
 const PREDEF_PALETTES = {
+  // LCD polarity: index 0 = lightest (pixel off), 3 = darkest (pixel on)
+  'gb': [
+    0xd0d884, 0x87a84c, 0x526b34, 0x2d3122,
+  ],
   'nes': [
     0x525252, 0xB40000, 0xA00000, 0xB1003D, 0x740069, 0x00005B, 0x00005F, 0x001840, 0x002F10, 0x084A08, 0x006700, 0x124200, 0x6D2800, 0x000000, 0x000000, 0x000000,
     0xC4D5E7, 0xFF4000, 0xDC0E22, 0xFF476B, 0xD7009F, 0x680AD7, 0x0019BC, 0x0054B1, 0x006A5B, 0x008C03, 0x00AB00, 0x2C8800, 0xA47200, 0x000000, 0x000000, 0x000000,
