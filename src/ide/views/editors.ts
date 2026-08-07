@@ -1,10 +1,10 @@
-import { defaultKeymap, history, historyKeymap, indentSelection, isolateHistory, redo, undo } from "@codemirror/commands";
+import { defaultKeymap, deleteCharBackwardStrict, history, historyKeymap, isolateHistory, redo, undo } from "@codemirror/commands";
 import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
-import { bracketMatching, foldGutter, indentOnInput, indentService, indentUnit } from "@codemirror/language";
+import { bracketMatching, foldGutter, indentOnInput } from "@codemirror/language";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
-import { EditorState, Extension } from "@codemirror/state";
-import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, rectangularSelection, ViewUpdate } from "@codemirror/view";
+import { EditorSelection, EditorState, Extension } from "@codemirror/state";
+import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, rectangularSelection, ViewUpdate } from "@codemirror/view";
 import { CodeAnalyzer } from "../../common/analysis";
 import { hex, rpad } from "../../common/util";
 import { SourceFile, SourceLocation, WorkerError } from "../../common/workertypes";
@@ -20,12 +20,15 @@ import { cobalt } from "../../themes/cobalt";
 import { disassemblyTheme } from "../../themes/disassemblyTheme";
 import { editorTheme } from "../../themes/editorTheme";
 import { mbo } from "../../themes/mbo";
+import { formatDocument } from "../format";
 import { loadSettings, registerEditor, settingsExtensions } from "../settings";
-import { clearBreakpoint, current_project, lastDebugState, platform, qs, runToPC } from "../ui";
+import { clearBreakpoint, current_project, isAsmMode, lastDebugState, platform, runToPC } from "../ui";
+import { mnemonicsByMode } from "../../common/tabdetect";
 import { createAssetHeaderPlugin } from "./assetdecorations";
-import { isMobileDevice, ProjectView } from "./baseviews";
+import { ProjectView } from "./baseviews";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
-import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset, statusMarkers } from "./gutter";
+import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, gutterLineInfo, offset, statusMarkers } from "./gutter";
+import { tabStopRuler } from "./tabstopruler";
 import { currentPc, errorMessages, errorSpans, highlightLines, showValue } from "./visuals";
 
 // look ahead this many bytes when finding source lines for a PC
@@ -35,15 +38,10 @@ const MAX_ERRORS = 200;
 
 const MODEDEFS = {
   default: { theme: mbo }, // NOTE: Not merged w/ other modes
-  '6502': { isAsm: true },
-  z80: { isAsm: true },
-  jsasm: { isAsm: true },
-  gas: { isAsm: true },
-  vasm: { isAsm: true },
   inform6: { theme: cobalt },
   markdown: { lineWrap: true },
-  fastbasic: { noGutters: true },
-  basic: { noLineNumbers: true, noGutters: true },
+  fastbasic: { noGutterLineInfo: true },
+  basic: { noGutterLineInfo: true },
   ecs: { theme: mbo }, // TODO: is actually mixed-mode, as is verilog
 }
 
@@ -62,8 +60,8 @@ export class SourceEditor implements ProjectView {
   }
   path: string;
   mode: string;
-  editor;
-  updateTimer = null;
+  editor: EditorView;
+  updateTimer: ReturnType<typeof setTimeout> | null = null;
   dirtylisting = true;
   sourcefile: SourceFile;
   currentDebugLine: SourceLocation;
@@ -74,8 +72,9 @@ export class SourceEditor implements ProjectView {
     div.setAttribute("class", "editor");
     parent.appendChild(div);
     var text = current_project.getFile(this.path) as string;
-    var asmOverride = text && this.mode == 'verilog' && /__asm\b([\s\S]+?)\b__endasm\b/.test(text);
-    this.newEditor(div, text, asmOverride);
+    // TODO support mixed language parsing: https://codemirror.net/examples/mixed-language/
+    var includesAsm = text && this.mode == 'verilog' && /__asm\b([\s\S]+?)\b__endasm\b/.test(text);
+    this.newEditor(div, text, includesAsm);
     this.editor.dispatch({
       effects: createTextTransformFilterEffect(textMapFunctions),
     });
@@ -91,17 +90,12 @@ export class SourceEditor implements ProjectView {
     }
   }
 
-  newEditor(parent: HTMLElement, text: string, isAsmOverride?: boolean) {
+  newEditor(parent: HTMLElement, text: string, includesAsm?: boolean) {
     var modedef = MODEDEFS[this.mode] || MODEDEFS.default;
-    var isAsm = isAsmOverride || modedef.isAsm;
+    var isAsm = isAsmMode(this.mode);
+    var mnemonics = mnemonicsByMode[this.mode];
     var lineWrap = !!modedef.lineWrap;
     var theme = modedef.theme || MODEDEFS.default.theme;
-    var lineNums = !isAsm && !modedef.noLineNumbers && !isMobileDevice;
-    if (qs['embed']) {
-      lineNums = false; // no line numbers while embedded
-      isAsm = false; // no opcode bytes either
-    }
-    const minimalGutters = modedef.noGutters || isMobileDevice;
 
     var parser: Extension;
     switch (this.mode) {
@@ -144,29 +138,43 @@ export class SourceEditor implements ProjectView {
       doc: text,
       extensions: [
 
-        // Non-asm: 2-space indent (placed before settings so it takes precedence over tabSize-based indentUnit)
-        isAsm ? [] : indentUnit.of("  "),
-        // Asm: copy previous line's indentation since asm parsers lack proper indent rules
-        isAsm ? indentService.of((context, pos) => {
-          let lineNum = context.state.doc.lineAt(pos).number;
-          if (lineNum >= 0) {
-            let prevLine = context.state.doc.line(lineNum);
-            if (prevLine.text.trim()) {
-              return context.lineIndent(prevLine.from);
+        // Use domEventHandler instead of keymap.of with "Shift-Alt-f"
+        // to prevent macOS intercepting and inserting `Ï`.
+        EditorView.domEventHandlers({
+          keydown(event, view) {
+            if (event.shiftKey && event.altKey && event.code === 'KeyF') {
+              event.preventDefault();
+              formatDocument(view, isAsm, mnemonics);
             }
           }
-          return 0;
-        }) : [],
+        }),
+
+        isAsm ? keymap.of([{
+          key: "Enter",
+          run: (view) => {
+            // Copy leading whitespace up to cursor pos for each cursor.
+            const changes = view.state.changeByRange(range => {
+              const line = view.state.doc.lineAt(range.head);
+              const indent = line.text.match(/^[ \t]*/)[0].slice(0, range.head - line.from);
+              const insert = "\n" + indent;
+              return {
+                changes: { from: range.from, to: range.to, insert },
+                range: EditorSelection.cursor(range.from + insert.length),
+              };
+            });
+            view.dispatch(changes, { scrollIntoView: true, userEvent: "input" });
+            return true;
+          }
+        }]) : [],
 
         // Keybindings from settings must appear before default keymap.
         ...settingsExtensions(loadSettings()),
         keymap.of([
-          { key: "Ctrl-Shift-i", run: indentSelection },
-          { key: "Cmd-Shift-i", run: indentSelection },
+          { key: "Backspace", run: deleteCharBackwardStrict },
         ]),
+        // https://codemirror.net/docs/ref/#commands.defaultKeymap includes
+        // https://codemirror.net/docs/ref/#commands.standardKeymap
         keymap.of(defaultKeymap),
-
-        lineNums ? lineNumbers() : [],
 
         // Undo history.
         history(),
@@ -200,22 +208,12 @@ export class SourceEditor implements ProjectView {
         parser || [],
         theme,
         editorTheme,
+        tabStopRuler,
         lineWrap ? EditorView.lineWrapping : [],
 
         currentPc.field,
 
-        !minimalGutters ? [
-          offset.field,
-          offset.gutter,
-        ] : [],
-
-        isAsm && !minimalGutters ? [
-          bytes.field,
-          bytes.gutter,
-
-          clock.field,
-          clock.gutter,
-        ] : [],
+        gutterLineInfo(isAsm || includesAsm, !!modedef.noGutterLineInfo),
 
         breakpointMarkers.field,
         statusMarkers.gutter,
@@ -319,7 +317,7 @@ export class SourceEditor implements ProjectView {
     this.editor.dispatch({
       changes: { from, to, insert: text },
       annotations: isolateHistory.of("full"),
-      selection: { anchor: from, head: to },
+      selection: { anchor: from, head: from + text.length },
       effects: [
         EditorView.scrollIntoView(this.editor.state.doc.line(fromline).from, { y: "start", yMargin: 100/*pixels*/ }),
       ]
@@ -490,7 +488,7 @@ export class SourceEditor implements ProjectView {
     if (line) {
       // Validate line number is within document range (TODO: open disassembler)
       if (line.line < 1 || line.line > this.editor.state.doc.lines) {
-        return false;
+        return;
       }
       addCurrentMarker(line);
       if (moveCursor) {
@@ -502,7 +500,6 @@ export class SourceEditor implements ProjectView {
         });
       }
       this.currentDebugLine = line;
-      return true;
     }
   }
 

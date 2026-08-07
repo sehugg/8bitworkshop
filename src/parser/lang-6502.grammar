@@ -3,6 +3,8 @@
 @skip { space | Comment }
 
 Line {
+  MacroDef |
+  RepeatBlock |
   Label? Statement? eol
 }
 
@@ -10,42 +12,27 @@ Statement {
   Instruction |
   Directive |
   HexDirective |
-  MacroDef |
-  MacEnd |
-  ControlOp |
-  ErrorOp
+  ControlOp
 }
 
-Label { Identifier ":" | Identifier }
+Label { (Identifier | LocalIdentifier) Colon | Identifier | LocalIdentifier }
 
 Instruction {
   Opcode Operand?
 }
 
-Register {
-  @specialize<Identifier, "a" | "x" | "y" | "A" | "X" | "Y">
-}
+@external specialize {Identifier} registerSpecializer from "../../src/parser/tokens-6502" { Register }
+@external specialize {Identifier} onOffSpecializer from "../../src/parser/tokens-6502" { OnOff }
+@external specialize {Identifier} hexOpSpecializer from "../../src/parser/tokens-6502" { HexOp }
+@external specialize {Identifier} opcodeSpecializer from "../../src/parser/tokens-6502" { Opcode }
 
 Directive {
-  PseudoOp (Expression)*
+  PseudoOp (Expression)* |
+  Equals (Expression)*
 }
 
-PseudoOp {
-  @specialize<Identifier,
-    "org" | "equ" | "end" | ".end" |
-    "ORG" | "EQU" | "END" | ".END" |
-    "ds" | "ds.b" | "ds.w" | "dc" | "dc.b" | "dc.w" | "seg" | "seg.u" |
-    "DS" | "DS.B" | "DS.W" | "DC" | "DC.B" | "DC.W" | "SEG" | "SEG.U" |
-    "byte" | "word" | ".byte" | ".word" |
-    "BYTE" | "WORD" | ".BYTE" | ".WORD" |
-    "subroutine" | "SUBROUTINE" |
-    "processor" | "PROCESSOR" |
-    "echo" | "repeat" | "repend" | "set" |
-    "ECHO" | "REPEAT" | "REPEND" | "SET"
-  >
-}
-
-HexOp { @specialize<Identifier, "hex" | "HEX"> }
+@external specialize {Identifier} pseudoOpSpecializer from "../../src/parser/tokens-6502" { PseudoOp }
+@external specialize {Identifier} localIdentifierSpecializer from "../../src/parser/tokens-6502" { LocalIdentifier }
 
 HexDirective {
   HexOp HexByte*
@@ -53,37 +40,20 @@ HexDirective {
 
 @external tokens hexTokenizer from "../../src/parser/tokens-6502" { HexByte }
 
-Mac { @specialize<Identifier, "mac"> }
-MacEnd { @specialize<Identifier, "endm"> }
+@external specialize {Identifier} macSpecializer from "../../src/parser/tokens-6502" { Mac, MacEnd, Repeat, RepEnd }
 
-ControlOp { @specialize<Identifier, "if" | "else" | "endif"> }
-ErrorOp { @specialize<Identifier, "err"> }
+@external specialize {Identifier} controlOpSpecializer from "../../src/parser/tokens-6502" { ControlOp }
 
 MacroDef {
-  Mac Identifier
+  Mac Identifier eol Line* MacEnd eol
+}
+
+RepeatBlock {
+  Repeat Expression? eol Line* RepEnd eol
 }
 
 CurrentAddress {
   @specialize<Identifier, ".">
-}
-
-Opcode {
-  @specialize<Identifier,
-    "adc" | "and" | "asl" | "bcc" | "bcs" | "beq" | "bit" | "bmi" |
-    "bne" | "bpl" | "brk" | "bvc" | "bvs" | "clc" | "cld" | "cli" |
-    "clv" | "cmp" | "cpx" | "cpy" | "dec" | "dex" | "dey" | "eor" |
-    "inc" | "inx" | "iny" | "jmp" | "jsr" | "lda" | "ldx" | "ldy" |
-    "lsr" | "nop" | "ora" | "pha" | "php" | "pla" | "plp" | "rol" |
-    "ror" | "rti" | "rts" | "sbc" | "sec" | "sed" | "sei" | "sta" |
-    "stx" | "sty" | "tax" | "tay" | "tsx" | "txa" | "txs" | "tya" |
-    "ADC" | "AND" | "ASL" | "BCC" | "BCS" | "BEQ" | "BIT" | "BMI" |
-    "BNE" | "BPL" | "BRK" | "BVC" | "BVS" | "CLC" | "CLD" | "CLI" |
-    "CLV" | "CMP" | "CPX" | "CPY" | "DEC" | "DEX" | "DEY" | "EOR" |
-    "INC" | "INX" | "INY" | "JMP" | "JSR" | "LDA" | "LDX" | "LDY" |
-    "LSR" | "NOP" | "ORA" | "PHA" | "PHP" | "PLA" | "PLP" | "ROL" |
-    "ROR" | "RTI" | "RTS" | "SBC" | "SEC" | "SED" | "SEI" | "STA" |
-    "STX" | "STY" | "TAX" | "TAY" | "TSX" | "TXA" | "TXS" | "TYA"
-  >
 }
 
 Expression {
@@ -108,13 +78,15 @@ UnaryGt { gt !un }
 Value {
   Number |
   Identifier |
+  LocalIdentifier |
+  OnOff |
   CurrentAddress |
   String |
   Char
 }
 
 Operand {
-  "#" Expression |
+  ImmediatePrefix Expression |
   "(" Expression Comma Register ")" |
   Expression (Comma Register)? |
   Register
@@ -129,7 +101,7 @@ Operand {
     $[0-9]+
   }
 
-  String { '"' (!["\\\n] | "\\" _)* '"' }
+  String { '"' !["\n]* '"' }
 
   Char { "'" ![\n] "'"? }
 
@@ -139,7 +111,8 @@ Operand {
   eol { $[\n\r]+ }
 
   Comma { "," }
-  "#"
+  Colon { ":" }
+  ImmediatePrefix { "#" }
   "(" ")"
 
   ArithOp { "*" | "/" }
@@ -153,6 +126,7 @@ Operand {
   LogicOp { "&&" | "||" }
   Not { "!" }
 
+  Equals { "=" }
   CompareOp { "==" | "!=" | "<=" | ">=" }
   lt { "<" }
   gt { ">" }
