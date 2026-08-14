@@ -3,6 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
 const PCE_PRESETS = [
+    { id: 'gfxtest.c', name: 'Graphics Test (tiles/sprites)' },
+    { id: 'perftest.c', name: 'Graphics Pipeline Benchmark' },
+    { id: 'solarian.c', name: 'Solarian' },
+    { id: 'chase.c', name: 'Chase' },
     { id: 'test_conio.c', name: 'Hello World (conio)' },
     { id: 'siegegame.c', name: 'Siege Game (conio)' },
     { id: 'hello.wiz', name: 'Hello World (Wiz)' },

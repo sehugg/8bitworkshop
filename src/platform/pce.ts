@@ -2,6 +2,10 @@ import { DisasmLine, Platform, Preset, getToolForFilename_6502 } from "../common
 import { Keys, PLATFORMS, RasterVideo } from "../common/emu";
 
 const PCE_PRESETS = [
+    { id: 'gfxtest.c', name: 'Graphics Test (tiles/sprites)' },
+    { id: 'perftest.c', name: 'Graphics Pipeline Benchmark' },
+    { id: 'solarian.c', name: 'Solarian' },
+    { id: 'chase.c', name: 'Chase' },
     { id: 'test_conio.c', name: 'Hello World (conio)' },
     { id: 'siegegame.c', name: 'Siege Game (conio)' },
     { id: 'hello.wiz', name: 'Hello World (Wiz)' },
