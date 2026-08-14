@@ -18,13 +18,13 @@ Statement {
 Label { (Identifier | LocalIdentifier) Colon | Identifier | LocalIdentifier }
 
 Instruction {
-  Opcode Operand?
+  (Opcode | IllegalOpcode) Operand?
 }
 
 @external specialize {Identifier} registerSpecializer from "../../src/parser/tokens-6502" { Register }
 @external specialize {Identifier} onOffSpecializer from "../../src/parser/tokens-6502" { OnOff }
 @external specialize {Identifier} hexOpSpecializer from "../../src/parser/tokens-6502" { HexOp }
-@external specialize {Identifier} opcodeSpecializer from "../../src/parser/tokens-6502" { Opcode }
+@external specialize {Identifier} opcodeSpecializer from "../../src/parser/tokens-6502" { Opcode, IllegalOpcode }
 
 Directive {
   PseudoOp (Expression)* |
@@ -143,6 +143,7 @@ Operand {
   bin @left,
   PseudoOp,
   Opcode,
+  IllegalOpcode,
   Label
 }
 

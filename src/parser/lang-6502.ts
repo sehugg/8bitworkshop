@@ -16,6 +16,7 @@ export const Lezer6502: LRLanguage = LRLanguage.define({
                 PseudoOp: t.keyword,
                 Equals: t.keyword,
                 Opcode: t.standard(t.keyword),
+                IllegalOpcode: t.special(t.keyword),
                 Label: t.labelName,
                 String: t.string,
                 Char: t.character,

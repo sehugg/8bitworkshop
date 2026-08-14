@@ -40,6 +40,7 @@ const cobaltHighlightStyle = HighlightStyle.define([
   { tag: t.atom, color: "#845dc4 " },
   { tag: [t.number, t.attributeName, t.className, t.constant(t.name)], color: "#ff80e1" },
   { tag: t.keyword, color: "#ffee80" },
+  { tag: t.special(t.keyword), color: "#ffee80" },
   { tag: t.string, color: "#3ad900" },
   { tag: t.meta, color: "#ff9d00" },
   { tag: [t.tagName, t.variableName, t.modifier, t.labelName, t.namespace], color: "#9effff" },

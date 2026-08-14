@@ -47,6 +47,7 @@ export const mboTheme = EditorView.theme({
 
 export const mboHighlightStyle = HighlightStyle.define([
   { tag: t.standard(t.keyword), color: "#ffb928" },
+  { tag: t.special(t.keyword), color: "#ffee80" },
   { tag: [t.name, t.standard(t.name)], color: "#ffffec" },
   { tag: t.variableName, color: "#9ddfe9" },
   { tag: t.local(t.variableName), color: "#7eb8c4" },

@@ -1,5 +1,5 @@
 import { ExternalTokenizer } from "@lezer/lr"
-import { HexByte, PseudoOp, Mac, MacEnd, Repeat, RepEnd, ControlOp, LocalIdentifier, Opcode, Register, OnOff, HexOp } from "../../gen/parser/lang-6502.grammar.terms"
+import { HexByte, PseudoOp, Mac, MacEnd, Repeat, RepEnd, ControlOp, LocalIdentifier, Opcode, IllegalOpcode, Register, OnOff, HexOp } from "../../gen/parser/lang-6502.grammar.terms"
 
 function isHexDigit(ch: number) {
     return (ch >= 48 && ch <= 57) ||  // 0-9
@@ -15,6 +15,23 @@ export const opcodes = new Set([
     "lsr", "nop", "ora", "pha", "php", "pla", "plp", "rol",
     "ror", "rti", "rts", "sbc", "sec", "sed", "sei", "sta",
     "stx", "sty", "tax", "tay", "tsx", "txa", "txs", "tya",
+])
+
+// Undocumented/illegal opcodes (canonical names plus common dasm/ca65
+// aliases for the same underlying instruction). Highly unstable ones
+// (behavior varies by chip revision) are commented out.
+export const illegalOpcodes = new Set([
+    "slo", "aso", "rla", "sre", "lse", "rra",
+    "sax", "aax", "lax",
+    //"lxa",
+    "dcp", "dcm", "isc", "isb",
+    "anc", "alr", "asr", "arr",
+    //"xaa", "ane",
+    "sbx", "axs",
+    //"sha", "shx", "shy", "tas", "sxa", "xas",
+    //"ahx", "axa", "sya", "shs",
+    "las", "lar",
+    //"jam", "kil", "hlt",
 ])
 
 const registers = new Set(["a", "x", "y"])
@@ -74,7 +91,10 @@ export function localIdentifierSpecializer(value: string) {
 }
 
 export function opcodeSpecializer(value: string) {
-    return opcodes.has(value.toLowerCase()) ? Opcode : -1
+    let lower = value.toLowerCase()
+    if (opcodes.has(lower)) return Opcode
+    if (illegalOpcodes.has(lower)) return IllegalOpcode
+    return -1
 }
 
 export function registerSpecializer(value: string) {
