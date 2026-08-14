@@ -63,22 +63,30 @@ void unblit_sprite_rect(const byte* data, byte x, byte y) {
 }
 
 void blit_sprite_strided(const byte* data, byte x, byte y, byte stride) {
-  const byte* src = data+2;
-  byte height = data[1]^4;
-  byte width = data[0]^4;
-  while (height--) {
-    blit_copy(x, y, width, 1, src);
-    y += stride;
+  byte i;
+  byte width = data[0];
+  byte height = data[1];
+  signed int yy = (signed int)y - (height * (stride - 1) / 2);
+  const byte* src = data + 2;
+  for (i=0; i<height; i++) {
+    if (yy >= 0 && yy < 0xf0 && (byte)(x + XBIAS) < 0x90) {
+      blit_copy(x, (byte)yy, width, 1, src);
+    }
+    yy += stride;
     src += width;
   }
 }
 
 void unblit_sprite_strided(const byte* data, byte x, byte y, byte stride) {
-  byte height = data[1]^4;
-  byte width = data[0]^4;
-  while (height--) {
-    blit_solid(x, y, width, 1, 0);
-    y += stride;
+  byte i;
+  byte width = data[0];
+  byte height = data[1];
+  signed int yy = (signed int)y - (height * (stride - 1) / 2);
+  for (i=0; i<height; i++) {
+    if (yy >= 0 && yy < 0xf0 && (byte)(x + XBIAS) < 0x90) {
+      blit_solid(x, (byte)yy, width, 1, 0);
+    }
+    yy += stride;
   }
 }
 
@@ -118,6 +126,14 @@ void draw_copy_solid(word xx, byte y, byte w, byte h, const byte* data, byte sol
     blitter.flags = (xx&1) ? DSTSCREEN|FGONLY|SOLID|RSHIFT : DSTSCREEN|FGONLY|SOLID;
   else
     blitter.flags = (xx&1) ? DSTSCREEN|RSHIFT : DSTSCREEN;
+}
+
+void draw_box(word x1, byte y1, word x2, byte y2, byte color) {
+  byte w = (byte)((x2 - x1) >> 1);
+  draw_solid(x1, y1, w, 1, color);
+  draw_solid(x1, y2, w, 1, color);
+  draw_vline(x1, y1, y2 - y1, color);
+  draw_vline(x2, y1, y2 - y1, color);
 }
 
 void draw_pixel(word xx, byte y, byte color) {

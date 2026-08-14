@@ -272,6 +272,9 @@ static word score; // bcd score
 #define PLAYER 1
 #define LASER 2
 
+// blit_* functions use column coordinates; game logic uses pixels
+#define BLITX(x) ((byte)((x) >> 1))
+
 void add_actor(Actor** list, Actor* a) {
   if (*list) (*list)->prevptr = &a->next;
   a->next = *list;
@@ -285,15 +288,19 @@ void remove_actor(Actor* a) {
 }
 
 void draw_actor_normal(Actor* a) {
-  blit_sprite(a->shape, a->x, a->y);
+  blit_sprite(a->shape, BLITX(a->x), a->y);
 }
 
 void draw_actor_exploding(Actor* a) {
-  unblit_sprite_strided(a->shape, a->x, a->y, a->u.enemy.exploding);
-  if (a->u.enemy.exploding > 10) {
+  byte stride = a->u.enemy.exploding;
+  if (stride == 1) {
+    blit_sprite_solid(a->shape, BLITX(a->x), a->y, 0);
+  }
+  unblit_sprite_strided(a->shape, BLITX(a->x), a->y, stride);
+  if (stride > 10) {
     a->draw = NULL;
   } else {
-    blit_sprite_strided(a->shape, a->x, a->y, ++a->u.enemy.exploding);
+    blit_sprite_strided(a->shape, BLITX(a->x), a->y, ++a->u.enemy.exploding);
   }
 }
 
@@ -301,7 +308,7 @@ void update_actor(Actor* a) {
   // if NULL shape, we don't have anything
   if (a->shape) {
     // erase the sprite
-    blit_sprite_solid(a->shape, a->x, a->y, 0);
+    blit_sprite_solid(a->shape, BLITX(a->x), a->y, 0);
     // call update callback
     if (a->update) {
       a->update(a);
@@ -426,14 +433,14 @@ void destroy_player() {
   for (i=0; i<60; i++) {
     WATCHDOG;
     while (video_counter != 0xfc) ;
-    blit_sprite_solid(a->shape, a->x, a->y, i);
+    blit_sprite_solid(a->shape, BLITX(a->x), a->y, i);
     while (video_counter == 0xfc) ;
   }
   for (i=1; i<60; i++) {
     WATCHDOG;
     while (video_counter != 0xfc) ;
-    blit_sprite_strided(a->shape, a->x+i, a->y, i);
-    blit_sprite_strided(a->shape, a->x-i, a->y, i);
+    blit_sprite_strided(a->shape, BLITX(a->x+i), a->y, i);
+    blit_sprite_strided(a->shape, BLITX(a->x-i), a->y, i);
     while (video_counter == 0xfc) ;
   }
 }
@@ -547,7 +554,7 @@ Actor* new_effect(void (*draw)(struct Actor *)) {
 
 void init() {
   byte i;
-  blit_solid(0, 0, 255, 255, 0);
+  blit_solid(0, 0, 152, 255, 0);
   memset(actors, 0, sizeof(actors));
   memcpy(palette, palette_data, 16);
   player_list = fast_list = obstacle_list = free_list = NULL;
@@ -579,8 +586,8 @@ void make_enemy_actors() {
   for (i=3; i<num_actors; i++) {
     Actor* a = new_actor();
     do {
-      a->x = (byte)xrand();
-      a->y = (byte)xrand() + 24;
+      a->x = (byte)xrand() + (byte)xrand();
+      a->y = (byte)xrand() + (byte)xrand();
     } while ((byte)(a->x - 96) < 64 && (byte)(a->y - 96) < 64);
     a->shape = (byte*) all_sprites[i%9];
     a->update = random_walk;
@@ -612,7 +619,8 @@ void draw_score(Actor* a) {
 }
 
 void draw_playfield(Actor* a) {
-//  draw_box(0,0,275,255,0x11);
+  a;
+  draw_box(0, 0, 275, 255, 0x11);
 }
 
 int main() {
@@ -635,7 +643,6 @@ int main() {
       case 0:
         break;
     }
-    score = bcd_add(score, 1);
     frame++;
   }
   return 0;
