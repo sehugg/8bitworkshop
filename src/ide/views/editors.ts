@@ -1,4 +1,4 @@
-import { defaultKeymap, deleteCharBackwardStrict, history, historyKeymap, isolateHistory, redo, undo } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, isolateHistory, redo, undo } from "@codemirror/commands";
 import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, foldGutter, indentOnInput, indentService, indentUnit } from "@codemirror/language";
@@ -198,9 +198,6 @@ export class SourceEditor implements ProjectView {
 
         // Keybindings from settings must appear before default keymap.
         ...settingsExtensions(loadSettings()),
-        keymap.of([
-          { key: "Backspace", run: deleteCharBackwardStrict },
-        ]),
         // https://codemirror.net/docs/ref/#commands.defaultKeymap includes
         // https://codemirror.net/docs/ref/#commands.standardKeymap
         keymap.of(defaultKeymap),
