@@ -14229,12 +14229,15 @@ var require_json = __commonJS({
     var JSON_SYNTAX_REGEXP = /#+/g;
     function json(options) {
       var opts = options || {};
-      var limit = typeof opts.limit !== "number" ? bytes.parse(opts.limit || "100kb") : opts.limit;
+      var limit = typeof opts.limit === "undefined" || opts.limit === null ? 102400 : bytes.parse(opts.limit);
       var inflate = opts.inflate !== false;
       var reviver = opts.reviver;
       var strict = opts.strict !== false;
       var type = opts.type || "application/json";
       var verify = opts.verify || false;
+      if (limit === null) {
+        throw new TypeError('option limit "' + String(opts.limit) + '" is invalid');
+      }
       if (verify !== false && typeof verify !== "function") {
         throw new TypeError("option verify must be function");
       }
@@ -14299,10 +14302,7 @@ var require_json = __commonJS({
       var index = str.indexOf(char);
       var partial = "";
       if (index !== -1) {
-        partial = str.substring(0, index) + JSON_SYNTAX_CHAR;
-        for (var i = index + 1; i < str.length; i++) {
-          partial += JSON_SYNTAX_CHAR;
-        }
+        partial = str.substring(0, index) + new Array(str.length - index + 1).join(JSON_SYNTAX_CHAR);
       }
       try {
         JSON.parse(partial);
@@ -14359,9 +14359,12 @@ var require_raw = __commonJS({
     function raw(options) {
       var opts = options || {};
       var inflate = opts.inflate !== false;
-      var limit = typeof opts.limit !== "number" ? bytes.parse(opts.limit || "100kb") : opts.limit;
+      var limit = typeof opts.limit === "undefined" || opts.limit === null ? 102400 : bytes.parse(opts.limit);
       var type = opts.type || "application/octet-stream";
       var verify = opts.verify || false;
+      if (limit === null) {
+        throw new TypeError('option limit "' + String(opts.limit) + '" is invalid');
+      }
       if (verify !== false && typeof verify !== "function") {
         throw new TypeError("option verify must be function");
       }
@@ -14417,9 +14420,12 @@ var require_text = __commonJS({
       var opts = options || {};
       var defaultCharset = opts.defaultCharset || "utf-8";
       var inflate = opts.inflate !== false;
-      var limit = typeof opts.limit !== "number" ? bytes.parse(opts.limit || "100kb") : opts.limit;
+      var limit = typeof opts.limit === "undefined" || opts.limit === null ? 102400 : bytes.parse(opts.limit);
       var type = opts.type || "text/plain";
       var verify = opts.verify || false;
+      if (limit === null) {
+        throw new TypeError('option limit "' + String(opts.limit) + '" is invalid');
+      }
       if (verify !== false && typeof verify !== "function") {
         throw new TypeError("option verify must be function");
       }
@@ -15077,9 +15083,8 @@ var require_side_channel_list = __commonJS({
           }
         },
         "delete": function(key) {
-          var root = $o && $o.next;
           var deletedNode = listDelete($o, key);
-          if (deletedNode && root && root === deletedNode) {
+          if (deletedNode && $o && !$o.next) {
             $o = void 0;
           }
           return !!deletedNode;
@@ -16071,7 +16076,8 @@ var require_side_channel = __commonJS({
       var channel = {
         assert: function(key) {
           if (!channel.has(key)) {
-            throw new $TypeError("Side channel does not contain " + inspect(key));
+            var keyDesc = key && Object(key) === key ? "the given object key" : inspect(key);
+            throw new $TypeError("Side channel does not contain " + keyDesc);
           }
         },
         "delete": function(key) {
@@ -16127,6 +16133,7 @@ var require_utils = __commonJS({
     "use strict";
     var formats = require_formats();
     var getSideChannel = require_side_channel();
+    var defineProperty = require_es_define_property();
     var has = Object.prototype.hasOwnProperty;
     var isArray = Array.isArray;
     var overflowChannel = getSideChannel();
@@ -16174,6 +16181,18 @@ var require_utils = __commonJS({
       }
       return obj;
     };
+    var setProperty = function setProperty2(obj, key, value) {
+      if (key === "__proto__" && defineProperty) {
+        defineProperty(obj, key, {
+          configurable: true,
+          enumerable: true,
+          value,
+          writable: true
+        });
+      } else {
+        obj[key] = value;
+      }
+    };
     var merge = function merge2(target, source, options) {
       if (!source) {
         return target;
@@ -16181,7 +16200,10 @@ var require_utils = __commonJS({
       if (typeof source !== "object" && typeof source !== "function") {
         if (isArray(target)) {
           var nextIndex = target.length;
-          if (options && typeof options.arrayLimit === "number" && nextIndex > options.arrayLimit) {
+          if (options && typeof options.arrayLimit === "number" && nextIndex >= options.arrayLimit) {
+            if (options.throwOnLimitExceeded) {
+              throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+            }
             return markOverflow(arrayToObject(target.concat(source), options), nextIndex);
           }
           target[nextIndex] = source;
@@ -16190,6 +16212,8 @@ var require_utils = __commonJS({
             var newIndex = getMaxIndex(target) + 1;
             target[newIndex] = source;
             setMaxIndex(target, newIndex);
+          } else if (options && options.strictMerge) {
+            return [target, source];
           } else if (options && (options.plainObjects || options.allowPrototypes) || !has.call(Object.prototype, source)) {
             target[source] = true;
           }
@@ -16210,6 +16234,9 @@ var require_utils = __commonJS({
         }
         var combined = [target].concat(source);
         if (options && typeof options.arrayLimit === "number" && combined.length > options.arrayLimit) {
+          if (options.throwOnLimitExceeded) {
+            throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+          }
           return markOverflow(arrayToObject(combined, options), combined.length - 1);
         }
         return combined;
@@ -16231,14 +16258,20 @@ var require_utils = __commonJS({
             target[i] = item;
           }
         });
+        if (options && typeof options.arrayLimit === "number" && target.length > options.arrayLimit) {
+          if (options.throwOnLimitExceeded) {
+            throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+          }
+          return markOverflow(arrayToObject(target, options), target.length - 1);
+        }
         return target;
       }
       return Object.keys(source).reduce(function(acc, key) {
         var value = source[key];
         if (has.call(acc, key)) {
-          acc[key] = merge2(acc[key], value, options);
+          setProperty(acc, key, merge2(acc[key], value, options));
         } else {
-          acc[key] = value;
+          setProperty(acc, key, value);
         }
         if (isOverflow(source) && !isOverflow(acc)) {
           markOverflow(acc, getMaxIndex(source));
@@ -16254,7 +16287,7 @@ var require_utils = __commonJS({
     };
     var assign = function assignSingleSource(target, source) {
       return Object.keys(source).reduce(function(acc, key) {
-        acc[key] = source[key];
+        setProperty(acc, key, source[key]);
         return acc;
       }, target);
     };
@@ -16288,6 +16321,13 @@ var require_utils = __commonJS({
       var out = "";
       for (var j = 0; j < string.length; j += limit) {
         var segment = string.length >= limit ? string.slice(j, j + limit) : string;
+        if (j + limit < string.length) {
+          var last = segment.charCodeAt(segment.length - 1);
+          if (last >= 55296 && last <= 56319) {
+            segment = segment.slice(0, -1);
+            j -= 1;
+          }
+        }
         var arr = [];
         for (var i = 0; i < segment.length; ++i) {
           var c = segment.charCodeAt(i);
@@ -16317,7 +16357,7 @@ var require_utils = __commonJS({
     };
     var compact = function compact2(value) {
       var queue = [{ obj: { o: value }, prop: "o" }];
-      var refs = [];
+      var refs = getSideChannel();
       for (var i = 0; i < queue.length; ++i) {
         var item = queue[i];
         var obj = item.obj[item.prop];
@@ -16325,9 +16365,9 @@ var require_utils = __commonJS({
         for (var j = 0; j < keys.length; ++j) {
           var key = keys[j];
           var val = obj[key];
-          if (typeof val === "object" && val !== null && refs.indexOf(val) === -1) {
+          if (typeof val === "object" && val !== null && !refs.has(val)) {
             queue[queue.length] = { obj, prop: key };
-            refs[refs.length] = val;
+            refs.set(val, true);
           }
         }
       }
@@ -16343,8 +16383,11 @@ var require_utils = __commonJS({
       }
       return !!(obj.constructor && obj.constructor.isBuffer && obj.constructor.isBuffer(obj));
     };
-    var combine = function combine2(a, b, arrayLimit, plainObjects) {
+    var combine = function combine2(a, b, arrayLimit, plainObjects, throwOnLimitExceeded) {
       if (isOverflow(a)) {
+        if (throwOnLimitExceeded) {
+          throw new RangeError("Array limit exceeded. Only " + arrayLimit + " element" + (arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+        }
         var newIndex = getMaxIndex(a) + 1;
         a[newIndex] = b;
         setMaxIndex(a, newIndex);
@@ -16352,6 +16395,9 @@ var require_utils = __commonJS({
       }
       var result = [].concat(a, b);
       if (result.length > arrayLimit) {
+        if (throwOnLimitExceeded) {
+          throw new RangeError("Array limit exceeded. Only " + arrayLimit + " element" + (arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+        }
         return markOverflow(arrayToObject(result, { plainObjects }), result.length - 1);
       }
       return result;
@@ -16471,7 +16517,7 @@ var require_stringify = __commonJS({
       }
       if (obj === null) {
         if (strictNullHandling) {
-          return encoder && !encodeValuesOnly ? encoder(prefix, defaults.encoder, charset, "key", format) : prefix;
+          return formatter(encoder && !encodeValuesOnly ? encoder(prefix, defaults.encoder, charset, "key", format) : prefix);
         }
         obj = "";
       }
@@ -16489,7 +16535,9 @@ var require_stringify = __commonJS({
       var objKeys;
       if (generateArrayPrefix === "comma" && isArray(obj)) {
         if (encodeValuesOnly && encoder) {
-          obj = utils.maybeMap(obj, encoder);
+          obj = utils.maybeMap(obj, function(v) {
+            return v == null ? v : encoder(v);
+          });
         }
         objKeys = [{ value: obj.length > 0 ? obj.join(",") || null : void 0 }];
       } else if (isArray(filter)) {
@@ -16627,6 +16675,9 @@ var require_stringify = __commonJS({
       var sideChannel = getSideChannel();
       for (var i = 0; i < objKeys.length; ++i) {
         var key = objKeys[i];
+        if (typeof key === "undefined" || key === null) {
+          continue;
+        }
         var value = obj[key];
         if (options.skipNulls && value === null) {
           continue;
@@ -16656,9 +16707,9 @@ var require_stringify = __commonJS({
       var prefix = options.addQueryPrefix === true ? "?" : "";
       if (options.charsetSentinel) {
         if (options.charset === "iso-8859-1") {
-          prefix += "utf8=%26%2310003%3B&";
+          prefix += "utf8=%26%2310003%3B" + options.delimiter;
         } else {
-          prefix += "utf8=%E2%9C%93&";
+          prefix += "utf8=%E2%9C%93" + options.delimiter;
         }
       }
       return joined.length > 0 ? prefix + joined : "";
@@ -16693,6 +16744,7 @@ var require_parse = __commonJS({
       parseArrays: true,
       plainObjects: false,
       strictDepth: false,
+      strictMerge: true,
       strictNullHandling: false,
       throwOnLimitExceeded: false
     };
@@ -16701,8 +16753,19 @@ var require_parse = __commonJS({
         return String.fromCharCode(parseInt(numberStr, 10));
       });
     };
-    var parseArrayValue = function(val, options, currentArrayLength) {
+    var parseArrayValue = function(val, options, currentArrayLength, isFlatArrayValue) {
       if (val && typeof val === "string" && options.comma && val.indexOf(",") > -1) {
+        if (isFlatArrayValue && options.throwOnLimitExceeded) {
+          var commaCount = 0;
+          var commaIndex = val.indexOf(",");
+          while (commaIndex > -1) {
+            commaCount += 1;
+            if (commaCount >= options.arrayLimit) {
+              throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+            }
+            commaIndex = val.indexOf(",", commaIndex + 1);
+          }
+        }
         return val.split(",");
       }
       if (options.throwOnLimitExceeded && currentArrayLength >= options.arrayLimit) {
@@ -16719,9 +16782,9 @@ var require_parse = __commonJS({
       var limit = options.parameterLimit === Infinity ? void 0 : options.parameterLimit;
       var parts = cleanStr.split(
         options.delimiter,
-        options.throwOnLimitExceeded ? limit + 1 : limit
+        options.throwOnLimitExceeded && typeof limit !== "undefined" ? limit + 1 : limit
       );
-      if (options.throwOnLimitExceeded && parts.length > limit) {
+      if (options.throwOnLimitExceeded && typeof limit !== "undefined" && parts.length > limit) {
         throw new RangeError("Parameter limit exceeded. Only " + limit + " parameter" + (limit === 1 ? "" : "s") + " allowed.");
       }
       var skipIndex = -1;
@@ -16759,7 +16822,8 @@ var require_parse = __commonJS({
               parseArrayValue(
                 part.slice(pos + 1),
                 options,
-                isArray(obj[key]) ? obj[key].length : 0
+                isArray(obj[key]) ? obj[key].length : 0,
+                part.indexOf("[]=") === -1
               ),
               function(encodedVal) {
                 return options.decoder(encodedVal, defaults.decoder, charset, "value");
@@ -16774,19 +16838,17 @@ var require_parse = __commonJS({
           val = isArray(val) ? [val] : val;
         }
         if (options.comma && isArray(val) && val.length > options.arrayLimit) {
-          if (options.throwOnLimitExceeded) {
-            throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
-          }
-          val = utils.combine([], val, options.arrayLimit, options.plainObjects);
+          val = utils.combine([], val, options.arrayLimit, options.plainObjects, options.throwOnLimitExceeded);
         }
         if (key !== null) {
           var existing = has.call(obj, key);
-          if (existing && options.duplicates === "combine") {
+          if (existing && (options.duplicates === "combine" || part.indexOf("[]=") > -1)) {
             obj[key] = utils.combine(
               obj[key],
               val,
               options.arrayLimit,
-              options.plainObjects
+              options.plainObjects,
+              options.throwOnLimitExceeded
             );
           } else if (!existing || options.duplicates === "last") {
             obj[key] = val;
@@ -16813,7 +16875,8 @@ var require_parse = __commonJS({
               [],
               leaf,
               options.arrayLimit,
-              options.plainObjects
+              options.plainObjects,
+              options.throwOnLimitExceeded
             );
           }
         } else {
@@ -16840,8 +16903,8 @@ var require_parse = __commonJS({
       }
       return leaf;
     };
-    var splitKeyIntoSegments = function splitKeyIntoSegments2(givenKey, options) {
-      var key = options.allowDots ? givenKey.replace(/\.([^.[]+)/g, "[$1]") : givenKey;
+    var splitKeyIntoSegments = function splitKeyIntoSegments2(originalKey, options) {
+      var key = options.allowDots ? originalKey.replace(/\.([^.[]+)/g, "[$1]") : originalKey;
       if (options.depth <= 0) {
         if (!options.plainObjects && has.call(Object.prototype, key)) {
           if (!options.allowPrototypes) {
@@ -16850,37 +16913,56 @@ var require_parse = __commonJS({
         }
         return [key];
       }
-      var brackets = /(\[[^[\]]*])/;
-      var child = /(\[[^[\]]*])/g;
-      var segment = brackets.exec(key);
-      var parent = segment ? key.slice(0, segment.index) : key;
-      var keys = [];
+      var segments = [];
+      var first = key.indexOf("[");
+      var parent = first >= 0 ? key.slice(0, first) : key;
       if (parent) {
         if (!options.plainObjects && has.call(Object.prototype, parent)) {
           if (!options.allowPrototypes) {
             return;
           }
         }
-        keys[keys.length] = parent;
+        segments[segments.length] = parent;
       }
-      var i = 0;
-      while ((segment = child.exec(key)) !== null && i < options.depth) {
-        i += 1;
-        var segmentContent = segment[1].slice(1, -1);
-        if (!options.plainObjects && has.call(Object.prototype, segmentContent)) {
-          if (!options.allowPrototypes) {
-            return;
+      var n = key.length;
+      var open = first;
+      var collected = 0;
+      while (open >= 0 && collected < options.depth) {
+        var level = 1;
+        var i = open + 1;
+        var close = -1;
+        while (i < n && close < 0) {
+          var cu = key.charCodeAt(i);
+          if (cu === 91) {
+            level += 1;
+          } else if (cu === 93) {
+            level -= 1;
+            if (level === 0) {
+              close = i;
+            }
           }
+          i += 1;
         }
-        keys[keys.length] = segment[1];
+        if (close < 0) {
+          segments[segments.length] = "[" + key.slice(open) + "]";
+          return segments;
+        }
+        var seg = key.slice(open, close + 1);
+        var content = seg.slice(1, -1);
+        if (!options.plainObjects && has.call(Object.prototype, content) && !options.allowPrototypes) {
+          return;
+        }
+        segments[segments.length] = seg;
+        collected += 1;
+        open = key.indexOf("[", close + 1);
       }
-      if (segment) {
+      if (open >= 0) {
         if (options.strictDepth === true) {
           throw new RangeError("Input depth exceeded depth option of " + options.depth + " and strictDepth is true");
         }
-        keys[keys.length] = "[" + key.slice(segment.index) + "]";
+        segments[segments.length] = "[" + key.slice(open) + "]";
       }
-      return keys;
+      return segments;
     };
     var parseKeys = function parseQueryStringKeys(givenKey, val, options, valuesParsed) {
       if (!givenKey) {
@@ -16938,6 +17020,7 @@ var require_parse = __commonJS({
         parseArrays: opts.parseArrays !== false,
         plainObjects: typeof opts.plainObjects === "boolean" ? opts.plainObjects : defaults.plainObjects,
         strictDepth: typeof opts.strictDepth === "boolean" ? !!opts.strictDepth : defaults.strictDepth,
+        strictMerge: typeof opts.strictMerge === "boolean" ? !!opts.strictMerge : defaults.strictMerge,
         strictNullHandling: typeof opts.strictNullHandling === "boolean" ? opts.strictNullHandling : defaults.strictNullHandling,
         throwOnLimitExceeded: typeof opts.throwOnLimitExceeded === "boolean" ? opts.throwOnLimitExceeded : false
       };
@@ -16998,9 +17081,12 @@ var require_urlencoded = __commonJS({
       }
       var extended = opts.extended !== false;
       var inflate = opts.inflate !== false;
-      var limit = typeof opts.limit !== "number" ? bytes.parse(opts.limit || "100kb") : opts.limit;
+      var limit = typeof opts.limit === "undefined" || opts.limit === null ? 102400 : bytes.parse(opts.limit);
       var type = opts.type || "application/x-www-form-urlencoded";
       var verify = opts.verify || false;
+      if (limit === null) {
+        throw new TypeError('option limit "' + String(opts.limit) + '" is invalid');
+      }
       if (verify !== false && typeof verify !== "function") {
         throw new TypeError("option verify must be function");
       }
@@ -17096,14 +17182,14 @@ var require_urlencoded = __commonJS({
     }
     function parameterCount(body, limit) {
       var count = 0;
-      var index = 0;
-      while ((index = body.indexOf("&", index)) !== -1) {
+      var index = -1;
+      do {
         count++;
-        index++;
-        if (count === limit) {
+        if (count > limit) {
           return void 0;
         }
-      }
+        index = body.indexOf("&", index + 1);
+      } while (index !== -1);
       return count;
     }
     function parser(name) {
@@ -17647,6 +17733,7 @@ var require_path_to_regexp = __commonJS({
           }
           pos = offset + match.length;
           if (match === "*") {
+            backtrack = "";
             extraOffset += 3;
             return "(.*)";
           }
@@ -17667,6 +17754,7 @@ var require_path_to_regexp = __commonJS({
             offset: offset + extraOffset
           });
           var result = "(?:" + format + slash + capture + (star ? "((?:[/" + format + "].+?)?)" : "") + ")" + optional;
+          backtrack = "";
           extraOffset += result.length - match.length;
           return result;
         }
@@ -20565,7 +20653,8 @@ var require_utils2 = __commonJS({
     }
     function parseExtendedQueryString(str) {
       return qs.parse(str, {
-        allowPrototypes: true
+        allowPrototypes: true,
+        arrayLimit: 1e3
       });
     }
     function newObject() {
