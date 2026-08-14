@@ -111,6 +111,8 @@ void draw_vline(word x, byte y, byte h, byte color);
 
 void draw_copy_solid(word x, byte y, byte w, byte h, const byte* data, byte solid);
 
+void draw_box(word x1, byte y1, word x2, byte y2, byte color);
+
 // BCD
 asm word bcd_add(word a, word b);
 
