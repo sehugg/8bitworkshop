@@ -527,6 +527,8 @@ export class TextDataNode extends CodeProjectDataNode {
       throw Error("Cannot put " + this.right.words.length + " image bytes into array of " + this.words.length + " bytes");
     this.words = this.right.words;
     var datastr = this.project.getAssetText(this.fileid, this.rangeId);
+    if (datastr == null)
+      throw Error("Could not find source code range for asset " + this.fileid);
     datastr = replaceHexWords(datastr, this.words, this.bpw);
     // CM6 state field automatically remaps all tracked ranges.
     this.project.replaceAssetText(this.fileid, this.rangeId, datastr);
@@ -535,6 +537,8 @@ export class TextDataNode extends CodeProjectDataNode {
 
   updateRight() {
     var datastr = this.project.getAssetText(this.fileid, this.rangeId);
+    if (datastr == null)
+      throw Error("Could not find source code range for asset " + this.fileid);
     datastr = convertToHexStatements(datastr);
     var words = parseHexWords(datastr);
     this.words = words;
@@ -940,7 +944,7 @@ export class CharmapEditor extends PixNode {
       // TODO: variable scale?
       const aspect = this.fmt.aspect || 1.0;
       const yscale = Math.min(MAX_SCALE,
-        MAX_SIZE_X / viewer.displayWidth * aspect,
+        MAX_SIZE_X / (viewer.displayWidth * aspect),
         MAX_SIZE_Y / this.fmt.h);
       const xscale = yscale * aspect;
       this.createEditor(aeditor, viewer, xscale, yscale);
