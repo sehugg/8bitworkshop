@@ -6388,7 +6388,7 @@
   }
 
   // src/common/wasi/wasishim.ts
-  var use_debug = true;
+  var use_debug = false;
   var debug = use_debug ? console.log : () => {
   };
   var warning = console.log;

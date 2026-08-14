@@ -28,7 +28,7 @@
 // https://fossies.org/linux/wasm3/source/extra/wasi_core.h
 // https://wasix.org/docs/api-reference/wasi/fd_read
 
-const use_debug = true;
+const use_debug = false;
 const debug = use_debug ? console.log : () => { };
 const warning = console.log;
 

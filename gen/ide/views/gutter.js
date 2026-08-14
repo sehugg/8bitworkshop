@@ -146,7 +146,19 @@ class OffsetMarker extends view_1.GutterMarker {
         super();
         this.hex = hex;
     }
-    toDOM() { return document.createTextNode(this.hex); }
+    toDOM() {
+        const span = document.createElement("span");
+        span.textContent = this.hex;
+        span.style.cursor = "pointer";
+        span.title = "Click to run to here";
+        span.addEventListener("mouseenter", () => {
+            span.style.textDecoration = "underline";
+        });
+        span.addEventListener("mouseleave", () => {
+            span.style.textDecoration = "none";
+        });
+        return span;
+    }
     eq(other) { return this.hex == other.hex; }
 }
 class BytesMarker extends view_1.GutterMarker {
@@ -235,7 +247,16 @@ const CURRENT_PC_MARKER = new class extends view_1.GutterMarker {
 const offsetGutter = (0, view_1.gutter)({
     class: "gutter-offset",
     markers: v => v.state.field(offsetField),
-    initialSpacer: () => new OffsetMarker("0000")
+    initialSpacer: () => new OffsetMarker("0000"),
+    domEventHandlers: {
+        click(view, line) {
+            const lineNum = view.state.doc.lineAt(line.from).number;
+            view.dispatch({
+                effects: runToLineEffect.of(lineNum)
+            });
+            return true;
+        }
+    }
 });
 const bytesGutter = (0, view_1.gutter)({
     class: "gutter-bytes",

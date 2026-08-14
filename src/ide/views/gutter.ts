@@ -146,7 +146,19 @@ const currentPcField = StateField.define<RangeSet<GutterMarker>>({
 
 class OffsetMarker extends GutterMarker {
     constructor(readonly hex: string) { super(); }
-    toDOM() { return document.createTextNode(this.hex); }
+    toDOM() {
+        const span = document.createElement("span");
+        span.textContent = this.hex;
+        span.style.cursor = "pointer";
+        span.title = "Click to run to here";
+        span.addEventListener("mouseenter", () => {
+            span.style.textDecoration = "underline";
+        });
+        span.addEventListener("mouseleave", () => {
+            span.style.textDecoration = "none";
+        });
+        return span;
+    }
     eq(other: OffsetMarker) { return this.hex == other.hex; }
 }
 
@@ -234,7 +246,16 @@ const CURRENT_PC_MARKER = new class extends GutterMarker {
 const offsetGutter = gutter({
     class: "gutter-offset",
     markers: v => v.state.field(offsetField),
-    initialSpacer: () => new OffsetMarker("0000")
+    initialSpacer: () => new OffsetMarker("0000"),
+    domEventHandlers: {
+        click(view, line) {
+            const lineNum = view.state.doc.lineAt(line.from).number;
+            view.dispatch({
+                effects: runToLineEffect.of(lineNum)
+            });
+            return true;
+        }
+    }
 });
 
 const bytesGutter = gutter({
