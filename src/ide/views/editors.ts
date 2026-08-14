@@ -1,4 +1,4 @@
-import { defaultKeymap, history, historyKeymap, indentSelection, isolateHistory, redo, undo } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, isolateHistory, redo, undo } from "@codemirror/commands";
 import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, foldGutter, indentOnInput, indentService, indentUnit } from "@codemirror/language";
@@ -198,10 +198,8 @@ export class SourceEditor implements ProjectView {
 
         // Keybindings from settings must appear before default keymap.
         ...settingsExtensions(loadSettings()),
-        keymap.of([
-          { key: "Ctrl-Shift-i", run: indentSelection },
-          { key: "Cmd-Shift-i", run: indentSelection },
-        ]),
+        // https://codemirror.net/docs/ref/#commands.defaultKeymap includes
+        // https://codemirror.net/docs/ref/#commands.standardKeymap
         keymap.of(defaultKeymap),
 
         lineNums ? lineNumbers() : [],
@@ -561,7 +559,7 @@ export class SourceEditor implements ProjectView {
     if (line) {
       // Validate line number is within document range (TODO: open disassembler)
       if (line.line < 1 || line.line > this.editor.state.doc.lines) {
-        return false;
+        return;
       }
       addCurrentMarker(line);
       if (moveCursor) {
@@ -573,7 +571,6 @@ export class SourceEditor implements ProjectView {
         });
       }
       this.currentDebugLine = line;
-      return true;
     }
   }
 

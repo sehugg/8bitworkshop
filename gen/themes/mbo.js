@@ -39,25 +39,28 @@ exports.mboTheme = view_1.EditorView.theme({
         color: "#33ff33 !important"
     },
     ".cm-highlightSpace": {
-        backgroundImage: "radial-gradient(circle at 50% 55%, #aaa5 11%, transparent 5%)"
+        backgroundImage: "radial-gradient(circle at 50% 55%, #aaaaaa45 11%, transparent 5%)"
     },
     ".cm-highlightTab": {
-        backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="20"><path stroke="%23aaa5" stroke-width="1" fill="none" d="M0 10H10L7 6M10 10L7 14"/></svg>')`,
+        backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="20"><path stroke="%23aaaaaa45" stroke-width="1" fill="none" d="M0 10H10L7 6M10 10L7 14"/></svg>')`,
         backgroundPosition: "left 50%"
     },
 }, { dark: true });
 exports.mboHighlightStyle = language_1.HighlightStyle.define([
-    { tag: highlight_1.tags.keyword, color: "#ffb928" },
+    { tag: highlight_1.tags.standard(highlight_1.tags.keyword), color: "#ffb928" },
+    { tag: highlight_1.tags.special(highlight_1.tags.keyword), color: "#ffee80" },
     { tag: [highlight_1.tags.name, highlight_1.tags.standard(highlight_1.tags.name)], color: "#ffffec" },
     { tag: highlight_1.tags.variableName, color: "#9ddfe9" },
-    { tag: [highlight_1.tags.deleted, highlight_1.tags.macroName], color: "#00a8c6" }, // maps to cm-variable-2
-    { tag: [highlight_1.tags.processingInstruction, highlight_1.tags.string, highlight_1.tags.inserted], color: "#b4fdb7" }, // Updated string color
-    { tag: highlight_1.tags.number, color: "#33aadd" }, // Updated number color
+    { tag: highlight_1.tags.local(highlight_1.tags.variableName), color: "#7eb8c4" },
+    { tag: [highlight_1.tags.deleted, highlight_1.tags.macroName], color: "#00a8c6" },
+    { tag: [highlight_1.tags.processingInstruction, highlight_1.tags.keyword, highlight_1.tags.controlKeyword], color: "#c792ea" },
+    { tag: [highlight_1.tags.string, highlight_1.tags.inserted], color: "#b4fdb7" },
+    { tag: [highlight_1.tags.number, highlight_1.tags.modifier], color: "#33aadd" },
     { tag: [highlight_1.tags.atom, highlight_1.tags.bool, highlight_1.tags.special(highlight_1.tags.variableName)], color: "#00a8c6" },
     { tag: highlight_1.tags.definition(highlight_1.tags.variableName), color: "#ffb928" },
-    { tag: [highlight_1.tags.propertyName, highlight_1.tags.attributeName, highlight_1.tags.tagName], color: "#9ddfe9" },
-    { tag: highlight_1.tags.definition(highlight_1.tags.name), color: "#88eeff" }, // maps to cm-def
-    { tag: highlight_1.tags.typeName, color: "#ffb928" }, // maps to cm-variable-3
+    { tag: [highlight_1.tags.propertyName, highlight_1.tags.attributeName, highlight_1.tags.tagName, highlight_1.tags.self], color: "#9ddfe9" },
+    { tag: highlight_1.tags.definition(highlight_1.tags.name), color: "#88eeff" },
+    { tag: highlight_1.tags.typeName, color: "#ffb928" },
     { tag: highlight_1.tags.bracket, color: "#fffffc", fontWeight: "bold" },
     { tag: highlight_1.tags.comment, color: "#95958a" },
     { tag: highlight_1.tags.link, color: "#f54b07" },

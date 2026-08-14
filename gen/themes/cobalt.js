@@ -41,6 +41,7 @@ const cobaltHighlightStyle = language_1.HighlightStyle.define([
     { tag: highlight_1.tags.atom, color: "#845dc4 " },
     { tag: [highlight_1.tags.number, highlight_1.tags.attributeName, highlight_1.tags.className, highlight_1.tags.constant(highlight_1.tags.name)], color: "#ff80e1" },
     { tag: highlight_1.tags.keyword, color: "#ffee80" },
+    { tag: highlight_1.tags.special(highlight_1.tags.keyword), color: "#ffee80" },
     { tag: highlight_1.tags.string, color: "#3ad900" },
     { tag: highlight_1.tags.meta, color: "#ff9d00" },
     { tag: [highlight_1.tags.tagName, highlight_1.tags.variableName, highlight_1.tags.modifier, highlight_1.tags.labelName, highlight_1.tags.namespace], color: "#9effff" },

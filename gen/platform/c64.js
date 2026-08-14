@@ -42,6 +42,7 @@ const C64_PRESETS = [
     { id: 'hello.dasm', name: 'Hello World (DASM)', category: 'Assembly Language' },
     { id: 'hello.acme', name: 'Hello World (ACME)' },
     { id: 'hello.wiz', name: 'Hello Wiz (Wiz)' },
+    // {id:'kitchensink.dasm', name:'Kitchensink (DASM)'},
 ];
 const C64_MEMORY_MAP = { main: [
         { name: '6510 Registers', start: 0x0, size: 0x2, type: 'io' },

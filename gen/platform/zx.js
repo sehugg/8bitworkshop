@@ -7,6 +7,7 @@ const ZX_PRESETS = [
     { id: 'hello.asm', name: 'Hello World (ASM)' },
     { id: 'bios.c', name: 'BIOS Routines (C)' },
     { id: 'cosmic.c', name: 'Cosmic Impalas (C)' },
+    // {id:'kitchensink.zmac', name:'Kitchensink (ZMAC)'},
 ];
 const ZX_MEMORY_MAP = { main: [
         { name: 'BIOS', start: 0x0000, size: 0x4000, type: 'rom' },

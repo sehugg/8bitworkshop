@@ -183,10 +183,8 @@ class SourceEditor {
                 }) : [],
                 // Keybindings from settings must appear before default keymap.
                 ...(0, settings_1.settingsExtensions)((0, settings_1.loadSettings)()),
-                view_1.keymap.of([
-                    { key: "Ctrl-Shift-i", run: commands_1.indentSelection },
-                    { key: "Cmd-Shift-i", run: commands_1.indentSelection },
-                ]),
+                // https://codemirror.net/docs/ref/#commands.defaultKeymap includes
+                // https://codemirror.net/docs/ref/#commands.standardKeymap
                 view_1.keymap.of(commands_1.defaultKeymap),
                 lineNums ? (0, view_1.lineNumbers)() : [],
                 // Undo history.
@@ -502,7 +500,7 @@ class SourceEditor {
         if (line) {
             // Validate line number is within document range (TODO: open disassembler)
             if (line.line < 1 || line.line > this.editor.state.doc.lines) {
-                return false;
+                return;
             }
             addCurrentMarker(line);
             if (moveCursor) {
@@ -514,7 +512,6 @@ class SourceEditor {
                 });
             }
             this.currentDebugLine = line;
-            return true;
         }
     }
     clearCurrentLine(moveCursor) {

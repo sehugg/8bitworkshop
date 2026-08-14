@@ -55,7 +55,6 @@ exports.getTestOutput = getTestOutput;
 exports.getSaveState = getSaveState;
 exports.emulationHalted = emulationHalted;
 exports.reloadWorkspaceFile = reloadWorkspaceFile;
-exports.highlightSearch = highlightSearch;
 const localforage = __importStar(require("localforage"));
 const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
@@ -131,7 +130,7 @@ const TOOL_TO_SOURCE_STYLE = {
     'bataribasic': 'bataribasic',
     'markdown': 'markdown',
     'js': 'javascript',
-    'xasm6809': 'z80',
+    'xasm6809': '6809',
     'cmoc': 'text/x-csrc',
     'yasm': 'gas',
     'smlrc': 'text/x-csrc',
@@ -2302,15 +2301,6 @@ function writeOutputROMFile() {
         var suffix = (exports.platform.getROMExtension && exports.platform.getROMExtension(current_output))
             || "-" + (0, util_1.getBasePlatform)(exports.platform_id) + ".bin";
         alternateLocalFilesystem.setFileData(`bin/${prefix}${suffix}`, current_output);
-    }
-}
-function highlightSearch(query) {
-    var wnd = exports.projectWindows.getActive();
-    if (wnd instanceof editors_1.SourceEditor) {
-        var sc = wnd.editor.getSearchCursor(query);
-        if (sc.findNext()) {
-            wnd.editor.setSelection(sc.pos.to, sc.pos.from);
-        }
     }
 }
 function startUIWhenVisible() {

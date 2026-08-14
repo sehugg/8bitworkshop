@@ -127,7 +127,7 @@ const TOOL_TO_SOURCE_STYLE = {
   'bataribasic': 'bataribasic',
   'markdown': 'markdown',
   'js': 'javascript',
-  'xasm6809': 'z80',
+  'xasm6809': '6809',
   'cmoc': 'text/x-csrc',
   'yasm': 'gas',
   'smlrc': 'text/x-csrc',
@@ -2321,15 +2321,6 @@ function writeOutputROMFile() {
     var suffix = (platform.getROMExtension && platform.getROMExtension(current_output))
       || "-" + getBasePlatform(platform_id) + ".bin";
     alternateLocalFilesystem.setFileData(`bin/${prefix}${suffix}`, current_output);
-  }
-}
-export function highlightSearch(query: string) { // TODO: filename?
-  var wnd = projectWindows.getActive();
-  if (wnd instanceof SourceEditor) {
-    var sc = wnd.editor.getSearchCursor(query);
-    if (sc.findNext()) {
-      wnd.editor.setSelection(sc.pos.to, sc.pos.from);
-    }
   }
 }
 
