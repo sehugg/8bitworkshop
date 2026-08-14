@@ -32,6 +32,39 @@ const gutter_1 = require("./gutter");
 const visuals_1 = require("./visuals");
 // look ahead this many bytes when finding source lines for a PC
 exports.PC_LINE_LOOKAHEAD = 64;
+// Asset range tracking. Positions are automatically remapped through
+// document changes (edits, undo, redo) by CodeMirror's transaction system.
+const setAssetRangesEffect = state_1.StateEffect.define();
+const clearAssetRangesEffect = state_1.StateEffect.define();
+const assetRangesField = state_1.StateField.define({
+    create() { return new Map(); },
+    update(ranges, tr) {
+        let result = ranges;
+        for (let e of tr.effects) {
+            if (e.is(clearAssetRangesEffect)) {
+                result = new Map();
+            }
+            else if (e.is(setAssetRangesEffect)) {
+                if (result === ranges)
+                    result = new Map(ranges);
+                for (let r of e.value) {
+                    result.set(r.id, { from: r.from, to: r.to });
+                }
+            }
+        }
+        if (!tr.changes.empty) {
+            const mapped = new Map();
+            for (const [id, r] of result) {
+                mapped.set(id, {
+                    from: tr.changes.mapPos(r.from, -1),
+                    to: tr.changes.mapPos(r.to, 1)
+                });
+            }
+            return mapped;
+        }
+        return result;
+    }
+});
 const MAX_ERRORS = 200;
 const MODEDEFS = {
     default: { theme: mbo_1.mbo }, // NOTE: Not merged w/ other modes
@@ -217,6 +250,7 @@ class SourceEditor {
                 gutter_1.currentPcMarker.field,
                 gutter_1.currentPcMarker.gutter,
                 visuals_1.highlightLines.field,
+                assetRangesField,
                 (0, assetdecorations_1.createAssetHeaderPlugin)((lineNumber) => {
                     window.location.hash = 'asseteditor/' + encodeURIComponent(this.path) + '/' + lineNumber;
                 }),
@@ -244,6 +278,13 @@ class SourceEditor {
         this.updateTimer = setTimeout(() => {
             ui_1.current_project.updateFile(this.path, this.editor.state.doc.toString());
         }, this.refreshDelayMsec);
+    }
+    flushChanges() {
+        if (this.updateTimer) {
+            clearTimeout(this.updateTimer);
+            this.updateTimer = null;
+            ui_1.current_project.updateFile(this.path, this.editor.state.doc.toString());
+        }
     }
     inspectUnderCursor(update) {
         // TODO: handle multi-select
@@ -274,15 +315,36 @@ class SourceEditor {
         }
     }
     replaceTextRange(from, to, text) {
-        const fromline = this.editor.state.doc.lineAt(from).number;
-        const toline = this.editor.state.doc.lineAt(to).number;
+        const lineStart = this.editor.state.doc.lineAt(from).from;
         this.editor.dispatch({
             changes: { from, to, insert: text },
             annotations: commands_1.isolateHistory.of("full"),
-            selection: { anchor: from, head: to },
+            selection: { anchor: from + text.length, head: from },
             effects: [
-                view_1.EditorView.scrollIntoView(this.editor.state.doc.line(fromline).from, { y: "start", yMargin: 100 /*pixels*/ }),
+                view_1.EditorView.scrollIntoView(lineStart, { y: "start", yMargin: 100 /*pixels*/ }),
             ]
+        });
+    }
+    setAssetRange(id, from, to) {
+        this.editor.dispatch({
+            effects: setAssetRangesEffect.of([{ id, from, to }])
+        });
+    }
+    getAssetText(id) {
+        var range = this.editor.state.field(assetRangesField).get(id);
+        if (!range)
+            return null;
+        return this.editor.state.doc.sliceString(range.from, range.to);
+    }
+    replaceAssetText(id, text) {
+        var range = this.editor.state.field(assetRangesField).get(id);
+        if (!range)
+            return;
+        this.replaceTextRange(range.from, range.to, text);
+    }
+    clearAssetRanges() {
+        this.editor.dispatch({
+            effects: clearAssetRangesEffect.of(undefined)
         });
     }
     insertLinesBefore(text) {

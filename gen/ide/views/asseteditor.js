@@ -34,11 +34,11 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AssetEditorView = void 0;
-const baseviews_1 = require("./baseviews");
-const ui_1 = require("../ui");
 const gbpalette_1 = require("../../common/gbpalette");
 const util_1 = require("../../common/util");
 const pixed = __importStar(require("../pixeleditor"));
+const ui_1 = require("../ui");
+const baseviews_1 = require("./baseviews");
 const Mousetrap = require("mousetrap");
 function getLineNumber(data, offset) {
     let line = 1;
@@ -387,6 +387,7 @@ class AssetEditorView {
                     .appendTo(this.ensureFileDiv(fileid));
                 var snip = $('<div class="asset_snip"/>').appendTo(block);
                 var linenos = $('<span class="asset_linenos"/>').appendTo(snip);
+                $('<span class="asset_lineno"/>').text('↗ ').appendTo(linenos);
                 $('<span class="asset_lineno"/>').text(frag.startline).appendTo(linenos);
                 linenos.append('-');
                 $('<span class="asset_lineno"/>').text(frag.endline).appendTo(linenos);
@@ -457,6 +458,8 @@ class AssetEditorView {
             this.clearAssets();
             ui_1.current_project.iterateFiles((fileid, data) => {
                 try {
+                    // Clear stale tracked ranges before re-scanning this file.
+                    ui_1.projectWindows.clearAssetRanges(fileid);
                     var nassets = this.refreshAssetsInFile(fileid, data);
                 }
                 catch (e) {
@@ -513,9 +516,11 @@ class AssetEditorView {
     setVisible(showing) {
         // TODO: make into toolbar?
         if (showing) {
-            // limit undo/redo to since opening this editor
-            ui_1.projectWindows.undofiles = [];
-            ui_1.projectWindows.redofiles = [];
+            // ensure asset editor is safe to perform synchronous reads/writes
+            ui_1.projectWindows.flushAllWindows();
+            // limit undo/redo to since opening this asset editor
+            ui_1.projectWindows.undoStack = [];
+            ui_1.projectWindows.redoStack = [];
             if (Mousetrap.bind) {
                 Mousetrap.bind('mod+z', (e) => { ui_1.projectWindows.undoStep(); return false; });
                 Mousetrap.bind('mod+shift+z', (e) => { ui_1.projectWindows.redoStep(); return false; });

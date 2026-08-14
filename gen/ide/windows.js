@@ -11,8 +11,8 @@ class ProjectWindows {
         this.id2div = {};
         this.containerdiv = containerdiv;
         this.project = project;
-        this.undofiles = [];
-        this.redofiles = [];
+        this.undoStack = [];
+        this.redoStack = [];
     }
     // TODO: delete windows ever?
     isWindow(id) {
@@ -126,58 +126,118 @@ class ProjectWindows {
         }
     }
     updateFile(fileid, data) {
-        // is there an editor? if so, use it
-        var wnd = this.id2window[fileid];
-        if (wnd && wnd.setText && typeof data === 'string') {
-            wnd.setText(data);
-            this.undofiles.push(fileid);
-            this.redofiles = [];
-        }
-        else {
+        if (data instanceof Uint8Array) {
+            var prev = this.project.getFile(fileid);
+            this.undoStack.push({ fileid, data: prev instanceof Uint8Array ? new Uint8Array(prev) : undefined });
             this.project.updateFile(fileid, data);
         }
+        else {
+            var wnd = this.id2window[fileid];
+            if (wnd && wnd.setText && typeof data === 'string') {
+                wnd.setText(data);
+                this.undoStack.push({ fileid });
+            }
+            else {
+                this.project.updateFile(fileid, data);
+                return;
+            }
+        }
+        this.redoStack = [];
     }
-    replaceTextRange(fileid, from, to, text) {
+    setAssetRange(fileid, id, from, to) {
         var wnd = this.id2window[fileid] || this.create(fileid);
-        wnd.replaceTextRange(from, to, text);
-        this.undofiles.push(fileid);
-        this.redofiles = [];
+        if (wnd.setAssetRange) {
+            wnd.setAssetRange(id, from, to);
+        }
+    }
+    getAssetText(fileid, id) {
+        var wnd = this.id2window[fileid] || this.create(fileid);
+        if (wnd.getAssetText) {
+            return wnd.getAssetText(id);
+        }
+        return null;
+    }
+    replaceAssetText(fileid, id, text) {
+        var wnd = this.id2window[fileid] || this.create(fileid);
+        if (wnd.replaceAssetText) {
+            wnd.replaceAssetText(id, text);
+        }
+        this.undoStack.push({ fileid });
+        this.redoStack = [];
+    }
+    clearAssetRanges(fileid) {
+        var wnd = this.id2window[fileid];
+        if (wnd && wnd.clearAssetRanges) {
+            wnd.clearAssetRanges();
+        }
     }
     undoStep() {
-        var fileid = this.undofiles.pop();
-        var wnd = this.id2window[fileid];
-        if (wnd && wnd.undoStep) {
-            wnd.undoStep();
-            if (wnd.getValue) {
-                this.project.updateFile(fileid, wnd.getValue());
-            }
-            this.redofiles.push(fileid);
-            this.refresh(false);
+        var entry = this.undoStack.pop();
+        if (!entry) {
+            this.showAlert("No more steps to undo.");
+            return;
+        }
+        if (entry.data) {
+            var current = this.project.getFile(entry.fileid);
+            this.redoStack.push({ fileid: entry.fileid, data: current instanceof Uint8Array ? new Uint8Array(current) : undefined });
+            this.project.updateFile(entry.fileid, entry.data);
         }
         else {
-            this.showAlert("No more steps to undo.");
+            var wnd = this.id2window[entry.fileid];
+            if (wnd && wnd.undoStep) {
+                wnd.undoStep();
+                if (wnd.getValue) {
+                    this.project.updateFile(entry.fileid, wnd.getValue());
+                }
+                this.redoStack.push({ fileid: entry.fileid });
+            }
+            else {
+                this.showAlert("No more steps to undo.");
+                return;
+            }
         }
+        this.refresh(false);
     }
     redoStep() {
-        var fileid = this.redofiles.pop();
-        var wnd = this.id2window[fileid];
-        if (wnd && wnd.redoStep) {
-            wnd.redoStep();
-            if (wnd.getValue) {
-                this.project.updateFile(fileid, wnd.getValue());
-            }
-            this.undofiles.push(fileid);
-            this.refresh(false);
+        var entry = this.redoStack.pop();
+        if (!entry) {
+            this.showAlert("No more steps to redo.");
+            return;
+        }
+        if (entry.data) {
+            var current = this.project.getFile(entry.fileid);
+            this.undoStack.push({ fileid: entry.fileid, data: current instanceof Uint8Array ? new Uint8Array(current) : undefined });
+            this.project.updateFile(entry.fileid, entry.data);
         }
         else {
-            this.showAlert("No more steps to redo.");
+            var wnd = this.id2window[entry.fileid];
+            if (wnd && wnd.redoStep) {
+                wnd.redoStep();
+                if (wnd.getValue) {
+                    this.project.updateFile(entry.fileid, wnd.getValue());
+                }
+                this.undoStack.push({ fileid: entry.fileid });
+            }
+            else {
+                this.showAlert("No more steps to redo.");
+                return;
+            }
         }
+        this.refresh(false);
     }
     showAlert(msg) {
         if (this.alerting)
             return;
         this.alerting = true;
         bootbox.alert(msg, () => { this.alerting = false; });
+    }
+    flushAllWindows() {
+        for (var fileid in this.id2window) {
+            var wnd = this.id2window[fileid];
+            if (wnd && wnd.flushChanges) {
+                wnd.flushChanges();
+            }
+        }
     }
     updateAllOpenWindows(store) {
         for (var fileid in this.id2window) {
