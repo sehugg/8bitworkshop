@@ -65,6 +65,9 @@
     "jsfuzz": "^1.0.14",
     "nightwatch": "^3.12.2"
   },
+  "peerDependencies": {
+    "quickjs-wasi": "^2.2.0"
+  },
   "overrides": {
     "fetch-vcr": {
       "node-fetch": "2.6.7"

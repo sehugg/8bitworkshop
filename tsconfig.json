@@ -3,8 +3,7 @@
         "src/**/*.ts"
     ],
     "compilerOptions": {
-        "rootDir": ".",
-        "outDir": "./gen",
+        "outDir": "gen",
         "allowJs": false,
         "checkJs": false,
         "sourceMap": true,
