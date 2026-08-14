@@ -58,6 +58,7 @@ function importPlatform(name) {
         case "msx": return Promise.resolve().then(() => __importStar(require("../platform/msx")));
         case "mw8080bw": return Promise.resolve().then(() => __importStar(require("../platform/mw8080bw")));
         case "nes": return Promise.resolve().then(() => __importStar(require("../platform/nes")));
+        case "pacman": return Promise.resolve().then(() => __importStar(require("../platform/pacman")));
         case "pce": return Promise.resolve().then(() => __importStar(require("../platform/pce")));
         case "sms": return Promise.resolve().then(() => __importStar(require("../platform/sms")));
         case "sound_konami": return Promise.resolve().then(() => __importStar(require("../platform/sound_konami")));

@@ -66,7 +66,7 @@ function FastZ80(coreParameter) {
     //  the memory refresh, the stack pointer, and the program counter.
     let i = 0x00;
     let r = 0x00;
-    let sp = 0xdff0;
+    let sp = 0x0000; // Changed from 0xdff0 - SP should be undefined at reset, program must initialize it
     let pc = 0x0000;
     // We don't keep an F register for the flags,
     //  because most of the time we're only accessing a single flag,
@@ -152,7 +152,7 @@ function FastZ80(coreParameter) {
         // These registers are the ones that have predictable states
         //  immediately following a power-on or a reset.
         // The others are left alone, because their states are unpredictable.
-        sp = 0xdff0;
+        sp = 0x0000;
         pc = 0x0000;
         a = 0x00;
         r = 0x00;

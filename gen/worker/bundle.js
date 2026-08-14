@@ -4896,6 +4896,22 @@
       data_size: 1024,
       stack_end: 18432
     },
+    "pacman": {
+      arch: "z80",
+      code_start: 0,
+      /* ABS CRT (_HEADER) ends ~0xCA; _CODE follows immediately (uses former hole). */
+      codeseg_start: 202,
+      rom_size: 32768,
+      // 16KB prog + 8KB gfx + palette, padded to 32KB
+      /* Real hardware: 0x4800-0x4BFF open bus; work RAM 0x4C00-0x4FEF.
+       * Namco sound soft-regs live at 0x4E8C-0x4EFB — keep _DATA below that
+       * or the WSG engine stomps game vars every VBLANK (e.g. mouth anim). */
+      data_start: 19456,
+      data_size: 652,
+      // 0x4c00-0x4e8b (stop before sound soft-regs)
+      stack_end: 20416
+      // above sound block; sprite attrs at 0x4ff0-0x4fff
+    },
     "williams": {
       arch: "6809",
       code_start: 0,
