@@ -30,7 +30,7 @@
 #ifndef __DRAWING_H
 #define __DRAWING_H
 
-#include <types.h>
+#include "types.h"
 #include <stdint.h>
 
 /** Size of the screen in pixels */
@@ -56,7 +56,7 @@
 #define SIGNED   1
 #define UNSIGNED 0
 
-#include <types.h>
+#include "types.h"
 
 /** Print the string 'str' with no interpretation
     @see gotogxy()

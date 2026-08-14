@@ -8,7 +8,7 @@
 #ifndef __GBDECOMPRESS_H_INCLUDE
 #define __GBDECOMPRESS_H_INCLUDE
 
-#include <types.h>
+#include "types.h"
 #include <stdint.h>
 
 /** gb-decompress data from sour into dest

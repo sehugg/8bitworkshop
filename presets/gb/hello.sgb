@@ -1,5 +1,5 @@
 
-.include "gingerbread.sgb"
+.include "gb/gingerbread.sgb"
 
 ; Set the size of the ROM file here. 0 means 32 kB, 1 means 64 kB, 2 means 128 kB and so on.
 ROM_SIZE = 1

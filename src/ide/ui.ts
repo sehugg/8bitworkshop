@@ -113,6 +113,7 @@ export function getWorkerParams() {
 const TOOL_TO_SOURCE_STYLE = {
   'dasm': '6502',
   'acme': '6502',
+  'xa': '6502',
   'cc65': 'text/x-csrc',
   'ca65': '6502',
   'nesasm': '6502',
@@ -131,6 +132,7 @@ const TOOL_TO_SOURCE_STYLE = {
   'yasm': 'gas',
   'smlrc': 'text/x-csrc',
   'inform6': 'inform6',
+  'dialog': 'dialog',
   'fastbasic': 'fastbasic',
   'basic': 'basic',
   'silice': 'verilog',
@@ -160,6 +162,8 @@ const TOOL_TO_HELPURL = {
   'cmoc': "http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html",
   'remote:llvm-mos': 'https://llvm-mos.org/wiki/Welcome',
   'acme': 'https://raw.githubusercontent.com/sehugg/acme/main/docs/QuickRef.txt',
+  'xa': 'https://www.floodgap.com/retrotech/xa/',
+  'dialog': 'https://linusakesson.net/dialog/docs/',
 }
 
 function newWorker(): Worker {
@@ -489,7 +493,7 @@ function reloadProject(id: string) {
 }
 
 async function getSkeletonFile(fileid: string): Promise<string> {
-  var ext = platform.getToolForFilename(fileid);
+  var ext = platform.getToolForFilename(fileid).replace(/^remote:/, "");
   try {
     return await $.get("presets/" + getBasePlatform(platform_id) + "/skeleton." + ext, 'text');
   } catch (e) {
@@ -1414,6 +1418,10 @@ function _addIncludeFile() {
     addFileToProject("Include", ".ecs", (s) => { return 'import "' + s + '"' });
   else if (tool == 'acme')
     addFileToProject("Include", ".acme", (s) => { return '!src "' + s + '"' });
+  else if (tool == 'xa')
+    addFileToProject("Include", ".xa", (s) => { return '#include "' + s + '"' });
+  else if (tool == 'dialog')
+    addFileToProject("Include", ".dg", (s) => { return '%% #include "' + s + '"' });
   else
     alertError("Can't add include file to this project type (" + tool + ")");
 }

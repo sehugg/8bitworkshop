@@ -11,6 +11,7 @@ import { SourceFile, SourceLocation, WorkerError } from "../../common/workertype
 import { asm6502 } from "../../parser/lang-6502";
 import { basic } from "../../parser/lang-basic";
 import { batariBasic } from "../../parser/lang-bataribasic";
+import { dialog } from "../../parser/lang-dialog";
 import { fastBasic } from "../../parser/lang-fastbasic";
 import { inform6 } from "../../parser/lang-inform6";
 import { verilog } from "../../parser/lang-verilog";
@@ -74,9 +75,10 @@ const MODEDEFS = {
   gas: { isAsm: true },
   vasm: { isAsm: true },
   inform6: { theme: cobalt },
+  dialog: { theme: cobalt, lineWrap: true },
   markdown: { lineWrap: true },
   fastbasic: { noGutters: true },
-  basic: { noLineNumbers: true, noGutters: true },
+  basic: { noGutters: true },
   ecs: { theme: mbo }, // TODO: is actually mixed-mode, as is verilog
 }
 
@@ -129,7 +131,7 @@ export class SourceEditor implements ProjectView {
     var isAsm = isAsmOverride || modedef.isAsm;
     var lineWrap = !!modedef.lineWrap;
     var theme = modedef.theme || MODEDEFS.default.theme;
-    var lineNums = !isAsm && !modedef.noLineNumbers && !isMobileDevice;
+    var lineNums = modedef.useLineNumbers && !isMobileDevice;
     if (qs['embed']) {
       lineNums = false; // no line numbers while embedded
       isAsm = false; // no opcode bytes either
@@ -149,6 +151,9 @@ export class SourceEditor implements ProjectView {
         break;
       case 'fastbasic':
         parser = fastBasic();
+        break;
+      case 'dialog':
+        parser = dialog();
         break;
       case 'inform6':
         parser = inform6();
@@ -546,8 +551,8 @@ export class SourceEditor implements ProjectView {
         effects: [
           currentPcMarker.set.of(line.line),
           currentPc.effect.of(line.line),
-          // Optional: follow the execution point
-          EditorView.scrollIntoView(this.editor.state.doc.line(line.line).from, { y: "center" }),
+          // Follow the execution point when stepping/hitting breakpoints.
+          ...(moveCursor ? [EditorView.scrollIntoView(this.editor.state.doc.line(line.line).from, { y: "center" })] : []),
         ]
       });
     }

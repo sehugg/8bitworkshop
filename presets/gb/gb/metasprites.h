@@ -68,7 +68,7 @@
 #define _METASPRITES_H_INCLUDE
 
 #include <gb/hardware.h>
-#include <types.h>
+#include "types.h"
 #include <stdint.h>
 
 /** Metasprite sub-item structure

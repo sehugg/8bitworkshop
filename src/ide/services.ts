@@ -200,39 +200,39 @@ export class GithubService {
       // load README
       return sess.repo.contents('README.md').read();
     })
-    .catch( (e) => {
-      console.log(e);
-      console.log('no README.md found')
-      // make user repo exists
-      return sess.repo.fetch().then( (_repo) => {
-        return ''; // empty README
+      .catch((e) => {
+        console.log(e);
+        console.log('no README.md found')
+        // make user repo exists
+        return sess.repo.fetch().then((_repo) => {
+          return ''; // empty README
+        })
       })
-    })
-    .then( (readme) => {
-      var m;
-      // check README for main file
-      const re8main = /8bitworkshop.com[^)]+file=([^)&]+)/;
-      m = re8main.exec(readme);
-      if (m && m[1]) {
-        console.log("main path: '" + m[1] + "'");
-        sess.mainPath = m[1];
-      }
-      // check README for proper platform
-      // unless we use githubURL=
-      // TODO: cannot handle multiple URLs in README
-      const re8plat = /8bitworkshop.com[^)]+platform=([A-Za-z0-9._\-]+)/;
-      m = re8plat.exec(readme);
-      if (m) {
-        console.log("platform id: '" + m[1] + "'");
-        if (sess.platform_id && !sess.platform_id.startsWith(m[1]))
-          throw Error("Platform mismatch: Repository is " + m[1] + ", you have " + sess.platform_id + " selected.");
-        sess.platform_id = m[1];
-      }
-      // bind to repository
-      this.bind(sess, true);
-      // get head commit
-      return sess;
-    });
+      .then((readme) => {
+        var m;
+        // check README for main file
+        const re8main = /8bitworkshop.com[^)]+file=([^)&]+)/;
+        m = re8main.exec(readme);
+        if (m && m[1]) {
+          console.log("main path: '" + m[1] + "'");
+          sess.mainPath = m[1];
+        }
+        // check README for proper platform
+        // unless we use githubURL=
+        // TODO: cannot handle multiple URLs in README
+        const re8plat = /8bitworkshop.com[^)]+platform=([A-Za-z0-9._\-]+)/;
+        m = re8plat.exec(readme);
+        if (m) {
+          console.log("platform id: '" + m[1] + "'");
+          if (sess.platform_id && !sess.platform_id.startsWith(m[1]))
+            throw Error("Platform mismatch: Repository is '" + m[1] + "', you have '" + sess.platform_id + "' selected.");
+          sess.platform_id = m[1];
+        }
+        // bind to repository
+        this.bind(sess, true);
+        // get head commit
+        return sess;
+      });
   }
   
   pull(ghurl:string, deststore?) : Promise<GHSession> {
