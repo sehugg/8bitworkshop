@@ -12,7 +12,7 @@
 #ifndef __EMU_DEBUG_INCLUDE
 #define __EMU_DEBUG_INCLUDE
 
-#include <types.h>
+#include "types.h"
 
 /** Macro to display a message in the emulator debug message window
 

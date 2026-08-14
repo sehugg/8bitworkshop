@@ -226,7 +226,7 @@ export class GithubService {
         if (m) {
           console.log("platform id: '" + m[1] + "'");
           if (sess.platform_id && !sess.platform_id.startsWith(m[1]))
-            throw Error("Platform mismatch: Repository is " + m[1] + ", you have " + sess.platform_id + " selected.");
+            throw Error("Platform mismatch: Repository is '" + m[1] + "', you have '" + sess.platform_id + "' selected.");
           sess.platform_id = m[1];
         }
         // bind to repository

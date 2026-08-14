@@ -2,6 +2,10 @@ import { DisasmLine, Platform, Preset, getToolForFilename_6502 } from "../common
 import { Keys, PLATFORMS, RasterVideo } from "../common/emu";
 
 const PCE_PRESETS = [
+    { id: 'gfxtest.c', name: 'Graphics Test (tiles/sprites)' },
+    { id: 'perftest.c', name: 'Graphics Pipeline Benchmark' },
+    { id: 'solarian.c', name: 'Solarian' },
+    { id: 'chase.c', name: 'Chase' },
     { id: 'test_conio.c', name: 'Hello World (conio)' },
     { id: 'siegegame.c', name: 'Siege Game (conio)' },
     { id: 'hello.wiz', name: 'Hello World (Wiz)' },
@@ -49,7 +53,7 @@ class PCEnginePlatform implements Platform {
         return getToolForFilename_6502(fn);
     }
     getDefaultExtensions() {
-        return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"];
+        return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"];
     }
     readAddress(addr: number): number {
         return this.pce.Get(addr);

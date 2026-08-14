@@ -561,7 +561,7 @@ class NESMAMEPlatform extends BaseMAME6502Platform implements Platform {
   getPresets() { return JSNES_PRESETS; }
   getToolForFilename = getToolForFilename_6502;
   getOpcodeMetadata = getOpcodeMetadata_6502;
-  getDefaultExtensions() { return [".c", ".cpp", ".acme", ".ca65", ".dasm", ".ecs", ".wiz"]; }
+  getDefaultExtensions() { return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
 
 }
 

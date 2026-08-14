@@ -1,0 +1,41 @@
+
+#include "cartheader.xa"
+
+Temp = $02
+
+Start
+	sei		; turn off interrupts
+	ldy #0
+Loop
+	lda Message,y	; load message byte
+	beq EOM		; 0 = end of string
+	clc
+	adc #$c0	; convert PETSCII to screen code
+	sta $400+41,y	; store to screen
+	iny
+	bne Loop	; next character
+EOM
+
+Wait1
+	lda $d011
+	bmi Wait1	; wait for line < 256
+Wait2
+	lda $d012	; get current scanline
+Wait3
+	cmp $d012
+	beq Wait3	; wait for scanline to change
+	lsr		; divide by 2
+	lsr		; divide by 2
+	clc
+	adc Temp	; add to frame counter
+	sta $d020	; set border color
+	lda $d011	; get status bits
+	bpl Wait2	; repeat until line >= 256
+	sty $d020	; reset border color
+	dec Temp	; change frame counter
+	jmp Wait1	; endless loop
+
+Message
+	; PETSCII - http://sta.c64.org/cbm64pet.html
+	.asc "HELLO WORLD"
+	.byt 0

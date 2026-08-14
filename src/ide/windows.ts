@@ -1,12 +1,17 @@
 
 import $ = require("jquery");
+import { getFilenameForPath, getFilenamePrefix } from "../common/util";
+import { FileData, WorkerError } from "../common/workertypes";
 import { CodeProject } from "./project";
-import { WorkerError, FileData } from "../common/workertypes";
-import { getFilenamePrefix, getFilenameForPath } from "../common/util";
 import { ProjectView } from "./views/baseviews";
 
 type WindowCreateFunction = (id: string) => ProjectView;
 type WindowShowFunction = (id: string, view: ProjectView) => void;
+
+interface UndoEntry {
+  fileid: string;
+  data?: Uint8Array;
+}
 
 export class ProjectWindows {
   containerdiv: HTMLElement;
@@ -19,16 +24,16 @@ export class ProjectWindows {
   activewnd: ProjectView;
   activediv: HTMLElement;
   lasterrors: WorkerError[];
-  undofiles: string[];
-  redofiles: string[];
+  undoStack: UndoEntry[];
+  redoStack: UndoEntry[];
   titlePrefix: string;
   alerting: boolean;
 
   constructor(containerdiv: HTMLElement, project: CodeProject) {
     this.containerdiv = containerdiv;
     this.project = project;
-    this.undofiles = [];
-    this.redofiles = [];
+    this.undoStack = [];
+    this.redoStack = [];
   }
   // TODO: delete windows ever?
 
@@ -154,58 +159,119 @@ export class ProjectWindows {
   }
 
   updateFile(fileid: string, data: FileData) {
-    // is there an editor? if so, use it
-    var wnd = this.id2window[fileid];
-    if (wnd && wnd.setText && typeof data === 'string') {
-      wnd.setText(data);
-      this.undofiles.push(fileid);
-      this.redofiles = [];
-    } else {
+    if (data instanceof Uint8Array) {
+      var prev = this.project.getFile(fileid);
+      this.undoStack.push({ fileid, data: prev instanceof Uint8Array ? new Uint8Array(prev) : undefined });
       this.project.updateFile(fileid, data);
+    } else {
+      var wnd = this.id2window[fileid];
+      if (wnd && wnd.setText && typeof data === 'string') {
+        wnd.setText(data);
+        this.undoStack.push({ fileid });
+      } else {
+        this.project.updateFile(fileid, data);
+        return;
+      }
+    }
+    this.redoStack = [];
+  }
+
+  setAssetRange(fileid: string, id: string, from: number, to: number) {
+    var wnd = this.id2window[fileid] || this.create(fileid);
+    if (wnd.setAssetRange) {
+      wnd.setAssetRange(id, from, to);
     }
   }
 
-  replaceTextRange(fileid: string, from: number, to: number, text: string) {
+  getAssetText(fileid: string, id: string): string | null {
     var wnd = this.id2window[fileid] || this.create(fileid);
-    wnd.replaceTextRange(from, to, text);
-    this.undofiles.push(fileid);
-    this.redofiles = [];
+    if (wnd.getAssetText) {
+      return wnd.getAssetText(id);
+    }
+    return null;
+  }
+
+  replaceAssetText(fileid: string, id: string, text: string) {
+    var wnd = this.id2window[fileid] || this.create(fileid);
+    if (wnd.replaceAssetText) {
+      wnd.replaceAssetText(id, text);
+    }
+    this.undoStack.push({ fileid });
+    this.redoStack = [];
+  }
+
+  clearAssetRanges(fileid: string) {
+    var wnd = this.id2window[fileid];
+    if (wnd && wnd.clearAssetRanges) {
+      wnd.clearAssetRanges();
+    }
   }
 
   undoStep() {
-    var fileid = this.undofiles.pop();
-    var wnd = this.id2window[fileid];
-    if (wnd && wnd.undoStep) {
-      wnd.undoStep();
-      if (wnd.getValue) {
-        this.project.updateFile(fileid, wnd.getValue());
-      }
-      this.redofiles.push(fileid);
-      this.refresh(false);
-    } else {
+    var entry = this.undoStack.pop();
+    if (!entry) {
       this.showAlert("No more steps to undo.");
+      return;
     }
+    if (entry.data) {
+      var current = this.project.getFile(entry.fileid);
+      this.redoStack.push({ fileid: entry.fileid, data: current instanceof Uint8Array ? new Uint8Array(current) : undefined });
+      this.project.updateFile(entry.fileid, entry.data);
+    } else {
+      var wnd = this.id2window[entry.fileid];
+      if (wnd && wnd.undoStep) {
+        wnd.undoStep();
+        if (wnd.getValue) {
+          this.project.updateFile(entry.fileid, wnd.getValue());
+        }
+        this.redoStack.push({ fileid: entry.fileid });
+      } else {
+        this.showAlert("No more steps to undo.");
+        return;
+      }
+    }
+    this.refresh(false);
   }
 
   redoStep() {
-    var fileid = this.redofiles.pop();
-    var wnd = this.id2window[fileid];
-    if (wnd && wnd.redoStep) {
-      wnd.redoStep();
-      if (wnd.getValue) {
-        this.project.updateFile(fileid, wnd.getValue());
-      }
-      this.undofiles.push(fileid);
-      this.refresh(false);
-    } else {
+    var entry = this.redoStack.pop();
+    if (!entry) {
       this.showAlert("No more steps to redo.");
+      return;
     }
+    if (entry.data) {
+      var current = this.project.getFile(entry.fileid);
+      this.undoStack.push({ fileid: entry.fileid, data: current instanceof Uint8Array ? new Uint8Array(current) : undefined });
+      this.project.updateFile(entry.fileid, entry.data);
+    } else {
+      var wnd = this.id2window[entry.fileid];
+      if (wnd && wnd.redoStep) {
+        wnd.redoStep();
+        if (wnd.getValue) {
+          this.project.updateFile(entry.fileid, wnd.getValue());
+        }
+        this.undoStack.push({ fileid: entry.fileid });
+      } else {
+        this.showAlert("No more steps to redo.");
+        return;
+      }
+    }
+    this.refresh(false);
   }
 
   showAlert(msg: string) {
     if (this.alerting) return;
     this.alerting = true;
     bootbox.alert(msg, () => { this.alerting = false; });
+  }
+
+  flushAllWindows() {
+    for (var fileid in this.id2window) {
+      var wnd = this.id2window[fileid];
+      if (wnd && wnd.flushChanges) {
+        wnd.flushChanges();
+      }
+    }
   }
 
   updateAllOpenWindows(store) {

@@ -303,7 +303,7 @@ class VCSPlatform extends BasePlatform {
     return "\n" + dumpRAM(ram, 0x80, 0x80);
   }
   getToolForFilename = getToolForFilename_vcs;
-  getDefaultExtensions() { return [".dasm", ".a", ".bb", ".acme", ".ca65", ".cc2600", ".ecs", ".wiz", ".c"]; }
+  getDefaultExtensions() { return [".dasm", ".a", ".bb", ".acme", ".xa", ".ca65", ".cc2600", ".ecs", ".wiz", ".c"]; }
   getROMExtension() { return ".a26"; }
 
   getDebugCategories() {
@@ -480,7 +480,7 @@ class VCSMAMEPlatform extends BaseMAME6502Platform implements Platform {
   getPresets = function() { return VCS_PRESETS; }
 
   getToolForFilename = getToolForFilename_vcs;
-  getDefaultExtensions() { return [".c", ".bb", ".acme", ".ca65", ".dasm", ".cc2600", ".ecs", ".wiz"]; }
+  getDefaultExtensions() { return [".c", ".bb", ".acme", ".xa", ".ca65", ".dasm", ".cc2600", ".ecs", ".wiz"]; }
   getROMExtension() { return ".a26"; }
 
   getOriginPC = function() {
@@ -538,7 +538,7 @@ class VCSStellaPlatform implements Platform {
     return this.running;
   }
   getToolForFilename = getToolForFilename_vcs;
-  getDefaultExtensions() { return [".c", ".bb", ".acme", ".ca65", ".dasm", ".cc2600", ".ecs", ".wiz"]; }
+  getDefaultExtensions() { return [".c", ".bb", ".acme", ".xa", ".ca65", ".dasm", ".cc2600", ".ecs", ".wiz"]; }
   getROMExtension() { return ".a26"; }
   getPresets() { return VCS_PRESETS }
 }
