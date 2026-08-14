@@ -5,9 +5,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CodeProject = exports.LocalForageFilesystem = exports.OverlayFilesystem = exports.NullFilesystem = exports.WebPresetsFileSystem = void 0;
 exports.createNewPersistentStore = createNewPersistentStore;
-const workertypes_1 = require("../common/workertypes");
-const util_1 = require("../common/util");
 const localforage_1 = __importDefault(require("localforage"));
+const util_1 = require("../common/util");
+const workertypes_1 = require("../common/workertypes");
 class WebPresetsFileSystem {
     constructor(platform_id) {
         this.preset_id = (0, util_1.getBasePlatform)(platform_id); // remove .suffix from preset name
@@ -28,6 +28,9 @@ class WebPresetsFileSystem {
     async setFileData(path, data) {
         // not implemented
     }
+    onFileSystemUpdate(callback) {
+        // not implemented
+    }
 }
 exports.WebPresetsFileSystem = WebPresetsFileSystem;
 class NullFilesystem {
@@ -42,6 +45,9 @@ class NullFilesystem {
     setFileData(path, data) {
         this.sets.push(path);
         return;
+    }
+    onFileSystemUpdate(callback) {
+        // not implemented
     }
 }
 exports.NullFilesystem = NullFilesystem;
@@ -63,6 +69,10 @@ class OverlayFilesystem {
         await this.overlayfs.setFileData(path, data);
         return this.basefs.setFileData(path, data);
     }
+    onFileSystemUpdate(callback) {
+        this.overlayfs.onFileSystemUpdate(callback);
+        this.basefs.onFileSystemUpdate(callback);
+    }
 }
 exports.OverlayFilesystem = OverlayFilesystem;
 class LocalForageFilesystem {
@@ -74,6 +84,9 @@ class LocalForageFilesystem {
     }
     async setFileData(path, data) {
         return this.store.setItem(path, data);
+    }
+    onFileSystemUpdate(callback) {
+        // not implemented
     }
 }
 exports.LocalForageFilesystem = LocalForageFilesystem;
@@ -94,6 +107,16 @@ class CodeProject {
         worker.onmessage = (e) => {
             this.receiveWorkerMessage(e.data);
         };
+        filesystem.onFileSystemUpdate(async (path) => {
+            if (path in this.filedata) {
+                var data = await this.filesystem.getFileData(path);
+                if (data) {
+                    this.updateFile(path, data);
+                    if (this.onFileChanged)
+                        this.onFileChanged(path, data);
+                }
+            }
+        });
     }
     receiveWorkerMessage(data) {
         var notfinal = this.pendingWorkerMessages > 1;

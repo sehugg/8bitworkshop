@@ -355,6 +355,9 @@ class FirebaseProjectFilesystem {
             filedata: data
         });
     }
+    onFileSystemUpdate(callback) {
+        // not implemented
+    }
 }
 exports.FirebaseProjectFilesystem = FirebaseProjectFilesystem;
 //# sourceMappingURL=services.js.map

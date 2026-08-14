@@ -205,10 +205,19 @@ class BinaryFileView {
         this.path = path;
         this.data = data;
     }
+    populateVlist() {
+        $(this.vlist.maindiv).empty();
+        this.vlist.create(this.parent, ((this.data.length + 15) >> 4), this.getMemoryLineAt.bind(this));
+    }
     createDiv(parent) {
-        this.vlist = new emu_1.VirtualTextScroller(parent);
-        this.vlist.create(parent, ((this.data.length + 15) >> 4), this.getMemoryLineAt.bind(this));
+        this.parent = parent;
+        this.vlist = new emu_1.VirtualTextScroller(this.parent);
+        this.populateVlist();
         return this.vlist.maindiv;
+    }
+    setData(data) {
+        this.data = data;
+        this.populateVlist();
     }
     getMemoryLineAt(row) {
         var offset = row * 16;
