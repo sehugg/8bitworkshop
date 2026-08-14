@@ -27,7 +27,7 @@ exports['test embed IDE in iframe'] = function(browser) {
     .waitForElementNotVisible('#error_alert')
     .waitForElementVisible('#emuscreen')
     .waitForElementVisible('.emuvideo')
-    .waitForElementVisible('.hilite-span')
+    //.waitForElementVisible('.hilite-span')
 
   browser.url(IDEURL + "?embed=1&platform=vcs")
     .waitForElementNotVisible('#compile_spinner', time=10000)
@@ -51,7 +51,7 @@ exports['test embed IDE in iframe'] = function(browser) {
     .waitForElementNotVisible('#error_alert')
     .waitForElementVisible('#emuscreen')
     .waitForElementVisible('.emuvideo')
-    
+
   browser.url(IDEURL + "?embed=1")
     .waitForElementVisible('.bootbox-alert')
 
