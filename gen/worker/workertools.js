@@ -52,6 +52,7 @@ const cc2600 = __importStar(require("./tools/cc2600"));
 const bataribasic = __importStar(require("./tools/bataribasic"));
 const oscar64 = __importStar(require("./tools/oscar64"));
 const xa = __importStar(require("./tools/xa"));
+const dialog = __importStar(require("./tools/dialog"));
 exports.TOOLS = {
     'dasm': dasm.assembleDASM,
     'acme': acme.assembleACME,
@@ -94,6 +95,7 @@ exports.TOOLS = {
     'armtcclink': arm.linkARMTCC,
     'oscar64': oscar64.compileOscar64,
     'xa': xa.assembleXA,
+    'dialog': dialog.compileDialog,
 };
 exports.TOOL_PRELOADFS = {
     'cc65-apple2': '65-apple2',

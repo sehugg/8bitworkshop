@@ -1,0 +1,48 @@
+%% Hello World, in the Dialog interactive fiction language.
+%% https://linusakesson.net/dialog/docs/
+
+%% Story metadata
+(story title)	Hello World
+(story author)	8bitworkshop
+(story noun)	A one-room Dialog demo
+
+%% (intro) runs when the game starts.
+(intro)
+  Welcome to Dialog! Try LOOK, EXAMINE ME, or TURN ON LAMP.
+  (par)
+  (banner)
+  (enter #room)
+
+%% Define an object: the player character.
+%% The * token refers to the last object
+%% labelled on the left margin (the current "topic")
+#player
+(current player *)
+(descr *)	You look marvelous.
+
+%% The only room (for now).
+#room
+(room *)
+(name *)	small room
+(look *)
+  This is a small, featureless room.
+
+%% An object the player can pick up.
+#lamp
+(item *)
+(name *)	brass lamp
+(dict *)	lantern
+(initial appearance *)
+  A brass lamp sits on the floor.
+(descr *)
+  (* is on)
+  It is a battered brass lamp, switched on.
+(descr *)
+  It is a battered brass lamp, currently off.
+
+(* is #in #room)
+(switchable *)
+
+%% A rule: The lamp provides light when it is turned on.
+(* provides light)
+  (* is on)

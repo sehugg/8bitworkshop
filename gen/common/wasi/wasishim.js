@@ -647,6 +647,18 @@ class WASIRunner {
         console.log("path_filestat_get", dir + "", filename, path, filestat_ptr, '->', fd + "");
         if (!fd)
             return WASIErrors.NOENT;
+        this.poke_filestat(filestat_ptr, fd);
+        return WASIErrors.SUCCESS;
+    }
+    fd_filestat_get(fd, filestat_ptr) {
+        const file = this.fds[fd];
+        debug("fd_filestat_get", fd, filestat_ptr, file + "");
+        if (file == null)
+            return WASIErrors.BADF;
+        this.poke_filestat(filestat_ptr, file);
+        return WASIErrors.SUCCESS;
+    }
+    poke_filestat(filestat_ptr, fd) {
         this.poke64(filestat_ptr, fd.fdindex); // dev
         this.poke64(filestat_ptr + 8, 0); // ino
         this.poke8(filestat_ptr + 16, fd.type); // filetype
@@ -716,6 +728,7 @@ class WASIRunner {
             fd_seek: this.fd_seek.bind(this),
             fd_close: this.fd_close.bind(this),
             path_filestat_get: this.path_filestat_get.bind(this),
+            fd_filestat_get: this.fd_filestat_get.bind(this),
             random_get: this.random_get.bind(this),
             path_readlink: this.path_readlink.bind(this),
             path_unlink_file: this.path_unlink_file.bind(this),

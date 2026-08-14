@@ -13,6 +13,7 @@ const util_1 = require("../../common/util");
 const lang_6502_1 = require("../../parser/lang-6502");
 const lang_basic_1 = require("../../parser/lang-basic");
 const lang_bataribasic_1 = require("../../parser/lang-bataribasic");
+const lang_dialog_1 = require("../../parser/lang-dialog");
 const lang_fastbasic_1 = require("../../parser/lang-fastbasic");
 const lang_inform6_1 = require("../../parser/lang-inform6");
 const lang_verilog_1 = require("../../parser/lang-verilog");
@@ -40,9 +41,10 @@ const MODEDEFS = {
     gas: { isAsm: true },
     vasm: { isAsm: true },
     inform6: { theme: cobalt_1.cobalt },
+    dialog: { theme: cobalt_1.cobalt, lineWrap: true },
     markdown: { lineWrap: true },
     fastbasic: { noGutters: true },
-    basic: { noLineNumbers: true, noGutters: true },
+    basic: { noGutters: true },
     ecs: { theme: mbo_1.mbo }, // TODO: is actually mixed-mode, as is verilog
 };
 exports.textMapFunctions = {
@@ -84,7 +86,7 @@ class SourceEditor {
         var isAsm = isAsmOverride || modedef.isAsm;
         var lineWrap = !!modedef.lineWrap;
         var theme = modedef.theme || MODEDEFS.default.theme;
-        var lineNums = !isAsm && !modedef.noLineNumbers && !baseviews_1.isMobileDevice;
+        var lineNums = modedef.useLineNumbers && !baseviews_1.isMobileDevice;
         if (ui_1.qs['embed']) {
             lineNums = false; // no line numbers while embedded
             isAsm = false; // no opcode bytes either
@@ -103,6 +105,9 @@ class SourceEditor {
                 break;
             case 'fastbasic':
                 parser = (0, lang_fastbasic_1.fastBasic)();
+                break;
+            case 'dialog':
+                parser = (0, lang_dialog_1.dialog)();
                 break;
             case 'inform6':
                 parser = (0, lang_inform6_1.inform6)();

@@ -5,7 +5,7 @@ const emu_1 = require("../common/emu");
 const teletype_1 = require("../common/teletype");
 const util_1 = require("../common/util");
 const ZMACHINE_PRESETS = [
-    { id: 'hello.inf', name: 'Hello World' },
+    { id: 'hello.inf', name: 'Hello World', category: 'Inform 6' },
     { id: 'house01.inf', name: 'House Tutorial #1' },
     { id: 'house02.inf', name: 'House Tutorial #2' },
     { id: 'house03.inf', name: 'House Tutorial #3' },
@@ -24,6 +24,8 @@ const ZMACHINE_PRESETS = [
     { id: 'museum.inf', name: 'Museum of Inform' },
     { id: 'advent.inf', name: 'Colossal Cave Adventure' },
     { id: 'ztrek.inf', name: 'Super Z Trek' },
+    { id: 'hello.dg', name: 'Hello Dialog', category: 'Dialog' },
+    { id: 'cottage.dg', name: 'Cloak of Darkness' },
 ];
 function debug(...args) {
     //console.log(arguments);
@@ -614,10 +616,10 @@ class ZmachinePlatform {
         return 0;
     }
     getToolForFilename(s) {
-        return "inform6";
+        return s.endsWith(".dg") ? "dialog" : "inform6";
     }
     getDefaultExtensions() {
-        return [".inf"];
+        return [".inf", ".dg"];
     }
     showHelp() {
         return "https://www.inform-fiction.org/manual/html/contents.html";

@@ -222,6 +222,12 @@ export class CodeProject {
       while (m = re7.exec(text)) {
         this.pushAllFiles(files, m[1]);
       }
+      // for dialog -- %% #include "file" (dialog has no include directive,
+      // so the compiler is handed every file listed in a comment instead)
+      let re8 = /^\s*%%\s*#include\s+"(.+?)"/gm;
+      while (m = re8.exec(text)) {
+        this.pushAllFiles(files, m[1]);
+      }
       // TODO: for xa assembler
     }
     return files;

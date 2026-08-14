@@ -6821,6 +6821,17 @@
       const fd = this.fs.getFile(path);
       console.log("path_filestat_get", dir + "", filename, path, filestat_ptr, "->", fd + "");
       if (!fd) return 44 /* NOENT */;
+      this.poke_filestat(filestat_ptr, fd);
+      return 0 /* SUCCESS */;
+    }
+    fd_filestat_get(fd, filestat_ptr) {
+      const file = this.fds[fd];
+      debug("fd_filestat_get", fd, filestat_ptr, file + "");
+      if (file == null) return 8 /* BADF */;
+      this.poke_filestat(filestat_ptr, file);
+      return 0 /* SUCCESS */;
+    }
+    poke_filestat(filestat_ptr, fd) {
       this.poke64(filestat_ptr, fd.fdindex);
       this.poke64(filestat_ptr + 8, 0);
       this.poke8(filestat_ptr + 16, fd.type);
@@ -6883,6 +6894,7 @@
         fd_seek: this.fd_seek.bind(this),
         fd_close: this.fd_close.bind(this),
         path_filestat_get: this.path_filestat_get.bind(this),
+        fd_filestat_get: this.fd_filestat_get.bind(this),
         random_get: this.random_get.bind(this),
         path_readlink: this.path_readlink.bind(this),
         path_unlink_file: this.path_unlink_file.bind(this),
@@ -9175,7 +9187,7 @@
     loadNative("nesasm");
     var re_filename = /\#\[(\d+)\]\s+(\S+)/;
     var re_insn = /\s+(\d+)\s+([0-9A-F]+):([0-9A-F]+)/;
-    var re_error2 = /\s+(.+)/;
+    var re_error3 = /\s+(.+)/;
     var errors = [];
     var state = 0;
     var lineno = 0;
@@ -9195,7 +9207,7 @@
           }
           break;
         case 1:
-          m2 = re_error2.exec(s2);
+          m2 = re_error3.exec(s2);
           if (m2) {
             errors.push({ path: filename, line: lineno, msg: m2[1] });
             state = 0;
@@ -14203,6 +14215,63 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     }
   }
 
+  // src/worker/tools/dialog.ts
+  var STDLIB = "stdlib.dg";
+  var dialog_fs = null;
+  var wasiModule4 = null;
+  var re_error2 = /^Error:\s+(?:(\S+?), line (\d+):\s+)?(.+)/;
+  async function compileDialog(step) {
+    const errors = [];
+    gatherFiles(step, { mainFilePath: "main.dg" });
+    const destpath = step.prefix + ".z8";
+    if (staleFiles(step, [destpath])) {
+      if (!dialog_fs) {
+        dialog_fs = await loadWASIFilesystemZip("dialog-fs.zip");
+      }
+      if (!wasiModule4) {
+        wasiModule4 = new WebAssembly.Module(loadWASMBinary("dialogc"));
+      }
+      const wasi = new WASIRunner();
+      wasi.initSync(wasiModule4);
+      wasi.fs.setParent(dialog_fs);
+      for (let file of step.files) {
+        wasi.fs.putFile("./" + file, store.getFileData(file));
+      }
+      wasi.addPreopenDirectory(".");
+      const sources = step.files.filter((fn) => fn.endsWith(".dg") && fn != STDLIB);
+      sources.push(STDLIB);
+      wasi.setArgs(["dialogc", "-t", "z8", "-o", destpath, ...sources]);
+      try {
+        wasi.run();
+      } catch (e) {
+        errors.push({ line: 0, msg: e + "" });
+      }
+      const stderr = wasi.fds[2].getBytesAsString();
+      for (let line of stderr.split("\n")) {
+        const matches = re_error2.exec(line);
+        if (matches) {
+          errors.push({
+            path: matches[1] || step.path,
+            line: parseInt(matches[2]) || 0,
+            msg: matches[3]
+          });
+        } else if (line) {
+          console.log(line);
+        }
+      }
+      if (errors.length) {
+        return { errors };
+      }
+      const outfile = wasi.fs.getFile("./" + destpath);
+      if (!outfile) {
+        return { errors: [{ line: 0, msg: "dialogc did not produce " + destpath }] };
+      }
+      const output = outfile.getBytes();
+      putWorkFile(destpath, output);
+      return { output, errors };
+    }
+  }
+
   // src/worker/workertools.ts
   var TOOLS = {
     "dasm": assembleDASM,
@@ -14245,7 +14314,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     "armtcc": compileARMTCC,
     "armtcclink": linkARMTCC,
     "oscar64": compileOscar64,
-    "xa": assembleXA
+    "xa": assembleXA,
+    "dialog": compileDialog
   };
   var TOOL_PRELOADFS = {
     "cc65-apple2": "65-apple2",

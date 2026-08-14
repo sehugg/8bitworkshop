@@ -136,6 +136,7 @@ const TOOL_TO_SOURCE_STYLE = {
     'yasm': 'gas',
     'smlrc': 'text/x-csrc',
     'inform6': 'inform6',
+    'dialog': 'dialog',
     'fastbasic': 'fastbasic',
     'basic': 'basic',
     'silice': 'verilog',
@@ -165,6 +166,7 @@ const TOOL_TO_HELPURL = {
     'remote:llvm-mos': 'https://llvm-mos.org/wiki/Welcome',
     'acme': 'https://raw.githubusercontent.com/sehugg/acme/main/docs/QuickRef.txt',
     'xa': 'https://www.floodgap.com/retrotech/xa/',
+    'dialog': 'https://linusakesson.net/dialog/docs/',
 };
 function newWorker() {
     // TODO: return new Worker("https://8bitworkshop.com.s3-website-us-east-1.amazonaws.com/dev/gen/worker/bundle.js");
@@ -1392,6 +1394,8 @@ function _addIncludeFile() {
         addFileToProject("Include", ".acme", (s) => { return '!src "' + s + '"'; });
     else if (tool == 'xa')
         addFileToProject("Include", ".xa", (s) => { return '#include "' + s + '"'; });
+    else if (tool == 'dialog')
+        addFileToProject("Include", ".dg", (s) => { return '%% #include "' + s + '"'; });
     else
         (0, dialogs_1.alertError)("Can't add include file to this project type (" + tool + ")");
 }
