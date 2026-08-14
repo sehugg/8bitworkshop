@@ -19,7 +19,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
@@ -33,7 +33,7 @@ jobs:
     - run: make distro
     - name: Deploy
       if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-      uses: JamesIves/github-pages-deploy-action@v4.2.5
+      uses: JamesIves/github-pages-deploy-action@v4.9.0
       with:
         branch: gh-pages
         folder: tmp/dist
