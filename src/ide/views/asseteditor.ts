@@ -1,10 +1,10 @@
 
-import { newDiv, ProjectView } from "./baseviews";
-import { platform_id, current_project, projectWindows } from "../ui";
 import { DMG_PALETTE } from "../../common/gbpalette";
+import { hex, rgb2bgr, safeident } from "../../common/util";
 import { FileData } from "../../common/workertypes";
-import { hex, safeident, rgb2bgr } from "../../common/util";
 import * as pixed from "../pixeleditor";
+import { current_project, platform_id, projectWindows } from "../ui";
+import { newDiv, ProjectView } from "./baseviews";
 import Mousetrap = require('mousetrap');
 
 function getLineNumber(data: string, offset: number): number {
@@ -364,6 +364,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
           .appendTo(this.ensureFileDiv(fileid));
         var snip = $('<div class="asset_snip"/>').appendTo(block);
         var linenos = $('<span class="asset_linenos"/>').appendTo(snip);
+        $('<span class="asset_lineno"/>').text('↗ ').appendTo(linenos);
         $('<span class="asset_lineno"/>').text(frag.startline).appendTo(linenos);
         linenos.append('-');
         $('<span class="asset_lineno"/>').text(frag.endline).appendTo(linenos);
@@ -437,6 +438,8 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       this.clearAssets();
       current_project.iterateFiles((fileid, data) => {
         try {
+          // Clear stale tracked ranges before re-scanning this file.
+          projectWindows.clearAssetRanges(fileid);
           var nassets = this.refreshAssetsInFile(fileid, data);
         } catch (e) {
           console.log(e);
@@ -490,9 +493,11 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
   setVisible?(showing: boolean): void {
     // TODO: make into toolbar?
     if (showing) {
-      // limit undo/redo to since opening this editor
-      projectWindows.undofiles = [];
-      projectWindows.redofiles = [];
+      // ensure asset editor is safe to perform synchronous reads/writes
+      projectWindows.flushAllWindows();
+      // limit undo/redo to since opening this asset editor
+      projectWindows.undoStack = [];
+      projectWindows.redoStack = [];
       if (Mousetrap.bind) {
         Mousetrap.bind('mod+z', (e) => { projectWindows.undoStep(); return false; });
         Mousetrap.bind('mod+shift+z', (e) => { projectWindows.redoStep(); return false; });

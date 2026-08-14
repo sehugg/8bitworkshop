@@ -11,6 +11,33 @@ function dumbEqual(a,b) {
   return assert.deepEqual(a,b);
 }
 
+// Minimal mock that satisfies TextDataNode's project interface.
+function mockProject(text) {
+  var fileText = text;
+  var ranges = {};
+  return {
+    setAssetRange: function(fileid, id, from, to) { ranges[id] = {from: from, to: to}; },
+    getAssetText: function(fileid, id) {
+      var r = ranges[id];
+      return r ? fileText.substring(r.from, r.to) : null;
+    },
+    replaceAssetText: function(fileid, id, newText) {
+      var r = ranges[id];
+      if (!r) return;
+      var delta = newText.length - (r.to - r.from);
+      fileText = fileText.substring(0, r.from) + newText + fileText.substring(r.to);
+      var replacedFrom = r.from, replacedTo = r.to;
+      r.to = r.from + newText.length;
+      for (var otherId in ranges) {
+        if (otherId === id) continue;
+        var other = ranges[otherId];
+        if (other.from >= replacedTo) other.from += delta;
+        if (other.to >= replacedTo) other.to += delta;
+      }
+    }
+  };
+}
+
 describe('Pixel editor', function() {
   it('Should decode', function() {
 
@@ -18,8 +45,7 @@ describe('Pixel editor', function() {
     var palfmt = {pal:332,n:16};
 
     var paldatastr =  " 0x00, 0x03, 0x19, 0x50, 0x52, 0x07, 0x1f, 0x37, 0xe0, 0xa4, 0xfd, 0xff, 0x38, 0x70, 0x7f, 0x7f, "; // test two entries the same
-    var node4 = new pixed.TextDataNode(null, null, null, 0, paldatastr.length);
-    node4.text = paldatastr;
+    var node4 = new pixed.TextDataNode(mockProject(paldatastr), 'test', 'test', 0, paldatastr.length);
     var node5 = new pixed.PaletteFormatToRGB(palfmt);
     node4.addRight(node5);
     node4.refreshRight();
@@ -51,8 +77,7 @@ describe('Pixel editor', function() {
     };
 
     var datastr = "1,2, 0x00,0x00,0xef,0xef,0xe0,0x00,0x00, 0x00,0xee,0xee,0xfe,0xee,0xe0,0x00, 0x0e,0xed,0xef,0xef,0xed,0xee,0x00, 0x0e,0xee,0xdd,0xdd,0xde,0xee,0x00, 0x0e,0xee,0xed,0xde,0xee,0xee,0x00, 0x00,0xee,0xee,0xde,0xee,0xe0,0x00, 0x00,0xee,0xee,0xde,0xee,0xe0,0x00, 0x00,0x00,0xed,0xdd,0xe0,0x00,0x0d, 0xdd,0xdd,0xee,0xee,0xed,0xdd,0xd0, 0x0d,0xee,0xee,0xee,0xee,0xee,0x00, 0x0e,0xe0,0xee,0xee,0xe0,0xee,0x00, 0x0e,0xe0,0xee,0xee,0xe0,0xee,0x00, 0x0e,0xe0,0xdd,0xdd,0xd0,0xde,0x00, 0x0d,0x00,0xee,0x0e,0xe0,0x0d,0x00, 0x00,0x00,0xed,0x0e,0xe0,0x00,0x00, 0x00,0x0d,0xdd,0x0d,0xdd,0x00,0x18,";
-    var node1 = new pixed.TextDataNode(null, null, null, 0, datastr.length);
-    node1.text = datastr;
+    var node1 = new pixed.TextDataNode(mockProject(datastr), 'test', 'test', 0, datastr.length);
     var node2 = new pixed.Mapper(fmt);
     node1.addRight(node2);
     var node3 = new pixed.Palettizer(ctx, fmt);
