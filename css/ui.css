@@ -645,6 +645,9 @@ div.asset_toolbar {
   margin-left: 1em;
   color: #666;
 }
+.control-key + .control-key {
+  margin-left: 0.25em;
+}
 .control-def {
   color: #ccc;
   white-space: nowrap;
