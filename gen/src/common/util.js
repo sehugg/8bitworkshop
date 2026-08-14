@@ -104,6 +104,8 @@ function arrayCompare(a, b) {
         return false;
     if (b == null)
         return false;
+    if (typeof a.length != 'number' || typeof b.length != 'number')
+        return false;
     if (a.length != b.length)
         return false;
     for (var i = 0; i < a.length; i++)

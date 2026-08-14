@@ -59,6 +59,7 @@ export function arrayCompare(a:ArrayLike<any>, b:ArrayLike<any>):boolean {
   if (a == null && b == null) return true;
   if (a == null) return false;
   if (b == null) return false;
+  if (typeof a.length != 'number' || typeof b.length != 'number') return false;
   if (a.length != b.length) return false;
   for (var i=0; i<a.length; i++)
     if (a[i] != b[i])

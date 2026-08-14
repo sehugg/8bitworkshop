@@ -976,22 +976,27 @@ async function setCompileOutput(data) {
         // load ROM
         var rom = data.output;
         if (rom != null) {
-            try {
-                clearBreakpoint(); // so we can replace memory (TODO: change toolbar btn)
-                _resetRecording();
-                await exports.platform.loadROM(getCurrentPresetTitle(), rom, data.origin);
-                current_output = rom;
-                if (!userPaused)
-                    _resume();
-                writeOutputROMFile();
+            if (current_output && (0, util_1.arrayCompare)(rom, current_output)) {
+                console.log("unchanged, skipping loadROM");
             }
-            catch (e) {
-                console.log(e);
-                toolbar.addClass("has-errors");
-                showExceptionAsError(e, e + "");
-                current_output = null;
-                refreshWindowList();
-                return;
+            else {
+                try {
+                    clearBreakpoint(); // so we can replace memory (TODO: change toolbar btn)
+                    _resetRecording();
+                    await exports.platform.loadROM(getCurrentPresetTitle(), rom, data.origin);
+                    current_output = rom;
+                    if (!userPaused)
+                        _resume();
+                    writeOutputROMFile();
+                }
+                catch (e) {
+                    console.log(e);
+                    toolbar.addClass("has-errors");
+                    showExceptionAsError(e, e + "");
+                    current_output = null;
+                    refreshWindowList();
+                    return;
+                }
             }
         }
         // update all windows (listings)
