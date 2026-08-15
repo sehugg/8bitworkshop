@@ -11,7 +11,6 @@ import {
 } from "../common/util";
 import { FileData, WorkerError, WorkerResult } from "../common/workertypes";
 import { importPlatform } from "../platform/_index";
-import { gaEvent, gaPageView } from "./analytics";
 import { alertError, alertInfo, fatalError, setWaitDialog } from "./dialogs";
 import { openSettings } from "./settings";
 import { CodeProject, createNewPersistentStore, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
@@ -586,7 +585,6 @@ async function _createNewFile(e) {
           filename += allExtensions[0];
         }
         var path = filename;
-        gaEvent('workspace', 'file', 'new');
         qs.newfile = '1';
         reloadProject(path);
       }
@@ -629,7 +627,6 @@ function handleFileUpload(files: FileList) {
           }
         });
       }
-      gaEvent('workspace', 'file', 'upload');
     } else {
       var path = f.name;
       var reader = new FileReader();
@@ -1984,17 +1981,6 @@ function showInstructions() {
   }
 }
 
-function installGAHooks() {
-  if (window['ga']) {
-    $(".dropdown-item").click((e) => {
-      if (e.target && e.target.id) {
-        gaEvent('menu', e.target.id);
-      }
-    });
-    gaPageView(location.pathname + '?platform=' + platform_id + (repo_id ? ('&repo=' + repo_id) : ('&file=' + qs.file)));
-  }
-}
-
 async function startPlatform() {
   if (!PLATFORMS[platform_id]) throw Error("Invalid platform '" + platform_id + "'.");
   let emudiv = $("#emuscreen")[0];
@@ -2021,7 +2007,6 @@ async function startPlatform() {
   var initialHash = window.location.hash;
   replaceURLState();
   installErrorHandler();
-  installGAHooks();
   await platform.start();
   await loadBIOSFromProject();
   await initProject();
