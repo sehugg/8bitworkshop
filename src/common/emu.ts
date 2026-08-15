@@ -1,9 +1,10 @@
 
-import { hex, clamp, lpad, RGBA } from "./util";
+import { hex, clamp, lpad } from "./util";
 import { SourceLocation } from "./workertypes";
-import { VirtualList } from "./vlist"
 
 // Emulator classes
+// Most of this stuff helps emulators use the DOM
+// and do keyboard/mouse/gamepad/timer handling, etc.
 
 export var PLATFORMS = {};
 
@@ -569,6 +570,7 @@ const DEFAULT_CONTROLLER_KEYS: KeyDef[] = [
   Keys.P2_UP, Keys.P2_DOWN, Keys.P2_LEFT, Keys.P2_RIGHT, Keys.P2_A, Keys.P2_B, Keys.P2_SELECT, Keys.P2_START,
 ];
 
+// Gamepad helper
 export class ControllerPoller {
   active = false;
   handler;
@@ -653,7 +655,7 @@ export class ControllerPoller {
   }
 }
 
-
+// handy for loadROM()
 export function padBytes(data: Uint8Array | number[], len: number, padstart?: boolean): Uint8Array {
   if (data.length > len) {
     throw Error("Data too long, " + data.length + " > " + len);
@@ -734,86 +736,4 @@ export function getMousePos(canvas: HTMLCanvasElement, evt): { x: number, y: num
   }
 }
 
-///
 
-// TODO: https://stackoverflow.com/questions/10463518/converting-em-to-px-in-javascript-and-getting-default-font-size
-export function getVisibleEditorLineHeight(): number {
-  return $("#booksMenuButton").first().height();
-}
-
-export interface VirtualTextLine {
-  text: string;
-  clas?: string;
-}
-
-export class VirtualTextScroller {
-  memorylist;
-  maindiv: HTMLElement;
-  getLineAt: (row: number) => VirtualTextLine;
-
-  constructor(parent: HTMLElement) {
-    var div = document.createElement('div');
-    div.setAttribute("class", "memdump");
-    parent.appendChild(div);
-    this.maindiv = div;
-  }
-
-  create(workspace: HTMLElement, maxRowCount: number, fn: (row: number) => VirtualTextLine) {
-    this.getLineAt = fn;
-    this.memorylist = new VirtualList({
-      w: $(workspace).width(),
-      h: $(workspace).height(),
-      itemHeight: getVisibleEditorLineHeight(),
-      totalRows: maxRowCount, // TODO?
-      generatorFn: (row: number) => {
-        var line = fn(row);
-        var linediv = document.createElement("div");
-        linediv.appendChild(document.createTextNode(line.text));
-        if (line.clas != null) linediv.className = line.clas;
-        return linediv;
-      }
-    });
-    $(this.maindiv).append(this.memorylist.container);
-  }
-
-  // TODO: refactor with elsewhere
-  refresh() {
-    if (this.memorylist) {
-      $(this.maindiv).find('[data-index]').each((i, e) => {
-        var div = e;
-        var row = parseInt(div.getAttribute('data-index'));
-        var oldtext = div.innerText;
-        var line = this.getLineAt(row);
-        var newtext = line.text;
-        if (oldtext != newtext) {
-          div.innerText = newtext;
-          if (line.clas != null && !div.classList.contains(line.clas)) {
-            var oldclasses = Array.from(div.classList);
-            oldclasses.forEach((c) => div.classList.remove(c));
-            div.classList.add('vrow');
-            div.classList.add(line.clas);
-          }
-        }
-      });
-    }
-  }
-}
-
-// https://forums.atariage.com/topic/107853-need-the-256-colors/page/2/
-export function gtia_ntsc_to_rgb(val: number) {
-  const gamma = 0.9;
-  const bright = 1.1;
-  const color = 60;
-  let cr = (val >> 4) & 15;
-  let lm = val & 15;
-  let crlv = cr ? color : 0;
-  if (cr) lm += 1;
-  let phase = ((cr - 1) * 25 - 25) * (2 * Math.PI / 360);
-  let y = 256 * bright * Math.pow(lm / 16, gamma);
-  let i = crlv * Math.cos(phase);
-  let q = crlv * Math.sin(phase);
-  var r = y + 0.956 * i + 0.621 * q;
-  var g = y - 0.272 * i - 0.647 * q;
-  var b = y - 1.107 * i + 1.704 * q;
-  return RGBA(clamp(0, 255, r), clamp(0, 255, g), clamp(0, 255, b));
-}

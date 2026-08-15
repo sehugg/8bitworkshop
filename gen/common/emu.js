@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.VirtualTextScroller = exports.ControllerPoller = exports.Keys = exports.AnimationTimer = exports.useRequestAnimationFrame = exports.EmuHalt = exports.RAM = exports.VectorVideo = exports.RasterVideo = exports.KeyFlags = exports.PLATFORMS = void 0;
+exports.ControllerPoller = exports.Keys = exports.AnimationTimer = exports.useRequestAnimationFrame = exports.EmuHalt = exports.RAM = exports.VectorVideo = exports.RasterVideo = exports.KeyFlags = exports.PLATFORMS = void 0;
 exports.noise = noise;
 exports.getNoiseSeed = getNoiseSeed;
 exports.setNoiseSeed = setNoiseSeed;
@@ -15,11 +15,10 @@ exports.padBytes = padBytes;
 exports.AddressDecoder = AddressDecoder;
 exports.newAddressDecoder = newAddressDecoder;
 exports.getMousePos = getMousePos;
-exports.getVisibleEditorLineHeight = getVisibleEditorLineHeight;
-exports.gtia_ntsc_to_rgb = gtia_ntsc_to_rgb;
 const util_1 = require("./util");
-const vlist_1 = require("./vlist");
 // Emulator classes
+// Most of this stuff helps emulators use the DOM
+// and do keyboard/mouse/gamepad/timer handling, etc.
 exports.PLATFORMS = {};
 var _random_state = 1;
 function noise() {
@@ -521,6 +520,7 @@ const DEFAULT_CONTROLLER_KEYS = [
     exports.Keys.UP, exports.Keys.DOWN, exports.Keys.LEFT, exports.Keys.RIGHT, exports.Keys.A, exports.Keys.B, exports.Keys.SELECT, exports.Keys.START,
     exports.Keys.P2_UP, exports.Keys.P2_DOWN, exports.Keys.P2_LEFT, exports.Keys.P2_RIGHT, exports.Keys.P2_A, exports.Keys.P2_B, exports.Keys.P2_SELECT, exports.Keys.P2_START,
 ];
+// Gamepad helper
 class ControllerPoller {
     constructor(handler) {
         this.active = false;
@@ -604,6 +604,7 @@ class ControllerPoller {
     }
 }
 exports.ControllerPoller = ControllerPoller;
+// handy for loadROM()
 function padBytes(data, len, padstart) {
     if (data.length > len) {
         throw Error("Data too long, " + data.length + " > " + len);
@@ -665,77 +666,5 @@ function getMousePos(canvas, evt) {
         x: Math.max(0, Math.min(canvas.width, x)),
         y: Math.max(0, Math.min(canvas.height, y))
     };
-}
-///
-// TODO: https://stackoverflow.com/questions/10463518/converting-em-to-px-in-javascript-and-getting-default-font-size
-function getVisibleEditorLineHeight() {
-    return $("#booksMenuButton").first().height();
-}
-class VirtualTextScroller {
-    constructor(parent) {
-        var div = document.createElement('div');
-        div.setAttribute("class", "memdump");
-        parent.appendChild(div);
-        this.maindiv = div;
-    }
-    create(workspace, maxRowCount, fn) {
-        this.getLineAt = fn;
-        this.memorylist = new vlist_1.VirtualList({
-            w: $(workspace).width(),
-            h: $(workspace).height(),
-            itemHeight: getVisibleEditorLineHeight(),
-            totalRows: maxRowCount, // TODO?
-            generatorFn: (row) => {
-                var line = fn(row);
-                var linediv = document.createElement("div");
-                linediv.appendChild(document.createTextNode(line.text));
-                if (line.clas != null)
-                    linediv.className = line.clas;
-                return linediv;
-            }
-        });
-        $(this.maindiv).append(this.memorylist.container);
-    }
-    // TODO: refactor with elsewhere
-    refresh() {
-        if (this.memorylist) {
-            $(this.maindiv).find('[data-index]').each((i, e) => {
-                var div = e;
-                var row = parseInt(div.getAttribute('data-index'));
-                var oldtext = div.innerText;
-                var line = this.getLineAt(row);
-                var newtext = line.text;
-                if (oldtext != newtext) {
-                    div.innerText = newtext;
-                    if (line.clas != null && !div.classList.contains(line.clas)) {
-                        var oldclasses = Array.from(div.classList);
-                        oldclasses.forEach((c) => div.classList.remove(c));
-                        div.classList.add('vrow');
-                        div.classList.add(line.clas);
-                    }
-                }
-            });
-        }
-    }
-}
-exports.VirtualTextScroller = VirtualTextScroller;
-// https://forums.atariage.com/topic/107853-need-the-256-colors/page/2/
-function gtia_ntsc_to_rgb(val) {
-    const gamma = 0.9;
-    const bright = 1.1;
-    const color = 60;
-    let cr = (val >> 4) & 15;
-    let lm = val & 15;
-    let crlv = cr ? color : 0;
-    if (cr)
-        lm += 1;
-    let phase = ((cr - 1) * 25 - 25) * (2 * Math.PI / 360);
-    let y = 256 * bright * Math.pow(lm / 16, gamma);
-    let i = crlv * Math.cos(phase);
-    let q = crlv * Math.sin(phase);
-    var r = y + 0.956 * i + 0.621 * q;
-    var g = y - 0.272 * i - 0.647 * q;
-    var b = y - 1.107 * i + 1.704 * q;
-    return (0, util_1.RGBA)((0, util_1.clamp)(0, 255, r), (0, util_1.clamp)(0, 255, g), (0, util_1.clamp)(0, 255, b));
 }
 //# sourceMappingURL=emu.js.map

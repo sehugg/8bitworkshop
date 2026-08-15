@@ -5,7 +5,7 @@ import { BaseZ80VDPBasedMachine } from "./vdp_z80";
 import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler } from "../common/emu";
 import { hex, lzgmini, stringToByteArray } from "../common/util";
 import { TssChannelAdapter, MasterAudio, SN76489_Audio } from "../common/audio";
-import { TMS9918A } from "../common/video/tms9918a";
+import { TMS9918A } from "./chips/tms9918a";
 
 // http://www.colecovision.eu/ColecoVision/development/tutorial1.shtml
 // http://www.colecovision.eu/ColecoVision/development/libcv.shtml

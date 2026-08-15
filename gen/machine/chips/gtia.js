@@ -4,8 +4,29 @@
 // https://user.xmission.com/~trevin/atari/gtia_pinout.html
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GTIA = exports.CONSOL = exports.TRIG0 = void 0;
+exports.gtia_ntsc_to_rgb = gtia_ntsc_to_rgb;
 const emu_1 = require("../../common/emu");
 const util_1 = require("../../common/util");
+const util_2 = require("../../common/util");
+// https://forums.atariage.com/topic/107853-need-the-256-colors/page/2/
+function gtia_ntsc_to_rgb(val) {
+    const gamma = 0.9;
+    const bright = 1.1;
+    const color = 60;
+    let cr = (val >> 4) & 15;
+    let lm = val & 15;
+    let crlv = cr ? color : 0;
+    if (cr)
+        lm += 1;
+    let phase = ((cr - 1) * 25 - 25) * (2 * Math.PI / 360);
+    let y = 256 * bright * Math.pow(lm / 16, gamma);
+    let i = crlv * Math.cos(phase);
+    let q = crlv * Math.sin(phase);
+    var r = y + 0.956 * i + 0.621 * q;
+    var g = y - 0.272 * i - 0.647 * q;
+    var b = y - 1.107 * i + 1.704 * q;
+    return (0, util_2.RGBA)((0, util_2.clamp)(0, 255, r), (0, util_2.clamp)(0, 255, g), (0, util_2.clamp)(0, 255, b));
+}
 // write regs
 const HPOSP0 = 0x0;
 const HPOSM0 = 0x4;
@@ -331,6 +352,6 @@ function expandBits(x) {
 }
 var COLORS_RGBA = new Uint32Array(256);
 for (var i = 0; i < 256; i++) {
-    COLORS_RGBA[i] = (0, emu_1.gtia_ntsc_to_rgb)(i);
+    COLORS_RGBA[i] = gtia_ntsc_to_rgb(i);
 }
 //# sourceMappingURL=gtia.js.map

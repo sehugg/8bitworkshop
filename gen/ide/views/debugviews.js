@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProbeSymbolView = exports.ScanlineIOView = exports.ProbeLogView = exports.RasterStackMapView = exports.RasterPCHeatMapView = exports.AddressHeatMapView = exports.ProbeViewBaseBase = exports.MemoryMapView = exports.BinaryFileView = exports.VRAMMemoryView = exports.MemoryView = void 0;
 const baseplatform_1 = require("../../common/baseplatform");
 const emu_1 = require("../../common/emu");
+const vtextscroller_1 = require("../../common/vtextscroller");
+const vtextscroller_2 = require("../../common/vtextscroller");
 const probe_1 = require("../../common/probe");
 const util_1 = require("../../common/util");
 const vlist_1 = require("../../common/vlist");
@@ -33,7 +35,7 @@ class MemoryView {
         this.memorylist = new vlist_1.VirtualList({
             w: $(workspace).width(),
             h: $(workspace).height(),
-            itemHeight: (0, emu_1.getVisibleEditorLineHeight)(),
+            itemHeight: (0, vtextscroller_1.getVisibleEditorLineHeight)(),
             totalRows: this.totalRows,
             generatorFn: (row) => {
                 var s = this.getMemoryLineAt(row);
@@ -211,7 +213,7 @@ class BinaryFileView {
     }
     createDiv(parent) {
         this.parent = parent;
-        this.vlist = new emu_1.VirtualTextScroller(this.parent);
+        this.vlist = new vtextscroller_2.VirtualTextScroller(this.parent);
         this.populateVlist();
         return this.vlist.maindiv;
     }
@@ -761,7 +763,7 @@ class ProbeLogView extends ProbeViewBaseBase {
         this.recreateOnResize = true;
     }
     createDiv(parent) {
-        this.vlist = new emu_1.VirtualTextScroller(parent);
+        this.vlist = new vtextscroller_2.VirtualTextScroller(parent);
         this.vlist.create(parent, this.cyclesPerLine * this.totalScanlines, this.getMemoryLineAt.bind(this));
         return this.vlist.maindiv;
     }
@@ -817,7 +819,7 @@ class ScanlineIOView extends ProbeViewBaseBase {
         this.recreateOnResize = true;
     }
     createDiv(parent) {
-        this.vlist = new emu_1.VirtualTextScroller(parent);
+        this.vlist = new vtextscroller_2.VirtualTextScroller(parent);
         this.vlist.create(parent, this.totalScanlines, this.getMemoryLineAt.bind(this));
         return this.vlist.maindiv;
     }
@@ -895,7 +897,7 @@ class ProbeSymbolView extends ProbeViewBaseBase {
         else {
             this.keys = ['no symbols defined'];
         }
-        this.vlist = new emu_1.VirtualTextScroller(parent);
+        this.vlist = new vtextscroller_2.VirtualTextScroller(parent);
         this.vlist.create(parent, this.keys.length + 1, this.getMemoryLineAt.bind(this));
         return this.vlist.maindiv;
     }

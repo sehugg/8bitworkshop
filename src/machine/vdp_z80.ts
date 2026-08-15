@@ -3,7 +3,7 @@ import { Z80, Z80State } from "../common/cpu/ZilogZ80";
 import { BasicScanlineMachine, Bus, ProbeAll } from "../common/devices";
 import { newAddressDecoder, newKeyboardHandler } from "../common/emu";
 import { TssChannelAdapter } from "../common/audio";
-import { TMS9918A } from "../common/video/tms9918a";
+import { TMS9918A } from "./chips/tms9918a";
 
 const audioOversample = 2;
 

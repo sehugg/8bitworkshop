@@ -4,6 +4,7 @@ exports.Atari7800 = void 0;
 const MOS6502_1 = require("../common/cpu/MOS6502");
 const devices_1 = require("../common/devices");
 const emu_1 = require("../common/emu");
+const gtia_1 = require("./chips/gtia");
 const audio_1 = require("../common/audio");
 const util_1 = require("../common/util");
 const SWCHA = 0;
@@ -701,6 +702,6 @@ exports.Atari7800 = Atari7800;
 ///
 var COLORS_RGBA = new Uint32Array(256);
 for (var i = 0; i < 256; i++) {
-    COLORS_RGBA[i] = (0, emu_1.gtia_ntsc_to_rgb)(i);
+    COLORS_RGBA[i] = (0, gtia_1.gtia_ntsc_to_rgb)(i);
 }
 //# sourceMappingURL=atari7800.js.map

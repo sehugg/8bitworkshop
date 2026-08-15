@@ -3,7 +3,7 @@ import { BaseZ80VDPBasedMachine } from "./vdp_z80";
 import { newAddressDecoder, padBytes, Keys, makeKeycodeMap } from "../common/emu";
 import { hex } from "../common/util";
 import { MasterAudio, SN76489_Audio } from "../common/audio";
-import { SMSVDP, GameGearVDP } from "../common/video/tms9918a";
+import { SMSVDP, GameGearVDP } from "./chips/tms9918a";
 
 // http://www.smspower.org/Development/Index
 // http://www.smspower.org/uploads/Development/sg1000.txt

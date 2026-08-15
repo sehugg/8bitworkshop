@@ -5,7 +5,7 @@ const ZilogZ80_1 = require("../common/cpu/ZilogZ80");
 const devices_1 = require("../common/devices");
 const emu_1 = require("../common/emu");
 const audio_1 = require("../common/audio");
-const tms9918a_1 = require("../common/video/tms9918a");
+const tms9918a_1 = require("./chips/tms9918a");
 const audioOversample = 2;
 class BaseZ80VDPBasedMachine extends devices_1.BasicScanlineMachine {
     constructor() {

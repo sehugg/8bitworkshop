@@ -1,6 +1,9 @@
 
 import { BaseZ80MachinePlatform, BaseZ80Platform } from "../../common/baseplatform";
-import { getMousePos, getVisibleEditorLineHeight, VirtualTextLine, VirtualTextScroller } from "../../common/emu";
+import { getMousePos } from "../../common/emu";
+import { getVisibleEditorLineHeight } from "../../common/vtextscroller";
+import { VirtualTextLine } from "../../common/vtextscroller";
+import { VirtualTextScroller } from "../../common/vtextscroller";
 import { ProbeFlags, ProbeRecorder } from "../../common/probe";
 import { hex, lpad, rpad } from "../../common/util";
 import { VirtualList } from "../../common/vlist";

@@ -5,7 +5,7 @@ const vdp_z80_1 = require("./vdp_z80");
 const emu_1 = require("../common/emu");
 const util_1 = require("../common/util");
 const audio_1 = require("../common/audio");
-const tms9918a_1 = require("../common/video/tms9918a");
+const tms9918a_1 = require("./chips/tms9918a");
 // http://www.smspower.org/Development/Index
 // http://www.smspower.org/uploads/Development/sg1000.txt
 // http://www.smspower.org/uploads/Development/richard.txt

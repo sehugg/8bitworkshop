@@ -5,7 +5,7 @@ import { BaseZ80VDPBasedMachine } from "./vdp_z80";
 import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler } from "../common/emu";
 import { hex, lzgmini, stringToByteArray } from "../common/util";
 import { TssChannelAdapter, MasterAudio, AY38910_Audio } from "../common/audio";
-import { TMS9918A } from "../common/video/tms9918a";
+import { TMS9918A } from "./chips/tms9918a";
 
 
 var MSX_KEYCODE_MAP = makeKeycodeMap([
