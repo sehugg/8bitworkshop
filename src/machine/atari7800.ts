@@ -1,7 +1,8 @@
 
 import { MOS6502, MOS6502State } from "../common/cpu/MOS6502";
 import { BasicMachine, RasterFrameBased, Bus, ProbeAll } from "../common/devices";
-import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler, EmuHalt, dumpRAM, gtia_ntsc_to_rgb } from "../common/emu";
+import { KeyFlags, newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler, EmuHalt, dumpRAM } from "../common/emu";
+import { gtia_ntsc_to_rgb } from "./chips/gtia";
 import { TssChannelAdapter, MasterAudio, POKEYDeviceChannel } from "../common/audio";
 import { hex, rgb2bgr } from "../common/util";
 

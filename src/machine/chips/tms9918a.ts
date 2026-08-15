@@ -9,8 +9,8 @@
  * GNU General Public License v2.0
  */
 
-import { hex, lpad, RGBA } from "../util";
-import { ProbeVRAM, NullProbe } from "../devices";
+import { hex, lpad, RGBA } from "../../common/util";
+import { ProbeVRAM, NullProbe } from "../../common/devices";
 
 enum TMS9918A_Mode {
   GRAPHICS = 0,

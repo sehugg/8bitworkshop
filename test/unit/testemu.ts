@@ -4,7 +4,7 @@ import {
   noise, getNoiseSeed, setNoiseSeed, KeyFlags, RAM, EmuHalt,
   AnimationTimer, dumpRAM, Keys, makeKeycodeMap, newKeyboardHandler,
   _setKeyboardEvents, padBytes, AddressDecoder, newAddressDecoder,
-  getMousePos, drawCrosshair, gtia_ntsc_to_rgb,
+  getMousePos, drawCrosshair,
 } from "../../src/common/emu";
 
 describe('Noise PRNG', function () {
