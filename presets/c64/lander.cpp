@@ -4,6 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*{pal:"c64"}*/
+const byte landerpal[4] = { 0x0, 0xc, 0xf, 0x7 };
+
+// (1st sprite is multicolor, 2nd is hires)
+/*{w:12,h:21,bpp:2,brev:1,wpimg:64,aspect:2,count:3}*/
+/*{w:24,h:21,bpp:1,brev:1,wpimg:64,aspect:1,count:3}*/
 byte landersprites[] = {
 #embed "landersprites.bin"  
 };
@@ -109,7 +115,7 @@ void lander_init(Lander * lander)
   spr_set(0, true, (int)lander->px, (int)lander->py, 0x0380 / 64, VCOL_DARK_GREY, false, false, false);
   spr_set(1, true, (int)lander->px, (int)lander->py, 0x0340 / 64, VCOL_LT_GREY, true, false, false);
   spr_set(2, false, (int)lander->px, (int)lander->py + 20, 0x03c0 / 64, VCOL_WHITE, false, false, false);
-}  
+}
 
 char ExhaustColor[] = {VCOL_YELLOW, VCOL_WHITE, VCOL_ORANGE, VCOL_LT_BLUE};
 

@@ -291,45 +291,48 @@ export function convertWordsToImages(words:UintArray, fmt:PixelEditorImageFormat
   return images;
 }
 
+function computeRequiredWords(fmt): number {
+  // same variables as convertWordsToImages
+  var count = fmt.count || 1;
+  var bpp = fmt.bpp || 1;
+  var nplanes = fmt.np || 1;
+  var bitsperword = fmt.bpw || 8;
+  var wordsperline = fmt.sl || Math.ceil(fmt.w * bpp / bitsperword);
+  var pofs = fmt.pofs || wordsperline * fmt.h * count;
+  var skip = fmt.skip || 0;
+  var wpimg = fmt.wpimg || (fmt.map === 'nesnt' ? 1024 : wordsperline * fmt.h);
+
+  var maxOffset = 0;
+  for (var n = 0; n < count; n++) {
+    for (var i = 0; i < wpimg; i++) {
+      var offset0 = wpimg * n + i;
+      var offset;
+      if (fmt.reindex) {
+        var maxReindexOfs = 0;
+        for (var x = 0; x < fmt.w; x++) {
+          maxReindexOfs = Math.max(maxReindexOfs, reindexMask(x, fmt.reindex)[0]);
+        }
+        offset = offset0 + maxReindexOfs;
+      } else {
+        offset = remapBits(offset0, fmt.remap);
+      }
+      maxOffset = Math.max(maxOffset, offset);
+    }
+  }
+  // Planar formats (e.g. NES pofs>=wpimg) store extra planes past each image block.
+  // Interleaved formats (GB/SMS pofs < wpimg) already include plane bytes in maxOffset.
+  var planeExtent = (nplanes > 1) ? (nplanes - 1) * pofs : 0;
+  if (planeExtent < wpimg) planeExtent = 0;
+  return maxOffset + planeExtent + 1 + skip;
+}
+
 export function validateAssetData(datastr: string, fmt): string | null {
   var words = parseHexWords(convertToHexStatements(datastr));
   if (fmt.comp == 'rletag') {
     words = Array.from(rle_unpack(new Uint8Array(words)));
   }
   if (fmt.w > 0 && fmt.h > 0) {
-    // same variables as convertWordsToImages
-    var count = fmt.count || 1;
-    var bpp = fmt.bpp || 1;
-    var nplanes = fmt.np || 1;
-    var bitsperword = fmt.bpw || 8;
-    var wordsperline = fmt.sl || Math.ceil(fmt.w * bpp / bitsperword);
-    var pofs = fmt.pofs || wordsperline * fmt.h * count;
-    var skip = fmt.skip || 0;
-    var wpimg = fmt.wpimg || (fmt.map === 'nesnt' ? 1024 : wordsperline * fmt.h);
-
-    var maxOffset = 0;
-    for (var n = 0; n < count; n++) {
-      for (var i = 0; i < wpimg; i++) {
-        var offset0 = wpimg * n + i;
-        var offset;
-        if (fmt.reindex) {
-          var maxReindexOfs = 0;
-          for (var x = 0; x < fmt.w; x++) {
-            maxReindexOfs = Math.max(maxReindexOfs, reindexMask(x, fmt.reindex)[0]);
-          }
-          offset = offset0 + maxReindexOfs;
-        } else {
-          offset = remapBits(offset0, fmt.remap);
-        }
-        maxOffset = Math.max(maxOffset, offset);
-      }
-    }
-    // Planar formats (e.g. NES pofs>=wpimg) store extra planes past each image block.
-    // Interleaved formats (GB/SMS pofs < wpimg) already include plane bytes in maxOffset.
-    var planeExtent = (nplanes > 1) ? (nplanes - 1) * pofs : 0;
-    if (planeExtent < wpimg) planeExtent = 0;
-    var required = maxOffset + planeExtent + 1 + skip;
-
+    var required = computeRequiredWords(fmt);
     if (words.length != required) {
       return `Expected ${required} value(s), found ${words.length}`;
     }
@@ -337,6 +340,102 @@ export function validateAssetData(datastr: string, fmt): string | null {
     if (words.length < 1) {
       return `Palette requires at least 1 value, found ${words.length}`;
     }
+  }
+  return null;
+}
+
+// same as validateAssetData, but for a raw binary file (e.g. referenced via #embed)
+// where the byte count is already known and there's no source text to parse
+export function validateAssetByteLength(bytelen: number, fmt): string | null {
+  if (fmt.comp == 'rletag') {
+    return null; // can't statically determine compressed length
+  }
+  if (fmt.w > 0 && fmt.h > 0) {
+    var required = computeRequiredWords(fmt);
+    if (bytelen != required) {
+      return `Expected ${required} byte(s), found ${bytelen}`;
+    }
+  } else if (fmt.pal) {
+    if (bytelen < 1) {
+      return `Palette requires at least 1 byte, found ${bytelen}`;
+    }
+  }
+  return null;
+}
+
+export type AssetFragment = {
+  header: string
+  startline: number
+  endline: number | string
+  fmt?: any
+  start?: number
+  end?: number
+  embedFile?: string
+  error?: string
+};
+
+function getLineNumber(data: string, offset: number): number {
+  let line = 1;
+  for (let i = 0; i < offset && i < data.length; i++) {
+    if (data[i] === '\n') line++;
+  }
+  return line;
+}
+
+// Scans source text for "/*{json}*/" or ";;{json};;" asset headers followed by a data
+// block closed by the next ';' (C), ';;' (asm), or "end" (verilog). Pure/testable: no
+// DOM or project dependencies -- platform-specific closing delimiter is supplied by caller.
+export function scanTextForAssetFragments(data: string, isVerilog: boolean): AssetFragment[] {
+  var re1 = /[/;][*;]([{].+[}])[*;][/;]/g;
+  var result: AssetFragment[] = [];
+  var m;
+  while (m = re1.exec(data)) {
+    var start = m.index + m[0].length;
+    var end;
+    if (isVerilog) {
+      end = data.indexOf("end", start);
+    } else if (m[0].startsWith(';;')) {
+      end = data.indexOf(';;', start);
+      if (end == data.indexOf(';;{', start)) {
+        // ignore start of next asset
+        end = -1;
+      }
+    } else {
+      end = data.indexOf(';', start); // C
+    }
+    var startline = getLineNumber(data, m.index);
+    var header = m[0];
+    var endline = end >= 0 ? getLineNumber(data, end) : '???';
+    if (end < 0) {
+      var closingDelim = isVerilog ? '"end"' : m[0].startsWith(';;') ? '";;"' : '";"';
+      result.push({ header: header, startline: startline, endline: endline, error: `No closing ${closingDelim} found after asset header` });
+    } else if (end <= start) {
+      result.push({ header: header, startline: startline, endline: endline, error: `Empty data block after asset header` });
+    } else {
+      try {
+        var jsontxt = m[1].replace(/([A-Za-z]+):/g, '"$1":'); // fix lenient JSON
+        var json = JSON.parse(jsontxt);
+        // C23 #embed "file.bin" -- data lives in a separate binary file, not inline
+        var embedMatch = /#embed\s+"(.+?)"/.exec(data.substring(start, end));
+        var embedFile = embedMatch ? embedMatch[1] : undefined;
+        result.push({ header: header, startline: startline, endline: endline, fmt: json, start: start, end: end, embedFile: embedFile });
+      } catch (e) {
+        result.push({ header: header, startline: startline, endline: endline, error: `Invalid asset format: ${e.message}` });
+      }
+    }
+  }
+  return result;
+}
+
+// Resolves a #embed "file.bin" path against a project file-existence check: tries the
+// plain name first, then a directory-prefixed candidate based on the including file's
+// own path (e.g. "sub/main.c" + "data.bin" -> "sub/data.bin").
+export function resolveEmbedPath(fileid: string, embedName: string, fileExists: (path: string) => boolean): string | null {
+  if (fileExists(embedName)) return embedName;
+  var slash = fileid.lastIndexOf('/');
+  if (slash >= 0) {
+    var candidate = fileid.substring(0, slash + 1) + embedName;
+    if (fileExists(candidate)) return candidate;
   }
   return null;
 }
