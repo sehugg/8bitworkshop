@@ -795,6 +795,10 @@ class VectrexPlatform extends Base6809Platform {
     return VECTREX_PRESETS;
   }
 
+  showHelp() {
+    return "https://8bitworkshop.com/docs/platforms/vectrex/";
+  }
+
   start() {
     this.via = new VIA6522(this);
     this.alg = new VectrexAnalog(this);

@@ -43,7 +43,7 @@ class PacmanPlatform extends baseplatform_1.BaseZ80MachinePlatform {
         else
             return this.machine.ram[0x3f0 + ((a - 0x800) & 0xf)];
     }
-    showHelp() { return "https://8bitworkshop.com/docs/platforms/arcade/index.html#pacman-hardware"; }
+    showHelp() { return "https://8bitworkshop.com/docs/platforms/arcade/index.html#pac-man-hardware"; }
     getDebugTree() {
         let tree = super.getDebugTree();
         tree['palette'] = {
