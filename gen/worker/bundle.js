@@ -6835,7 +6835,7 @@
       const filename = this.peekUTF8(path_ptr, path_len);
       const path = filename.startsWith("/") ? filename : dir.name + "/" + filename;
       const fd = this.fs.getFile(path);
-      console.log("path_filestat_get", dir + "", filename, path, filestat_ptr, "->", fd + "");
+      debug("path_filestat_get", dir + "", filename, path, filestat_ptr, "->", fd + "");
       if (!fd) return 44 /* NOENT */;
       this.poke_filestat(filestat_ptr, fd);
       return 0 /* SUCCESS */;
@@ -10358,6 +10358,9 @@
     return xhr.response;
   }
   async function unzipWASIFilesystem(zipdata, rootPath = "./") {
+    if (zipdata && typeof zipdata.asArrayBuffer === "function") {
+      zipdata = zipdata.asArrayBuffer();
+    }
     const jszip = new import_jszip.default();
     await jszip.loadAsync(zipdata);
     let fs = new WASIMemoryFilesystem();
@@ -10380,7 +10383,6 @@
     const jszip = new import_jszip.default();
     const path = "../../src/worker/fs/" + zippath;
     const zipdata = loadBlobSync(path);
-    console.log(zippath, zipdata);
     return unzipWASIFilesystem(zipdata, rootPath);
   }
 
@@ -14073,9 +14075,101 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     };
   }
 
+  // src/worker/tools/oscar64parse.ts
+  function parseOscar64Map(mapout) {
+    let segments = [];
+    let symbolmap = {};
+    let section = "";
+    for (let line of mapout.split("\n")) {
+      line = line.trim();
+      if (line === "sections" || line === "regions" || line === "objects" || line === "objects by size") {
+        section = line;
+        continue;
+      }
+      let m = /^([0-9a-f]+) - ([0-9a-f]+) : ([^,]+), (.+)$/.exec(line);
+      if (m) {
+        const start = parseInt(m[1], 16);
+        const end = parseInt(m[2], 16);
+        const name = m[4].trim();
+        if (section === "sections") {
+          let type = "ram";
+          if (/code/.test(m[4]) || m[4] === "startup" || /rom/.test(m[4])) {
+            type = "rom";
+          }
+          segments.push({ name: m[4], start, size: end - start, type });
+        } else if (section === "objects") {
+          if (m[3] !== "*") symbolmap[m[3]] = start;
+        }
+      }
+    }
+    return { segments, symbolmap };
+  }
+  function parseOscar64Lbl(lblout) {
+    let symbolmap = {};
+    for (let line of lblout.split("\n")) {
+      let toks = line.trim().split(/\s+/);
+      if (toks[0] == "al" && toks.length >= 3) {
+        const ofs = parseInt(toks[1], 16);
+        const name = toks[2];
+        const clean = name.replace(/^\./, "");
+        if (!symbolmap[clean]) symbolmap[clean] = ofs;
+      }
+    }
+    return symbolmap;
+  }
+  function parseOscar64Listing(asmout, asmfn) {
+    let srclines = [];
+    let asmlines = [];
+    let c_lineno = 0;
+    let c_path = "";
+    let asm_lineno = 0;
+    let re_src = /^;\s*(\d+), "(.+?)"/;
+    let re_insn = /^([0-9a-f]+) : ([0-9a-f _]{8}) (.*)/;
+    for (let line of asmout.split("\n")) {
+      asm_lineno++;
+      let m2 = re_src.exec(line);
+      if (m2) {
+        c_lineno = parseInt(m2[1]);
+        c_path = m2[2].split("/").pop();
+      }
+      let m = re_insn.exec(line);
+      if (m) {
+        let offset = parseInt(m[1], 16);
+        let hex3 = m[2];
+        let asm = m[3];
+        let insns = (hex3 + " " + asm).trim();
+        asmlines.push({
+          line: asm_lineno,
+          path: asmfn,
+          offset,
+          insns,
+          iscode: true
+        });
+        if (c_path) {
+          srclines.push({
+            line: c_lineno,
+            path: c_path,
+            offset,
+            iscode: true
+          });
+          c_path = "";
+        }
+      }
+    }
+    return { srclines, asmlines };
+  }
+
   // src/worker/tools/oscar64.ts
   var oscar64_fs = null;
   var wasiModule3 = null;
+  function getWasiFileAsString(wasi, suffix) {
+    for (const fd of wasi.fs.getFiles()) {
+      if (fd.name.endsWith(suffix)) {
+        return fd.getBytesAsString();
+      }
+    }
+    return null;
+  }
   async function compileOscar64(step) {
     const errors = [];
     gatherFiles(step, { mainFilePath: "main.c" });
@@ -14116,11 +14210,39 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       }
       const output = wasi.fs.getFile("./" + destpath).getBytes();
       putWorkFile(destpath, output);
+      const prefix = destpath.replace(/\.prg$/, "");
+      let mapout = getWasiFileAsString(wasi, prefix + ".map") || getWasiFileAsString(wasi, ".map");
+      let lblout = getWasiFileAsString(wasi, prefix + ".lbl") || getWasiFileAsString(wasi, ".lbl");
+      let asmout = getWasiFileAsString(wasi, prefix + ".asm") || getWasiFileAsString(wasi, ".asm");
+      let segments = [];
+      let symbolmap = {};
+      if (mapout) {
+        let parsed = parseOscar64Map(mapout);
+        segments = parsed.segments;
+        symbolmap = parsed.symbolmap;
+        putWorkFile(prefix + ".map", mapout);
+      }
+      if (lblout) {
+        symbolmap = Object.assign(parseOscar64Lbl(lblout), symbolmap);
+        putWorkFile(prefix + ".lbl", lblout);
+      }
+      let listings = {};
+      if (asmout) {
+        let { srclines, asmlines } = parseOscar64Listing(asmout, step.path);
+        let lstpath = prefix.replace(/^\.\//, "") + ".lst";
+        putWorkFile(prefix + ".asm", asmout);
+        listings[lstpath] = {
+          lines: srclines,
+          asmlines,
+          text: asmout
+        };
+      }
       return {
         output,
-        errors
-        //listings,
-        //symbolmap
+        errors,
+        listings,
+        symbolmap,
+        segments
       };
     }
   }

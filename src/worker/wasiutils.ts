@@ -9,7 +9,12 @@ export function loadBlobSync(path: string) {
     return xhr.response;
 }
 
-export async function unzipWASIFilesystem(zipdata: ArrayBuffer, rootPath: string = "./") {
+export async function unzipWASIFilesystem(zipdata: any, rootPath: string = "./") {
+    // In the Node.js test env, the XMLHttpRequest shim returns a custom Blob
+    // that JSZip does not recognize. Convert it to an ArrayBuffer first.
+    if (zipdata && typeof zipdata.asArrayBuffer === 'function') {
+        zipdata = zipdata.asArrayBuffer();
+    }
     const jszip = new JSZip();
     await jszip.loadAsync(zipdata);
     let fs = new WASIMemoryFilesystem();
@@ -33,6 +38,5 @@ export async function loadWASIFilesystemZip(zippath: string, rootPath: string = 
     const jszip = new JSZip();
     const path = '../../src/worker/fs/' + zippath;
     const zipdata = loadBlobSync(path);
-    console.log(zippath, zipdata);
     return unzipWASIFilesystem(zipdata, rootPath);
 }

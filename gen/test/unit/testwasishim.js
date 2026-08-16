@@ -40,6 +40,7 @@ const assert_1 = __importDefault(require("assert"));
 const wasishim_1 = require("../../src/common/wasi/wasishim");
 const fs = __importStar(require("fs"));
 const wasiutils_1 = require("../../src/worker/wasiutils");
+const oscar64parse_1 = require("../../src/worker/tools/oscar64parse");
 async function loadWASM(filename) {
     const wasmdata = fs.readFileSync(`./src/worker/wasm/${filename}.wasm`);
     let shim = new wasishim_1.WASIRunner();
@@ -153,27 +154,41 @@ describe('test WASI dialogc', function () {
         assert_1.default.ok(stderr.indexOf('Error: Failed to open "nosuch.dg"') >= 0, stderr);
     });
 });
-/*
 describe('test WASI oscar64', function () {
-    it('oscar64 compile', async function () {
+    it('oscar64 compile + parse output', async function () {
         let shim = await loadOscar64();
         const zipdata = fs.readFileSync(`./src/worker/fs/oscar64-fs.zip`);
-        shim.fs = await unzipWASIFilesystem(zipdata, "/root/");
-        // https://github.com/WebAssembly/wasi-filesystem/issues/24
-        // https://github.com/WebAssembly/wasi-libc/pull/214
-        shim.addPreopenDirectory("/root");
-        shim.fs.putSymbolicLink("/proc/self/exe", "/root/bin/oscar64");
-        shim.fs.putFile("/root/main.c", `#include <stdio.h>\nint main() { printf("FOO"); return 0; }`);
-        shim.setArgs(["oscar64", '-v', '-g', '-O', '-o=foo.prg', 'main.c']);
+        let oscar64_fs = await (0, wasiutils_1.unzipWASIFilesystem)(zipdata, "./");
+        shim.fs.setParent(oscar64_fs);
+        shim.fs.putFile("./main.c", `#include <stdio.h>\nint main() { printf("FOO"); return 0; }`);
+        shim.addPreopenDirectory("include");
+        shim.addPreopenDirectory(".");
+        shim.setArgs(["oscar64", '-v', '-gp', '-ii=include', '-o=./foo.prg', 'main.c']);
         let errno = shim.run();
         const stdout = shim.fds[1].getBytesAsString();
-        console.log(stdout);
         const stderr = shim.fds[2].getBytesAsString();
-        console.log(stderr);
-        assert.strictEqual(errno, 0);
-        assert.ok(stdout.indexOf('Starting oscar64') >= 0);
-        console.log(shim.fs.getFile("/root/foo.asm").getBytesAsString());
+        assert_1.default.strictEqual(errno, 0, stdout + '\n' + stderr);
+        assert_1.default.ok(stdout.indexOf('Starting oscar64') >= 0, stdout);
+        // oscar64 should have written a .map, .lbl and .asm file
+        assert_1.default.ok(shim.fs.getFile("././foo.prg"), "foo.prg not written");
+        assert_1.default.ok(shim.fs.getFile("././foo.map"), "foo.map not written");
+        assert_1.default.ok(shim.fs.getFile("././foo.lbl"), "foo.lbl not written");
+        assert_1.default.ok(shim.fs.getFile("././foo.asm"), "foo.asm not written");
+        // parse the map file for segments and symbols
+        let mapout = shim.fs.getFile("././foo.map").getBytesAsString();
+        let parsed = (0, oscar64parse_1.parseOscar64Map)(mapout);
+        assert_1.default.ok(parsed.segments.length > 0);
+        assert_1.default.ok(parsed.symbolmap['main'] > 0);
+        // parse the lbl file
+        let lblout = shim.fs.getFile("././foo.lbl").getBytesAsString();
+        let lbl = (0, oscar64parse_1.parseOscar64Lbl)(lblout);
+        assert_1.default.ok(lbl['main'] === parsed.symbolmap['main']);
+        // parse the asm listing
+        let asmout = shim.fs.getFile("././foo.asm").getBytesAsString();
+        let listing = (0, oscar64parse_1.parseOscar64Listing)(asmout, 'main.c');
+        assert_1.default.ok(listing.asmlines.length > 0);
+        assert_1.default.ok(listing.srclines.length > 0);
+        assert_1.default.ok(listing.srclines[0].offset > 0);
     });
 });
-*/
 //# sourceMappingURL=testwasishim.js.map

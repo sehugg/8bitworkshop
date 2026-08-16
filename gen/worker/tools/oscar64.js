@@ -4,10 +4,22 @@ exports.compileOscar64 = compileOscar64;
 const wasishim_1 = require("../../common/wasi/wasishim");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
+const oscar64parse_1 = require("./oscar64parse");
 const wasiutils_1 = require("../wasiutils");
 const wasmutils_1 = require("../wasmutils");
 let oscar64_fs = null;
 let wasiModule = null;
+// find a file in the WASI fs whose name ends with the given suffix.
+// oscar64 writes files as "./path/name.ext" (or "././name.ext" when the
+// output was specified with a "./" prefix), so match on suffix only.
+function getWasiFileAsString(wasi, suffix) {
+    for (const fd of wasi.fs.getFiles()) {
+        if (fd.name.endsWith(suffix)) {
+            return fd.getBytesAsString();
+        }
+    }
+    return null;
+}
 async function compileOscar64(step) {
     const errors = [];
     (0, builder_1.gatherFiles)(step, { mainFilePath: "main.c" });
@@ -50,11 +62,41 @@ async function compileOscar64(step) {
         }
         const output = wasi.fs.getFile("./" + destpath).getBytes();
         (0, builder_1.putWorkFile)(destpath, output);
+        // read and parse oscar64 auxiliary output files (.map, .lbl, .asm)
+        const prefix = destpath.replace(/\.prg$/, '');
+        let mapout = getWasiFileAsString(wasi, prefix + ".map") || getWasiFileAsString(wasi, ".map");
+        let lblout = getWasiFileAsString(wasi, prefix + ".lbl") || getWasiFileAsString(wasi, ".lbl");
+        let asmout = getWasiFileAsString(wasi, prefix + ".asm") || getWasiFileAsString(wasi, ".asm");
+        let segments = [];
+        let symbolmap = {};
+        if (mapout) {
+            let parsed = (0, oscar64parse_1.parseOscar64Map)(mapout);
+            segments = parsed.segments;
+            symbolmap = parsed.symbolmap;
+            (0, builder_1.putWorkFile)(prefix + ".map", mapout);
+        }
+        if (lblout) {
+            // merge any extra symbols from the .lbl file
+            symbolmap = Object.assign((0, oscar64parse_1.parseOscar64Lbl)(lblout), symbolmap);
+            (0, builder_1.putWorkFile)(prefix + ".lbl", lblout);
+        }
+        let listings = {};
+        if (asmout) {
+            let { srclines, asmlines } = (0, oscar64parse_1.parseOscar64Listing)(asmout, step.path);
+            let lstpath = prefix.replace(/^\.\//, '') + '.lst';
+            (0, builder_1.putWorkFile)(prefix + ".asm", asmout);
+            listings[lstpath] = {
+                lines: srclines,
+                asmlines: asmlines,
+                text: asmout,
+            };
+        }
         return {
             output,
             errors,
-            //listings,
-            //symbolmap
+            listings,
+            symbolmap,
+            segments,
         };
     }
 }

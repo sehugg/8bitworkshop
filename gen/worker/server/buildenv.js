@@ -11,6 +11,7 @@ const child_process_1 = require("child_process");
 const workertypes_1 = require("../../common/workertypes");
 const util_1 = require("../../common/util");
 const clang_1 = require("./clang");
+const oscar64parse_1 = require("../tools/oscar64parse");
 const listingutils_1 = require("../listingutils");
 const LLVM_MOS_TOOL = {
     name: 'llvm-mos',
@@ -98,72 +99,31 @@ async function oscar64ProcessOutput(step, outpath) {
     let symbolmap = {};
     let debuginfo = {};
     let segments = [];
-    // read segments
+    // parse .map file for segments and symbols
     {
         let txt = await fs_1.default.promises.readFile(prefix_path + '.map', { encoding: 'utf-8' });
-        for (let line of txt.split("\n")) {
-            // 0880 - 0887 : DATA, code
-            const m1 = line.match(/([0-9a-f]+) - ([0-9a-f]+) : ([A-Z_]+), (.+)/);
-            if (m1) {
-                const name = m1[4];
-                const start = parseInt(m1[1], 16);
-                const end = parseInt(m1[2], 16);
-                segments.push({
-                    name, start, size: end - start,
-                });
-            }
-            // 0801 (0062) : startup, NATIVE_CODE:startup
-            const m2 = line.match(/([0-9a-f]+) \(([0-9a-f]+)\) : ([^,]+), (.+)/);
-            if (m2) {
-                const addr = parseInt(m2[1], 16);
-                const name = m2[3];
-                symbolmap[name] = addr;
-            }
-        }
+        let parsed = (0, oscar64parse_1.parseOscar64Map)(txt);
+        segments = parsed.segments;
+        symbolmap = parsed.symbolmap;
     }
-    // read listings
+    // parse .lbl file for any extra symbols
+    {
+        try {
+            let txt = await fs_1.default.promises.readFile(prefix_path + '.lbl', { encoding: 'utf-8' });
+            symbolmap = Object.assign((0, oscar64parse_1.parseOscar64Lbl)(txt), symbolmap);
+        }
+        catch (e) { /* .lbl file not present */ }
+    }
+    // parse .asm listing
     {
         let txt = await fs_1.default.promises.readFile(prefix_path + '.asm', { encoding: 'utf-8' });
-        let lst = { lines: [], text: txt };
-        let asm_lineno = 0;
-        let c_lineno = 0;
-        let c_path = '';
-        const path = step.path;
-        for (let line of txt.split("\n")) {
-            asm_lineno++;
-            //;   4, "/Users/sehugg/PuzzlingPlans/8bitworkshop/server-root/oscar64/main.c"
-            let m2 = line.match(/;\s*(\d+), "(.+?)"/);
-            if (m2) {
-                c_lineno = parseInt(m2[1]);
-                c_path = m2[2].split('/').pop(); // TODO
-            }
-            //0807 : 30 36 __ BMI $083f ; (startup + 62)
-            let m = line.match(/([0-9a-f]+) : ([0-9a-f _]{8}) (.+)/);
-            if (m) {
-                let offset = parseInt(m[1], 16);
-                let hex = m[2];
-                let asm = m[3];
-                if (c_path) {
-                    lst.lines.push({
-                        line: c_lineno,
-                        path: c_path,
-                        offset,
-                        iscode: true
-                    });
-                    c_path = '';
-                    c_lineno = 0;
-                }
-                /*
-                lst.asmlines.push({
-                    line: asm_lineno,
-                    path,
-                    offset,
-                    insns: hex + ' ' + asm,
-                    iscode: true });
-                */
-            }
-        }
-        listings[(0, util_1.getFilenamePrefix)(step.path) + '.lst'] = lst;
+        let { srclines, asmlines } = (0, oscar64parse_1.parseOscar64Listing)(txt, step.path);
+        let lstfn = (0, util_1.getFilenamePrefix)(step.path) + '.lst';
+        listings[lstfn] = {
+            lines: srclines,
+            asmlines: asmlines,
+            text: txt,
+        };
     }
     return { output, listings, symbolmap, segments, debuginfo };
 }

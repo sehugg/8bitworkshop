@@ -23035,6 +23035,90 @@ function parseObjDump(lst) {
   return { listings, symbolmap, segments };
 }
 
+// src/worker/tools/oscar64parse.ts
+function parseOscar64Map(mapout) {
+  let segments = [];
+  let symbolmap = {};
+  let section = "";
+  for (let line of mapout.split("\n")) {
+    line = line.trim();
+    if (line === "sections" || line === "regions" || line === "objects" || line === "objects by size") {
+      section = line;
+      continue;
+    }
+    let m = /^([0-9a-f]+) - ([0-9a-f]+) : ([^,]+), (.+)$/.exec(line);
+    if (m) {
+      const start = parseInt(m[1], 16);
+      const end = parseInt(m[2], 16);
+      const name = m[4].trim();
+      if (section === "sections") {
+        let type = "ram";
+        if (/code/.test(m[4]) || m[4] === "startup" || /rom/.test(m[4])) {
+          type = "rom";
+        }
+        segments.push({ name: m[4], start, size: end - start, type });
+      } else if (section === "objects") {
+        if (m[3] !== "*") symbolmap[m[3]] = start;
+      }
+    }
+  }
+  return { segments, symbolmap };
+}
+function parseOscar64Lbl(lblout) {
+  let symbolmap = {};
+  for (let line of lblout.split("\n")) {
+    let toks = line.trim().split(/\s+/);
+    if (toks[0] == "al" && toks.length >= 3) {
+      const ofs = parseInt(toks[1], 16);
+      const name = toks[2];
+      const clean = name.replace(/^\./, "");
+      if (!symbolmap[clean]) symbolmap[clean] = ofs;
+    }
+  }
+  return symbolmap;
+}
+function parseOscar64Listing(asmout, asmfn) {
+  let srclines = [];
+  let asmlines = [];
+  let c_lineno = 0;
+  let c_path = "";
+  let asm_lineno = 0;
+  let re_src = /^;\s*(\d+), "(.+?)"/;
+  let re_insn = /^([0-9a-f]+) : ([0-9a-f _]{8}) (.*)/;
+  for (let line of asmout.split("\n")) {
+    asm_lineno++;
+    let m2 = re_src.exec(line);
+    if (m2) {
+      c_lineno = parseInt(m2[1]);
+      c_path = m2[2].split("/").pop();
+    }
+    let m = re_insn.exec(line);
+    if (m) {
+      let offset = parseInt(m[1], 16);
+      let hex = m[2];
+      let asm = m[3];
+      let insns = (hex + " " + asm).trim();
+      asmlines.push({
+        line: asm_lineno,
+        path: asmfn,
+        offset,
+        insns,
+        iscode: true
+      });
+      if (c_path) {
+        srclines.push({
+          line: c_lineno,
+          path: c_path,
+          offset,
+          iscode: true
+        });
+        c_path = "";
+      }
+    }
+  }
+  return { srclines, asmlines };
+}
+
 // src/worker/listingutils.ts
 function makeErrorMatcher(errors, regex, iline, imsg, mainpath, ifilename) {
   return function(s) {
@@ -23142,58 +23226,26 @@ async function oscar64ProcessOutput(step, outpath) {
   let segments = [];
   {
     let txt = await import_fs.default.promises.readFile(prefix_path + ".map", { encoding: "utf-8" });
-    for (let line of txt.split("\n")) {
-      const m1 = line.match(/([0-9a-f]+) - ([0-9a-f]+) : ([A-Z_]+), (.+)/);
-      if (m1) {
-        const name = m1[4];
-        const start = parseInt(m1[1], 16);
-        const end = parseInt(m1[2], 16);
-        segments.push({
-          name,
-          start,
-          size: end - start
-        });
-      }
-      const m2 = line.match(/([0-9a-f]+) \(([0-9a-f]+)\) : ([^,]+), (.+)/);
-      if (m2) {
-        const addr = parseInt(m2[1], 16);
-        const name = m2[3];
-        symbolmap[name] = addr;
-      }
+    let parsed = parseOscar64Map(txt);
+    segments = parsed.segments;
+    symbolmap = parsed.symbolmap;
+  }
+  {
+    try {
+      let txt = await import_fs.default.promises.readFile(prefix_path + ".lbl", { encoding: "utf-8" });
+      symbolmap = Object.assign(parseOscar64Lbl(txt), symbolmap);
+    } catch (e) {
     }
   }
   {
     let txt = await import_fs.default.promises.readFile(prefix_path + ".asm", { encoding: "utf-8" });
-    let lst = { lines: [], text: txt };
-    let asm_lineno = 0;
-    let c_lineno = 0;
-    let c_path = "";
-    const path4 = step.path;
-    for (let line of txt.split("\n")) {
-      asm_lineno++;
-      let m2 = line.match(/;\s*(\d+), "(.+?)"/);
-      if (m2) {
-        c_lineno = parseInt(m2[1]);
-        c_path = m2[2].split("/").pop();
-      }
-      let m = line.match(/([0-9a-f]+) : ([0-9a-f _]{8}) (.+)/);
-      if (m) {
-        let offset = parseInt(m[1], 16);
-        let hex = m[2];
-        let asm = m[3];
-        if (c_path) {
-          lst.lines.push({
-            line: c_lineno,
-            path: c_path,
-            offset,
-            iscode: true
-          });
-          c_path = "";
-          c_lineno = 0;
-        }
-      }
-    }
-    listings[getFilenamePrefix(step.path) + ".lst"] = lst;
+    let { srclines, asmlines } = parseOscar64Listing(txt, step.path);
+    let lstfn = getFilenamePrefix(step.path) + ".lst";
+    listings[lstfn] = {
+      lines: srclines,
+      asmlines,
+      text: txt
+    };
   }
   return { output, listings, symbolmap, segments, debuginfo };
 }

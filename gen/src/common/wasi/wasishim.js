@@ -644,7 +644,7 @@ class WASIRunner {
         const filename = this.peekUTF8(path_ptr, path_len);
         const path = filename.startsWith('/') ? filename : dir.name + '/' + filename; // TODO?
         const fd = this.fs.getFile(path);
-        console.log("path_filestat_get", dir + "", filename, path, filestat_ptr, '->', fd + "");
+        debug("path_filestat_get", dir + "", filename, path, filestat_ptr, '->', fd + "");
         if (!fd)
             return WASIErrors.NOENT;
         this.poke_filestat(filestat_ptr, fd);
