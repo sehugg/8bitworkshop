@@ -15,7 +15,6 @@ exports._pullProjectFromGithub = _pullProjectFromGithub;
 exports._removeRepository = _removeRepository;
 const dompurify_1 = __importDefault(require("dompurify"));
 const util_1 = require("../common/util");
-const analytics_1 = require("./analytics");
 const dialogs_1 = require("./dialogs");
 const project_1 = require("./project");
 const services_1 = require("./services");
@@ -72,7 +71,6 @@ async function importProjectFromGithub(githuburl, replaceURL) {
         // TODO: only first session has mainPath?
         // reload repo
         (0, dialogs_1.setWaitDialog)(false);
-        (0, analytics_1.gaEvent)('sync', 'import', githuburl);
         (0, ui_1.gotoNewLocation)(replaceURL, { repo: urlparse.repopath }); // file:sess.mainPath, platform:sess.platform_id};
     }).catch((e) => {
         (0, dialogs_1.setWaitDialog)(false);
@@ -142,7 +140,6 @@ function _publishProjectToGithub(e) {
             //repo_id = qs.repo = sess.repopath;
             return pushChangesToGithub('initial import from 8bitworkshop.com');
         }).then(() => {
-            (0, analytics_1.gaEvent)('sync', 'publish', priv ? "" : name);
             importProjectFromGithub(sess.url, false);
         }).catch((e) => {
             (0, dialogs_1.setWaitDialog)(false);

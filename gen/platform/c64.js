@@ -43,6 +43,9 @@ const C64_PRESETS = [
     { id: 'hello.acme', name: 'Hello World (ACME)' },
     { id: 'hello.wiz', name: 'Hello Wiz (Wiz)' },
     // {id:'kitchensink.dasm', name:'Kitchensink (DASM)'},
+    { id: 'hello.cpp', name: 'Hello Oscar64', category: 'C++ (Oscar64)' },
+    { id: 'particles.cpp', name: 'Fireworks' },
+    { id: 'lander.cpp', name: 'Lunar Lander' },
 ];
 const C64_MEMORY_MAP = { main: [
         { name: '6510 Registers', start: 0x0, size: 0x2, type: 'io' },
@@ -87,7 +90,7 @@ class C64MAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
         this.getOpcodeMetadata = baseplatform_1.getOpcodeMetadata_6502;
     }
     getPresets() { return C64_PRESETS; }
-    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
+    getDefaultExtensions() { return [".c", ".cpp", ".o64", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
     loadROM(title, data) {
         if (!this.started) {
             this.startModule(this.mainElement, {

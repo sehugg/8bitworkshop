@@ -361,7 +361,7 @@ class Base6502Platform extends BaseDebugPlatform {
     disassemble(pc, read) {
         return (0, disasm6502_1.disassemble6502)(pc, read(pc), read(pc + 1), read(pc + 2));
     }
-    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
+    getDefaultExtensions() { return [".c", ".cpp", ".o64", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
     ;
     getDebugCategories() {
         return ['CPU', 'ZPRAM', 'Stack'];
@@ -836,7 +836,7 @@ class Base6502MachinePlatform extends BaseMachinePlatform {
         this.getOpcodeMetadata = getOpcodeMetadata_6502;
     }
     getToolForFilename(fn) { return getToolForFilename_6502(fn); }
-    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
+    getDefaultExtensions() { return [".c", ".cpp", ".o64", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
     disassemble(pc, read) {
         return (0, disasm6502_1.disassemble6502)(pc, read(pc), read(pc + 1), read(pc + 2));
     }

@@ -7,8 +7,12 @@ const analysis_1 = require("../common/analysis");
 const audio_1 = require("../common/audio");
 const probe_1 = require("../common/probe");
 const devices_1 = require("../common/devices");
-const Mousetrap = require("mousetrap");
 const jsnes = require("../../jsnes");
+// Lazy mousetrap require: mousetrap references `document` at module load time,
+// which crashes in Node-based tests (window is polyfilled, document is not).
+function getMousetrap() {
+    return require('mousetrap');
+}
 const mameplatform_1 = require("../common/mameplatform");
 const JSNES_PRESETS = [
     { id: 'hello.c', name: 'Hello World' },
@@ -105,8 +109,8 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
         this.ntvideo.create();
         this.ntvideo.canvas.style.display = 'none';
         this.ntlastbuf = new Uint32Array(0x1000);
-        if (Mousetrap.bind)
-            Mousetrap.bind('ctrl+shift+alt+n', () => {
+        if (getMousetrap().bind)
+            getMousetrap().bind('ctrl+shift+alt+n', () => {
                 this.showDebugView = !this.showDebugView;
                 this.video.canvas.style.display = !this.showDebugView ? '' : 'none';
                 this.ntvideo.canvas.style.display = this.showDebugView ? '' : 'none';

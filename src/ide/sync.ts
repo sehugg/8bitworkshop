@@ -1,6 +1,5 @@
 import DOMPurify from "dompurify";
 import { getCookie, getFilenameForPath, getFilenamePrefix, loadScript } from "../common/util";
-import { gaEvent } from "./analytics";
 import { alertError, alertInfo, setWaitDialog, setWaitProgress } from "./dialogs";
 import { createNewPersistentStore } from "./project";
 import { GHSession, GithubService, getRepos, parseGithubURL } from "./services";
@@ -65,7 +64,6 @@ export async function importProjectFromGithub(githuburl: string, replaceURL: boo
         // TODO: only first session has mainPath?
         // reload repo
         setWaitDialog(false);
-        gaEvent('sync', 'import', githuburl);
         gotoNewLocation(replaceURL, { repo: urlparse.repopath }); // file:sess.mainPath, platform:sess.platform_id};
     }).catch((e) => {
         setWaitDialog(false);
@@ -136,7 +134,6 @@ export function _publishProjectToGithub(e) {
             //repo_id = qs.repo = sess.repopath;
             return pushChangesToGithub('initial import from 8bitworkshop.com');
         }).then(() => {
-            gaEvent('sync', 'publish', priv ? "" : name);
             importProjectFromGithub(sess.url, false);
         }).catch((e) => {
             setWaitDialog(false);

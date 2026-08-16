@@ -14074,28 +14074,47 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   }
 
   // src/worker/tools/oscar64.ts
+  var oscar64_fs = null;
+  var wasiModule3 = null;
   async function compileOscar64(step) {
-    loadNative("oscar64");
-    var params = step.params;
+    const errors = [];
     gatherFiles(step, { mainFilePath: "main.c" });
-    const destpath = (step.path || "main.c").replace(/\.[^.]+$/, ".prg");
-    var errors = [];
+    const destpath = "./" + (step.path || "main.c").replace(/\.[^.]+$/, ".prg");
     if (staleFiles(step, [destpath])) {
+      if (!oscar64_fs) {
+        oscar64_fs = await loadWASIFilesystemZip("oscar64-fs.zip");
+      }
+      if (!wasiModule3) {
+        wasiModule3 = new WebAssembly.Module(loadWASMBinary("oscar64"));
+      }
+      const wasi = new WASIRunner();
+      wasi.initSync(wasiModule3);
+      wasi.fs.setParent(oscar64_fs);
+      for (let file of step.files) {
+        wasi.fs.putFile("./" + file, store.getFileData(file));
+      }
+      wasi.addPreopenDirectory("include");
+      wasi.addPreopenDirectory(".");
+      wasi.setArgs(["oscar64", "-v", "-g", "-ii=include", "-o=" + destpath, step.path]);
+      try {
+        wasi.run();
+      } catch (e) {
+        errors.push(e);
+      }
+      let stdout = wasi.fds[1].getBytesAsString();
+      let stderr = wasi.fds[2].getBytesAsString();
+      console.log("stdout", stdout);
+      console.log("stderr", stderr);
       const matcher = makeErrorMatcher(errors, /\((\d+),\s+(\d+)\)\s+: error (\d+): (.+)/, 1, 4, step.path);
-      var oscar64 = await emglobal.Oscar64({
-        instantiateWasm: moduleInstFn("oscar64"),
-        noInitialRun: true,
-        print: print_fn,
-        printErr: matcher
-      });
-      var FS = oscar64.FS;
-      populateFiles(step, FS);
-      populateExtraFiles(step, FS, params.extra_compile_files);
-      var args = ["-v", "-g", "-i=/root", step.path];
-      execMain(step, oscar64, args);
-      if (errors.length)
+      const matcher2 = makeErrorMatcher(errors, /oscar64: error (\d+): (.+)/, 0, 2, step.path);
+      for (let line of stderr.split("\n")) {
+        matcher(line);
+        matcher2(line);
+      }
+      if (errors.length) {
         return { errors };
-      var output = FS.readFile(destpath, { encoding: "binary" });
+      }
+      const output = wasi.fs.getFile("./" + destpath).getBytes();
       putWorkFile(destpath, output);
       return {
         output,
@@ -14164,7 +14183,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     }
     return origin;
   }
-  var wasiModule3 = null;
+  var wasiModule4 = null;
   function assembleXA(step) {
     var _a, _b, _c, _d;
     const errors = [];
@@ -14173,11 +14192,11 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     const lstpath = step.prefix + ".lst";
     const sympath = step.prefix + ".lbl";
     if (staleFiles(step, [binpath])) {
-      if (!wasiModule3) {
-        wasiModule3 = new WebAssembly.Module(loadWASMBinary("xa"));
+      if (!wasiModule4) {
+        wasiModule4 = new WebAssembly.Module(loadWASMBinary("xa"));
       }
       const wasi = new WASIRunner();
-      wasi.initSync(wasiModule3);
+      wasi.initSync(wasiModule4);
       for (const file of step.files) {
         wasi.fs.putFile("./" + file, store.getFileData(file));
       }
@@ -14234,7 +14253,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   // src/worker/tools/dialog.ts
   var STDLIB = "stdlib.dg";
   var dialog_fs = null;
-  var wasiModule4 = null;
+  var wasiModule5 = null;
   var re_error2 = /^Error:\s+(?:(\S+?), line (\d+):\s+)?(.+)/;
   async function compileDialog(step) {
     const errors = [];
@@ -14244,11 +14263,11 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       if (!dialog_fs) {
         dialog_fs = await loadWASIFilesystemZip("dialog-fs.zip");
       }
-      if (!wasiModule4) {
-        wasiModule4 = new WebAssembly.Module(loadWASMBinary("dialogc"));
+      if (!wasiModule5) {
+        wasiModule5 = new WebAssembly.Module(loadWASMBinary("dialogc"));
       }
       const wasi = new WASIRunner();
-      wasi.initSync(wasiModule4);
+      wasi.initSync(wasiModule5);
       wasi.fs.setParent(dialog_fs);
       for (let file of step.files) {
         wasi.fs.putFile("./" + file, store.getFileData(file));

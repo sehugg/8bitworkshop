@@ -61,7 +61,6 @@ const emu_1 = require("../common/emu");
 const recorder_1 = require("../common/recorder");
 const util_1 = require("../common/util");
 const _index_1 = require("../platform/_index");
-const analytics_1 = require("./analytics");
 const dialogs_1 = require("./dialogs");
 const settings_1 = require("./settings");
 const project_1 = require("./project");
@@ -166,6 +165,7 @@ const TOOL_TO_HELPURL = {
     'acme': 'https://raw.githubusercontent.com/sehugg/acme/main/docs/QuickRef.txt',
     'xa': 'https://www.floodgap.com/retrotech/xa/',
     'dialog': 'https://linusakesson.net/dialog/docs/',
+    'oscar64': 'https://github.com/drmortalwombat/oscar64/blob/main/oscar64.md',
 };
 function newWorker() {
     // TODO: return new Worker("https://8bitworkshop.com.s3-website-us-east-1.amazonaws.com/dev/gen/worker/bundle.js");
@@ -573,7 +573,6 @@ async function _createNewFile(e) {
                     filename += allExtensions[0];
                 }
                 var path = filename;
-                (0, analytics_1.gaEvent)('workspace', 'file', 'new');
                 exports.qs.newfile = '1';
                 reloadProject(path);
             }
@@ -615,7 +614,6 @@ function handleFileUpload(files) {
                     }
                 });
             }
-            (0, analytics_1.gaEvent)('workspace', 'file', 'upload');
         }
         else {
             var path = f.name;
@@ -1964,16 +1962,6 @@ function showInstructions() {
         });
     }
 }
-function installGAHooks() {
-    if (window['ga']) {
-        $(".dropdown-item").click((e) => {
-            if (e.target && e.target.id) {
-                (0, analytics_1.gaEvent)('menu', e.target.id);
-            }
-        });
-        (0, analytics_1.gaPageView)(location.pathname + '?platform=' + exports.platform_id + (exports.repo_id ? ('&repo=' + exports.repo_id) : ('&file=' + exports.qs.file)));
-    }
-}
 async function startPlatform() {
     if (!emu_1.PLATFORMS[exports.platform_id])
         throw Error("Invalid platform '" + exports.platform_id + "'.");
@@ -2001,7 +1989,6 @@ async function startPlatform() {
     var initialHash = window.location.hash;
     replaceURLState();
     installErrorHandler();
-    installGAHooks();
     await exports.platform.start();
     await loadBIOSFromProject();
     await initProject();

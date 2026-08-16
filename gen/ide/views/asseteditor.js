@@ -39,14 +39,10 @@ const util_1 = require("../../common/util");
 const pixed = __importStar(require("../pixeleditor"));
 const ui_1 = require("../ui");
 const baseviews_1 = require("./baseviews");
-const Mousetrap = require("mousetrap");
-function getLineNumber(data, offset) {
-    let line = 1;
-    for (let i = 0; i < offset && i < data.length; i++) {
-        if (data[i] === '\n')
-            line++;
-    }
-    return line;
+// Lazy mousetrap require: mousetrap references `document` at module load time,
+// which crashes in Node-based tests (window is polyfilled, document is not).
+function getMousetrap() {
+    return require('mousetrap');
 }
 class AssetEditorView {
     createDiv(parent) {
@@ -189,49 +185,8 @@ class AssetEditorView {
         // scan file for assets
         // /*{json}*/ or ;;{json};;
         // TODO: put before ident, look for = {
-        var re1 = /[/;][*;]([{].+[}])[*;][/;]/g;
-        var result = [];
-        var m;
-        while (m = re1.exec(data)) {
-            var start = m.index + m[0].length;
-            var end;
-            // TODO: verilog end
-            if (ui_1.platform_id.includes('verilog')) {
-                end = data.indexOf("end", start); // asm
-            }
-            else if (m[0].startsWith(';;')) {
-                end = data.indexOf(';;', start); // asm
-                if (end == data.indexOf(';;{', start)) {
-                    // ignore start of next asset
-                    end = -1;
-                }
-            }
-            else {
-                end = data.indexOf(';', start); // C
-            }
-            //console.log(id, start, end, m[1], data.substring(start,end));
-            var startline = getLineNumber(data, m.index);
-            var header = m[0];
-            var endline = end >= 0 ? getLineNumber(data, end) : '???';
-            if (end < 0) {
-                var closingDelim = ui_1.platform_id.includes('verilog') ? '"end"' : m[0].startsWith(';;') ? '";;"' : '";"';
-                result.push({ fileid: id, header: header, startline: startline, endline: endline, error: `No closing ${closingDelim} found after asset header` });
-            }
-            else if (end <= start) {
-                result.push({ fileid: id, header: header, startline: startline, endline: endline, error: `Empty data block after asset header` });
-            }
-            else {
-                try {
-                    var jsontxt = m[1].replace(/([A-Za-z]+):/g, '"$1":'); // fix lenient JSON
-                    var json = JSON.parse(jsontxt);
-                    // TODO: name?
-                    result.push({ fileid: id, header: header, startline: startline, endline: endline, fmt: json, start: start, end: end });
-                }
-                catch (e) {
-                    result.push({ fileid: id, header: header, startline: startline, endline: endline, error: `Invalid asset format: ${e.message}` });
-                }
-            }
-        }
+        var frags = pixed.scanTextForAssetFragments(data, ui_1.platform_id.includes('verilog'));
+        var result = frags.map((frag) => (Object.assign({ fileid: id }, frag)));
         // look for DEF_METASPRITE_2x2(playerRStand, 0xd8, 0)
         // TODO: this feature was never implemented, it would require a totally new type of editor and stuff
         /*
@@ -395,7 +350,7 @@ class AssetEditorView {
                 linenos.click(() => {
                     var editor = ui_1.projectWindows.createOrShow(frag.fileid, true);
                     if (editor && editor.highlightLines) {
-                        editor.highlightLines(frag.startline - 1, (frag.endline > 0 ? frag.endline : frag.startline) - 1);
+                        editor.highlightLines(frag.startline - 1, (typeof frag.endline === 'number' && frag.endline > 0 ? frag.endline : frag.startline) - 1);
                     }
                 });
                 snip.append(' ' + frag.header);
@@ -404,15 +359,34 @@ class AssetEditorView {
                     continue;
                 }
                 if (frag.fmt) {
-                    // validate data block size before creating editors
-                    const assetError = pixed.validateAssetData(data.substring(frag.start, frag.end), frag.fmt);
-                    if (assetError) {
-                        $('<div class="asset_error_msg"/>').text(assetError).appendTo(block);
-                        continue;
+                    let node;
+                    let first;
+                    if (frag.embedFile) {
+                        // C23 #embed "file.bin" -- edit the referenced binary file directly
+                        const embedFileid = this.resolveEmbedFile(fileid, frag.embedFile);
+                        const embedData = embedFileid && ui_1.current_project.getFile(embedFileid);
+                        if (!embedFileid || !(embedData instanceof Uint8Array)) {
+                            $('<div class="asset_error_msg"/>').text(`#embed: file not found: "${frag.embedFile}"`).appendTo(block);
+                            continue;
+                        }
+                        const assetError = pixed.validateAssetByteLength(embedData.length, frag.fmt);
+                        if (assetError) {
+                            $('<div class="asset_error_msg"/>').text(assetError).appendTo(block);
+                            continue;
+                        }
+                        node = new pixed.FileDataNode(ui_1.projectWindows, embedFileid);
                     }
-                    let label = fileid; // TODO: label
-                    let node = new pixed.TextDataNode(ui_1.projectWindows, fileid, label, frag.start, frag.end, frag.fmt.bpw);
-                    let first = node;
+                    else {
+                        // validate data block size before creating editors
+                        const assetError = pixed.validateAssetData(data.substring(frag.start, frag.end), frag.fmt);
+                        if (assetError) {
+                            $('<div class="asset_error_msg"/>').text(assetError).appendTo(block);
+                            continue;
+                        }
+                        let label = fileid; // TODO: label
+                        node = new pixed.TextDataNode(ui_1.projectWindows, fileid, label, frag.start, frag.end, frag.fmt.bpw);
+                    }
+                    first = node;
                     // rle-compressed? TODO: how to edit?
                     if (frag.fmt.comp == 'rletag') {
                         node = node.addRight(new pixed.Compressor());
@@ -445,6 +419,10 @@ class AssetEditorView {
             }
         }
         return nassets;
+    }
+    // resolve a #embed "file.bin" path against the project file list
+    resolveEmbedFile(fileid, embedName) {
+        return pixed.resolveEmbedPath(fileid, embedName, (path) => ui_1.current_project.getFile(path) !== undefined);
     }
     getFileDivId(id) {
         return '__asset__' + (0, util_1.safeident)(id);
@@ -521,12 +499,14 @@ class AssetEditorView {
             // limit undo/redo to since opening this asset editor
             ui_1.projectWindows.undoStack = [];
             ui_1.projectWindows.redoStack = [];
+            const Mousetrap = getMousetrap();
             if (Mousetrap.bind) {
                 Mousetrap.bind('mod+z', (e) => { ui_1.projectWindows.undoStep(); return false; });
                 Mousetrap.bind('mod+shift+z', (e) => { ui_1.projectWindows.redoStep(); return false; });
             }
         }
         else {
+            const Mousetrap = getMousetrap();
             if (Mousetrap.unbind) {
                 Mousetrap.unbind('mod+z');
                 Mousetrap.unbind('mod+shift+z');

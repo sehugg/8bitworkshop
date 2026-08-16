@@ -43,6 +43,9 @@ const C64_PRESETS : Preset[] = [
   {id:'hello.acme', name:'Hello World (ACME)'},
   {id:'hello.wiz', name:'Hello Wiz (Wiz)'},
   // {id:'kitchensink.dasm', name:'Kitchensink (DASM)'},
+  {id:'hello.cpp', name:'Hello Oscar64', category:'C++ (Oscar64)'},
+  {id:'particles.cpp', name:'Fireworks'},
+  {id:'lander.cpp', name:'Lunar Lander'},
 ];
 
 const C64_MEMORY_MAP = { main:[
@@ -87,7 +90,7 @@ abstract class C64MAMEPlatform extends BaseMAME6502Platform {
   getPresets() { return C64_PRESETS; }
   getToolForFilename = getToolForFilename_6502;
   getOpcodeMetadata = getOpcodeMetadata_6502;
-  getDefaultExtensions() { return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
+  getDefaultExtensions() { return [".c", ".cpp", ".o64", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
   loadROM(title, data) {
     if (!this.started) {
       this.startModule(this.mainElement, {
