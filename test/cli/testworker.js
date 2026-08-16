@@ -120,6 +120,28 @@ describe('Worker', function() {
   it('should compile SDCC w/ include', function(done) {
     compile('sdcc', '#include <string.h>\nvoid main() {\nstrlen(0);\n}\n', 'mw8080bw', done, 8192, 2, 0);
   });
+  it('should compile oscar64 and return listings/symbols/segments', async function() {
+    var msgs = [{code:'#include <stdio.h>\nint main() { printf("FOO"); return 0; }', platform:'c64', tool:'oscar64', path:'main.c', mainfile:true}];
+    var result = await new Promise(function(resolve, reject) {
+      global.postMessage = function(msg) {
+        if (!msg.unchanged) {
+          assert.ok(!msg.errors || msg.errors.length === 0, JSON.stringify(msg.errors));
+          resolve(msg);
+        }
+      };
+      (async function() {
+        await global.onmessage({data:{reset:true}});
+        await global.onmessage({data:msgs[0]});
+      })().catch(reject);
+    });
+    assert.ok(result.listings && Object.keys(result.listings).length > 0, 'no listings');
+    var lst = result.listings[Object.keys(result.listings)[0]];
+    assert.ok(lst.lines.length > 0, 'no source lines');
+    assert.ok(lst.asmlines.length > 0, 'no asm lines');
+    assert.ok(result.symbolmap && result.symbolmap['main'] > 0, 'no main symbol');
+    assert.ok(result.segments && result.segments.length > 0, 'no segments');
+  });
+
   it('should compile mw8080 skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/mw8080bw/skeleton.sdcc'));
     compile('sdcc', csource, 'mw8080bw', done, 8192, 84, 0);
