@@ -38,7 +38,7 @@ function createInform6Parser() {
                 return 'number';
             }
             else {
-                return null;
+                return 'name';
             }
         }
         else if (stream.eat('!')) {
