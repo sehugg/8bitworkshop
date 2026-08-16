@@ -6,6 +6,7 @@ import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/sea
 import { EditorState, Extension, StateEffect, StateField } from "@codemirror/state";
 import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, rectangularSelection, ViewUpdate } from "@codemirror/view";
 import { CodeAnalyzer } from "../../common/analysis";
+import { ProbeFlags, ProbeRecorder } from "../../common/probe";
 import { hex, rpad } from "../../common/util";
 import { SourceFile, SourceLocation, WorkerError } from "../../common/workertypes";
 import { asm6502 } from "../../parser/lang-6502";
@@ -27,7 +28,7 @@ import { createAssetHeaderPlugin } from "./assetdecorations";
 import { isMobileDevice, ProjectView } from "./baseviews";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
 import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset, statusMarkers } from "./gutter";
-import { currentPc, errorMessages, errorSpans, highlightLines, showValue } from "./visuals";
+import { currentPc, errorMessages, errorSpans, highlightLines, showValue, tracedLines } from "./visuals";
 
 // look ahead this many bytes when finding source lines for a PC
 export const PC_LINE_LOOKAHEAD = 64;
@@ -91,6 +92,10 @@ export function setUppercaseOnly(uppercaseOnly: boolean) {
 }
 
 export class SourceEditor implements ProjectView {
+  // Whether to highlight recently-executed lines from live trace data.
+  // Off by default (probing has a runtime cost); toggled via toolbar button.
+  static tracingEnabled = false;
+
   constructor(path: string, mode: string) {
     this.path = path;
     this.mode = mode;
@@ -103,6 +108,7 @@ export class SourceEditor implements ProjectView {
   sourcefile: SourceFile;
   currentDebugLine: SourceLocation;
   refreshDelayMsec = 300;
+  probe: ProbeRecorder = null;
 
   createDiv(parent: HTMLElement) {
     var div = document.createElement('div');
@@ -123,7 +129,32 @@ export class SourceEditor implements ProjectView {
   setVisible(showing: boolean): void {
     if (showing) {
       this.editor.focus(); // so that keyboard works when moving between files
+      if (SourceEditor.tracingEnabled) this.startTracing();
+    } else {
+      this.stopTracing();
     }
+  }
+
+  startTracing() {
+    if (!this.probe && platform.startProbing) {
+      this.probe = platform.startProbing();
+      this.probe.singleFrame = false; // accumulate between our polls, we clear it ourselves
+      this.probe.clear();
+    }
+  }
+
+  stopTracing() {
+    if (this.probe) {
+      platform.stopProbing();
+      this.probe = null;
+    }
+    this.editor.dispatch({ effects: tracedLines.effect.of([]) });
+  }
+
+  setTracingEnabled(enabled: boolean) {
+    SourceEditor.tracingEnabled = enabled;
+    if (enabled) this.startTracing();
+    else this.stopTracing();
   }
 
   newEditor(parent: HTMLElement, text: string, isAsmOverride?: boolean) {
@@ -284,6 +315,8 @@ export class SourceEditor implements ProjectView {
         currentPcMarker.gutter,
 
         highlightLines.field,
+
+        tracedLines.field,
 
         assetRangesField,
 
@@ -631,6 +664,24 @@ export class SourceEditor implements ProjectView {
 
   tick() {
     this.refreshDebugState(false);
+    this.updateTracedLines();
+  }
+
+  updateTracedLines() {
+    const p = this.probe;
+    if (!p || !p.idx || !this.sourcefile) return;
+    const lines = new Set<number>();
+    for (let i = 0; i < p.idx; i++) {
+      const word = p.buf[i];
+      if ((word & 0xff000000) === ProbeFlags.EXECUTE) {
+        const loc = this.sourcefile.findLineForOffset(word & 0xffff, PC_LINE_LOOKAHEAD);
+        if (loc) lines.add(loc.line);
+      }
+    }
+    p.clear();
+    this.editor.dispatch({
+      effects: tracedLines.effect.of(Array.from(lines)),
+    });
   }
 
   getLine(line: number) {

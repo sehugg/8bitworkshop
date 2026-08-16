@@ -1419,6 +1419,17 @@ function _toggleRecording() {
   }
 }
 
+function _toggleTraceLines() {
+  var enabled = !SourceEditor.tracingEnabled;
+  $("#dbg_tracelines").toggleClass("btn_active", enabled);
+  var wnd = projectWindows.getActive();
+  if (wnd instanceof SourceEditor) {
+    wnd.setTracingEnabled(enabled);
+  } else {
+    SourceEditor.tracingEnabled = enabled;
+  }
+}
+
 function addFileToProject(type, ext, linefn) {
   var wnd = projectWindows.getActive();
   if (wnd && wnd.insertLinesBefore) {
@@ -1569,6 +1580,9 @@ function setupDebugControls() {
   // code analyzer?
   if (platform.newCodeAnalyzer) {
     uitoolbar.add(null, 'Analyze CPU Timing', 'glyphicon-time', traceTiming);
+  }
+  if (platform.startProbing) {
+    uitoolbar.add(null, 'Highlight Executed Lines', 'glyphicon-fire', _toggleTraceLines).prop('id', 'dbg_tracelines');
   }
   // setup replay slider
   if (platform.setRecorder && platform.advance) {

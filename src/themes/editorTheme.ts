@@ -17,6 +17,9 @@ export const editorTheme = EditorView.theme({
     ".highlight-lines": {
         backgroundColor: "#003399 !important",
     },
+    ".cm-traced-line": {
+        backgroundColor: "rgba(129, 123, 249, 0.15)",
+    },
     ".cm-error-span": {
         textDecoration: "underline wavy red",
         backgroundColor: "rgba(255, 0, 0, 0.15)",
