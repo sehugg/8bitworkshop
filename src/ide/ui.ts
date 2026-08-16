@@ -163,6 +163,7 @@ const TOOL_TO_HELPURL = {
   'acme': 'https://raw.githubusercontent.com/sehugg/acme/main/docs/QuickRef.txt',
   'xa': 'https://www.floodgap.com/retrotech/xa/',
   'dialog': 'https://linusakesson.net/dialog/docs/',
+  'oscar64': 'https://github.com/drmortalwombat/oscar64/blob/main/oscar64.md',
 }
 
 function newWorker(): Worker {
