@@ -37,7 +37,7 @@ class PacmanPlatform extends BaseZ80MachinePlatform<PacmanMachine> implements Pl
     {name:'Palette PROM',start:0x6100,size:0x100, type:'rom'},
     {name:'Wave ROM',    start:0x6200,size:0x100, type:'rom'},
   ] } };
-  showHelp() { return "https://8bitworkshop.com/docs/platforms/arcade/index.html#pacman-hardware" }
+  showHelp() { return "https://8bitworkshop.com/docs/platforms/arcade/index.html#pac-man-hardware" }
   
   getDebugTree() {
     let tree = super.getDebugTree();

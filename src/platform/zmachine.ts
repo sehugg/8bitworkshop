@@ -712,7 +712,7 @@ class ZmachinePlatform implements Platform {
         return [".inf", ".dg"];
     }
     showHelp() {
-        return "https://www.inform-fiction.org/manual/html/contents.html";
+        return "https://8bitworkshop.com/docs/platforms/zmachine/";
     }
     getPresets(): Preset[] {
         return ZMACHINE_PRESETS;

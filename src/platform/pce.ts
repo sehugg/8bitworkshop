@@ -55,6 +55,9 @@ class PCEnginePlatform implements Platform {
     getDefaultExtensions() {
         return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"];
     }
+    showHelp() {
+        return "https://8bitworkshop.com/docs/platforms/pce/";
+    }
     readAddress(addr: number): number {
         return this.pce.Get(addr);
     }
