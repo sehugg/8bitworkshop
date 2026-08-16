@@ -107,7 +107,7 @@ export function openSettings() {
         className: "btn-default"
       },
       ok: {
-        label: "SAVE",
+        label: "Save",
         className: "btn-primary",
         callback: () => {
           settings.tabSize = parseInt($('#setting_tabSize').val() as string) || 8;
