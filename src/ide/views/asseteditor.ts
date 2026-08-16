@@ -5,7 +5,12 @@ import { FileData } from "../../common/workertypes";
 import * as pixed from "../pixeleditor";
 import { current_project, platform_id, projectWindows } from "../ui";
 import { newDiv, ProjectView } from "./baseviews";
-import Mousetrap = require('mousetrap');
+
+// Lazy mousetrap require: mousetrap references `document` at module load time,
+// which crashes in Node-based tests (window is polyfilled, document is not).
+function getMousetrap() {
+    return require('mousetrap');
+}
 
 export class AssetEditorView implements ProjectView, pixed.EditorContext {
   maindiv: JQuery;
@@ -475,11 +480,13 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
       // limit undo/redo to since opening this asset editor
       projectWindows.undoStack = [];
       projectWindows.redoStack = [];
+      const Mousetrap = getMousetrap();
       if (Mousetrap.bind) {
         Mousetrap.bind('mod+z', (e) => { projectWindows.undoStep(); return false; });
         Mousetrap.bind('mod+shift+z', (e) => { projectWindows.redoStep(); return false; });
       }
     } else {
+      const Mousetrap = getMousetrap();
       if (Mousetrap.unbind) {
         Mousetrap.unbind('mod+z');
         Mousetrap.unbind('mod+shift+z');

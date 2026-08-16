@@ -6,8 +6,13 @@ import { CodeAnalyzer_nes } from "../common/analysis";
 import { SampleAudio } from "../common/audio";
 import { ProbeRecorder } from "../common/probe";
 import { NullProbe, Probeable, ProbeAll } from "../common/devices";
-import Mousetrap = require('mousetrap');
 import jsnes = require('../../jsnes');
+
+// Lazy mousetrap require: mousetrap references `document` at module load time,
+// which crashes in Node-based tests (window is polyfilled, document is not).
+function getMousetrap() {
+    return require('mousetrap');
+}
 import { BaseMAME6502Platform } from "../common/mameplatform";
 
 const JSNES_PRESETS : Preset[] = [
@@ -102,7 +107,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     this.ntvideo.create();
     this.ntvideo.canvas.style.display = 'none';
     this.ntlastbuf = new Uint32Array(0x1000);
-    if (Mousetrap.bind) Mousetrap.bind('ctrl+shift+alt+n', () => {
+    if (getMousetrap().bind) getMousetrap().bind('ctrl+shift+alt+n', () => {
       this.showDebugView = !this.showDebugView;
       this.video.canvas.style.display = !this.showDebugView ? '' : 'none';
       this.ntvideo.canvas.style.display = this.showDebugView ? '' : 'none';

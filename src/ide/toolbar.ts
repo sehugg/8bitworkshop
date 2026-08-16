@@ -1,7 +1,11 @@
 
-import Mousetrap = require('mousetrap');
-
 /// TOOLBAR
+
+// Lazy mousetrap require: mousetrap references `document` at module load time,
+// which crashes in Node-based tests (window is polyfilled, document is not).
+function getMousetrap() {
+    return require('mousetrap');
+}
 
 export class Toolbar {
     span : JQuery;
@@ -10,6 +14,7 @@ export class Toolbar {
     boundkeys = [];
     
     constructor(parentDiv:HTMLElement, focusDiv:HTMLElement) {
+      const Mousetrap = getMousetrap();
       this.mousetrap = focusDiv ? new Mousetrap(focusDiv) : Mousetrap;
       this.span = $(document.createElement("span")).addClass("btn_toolbar");
       parentDiv.appendChild(this.span[0]);
