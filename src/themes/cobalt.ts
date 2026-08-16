@@ -5,7 +5,7 @@ import { tags as t } from "@lezer/highlight"
 const cobaltTheme = EditorView.theme({
   "&": {
     backgroundColor: "#122c43",
-    color: "white"
+    color: "#e6e6e6"
   },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
     backgroundColor: "#9191fb30 !important"
@@ -47,24 +47,24 @@ const cobaltTheme = EditorView.theme({
 }, { dark: true });
 
 const cobaltHighlightStyle = HighlightStyle.define([
-  { tag: t.standard(t.keyword), color: "#ffee80" }, // Bright Yellow
-  { tag: [t.name, t.standard(t.name)], color: "#ff9e59" }, // Soft Orange
-  { tag: t.variableName, color: "#9effff" }, // Cyan/Light Blue
-  { tag: t.local(t.variableName), color: "#ffffff" }, // White for locals
-  { tag: [t.deleted, t.macroName], color: "#ff628c" }, // Pinkish-red
-  { tag: [t.processingInstruction, t.keyword, t.controlKeyword], color: "#ffee80" }, // Yellow
-  { tag: [t.string, t.inserted], color: "#3ad900" }, // Vibrant Green
-  { tag: [t.number, t.modifier], color: "#ff628c" }, // Pink/Rose
-  { tag: [t.atom, t.bool, t.special(t.variableName)], color: "#845dc4" }, // Purple
-  { tag: t.definition(t.variableName), color: "#ffee80" }, // Yellow
-  { tag: [t.propertyName, t.attributeName, t.tagName, t.self], color: "#9effff" }, // Light Blue
-  { tag: t.definition(t.name), color: "#ff9e59" }, // Orange
-  { tag: t.typeName, color: "#80ffbb" }, // Seafoam Green
+  { tag: t.standard(t.keyword), color: "#99ff99" }, // Green (Turbo Pascal reserved words)
+  { tag: [t.name, t.standard(t.name)], color: "#eeee99" }, // Light gray identifiers
+  { tag: t.variableName, color: "#ffcd76" },
+  { tag: t.local(t.variableName), color: "#ffff99" }, // Yellow for locals
+  { tag: [t.deleted, t.macroName], color: "#ffbb99" }, // Pastel pink (macros/defines)
+  { tag: [t.processingInstruction, t.keyword, t.controlKeyword], color: "#ccc" }, // Yellow keywords
+  { tag: [t.string, t.inserted], color: "#aaffff" }, // Pastel cyan (Turbo Pascal strings)
+  { tag: [t.number, t.modifier], color: "#ff99ff" }, // Magenta (Turbo Pascal numbers)
+  { tag: [t.atom, t.bool, t.special(t.variableName)], color: "#99ff99" }, // Green
+  { tag: t.definition(t.variableName), color: "#ffffff" }, // White (TP definitions)
+  { tag: [t.propertyName, t.attributeName, t.tagName, t.self], color: "#b2ebf2" }, // Pastel cyan
+  { tag: t.definition(t.name), color: "#f0f0f0" }, // Pale gray function definitions
+  { tag: t.typeName, color: "#9be8c5" }, // Pastel seafoam green
   { tag: t.bracket, color: "#d8d8d8" },
-  { tag: t.comment, color: "#0088ff" }, // Distinctive Cobalt Blue-Comment
-  { tag: t.link, color: "#845dc4" },
-  { tag: t.meta, color: "#ff9d00" },
-  { tag: t.invalid, color: "#9d1e15" },
+  { tag: t.comment, color: "#999" }, // Grey
+  { tag: t.link, color: "#c3b1e1" }, // Pastel purple
+  { tag: t.meta, color: "#ffd9a0" }, // Pastel orange (directives)
+  { tag: t.invalid, color: "#ff6666" }, // Pastel red
 ]);
 
 export const cobalt = [

@@ -45,7 +45,7 @@ function createInform6Parser(): StreamParser<Inform6State> {
             } else if (stream.match(numbers)) {
                 return 'number';
             } else {
-                return null;
+                return 'name';
             }
         } else if (stream.eat('!')) {
             stream.skipToEnd();
