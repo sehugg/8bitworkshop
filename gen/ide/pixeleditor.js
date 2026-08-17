@@ -13,6 +13,9 @@ exports.convertPaletteBytes = convertPaletteBytes;
 exports.decodePacmanColorPromByte = decodePacmanColorPromByte;
 exports.getPaletteLength = getPaletteLength;
 exports.convertPaletteFormat = convertPaletteFormat;
+exports.getPixelClipboard = getPixelClipboard;
+exports.setPixelClipboard = setPixelClipboard;
+exports.pasteClipboardPixels = pasteClipboardPixels;
 const util_1 = require("../common/util");
 const toolbar_1 = require("./toolbar");
 const MAX_SIZE_X = 800;
@@ -1198,6 +1201,34 @@ class Viewer {
     }
 }
 exports.Viewer = Viewer;
+var pixelClipboard = null;
+function getPixelClipboard() {
+    return pixelClipboard;
+}
+function setPixelClipboard(clip) {
+    pixelClipboard = clip;
+}
+// Paste clipboard pixels over the top-left of the destination image, clipped to
+// whichever is smaller. Colors are matched by palette index, not by RGB value,
+// so a tile copied under one palette keeps its shape under another.
+function pasteClipboardPixels(clip, dstpixels, dstwidth, dstheight, dstpalette) {
+    var remap = new Map();
+    for (var i = 0; i < clip.palette.length; i++) {
+        if (!remap.has(clip.palette[i]))
+            remap.set(clip.palette[i], dstpalette[i & (dstpalette.length - 1)]);
+    }
+    var result = dstpixels.slice();
+    var w = Math.min(clip.width, dstwidth);
+    var h = Math.min(clip.height, dstheight);
+    for (var y = 0; y < h; y++) {
+        for (var x = 0; x < w; x++) {
+            var rgba = clip.pixels[y * clip.width + x];
+            var mapped = remap.get(rgba);
+            result[y * dstwidth + x] = mapped !== undefined ? mapped : rgba;
+        }
+    }
+    return result;
+}
 class PixEditor extends Viewer {
     constructor() {
         super(...arguments);
@@ -1347,7 +1378,38 @@ class PixEditor extends Viewer {
         toolbar.add('ctrl+shift+right', 'Move Right', 'glyphicon-arrow-right', this.translate.bind(this, -1, 0));
         toolbar.add('ctrl+shift+up', 'Move Up', 'glyphicon-arrow-up', this.translate.bind(this, 0, 1));
         toolbar.add('ctrl+shift+down', 'Move Down', 'glyphicon-arrow-down', this.translate.bind(this, 0, -1));
+        toolbar.newGroup();
+        toolbar.add(null, 'Copy Image', 'glyphicon-copy', this.copyImage.bind(this));
+        toolbar.add(null, 'Paste Image', 'glyphicon-paste', this.pasteImage.bind(this));
         // TODO: destroy toolbar?
+    }
+    // returns the image with art-bit columns removed, like remapPixels() operates on
+    getStrippedPixels() {
+        if (!this.artInfo) {
+            return { pixels: this.rgbdata.slice(), width: this.width };
+        }
+        var bpw = this.artInfo.bitsperword;
+        var strippedWidth = this.width - Math.floor(this.width / bpw);
+        var stripped = new Uint32Array(strippedWidth * this.height);
+        this.copyNonArtPixels(stripped, strippedWidth, this.rgbdata, this.width);
+        return { pixels: stripped, width: strippedWidth };
+    }
+    copyImage() {
+        var { pixels, width } = this.getStrippedPixels();
+        setPixelClipboard({
+            width: width,
+            height: this.height,
+            pixels: pixels,
+            palette: this.palette.slice()
+        });
+    }
+    pasteImage() {
+        var clip = getPixelClipboard();
+        if (!clip)
+            return;
+        var { pixels, width } = this.getStrippedPixels();
+        var pasted = pasteClipboardPixels(clip, pixels, width, this.height, this.palette);
+        this.remapPixels((x, y) => pasted[y * width + x]);
     }
     commit() {
         this.updateImage();

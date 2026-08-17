@@ -384,7 +384,7 @@ const uint8_t bkg_tiles[] = {
 const uint8_t sprite_tiles[] = {
 /* From NES metasprites; 8x16 L/R pairs (player, player2, enemy);
  * pen0 clear; pen1 black→3, pen2 body→2, pen3 white→1. */
-/*{w:8,h:8,bpp:1,count:12,brev:1,np:2,pofs:1,sl:2}*/
+/*{w:16,h:16,bpp:1,count:3,brev:1,np:2,pofs:1,sl:2,wpimg:64,remap:[5,1,2,3,4,0,6,7,8,9,10,11,12]}*/
   0x00,0x00,0x3f,0x3f,0x60,0x7f,0x5f,0x60,
   0x5f,0x6e,0x5f,0x72,0x5f,0x76,0x5f,0x76,
   0x5f,0x7e,0x5f,0x60,0x5f,0x60,0x47,0x7f,

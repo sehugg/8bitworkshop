@@ -47,7 +47,7 @@ var AtariVectorPlatform = function(mainElement) {
   var cpuCyclesPerNMI = Math.round(cpuFrequency*12/(XTAL/4096)); // ~250 Hz
   var cpuCyclesPerFrame = Math.round(cpuFrequency/60);
   var cpu, cpuram, dvgram, rom, vecrom, bus, dvg;
-  var video, audio, timer;
+  var video, audio, timer, poller;
   var clock;
   var watchdog = 0;
   var switches = new RAM(16).mem;
@@ -98,8 +98,10 @@ var AtariVectorPlatform = function(mainElement) {
     audio = newPOKEYAudio(2);
     video.create();
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
-    setKeyboardFromMap(video, switches, ASTEROIDS_KEYCODE_MAP);
+    poller = setKeyboardFromMap(video, switches, ASTEROIDS_KEYCODE_MAP);
   }
+
+  this.pollControls = function() { poller && poller.poll(); }
 
   this.advance = (novideo) => {
       if (!novideo) video.clear();
@@ -189,7 +191,7 @@ var AtariColorVectorPlatform = function(mainElement) {
   var cpuCyclesPerNMI = Math.round(cpuFrequency / nmiFrequency);
   var cpuCyclesPerFrame = Math.round(cpuFrequency / 60);
   var cpu, cpuram, dvgram, rom, vecrom, bus, dvg, earom;
-  var video, audio, timer;
+  var video, audio, timer, poller;
   var clock;
   var switches = new RAM(16).mem;
   var nmicount = cpuCyclesPerNMI;
@@ -259,8 +261,10 @@ var AtariColorVectorPlatform = function(mainElement) {
     audio = newPOKEYAudio(2);
     video.create();
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
-    setKeyboardFromMap(video, switches, GRAVITAR_KEYCODE_MAP);
+    poller = setKeyboardFromMap(video, switches, GRAVITAR_KEYCODE_MAP);
   }
+
+  this.pollControls = function() { poller && poller.poll(); }
 
   this.advance = (novideo) => {
       if (!novideo) video.clear();
@@ -343,7 +347,7 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
   var cpuFrequency = 4000000.0;
   var cpuCyclesPerFrame = Math.round(cpuFrequency/60);
   var cpu, cpuram, dvgram, rom, bus, dvg;
-  var video, audio, timer;
+  var video, audio, timer, poller;
   var clock;
   var switches = new RAM(16).mem;
   var mathram = new RAM(16).mem;
@@ -404,8 +408,10 @@ var Z80ColorVectorPlatform = function(mainElement, proto) {
     audio = newPOKEYAudio(2);
     video.create();
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
-    setKeyboardFromMap(video, switches, GRAVITAR_KEYCODE_MAP);
+    poller = setKeyboardFromMap(video, switches, GRAVITAR_KEYCODE_MAP);
   }
+
+  this.pollControls = function() { poller && poller.poll(); }
 
   this.advance = (novideo) => {
       if (!novideo) video.clear();

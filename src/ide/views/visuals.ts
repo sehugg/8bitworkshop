@@ -262,3 +262,39 @@ export const highlightLines = {
   effect: highlightLinesEffect,
   field: highlightLinesField,
 };
+
+// Highlight lines that were recently executed, per live trace data.
+const tracedLinesEffect = StateEffect.define<number[]>();
+
+const tracedLineDecoration = Decoration.line({
+  attributes: { class: "cm-traced-line" }
+});
+
+const tracedLinesField = StateField.define({
+  create() { return Decoration.none },
+  update(decorations, tr) {
+    decorations = decorations.map(tr.changes);
+
+    for (let e of tr.effects) {
+      if (e.is(tracedLinesEffect)) {
+        const ranges: any[] = [];
+        for (const lineNum of e.value) {
+          try {
+            const line = tr.state.doc.line(lineNum);
+            ranges.push(tracedLineDecoration.range(line.from));
+          } catch {
+            // Line doesn't exist, skip
+          }
+        }
+        return Decoration.set(ranges, true); // sort=true, line numbers may be unordered
+      }
+    }
+    return decorations;
+  },
+  provide: f => EditorView.decorations.from(f),
+});
+
+export const tracedLines = {
+  effect: tracedLinesEffect,
+  field: tracedLinesField,
+};

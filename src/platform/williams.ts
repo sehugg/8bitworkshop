@@ -31,7 +31,7 @@ var WilliamsPlatform = function(mainElement, proto, options) {
   var pia6821 = new RAM(8).mem;
   var blitregs = new RAM(8).mem;
 
-  var video, timer, pixels, displayPCs;
+  var video, timer, pixels, displayPCs, poller;
   var screenNeedsRefresh = false;
   var membus;
   var video_counter;
@@ -317,10 +317,12 @@ var WilliamsPlatform = function(mainElement, proto, options) {
       if (displayPCs) console.log(x, y, hex(addr, 4), "PC", hex(displayPCs[addr], 4));
     });
     var idata = video.getFrameData();
-    setKeyboardFromMap(video, pia6821, KEYCODE_MAP);
+    poller = setKeyboardFromMap(video, pia6821, KEYCODE_MAP);
     pixels = video.getFrameData();
     timer = new AnimationTimer(60, this.nextFrame.bind(this));
   }
+
+  this.pollControls = function() { poller && poller.poll(); }
 
   this.getRasterScanline = function() { return video_counter; }
 

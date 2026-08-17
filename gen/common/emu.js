@@ -516,9 +516,13 @@ function makeKeycodeMap(table) {
     }
     return map;
 }
+// TODO: P2_GP_B and P2_GP_C share keycodes with P2_B and P2_A, so they can't
+// be listed here without button 1/2 double-binding on player 2.
 const DEFAULT_CONTROLLER_KEYS = [
     exports.Keys.UP, exports.Keys.DOWN, exports.Keys.LEFT, exports.Keys.RIGHT, exports.Keys.A, exports.Keys.B, exports.Keys.SELECT, exports.Keys.START,
+    exports.Keys.GP_A, exports.Keys.GP_B, exports.Keys.GP_C, exports.Keys.GP_D, exports.Keys.OPTION,
     exports.Keys.P2_UP, exports.Keys.P2_DOWN, exports.Keys.P2_LEFT, exports.Keys.P2_RIGHT, exports.Keys.P2_A, exports.Keys.P2_B, exports.Keys.P2_SELECT, exports.Keys.P2_START,
+    exports.Keys.P2_GP_A, exports.Keys.P2_GP_D,
 ];
 // Gamepad helper
 class ControllerPoller {
@@ -536,22 +540,28 @@ class ControllerPoller {
         });
     }
     reset() {
-        this.active = typeof navigator.getGamepads === 'function';
-        if (this.active) {
-            let numGamepads = navigator.getGamepads().length;
+        var _a, _b;
+        if (typeof navigator.getGamepads === 'function') {
+            let numGamepads = (_a = navigator.getGamepads()) === null || _a === void 0 ? void 0 : _a.length;
             this.state = new Array(numGamepads);
             this.lastState = new Array(numGamepads);
             for (var i = 0; i < numGamepads; i++) {
                 this.state[i] = new Int32Array(64);
                 this.lastState[i] = new Int32Array(64);
             }
-            console.log(this);
+            this.active = ((_b = this.state) === null || _b === void 0 ? void 0 : _b.length) > 0;
         }
+    }
+    start() {
+        this.reset();
+    }
+    stop() {
+        this.active = false;
     }
     poll() {
         if (!this.active)
             return;
-        var gamepads = navigator.getGamepads();
+        var gamepads = navigator.getGamepads && navigator.getGamepads();
         for (var gpi = 0; gpi < gamepads.length; gpi++) {
             let state = this.state[gpi];
             let lastState = this.lastState[gpi];
@@ -576,29 +586,39 @@ class ControllerPoller {
     }
     handleStateChange(gpi, k) {
         var axis = k - this.AXIS0;
+        var state = this.state[gpi][k];
+        var lastState = this.lastState[gpi][k];
         // TODO: this is slow
         for (var def of DEFAULT_CONTROLLER_KEYS) {
             // is this a gamepad entry? same player #?
-            if (def && def.plyr == gpi) {
-                var code = def.c;
-                var state = this.state[gpi][k];
-                var lastState = this.lastState[gpi][k];
-                // check for button/axis match
-                if (k == def.button || (axis == 0 && def.xaxis == state) || (axis == 1 && def.yaxis == state)) {
-                    //console.log("Gamepad", gpi, code, state);
-                    if (state != 0) {
-                        this.handler(code, 0, KeyFlags.KeyDown);
-                    }
-                    else {
-                        this.handler(code, 0, KeyFlags.KeyUp);
-                    }
-                    break;
-                }
-                // joystick released?
-                else if (state == 0 && (axis == 0 && def.xaxis == lastState) || (axis == 1 && def.yaxis == lastState)) {
-                    this.handler(code, 0, KeyFlags.KeyUp);
-                    break;
-                }
+            if (!def || def.plyr != gpi)
+                continue;
+            // does this key map to the button/axis that changed?
+            // an axis has to be compared against the direction the key stands for,
+            // so that e.g. a left-to-right flick releases LEFT and presses RIGHT
+            var active, wasActive;
+            if (def.button != null && k == def.button) {
+                active = state != 0;
+                wasActive = lastState != 0;
+            }
+            else if (axis == 0 && def.xaxis != null) {
+                active = def.xaxis == state;
+                wasActive = def.xaxis == lastState;
+            }
+            else if (axis == 1 && def.yaxis != null) {
+                active = def.yaxis == state;
+                wasActive = def.yaxis == lastState;
+            }
+            else {
+                continue;
+            }
+            // don't break -- several keys can share a button (e.g. A and GP_A)
+            //console.log("Gamepad", gpi, def.c, state);
+            if (active && !wasActive) {
+                this.handler(def.c, 0, KeyFlags.KeyDown);
+            }
+            else if (!active && wasActive) {
+                this.handler(def.c, 0, KeyFlags.KeyUp);
             }
         }
     }

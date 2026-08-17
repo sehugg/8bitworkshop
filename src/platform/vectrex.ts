@@ -1,6 +1,6 @@
 
 import { Platform, BaseZ80Platform, Base6502Platform, Base6809Platform } from "../common/baseplatform";
-import { PLATFORMS, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, VectorVideo, Keys, makeKeycodeMap } from "../common/emu";
+import { PLATFORMS, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, VectorVideo, Keys, makeKeycodeMap, ControllerPoller } from "../common/emu";
 import { hex, lzgmini, stringToByteArray, safe_extend } from "../common/util";
 import { MasterAudio, AY38910_Audio } from "../common/audio";
 import { ProbeRecorder } from "../common/probe";
@@ -785,6 +785,7 @@ class VectrexPlatform extends Base6809Platform {
   psg: AY38910_Audio;
   audio;
   timer: AnimationTimer;
+  poller: ControllerPoller;
 
   constructor(mainElement) {
     super();
@@ -831,8 +832,10 @@ class VectrexPlatform extends Base6809Platform {
     this.psg = new AY38910_Audio(this.audio);
     this.video.create();
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
-    setKeyboardFromMap(this.video, this.inputs, VECTREX_KEYCODE_MAP); // true = always send function);
+    this.poller = setKeyboardFromMap(this.video, this.inputs, VECTREX_KEYCODE_MAP); // true = always send function);
   }
+
+  pollControls() { this.poller && this.poller.poll(); }
 
   // TODO: loadControlsState
   updateControls() {

@@ -1,0 +1,65 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.assembleECS = assembleECS;
+const compiler_1 = require("../../common/ecs/compiler");
+const ecs_1 = require("../../common/ecs/ecs");
+const tokenizer_1 = require("../../common/tokenizer");
+const builder_1 = require("../builder");
+function assembleECS(step) {
+    let em = new ecs_1.EntityManager(new ecs_1.Dialect_CA65()); // TODO
+    let compiler = new compiler_1.ECSCompiler(em, true);
+    compiler.getImportFile = (path) => {
+        return (0, builder_1.getWorkFileAsString)(path);
+    };
+    (0, builder_1.gatherFiles)(step, { mainFilePath: "main.ecs" });
+    if (step.mainfile)
+        em.mainPath = step.path;
+    var destpath = step.prefix + '.ca65';
+    if ((0, builder_1.staleFiles)(step, [destpath])) {
+        let code = (0, builder_1.getWorkFileAsString)(step.path);
+        // TODO
+        step.params.cfgfile = 'atari2600-ecs.cfg';
+        step.params.extra_link_files.push('atari2600-ecs.cfg');
+        (0, builder_1.fixParamsWithDefines)(step.path, step.params);
+        // remove crt0.o from libargs
+        step.params.libargs = step.params.libargs.filter((arg) => {
+            return arg !== 'crt0.o';
+        });
+        try {
+            compiler.includeDebugInfo = true;
+            compiler.parseFile(code, step.path);
+            let outtext = compiler.export().toString();
+            (0, builder_1.putWorkFile)(destpath, outtext);
+            var listings = {};
+            listings[destpath] = { lines: [], text: outtext }; // TODO
+            var debuginfo = compiler.em.getDebugTree();
+        }
+        catch (e) {
+            if (e instanceof ecs_1.ECSError) {
+                compiler.addError(e.message, e.$loc);
+                for (let obj of e.$sources) {
+                    let name = obj.event;
+                    if (name == 'start')
+                        break;
+                    compiler.addError(`... ${name}`, obj.$loc); // TODO?
+                }
+                return { errors: compiler.errors, listings, debuginfo };
+            }
+            else if (e instanceof tokenizer_1.CompileError) {
+                return { errors: compiler.errors, listings, debuginfo };
+            }
+            else {
+                throw e;
+            }
+        }
+        return {
+            nexttool: "ca65",
+            path: destpath,
+            args: [destpath],
+            files: [destpath].concat(step.files),
+            listings,
+            debuginfo
+        };
+    }
+}
+//# sourceMappingURL=ecs.js.map

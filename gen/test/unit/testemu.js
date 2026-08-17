@@ -417,6 +417,143 @@ const emu_1 = require("../../src/common/emu");
         assert_1.default.ok(calls.some(c => c[0] === 'stroke'), 'stroke called');
     });
 });
+(0, mocha_1.describe)('ControllerPoller', function () {
+    const realWindow = global.window;
+    // node defines a getter-only global navigator, so it can't just be assigned
+    const realNavigator = Object.getOwnPropertyDescriptor(global, 'navigator');
+    function setNavigator(nav) {
+        Object.defineProperty(global, 'navigator', { value: nav, configurable: true, writable: true });
+    }
+    let pads;
+    let listeners;
+    let events;
+    // builds a poller wired to two fake standard-layout gamepads
+    function newPoller() {
+        pads = [0, 1].map(() => ({
+            axes: [0, 0],
+            buttons: new Array(16).fill(null).map(() => ({ pressed: false })),
+        }));
+        listeners = {};
+        events = [];
+        global.window = { addEventListener: (n, f) => { listeners[n] = f; } };
+        setNavigator({ getGamepads: () => pads });
+        return new emu_1.ControllerPoller((key, code, flags) => { events.push([key, flags]); });
+    }
+    // polls and returns the keys that went down/up since the last call
+    function poll(poller) {
+        events = [];
+        poller.poll();
+        return events;
+    }
+    function down(k) { return [k.c, emu_1.KeyFlags.KeyDown]; }
+    function up(k) { return [k.c, emu_1.KeyFlags.KeyUp]; }
+    after(function () {
+        if (realWindow === undefined)
+            delete global.window;
+        else
+            global.window = realWindow;
+        if (realNavigator === undefined)
+            delete global.navigator;
+        else
+            Object.defineProperty(global, 'navigator', realNavigator);
+    });
+    (0, mocha_1.it)('should stay inactive until a gamepad connects', function () {
+        const poller = newPoller();
+        assert_1.default.strictEqual(poller.active, false);
+        pads[0].buttons[0].pressed = true;
+        assert_1.default.deepStrictEqual(poll(poller), []); // no state array yet, must not throw
+    });
+    (0, mocha_1.it)('should activate on the gamepadconnected event', function () {
+        const poller = newPoller();
+        listeners['gamepadconnected']({});
+        assert_1.default.strictEqual(poller.active, true);
+        assert_1.default.deepStrictEqual(poll(poller), []); // nothing pressed yet
+    });
+    (0, mocha_1.it)('should report button presses and releases once each', function () {
+        const poller = newPoller();
+        listeners['gamepadconnected']({});
+        poll(poller);
+        pads[0].buttons[9].pressed = true;
+        assert_1.default.deepStrictEqual(poll(poller), [down(emu_1.Keys.START)]);
+        assert_1.default.deepStrictEqual(poll(poller), []); // held, not re-sent
+        pads[0].buttons[9].pressed = false;
+        assert_1.default.deepStrictEqual(poll(poller), [up(emu_1.Keys.START)]);
+    });
+    (0, mocha_1.it)('should send every key sharing a button, not just the first', function () {
+        // A and GP_A are both button 0 -- platforms bind one or the other
+        const poller = newPoller();
+        listeners['gamepadconnected']({});
+        poll(poller);
+        pads[0].buttons[0].pressed = true;
+        assert_1.default.deepStrictEqual(poll(poller), [down(emu_1.Keys.A), down(emu_1.Keys.GP_A)]);
+    });
+    (0, mocha_1.it)('should map the face buttons past B', function () {
+        const poller = newPoller();
+        listeners['gamepadconnected']({});
+        poll(poller);
+        pads[0].buttons[2].pressed = true;
+        pads[0].buttons[3].pressed = true;
+        assert_1.default.deepStrictEqual(poll(poller), [down(emu_1.Keys.GP_C), down(emu_1.Keys.GP_D)]);
+    });
+    (0, mocha_1.it)('should translate axes into direction keys', function () {
+        const poller = newPoller();
+        listeners['gamepadconnected']({});
+        poll(poller);
+        pads[0].axes[0] = -1;
+        assert_1.default.deepStrictEqual(poll(poller), [down(emu_1.Keys.LEFT)]);
+        pads[0].axes[0] = 0;
+        assert_1.default.deepStrictEqual(poll(poller), [up(emu_1.Keys.LEFT)]);
+        pads[0].axes[1] = 1;
+        assert_1.default.deepStrictEqual(poll(poller), [down(emu_1.Keys.DOWN)]);
+        pads[0].axes[1] = 0;
+        assert_1.default.deepStrictEqual(poll(poller), [up(emu_1.Keys.DOWN)]);
+    });
+    (0, mocha_1.it)('should release the old direction when an axis flicks across center', function () {
+        const poller = newPoller();
+        listeners['gamepadconnected']({});
+        poll(poller);
+        pads[0].axes[0] = -1;
+        assert_1.default.deepStrictEqual(poll(poller), [down(emu_1.Keys.LEFT)]);
+        // -1 to +1 in one poll: LEFT must not stay stuck down
+        pads[0].axes[0] = 1;
+        assert_1.default.deepStrictEqual(poll(poller), [up(emu_1.Keys.LEFT), down(emu_1.Keys.RIGHT)]);
+        pads[0].axes[1] = -1;
+        assert_1.default.deepStrictEqual(poll(poller), [down(emu_1.Keys.UP)]);
+        pads[0].axes[1] = 1;
+        assert_1.default.deepStrictEqual(poll(poller), [up(emu_1.Keys.UP), down(emu_1.Keys.DOWN)]);
+    });
+    (0, mocha_1.it)('should route the second gamepad to the player 2 keys', function () {
+        const poller = newPoller();
+        listeners['gamepadconnected']({});
+        poll(poller);
+        pads[1].axes[1] = -1;
+        pads[1].buttons[9].pressed = true;
+        assert_1.default.deepStrictEqual(poll(poller), [down(emu_1.Keys.P2_UP), down(emu_1.Keys.P2_START)]);
+        // player 1 keys must not fire for player 2's pad
+        assert_1.default.ok(!events.some(e => e[0] == emu_1.Keys.UP.c || e[0] == emu_1.Keys.START.c));
+    });
+    (0, mocha_1.it)('should ignore axes a key does not use', function () {
+        // A is button-only, so it must not react to any axis movement
+        const poller = newPoller();
+        listeners['gamepadconnected']({});
+        poll(poller);
+        pads[0].axes[0] = 1;
+        pads[0].axes[1] = 1;
+        const codes = poll(poller).map(e => e[0]);
+        assert_1.default.ok(!codes.includes(emu_1.Keys.A.c));
+        assert_1.default.deepStrictEqual(codes, [emu_1.Keys.RIGHT.c, emu_1.Keys.DOWN.c]); // x axis polled before y
+    });
+    (0, mocha_1.it)('should drop gamepad state on disconnect', function () {
+        const poller = newPoller();
+        listeners['gamepadconnected']({});
+        poll(poller);
+        pads[0].buttons[0].pressed = true;
+        poll(poller);
+        listeners['gamepaddisconnected']({});
+        // state is cleared, so a held button reads as a fresh press
+        assert_1.default.deepStrictEqual(poll(poller), [down(emu_1.Keys.A), down(emu_1.Keys.GP_A)]);
+    });
+});
 (0, mocha_1.describe)('getMousePos', function () {
     const realWindow = global.window;
     after(function () {
