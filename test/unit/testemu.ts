@@ -4,7 +4,7 @@ import {
   noise, getNoiseSeed, setNoiseSeed, KeyFlags, RAM, EmuHalt,
   AnimationTimer, dumpRAM, Keys, makeKeycodeMap, newKeyboardHandler,
   _setKeyboardEvents, padBytes, AddressDecoder, newAddressDecoder,
-  getMousePos, drawCrosshair,
+  getMousePos, drawCrosshair, ControllerPoller,
 } from "../../src/common/emu";
 
 describe('Noise PRNG', function () {
@@ -466,6 +466,155 @@ describe('drawCrosshair', function () {
     assert.ok(calls.some(c => c[0] === 'moveTo' && c[2] === 20), 'horizontal line at y');
     assert.ok(calls.some(c => c[0] === 'setLineDash' && c[1] === '4,4'), 'dash pattern 2*width');
     assert.ok(calls.some(c => c[0] === 'stroke'), 'stroke called');
+  });
+});
+
+describe('ControllerPoller', function () {
+  const realWindow = (global as any).window;
+  // node defines a getter-only global navigator, so it can't just be assigned
+  const realNavigator = Object.getOwnPropertyDescriptor(global, 'navigator');
+  function setNavigator(nav) {
+    Object.defineProperty(global, 'navigator', { value: nav, configurable: true, writable: true });
+  }
+
+  let pads: any[];
+  let listeners: { [name: string]: (e: any) => void };
+  let events: [number, number][];
+
+  // builds a poller wired to two fake standard-layout gamepads
+  function newPoller() {
+    pads = [0, 1].map(() => ({
+      axes: [0, 0],
+      buttons: new Array(16).fill(null).map(() => ({ pressed: false })),
+    }));
+    listeners = {};
+    events = [];
+    (global as any).window = { addEventListener: (n, f) => { listeners[n] = f; } };
+    setNavigator({ getGamepads: () => pads });
+    return new ControllerPoller((key, code, flags) => { events.push([key, flags]); });
+  }
+
+  // polls and returns the keys that went down/up since the last call
+  function poll(poller: ControllerPoller) {
+    events = [];
+    poller.poll();
+    return events;
+  }
+
+  function down(k) { return [k.c, KeyFlags.KeyDown]; }
+  function up(k) { return [k.c, KeyFlags.KeyUp]; }
+
+  after(function () {
+    if (realWindow === undefined) delete (global as any).window;
+    else (global as any).window = realWindow;
+    if (realNavigator === undefined) delete (global as any).navigator;
+    else Object.defineProperty(global, 'navigator', realNavigator);
+  });
+
+  it('should stay inactive until a gamepad connects', function () {
+    const poller = newPoller();
+    assert.strictEqual(poller.active, false);
+    pads[0].buttons[0].pressed = true;
+    assert.deepStrictEqual(poll(poller), []); // no state array yet, must not throw
+  });
+
+  it('should activate on the gamepadconnected event', function () {
+    const poller = newPoller();
+    listeners['gamepadconnected']({});
+    assert.strictEqual(poller.active, true);
+    assert.deepStrictEqual(poll(poller), []); // nothing pressed yet
+  });
+
+  it('should report button presses and releases once each', function () {
+    const poller = newPoller();
+    listeners['gamepadconnected']({});
+    poll(poller);
+    pads[0].buttons[9].pressed = true;
+    assert.deepStrictEqual(poll(poller), [down(Keys.START)]);
+    assert.deepStrictEqual(poll(poller), []); // held, not re-sent
+    pads[0].buttons[9].pressed = false;
+    assert.deepStrictEqual(poll(poller), [up(Keys.START)]);
+  });
+
+  it('should send every key sharing a button, not just the first', function () {
+    // A and GP_A are both button 0 -- platforms bind one or the other
+    const poller = newPoller();
+    listeners['gamepadconnected']({});
+    poll(poller);
+    pads[0].buttons[0].pressed = true;
+    assert.deepStrictEqual(poll(poller), [down(Keys.A), down(Keys.GP_A)]);
+  });
+
+  it('should map the face buttons past B', function () {
+    const poller = newPoller();
+    listeners['gamepadconnected']({});
+    poll(poller);
+    pads[0].buttons[2].pressed = true;
+    pads[0].buttons[3].pressed = true;
+    assert.deepStrictEqual(poll(poller), [down(Keys.GP_C), down(Keys.GP_D)]);
+  });
+
+  it('should translate axes into direction keys', function () {
+    const poller = newPoller();
+    listeners['gamepadconnected']({});
+    poll(poller);
+    pads[0].axes[0] = -1;
+    assert.deepStrictEqual(poll(poller), [down(Keys.LEFT)]);
+    pads[0].axes[0] = 0;
+    assert.deepStrictEqual(poll(poller), [up(Keys.LEFT)]);
+    pads[0].axes[1] = 1;
+    assert.deepStrictEqual(poll(poller), [down(Keys.DOWN)]);
+    pads[0].axes[1] = 0;
+    assert.deepStrictEqual(poll(poller), [up(Keys.DOWN)]);
+  });
+
+  it('should release the old direction when an axis flicks across center', function () {
+    const poller = newPoller();
+    listeners['gamepadconnected']({});
+    poll(poller);
+    pads[0].axes[0] = -1;
+    assert.deepStrictEqual(poll(poller), [down(Keys.LEFT)]);
+    // -1 to +1 in one poll: LEFT must not stay stuck down
+    pads[0].axes[0] = 1;
+    assert.deepStrictEqual(poll(poller), [up(Keys.LEFT), down(Keys.RIGHT)]);
+    pads[0].axes[1] = -1;
+    assert.deepStrictEqual(poll(poller), [down(Keys.UP)]);
+    pads[0].axes[1] = 1;
+    assert.deepStrictEqual(poll(poller), [up(Keys.UP), down(Keys.DOWN)]);
+  });
+
+  it('should route the second gamepad to the player 2 keys', function () {
+    const poller = newPoller();
+    listeners['gamepadconnected']({});
+    poll(poller);
+    pads[1].axes[1] = -1;
+    pads[1].buttons[9].pressed = true;
+    assert.deepStrictEqual(poll(poller), [down(Keys.P2_UP), down(Keys.P2_START)]);
+    // player 1 keys must not fire for player 2's pad
+    assert.ok(!events.some(e => e[0] == Keys.UP.c || e[0] == Keys.START.c));
+  });
+
+  it('should ignore axes a key does not use', function () {
+    // A is button-only, so it must not react to any axis movement
+    const poller = newPoller();
+    listeners['gamepadconnected']({});
+    poll(poller);
+    pads[0].axes[0] = 1;
+    pads[0].axes[1] = 1;
+    const codes = poll(poller).map(e => e[0]);
+    assert.ok(!codes.includes(Keys.A.c));
+    assert.deepStrictEqual(codes, [Keys.RIGHT.c, Keys.DOWN.c]); // x axis polled before y
+  });
+
+  it('should drop gamepad state on disconnect', function () {
+    const poller = newPoller();
+    listeners['gamepadconnected']({});
+    poll(poller);
+    pads[0].buttons[0].pressed = true;
+    poll(poller);
+    listeners['gamepaddisconnected']({});
+    // state is cleared, so a held button reads as a fresh press
+    assert.deepStrictEqual(poll(poller), [down(Keys.A), down(Keys.GP_A)]);
   });
 });
 

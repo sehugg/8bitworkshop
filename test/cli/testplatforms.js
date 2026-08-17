@@ -404,3 +404,90 @@ describe('Platform Replay', () => {
     });
   });
 });
+
+describe('Platform Input', () => {
+
+  // node's global navigator is a getter, so it has to be replaced this way
+  const realNavigator = Object.getOwnPropertyDescriptor(global, 'navigator');
+  let pads;
+
+  function fakePads() {
+    pads = [0, 1].map(() => ({
+      axes: [0, 0],
+      buttons: new Array(16).fill(null).map(() => ({ pressed: false })),
+    }));
+    Object.defineProperty(global, 'navigator', {
+      value: { getGamepads: () => pads }, configurable: true, writable: true
+    });
+  }
+
+  after(() => {
+    if (realNavigator === undefined) delete global.navigator;
+    else Object.defineProperty(global, 'navigator', realNavigator);
+  });
+
+  // starts a platform with a gamepad plugged in, then runs `press` (which can
+  // poke the pads or call keycallback) and reports the input port before/after
+  async function withGamepad(platid, romname, press, addr) {
+    fakePads();
+    var platform = new emu.PLATFORMS[platid](document.getElementById('emulator'));
+    await platform.start();
+    platform.loadROM("ROM", new Uint8Array(fs.readFileSync('./test/roms/' + platid + '/' + romname)));
+    platform.resume();
+    // the poller only wakes up once a pad announces itself
+    window.dispatchEvent(new window.Event('gamepadconnected'));
+    for (var i = 0; i < 4; i++) platform.nextFrame();
+    var before = platform.readAddress(addr);
+    press(pads);
+    platform.nextFrame();
+    var after = platform.readAddress(addr);
+    platform.pause();
+    return { before, after };
+  }
+
+  // Robotron-style twin stick: player 1's stick is bound to the P2_* keys,
+  // so it comes from gamepad #1, and firing comes from gamepad #0
+  it('Should read a gamepad on williams-z80', async () => {
+    var r = await withGamepad('williams-z80', 'game1.c.rom',
+      (pads) => { pads[1].axes[0] = -1; }, 0xc804); // input0, LEFT1 = 0x4
+    assert.equal(r.before & 0x4, 0);
+    assert.equal(r.after & 0x4, 0x4, "gamepad left should set LEFT1");
+  });
+
+  it('Should read gamepad buttons on williams-z80', async () => {
+    var r = await withGamepad('williams-z80', 'game1.c.rom',
+      (pads) => { pads[0].buttons[8].pressed = true; }, 0xc80c); // input2, COIN1 = 0x10
+    assert.equal(r.before & 0x10, 0);
+    assert.equal(r.after & 0x10, 0x10, "gamepad button 8 should set COIN1");
+  });
+
+  // GRAVITAR_KEYCODE_MAP is active low, so a press clears the bit
+  it('Should read a gamepad on vector-z80color', async () => {
+    var r = await withGamepad('vector-z80color', 'game.c.rom',
+      (pads) => { pads[0].axes[0] = -1; }, 0x8001); // input1, LEFT1 = 0x8
+    assert.equal(r.before & 0x8, 0x8);
+    assert.equal(r.after & 0x8, 0, "gamepad left should clear LEFT1");
+  });
+
+  it('Should read gamepad axis 1 on vector-z80color', async () => {
+    var r = await withGamepad('vector-z80color', 'game.c.rom',
+      (pads) => { pads[0].axes[1] = -1; }, 0x8001); // input1, UP1 = 0x10
+    assert.equal(r.before & 0x10, 0x10);
+    assert.equal(r.after & 0x10, 0, "gamepad up should clear UP1");
+  });
+
+  // the coin slots are on the number keys, which no gamepad button reaches
+  it('Should read the coin keys on vector-z80color', async () => {
+    var r = await withGamepad('vector-z80color', 'game.c.rom',
+      () => { keycallback(Keys.VK_5.c, Keys.VK_5.c, 1); }, 0x8000); // input0, COIN1 = 0x2
+    assert.equal(r.before & 0x2, 0);
+    assert.equal(r.after & 0x2, 0x2, "'5' should set COIN1");
+  });
+
+  it('Should read the coin keys on williams-z80', async () => {
+    var r = await withGamepad('williams-z80', 'game1.c.rom',
+      () => { keycallback(Keys.SELECT.c, Keys.SELECT.c, 1); }, 0xc80c); // input2, COIN1 = 0x10
+    assert.equal(r.before & 0x10, 0);
+    assert.equal(r.after & 0x10, 0x10, "'\\' should set COIN1");
+  });
+});

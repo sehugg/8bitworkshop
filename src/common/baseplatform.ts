@@ -941,11 +941,13 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   resume() {
     this.timer.start();
     this.audio && this.audio.start();
+    this.poller && this.poller.start();
   }
 
   pause() {
     this.timer.stop();
     this.audio && this.audio.stop();
+    this.poller && this.poller.stop();
   }
 
   // so probe views stick around TODO: must be a better way?
