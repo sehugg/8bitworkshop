@@ -1,7 +1,11 @@
 {
     "extends": "../tsconfig",
+    // src/ is listed even though the tests only reach it through imports:
+    // tsc --build only stats the *root* files when deciding if the project is
+    // up to date, so without this, editing src/ leaves gen/src/ stale.
     "include": [
-        "**/*.ts"
+        "**/*.ts",
+        "../src/**/*.ts"
     ],
     "compilerOptions": {
         "outDir": "../gen",
