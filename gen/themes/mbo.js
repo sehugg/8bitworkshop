@@ -7,28 +7,35 @@ const highlight_1 = require("@lezer/highlight");
 exports.mboTheme = view_1.EditorView.theme({
     "&": {
         backgroundColor: "#2c2c2c",
-        color: "#ffffec"
+        color: "#ffffec",
+        caretColor: "#ffffec"
     },
     "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
-        backgroundColor: "#555 !important"
+        backgroundColor: "#716C62 !important"
     },
     ".cm-selectionMatch": {
         backgroundColor: "#ffffff30"
     },
     ".cm-activeLine": {
-        backgroundColor: "#494b4155"
+        backgroundColor: "#494b41"
     },
     ".cm-activeLineGutter": {
         backgroundColor: "#68686588"
     },
-    "&.cm-focused .cm-matchingBracket": {
-        outline: "1px solid grey"
+    ".cm-matchingBracket": {
+        color: "#33ff33 !important"
+    },
+    ".cm-matchingTag": {
+        backgroundColor: "rgba(255,255,255,0.37)"
+    },
+    ".cm-cursor": {
+        borderLeftColor: "#ffffec"
     },
     ".cm-gutters , .cm-panels": {
         backgroundColor: "#4e4e4e"
     },
     ".cm-lineNumbers .cm-gutterElement": {
-        color: "#dadada4d"
+        color: "#dadada"
     },
     ".gutter-bytes .cm-gutterElement": {
         color: "#999"
@@ -47,24 +54,24 @@ exports.mboTheme = view_1.EditorView.theme({
     },
 }, { dark: true });
 exports.mboHighlightStyle = language_1.HighlightStyle.define([
-    { tag: highlight_1.tags.standard(highlight_1.tags.keyword), color: "#ffb928" },
-    { tag: highlight_1.tags.special(highlight_1.tags.keyword), color: "#ffee80" },
-    { tag: [highlight_1.tags.name, highlight_1.tags.standard(highlight_1.tags.name)], color: "#ddd" },
-    { tag: highlight_1.tags.variableName, color: "#9ddfe9" },
-    { tag: highlight_1.tags.local(highlight_1.tags.variableName), color: "#7eb8c4" },
+    { tag: [highlight_1.tags.keyword, highlight_1.tags.controlKeyword, highlight_1.tags.processingInstruction], color: "#fdbcf8" },
+    { tag: [highlight_1.tags.name, highlight_1.tags.standard(highlight_1.tags.name), highlight_1.tags.variableName], color: "#ffffec" },
+    { tag: highlight_1.tags.local(highlight_1.tags.variableName), color: "#00a8c6" },
     { tag: [highlight_1.tags.deleted, highlight_1.tags.macroName], color: "#00a8c6" },
-    { tag: [highlight_1.tags.processingInstruction, highlight_1.tags.keyword, highlight_1.tags.controlKeyword], color: "#daa3ff" },
-    { tag: [highlight_1.tags.string, highlight_1.tags.inserted], color: "#9cde9e" },
-    { tag: [highlight_1.tags.number, highlight_1.tags.modifier], color: "#33aadd" },
-    { tag: [highlight_1.tags.atom, highlight_1.tags.bool, highlight_1.tags.special(highlight_1.tags.variableName)], color: "#00a8c6" },
-    { tag: highlight_1.tags.definition(highlight_1.tags.variableName), color: "#ffb928" },
+    { tag: [highlight_1.tags.string, highlight_1.tags.inserted], color: "#b4fdb7" },
+    { tag: [highlight_1.tags.number], color: "#3abff8" },
+    { tag: [highlight_1.tags.modifier], color: "#fba3f4" },
+    { tag: [highlight_1.tags.atom, highlight_1.tags.bool], color: "#02c7ea" },
+    { tag: highlight_1.tags.definition(highlight_1.tags.variableName), color: "#88eeff" },
     { tag: [highlight_1.tags.propertyName, highlight_1.tags.attributeName, highlight_1.tags.tagName, highlight_1.tags.self], color: "#9ddfe9" },
     { tag: highlight_1.tags.definition(highlight_1.tags.name), color: "#88eeff" },
-    { tag: highlight_1.tags.typeName, color: "#ffb928" },
-    { tag: highlight_1.tags.bracket, color: "#ddd", fontWeight: "bold" },
+    { tag: [highlight_1.tags.special(highlight_1.tags.keyword), highlight_1.tags.special(highlight_1.tags.variableName)], color: "#fdda93" },
+    { tag: [highlight_1.tags.typeName, highlight_1.tags.standard(highlight_1.tags.keyword)], color: "#ffb928" },
+    { tag: [highlight_1.tags.bracket, highlight_1.tags.constant(highlight_1.tags.modifier)], color: "#8fdedd", fontWeight: "bold" },
     { tag: highlight_1.tags.comment, color: "#95958a" },
     { tag: highlight_1.tags.link, color: "#f54b07" },
     { tag: highlight_1.tags.meta, color: "#aaddaa" },
+    { tag: highlight_1.tags.namespace, color: "#ffffec" },
     { tag: highlight_1.tags.invalid, color: "#ffffec", borderBottom: "1px solid #636363" },
 ]);
 exports.mbo = [

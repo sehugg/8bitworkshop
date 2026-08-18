@@ -5,28 +5,35 @@ import { tags as t } from "@lezer/highlight"
 export const mboTheme = EditorView.theme({
   "&": {
     backgroundColor: "#2c2c2c",
-    color: "#ffffec"
+    color: "#ffffec",
+    caretColor: "#ffffec"
   },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
-    backgroundColor: "#555 !important"
+    backgroundColor: "#716C62 !important"
   },
   ".cm-selectionMatch": {
     backgroundColor: "#ffffff30"
   },
   ".cm-activeLine": {
-    backgroundColor: "#494b4155"
+    backgroundColor: "#494b41"
   },
   ".cm-activeLineGutter": {
     backgroundColor: "#68686588"
   },
-  "&.cm-focused .cm-matchingBracket": {
-    outline: "1px solid grey"
+  ".cm-matchingBracket": {
+    color: "#33ff33 !important"
+  },
+  ".cm-matchingTag": {
+    backgroundColor: "rgba(255,255,255,0.37)"
+  },
+  ".cm-cursor": {
+    borderLeftColor: "#ffffec"
   },
   ".cm-gutters , .cm-panels": {
     backgroundColor: "#4e4e4e"
   },
   ".cm-lineNumbers .cm-gutterElement": {
-    color: "#dadada4d"
+    color: "#dadada"
   },
   ".gutter-bytes .cm-gutterElement": {
     color: "#999"
@@ -46,24 +53,24 @@ export const mboTheme = EditorView.theme({
 }, { dark: true });
 
 export const mboHighlightStyle = HighlightStyle.define([
-  { tag: t.standard(t.keyword), color: "#ffb928" },
-  { tag: t.special(t.keyword), color: "#ffee80" },
-  { tag: [t.name, t.standard(t.name)], color: "#ddd" },
-  { tag: t.variableName, color: "#9ddfe9" },
-  { tag: t.local(t.variableName), color: "#7eb8c4" },
+  { tag: [t.keyword, t.controlKeyword, t.processingInstruction], color: "#fdbcf8" },
+  { tag: [t.name, t.standard(t.name), t.variableName], color: "#ffffec" },
+  { tag: t.local(t.variableName), color: "#00a8c6" },
   { tag: [t.deleted, t.macroName], color: "#00a8c6" },
-  { tag: [t.processingInstruction, t.keyword, t.controlKeyword], color: "#daa3ff" },
-  { tag: [t.string, t.inserted], color: "#9cde9e" },
-  { tag: [t.number, t.modifier], color: "#33aadd" },
-  { tag: [t.atom, t.bool, t.special(t.variableName)], color: "#00a8c6" },
-  { tag: t.definition(t.variableName), color: "#ffb928" },
+  { tag: [t.string, t.inserted], color: "#b4fdb7" },
+  { tag: [t.number], color: "#3abff8" },
+  { tag: [t.modifier], color: "#fba3f4" },
+  { tag: [t.atom, t.bool], color: "#02c7ea" },
+  { tag: t.definition(t.variableName), color: "#88eeff" },
   { tag: [t.propertyName, t.attributeName, t.tagName, t.self], color: "#9ddfe9" },
   { tag: t.definition(t.name), color: "#88eeff" },
-  { tag: t.typeName, color: "#ffb928" },
-  { tag: t.bracket, color: "#ddd", fontWeight: "bold" },
+  { tag: [t.special(t.keyword), t.special(t.variableName)], color: "#fdda93" },
+  { tag: [t.typeName, t.standard(t.keyword)], color: "#ffb928" },
+  { tag: [t.bracket, t.constant(t.modifier)], color: "#8fdedd", fontWeight: "bold" },
   { tag: t.comment, color: "#95958a" },
   { tag: t.link, color: "#f54b07" },
   { tag: t.meta, color: "#aaddaa" },
+  { tag: t.namespace, color: "#ffffec" },
   { tag: t.invalid, color: "#ffffec", borderBottom: "1px solid #636363" },
 ]);
 
