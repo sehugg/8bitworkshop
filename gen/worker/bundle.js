@@ -2528,6 +2528,945 @@
     return top;
   }
 
+  // src/common/toolmeta.ts
+  var SHARED_INCLUDE_PATTERNS = [
+    /^\s*[.#%]?(include|incbin|embed)\s+"(.+?)"/gmi,
+    /^\s*([;']|[/][/])#(resource)\s+"(.+?)"/gm
+  ];
+  var SHARED_LINK_PATTERNS = [
+    /^\s*([;]|[/][/])#link\s+"(.+?)"/gm
+  ];
+  var VERILOG_INCLUDE_PATTERNS = [
+    /^\s*(`include|[.]include)\s+"(.+?)"/gmi,
+    /^\s*\$(include|\$dofile|\$write_image_in_table)\('(.+?)'/gmi,
+    { re: /^\s*([.]arch)\s+(\w+)/gmi, suffix: ".json" },
+    /\$readmem[bh]\("(.+?)"/gmi
+  ];
+  var USE_ASM_INCLUDE_PATTERNS = [
+    /^\s+(USE|ASM)\s+(\S+[.]\S+)/gm
+  ];
+  var ACME_INCLUDE_PATTERNS = [
+    /^[!]src\s+"(.+?)"/gmi
+  ];
+  var WIZ_INCLUDE_PATTERNS = [
+    { re: /^\s*import\s*"(.+?)";/gmi, suffix: ".wiz" },
+    /^\s*embed\s*"(.+?)";/gmi
+  ];
+  var ECS_INCLUDE_PATTERNS = [
+    /^\s*(import)\s*"(.+?)"/gmi
+  ];
+  var DIALOG_INCLUDE_PATTERNS = [
+    /^\s*%%\s*#include\s+"(.+?)"/gm
+  ];
+  var CC65_PRELOADFS = {
+    "apple2": { preloadFS: "65-apple2" },
+    "c64": { preloadFS: "65-c64" },
+    "vic20": { preloadFS: "65-vic20" },
+    "nes": { preloadFS: "65-nes" },
+    "atari8": { preloadFS: "65-atari8" },
+    "vector": { preloadFS: "65-none" },
+    "atari7800": { preloadFS: "65-none" },
+    "devel": { preloadFS: "65-none" },
+    "vcs": { preloadFS: "65-atari2600" },
+    "pce": { preloadFS: "65-pce" },
+    "exidy": { preloadFS: "65-none" }
+  };
+  var TOOL_META = {
+    // ---- 6502 assemblers ----
+    dasm: {
+      id: "dasm",
+      name: "DASM",
+      kind: "assembler",
+      arch: "6502",
+      extensions: [".dasm"],
+      editorStyle: "6502",
+      helpURL: "https://raw.githubusercontent.com/sehugg/dasm/master/doc/dasm.txt",
+      wasmModule: "dasm",
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    acme: {
+      id: "acme",
+      name: "ACME",
+      kind: "assembler",
+      arch: "6502",
+      extensions: [".acme"],
+      editorStyle: "6502",
+      helpURL: "https://raw.githubusercontent.com/sehugg/acme/main/docs/QuickRef.txt",
+      wasmModule: "acme",
+      includePatterns: [...SHARED_INCLUDE_PATTERNS, ...ACME_INCLUDE_PATTERNS],
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    xa: {
+      id: "xa",
+      name: "XA",
+      kind: "assembler",
+      arch: "6502",
+      extensions: [".xa"],
+      editorStyle: "6502",
+      helpURL: "https://www.floodgap.com/retrotech/xa/",
+      wasmModule: "xa",
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    nesasm: {
+      id: "nesasm",
+      name: "NESASM",
+      kind: "assembler",
+      arch: "6502",
+      extensions: [".nesasm"],
+      editorStyle: "6502",
+      wasmModule: "nesasm",
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    merlin32: {
+      id: "merlin32",
+      name: "Merlin 32",
+      kind: "assembler",
+      arch: "6502",
+      extensions: [".lnk"],
+      editorStyle: "6502",
+      wasmModule: "merlin32",
+      includePatterns: [...SHARED_INCLUDE_PATTERNS, ...USE_ASM_INCLUDE_PATTERNS],
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    // ---- cc65 toolchain ----
+    cc65: {
+      id: "cc65",
+      name: "cc65",
+      kind: "compiler",
+      arch: "6502",
+      extensions: [".c", ".h"],
+      editorStyle: "text/x-csrc",
+      helpURL: "https://cc65.github.io/doc/cc65.html",
+      wasmModule: "cc65",
+      platforms: CC65_PRELOADFS,
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    ca65: {
+      id: "ca65",
+      name: "ca65",
+      kind: "assembler",
+      arch: "6502",
+      extensions: [".s", ".ca65"],
+      editorStyle: "6502",
+      helpURL: "https://cc65.github.io/doc/ca65.html",
+      wasmModule: "ca65",
+      platforms: CC65_PRELOADFS,
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    ld65: {
+      id: "ld65",
+      name: "ld65",
+      kind: "linker",
+      arch: "6502",
+      extensions: [],
+      wasmModule: "ld65"
+    },
+    // ---- SDCC toolchain (z80) ----
+    sdcc: {
+      id: "sdcc",
+      name: "SDCC",
+      kind: "compiler",
+      arch: "z80",
+      extensions: [".c", ".h"],
+      editorStyle: "text/x-csrc",
+      helpURL: "http://sdcc.sourceforge.net/doc/sdccman.pdf",
+      wasmModule: "sdcc",
+      platforms: { default: { preloadFS: "sdcc" } },
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    sdasz80: {
+      id: "sdasz80",
+      name: "sdasz80",
+      kind: "assembler",
+      arch: "z80",
+      extensions: [".s"],
+      editorStyle: "z80",
+      wasmModule: "sdasz80",
+      platforms: { default: { preloadFS: "sdcc" } },
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    sdasgb: {
+      id: "sdasgb",
+      name: "sdasgb",
+      kind: "assembler",
+      arch: "gbz80",
+      extensions: [".sgb"],
+      editorStyle: "z80",
+      wasmModule: "sdasgb",
+      platforms: { default: { preloadFS: "sdcc" } },
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    sdldz80: {
+      id: "sdldz80",
+      name: "sdldz80",
+      kind: "linker",
+      arch: "z80",
+      extensions: [],
+      wasmModule: "sdldz80"
+    },
+    sccz80: {
+      id: "sccz80",
+      name: "sccz80",
+      kind: "compiler",
+      arch: "z80",
+      extensions: [".scc"],
+      platforms: { default: { preloadFS: "sccz80" } },
+      noWorkerBuild: true
+    },
+    naken: {
+      id: "naken",
+      name: "Naken",
+      kind: "assembler",
+      extensions: [".ns"],
+      noWorkerBuild: true
+    },
+    // ---- z80 assemblers ----
+    zmac: {
+      id: "zmac",
+      name: "zmac",
+      kind: "assembler",
+      arch: "z80",
+      extensions: [".z"],
+      editorStyle: "z80",
+      helpURL: "https://raw.githubusercontent.com/sehugg/zmac/master/doc.txt",
+      wasmModule: "zmac",
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    jsasm: {
+      id: "jsasm",
+      name: "JSASM",
+      kind: "assembler",
+      extensions: [".asm"],
+      editorStyle: "z80",
+      // pure JS assembler, no wasm module. Only used on the verilog platform,
+      // where .asm files pull in .v modules and name a CPU with '.arch'.
+      includePatterns: VERILOG_INCLUDE_PATTERNS,
+      linkPatterns: []
+    },
+    // ---- 6809 toolchain ----
+    xasm6809: {
+      id: "xasm6809",
+      name: "XASM6809",
+      kind: "assembler",
+      arch: "6809",
+      extensions: [".xasm"],
+      editorStyle: "6809",
+      wasmModule: "xasm6809",
+      includePatterns: [...SHARED_INCLUDE_PATTERNS, ...USE_ASM_INCLUDE_PATTERNS],
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    cmoc: {
+      id: "cmoc",
+      name: "CMOC",
+      kind: "compiler",
+      arch: "6809",
+      extensions: [".c", ".h"],
+      editorStyle: "text/x-csrc",
+      helpURL: "http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html",
+      wasmModule: "cmoc",
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    lwasm: {
+      id: "lwasm",
+      name: "LWASM",
+      kind: "assembler",
+      arch: "6809",
+      extensions: [".lwasm"],
+      wasmModule: "lwasm",
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    lwlink: {
+      id: "lwlink",
+      name: "LWLINK",
+      kind: "linker",
+      arch: "6809",
+      extensions: [],
+      wasmModule: "lwlink"
+    },
+    // ---- ARM ----
+    vasmarm: {
+      id: "vasmarm",
+      name: "vasm (ARM)",
+      kind: "assembler",
+      arch: "arm32",
+      extensions: [".vasm"],
+      editorStyle: "vasm",
+      wasmModule: "vasmarm_std",
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    armips: {
+      id: "armips",
+      name: "armips",
+      kind: "assembler",
+      arch: "arm32",
+      extensions: [".armips"],
+      editorStyle: "vasm",
+      wasmModule: "armips",
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    armtcc: {
+      id: "armtcc",
+      name: "TCC (ARM)",
+      kind: "compiler",
+      arch: "arm32",
+      extensions: [".c", ".s"],
+      editorStyle: "text/x-csrc",
+      wasmModule: "arm-tcc",
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    armtcclink: {
+      id: "armtcclink",
+      name: "TCC (ARM) link",
+      kind: "linker",
+      arch: "arm32",
+      extensions: [],
+      wasmModule: "arm-tcc"
+    },
+    // ---- x86 ----
+    smlrc: {
+      id: "smlrc",
+      name: "SmallerC",
+      kind: "compiler",
+      arch: "x86",
+      extensions: [".c"],
+      editorStyle: "text/x-csrc",
+      wasmModule: "smlrc",
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    yasm: {
+      id: "yasm",
+      name: "YASM",
+      kind: "assembler",
+      arch: "x86",
+      extensions: [".asm"],
+      editorStyle: "gas",
+      wasmModule: "yasm",
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    // ---- 6502 C compilers / BASIC dialects ----
+    oscar64: {
+      id: "oscar64",
+      name: "Oscar64",
+      kind: "compiler",
+      arch: "6502",
+      extensions: [".c", ".cpp", ".cc", ".o64"],
+      editorStyle: "text/x-csrc",
+      helpURL: "https://github.com/drmortalwombat/oscar64/blob/main/oscar64.md",
+      wasmModule: "oscar64",
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    bataribasic: {
+      id: "bataribasic",
+      name: "batari Basic",
+      kind: "compiler",
+      arch: "6502",
+      extensions: [".bb", ".bas"],
+      editorStyle: "bataribasic",
+      helpURL: "help/bataribasic/manual.html",
+      wasmModule: "bb2600basic",
+      platforms: { default: { preloadFS: "2600basic" } },
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    fastbasic: {
+      id: "fastbasic",
+      name: "FastBasic",
+      kind: "compiler",
+      arch: "6502",
+      extensions: [".bas", ".fb", ".fbi"],
+      editorStyle: "fastbasic",
+      helpURL: "https://github.com/dmsc/fastbasic/blob/master/manual.md",
+      wasmModule: "fastbasic-int",
+      platforms: { default: { preloadFS: "65-atari8" } },
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    cc2600: {
+      id: "cc2600",
+      name: "CC2600",
+      kind: "compiler",
+      arch: "6502",
+      extensions: [".cc2600"],
+      editorStyle: "text/x-csrc",
+      wasmModule: "cc2600",
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    cc7800: {
+      id: "cc7800",
+      name: "CC7800",
+      kind: "compiler",
+      arch: "6502",
+      extensions: [".cc7800", ".c78"],
+      editorStyle: "text/x-csrc",
+      wasmModule: "cc7800",
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS
+    },
+    // ---- other languages ----
+    basic: {
+      id: "basic",
+      name: "BASIC",
+      kind: "interpreter",
+      extensions: [".bas"],
+      editorStyle: "basic"
+    },
+    wiz: {
+      id: "wiz",
+      name: "wiz",
+      kind: "compiler",
+      extensions: [".wiz"],
+      editorStyle: "text/x-wiz",
+      helpURL: "https://github.com/wiz-lang/wiz/blob/master/readme.md#wiz",
+      wasmModule: "wiz",
+      platforms: { default: { preloadFS: "wiz" } },
+      includePatterns: WIZ_INCLUDE_PATTERNS
+    },
+    ecs: {
+      id: "ecs",
+      name: "ECS",
+      kind: "assembler",
+      arch: "6502",
+      extensions: [".ecs"],
+      editorStyle: "ecs",
+      platforms: {
+        vcs: { preloadFS: "65-atari2600" },
+        nes: { preloadFS: "65-nes" },
+        c64: { preloadFS: "65-c64" }
+      },
+      includePatterns: [...SHARED_INCLUDE_PATTERNS, ...ECS_INCLUDE_PATTERNS]
+    },
+    inform6: {
+      id: "inform6",
+      name: "Inform 6",
+      kind: "compiler",
+      arch: "zmachine",
+      extensions: [".inf"],
+      editorStyle: "inform6",
+      wasmModule: "inform",
+      platforms: { default: { preloadFS: "inform" } }
+    },
+    dialog: {
+      id: "dialog",
+      name: "Dialog",
+      kind: "compiler",
+      arch: "zmachine",
+      extensions: [".dg"],
+      editorStyle: "dialog",
+      helpURL: "https://linusakesson.net/dialog/docs/",
+      wasmModule: "dialogc",
+      includePatterns: DIALOG_INCLUDE_PATTERNS
+    },
+    // ---- verilog / HDL ----
+    verilator: {
+      id: "verilator",
+      name: "Verilator",
+      kind: "hdl",
+      arch: "verilog",
+      extensions: [".v"],
+      editorStyle: "verilog",
+      helpURL: "https://www.veripool.org/ftp/verilator_doc.pdf",
+      wasmModule: "verilator_bin",
+      includePatterns: VERILOG_INCLUDE_PATTERNS,
+      linkPatterns: []
+    },
+    yosys: {
+      id: "yosys",
+      name: "Yosys",
+      kind: "hdl",
+      arch: "verilog",
+      extensions: [],
+      wasmModule: "yosys",
+      includePatterns: VERILOG_INCLUDE_PATTERNS,
+      linkPatterns: []
+    },
+    silice: {
+      id: "silice",
+      name: "Silice",
+      kind: "hdl",
+      arch: "verilog",
+      extensions: [".ice"],
+      editorStyle: "verilog",
+      helpURL: "https://github.com/sylefeb/Silice",
+      wasmModule: "silice",
+      platforms: { default: { preloadFS: "Silice" } },
+      includePatterns: VERILOG_INCLUDE_PATTERNS,
+      linkPatterns: []
+    },
+    // ---- remote / server ----
+    "llvm-mos": {
+      id: "llvm-mos",
+      name: "LLVM-MOS",
+      kind: "compiler",
+      arch: "6502",
+      extensions: [".c", ".cpp", ".s", ".S", ".C"],
+      editorStyle: "text/x-csrc",
+      // used as 'remote:llvm-mos' in the IDE
+      helpURL: "https://llvm-mos.org/wiki/Welcome",
+      remote: true,
+      includePatterns: SHARED_INCLUDE_PATTERNS,
+      linkPatterns: SHARED_LINK_PATTERNS,
+      server: {
+        version: "latest",
+        platforms: ["atari8", "c64", "nes", "pce", "vcs"],
+        binpath: "llvm-mos/bin",
+        command: "mos-clang",
+        args: ["-Os", "-g", "-D", "__8BITWORKSHOP__", "-o", "$OUTFILE", "$INFILES"]
+      }
+    },
+    // TODO: do we need this too?
+    remote: {
+      id: "remote",
+      name: "Remote build",
+      kind: "remote",
+      extensions: [],
+      remote: true
+    }
+  };
+  function getToolMeta(id) {
+    return TOOL_META[id.replace(/^remote:/, "")];
+  }
+  function getPreloadFSName(tool, platform) {
+    let meta = getToolMeta(tool);
+    if (!meta) return void 0;
+    if (meta.platforms) {
+      if (platform) {
+        let p = meta.platforms[platform];
+        if (p && p.preloadFS) return p.preloadFS;
+      }
+      let d = meta.platforms["default"];
+      if (d && d.preloadFS) return d.preloadFS;
+    }
+    return void 0;
+  }
+
+  // src/worker/platforms.ts
+  var PLATFORM_PARAMS = {
+    "vcs": {
+      arch: "6502",
+      code_start: 4096,
+      code_size: 61440,
+      data_start: 128,
+      data_size: 128,
+      wiz_rom_ext: ".a26",
+      wiz_inc_dir: "2600",
+      cfgfile: "atari2600.cfg",
+      libargs: ["crt0.o", "atari2600.lib"],
+      extra_link_files: ["crt0.o", "atari2600.cfg"],
+      define: ["__ATARI2600__"]
+    },
+    "mw8080bw": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 8192,
+      data_start: 8192,
+      data_size: 1024,
+      stack_end: 9216
+    },
+    "vicdual": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 16416,
+      data_start: 58368,
+      data_size: 1024,
+      stack_end: 59392
+    },
+    "galaxian": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 16384,
+      data_start: 16384,
+      data_size: 1024,
+      stack_end: 18432
+    },
+    "galaxian-scramble": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 20512,
+      data_start: 16384,
+      data_size: 1024,
+      stack_end: 18432
+    },
+    "pacman": {
+      arch: "z80",
+      code_start: 0,
+      /* ABS CRT (_HEADER) ends ~0xCA; _CODE follows immediately (uses former hole). */
+      codeseg_start: 202,
+      rom_size: 32768,
+      // 16KB prog + 8KB gfx + palette, padded to 32KB
+      /* Real hardware: 0x4800-0x4BFF open bus; work RAM 0x4C00-0x4FEF.
+       * Namco sound soft-regs live at 0x4E8C-0x4EFB — keep _DATA below that
+       * or the WSG engine stomps game vars every VBLANK (e.g. mouth anim). */
+      data_start: 19456,
+      data_size: 652,
+      // 0x4c00-0x4e8b (stop before sound soft-regs)
+      stack_end: 20416
+      // above sound block; sprite attrs at 0x4ff0-0x4fff
+    },
+    "williams": {
+      arch: "6809",
+      code_start: 0,
+      rom_size: 49152,
+      data_start: 38912,
+      data_size: 10240,
+      stack_end: 49152,
+      set_stack_end: 49152,
+      extra_link_files: ["williams.scr", "libcmoc-crt-vec.a", "libcmoc-std-vec.a"],
+      extra_link_args: ["-swilliams.scr", "-lcmoc-crt-vec", "-lcmoc-std-vec"],
+      extra_compile_files: ["assert.h", "cmoc.h", "stdarg.h", "stdlib.h"]
+      //extra_compile_args: ['--vectrex'],
+    },
+    "williams-defender": {
+      arch: "6809",
+      code_start: 0,
+      rom_size: 49152,
+      data_start: 38912,
+      data_size: 10240,
+      stack_end: 49152
+    },
+    "williams-z80": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 38912,
+      data_start: 38912,
+      data_size: 10240,
+      stack_end: 49152
+    },
+    "vector-z80color": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 32768,
+      data_start: 57344,
+      data_size: 8192,
+      stack_end: 0
+    },
+    "vector-ataricolor": {
+      //TODO
+      arch: "6502",
+      define: ["__VECTOR__"],
+      cfgfile: "vector-color.cfg",
+      libargs: ["crt0.o", "none.lib"],
+      extra_link_files: ["crt0.o", "vector-color.cfg"]
+    },
+    "sound_williams-z80": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 16384,
+      data_start: 16384,
+      data_size: 1024,
+      stack_end: 32768
+    },
+    "base_z80": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 32768,
+      data_start: 32768,
+      data_size: 32768,
+      stack_end: 0
+    },
+    "coleco": {
+      arch: "z80",
+      rom_start: 32768,
+      code_start: 33024,
+      rom_size: 32768,
+      data_start: 28672,
+      data_size: 1024,
+      stack_end: 32768,
+      extra_preproc_args: ["-I", "/share/include/coleco", "-D", "CV_CV"],
+      extra_link_args: ["-k", "/share/lib/coleco", "-l", "libcv", "-l", "libcvu", "crt0.rel"]
+    },
+    "msx": {
+      arch: "z80",
+      rom_start: 16384,
+      code_start: 16384,
+      rom_size: 32768,
+      data_start: 49152,
+      data_size: 12288,
+      stack_end: 65535,
+      extra_link_args: ["crt0-msx.rel"],
+      extra_link_files: ["crt0-msx.rel", "crt0-msx.lst"],
+      wiz_sys_type: "z80",
+      wiz_inc_dir: "msx"
+    },
+    "msx-libcv": {
+      arch: "z80",
+      rom_start: 16384,
+      code_start: 16384,
+      rom_size: 32768,
+      data_start: 49152,
+      data_size: 12288,
+      stack_end: 65535,
+      extra_preproc_args: ["-I", ".", "-D", "CV_MSX"],
+      extra_link_args: ["-k", ".", "-l", "libcv-msx", "-l", "libcvu-msx", "crt0-msx.rel"],
+      extra_link_files: ["libcv-msx.lib", "libcvu-msx.lib", "crt0-msx.rel", "crt0-msx.lst"],
+      extra_compile_files: ["cv.h", "cv_graphics.h", "cv_input.h", "cv_sound.h", "cv_support.h", "cvu.h", "cvu_c.h", "cvu_compression.h", "cvu_f.h", "cvu_graphics.h", "cvu_input.h", "cvu_sound.h"]
+    },
+    "sms-sg1000-libcv": {
+      arch: "z80",
+      rom_start: 0,
+      code_start: 256,
+      rom_size: 49152,
+      data_start: 49152,
+      data_size: 1024,
+      stack_end: 57344,
+      extra_preproc_args: ["-I", ".", "-D", "CV_SMS"],
+      extra_link_args: ["-k", ".", "-l", "libcv-sms", "-l", "libcvu-sms", "crt0-sms.rel"],
+      extra_link_files: ["libcv-sms.lib", "libcvu-sms.lib", "crt0-sms.rel", "crt0-sms.lst"],
+      extra_compile_files: ["cv.h", "cv_graphics.h", "cv_input.h", "cv_sound.h", "cv_support.h", "cvu.h", "cvu_c.h", "cvu_compression.h", "cvu_f.h", "cvu_graphics.h", "cvu_input.h", "cvu_sound.h"]
+    },
+    "nes": {
+      //TODO
+      arch: "6502",
+      define: ["__NES__"],
+      cfgfile: "neslib2.cfg",
+      libargs: [
+        "crt0.o",
+        "nes.lib",
+        "neslib2.lib",
+        "-D",
+        "NES_MAPPER=0",
+        // NROM
+        "-D",
+        "NES_PRG_BANKS=2",
+        // 2 16K PRG banks
+        "-D",
+        "NES_CHR_BANKS=1",
+        // 1 CHR bank
+        "-D",
+        "NES_MIRRORING=0"
+        // horizontal mirroring
+      ],
+      extra_link_files: ["crt0.o", "neslib2.lib", "neslib2.cfg", "nesbanked.cfg"],
+      wiz_rom_ext: ".nes"
+    },
+    "apple2": {
+      arch: "6502",
+      define: ["__APPLE2__"],
+      cfgfile: "apple2.cfg",
+      libargs: ["--lib-path", "/share/target/apple2/drv", "apple2.lib"],
+      __CODE_RUN__: 16384,
+      code_start: 2051,
+      acmeargs: ["-f", "apple"]
+    },
+    "apple2-e": {
+      arch: "6502",
+      define: ["__APPLE2__"],
+      cfgfile: "apple2.cfg",
+      libargs: ["apple2.lib"],
+      acmeargs: ["-f", "apple"]
+    },
+    "atari8-800xl.disk": {
+      arch: "6502",
+      define: ["__ATARI__"],
+      cfgfile: "atari.cfg",
+      libargs: ["atari.lib"],
+      fastbasic_cfgfile: "fastbasic-cart.cfg"
+    },
+    "atari8-800xl": {
+      arch: "6502",
+      define: ["__ATARI__"],
+      cfgfile: "atari-cart.cfg",
+      libargs: ["atari.lib", "-D", "__CARTFLAGS__=4"],
+      fastbasic_cfgfile: "fastbasic-cart.cfg"
+    },
+    "atari8-800": {
+      arch: "6502",
+      define: ["__ATARI__"],
+      cfgfile: "atari-cart.cfg",
+      libargs: ["atari.lib", "-D", "__CARTFLAGS__=4"],
+      fastbasic_cfgfile: "fastbasic-cart.cfg"
+    },
+    "atari8-5200": {
+      arch: "6502",
+      define: ["__ATARI5200__"],
+      cfgfile: "atari5200.cfg",
+      libargs: ["atari5200.lib", "-D", "__CARTFLAGS__=255"],
+      fastbasic_cfgfile: "fastbasic-cart.cfg"
+    },
+    "verilog": {
+      arch: "verilog",
+      extra_compile_files: ["8bitworkshop.v"]
+    },
+    "astrocade": {
+      arch: "z80",
+      code_start: 8192,
+      rom_size: 8192,
+      data_start: 19984,
+      data_size: 496,
+      stack_end: 20480
+    },
+    "astrocade-arcade": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 16384,
+      data_start: 32224,
+      data_size: 544,
+      stack_end: 32768
+    },
+    "astrocade-bios": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 8192,
+      data_start: 20430,
+      data_size: 50,
+      stack_end: 20430
+    },
+    "atari7800": {
+      arch: "6502",
+      define: ["__ATARI7800__"],
+      cfgfile: "atari7800.cfg",
+      libargs: ["crt0.o", "none.lib"],
+      extra_link_files: ["crt0.o", "atari7800.cfg"]
+    },
+    "c64": {
+      arch: "6502",
+      define: ["__CBM__", "__C64__"],
+      cfgfile: "c64.cfg",
+      // SYS 2061
+      libargs: ["c64.lib"],
+      acmeargs: ["-f", "cbm"]
+      //extra_link_files: ['c64-cart.cfg'],
+    },
+    "vic20": {
+      arch: "6502",
+      define: ["__CBM__", "__VIC20__"],
+      cfgfile: "vic20.cfg",
+      libargs: ["vic20.lib"],
+      acmeargs: ["-f", "cbm"]
+      //extra_link_files: ['c64-cart.cfg'],
+    },
+    "kim1": {
+      arch: "6502"
+    },
+    "vectrex": {
+      arch: "6809",
+      code_start: 0,
+      rom_size: 32768,
+      data_start: 51328,
+      data_size: 896,
+      stack_end: 52224,
+      extra_compile_files: ["assert.h", "cmoc.h", "stdarg.h", "vectrex.h", "stdlib.h", "bios.h"],
+      extra_link_files: ["vectrex.scr", "libcmoc-crt-vec.a", "libcmoc-std-vec.a"],
+      extra_compile_args: ["--vectrex"],
+      extra_link_args: ["-svectrex.scr", "-lcmoc-crt-vec", "-lcmoc-std-vec"]
+    },
+    "x86": {
+      arch: "x86"
+    },
+    "zx": {
+      arch: "z80",
+      code_start: 23755,
+      rom_size: 65368 - 23755,
+      data_start: 61440,
+      data_size: 65024 - 61440,
+      stack_end: 65368,
+      extra_link_args: ["crt0-zx.rel"],
+      extra_link_files: ["crt0-zx.rel", "crt0-zx.lst"]
+    },
+    "devel-6502": {
+      arch: "6502",
+      cfgfile: "devel-6502.cfg",
+      libargs: ["crt0.o", "none.lib"],
+      extra_link_files: ["crt0.o", "devel-6502.cfg"]
+    },
+    // https://github.com/cpcitor/cpc-dev-tool-chain
+    "cpc.rslib": {
+      arch: "z80",
+      code_start: 16384,
+      rom_size: 45312 - 16384,
+      data_start: 45312,
+      data_size: 45312 - 49152,
+      stack_end: 49152,
+      extra_compile_files: ["cpcrslib.h"],
+      extra_link_args: ["crt0-cpc.rel", "cpcrslib.lib"],
+      extra_link_files: ["crt0-cpc.rel", "crt0-cpc.lst", "cpcrslib.lib", "cpcrslib.lst"]
+    },
+    // https://lronaldo.github.io/cpctelera/ (TODO)
+    "cpc": {
+      arch: "z80",
+      code_start: 16384,
+      rom_size: 45312 - 16384,
+      data_start: 45312,
+      data_size: 45312 - 49152,
+      stack_end: 49152,
+      extra_compile_files: ["cpctelera.h"],
+      extra_link_args: ["crt0-cpc.rel", "cpctelera.lib"],
+      extra_link_files: ["crt0-cpc.rel", "crt0-cpc.lst", "cpctelera.lib", "cpctelera.lst"]
+    },
+    "pce": {
+      arch: "huc6280",
+      define: ["__PCE__"],
+      cfgfile: "pce.cfg",
+      libargs: ["pce.lib", "-D", "__CARTSIZE__=0x8000"]
+    },
+    "exidy": {
+      define: ["__EXIDY__"],
+      cfgfile: "exidy.cfg",
+      libargs: ["crt0.o", "none.lib"],
+      extra_link_files: ["crt0.o", "exidy.cfg"]
+      //extra_compile_files: ['exidy.h'],
+    },
+    "arm32": {
+      arch: "arm32",
+      define: ["__ARM__", "DISABLE_UNIMPLEMENTED_LIBC_APIS", "PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_SOFT"],
+      extra_compile_args: ["-I./arch/arm/include", "-I./openlibm/include", "-I./openlibm/src", "-I./printf/src"],
+      extra_link_files: ["crt0.c", "libc.a"],
+      extra_link_args: ["crt0.c", "-lc"]
+    },
+    "gb": {
+      arch: "gbz80",
+      code_start: 0,
+      // ROM starts @ 0x0, header @ 0x100, etc.
+      codeseg_start: 512,
+      // _CODE area starts here
+      rom_size: 32768,
+      data_start: 49312,
+      data_size: 8032,
+      stack_end: 57344,
+      extra_link_files: ["gbz80.lib", "gb.lib"],
+      extra_link_args: [
+        "-l",
+        "gb",
+        "-g",
+        "_shadow_OAM=0xC000",
+        "-g",
+        ".STACK=0xE000",
+        "-g",
+        ".refresh_OAM=0xFF80"
+      ],
+      wiz_sys_type: "gb",
+      wiz_inc_dir: "gb"
+    },
+    "mcr": {
+      arch: "z80",
+      code_start: 0,
+      rom_size: 57344 + 16384 + 32768,
+      data_start: 57344,
+      data_size: 2048,
+      stack_end: 59392
+      // TODO: IHX can't handle > 64 KB, so ihx2sms looks for segments in a certain order
+    }
+  };
+  PLATFORM_PARAMS["sms-sms-libcv"] = PLATFORM_PARAMS["sms-sg1000-libcv"];
+  PLATFORM_PARAMS["sms-gg-libcv"] = PLATFORM_PARAMS["sms-sms-libcv"];
+
   // src/common/basic/compiler.ts
   var CompileError = class _CompileError extends Error {
     constructor(msg, loc) {
@@ -4849,767 +5788,6 @@
     "MODERN": MODERN_BASIC
   };
 
-  // src/worker/platforms.ts
-  var PLATFORM_PARAMS = {
-    "vcs": {
-      arch: "6502",
-      code_start: 4096,
-      code_size: 61440,
-      data_start: 128,
-      data_size: 128,
-      wiz_rom_ext: ".a26",
-      wiz_inc_dir: "2600",
-      cfgfile: "atari2600.cfg",
-      libargs: ["crt0.o", "atari2600.lib"],
-      extra_link_files: ["crt0.o", "atari2600.cfg"],
-      define: ["__ATARI2600__"]
-    },
-    "mw8080bw": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 8192,
-      data_start: 8192,
-      data_size: 1024,
-      stack_end: 9216
-    },
-    "vicdual": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 16416,
-      data_start: 58368,
-      data_size: 1024,
-      stack_end: 59392
-    },
-    "galaxian": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 16384,
-      data_start: 16384,
-      data_size: 1024,
-      stack_end: 18432
-    },
-    "galaxian-scramble": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 20512,
-      data_start: 16384,
-      data_size: 1024,
-      stack_end: 18432
-    },
-    "pacman": {
-      arch: "z80",
-      code_start: 0,
-      /* ABS CRT (_HEADER) ends ~0xCA; _CODE follows immediately (uses former hole). */
-      codeseg_start: 202,
-      rom_size: 32768,
-      // 16KB prog + 8KB gfx + palette, padded to 32KB
-      /* Real hardware: 0x4800-0x4BFF open bus; work RAM 0x4C00-0x4FEF.
-       * Namco sound soft-regs live at 0x4E8C-0x4EFB — keep _DATA below that
-       * or the WSG engine stomps game vars every VBLANK (e.g. mouth anim). */
-      data_start: 19456,
-      data_size: 652,
-      // 0x4c00-0x4e8b (stop before sound soft-regs)
-      stack_end: 20416
-      // above sound block; sprite attrs at 0x4ff0-0x4fff
-    },
-    "williams": {
-      arch: "6809",
-      code_start: 0,
-      rom_size: 49152,
-      data_start: 38912,
-      data_size: 10240,
-      stack_end: 49152,
-      set_stack_end: 49152,
-      extra_link_files: ["williams.scr", "libcmoc-crt-vec.a", "libcmoc-std-vec.a"],
-      extra_link_args: ["-swilliams.scr", "-lcmoc-crt-vec", "-lcmoc-std-vec"],
-      extra_compile_files: ["assert.h", "cmoc.h", "stdarg.h", "stdlib.h"]
-      //extra_compile_args: ['--vectrex'],
-    },
-    "williams-defender": {
-      arch: "6809",
-      code_start: 0,
-      rom_size: 49152,
-      data_start: 38912,
-      data_size: 10240,
-      stack_end: 49152
-    },
-    "williams-z80": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 38912,
-      data_start: 38912,
-      data_size: 10240,
-      stack_end: 49152
-    },
-    "vector-z80color": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 32768,
-      data_start: 57344,
-      data_size: 8192,
-      stack_end: 0
-    },
-    "vector-ataricolor": {
-      //TODO
-      arch: "6502",
-      define: ["__VECTOR__"],
-      cfgfile: "vector-color.cfg",
-      libargs: ["crt0.o", "none.lib"],
-      extra_link_files: ["crt0.o", "vector-color.cfg"]
-    },
-    "sound_williams-z80": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 16384,
-      data_start: 16384,
-      data_size: 1024,
-      stack_end: 32768
-    },
-    "base_z80": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 32768,
-      data_start: 32768,
-      data_size: 32768,
-      stack_end: 0
-    },
-    "coleco": {
-      arch: "z80",
-      rom_start: 32768,
-      code_start: 33024,
-      rom_size: 32768,
-      data_start: 28672,
-      data_size: 1024,
-      stack_end: 32768,
-      extra_preproc_args: ["-I", "/share/include/coleco", "-D", "CV_CV"],
-      extra_link_args: ["-k", "/share/lib/coleco", "-l", "libcv", "-l", "libcvu", "crt0.rel"]
-    },
-    "msx": {
-      arch: "z80",
-      rom_start: 16384,
-      code_start: 16384,
-      rom_size: 32768,
-      data_start: 49152,
-      data_size: 12288,
-      stack_end: 65535,
-      extra_link_args: ["crt0-msx.rel"],
-      extra_link_files: ["crt0-msx.rel", "crt0-msx.lst"],
-      wiz_sys_type: "z80",
-      wiz_inc_dir: "msx"
-    },
-    "msx-libcv": {
-      arch: "z80",
-      rom_start: 16384,
-      code_start: 16384,
-      rom_size: 32768,
-      data_start: 49152,
-      data_size: 12288,
-      stack_end: 65535,
-      extra_preproc_args: ["-I", ".", "-D", "CV_MSX"],
-      extra_link_args: ["-k", ".", "-l", "libcv-msx", "-l", "libcvu-msx", "crt0-msx.rel"],
-      extra_link_files: ["libcv-msx.lib", "libcvu-msx.lib", "crt0-msx.rel", "crt0-msx.lst"],
-      extra_compile_files: ["cv.h", "cv_graphics.h", "cv_input.h", "cv_sound.h", "cv_support.h", "cvu.h", "cvu_c.h", "cvu_compression.h", "cvu_f.h", "cvu_graphics.h", "cvu_input.h", "cvu_sound.h"]
-    },
-    "sms-sg1000-libcv": {
-      arch: "z80",
-      rom_start: 0,
-      code_start: 256,
-      rom_size: 49152,
-      data_start: 49152,
-      data_size: 1024,
-      stack_end: 57344,
-      extra_preproc_args: ["-I", ".", "-D", "CV_SMS"],
-      extra_link_args: ["-k", ".", "-l", "libcv-sms", "-l", "libcvu-sms", "crt0-sms.rel"],
-      extra_link_files: ["libcv-sms.lib", "libcvu-sms.lib", "crt0-sms.rel", "crt0-sms.lst"],
-      extra_compile_files: ["cv.h", "cv_graphics.h", "cv_input.h", "cv_sound.h", "cv_support.h", "cvu.h", "cvu_c.h", "cvu_compression.h", "cvu_f.h", "cvu_graphics.h", "cvu_input.h", "cvu_sound.h"]
-    },
-    "nes": {
-      //TODO
-      arch: "6502",
-      define: ["__NES__"],
-      cfgfile: "neslib2.cfg",
-      libargs: [
-        "crt0.o",
-        "nes.lib",
-        "neslib2.lib",
-        "-D",
-        "NES_MAPPER=0",
-        // NROM
-        "-D",
-        "NES_PRG_BANKS=2",
-        // 2 16K PRG banks
-        "-D",
-        "NES_CHR_BANKS=1",
-        // 1 CHR bank
-        "-D",
-        "NES_MIRRORING=0"
-        // horizontal mirroring
-      ],
-      extra_link_files: ["crt0.o", "neslib2.lib", "neslib2.cfg", "nesbanked.cfg"],
-      wiz_rom_ext: ".nes"
-    },
-    "apple2": {
-      arch: "6502",
-      define: ["__APPLE2__"],
-      cfgfile: "apple2.cfg",
-      libargs: ["--lib-path", "/share/target/apple2/drv", "apple2.lib"],
-      __CODE_RUN__: 16384,
-      code_start: 2051,
-      acmeargs: ["-f", "apple"]
-    },
-    "apple2-e": {
-      arch: "6502",
-      define: ["__APPLE2__"],
-      cfgfile: "apple2.cfg",
-      libargs: ["apple2.lib"],
-      acmeargs: ["-f", "apple"]
-    },
-    "atari8-800xl.disk": {
-      arch: "6502",
-      define: ["__ATARI__"],
-      cfgfile: "atari.cfg",
-      libargs: ["atari.lib"],
-      fastbasic_cfgfile: "fastbasic-cart.cfg"
-    },
-    "atari8-800xl": {
-      arch: "6502",
-      define: ["__ATARI__"],
-      cfgfile: "atari-cart.cfg",
-      libargs: ["atari.lib", "-D", "__CARTFLAGS__=4"],
-      fastbasic_cfgfile: "fastbasic-cart.cfg"
-    },
-    "atari8-800": {
-      arch: "6502",
-      define: ["__ATARI__"],
-      cfgfile: "atari-cart.cfg",
-      libargs: ["atari.lib", "-D", "__CARTFLAGS__=4"],
-      fastbasic_cfgfile: "fastbasic-cart.cfg"
-    },
-    "atari8-5200": {
-      arch: "6502",
-      define: ["__ATARI5200__"],
-      cfgfile: "atari5200.cfg",
-      libargs: ["atari5200.lib", "-D", "__CARTFLAGS__=255"],
-      fastbasic_cfgfile: "fastbasic-cart.cfg"
-    },
-    "verilog": {
-      arch: "verilog",
-      extra_compile_files: ["8bitworkshop.v"]
-    },
-    "astrocade": {
-      arch: "z80",
-      code_start: 8192,
-      rom_size: 8192,
-      data_start: 19984,
-      data_size: 496,
-      stack_end: 20480
-    },
-    "astrocade-arcade": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 16384,
-      data_start: 32224,
-      data_size: 544,
-      stack_end: 32768
-    },
-    "astrocade-bios": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 8192,
-      data_start: 20430,
-      data_size: 50,
-      stack_end: 20430
-    },
-    "atari7800": {
-      arch: "6502",
-      define: ["__ATARI7800__"],
-      cfgfile: "atari7800.cfg",
-      libargs: ["crt0.o", "none.lib"],
-      extra_link_files: ["crt0.o", "atari7800.cfg"]
-    },
-    "c64": {
-      arch: "6502",
-      define: ["__CBM__", "__C64__"],
-      cfgfile: "c64.cfg",
-      // SYS 2061
-      libargs: ["c64.lib"],
-      acmeargs: ["-f", "cbm"]
-      //extra_link_files: ['c64-cart.cfg'],
-    },
-    "vic20": {
-      arch: "6502",
-      define: ["__CBM__", "__VIC20__"],
-      cfgfile: "vic20.cfg",
-      libargs: ["vic20.lib"],
-      acmeargs: ["-f", "cbm"]
-      //extra_link_files: ['c64-cart.cfg'],
-    },
-    "kim1": {
-      arch: "6502"
-    },
-    "vectrex": {
-      arch: "6809",
-      code_start: 0,
-      rom_size: 32768,
-      data_start: 51328,
-      data_size: 896,
-      stack_end: 52224,
-      extra_compile_files: ["assert.h", "cmoc.h", "stdarg.h", "vectrex.h", "stdlib.h", "bios.h"],
-      extra_link_files: ["vectrex.scr", "libcmoc-crt-vec.a", "libcmoc-std-vec.a"],
-      extra_compile_args: ["--vectrex"],
-      extra_link_args: ["-svectrex.scr", "-lcmoc-crt-vec", "-lcmoc-std-vec"]
-    },
-    "x86": {
-      arch: "x86"
-    },
-    "zx": {
-      arch: "z80",
-      code_start: 23755,
-      rom_size: 65368 - 23755,
-      data_start: 61440,
-      data_size: 65024 - 61440,
-      stack_end: 65368,
-      extra_link_args: ["crt0-zx.rel"],
-      extra_link_files: ["crt0-zx.rel", "crt0-zx.lst"]
-    },
-    "devel-6502": {
-      arch: "6502",
-      cfgfile: "devel-6502.cfg",
-      libargs: ["crt0.o", "none.lib"],
-      extra_link_files: ["crt0.o", "devel-6502.cfg"]
-    },
-    // https://github.com/cpcitor/cpc-dev-tool-chain
-    "cpc.rslib": {
-      arch: "z80",
-      code_start: 16384,
-      rom_size: 45312 - 16384,
-      data_start: 45312,
-      data_size: 45312 - 49152,
-      stack_end: 49152,
-      extra_compile_files: ["cpcrslib.h"],
-      extra_link_args: ["crt0-cpc.rel", "cpcrslib.lib"],
-      extra_link_files: ["crt0-cpc.rel", "crt0-cpc.lst", "cpcrslib.lib", "cpcrslib.lst"]
-    },
-    // https://lronaldo.github.io/cpctelera/ (TODO)
-    "cpc": {
-      arch: "z80",
-      code_start: 16384,
-      rom_size: 45312 - 16384,
-      data_start: 45312,
-      data_size: 45312 - 49152,
-      stack_end: 49152,
-      extra_compile_files: ["cpctelera.h"],
-      extra_link_args: ["crt0-cpc.rel", "cpctelera.lib"],
-      extra_link_files: ["crt0-cpc.rel", "crt0-cpc.lst", "cpctelera.lib", "cpctelera.lst"]
-    },
-    "pce": {
-      arch: "huc6280",
-      define: ["__PCE__"],
-      cfgfile: "pce.cfg",
-      libargs: ["pce.lib", "-D", "__CARTSIZE__=0x8000"]
-    },
-    "exidy": {
-      define: ["__EXIDY__"],
-      cfgfile: "exidy.cfg",
-      libargs: ["crt0.o", "none.lib"],
-      extra_link_files: ["crt0.o", "exidy.cfg"]
-      //extra_compile_files: ['exidy.h'],
-    },
-    "arm32": {
-      arch: "arm32",
-      define: ["__ARM__", "DISABLE_UNIMPLEMENTED_LIBC_APIS", "PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_SOFT"],
-      extra_compile_args: ["-I./arch/arm/include", "-I./openlibm/include", "-I./openlibm/src", "-I./printf/src"],
-      extra_link_files: ["crt0.c", "libc.a"],
-      extra_link_args: ["crt0.c", "-lc"]
-    },
-    "gb": {
-      arch: "gbz80",
-      code_start: 0,
-      // ROM starts @ 0x0, header @ 0x100, etc.
-      codeseg_start: 512,
-      // _CODE area starts here
-      rom_size: 32768,
-      data_start: 49312,
-      data_size: 8032,
-      stack_end: 57344,
-      extra_link_files: ["gbz80.lib", "gb.lib"],
-      extra_link_args: [
-        "-l",
-        "gb",
-        "-g",
-        "_shadow_OAM=0xC000",
-        "-g",
-        ".STACK=0xE000",
-        "-g",
-        ".refresh_OAM=0xFF80"
-      ],
-      wiz_sys_type: "gb",
-      wiz_inc_dir: "gb"
-    },
-    "mcr": {
-      arch: "z80",
-      code_start: 0,
-      rom_size: 57344 + 16384 + 32768,
-      data_start: 57344,
-      data_size: 2048,
-      stack_end: 59392
-      // TODO: IHX can't handle > 64 KB, so ihx2sms looks for segments in a certain order
-    }
-  };
-  PLATFORM_PARAMS["sms-sms-libcv"] = PLATFORM_PARAMS["sms-sg1000-libcv"];
-  PLATFORM_PARAMS["sms-gg-libcv"] = PLATFORM_PARAMS["sms-sms-libcv"];
-
-  // src/worker/builder.ts
-  var PSRC = "../../src/";
-  var PWORKER = PSRC + "worker/";
-  function fixLineEndings(data) {
-    if (typeof data === "string") {
-      return data.replace(/\r\n/g, "\n");
-    }
-    return data;
-  }
-  var FileWorkingStore = class {
-    constructor() {
-      this.workfs = {};
-      this.workerseq = 0;
-      this.reset();
-    }
-    reset() {
-      this.workfs = {};
-      this.newVersion();
-    }
-    currentVersion() {
-      return this.workerseq;
-    }
-    newVersion() {
-      let ts = (/* @__PURE__ */ new Date()).getTime();
-      if (ts <= this.workerseq)
-        ts = ++this.workerseq;
-      return ts;
-    }
-    putFile(path, data) {
-      var encoding = typeof data === "string" ? "utf8" : "binary";
-      var entry = this.workfs[path];
-      if (!entry || !compareData(entry.data, data) || entry.encoding != encoding) {
-        this.workfs[path] = entry = { path, data, encoding, ts: this.newVersion() };
-        console.log("+++", entry.path, entry.encoding, entry.data.length, entry.ts);
-      }
-      return entry;
-    }
-    hasFile(path) {
-      return this.workfs[path] != null;
-    }
-    getFileData(path) {
-      return this.workfs[path] && this.workfs[path].data;
-    }
-    getFileAsString(path) {
-      let data = this.getFileData(path);
-      if (data != null && typeof data !== "string")
-        throw new Error(`${path}: expected string`);
-      return fixLineEndings(data);
-    }
-    getFileEntry(path) {
-      return this.workfs[path];
-    }
-    setItem(key, value) {
-      this.items[key] = value;
-    }
-  };
-  var store = new FileWorkingStore();
-  function errorResult(msg) {
-    return { errors: [{ line: 0, msg }] };
-  }
-  var Builder = class {
-    constructor() {
-      this.steps = [];
-      this.startseq = 0;
-    }
-    // returns true if file changed during this build step
-    wasChanged(entry) {
-      return entry.ts > this.startseq;
-    }
-    async executeBuildSteps() {
-      this.startseq = store.currentVersion();
-      var linkstep = null;
-      while (this.steps.length) {
-        var step = this.steps.shift();
-        var platform = step.platform;
-        var [tool, remoteTool] = step.tool.split(":", 2);
-        var toolfn = TOOLS[tool];
-        if (!toolfn) {
-          throw Error(`no tool named "${tool}"`);
-        }
-        if (remoteTool) {
-          step.tool = remoteTool;
-        }
-        step.params = PLATFORM_PARAMS[getBasePlatform(platform)];
-        try {
-          step.result = await toolfn(step);
-        } catch (e) {
-          console.log("EXCEPTION", e, e.stack);
-          return errorResult(e + "");
-        }
-        if (step.result) {
-          step.result.params = step.params;
-          if (step.debuginfo) {
-            let r = step.result;
-            if (!r.debuginfo) r.debuginfo = {};
-            Object.assign(r.debuginfo, step.debuginfo);
-          }
-          if ("errors" in step.result && step.result.errors.length) {
-            applyDefaultErrorPath(step.result.errors, step.path);
-            return step.result;
-          }
-          if ("output" in step.result && step.result.output) {
-            return step.result;
-          }
-          if ("linktool" in step.result) {
-            if (linkstep) {
-              linkstep.files = linkstep.files.concat(step.result.files);
-              linkstep.args = linkstep.args.concat(step.result.args);
-            } else {
-              linkstep = {
-                tool: step.result.linktool,
-                platform,
-                files: step.result.files,
-                args: step.result.args
-              };
-            }
-            linkstep.debuginfo = step.debuginfo;
-          }
-          if ("nexttool" in step.result) {
-            var asmstep = __spreadValues({
-              tool: step.result.nexttool,
-              platform
-            }, step.result);
-            this.steps.push(asmstep);
-          }
-          if (this.steps.length == 0 && linkstep) {
-            this.steps.push(linkstep);
-            linkstep = null;
-          }
-        }
-      }
-    }
-    async handleMessage(data) {
-      this.steps = [];
-      if (data.updates) {
-        data.updates.forEach((u) => store.putFile(u.path, u.data));
-      }
-      if (data.setitems) {
-        data.setitems.forEach((i) => store.setItem(i.key, i.value));
-      }
-      if (data.buildsteps) {
-        this.steps.push.apply(this.steps, data.buildsteps);
-      }
-      if (data.code) {
-        this.steps.push(data);
-      }
-      if (this.steps.length) {
-        var result = await this.executeBuildSteps();
-        return result ? result : { unchanged: true };
-      }
-      console.log("Unknown message", data);
-    }
-  };
-  function applyDefaultErrorPath(errors, path) {
-    if (!path) return;
-    for (var i = 0; i < errors.length; i++) {
-      var err = errors[i];
-      if (!err.path && err.line) err.path = path;
-    }
-  }
-  function compareData(a, b) {
-    if (a.length != b.length) return false;
-    if (typeof a === "string" && typeof b === "string") {
-      return a == b;
-    } else {
-      for (var i = 0; i < a.length; i++) {
-        if (a[i] != b[i]) return false;
-      }
-      return true;
-    }
-  }
-  var builder = new Builder();
-  var _t1;
-  function starttime() {
-    _t1 = /* @__PURE__ */ new Date();
-  }
-  function endtime(msg) {
-    var _t2 = /* @__PURE__ */ new Date();
-    console.log(msg, _t2.getTime() - _t1.getTime(), "ms");
-  }
-  function putWorkFile(path, data) {
-    return store.putFile(path, data);
-  }
-  function getWorkFileAsString(path) {
-    return store.getFileAsString(path);
-  }
-  function populateEntry(fs, path, entry, options) {
-    var data = entry.data;
-    if (options && options.processFn) {
-      data = options.processFn(path, data);
-    }
-    data = fixLineEndings(data);
-    var toks = path.split("/");
-    if (toks.length > 1) {
-      for (var i = 0; i < toks.length - 1; i++)
-        try {
-          fs.mkdir(toks[i]);
-        } catch (e) {
-        }
-    }
-    fs.writeFile(path, data, { encoding: entry.encoding });
-    var time = new Date(entry.ts);
-    fs.utime(path, time, time);
-    console.log("<<<", path, entry.data.length);
-  }
-  function gatherFiles(step, options) {
-    var maxts = 0;
-    if (step.files) {
-      for (var i = 0; i < step.files.length; i++) {
-        var path = step.files[i];
-        var entry = store.workfs[path];
-        if (!entry) {
-          throw new Error("No entry for path '" + path + "'");
-        } else {
-          maxts = Math.max(maxts, entry.ts);
-        }
-      }
-    } else if (step.code) {
-      var path = step.path ? step.path : options.mainFilePath;
-      if (!path) throw Error("need path or mainFilePath");
-      var code = step.code;
-      var entry = putWorkFile(path, code);
-      step.path = path;
-      step.files = [path];
-      maxts = entry.ts;
-    } else if (step.path) {
-      var path = step.path;
-      var entry = store.workfs[path];
-      maxts = entry.ts;
-      step.files = [path];
-    }
-    if (step.path && !step.prefix) {
-      step.prefix = getPrefix(step.path);
-    }
-    step.maxts = maxts;
-    return maxts;
-  }
-  function getPrefix(s) {
-    var pos = s.lastIndexOf(".");
-    return pos > 0 ? s.substring(0, pos) : s;
-  }
-  function populateFiles(step, fs, options) {
-    gatherFiles(step, options);
-    if (!step.files) throw Error("call gatherFiles() first");
-    for (var i = 0; i < step.files.length; i++) {
-      var path = step.files[i];
-      populateEntry(fs, path, store.workfs[path], options);
-    }
-  }
-  function populateExtraFiles(step, fs, extrafiles) {
-    if (extrafiles) {
-      for (var i = 0; i < extrafiles.length; i++) {
-        var xfn = extrafiles[i];
-        if (store.workfs[xfn]) {
-          fs.writeFile(xfn, store.workfs[xfn].data, { encoding: "binary" });
-          continue;
-        }
-        var xpath = "lib/" + getBasePlatform(step.platform) + "/" + xfn;
-        var xhr = new XMLHttpRequest();
-        xhr.responseType = "arraybuffer";
-        xhr.open("GET", PWORKER + xpath, false);
-        xhr.send(null);
-        if (xhr.response && xhr.status == 200) {
-          var data = new Uint8Array(xhr.response);
-          fs.writeFile(xfn, data, { encoding: "binary" });
-          putWorkFile(xfn, data);
-          console.log(":::", xfn, data.length);
-        } else {
-          throw Error("Could not load extra file " + xpath);
-        }
-      }
-    }
-  }
-  function staleFiles(step, targets) {
-    if (!step.maxts) throw Error("call populateFiles() first");
-    for (var i = 0; i < targets.length; i++) {
-      var entry = store.workfs[targets[i]];
-      if (!entry || step.maxts > entry.ts)
-        return true;
-    }
-    console.log("unchanged", step.maxts, targets);
-    return false;
-  }
-  function anyTargetChanged(step, targets) {
-    if (!step.maxts) throw Error("call populateFiles() first");
-    for (var i = 0; i < targets.length; i++) {
-      var entry = store.workfs[targets[i]];
-      if (!entry || entry.ts > step.maxts)
-        return true;
-    }
-    console.log("unchanged", step.maxts, targets);
-    return false;
-  }
-  function fixParamsWithDefines(path, params) {
-    var libargs = params.libargs;
-    if (path && libargs) {
-      var code = getWorkFileAsString(path);
-      if (code) {
-        var oldcfgfile = params.cfgfile;
-        var ident2index = {};
-        for (var i = 0; i < libargs.length; i++) {
-          var toks = libargs[i].split("=");
-          if (toks.length == 2) {
-            ident2index[toks[0]] = i;
-          }
-        }
-        var re = /^[;/]?#define\s+(\w+)\s+(\S+)/gmi;
-        var m;
-        while (m = re.exec(code)) {
-          var ident = m[1];
-          var value = m[2];
-          var index = ident2index[ident];
-          if (index >= 0) {
-            libargs[index] = ident + "=" + value;
-            console.log("Using libargs", index, libargs[index]);
-            if (ident == "NES_MAPPER" && value == "4") {
-              params.cfgfile = "nesbanked.cfg";
-              console.log("using config file", params.cfgfile);
-            }
-          } else if (ident == "CFGFILE" && value) {
-            params.cfgfile = value;
-          } else if (ident == "LIBARGS" && value) {
-            params.libargs = value.split(",").filter((s) => {
-              return s != "";
-            });
-            console.log("Using libargs", params.libargs);
-          } else if (ident == "CC65_FLAGS" && value) {
-            params.extra_compiler_args = value.split(",").filter((s) => {
-              return s != "";
-            });
-            console.log("Using compiler flags", params.extra_compiler_args);
-          }
-        }
-      }
-    }
-  }
-  function processEmbedDirective(code) {
-    let re3 = /^\s*#embed\s+"(.+?)"/gm;
-    return code.replace(re3, (m, m1) => {
-      let filename = m1;
-      let filedata = store.getFileData(filename);
-      let bytes = convertDataToUint8Array(filedata);
-      if (!bytes) throw new Error('#embed: file not found: "' + filename + '"');
-      let out = "";
-      for (let i = 0; i < bytes.length; i++) {
-        out += bytes[i].toString() + ",";
-      }
-      return out.substring(0, out.length - 1);
-    });
-  }
-
   // src/worker/wasmutils.ts
   var ENVIRONMENT_IS_WEB = typeof window === "object";
   var ENVIRONMENT_IS_WORKER = typeof importScripts === "function";
@@ -5888,23 +6066,6 @@
   }
 
   // src/worker/tools/misc.ts
-  function translateShowdown(step) {
-    setupRequireFunction();
-    load("showdown.min");
-    var showdown = emglobal["showdown"];
-    var converter = new showdown.Converter({
-      tables: "true",
-      smoothLivePreview: "true",
-      requireSpaceBeforeHeadingText: "true",
-      emoji: "true"
-    });
-    var code = getWorkFileAsString(step.path);
-    var html = converter.makeHtml(code);
-    delete emglobal["require"];
-    return {
-      output: html
-    };
-  }
   function compileInform6(step) {
     loadNative("inform");
     var errors = [];
@@ -14455,7 +14616,6 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     "smlrc": compileSmallerC,
     "yasm": assembleYASM,
     "bataribasic": compileBatariBasic,
-    "markdown": translateShowdown,
     "inform6": compileInform6,
     "merlin32": assembleMerlin32,
     "fastbasic": compileFastBasic,
@@ -14474,45 +14634,357 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     "xa": assembleXA,
     "dialog": compileDialog
   };
-  var TOOL_PRELOADFS = {
-    "cc65-apple2": "65-apple2",
-    "ca65-apple2": "65-apple2",
-    "cc65-c64": "65-c64",
-    "ca65-c64": "65-c64",
-    "cc65-vic20": "65-vic20",
-    "ca65-vic20": "65-vic20",
-    "cc65-nes": "65-nes",
-    "ca65-nes": "65-nes",
-    "cc65-atari8": "65-atari8",
-    "ca65-atari8": "65-atari8",
-    "cc65-vector": "65-none",
-    "ca65-vector": "65-none",
-    "cc65-atari7800": "65-none",
-    "ca65-atari7800": "65-none",
-    "cc65-devel": "65-none",
-    "ca65-devel": "65-none",
-    "cc65-vcs": "65-atari2600",
-    "ca65-vcs": "65-atari2600",
-    "cc65-pce": "65-pce",
-    "ca65-pce": "65-pce",
-    "cc65-exidy": "65-none",
-    "ca65-exidy": "65-none",
-    "sdasz80": "sdcc",
-    "sdasgb": "sdcc",
-    "sdcc": "sdcc",
-    "sccz80": "sccz80",
-    "bataribasic": "2600basic",
-    "inform6": "inform",
-    "fastbasic": "65-atari8",
-    "silice": "Silice",
-    "wiz": "wiz",
-    "ecs-vcs": "65-atari2600",
-    // TODO: support multiple platforms
-    "ecs-nes": "65-nes",
-    // TODO: support multiple platforms
-    "ecs-c64": "65-c64"
-    // TODO: support multiple platforms
+
+  // src/worker/builder.ts
+  var PSRC = "../../src/";
+  var PWORKER = PSRC + "worker/";
+  function fixLineEndings(data) {
+    if (typeof data === "string") {
+      return data.replace(/\r\n/g, "\n");
+    }
+    return data;
+  }
+  var FileWorkingStore = class {
+    constructor() {
+      this.workfs = {};
+      this.workerseq = 0;
+      this.reset();
+    }
+    reset() {
+      this.workfs = {};
+      this.newVersion();
+    }
+    currentVersion() {
+      return this.workerseq;
+    }
+    newVersion() {
+      let ts = (/* @__PURE__ */ new Date()).getTime();
+      if (ts <= this.workerseq)
+        ts = ++this.workerseq;
+      return ts;
+    }
+    putFile(path, data) {
+      var encoding = typeof data === "string" ? "utf8" : "binary";
+      var entry = this.workfs[path];
+      if (!entry || !compareData(entry.data, data) || entry.encoding != encoding) {
+        this.workfs[path] = entry = { path, data, encoding, ts: this.newVersion() };
+        console.log("+++", entry.path, entry.encoding, entry.data.length, entry.ts);
+      }
+      return entry;
+    }
+    hasFile(path) {
+      return this.workfs[path] != null;
+    }
+    getFileData(path) {
+      return this.workfs[path] && this.workfs[path].data;
+    }
+    getFileAsString(path) {
+      let data = this.getFileData(path);
+      if (data != null && typeof data !== "string")
+        throw new Error(`${path}: expected string`);
+      return fixLineEndings(data);
+    }
+    getFileEntry(path) {
+      return this.workfs[path];
+    }
+    setItem(key, value) {
+      this.items[key] = value;
+    }
   };
+  var store = new FileWorkingStore();
+  function errorResult(msg) {
+    return { errors: [{ line: 0, msg }] };
+  }
+  var Builder = class {
+    constructor() {
+      this.steps = [];
+      this.startseq = 0;
+    }
+    // returns true if file changed during this build step
+    wasChanged(entry) {
+      return entry.ts > this.startseq;
+    }
+    async executeBuildSteps() {
+      this.startseq = store.currentVersion();
+      var linkstep = null;
+      while (this.steps.length) {
+        var step = this.steps.shift();
+        var platform = step.platform;
+        var [tool, remoteTool] = step.tool.split(":", 2);
+        var toolfn = TOOLS[tool];
+        if (!toolfn) {
+          throw Error(`no tool named "${tool}"`);
+        }
+        if (remoteTool) {
+          step.tool = remoteTool;
+        }
+        step.params = PLATFORM_PARAMS[getBasePlatform(platform)];
+        try {
+          step.result = await toolfn(step);
+        } catch (e) {
+          console.log("EXCEPTION", e, e.stack);
+          return errorResult(e + "");
+        }
+        if (step.result) {
+          step.result.params = step.params;
+          if (step.debuginfo) {
+            let r = step.result;
+            if (!r.debuginfo) r.debuginfo = {};
+            Object.assign(r.debuginfo, step.debuginfo);
+          }
+          if ("errors" in step.result && step.result.errors.length) {
+            applyDefaultErrorPath(step.result.errors, step.path);
+            return step.result;
+          }
+          if ("output" in step.result && step.result.output) {
+            return step.result;
+          }
+          if ("linktool" in step.result) {
+            if (linkstep) {
+              linkstep.files = linkstep.files.concat(step.result.files);
+              linkstep.args = linkstep.args.concat(step.result.args);
+            } else {
+              linkstep = {
+                tool: step.result.linktool,
+                platform,
+                files: step.result.files,
+                args: step.result.args
+              };
+            }
+            linkstep.debuginfo = step.debuginfo;
+          }
+          if ("nexttool" in step.result) {
+            var asmstep = __spreadValues({
+              tool: step.result.nexttool,
+              platform
+            }, step.result);
+            this.steps.push(asmstep);
+          }
+          if (this.steps.length == 0 && linkstep) {
+            this.steps.push(linkstep);
+            linkstep = null;
+          }
+        }
+      }
+    }
+    async handleMessage(data) {
+      this.steps = [];
+      if (data.updates) {
+        data.updates.forEach((u) => store.putFile(u.path, u.data));
+      }
+      if (data.setitems) {
+        data.setitems.forEach((i) => store.setItem(i.key, i.value));
+      }
+      if (data.buildsteps) {
+        this.steps.push.apply(this.steps, data.buildsteps);
+      }
+      if (data.code) {
+        this.steps.push(data);
+      }
+      if (this.steps.length) {
+        var result = await this.executeBuildSteps();
+        return result ? result : { unchanged: true };
+      }
+      console.log("Unknown message", data);
+    }
+  };
+  function applyDefaultErrorPath(errors, path) {
+    if (!path) return;
+    for (var i = 0; i < errors.length; i++) {
+      var err = errors[i];
+      if (!err.path && err.line) err.path = path;
+    }
+  }
+  function compareData(a, b) {
+    if (a.length != b.length) return false;
+    if (typeof a === "string" && typeof b === "string") {
+      return a == b;
+    } else {
+      for (var i = 0; i < a.length; i++) {
+        if (a[i] != b[i]) return false;
+      }
+      return true;
+    }
+  }
+  var builder = new Builder();
+  var _t1;
+  function starttime() {
+    _t1 = /* @__PURE__ */ new Date();
+  }
+  function endtime(msg) {
+    var _t2 = /* @__PURE__ */ new Date();
+    console.log(msg, _t2.getTime() - _t1.getTime(), "ms");
+  }
+  function putWorkFile(path, data) {
+    return store.putFile(path, data);
+  }
+  function getWorkFileAsString(path) {
+    return store.getFileAsString(path);
+  }
+  function populateEntry(fs, path, entry, options) {
+    var data = entry.data;
+    if (options && options.processFn) {
+      data = options.processFn(path, data);
+    }
+    data = fixLineEndings(data);
+    var toks = path.split("/");
+    if (toks.length > 1) {
+      for (var i = 0; i < toks.length - 1; i++)
+        try {
+          fs.mkdir(toks[i]);
+        } catch (e) {
+        }
+    }
+    fs.writeFile(path, data, { encoding: entry.encoding });
+    var time = new Date(entry.ts);
+    fs.utime(path, time, time);
+    console.log("<<<", path, entry.data.length);
+  }
+  function gatherFiles(step, options) {
+    var maxts = 0;
+    if (step.files) {
+      for (var i = 0; i < step.files.length; i++) {
+        var path = step.files[i];
+        var entry = store.workfs[path];
+        if (!entry) {
+          throw new Error("No entry for path '" + path + "'");
+        } else {
+          maxts = Math.max(maxts, entry.ts);
+        }
+      }
+    } else if (step.code) {
+      var path = step.path ? step.path : options.mainFilePath;
+      if (!path) throw Error("need path or mainFilePath");
+      var code = step.code;
+      var entry = putWorkFile(path, code);
+      step.path = path;
+      step.files = [path];
+      maxts = entry.ts;
+    } else if (step.path) {
+      var path = step.path;
+      var entry = store.workfs[path];
+      maxts = entry.ts;
+      step.files = [path];
+    }
+    if (step.path && !step.prefix) {
+      step.prefix = getPrefix(step.path);
+    }
+    step.maxts = maxts;
+    return maxts;
+  }
+  function getPrefix(s) {
+    var pos = s.lastIndexOf(".");
+    return pos > 0 ? s.substring(0, pos) : s;
+  }
+  function populateFiles(step, fs, options) {
+    gatherFiles(step, options);
+    if (!step.files) throw Error("call gatherFiles() first");
+    for (var i = 0; i < step.files.length; i++) {
+      var path = step.files[i];
+      populateEntry(fs, path, store.workfs[path], options);
+    }
+  }
+  function populateExtraFiles(step, fs, extrafiles) {
+    if (extrafiles) {
+      for (var i = 0; i < extrafiles.length; i++) {
+        var xfn = extrafiles[i];
+        if (store.workfs[xfn]) {
+          fs.writeFile(xfn, store.workfs[xfn].data, { encoding: "binary" });
+          continue;
+        }
+        var xpath = "lib/" + getBasePlatform(step.platform) + "/" + xfn;
+        var xhr = new XMLHttpRequest();
+        xhr.responseType = "arraybuffer";
+        xhr.open("GET", PWORKER + xpath, false);
+        xhr.send(null);
+        if (xhr.response && xhr.status == 200) {
+          var data = new Uint8Array(xhr.response);
+          fs.writeFile(xfn, data, { encoding: "binary" });
+          putWorkFile(xfn, data);
+          console.log(":::", xfn, data.length);
+        } else {
+          throw Error("Could not load extra file " + xpath);
+        }
+      }
+    }
+  }
+  function staleFiles(step, targets) {
+    if (!step.maxts) throw Error("call populateFiles() first");
+    for (var i = 0; i < targets.length; i++) {
+      var entry = store.workfs[targets[i]];
+      if (!entry || step.maxts > entry.ts)
+        return true;
+    }
+    console.log("unchanged", step.maxts, targets);
+    return false;
+  }
+  function anyTargetChanged(step, targets) {
+    if (!step.maxts) throw Error("call populateFiles() first");
+    for (var i = 0; i < targets.length; i++) {
+      var entry = store.workfs[targets[i]];
+      if (!entry || entry.ts > step.maxts)
+        return true;
+    }
+    console.log("unchanged", step.maxts, targets);
+    return false;
+  }
+  function fixParamsWithDefines(path, params) {
+    var libargs = params.libargs;
+    if (path && libargs) {
+      var code = getWorkFileAsString(path);
+      if (code) {
+        var oldcfgfile = params.cfgfile;
+        var ident2index = {};
+        for (var i = 0; i < libargs.length; i++) {
+          var toks = libargs[i].split("=");
+          if (toks.length == 2) {
+            ident2index[toks[0]] = i;
+          }
+        }
+        var re = /^[;/]?#define\s+(\w+)\s+(\S+)/gmi;
+        var m;
+        while (m = re.exec(code)) {
+          var ident = m[1];
+          var value = m[2];
+          var index = ident2index[ident];
+          if (index >= 0) {
+            libargs[index] = ident + "=" + value;
+            console.log("Using libargs", index, libargs[index]);
+            if (ident == "NES_MAPPER" && value == "4") {
+              params.cfgfile = "nesbanked.cfg";
+              console.log("using config file", params.cfgfile);
+            }
+          } else if (ident == "CFGFILE" && value) {
+            params.cfgfile = value;
+          } else if (ident == "LIBARGS" && value) {
+            params.libargs = value.split(",").filter((s) => {
+              return s != "";
+            });
+            console.log("Using libargs", params.libargs);
+          } else if (ident == "CC65_FLAGS" && value) {
+            params.extra_compiler_args = value.split(",").filter((s) => {
+              return s != "";
+            });
+            console.log("Using compiler flags", params.extra_compiler_args);
+          }
+        }
+      }
+    }
+  }
+  function processEmbedDirective(code) {
+    let re3 = /^\s*#embed\s+"(.+?)"/gm;
+    return code.replace(re3, (m, m1) => {
+      let filename = m1;
+      let filedata = store.getFileData(filename);
+      let bytes = convertDataToUint8Array(filedata);
+      if (!bytes) throw new Error('#embed: file not found: "' + filename + '"');
+      let out = "";
+      for (let i = 0; i < bytes.length; i++) {
+        out += bytes[i].toString() + ",";
+      }
+      return out.substring(0, out.length - 1);
+    });
+  }
 
   // src/worker/workermain.ts
   function setupRequireFunction() {
@@ -14529,11 +15001,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   }
   async function handleMessage(data) {
     if (data.preload) {
-      var fs = TOOL_PRELOADFS[data.preload];
-      if (!fs && data.platform)
-        fs = TOOL_PRELOADFS[data.preload + "-" + getBasePlatform(data.platform)];
-      if (!fs && data.platform)
-        fs = TOOL_PRELOADFS[data.preload + "-" + getRootBasePlatform(data.platform)];
+      var fs = getPreloadFSName(data.preload, data.platform && getBasePlatform(data.platform)) || getPreloadFSName(data.preload, data.platform && getRootBasePlatform(data.platform));
       if (fs && !fsMeta[fs])
         loadFilesystem(fs);
       return;

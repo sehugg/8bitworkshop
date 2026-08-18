@@ -270,10 +270,6 @@ async function doCompile(args, positional, checkOnly) {
         process.exit(1);
     }
     // Preload the tool's filesystem if needed
-    var preloadKey = tool;
-    if (testlib_1.TOOL_PRELOADFS[tool + '-' + platform]) {
-        preloadKey = tool;
-    }
     await (0, testlib_1.preload)(tool, platform);
     var result = await (0, testlib_1.compileSourceFile)(tool, platform, sourceFile);
     if (!result.success) {

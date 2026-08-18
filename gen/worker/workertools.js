@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TOOL_PRELOADFS = exports.TOOLS = void 0;
+exports.TOOLS = void 0;
 const misc = __importStar(require("./tools/misc"));
 const cc65 = __importStar(require("./tools/cc65"));
 const dasm = __importStar(require("./tools/dasm"));
@@ -78,7 +78,6 @@ exports.TOOLS = {
     'smlrc': x86.compileSmallerC,
     'yasm': x86.assembleYASM,
     'bataribasic': bataribasic.compileBatariBasic,
-    'markdown': misc.translateShowdown,
     'inform6': misc.compileInform6,
     'merlin32': m6502.assembleMerlin32,
     'fastbasic': m6502.compileFastBasic,
@@ -96,41 +95,5 @@ exports.TOOLS = {
     'oscar64': oscar64.compileOscar64,
     'xa': xa.assembleXA,
     'dialog': dialog.compileDialog,
-};
-exports.TOOL_PRELOADFS = {
-    'cc65-apple2': '65-apple2',
-    'ca65-apple2': '65-apple2',
-    'cc65-c64': '65-c64',
-    'ca65-c64': '65-c64',
-    'cc65-vic20': '65-vic20',
-    'ca65-vic20': '65-vic20',
-    'cc65-nes': '65-nes',
-    'ca65-nes': '65-nes',
-    'cc65-atari8': '65-atari8',
-    'ca65-atari8': '65-atari8',
-    'cc65-vector': '65-none',
-    'ca65-vector': '65-none',
-    'cc65-atari7800': '65-none',
-    'ca65-atari7800': '65-none',
-    'cc65-devel': '65-none',
-    'ca65-devel': '65-none',
-    'cc65-vcs': '65-atari2600',
-    'ca65-vcs': '65-atari2600',
-    'cc65-pce': '65-pce',
-    'ca65-pce': '65-pce',
-    'cc65-exidy': '65-none',
-    'ca65-exidy': '65-none',
-    'sdasz80': 'sdcc',
-    'sdasgb': 'sdcc',
-    'sdcc': 'sdcc',
-    'sccz80': 'sccz80',
-    'bataribasic': '2600basic',
-    'inform6': 'inform',
-    'fastbasic': '65-atari8',
-    'silice': 'Silice',
-    'wiz': 'wiz',
-    'ecs-vcs': '65-atari2600', // TODO: support multiple platforms
-    'ecs-nes': '65-nes', // TODO: support multiple platforms
-    'ecs-c64': '65-c64', // TODO: support multiple platforms
 };
 //# sourceMappingURL=workertools.js.map

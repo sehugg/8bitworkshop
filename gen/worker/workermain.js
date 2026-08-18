@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.setupRequireFunction = setupRequireFunction;
 const util_1 = require("../common/util");
-const workertools_1 = require("./workertools");
+const toolmeta_1 = require("../common/toolmeta");
 const builder_1 = require("./builder");
 const wasmutils_1 = require("./wasmutils");
 function setupRequireFunction() {
@@ -22,11 +22,8 @@ function setupRequireFunction() {
 async function handleMessage(data) {
     // preload file system
     if (data.preload) {
-        var fs = workertools_1.TOOL_PRELOADFS[data.preload];
-        if (!fs && data.platform)
-            fs = workertools_1.TOOL_PRELOADFS[data.preload + '-' + (0, util_1.getBasePlatform)(data.platform)];
-        if (!fs && data.platform)
-            fs = workertools_1.TOOL_PRELOADFS[data.preload + '-' + (0, util_1.getRootBasePlatform)(data.platform)];
+        var fs = (0, toolmeta_1.getPreloadFSName)(data.preload, data.platform && (0, util_1.getBasePlatform)(data.platform))
+            || (0, toolmeta_1.getPreloadFSName)(data.preload, data.platform && (0, util_1.getRootBasePlatform)(data.platform));
         if (fs && !wasmutils_1.fsMeta[fs])
             (0, wasmutils_1.loadFilesystem)(fs);
         return;

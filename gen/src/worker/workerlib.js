@@ -36,14 +36,13 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TOOLS = exports.PLATFORM_PARAMS = exports.TOOL_PRELOADFS = exports.builder = exports.store = void 0;
+exports.TOOLS = exports.PLATFORM_PARAMS = exports.builder = exports.store = void 0;
 exports.setupNodeEnvironment = setupNodeEnvironment;
 exports.handleMessage = handleMessage;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const util_1 = require("../common/util");
-const workertools_1 = require("./workertools");
-Object.defineProperty(exports, "TOOL_PRELOADFS", { enumerable: true, get: function () { return workertools_1.TOOL_PRELOADFS; } });
+const toolmeta_1 = require("../common/toolmeta");
 const builder_1 = require("./builder");
 Object.defineProperty(exports, "store", { enumerable: true, get: function () { return builder_1.store; } });
 Object.defineProperty(exports, "builder", { enumerable: true, get: function () { return builder_1.builder; } });
@@ -51,8 +50,8 @@ const wasmutils_1 = require("./wasmutils");
 const workermain_1 = require("./workermain");
 var platforms_1 = require("./platforms");
 Object.defineProperty(exports, "PLATFORM_PARAMS", { enumerable: true, get: function () { return platforms_1.PLATFORM_PARAMS; } });
-var workertools_2 = require("./workertools");
-Object.defineProperty(exports, "TOOLS", { enumerable: true, get: function () { return workertools_2.TOOLS; } });
+var workertools_1 = require("./workertools");
+Object.defineProperty(exports, "TOOLS", { enumerable: true, get: function () { return workertools_1.TOOLS; } });
 class Blob {
     constructor(data) {
         this.data = data;
@@ -165,11 +164,8 @@ function setupNodeEnvironment() {
 async function handleMessage(data) {
     // preload file system
     if (data.preload) {
-        var fsName = workertools_1.TOOL_PRELOADFS[data.preload];
-        if (!fsName && data.platform)
-            fsName = workertools_1.TOOL_PRELOADFS[data.preload + '-' + (0, util_1.getBasePlatform)(data.platform)];
-        if (!fsName && data.platform)
-            fsName = workertools_1.TOOL_PRELOADFS[data.preload + '-' + (0, util_1.getRootBasePlatform)(data.platform)];
+        var fsName = (0, toolmeta_1.getPreloadFSName)(data.preload, data.platform && (0, util_1.getBasePlatform)(data.platform))
+            || (0, toolmeta_1.getPreloadFSName)(data.preload, data.platform && (0, util_1.getRootBasePlatform)(data.platform));
         if (fsName && !wasmutils_1.fsMeta[fsName])
             (0, wasmutils_1.loadFilesystem)(fsName);
         return;

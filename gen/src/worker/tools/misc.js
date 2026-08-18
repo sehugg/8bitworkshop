@@ -33,7 +33,6 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.translateShowdown = translateShowdown;
 exports.compileInform6 = compileInform6;
 exports.compileBASIC = compileBASIC;
 exports.compileWiz = compileWiz;
@@ -42,24 +41,6 @@ const util_1 = require("../../common/util");
 const wasmutils_1 = require("../wasmutils");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
-const workermain_1 = require("../workermain");
-function translateShowdown(step) {
-    (0, workermain_1.setupRequireFunction)();
-    (0, wasmutils_1.load)("showdown.min");
-    var showdown = wasmutils_1.emglobal['showdown'];
-    var converter = new showdown.Converter({
-        tables: 'true',
-        smoothLivePreview: 'true',
-        requireSpaceBeforeHeadingText: 'true',
-        emoji: 'true',
-    });
-    var code = (0, builder_1.getWorkFileAsString)(step.path);
-    var html = converter.makeHtml(code);
-    delete wasmutils_1.emglobal['require'];
-    return {
-        output: html
-    };
-}
 function compileInform6(step) {
     (0, wasmutils_1.loadNative)("inform");
     var errors = [];

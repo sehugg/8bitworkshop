@@ -7,6 +7,7 @@ exports.CodeProject = exports.LocalForageFilesystem = exports.OverlayFilesystem 
 exports.createNewPersistentStore = createNewPersistentStore;
 const localforage_1 = __importDefault(require("localforage"));
 const util_1 = require("../common/util");
+const toolmeta_1 = require("../common/toolmeta");
 const workertypes_1 = require("../common/workertypes");
 class WebPresetsFileSystem {
     constructor(platform_id) {
@@ -165,90 +166,21 @@ class CodeProject {
         if (dir.length > 0 && dir != 'local') // TODO
             files.push(dir + '/' + fn);
     }
-    // TODO: use tool id to parse files, not platform
+    /** Patterns come from the tool registry (src/common/toolmeta.ts), keyed by
+     *  the tool that builds the main file; the platform is only a fallback. */
     parseIncludeDependencies(text) {
+        let tool = this.mainPath && this.getToolForFilename(this.mainPath);
         let files = [];
-        let m;
-        if (this.platform_id.startsWith('verilog')) {
-            // include verilog includes
-            let re1 = /^\s*(`include|[.]include)\s+"(.+?)"/gmi;
-            while (m = re1.exec(text)) {
-                this.pushAllFiles(files, m[2]);
-            }
-            // for Silice
-            let re1a = /^\s*\$(include|\$dofile|\$write_image_in_table)\('(.+?)'/gmi;
-            while (m = re1a.exec(text)) {
-                this.pushAllFiles(files, m[2]);
-            }
-            // include .arch (json) statements
-            let re2 = /^\s*([.]arch)\s+(\w+)/gmi;
-            while (m = re2.exec(text)) {
-                this.pushAllFiles(files, m[2] + ".json");
-            }
-            // include $readmem[bh] (TODO)
-            let re3 = /\$readmem[bh]\("(.+?)"/gmi;
-            while (m = re3.exec(text)) {
-                this.pushAllFiles(files, m[1]);
-            }
-        }
-        else {
-            // for .asm -- [.%]include "file"
-            // for .c -- #include "file"
-            let re2 = /^\s*[.#%]?(include|incbin|embed)\s+"(.+?)"/gmi;
-            while (m = re2.exec(text)) {
-                this.pushAllFiles(files, m[2]);
-            }
-            // for .c -- //#resource "file" (or ;resource or #resource)
-            let re3 = /^\s*([;']|[/][/])#(resource)\s+"(.+?)"/gm;
-            while (m = re3.exec(text)) {
-                this.pushAllFiles(files, m[3]);
-            }
-            // for XASM only (USE include.ext)
-            // for merlin32 (ASM include.ext)
-            let re4 = /^\s+(USE|ASM)\s+(\S+[.]\S+)/gm;
-            while (m = re4.exec(text)) {
-                this.pushAllFiles(files, m[2]);
-            }
-            // for wiz
-            let re5 = /^\s*(import|embed)\s*"(.+?)";/gmi;
-            while (m = re5.exec(text)) {
-                if (m[1] == 'import')
-                    this.pushAllFiles(files, m[2] + ".wiz");
-                else
-                    this.pushAllFiles(files, m[2]);
-            }
-            // for ecs
-            let re6 = /^\s*(import)\s*"(.+?)"/gmi;
-            while (m = re6.exec(text)) {
-                this.pushAllFiles(files, m[2]);
-            }
-            // for acme
-            let re7 = /^[!]src\s+"(.+?)"/gmi;
-            while (m = re7.exec(text)) {
-                this.pushAllFiles(files, m[1]);
-            }
-            // for dialog -- %% #include "file" (dialog has no include directive,
-            // so the compiler is handed every file listed in a comment instead)
-            let re8 = /^\s*%%\s*#include\s+"(.+?)"/gm;
-            while (m = re8.exec(text)) {
-                this.pushAllFiles(files, m[1]);
-            }
-            // TODO: for xa assembler
+        for (let fn of (0, toolmeta_1.matchDependencyPatterns)(text, (0, toolmeta_1.getIncludePatterns)(tool, this.platform_id))) {
+            this.pushAllFiles(files, fn);
         }
         return files;
     }
     parseLinkDependencies(text) {
+        let tool = this.mainPath && this.getToolForFilename(this.mainPath);
         let files = [];
-        let m;
-        if (this.platform_id.startsWith('verilog')) {
-            //
-        }
-        else {
-            // for .c -- //#link "file" (or ;link or #link)
-            let re = /^\s*([;]|[/][/])#link\s+"(.+?)"/gm;
-            while (m = re.exec(text)) {
-                this.pushAllFiles(files, m[2]);
-            }
+        for (let fn of (0, toolmeta_1.matchDependencyPatterns)(text, (0, toolmeta_1.getLinkPatterns)(tool, this.platform_id))) {
+            this.pushAllFiles(files, fn);
         }
         return files;
     }

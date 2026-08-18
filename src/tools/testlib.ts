@@ -8,11 +8,12 @@ import * as path from 'path';
 import type { WorkerResult, WorkerMessage, WorkerErrorResult, WorkerOutputResult, Dependency } from "../common/workertypes";
 import { getFolderForPath, isProbablyBinary, getBasePlatform } from "../common/util";
 import { getToolForFilename_z80, getToolForFilename_6502, getToolForFilename_6809 } from "../common/baseplatform";
-import { setupNodeEnvironment, handleMessage, store, TOOL_PRELOADFS } from "../worker/workerlib";
+import { ToolIncludePattern, getIncludePatterns, getLinkPatterns, matchDependencyPatterns } from "../common/toolmeta";
+import { setupNodeEnvironment, handleMessage, store } from "../worker/workerlib";
 import { PLATFORM_PARAMS } from "../worker/platforms";
 import { TOOLS } from "../worker/workertools";
 
-export { store, TOOL_PRELOADFS, PLATFORM_PARAMS, TOOLS };
+export { store, PLATFORM_PARAMS, TOOLS };
 
 export interface CompileOptions {
   tool: string;
@@ -110,65 +111,29 @@ export async function compileFile(tool: string, platform: string, presetPath: st
 
 /**
  * Parse include and link dependencies from source text.
- * Extracted from CodeProject.parseIncludeDependencies / parseLinkDependencies.
- * TODO: project.ts should be refactored so we don't have to duplicate the logic
+ * Patterns come from the tool registry (src/common/toolmeta.ts), the same
+ * ones CodeProject uses in the IDE.
  */
-function parseIncludeDependencies(text: string, platformId: string, mainPath: string): string[] {
+function parseDependencies(text: string, platformId: string, mainPath: string,
+  patterns: (RegExp | ToolIncludePattern)[]): string[] {
   let files: string[] = [];
-  let m;
   var dir = getFolderForPath(mainPath);
-
-  function pushFile(fn: string) {
+  for (let fn of matchDependencyPatterns(text, patterns)) {
     files.push(fn);
     if (dir.length > 0 && dir != 'local')
       files.push(dir + '/' + fn);
-  }
-
-  if (platformId.startsWith('verilog')) {
-    let re1 = /^\s*(`include|[.]include)\s+"(.+?)"/gmi;
-    while (m = re1.exec(text)) { pushFile(m[2]); }
-    let re1a = /^\s*\$(include|\$dofile|\$write_image_in_table)\('(.+?)'/gmi;
-    while (m = re1a.exec(text)) { pushFile(m[2]); }
-    let re2 = /^\s*([.]arch)\s+(\w+)/gmi;
-    while (m = re2.exec(text)) { pushFile(m[2] + ".json"); }
-    let re3 = /\$readmem[bh]\("(.+?)"/gmi;
-    while (m = re3.exec(text)) { pushFile(m[1]); }
-  } else {
-    let re2 = /^\s*[.#%]?(include|incbin|embed)\s+"(.+?)"/gmi;
-    while (m = re2.exec(text)) { pushFile(m[2]); }
-    let re3 = /^\s*([;']|[/][/])#(resource)\s+"(.+?)"/gm;
-    while (m = re3.exec(text)) { pushFile(m[3]); }
-    let re4 = /^\s+(USE|ASM)\s+(\S+[.]\S+)/gm;
-    while (m = re4.exec(text)) { pushFile(m[2]); }
-    let re5 = /^\s*(import|embed)\s*"(.+?)";/gmi;
-    while (m = re5.exec(text)) {
-      if (m[1] == 'import') pushFile(m[2] + ".wiz");
-      else pushFile(m[2]);
-    }
-    let re6 = /^\s*(import)\s*"(.+?)"/gmi;
-    while (m = re6.exec(text)) { pushFile(m[2]); }
-    let re7 = /^[!]src\s+"(.+?)"/gmi;
-    while (m = re7.exec(text)) { pushFile(m[1]); }
   }
   return files;
 }
 
+function parseIncludeDependencies(text: string, platformId: string, mainPath: string): string[] {
+  let tool = getToolForFilename(mainPath, platformId);
+  return parseDependencies(text, platformId, mainPath, getIncludePatterns(tool, platformId));
+}
+
 function parseLinkDependencies(text: string, platformId: string, mainPath: string): string[] {
-  let files: string[] = [];
-  let m;
-  var dir = getFolderForPath(mainPath);
-
-  function pushFile(fn: string) {
-    files.push(fn);
-    if (dir.length > 0 && dir != 'local')
-      files.push(dir + '/' + fn);
-  }
-
-  if (!platformId.startsWith('verilog')) {
-    let re = /^\s*([;]|[/][/])#link\s+"(.+?)"/gm;
-    while (m = re.exec(text)) { pushFile(m[2]); }
-  }
-  return files;
+  let tool = getToolForFilename(mainPath, platformId);
+  return parseDependencies(text, platformId, mainPath, getLinkPatterns(tool, platformId));
 }
 
 type FileData = string | Uint8Array;
@@ -283,6 +248,9 @@ export function getToolForFilename(fn: string, platform: string): string {
       return getToolForFilename_6502(fn);
     case '6809':
       return getToolForFilename_6809(fn);
+    case 'verilog':
+      if (fn.endsWith('.asm')) return 'jsasm';
+      return fn.endsWith('.ice') ? 'silice' : 'verilator';
     default:
       return getToolForFilename_z80(fn); // fallback
   }

@@ -1,6 +1,6 @@
 
 
-import "c64.wiz";
+import "c64";
 
 bank zeropage @ 0x02 : [vardata; 254];
 bank stackpage @ 0x100 : [vardata; 256];
