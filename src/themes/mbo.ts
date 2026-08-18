@@ -53,13 +53,13 @@ export const mboTheme = EditorView.theme({
 }, { dark: true });
 
 export const mboHighlightStyle = HighlightStyle.define([
-  { tag: [t.keyword, t.controlKeyword, t.processingInstruction], color: "#fdbcf8" },
+  { tag: [t.processingInstruction], color: "#ff9cf7" },
+  { tag: [t.keyword, t.controlKeyword, t.modifier], color: "#ffb928" },
   { tag: [t.name, t.standard(t.name), t.variableName], color: "#ffffec" },
   { tag: t.local(t.variableName), color: "#00a8c6" },
   { tag: [t.deleted, t.macroName], color: "#00a8c6" },
   { tag: [t.string, t.inserted], color: "#b4fdb7" },
   { tag: [t.number], color: "#3abff8" },
-  { tag: [t.modifier], color: "#fba3f4" },
   { tag: [t.atom, t.bool], color: "#02c7ea" },
   { tag: t.definition(t.variableName), color: "#88eeff" },
   { tag: [t.propertyName, t.attributeName, t.tagName, t.self], color: "#9ddfe9" },

@@ -54,13 +54,13 @@ exports.mboTheme = view_1.EditorView.theme({
     },
 }, { dark: true });
 exports.mboHighlightStyle = language_1.HighlightStyle.define([
-    { tag: [highlight_1.tags.keyword, highlight_1.tags.controlKeyword, highlight_1.tags.processingInstruction], color: "#fdbcf8" },
+    { tag: [highlight_1.tags.processingInstruction], color: "#ff9cf7" },
+    { tag: [highlight_1.tags.keyword, highlight_1.tags.controlKeyword, highlight_1.tags.modifier], color: "#ffb928" },
     { tag: [highlight_1.tags.name, highlight_1.tags.standard(highlight_1.tags.name), highlight_1.tags.variableName], color: "#ffffec" },
     { tag: highlight_1.tags.local(highlight_1.tags.variableName), color: "#00a8c6" },
     { tag: [highlight_1.tags.deleted, highlight_1.tags.macroName], color: "#00a8c6" },
     { tag: [highlight_1.tags.string, highlight_1.tags.inserted], color: "#b4fdb7" },
     { tag: [highlight_1.tags.number], color: "#3abff8" },
-    { tag: [highlight_1.tags.modifier], color: "#fba3f4" },
     { tag: [highlight_1.tags.atom, highlight_1.tags.bool], color: "#02c7ea" },
     { tag: highlight_1.tags.definition(highlight_1.tags.variableName), color: "#88eeff" },
     { tag: [highlight_1.tags.propertyName, highlight_1.tags.attributeName, highlight_1.tags.tagName, highlight_1.tags.self], color: "#9ddfe9" },
