@@ -48,17 +48,22 @@ export enum KeyFlags {
   KeyPress = 128,
 }
 
+// KeyboardEvent.key is layout- and shift-aware, so it holds the character actually
+// typed ("(", "+", "\"") where keyCode does not. Non-printable keys have multi-char
+// names ("Enter", "Backspace", "ArrowLeft") so fall back to keyCode for those.
+export function _charCodeOf(e: KeyboardEvent): number {
+  return e.key != null && e.key.length == 1 ? e.key.charCodeAt(0) : e.keyCode;
+}
+
 // TODO: don't use which/keyCode anymore?
-// TODO: let keycode = e.key ? e.key.charCodeAt(0) : e.keyCode;
-// TODO: let charCode = e.key ? e.key.charCodeAt(0) : e.charCode;
 export function _setKeyboardEvents(canvas: HTMLElement, callback: KeyboardCallback) {
   canvas.onkeydown = (e) => {
     let flags = _metakeyflags(e);
-    callback(e.which, e.keyCode, KeyFlags.KeyDown | flags);
+    callback(e.which, _charCodeOf(e), KeyFlags.KeyDown | flags);
     if (!flags) e.preventDefault(); // eat all keys that don't have a modifier
   };
   canvas.onkeyup = (e) => {
-    callback(e.which, e.keyCode, KeyFlags.KeyUp | _metakeyflags(e));
+    callback(e.which, _charCodeOf(e), KeyFlags.KeyUp | _metakeyflags(e));
   };
 };
 

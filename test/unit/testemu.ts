@@ -297,6 +297,55 @@ describe('_setKeyboardEvents', function () {
     assert.strictEqual(calls[0], KeyFlags.KeyDown | KeyFlags.Shift | KeyFlags.Ctrl | KeyFlags.Alt | KeyFlags.Meta);
   });
 
+  it('should deliver ASCII for punctuation and shifted digit keys (issue #241)', function () {
+    const calls = [];
+    const canvas: any = { onkeydown: null, onkeyup: null };
+    _setKeyboardEvents(canvas, (which, charCode, flags) => { calls.push(charCode); });
+    // [key typed, event.key, event.keyCode, expected ASCII]
+    const cases: [string, string, number, number][] = [
+      ['-', '-', 189, 0x2d],
+      ['=', '=', 187, 0x3d],
+      ["'", "'", 222, 0x27],
+      [';', ';', 186, 0x3b],
+      ['/', '/', 191, 0x2f],
+      [',', ',', 188, 0x2c],
+      ['.', '.', 190, 0x2e],
+      ['shift+9', '(', 57, 0x28],
+      ['shift+0', ')', 48, 0x29],
+      ['shift+=', '+', 187, 0x2b],
+      ["shift+'", '"', 222, 0x22],
+      ['shift+8', '*', 56, 0x2a],
+      ['shift+5', '%', 53, 0x25],
+    ];
+    for (const [, key, keyCode] of cases) {
+      canvas.onkeydown({ which: keyCode, keyCode, key, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, preventDefault() { } });
+    }
+    assert.deepStrictEqual(calls, cases.map((c) => c[3]));
+  });
+
+  it('should fall back to keyCode for non-printable keys', function () {
+    const calls = [];
+    const canvas: any = { onkeydown: null, onkeyup: null };
+    _setKeyboardEvents(canvas, (which, charCode, flags) => { calls.push(charCode); });
+    const cases = [['Enter', 13], ['Backspace', 8], ['ArrowLeft', 37], ['Escape', 27], ['Tab', 9]];
+    for (const [key, keyCode] of cases) {
+      canvas.onkeydown({ which: keyCode, keyCode, key, shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, preventDefault() { } });
+    }
+    assert.deepStrictEqual(calls, cases.map((c) => c[1]));
+    // space is printable and agrees with its keyCode
+    canvas.onkeydown({ which: 32, keyCode: 32, key: ' ', shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, preventDefault() { } });
+    assert.strictEqual(calls[calls.length - 1], 32);
+  });
+
+  it('should preserve letter case from event.key', function () {
+    const calls = [];
+    const canvas: any = { onkeydown: null, onkeyup: null };
+    _setKeyboardEvents(canvas, (which, charCode, flags) => { calls.push(charCode); });
+    canvas.onkeydown({ which: 65, keyCode: 65, key: 'a', shiftKey: false, ctrlKey: false, altKey: false, metaKey: false, preventDefault() { } });
+    canvas.onkeydown({ which: 65, keyCode: 65, key: 'A', shiftKey: true, ctrlKey: false, altKey: false, metaKey: false, preventDefault() { } });
+    assert.deepStrictEqual(calls, [0x61, 0x41]);
+  });
+
   it('should preventDefault on unmodified keydown only', function () {
     const prevented = [];
     const canvas: any = { onkeydown: null, onkeyup: null };
