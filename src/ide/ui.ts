@@ -9,6 +9,7 @@ import {
   arrayCompare, byteArrayToUTF8, decodeQueryString, getBasePlatform, getCookie, getFilenameForPath, getFilenamePrefix,
   getRootBasePlatform, getWithBinary, hex, highlightDifferences, isProbablyBinary, loadScript, parseBool, stringToByteArray
 } from "../common/util";
+import { getSkeletonName, getToolMeta } from "../common/toolmeta";
 import { FileData, WorkerError, WorkerResult } from "../common/workertypes";
 import { importPlatform } from "../platform/_index";
 import { alertError, alertInfo, fatalError, setWaitDialog } from "./dialogs";
@@ -107,64 +108,7 @@ export function getWorkerParams() {
   return compparams;
 }
 
-// TODO: codemirror multiplex support?
-// TODO: move to views.ts?
-const TOOL_TO_SOURCE_STYLE = {
-  'dasm': '6502',
-  'acme': '6502',
-  'xa': '6502',
-  'cc65': 'text/x-csrc',
-  'ca65': '6502',
-  'nesasm': '6502',
-  'z80asm': 'z80',
-  'sdasz80': 'z80',
-  'sdasgb': 'z80',
-  'sdcc': 'text/x-csrc',
-  'verilator': 'verilog',
-  'jsasm': 'z80',
-  'zmac': 'z80',
-  'bataribasic': 'bataribasic',
-  'markdown': 'markdown',
-  'js': 'javascript',
-  'xasm6809': '6809',
-  'cmoc': 'text/x-csrc',
-  'yasm': 'gas',
-  'smlrc': 'text/x-csrc',
-  'inform6': 'inform6',
-  'dialog': 'dialog',
-  'fastbasic': 'fastbasic',
-  'basic': 'basic',
-  'silice': 'verilog',
-  'wiz': 'text/x-wiz',
-  'vasmarm': 'vasm',
-  'armips': 'vasm',
-  'ecs': 'ecs',
-  'remote:llvm-mos': 'text/x-csrc',
-  'cc2600': 'text/x-csrc',
-  'cc7800': 'text/x-csrc',
-  'armtcc': 'text/x-csrc',
-  'oscar64': 'text/x-csrc',
-}
-
-// TODO: move into tool class
-const TOOL_TO_HELPURL = {
-  'dasm': 'https://raw.githubusercontent.com/sehugg/dasm/master/doc/dasm.txt',
-  'cc65': 'https://cc65.github.io/doc/cc65.html',
-  'ca65': 'https://cc65.github.io/doc/ca65.html',
-  'sdcc': 'http://sdcc.sourceforge.net/doc/sdccman.pdf',
-  'verilator': 'https://www.veripool.org/ftp/verilator_doc.pdf',
-  'fastbasic': 'https://github.com/dmsc/fastbasic/blob/master/manual.md',
-  'bataribasic': "help/bataribasic/manual.html",
-  'wiz': "https://github.com/wiz-lang/wiz/blob/master/readme.md#wiz",
-  'silice': "https://github.com/sylefeb/Silice",
-  'zmac': "https://raw.githubusercontent.com/sehugg/zmac/master/doc.txt",
-  'cmoc': "http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html",
-  'remote:llvm-mos': 'https://llvm-mos.org/wiki/Welcome',
-  'acme': 'https://raw.githubusercontent.com/sehugg/acme/main/docs/QuickRef.txt',
-  'xa': 'https://www.floodgap.com/retrotech/xa/',
-  'dialog': 'https://linusakesson.net/dialog/docs/',
-  'oscar64': 'https://github.com/drmortalwombat/oscar64/blob/main/oscar64.md',
-}
+// editor styles and help URLs live in the tool registry (src/common/toolmeta.ts)
 
 function newWorker(): Worker {
   // TODO: return new Worker("https://8bitworkshop.com.s3-website-us-east-1.amazonaws.com/dev/gen/worker/bundle.js");
@@ -338,7 +282,7 @@ function refreshWindowList() {
     if (tool == 'dasm' && path.endsWith(".h") && getCurrentMainFilename().endsWith(".c")) {
       tool = 'cc65';
     }
-    var mode = tool && TOOL_TO_SOURCE_STYLE[tool];
+    var mode = tool && getToolMeta(tool)?.editorStyle;
     return new SourceEditor(path, mode);
   }
 
@@ -511,7 +455,7 @@ function reloadProject(id: string) {
 }
 
 async function getSkeletonFile(fileid: string): Promise<string> {
-  var ext = platform.getToolForFilename(fileid).replace(/^remote:/, "");
+  var ext = getSkeletonName(platform.getToolForFilename(fileid));
   try {
     return await $.get("presets/" + getBasePlatform(platform_id) + "/skeleton." + ext, 'text');
   } catch (e) {
@@ -549,7 +493,7 @@ async function _getToolsWithSkeletons(extensions: string[]): Promise<ToolExtensi
   // check each tool in parallel
   var checks = toolOrder.map(tool =>
     $.ajax({
-      url: "presets/" + basePlatform + "/skeleton." + tool,
+      url: "presets/" + basePlatform + "/skeleton." + getSkeletonName(tool),
       type: "HEAD"
     }).then(() => tool, () => null)
   );
@@ -1596,7 +1540,7 @@ function setupDebugControls() {
   }
   // tool help
   let tool = platform.getToolForFilename(getCurrentMainFilename());
-  let toolhelpurl = TOOL_TO_HELPURL[tool];
+  let toolhelpurl = tool && getToolMeta(tool)?.helpURL;
   if (toolhelpurl) {
     let { li, a } = newDropdownListItem('help__' + tool, tool + ' Help');
     $("#help_menu").append(li);

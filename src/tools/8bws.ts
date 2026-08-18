@@ -4,7 +4,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { initialize, compile, compileSourceFile, preload, listTools, listPlatforms, getToolForFilename, PLATFORM_PARAMS, TOOLS, TOOL_PRELOADFS, store } from './testlib';
+import { initialize, compile, compileSourceFile, preload, listTools, listPlatforms, getToolForFilename, PLATFORM_PARAMS, TOOLS, store } from './testlib';
 import { isDebuggable } from '../common/baseplatform';
 import { hex } from '../common/util';
 
@@ -252,10 +252,6 @@ async function doCompile(args: { [key: string]: string }, positional: string[], 
   }
 
   // Preload the tool's filesystem if needed
-  var preloadKey = tool;
-  if (TOOL_PRELOADFS[tool + '-' + platform]) {
-    preloadKey = tool;
-  }
   await preload(tool, platform);
 
   var result = await compileSourceFile(tool, platform, sourceFile);

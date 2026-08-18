@@ -7,12 +7,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { WorkerResult, WorkerMessage } from "../common/workertypes";
 import { getBasePlatform, getRootBasePlatform } from "../common/util";
-import { TOOL_PRELOADFS } from "./workertools";
+import { getPreloadFSName } from "../common/toolmeta";
 import { store, builder } from "./builder";
 import { emglobal, fsMeta, loadFilesystem } from "./wasmutils";
 import { setupRequireFunction } from "./workermain";
 
-export { store, builder, TOOL_PRELOADFS };
+export { store, builder };
 export { PLATFORM_PARAMS } from "./platforms";
 export { TOOLS } from "./workertools";
 
@@ -131,11 +131,8 @@ export function setupNodeEnvironment() {
 export async function handleMessage(data: WorkerMessage): Promise<WorkerResult> {
   // preload file system
   if (data.preload) {
-    var fsName = TOOL_PRELOADFS[data.preload];
-    if (!fsName && data.platform)
-      fsName = TOOL_PRELOADFS[data.preload + '-' + getBasePlatform(data.platform)];
-    if (!fsName && data.platform)
-      fsName = TOOL_PRELOADFS[data.preload + '-' + getRootBasePlatform(data.platform)];
+    var fsName = getPreloadFSName(data.preload, data.platform && getBasePlatform(data.platform))
+      || getPreloadFSName(data.preload, data.platform && getRootBasePlatform(data.platform));
     if (fsName && !fsMeta[fsName])
       loadFilesystem(fsName);
     return;
