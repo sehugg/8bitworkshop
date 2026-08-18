@@ -134,6 +134,15 @@ var VerilogPlatform = function (mainElement, options) {
             debugCond = null;
         }
     }
+    // Convert a character code to the 7-bit ASCII value seen by the design.
+    // Letters are uppercased (like most vintage keyboards) unless the design opts
+    // out by declaring a "keycode_lowercase" signal and driving it high.
+    function asciiKeycode(code) {
+        var lowercase = top && top.state.keycode_lowercase;
+        if (!lowercase && code >= 0x61 && code <= 0x7a)
+            code -= 32;
+        return code & 0x7f;
+    }
     function resetKbdStrobe() {
         if (keycode && keycode >= 128 && top.state.keystrobe) { // keystrobe = clear hi bit of key buffer
             keycode = keycode & 0x7f;
@@ -155,7 +164,7 @@ var VerilogPlatform = function (mainElement, options) {
             video.create();
             poller = (0, emu_1.setKeyboardFromMap)(video, switches, VERILOG_KEYCODE_MAP, (o, key, code, flags) => {
                 if (flags & emu_1.KeyFlags.KeyDown) {
-                    keycode = code | 0x80;
+                    keycode = asciiKeycode(code) | 0x80;
                 }
             }, true); // true = always send function
             var vcanvas = $(video.canvas);
