@@ -1,3 +1,7 @@
+
+#include "pacman_common.h"
+//#link "pacman_common.c"
+
 #define COLS 28
 #define ROWS 36
 #define PLAY_Y0 2

@@ -1,4 +1,7 @@
 
+#include "pacman_common.h"
+//#link "pacman_common.c"
+
 #define ENEMIES_PER_ROW 7
 #define ENEMY_ROWS 4
 #define MAX_IN_FORMATION (ENEMIES_PER_ROW * ENEMY_ROWS)
