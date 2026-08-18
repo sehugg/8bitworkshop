@@ -46,7 +46,6 @@ export const TOOLS = {
   'smlrc': x86.compileSmallerC,
   'yasm': x86.assembleYASM,
   'bataribasic': bataribasic.compileBatariBasic,
-  'markdown': misc.translateShowdown,
   'inform6': misc.compileInform6,
   'merlin32': m6502.assembleMerlin32,
   'fastbasic': m6502.compileFastBasic,

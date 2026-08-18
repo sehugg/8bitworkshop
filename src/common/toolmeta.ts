@@ -502,12 +502,6 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     includePatterns: [...SHARED_INCLUDE_PATTERNS, ...ECS_INCLUDE_PATTERNS],
   },
 
-  markdown: {
-    id: 'markdown', name: 'Markdown', kind: 'translator',
-    extensions: ['.md'],
-    editorStyle: 'markdown',
-  },
-
   inform6: {
     id: 'inform6', name: 'Inform 6', kind: 'compiler', arch: 'zmachine',
     extensions: ['.inf'],

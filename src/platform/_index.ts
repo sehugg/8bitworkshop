@@ -18,7 +18,6 @@ export function importPlatform(name: string) : Promise<any> {
       case "gb": return import("../platform/gb");
       case "gameboy": return import("../platform/gb");
       case "kim1": return import("../platform/kim1");
-      case "markdown": return import("../platform/markdown");
       case "mcr": return import("../platform/mcr");
       case "msx": return import("../platform/msx");
       case "mw8080bw": return import("../platform/mw8080bw");

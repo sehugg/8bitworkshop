@@ -6,24 +6,6 @@ import { BuildStep, BuildStepResult, getWorkFileAsString, gatherFiles, staleFile
 import { msvcErrorMatcher, parseListing, makeErrorMatcher } from "../listingutils";
 import { setupRequireFunction } from "../workermain";
 
-export function translateShowdown(step: BuildStep): BuildStepResult {
-    setupRequireFunction();
-    load("showdown.min");
-    var showdown = emglobal['showdown'];
-    var converter = new showdown.Converter({
-        tables: 'true',
-        smoothLivePreview: 'true',
-        requireSpaceBeforeHeadingText: 'true',
-        emoji: 'true',
-    });
-    var code = getWorkFileAsString(step.path);
-    var html = converter.makeHtml(code);
-    delete emglobal['require'];
-    return {
-        output: html
-    };
-}
-
 export function compileInform6(step: BuildStep): BuildStepResult {
     loadNative("inform");
     var errors = [];
