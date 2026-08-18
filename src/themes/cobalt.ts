@@ -47,16 +47,16 @@ const cobaltTheme = EditorView.theme({
 }, { dark: true });
 
 const cobaltHighlightStyle = HighlightStyle.define([
-  { tag: t.standard(t.keyword), color: "#99ff99" }, // Green (Turbo Pascal reserved words)
-  { tag: [t.name, t.standard(t.name)], color: "#eeee99" }, // Light gray identifiers
-  { tag: t.variableName, color: "#ffcd76" },
+  { tag: t.standard(t.keyword), color: "#99ff99" }, // Green (reserved words)
+  { tag: [t.name, t.standard(t.name)], color: "#eee" }, // Light gray identifiers
+  { tag: t.variableName, color: "#76f6ff" },
   { tag: t.local(t.variableName), color: "#ffff99" }, // Yellow for locals
   { tag: [t.deleted, t.macroName], color: "#ffbb99" }, // Pastel pink (macros/defines)
-  { tag: [t.processingInstruction, t.keyword, t.controlKeyword], color: "#ccc" }, // Yellow keywords
-  { tag: [t.string, t.inserted], color: "#aaffff" }, // Pastel cyan (Turbo Pascal strings)
-  { tag: [t.number, t.modifier], color: "#ff99ff" }, // Magenta (Turbo Pascal numbers)
-  { tag: [t.atom, t.bool, t.special(t.variableName)], color: "#99ff99" }, // Green
-  { tag: t.definition(t.variableName), color: "#ffffff" }, // White (TP definitions)
+  { tag: [t.processingInstruction, t.keyword, t.controlKeyword], color: "#c5bdff" }, //  keywords
+  { tag: [t.string, t.inserted], color: "#68ff98" }, // Strings
+  { tag: [t.number, t.modifier], color: "#ff99ff" }, // Magenta (numbers)
+  { tag: [t.atom, t.bool, t.special(t.variableName)], color: "#ffc261" }, // Green
+  { tag: t.definition(t.variableName), color: "#fff" }, // White (TP definitions)
   { tag: [t.propertyName, t.attributeName, t.tagName, t.self], color: "#b2ebf2" }, // Pastel cyan
   { tag: t.definition(t.name), color: "#f0f0f0" }, // Pale gray function definitions
   { tag: t.typeName, color: "#9be8c5" }, // Pastel seafoam green
@@ -64,7 +64,8 @@ const cobaltHighlightStyle = HighlightStyle.define([
   { tag: t.comment, color: "#999" }, // Grey
   { tag: t.link, color: "#c3b1e1" }, // Pastel purple
   { tag: t.meta, color: "#ffd9a0" }, // Pastel orange (directives)
-  { tag: t.invalid, color: "#ff6666" }, // Pastel red
+  { tag: t.invalid, color: "#ff6666" }, // Invalid
+  { tag: t.operator, color: "#ffa3f0" }, // Operator
 ]);
 
 export const cobalt = [
