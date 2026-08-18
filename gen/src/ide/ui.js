@@ -64,6 +64,7 @@ const toolmeta_1 = require("../common/toolmeta");
 const _index_1 = require("../platform/_index");
 const dialogs_1 = require("./dialogs");
 const settings_1 = require("./settings");
+const storage_1 = require("./storage");
 const project_1 = require("./project");
 const services_1 = require("./services");
 const shareexport_1 = require("./shareexport");
@@ -162,24 +163,54 @@ class UserPrefs {
         if (hasLocalStorage && !isEmbed)
             localStorage.setItem("8bitworkshop.hello", "true");
     }
+    // we only nag about non-persistent storage once per browser
+    shouldWarnAboutPersistence() {
+        return hasLocalStorage && !isEmbed && !localStorage.getItem("8bitworkshop.persistwarn");
+    }
+    warnedAboutPersistence() {
+        if (hasLocalStorage && !isEmbed)
+            localStorage.setItem("8bitworkshop.persistwarn", "true");
+    }
 }
 var userPrefs = new UserPrefs();
-// https://developers.google.com/web/updates/2016/06/persistent-storage
-function requestPersistPermission(interactive, failureonly) {
-    if (navigator.storage && navigator.storage.persist) {
-        navigator.storage.persist().then(persistent => {
-            console.log("requestPersistPermission =", persistent);
-            if (persistent) {
-                interactive && !failureonly && (0, dialogs_1.alertInfo)("Your browser says it will persist your local file edits, but you may want to back up your work anyway.");
-            }
-            else {
-                interactive && (0, dialogs_1.alertError)("Your browser refused to expand the peristent storage quota. Your edits may not be preserved after closing the page.");
-            }
-        });
+// Ask the browser to keep our IndexedDB data around.
+// A denial is normal (Chrome/Safari decide on their own and never prompt), so
+// we treat it as advice rather than an error, and only say it once.
+// https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/persist
+async function requestPersistPermission(interactive, failureonly) {
+    if (isElectron) {
+        // desktop version stores files in the local filesystem
+        interactive && (0, dialogs_1.alertInfo)("The desktop version keeps your files in the \"8bitworkshop\" directory, so browser storage permissions don't apply.");
+        return;
     }
-    else {
-        interactive && (0, dialogs_1.alertError)("Your browser may not persist edits after closing the page. Try a different browser.");
+    if (isEmbed) {
+        // third-party frames are always denied, so don't even ask
+        interactive && (0, dialogs_1.alertInfo)("Embedded pages can't be granted persistent storage. Open 8bitworkshop in its own tab to keep your edits.");
+        return;
     }
+    var status = await (0, storage_1.requestPersistentStorage)();
+    console.log("requestPersistPermission =", status);
+    if (!interactive)
+        return;
+    if (status.persisted && failureonly)
+        return; // nothing worth interrupting for
+    // don't repeat the bad news on every new file, only when the user asks
+    if (!status.persisted && failureonly) {
+        if (!userPrefs.shouldWarnAboutPersistence())
+            return;
+        userPrefs.warnedAboutPersistence();
+    }
+    (0, dialogs_1.alertInfo)((0, storage_1.getPersistStatusMessage)(status, true));
+}
+var warnedQuotaExceeded = false;
+async function storageQuotaExceeded() {
+    if (warnedQuotaExceeded)
+        return;
+    warnedQuotaExceeded = true;
+    // requesting persistence can expand the quota, so try that before complaining
+    var status = await (0, storage_1.requestPersistentStorage)();
+    console.log("storageQuotaExceeded =", status);
+    (0, dialogs_1.alertError)((0, storage_1.getQuotaExceededMessage)(status));
 }
 function getCurrentPresetTitle() {
     if (!current_preset)
@@ -1801,7 +1832,7 @@ function globalErrorHandler(msgevent) {
     var msg = (msgevent.message || msgevent.error || msgevent) + "";
     // storage quota full? (Chrome) try to expand it
     if (msg.indexOf("QuotaExceededError") >= 0) {
-        requestPersistPermission(false, false);
+        storageQuotaExceeded();
     }
     else {
         var err = msgevent.error || msgevent.reason;

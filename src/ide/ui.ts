@@ -14,6 +14,7 @@ import { FileData, WorkerError, WorkerResult } from "../common/workertypes";
 import { importPlatform } from "../platform/_index";
 import { alertError, alertInfo, fatalError, setWaitDialog } from "./dialogs";
 import { openSettings } from "./settings";
+import { getPersistStatusMessage, getQuotaExceededMessage, requestPersistentStorage } from "./storage";
 import { CodeProject, createNewPersistentStore, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
 import { getRepos, parseGithubURL } from "./services";
 import { _downloadAllFilesZipFile, _downloadCassetteFile, _downloadProjectZipFile, _downloadROMImage, _downloadSourceFile, _downloadSymFile, _getCassetteFunction, _recordVideo, _shareEmbedLink } from "./shareexport";
@@ -160,24 +161,53 @@ class UserPrefs {
   completedTour() {
     if (hasLocalStorage && !isEmbed) localStorage.setItem("8bitworkshop.hello", "true");
   }
+  // we only nag about non-persistent storage once per browser
+  shouldWarnAboutPersistence() {
+    return hasLocalStorage && !isEmbed && !localStorage.getItem("8bitworkshop.persistwarn");
+  }
+  warnedAboutPersistence() {
+    if (hasLocalStorage && !isEmbed) localStorage.setItem("8bitworkshop.persistwarn", "true");
+  }
 }
 
 var userPrefs = new UserPrefs();
 
-// https://developers.google.com/web/updates/2016/06/persistent-storage
-function requestPersistPermission(interactive: boolean, failureonly: boolean) {
-  if (navigator.storage && navigator.storage.persist) {
-    navigator.storage.persist().then(persistent => {
-      console.log("requestPersistPermission =", persistent);
-      if (persistent) {
-        interactive && !failureonly && alertInfo("Your browser says it will persist your local file edits, but you may want to back up your work anyway.");
-      } else {
-        interactive && alertError("Your browser refused to expand the peristent storage quota. Your edits may not be preserved after closing the page.");
-      }
-    });
-  } else {
-    interactive && alertError("Your browser may not persist edits after closing the page. Try a different browser.");
+// Ask the browser to keep our IndexedDB data around.
+// A denial is normal (Chrome/Safari decide on their own and never prompt), so
+// we treat it as advice rather than an error, and only say it once.
+// https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/persist
+async function requestPersistPermission(interactive: boolean, failureonly: boolean) {
+  if (isElectron) {
+    // desktop version stores files in the local filesystem
+    interactive && alertInfo("The desktop version keeps your files in the \"8bitworkshop\" directory, so browser storage permissions don't apply.");
+    return;
   }
+  if (isEmbed) {
+    // third-party frames are always denied, so don't even ask
+    interactive && alertInfo("Embedded pages can't be granted persistent storage. Open 8bitworkshop in its own tab to keep your edits.");
+    return;
+  }
+  var status = await requestPersistentStorage();
+  console.log("requestPersistPermission =", status);
+  if (!interactive) return;
+  if (status.persisted && failureonly) return; // nothing worth interrupting for
+  // don't repeat the bad news on every new file, only when the user asks
+  if (!status.persisted && failureonly) {
+    if (!userPrefs.shouldWarnAboutPersistence()) return;
+    userPrefs.warnedAboutPersistence();
+  }
+  alertInfo(getPersistStatusMessage(status, true));
+}
+
+var warnedQuotaExceeded = false;
+
+async function storageQuotaExceeded() {
+  if (warnedQuotaExceeded) return;
+  warnedQuotaExceeded = true;
+  // requesting persistence can expand the quota, so try that before complaining
+  var status = await requestPersistentStorage();
+  console.log("storageQuotaExceeded =", status);
+  alertError(getQuotaExceededMessage(status));
 }
 
 function getCurrentPresetTitle(): string {
@@ -1816,7 +1846,7 @@ function globalErrorHandler(msgevent) {
   var msg = (msgevent.message || msgevent.error || msgevent) + "";
   // storage quota full? (Chrome) try to expand it
   if (msg.indexOf("QuotaExceededError") >= 0) {
-    requestPersistPermission(false, false);
+    storageQuotaExceeded();
   } else {
     var err = msgevent.error || msgevent.reason;
     if (err != null && err instanceof EmuHalt) {
