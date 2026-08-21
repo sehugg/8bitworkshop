@@ -2638,6 +2638,7 @@
       kind: "compiler",
       arch: "6502",
       extensions: [".c", ".h"],
+      includeDirs: ["/include", "/asminc"],
       editorStyle: "text/x-csrc",
       helpURL: "https://cc65.github.io/doc/cc65.html",
       wasmModule: "cc65",
@@ -2651,6 +2652,7 @@
       kind: "assembler",
       arch: "6502",
       extensions: [".s", ".ca65"],
+      includeDirs: ["/include", "/asminc"],
       editorStyle: "6502",
       helpURL: "https://cc65.github.io/doc/ca65.html",
       wasmModule: "ca65",
@@ -2673,6 +2675,7 @@
       kind: "compiler",
       arch: "z80",
       extensions: [".c", ".h"],
+      includeDirs: ["/include"],
       editorStyle: "text/x-csrc",
       helpURL: "http://sdcc.sourceforge.net/doc/sdccman.pdf",
       wasmModule: "sdcc",
@@ -2686,6 +2689,7 @@
       kind: "assembler",
       arch: "z80",
       extensions: [".s"],
+      includeDirs: ["/include"],
       editorStyle: "z80",
       wasmModule: "sdasz80",
       platforms: { default: { preloadFS: "sdcc" } },
@@ -2698,6 +2702,7 @@
       kind: "assembler",
       arch: "gbz80",
       extensions: [".sgb"],
+      includeDirs: ["/include"],
       editorStyle: "z80",
       wasmModule: "sdasgb",
       platforms: { default: { preloadFS: "sdcc" } },
@@ -2770,6 +2775,7 @@
       kind: "compiler",
       arch: "6809",
       extensions: [".c", ".h"],
+      includeDirs: ["/include"],
       editorStyle: "text/x-csrc",
       helpURL: "http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html",
       wasmModule: "cmoc",
@@ -2823,6 +2829,7 @@
       kind: "compiler",
       arch: "arm32",
       extensions: [".c", ".s"],
+      includeDirs: ["/include"],
       editorStyle: "text/x-csrc",
       wasmModule: "arm-tcc",
       includePatterns: SHARED_INCLUDE_PATTERNS,
@@ -2843,6 +2850,7 @@
       kind: "compiler",
       arch: "x86",
       extensions: [".c"],
+      includeDirs: ["/include"],
       editorStyle: "text/x-csrc",
       wasmModule: "smlrc",
       includePatterns: SHARED_INCLUDE_PATTERNS,
@@ -2866,6 +2874,7 @@
       kind: "compiler",
       arch: "6502",
       extensions: [".c", ".cpp", ".cc", ".o64"],
+      includeDirs: ["/include"],
       editorStyle: "text/x-csrc",
       helpURL: "https://github.com/drmortalwombat/oscar64/blob/main/oscar64.md",
       wasmModule: "oscar64",
@@ -2878,6 +2887,7 @@
       kind: "compiler",
       arch: "6502",
       extensions: [".bb", ".bas"],
+      includeDirs: ["/includes"],
       editorStyle: "bataribasic",
       helpURL: "help/bataribasic/manual.html",
       wasmModule: "bb2600basic",
@@ -2933,6 +2943,7 @@
       name: "wiz",
       kind: "compiler",
       extensions: [".wiz"],
+      includeDirs: ["/common"],
       editorStyle: "text/x-wiz",
       helpURL: "https://github.com/wiz-lang/wiz/blob/master/readme.md#wiz",
       wasmModule: "wiz",
@@ -5934,6 +5945,46 @@
   var print_fn = function(s) {
     console.log(s);
   };
+  function ensureFilesystem(name) {
+    if (!fsMeta[name]) loadFilesystem(name);
+  }
+  function getSharedFileEntry(name, path) {
+    ensureFilesystem(name);
+    let meta = fsMeta[name];
+    if (!meta || !meta.files) return null;
+    for (let f of meta.files) {
+      if (f.filename == path) return f;
+    }
+    return null;
+  }
+  function listSharedFiles(name, dir) {
+    ensureFilesystem(name);
+    let meta = fsMeta[name];
+    if (!meta || !meta.files) return [];
+    let result = [];
+    for (let f of meta.files) {
+      if (!dir || f.filename.startsWith(dir + "/")) result.push(f.filename);
+    }
+    return result.sort();
+  }
+  async function readSharedFile(name, path) {
+    let entry = getSharedFileEntry(name, path);
+    if (!entry || !fsBlob[name]) return null;
+    let blob = fsBlob[name].slice(entry.start, entry.end);
+    if (typeof Blob === "undefined" || typeof blob["slice"] !== "function") return null;
+    const FRS = typeof globalThis !== "undefined" ? globalThis.FileReaderSync : void 0;
+    if (typeof FRS === "function") {
+      return new Uint8Array(new FRS().readAsArrayBuffer(blob));
+    } else if (typeof FileReader !== "undefined") {
+      return await new Promise((resolve, reject) => {
+        let fr = new FileReader();
+        fr.onload = () => resolve(new Uint8Array(fr.result));
+        fr.onerror = () => reject(fr.error);
+        fr.readAsArrayBuffer(blob);
+      });
+    }
+    return null;
+  }
   function setupStdin(fs, code) {
     var i = 0;
     fs.init(
@@ -15004,6 +15055,20 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       var fs = getPreloadFSName(data.preload, data.platform && getBasePlatform(data.platform)) || getPreloadFSName(data.preload, data.platform && getRootBasePlatform(data.platform));
       if (fs && !fsMeta[fs])
         loadFilesystem(fs);
+      return;
+    }
+    if (data.readshared) {
+      ensureFilesystem(data.preload_fs);
+      var contents = await readSharedFile(data.preload_fs, data.readshared);
+      return { output: contents, qid: data.qid };
+    }
+    if (data.listshared != null) {
+      ensureFilesystem(data.preload_fs);
+      var files = listSharedFiles(data.preload_fs, data.listshared);
+      return { output: files, qid: data.qid };
+    }
+    if (data.preload_fs) {
+      ensureFilesystem(data.preload_fs);
       return;
     }
     if (data.reset) {

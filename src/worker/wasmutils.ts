@@ -182,6 +182,63 @@ export var print_fn = function (s: string) {
   //console.log(new Error().stack);
 }
 
+/// shared code in filesystem packages (headers, asm includes, ...)
+
+export interface SharedFileEntry {
+  filename: string;
+  start: number;
+  end: number;
+}
+
+/** Make sure a filesystem package is loaded (synchronous XHR, worker-only). */
+export function ensureFilesystem(name: string) {
+  if (!fsMeta[name]) loadFilesystem(name);
+}
+
+/** Find an entry in the filesystem package metadata. */
+export function getSharedFileEntry(name: string, path: string): SharedFileEntry | null {
+  ensureFilesystem(name);
+  let meta = fsMeta[name];
+  if (!meta || !meta.files) return null;
+  for (let f of meta.files) {
+    if (f.filename == path) return f;
+  }
+  return null;
+}
+
+/** List files under a directory prefix (e.g. '/include') of a filesystem package. */
+export function listSharedFiles(name: string, dir: string): string[] {
+  ensureFilesystem(name);
+  let meta = fsMeta[name];
+  if (!meta || !meta.files) return [];
+  let result = [];
+  for (let f of meta.files) {
+    if (!dir || f.filename.startsWith(dir + '/')) result.push(f.filename);
+  }
+  return result.sort();
+}
+
+/** Read a file from a filesystem package blob. Returns null if not found.
+ *  Async because Blob reading is async; call from worker message handlers. */
+export async function readSharedFile(name: string, path: string): Promise<Uint8Array | null> {
+  let entry = getSharedFileEntry(name, path);
+  if (!entry || !fsBlob[name]) return null;
+  let blob: Blob = fsBlob[name].slice(entry.start, entry.end);
+  if (typeof Blob === 'undefined' || typeof blob['slice'] !== 'function') return null; // not a browser Blob
+  const FRS = (typeof globalThis !== 'undefined' ? (globalThis as any).FileReaderSync : undefined);
+  if (typeof FRS === 'function') {
+    return new Uint8Array(new FRS().readAsArrayBuffer(blob));
+  } else if (typeof FileReader !== 'undefined') {
+    return await new Promise<Uint8Array>((resolve, reject) => {
+      let fr = new FileReader();
+      fr.onload = () => resolve(new Uint8Array(fr.result as ArrayBuffer));
+      fr.onerror = () => reject(fr.error);
+      fr.readAsArrayBuffer(blob);
+    });
+  }
+  return null;
+}
+
 export function setupStdin(fs, code: string) {
   var i = 0;
   fs.init(

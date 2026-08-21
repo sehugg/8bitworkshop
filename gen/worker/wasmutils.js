@@ -13,6 +13,10 @@ exports.loadWASMBinary = loadWASMBinary;
 exports.loadWASM = loadWASM;
 exports.loadNative = loadNative;
 exports.setupFS = setupFS;
+exports.ensureFilesystem = ensureFilesystem;
+exports.getSharedFileEntry = getSharedFileEntry;
+exports.listSharedFiles = listSharedFiles;
+exports.readSharedFile = readSharedFile;
 exports.setupStdin = setupStdin;
 const builder_1 = require("./builder");
 const ENVIRONMENT_IS_WEB = typeof window === 'object';
@@ -185,6 +189,59 @@ var print_fn = function (s) {
     //console.log(new Error().stack);
 };
 exports.print_fn = print_fn;
+/** Make sure a filesystem package is loaded (synchronous XHR, worker-only). */
+function ensureFilesystem(name) {
+    if (!exports.fsMeta[name])
+        loadFilesystem(name);
+}
+/** Find an entry in the filesystem package metadata. */
+function getSharedFileEntry(name, path) {
+    ensureFilesystem(name);
+    let meta = exports.fsMeta[name];
+    if (!meta || !meta.files)
+        return null;
+    for (let f of meta.files) {
+        if (f.filename == path)
+            return f;
+    }
+    return null;
+}
+/** List files under a directory prefix (e.g. '/include') of a filesystem package. */
+function listSharedFiles(name, dir) {
+    ensureFilesystem(name);
+    let meta = exports.fsMeta[name];
+    if (!meta || !meta.files)
+        return [];
+    let result = [];
+    for (let f of meta.files) {
+        if (!dir || f.filename.startsWith(dir + '/'))
+            result.push(f.filename);
+    }
+    return result.sort();
+}
+/** Read a file from a filesystem package blob. Returns null if not found.
+ *  Async because Blob reading is async; call from worker message handlers. */
+async function readSharedFile(name, path) {
+    let entry = getSharedFileEntry(name, path);
+    if (!entry || !fsBlob[name])
+        return null;
+    let blob = fsBlob[name].slice(entry.start, entry.end);
+    if (typeof Blob === 'undefined' || typeof blob['slice'] !== 'function')
+        return null; // not a browser Blob
+    const FRS = (typeof globalThis !== 'undefined' ? globalThis.FileReaderSync : undefined);
+    if (typeof FRS === 'function') {
+        return new Uint8Array(new FRS().readAsArrayBuffer(blob));
+    }
+    else if (typeof FileReader !== 'undefined') {
+        return await new Promise((resolve, reject) => {
+            let fr = new FileReader();
+            fr.onload = () => resolve(new Uint8Array(fr.result));
+            fr.onerror = () => reject(fr.error);
+            fr.readAsArrayBuffer(blob);
+        });
+    }
+    return null;
+}
 function setupStdin(fs, code) {
     var i = 0;
     fs.init(function () { return i < code.length ? code.charCodeAt(i++) : null; });

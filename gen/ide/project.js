@@ -101,6 +101,9 @@ class CodeProject {
         this.tools_preloaded = {};
         this.isCompiling = false;
         this.filename2path = {}; // map stripped paths to full paths
+        // pending ad-hoc worker queries (queryWorker), keyed by qid
+        this.pendingQueries = {};
+        this.queryCounter = 0;
         this.worker = worker;
         this.platform_id = platform_id;
         this.platform = platform;
@@ -120,6 +123,15 @@ class CodeProject {
         });
     }
     receiveWorkerMessage(data) {
+        // ad-hoc query responses (queryWorker) are tagged with a qid
+        if (data && data.qid != null) {
+            var qfn = this.pendingQueries[data.qid];
+            if (qfn) {
+                delete this.pendingQueries[data.qid];
+                qfn(data);
+            }
+            return;
+        }
         var notfinal = this.pendingWorkerMessages > 1;
         if (notfinal) {
             this.sendBuild();
@@ -142,6 +154,26 @@ class CodeProject {
             this.processBuildListings(data);
         }
         this.callbackBuildResult(data);
+    }
+    /**
+     * Send an ad-hoc message to the worker and await its (qid-tagged) response.
+     * Used for non-build queries like readshared/listshared. Resolves with the
+     * raw WorkerResult, or null on timeout.
+     */
+    queryWorker(msg) {
+        return new Promise((resolve) => {
+            var qid = ++this.queryCounter;
+            this.pendingQueries[qid] = (result) => {
+                clearTimeout(timer);
+                resolve(result);
+            };
+            var timer = setTimeout(() => {
+                delete this.pendingQueries[qid];
+                resolve(null);
+            }, 15000);
+            msg.qid = qid;
+            this.worker.postMessage(msg);
+        });
     }
     getToolForFilename(path) {
         if (this.remoteTool) {

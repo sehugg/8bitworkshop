@@ -39,6 +39,7 @@ exports.getPlatformStore = getPlatformStore;
 exports.getCurrentProject = getCurrentProject;
 exports.getCurrentOutput = getCurrentOutput;
 exports.getWorkerParams = getWorkerParams;
+exports.openHeaderFile = openHeaderFile;
 exports.getCurrentMainFilename = getCurrentMainFilename;
 exports.getCurrentEditorFilename = getCurrentEditorFilename;
 exports.setupBreakpoint = setupBreakpoint;
@@ -284,6 +285,20 @@ function newDropdownListItem(id, text) {
     li.appendChild(a);
     return { li, a };
 }
+// Toolchain headers opened via include badges: each gets its own window
+// entry (alongside the listings) so it shows in the window list.
+var openHeaderViews = [];
+function openHeaderFile(fn) {
+    if (!openHeaderViews.includes(fn)) {
+        openHeaderViews.push(fn);
+        exports.projectWindows.setCreateFunc('#headerview/' + encodeURIComponent(fn), () => new editors_1.HeaderView(fn));
+        refreshWindowList();
+    }
+    var hash = '#headerview/' + encodeURIComponent(fn);
+    if (window.location.hash !== hash) {
+        window.location.hash = hash.substring(1);
+    }
+}
 function refreshWindowList() {
     var ul = $("#windowMenuList").empty();
     var separate = false;
@@ -346,6 +361,14 @@ function refreshWindowList() {
                 });
             }
         }
+    }
+    // add opened toolchain headers (from include badges)
+    for (let hdrfn of openHeaderViews) {
+        let hdrid = '#headerview/' + encodeURIComponent(hdrfn);
+        exports.projectWindows.setCreateFunc(hdrid, () => new editors_1.HeaderView(hdrfn));
+        addWindowItem(hdrid, (0, util_1.getFilenameForPath)(hdrfn), () => {
+            return new editors_1.HeaderView(hdrfn);
+        });
     }
     // add other tools
     separate = true;
@@ -1787,7 +1810,7 @@ async function showWelcomeMessage() {
                 content: "This site works best on desktop browsers. For best results, rotate your device to landscape orientation."
             });
         }
-        if (window.location.host.endsWith('8bitworkshop.com')) {
+        if ((0, util_1.isProductionHost)()) {
             steps.unshift({
                 element: "#dropdownMenuButton",
                 placement: 'right',
@@ -1879,6 +1902,12 @@ function hashToViewIdResolved(hash) {
     // check for extended asset editor hash (e.g. #asseteditor/filename/startline)
     if (id.startsWith('asseteditor/'))
         return '#asseteditor';
+    // check for header viewer window (e.g. #headerview/nes.h); lazily register
+    // so direct-hash navigation works too
+    if (id.startsWith('headerview/')) {
+        openHeaderFile(id.substring('headerview/'.length));
+        return '#' + id;
+    }
     // check if it's a registered tool window (e.g. #asseteditor)
     if (exports.projectWindows.isWindow('#' + id))
         return '#' + id;
@@ -1891,8 +1920,18 @@ function installHashChangeHandler() {
     function onHashChange() {
         const hash = window.location.hash;
         const viewId = (hash && hash !== '#') ? hashToViewIdResolved(hash) : null;
-        if (viewId && viewId !== exports.projectWindows.getActiveID()) {
-            exports.projectWindows.createOrShow(viewId);
+        if (viewId) {
+            if (viewId !== exports.projectWindows.getActiveID()) {
+                exports.projectWindows.createOrShow(viewId);
+            }
+        }
+        else {
+            // empty/unrecognized hash -- e.g. Back button from an extended hash like
+            // #headerview/foo.h, since the main file's URL has no hash. Show main file.
+            const mainFile = exports.current_project.mainPath;
+            if (mainFile && exports.projectWindows.getActiveID() != mainFile) {
+                exports.projectWindows.createOrShow(mainFile);
+            }
         }
     }
     window.addEventListener('popstate', onHashChange);
@@ -2238,7 +2277,7 @@ function _switchToHTTPS() {
     });
 }
 function redirectToHTTPS() {
-    if (window.location.protocol == 'http:' && window.location.host == '8bitworkshop.com') {
+    if (window.location.protocol == 'http:' && (0, util_1.isProductionHost)()) {
         if (shouldRedirectHTTPS()) {
             uninstallErrorHandler();
             window.location.replace(window.location.href.replace(/^http:/, 'https:'));

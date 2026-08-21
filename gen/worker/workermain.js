@@ -28,6 +28,23 @@ async function handleMessage(data) {
             (0, wasmutils_1.loadFilesystem)(fs);
         return;
     }
+    // read a file from a filesystem package (shared code)
+    if (data.readshared) {
+        (0, wasmutils_1.ensureFilesystem)(data.preload_fs);
+        var contents = await (0, wasmutils_1.readSharedFile)(data.preload_fs, data.readshared);
+        return { output: contents, qid: data.qid };
+    }
+    // list files in a filesystem package directory (shared code)
+    if (data.listshared != null) {
+        (0, wasmutils_1.ensureFilesystem)(data.preload_fs);
+        var files = (0, wasmutils_1.listSharedFiles)(data.preload_fs, data.listshared);
+        return { output: files, qid: data.qid };
+    }
+    // preload a filesystem package directly by name
+    if (data.preload_fs) {
+        (0, wasmutils_1.ensureFilesystem)(data.preload_fs);
+        return;
+    }
     // clear filesystem? (TODO: buildkey)
     if (data.reset) {
         builder_1.store.reset();

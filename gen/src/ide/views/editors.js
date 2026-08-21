@@ -1,7 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ListingView = exports.DisassemblerView = exports.SourceEditor = exports.textMapFunctions = exports.PC_LINE_LOOKAHEAD = void 0;
+exports.HeaderView = exports.ListingView = exports.DisassemblerView = exports.SourceEditor = exports.textMapFunctions = exports.PC_LINE_LOOKAHEAD = void 0;
 exports.setUppercaseOnly = setUppercaseOnly;
+exports.resolveIncludeFile = resolveIncludeFile;
+exports.lookupSharedFileText = lookupSharedFileText;
 const commands_1 = require("@codemirror/commands");
 const lang_cpp_1 = require("@codemirror/lang-cpp");
 const lang_markdown_1 = require("@codemirror/lang-markdown");
@@ -11,6 +13,7 @@ const state_1 = require("@codemirror/state");
 const view_1 = require("@codemirror/view");
 const probe_1 = require("../../common/probe");
 const util_1 = require("../../common/util");
+const toolmeta_1 = require("../../common/toolmeta");
 const lang_6502_1 = require("../../parser/lang-6502");
 const lang_basic_1 = require("../../parser/lang-basic");
 const lang_bataribasic_1 = require("../../parser/lang-bataribasic");
@@ -25,8 +28,10 @@ const disassemblyTheme_1 = require("../../themes/disassemblyTheme");
 const editorTheme_1 = require("../../themes/editorTheme");
 const mbo_1 = require("../../themes/mbo");
 const settings_1 = require("../settings");
+const tabs_1 = require("./tabs");
 const ui_1 = require("../ui");
 const assetdecorations_1 = require("./assetdecorations");
+const includedecorations_1 = require("./includedecorations");
 const baseviews_1 = require("./baseviews");
 const filters_1 = require("./filters");
 const gutter_1 = require("./gutter");
@@ -209,6 +214,10 @@ class SourceEditor {
                     }
                     return 0;
                 }) : [],
+                // Asm files: tab/backspace work on inferred tab stops when
+                // "insert spaces when pressing tab" is enabled. Placed before the
+                // settings keymap so it takes precedence over indentMore/insertTab.
+                ...(isAsm ? [view_1.keymap.of((0, tabs_1.asmSpacesKeymap)(() => (0, settings_1.loadSettings)().tabsToSpaces))] : []),
                 // Keybindings from settings must appear before default keymap.
                 ...(0, settings_1.settingsExtensions)((0, settings_1.loadSettings)()),
                 // https://codemirror.net/docs/ref/#commands.defaultKeymap includes
@@ -280,6 +289,27 @@ class SourceEditor {
                 assetRangesField,
                 (0, assetdecorations_1.createAssetHeaderPlugin)((lineNumber) => {
                     window.location.hash = 'asseteditor/' + encodeURIComponent(this.path) + '/' + lineNumber;
+                }),
+                // badges on include lines (#include, .include, ...) -> read-only view
+                ui_1.qs['embed'] ? [] : (0, includedecorations_1.createIncludeLinkPlugin)(() => {
+                    var tool = ui_1.current_project && ui_1.current_project.getToolForFilename(this.path);
+                    var platform_id = ui_1.current_project && ui_1.current_project.platform_id;
+                    return [...(0, toolmeta_1.getIncludePatterns)(tool, platform_id),
+                        ...(0, toolmeta_1.getLinkPatterns)(tool, platform_id),
+                        ...(0, toolmeta_1.getSystemIncludePatterns)(tool)];
+                }, (filename, system) => {
+                    // quoted includes: project files (presets/local) link to their own
+                    // editor window; fall through to the read-only viewer otherwise
+                    if (!system) {
+                        var path = resolveIncludeFile(filename);
+                        if (path) {
+                            window.location.hash = '#' + encodeURIComponent(path);
+                            return;
+                        }
+                    }
+                    // system headers (<foo.h>) and unresolved files: toolchain
+                    // filesystem via the read-only viewer
+                    (0, ui_1.openHeaderFile)(filename);
                 }),
                 filters_1.textTransformFilterCompartment.of([]),
                 // update file in project (and recompile) when edits made
@@ -828,4 +858,130 @@ class ListingView extends DisassemblerView {
     }
 }
 exports.ListingView = ListingView;
+///
+// Resolve an include filename (e.g. from `#include "foo.h"`) against the files
+// loaded in the current project. Tries the bare filename, then relative to the
+// main file's folder (same logic as CodeProject.pushAllFiles).
+function resolveIncludeFile(fn) {
+    let candidates = [fn];
+    try {
+        var dir = (0, util_1.getFolderForPath)(ui_1.current_project.mainPath);
+        if (dir.length > 0 && dir != 'local')
+            candidates.push(dir + '/' + fn);
+    }
+    catch (e) {
+        // no main path yet; bare filename only
+    }
+    for (var c of candidates) {
+        var data = ui_1.current_project && ui_1.current_project.getFile(c);
+        if (typeof data === 'string')
+            return c;
+    }
+    return null;
+}
+// Look up an include file inside the toolchain's preload filesystem
+// (e.g. /include/nes.h inside the cc65 package), via the worker.
+// Results are cached per filesystem+filename.
+const sharedFileCache = new Map();
+function lookupSharedFileText(fn) {
+    const tool = ui_1.current_project.getToolForFilename(ui_1.current_project.mainPath);
+    const fsName = (0, toolmeta_1.getPreloadFSName)(tool, ui_1.current_project.platform_id);
+    const dirs = (0, toolmeta_1.getIncludeDirs)(tool);
+    if (!fsName || !dirs.length)
+        return Promise.resolve(null);
+    const key = fsName + ':' + fn;
+    if (!sharedFileCache.has(key)) {
+        sharedFileCache.set(key, (async () => {
+            for (var dir of dirs) {
+                var msg = { preload_fs: fsName, readshared: dir + '/' + fn, updates: [], buildsteps: [] };
+                var result = await ui_1.current_project.queryWorker(msg);
+                var output = result && result.output;
+                if (output instanceof Uint8Array && output.length > 0) {
+                    return new TextDecoder().decode(output);
+                }
+            }
+            return null;
+        })());
+    }
+    return sharedFileCache.get(key);
+}
+// Read-only viewer for toolchain include files (headers inside the tool's
+// preload filesystem), opened by clicking the badge next to an #include line.
+// Project files are linked to their own editor windows instead.
+// Each opened header gets its own window, id '#headerview/<filename>'.
+class HeaderView {
+    constructor(fn) {
+        this.fn = fn;
+    }
+    createDiv(parent) {
+        var div = document.createElement('div');
+        div.setAttribute("class", "editor");
+        parent.appendChild(div);
+        const parser = (0, lang_cpp_1.cpp)();
+        this.view = new view_1.EditorView({
+            parent: div,
+            extensions: [
+                (0, view_1.rectangularSelection)(),
+                (0, view_1.crosshairCursor)(),
+                state_1.EditorState.allowMultipleSelections.of(true),
+                (0, view_1.drawSelection)(),
+                (0, view_1.highlightActiveLine)(),
+                (0, search_1.highlightSelectionMatches)(),
+                (0, search_1.search)({ top: true }),
+                view_1.keymap.of(search_1.searchKeymap),
+                parser,
+                mbo_1.mbo,
+                editorTheme_1.editorTheme,
+                state_1.EditorState.readOnly.of(true),
+            ],
+        });
+        this.refresh(false);
+        return div;
+    }
+    setVisible(showing) {
+        if (showing)
+            this.refresh(false);
+    }
+    setHeaderText(text) {
+        this.view.dispatch({
+            changes: { from: 0, to: this.view.state.doc.length, insert: text }
+        });
+    }
+    refresh(moveCursor) {
+        var fn = this.fn;
+        if (!fn) {
+            // direct hash navigation: get filename from #headerview/<filename>
+            var hash = window.location.hash;
+            if (!hash || !hash.startsWith('#headerview/'))
+                return;
+            fn = this.fn = decodeURIComponent(hash.substring('#headerview/'.length));
+        }
+        this.loadIncludeFile(fn);
+    }
+    async loadIncludeFile(fn) {
+        this.requestedFn = fn;
+        // 1) project files (local storage / presets)
+        var path = resolveIncludeFile(fn);
+        if (path) {
+            this.currentPath = path;
+            this.setHeaderText(ui_1.current_project.getFile(path));
+            return;
+        }
+        // 2) toolchain preload filesystem (via worker)
+        var text = await lookupSharedFileText(fn);
+        if (this.requestedFn !== fn)
+            return; // a newer request superseded us
+        if (text != null) {
+            this.currentPath = fn;
+            this.setHeaderText(text);
+            return;
+        }
+        // not found
+        this.currentPath = fn;
+        this.setHeaderText('// ' + fn + ' was not found.\n'
+            + '// Project include files are loaded during a build -- try building first.\n'
+            + '// Toolchain headers are only available when the tool has a bundled filesystem.');
+    }
+}
+exports.HeaderView = HeaderView;
 //# sourceMappingURL=editors.js.map

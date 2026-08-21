@@ -87,6 +87,23 @@ const workerlib_1 = require("../../src/worker/workerlib");
         // unknown tool falls back to the platform
         assert_1.default.deepStrictEqual(deps('`include "hvsync.v"\n', null, 'verilog'), ['hvsync.v']);
         assert_1.default.deepStrictEqual(deps('#include "foo.h"\n', null, 'c64'), ['foo.h']);
+        // system includes (<foo.h>) are NOT build dependencies
+        assert_1.default.deepStrictEqual(deps('#include <stdio.h>\n', 'cc65'), []);
+        assert_1.default.deepStrictEqual(deps('#include <stdio.h>\n', 'sdcc'), []);
+    });
+    (0, mocha_1.it)('matches system include patterns for UI links only', function () {
+        // tools with a bundled filesystem get system-include link patterns
+        assert_1.default.deepStrictEqual((0, toolmeta_1.getSystemIncludePatterns)('cc65'), toolmeta_1.SYSTEM_INCLUDE_PATTERNS);
+        assert_1.default.deepStrictEqual((0, toolmeta_1.getSystemIncludePatterns)('sdcc'), toolmeta_1.SYSTEM_INCLUDE_PATTERNS);
+        // tools without one do not (dasm has no includeDirs)
+        assert_1.default.deepStrictEqual((0, toolmeta_1.getSystemIncludePatterns)('dasm'), []);
+        assert_1.default.deepStrictEqual((0, toolmeta_1.getSystemIncludePatterns)('bogus'), []);
+        // ...and they extract the filename from <...>
+        let deps = (text, tool) => (0, toolmeta_1.matchDependencyPatterns)(text, (0, toolmeta_1.getSystemIncludePatterns)(tool));
+        assert_1.default.deepStrictEqual(deps('#include <stdio.h>\n', 'cc65'), ['stdio.h']);
+        assert_1.default.deepStrictEqual(deps('  # include <atari7800.h>\n', 'cc65'), ['atari7800.h']);
+        // quoted includes are not matched by the system patterns
+        assert_1.default.deepStrictEqual(deps('#include "foo.h"\n', 'cc65'), []);
     });
     (0, mocha_1.it)('matches link directives only for tools that link', function () {
         let deps = (text, tool, platform) => (0, toolmeta_1.matchDependencyPatterns)(text, (0, toolmeta_1.getLinkPatterns)(tool, platform));

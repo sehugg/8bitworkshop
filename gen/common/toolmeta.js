@@ -23,13 +23,15 @@
  * (unless noWorkerBuild) and vice versa.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TOOL_META = exports.DIALOG_INCLUDE_PATTERNS = exports.ECS_INCLUDE_PATTERNS = exports.WIZ_INCLUDE_PATTERNS = exports.ACME_INCLUDE_PATTERNS = exports.USE_ASM_INCLUDE_PATTERNS = exports.VERILOG_INCLUDE_PATTERNS = exports.SHARED_LINK_PATTERNS = exports.SHARED_INCLUDE_PATTERNS = void 0;
+exports.TOOL_META = exports.DIALOG_INCLUDE_PATTERNS = exports.ECS_INCLUDE_PATTERNS = exports.WIZ_INCLUDE_PATTERNS = exports.ACME_INCLUDE_PATTERNS = exports.USE_ASM_INCLUDE_PATTERNS = exports.SYSTEM_INCLUDE_PATTERNS = exports.VERILOG_INCLUDE_PATTERNS = exports.SHARED_LINK_PATTERNS = exports.SHARED_INCLUDE_PATTERNS = void 0;
+exports.getSystemIncludePatterns = getSystemIncludePatterns;
 exports.getToolMeta = getToolMeta;
 exports.getToolMetaForFilename = getToolMetaForFilename;
 exports.getPreloadFSName = getPreloadFSName;
 exports.getSkeletonName = getSkeletonName;
 exports.getIncludePatterns = getIncludePatterns;
 exports.getLinkPatterns = getLinkPatterns;
+exports.getIncludeDirs = getIncludeDirs;
 exports.matchDependencyPatterns = matchDependencyPatterns;
 //// shared dependency-parsing patterns (from src/ide/project.ts)
 // C / most assemblers: [.#%]?include|incbin|embed "file", //#resource "file"
@@ -49,6 +51,20 @@ exports.VERILOG_INCLUDE_PATTERNS = [
     { re: /^\s*([.]arch)\s+(\w+)/gmi, suffix: '.json' },
     /\$readmem[bh]\("(.+?)"/gmi,
 ];
+// C system includes: #include <file.h> -- resolved from the toolchain
+// preload filesystem rather than the project. Deliberately NOT part of
+// SHARED_INCLUDE_PATTERNS, so build dependency scanning skips them.
+exports.SYSTEM_INCLUDE_PATTERNS = [
+    { re: /^\s*[.#%]?\s*include\s+<(.+?)>/gmi, system: true },
+];
+/**
+ * System include patterns (#include <foo.h>) for UI linking, for tools that
+ * have a bundled filesystem to search. Empty otherwise.
+ */
+function getSystemIncludePatterns(tool) {
+    let meta = tool && getToolMeta(tool);
+    return (meta && meta.includeDirs && meta.includeDirs.length) ? exports.SYSTEM_INCLUDE_PATTERNS : [];
+}
 // xasm6809 (USE) and merlin32 (ASM): "  USE file.ext"
 exports.USE_ASM_INCLUDE_PATTERNS = [
     /^\s+(USE|ASM)\s+(\S+[.]\S+)/gm,
@@ -134,6 +150,7 @@ exports.TOOL_META = {
     cc65: {
         id: 'cc65', name: 'cc65', kind: 'compiler', arch: '6502',
         extensions: ['.c', '.h'],
+        includeDirs: ['/include', '/asminc'],
         editorStyle: 'text/x-csrc',
         helpURL: 'https://cc65.github.io/doc/cc65.html',
         wasmModule: 'cc65',
@@ -144,6 +161,7 @@ exports.TOOL_META = {
     ca65: {
         id: 'ca65', name: 'ca65', kind: 'assembler', arch: '6502',
         extensions: ['.s', '.ca65'],
+        includeDirs: ['/include', '/asminc'],
         editorStyle: '6502',
         helpURL: 'https://cc65.github.io/doc/ca65.html',
         wasmModule: 'ca65',
@@ -160,6 +178,7 @@ exports.TOOL_META = {
     sdcc: {
         id: 'sdcc', name: 'SDCC', kind: 'compiler', arch: 'z80',
         extensions: ['.c', '.h'],
+        includeDirs: ['/include'],
         editorStyle: 'text/x-csrc',
         helpURL: 'http://sdcc.sourceforge.net/doc/sdccman.pdf',
         wasmModule: 'sdcc',
@@ -170,6 +189,7 @@ exports.TOOL_META = {
     sdasz80: {
         id: 'sdasz80', name: 'sdasz80', kind: 'assembler', arch: 'z80',
         extensions: ['.s'],
+        includeDirs: ['/include'],
         editorStyle: 'z80',
         wasmModule: 'sdasz80',
         platforms: { default: { preloadFS: 'sdcc' } },
@@ -179,6 +199,7 @@ exports.TOOL_META = {
     sdasgb: {
         id: 'sdasgb', name: 'sdasgb', kind: 'assembler', arch: 'gbz80',
         extensions: ['.sgb'],
+        includeDirs: ['/include'],
         editorStyle: 'z80',
         wasmModule: 'sdasgb',
         platforms: { default: { preloadFS: 'sdcc' } },
@@ -232,6 +253,7 @@ exports.TOOL_META = {
     cmoc: {
         id: 'cmoc', name: 'CMOC', kind: 'compiler', arch: '6809',
         extensions: ['.c', '.h'],
+        includeDirs: ['/include'],
         editorStyle: 'text/x-csrc',
         helpURL: 'http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html',
         wasmModule: 'cmoc',
@@ -270,6 +292,7 @@ exports.TOOL_META = {
     armtcc: {
         id: 'armtcc', name: 'TCC (ARM)', kind: 'compiler', arch: 'arm32',
         extensions: ['.c', '.s'],
+        includeDirs: ['/include'],
         editorStyle: 'text/x-csrc',
         wasmModule: 'arm-tcc',
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
@@ -284,6 +307,7 @@ exports.TOOL_META = {
     smlrc: {
         id: 'smlrc', name: 'SmallerC', kind: 'compiler', arch: 'x86',
         extensions: ['.c'],
+        includeDirs: ['/include'],
         editorStyle: 'text/x-csrc',
         wasmModule: 'smlrc',
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
@@ -301,6 +325,7 @@ exports.TOOL_META = {
     oscar64: {
         id: 'oscar64', name: 'Oscar64', kind: 'compiler', arch: '6502',
         extensions: ['.c', '.cpp', '.cc', '.o64'],
+        includeDirs: ['/include'],
         editorStyle: 'text/x-csrc',
         helpURL: 'https://github.com/drmortalwombat/oscar64/blob/main/oscar64.md',
         wasmModule: 'oscar64',
@@ -310,6 +335,7 @@ exports.TOOL_META = {
     bataribasic: {
         id: 'bataribasic', name: 'batari Basic', kind: 'compiler', arch: '6502',
         extensions: ['.bb', '.bas'],
+        includeDirs: ['/includes'],
         editorStyle: 'bataribasic',
         helpURL: 'help/bataribasic/manual.html',
         wasmModule: 'bb2600basic',
@@ -352,6 +378,7 @@ exports.TOOL_META = {
     wiz: {
         id: 'wiz', name: 'wiz', kind: 'compiler',
         extensions: ['.wiz'],
+        includeDirs: ['/common'],
         editorStyle: 'text/x-wiz',
         helpURL: 'https://github.com/wiz-lang/wiz/blob/master/readme.md#wiz',
         wasmModule: 'wiz',
@@ -508,6 +535,14 @@ function getLinkPatterns(tool, platform) {
     if (platform && platform.startsWith('verilog'))
         return [];
     return exports.SHARED_LINK_PATTERNS;
+}
+/**
+ * Directories containing shared code (headers etc.) for this tool's preload
+ * filesystem, e.g. ['/include','/asminc'] -- empty if none/unknown.
+ */
+function getIncludeDirs(tool) {
+    let meta = tool && getToolMeta(tool);
+    return (meta && meta.includeDirs) || [];
 }
 /**
  * Run a set of include/link patterns over source text, returning the

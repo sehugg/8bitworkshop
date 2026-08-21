@@ -120,6 +120,9 @@ export class CodeProject {
   callbackBuildResult: BuildResultCallback;
   callbackBuildStatus: BuildStatusCallback;
   onFileChanged: (path: string, data: FileData) => void;
+  // pending ad-hoc worker queries (queryWorker), keyed by qid
+  pendingQueries: { [qid: number]: (result: WorkerResult) => void } = {};
+  queryCounter = 0;
 
   constructor(worker, platform_id: string, platform, filesystem: ProjectFilesystem) {
     this.worker = worker;
@@ -143,6 +146,15 @@ export class CodeProject {
   }
 
   receiveWorkerMessage(data: WorkerResult) {
+    // ad-hoc query responses (queryWorker) are tagged with a qid
+    if (data && (data as any).qid != null) {
+      var qfn = this.pendingQueries[(data as any).qid];
+      if (qfn) {
+        delete this.pendingQueries[(data as any).qid];
+        qfn(data);
+      }
+      return;
+    }
     var notfinal = this.pendingWorkerMessages > 1;
     if (notfinal) {
       this.sendBuild();
@@ -159,6 +171,27 @@ export class CodeProject {
       this.processBuildListings(data);
     }
     this.callbackBuildResult(data);
+  }
+
+  /**
+   * Send an ad-hoc message to the worker and await its (qid-tagged) response.
+   * Used for non-build queries like readshared/listshared. Resolves with the
+   * raw WorkerResult, or null on timeout.
+   */
+  queryWorker<T extends WorkerResult>(msg: WorkerMessage): Promise<T | null> {
+    return new Promise((resolve) => {
+      var qid = ++this.queryCounter;
+      this.pendingQueries[qid] = (result) => {
+        clearTimeout(timer);
+        resolve(result as T);
+      };
+      var timer = setTimeout(() => {
+        delete this.pendingQueries[qid];
+        resolve(null);
+      }, 15000);
+      msg.qid = qid;
+      this.worker.postMessage(msg);
+    });
   }
 
   getToolForFilename(path) {

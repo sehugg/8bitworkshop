@@ -7,7 +7,7 @@ import { EmuHalt, PLATFORMS } from "../common/emu";
 import { StateRecorderImpl } from "../common/recorder";
 import {
   arrayCompare, byteArrayToUTF8, decodeQueryString, getBasePlatform, getCookie, getFilenameForPath, getFilenamePrefix,
-  getRootBasePlatform, getWithBinary, hex, highlightDifferences, isProbablyBinary, loadScript, parseBool, stringToByteArray
+  getRootBasePlatform, getWithBinary, hex, highlightDifferences, isProbablyBinary, isProductionHost, loadScript, parseBool, stringToByteArray
 } from "../common/util";
 import { getSkeletonName, getToolMeta } from "../common/toolmeta";
 import { FileData, WorkerError, WorkerResult } from "../common/workertypes";
@@ -23,7 +23,7 @@ import { Toolbar } from "./toolbar";
 import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
 import { AddressHeatMapView, BinaryFileView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterStackMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
-import { DisassemblerView, ListingView, PC_LINE_LOOKAHEAD, SourceEditor, setUppercaseOnly } from "./views/editors";
+import { DisassemblerView, HeaderView, ListingView, PC_LINE_LOOKAHEAD, SourceEditor, setUppercaseOnly } from "./views/editors";
 import { CallStackView, DebugBrowserView } from "./views/treeviews";
 import { ProjectWindows } from "./windows";
 import Split = require('split.js');
@@ -282,6 +282,22 @@ function newDropdownListItem(id, text) {
   return { li, a };
 }
 
+// Toolchain headers opened via include badges: each gets its own window
+// entry (alongside the listings) so it shows in the window list.
+var openHeaderViews: string[] = [];
+
+export function openHeaderFile(fn: string) {
+  if (!openHeaderViews.includes(fn)) {
+    openHeaderViews.push(fn);
+    projectWindows.setCreateFunc('#headerview/' + encodeURIComponent(fn), () => new HeaderView(fn));
+    refreshWindowList();
+  }
+  var hash = '#headerview/' + encodeURIComponent(fn);
+  if (window.location.hash !== hash) {
+    window.location.hash = hash.substring(1);
+  }
+}
+
 function refreshWindowList() {
   var ul = $("#windowMenuList").empty();
   var separate = false;
@@ -349,6 +365,15 @@ function refreshWindowList() {
         });
       }
     }
+  }
+
+  // add opened toolchain headers (from include badges)
+  for (let hdrfn of openHeaderViews) {
+    let hdrid = '#headerview/' + encodeURIComponent(hdrfn);
+    projectWindows.setCreateFunc(hdrid, () => new HeaderView(hdrfn));
+    addWindowItem(hdrid, getFilenameForPath(hdrfn), () => {
+      return new HeaderView(hdrfn);
+    });
   }
 
   // add other tools
@@ -1799,7 +1824,7 @@ async function showWelcomeMessage() {
         content: "This site works best on desktop browsers. For best results, rotate your device to landscape orientation."
       });
     }
-    if (window.location.host.endsWith('8bitworkshop.com')) {
+    if (isProductionHost()) {
       steps.unshift({
         element: "#dropdownMenuButton",
         placement: 'right',
@@ -1895,6 +1920,12 @@ function hashToViewIdResolved(hash: string): string | null {
   var id = decodeURIComponent(hash.substring(1));
   // check for extended asset editor hash (e.g. #asseteditor/filename/startline)
   if (id.startsWith('asseteditor/')) return '#asseteditor';
+  // check for header viewer window (e.g. #headerview/nes.h); lazily register
+  // so direct-hash navigation works too
+  if (id.startsWith('headerview/')) {
+    openHeaderFile(id.substring('headerview/'.length));
+    return '#' + id;
+  }
   // check if it's a registered tool window (e.g. #asseteditor)
   if (projectWindows.isWindow('#' + id)) return '#' + id;
   // otherwise treat as a file path (e.g. hello.asm)
@@ -1906,8 +1937,17 @@ function installHashChangeHandler() {
   function onHashChange() {
     const hash = window.location.hash;
     const viewId = (hash && hash !== '#') ? hashToViewIdResolved(hash) : null;
-    if (viewId && viewId !== projectWindows.getActiveID()) {
-      projectWindows.createOrShow(viewId);
+    if (viewId) {
+      if (viewId !== projectWindows.getActiveID()) {
+        projectWindows.createOrShow(viewId);
+      }
+    } else {
+      // empty/unrecognized hash -- e.g. Back button from an extended hash like
+      // #headerview/foo.h, since the main file's URL has no hash. Show main file.
+      const mainFile = current_project.mainPath;
+      if (mainFile && projectWindows.getActiveID() != mainFile) {
+        projectWindows.createOrShow(mainFile);
+      }
     }
   }
   window.addEventListener('popstate', onHashChange);
@@ -2245,7 +2285,7 @@ function _switchToHTTPS() {
 }
 
 function redirectToHTTPS() {
-  if (window.location.protocol == 'http:' && window.location.host == '8bitworkshop.com') {
+  if (window.location.protocol == 'http:' && isProductionHost()) {
     if (shouldRedirectHTTPS()) {
       uninstallErrorHandler();
       window.location.replace(window.location.href.replace(/^http:/, 'https:'));

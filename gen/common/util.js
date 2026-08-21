@@ -43,6 +43,7 @@ exports.escapeHTML = escapeHTML;
 exports.findIntegerFactors = findIntegerFactors;
 exports.coerceToArray = coerceToArray;
 exports.replaceAll = replaceAll;
+exports.isProductionHost = isProductionHost;
 exports.getCookie = getCookie;
 function lpad(s, n) {
     s += ''; // convert to string
@@ -711,6 +712,9 @@ function replaceAll(s, search, replace) {
     if (search == '')
         return s;
     return s.split(search).join(replace);
+}
+function isProductionHost() {
+    return typeof window != 'undefined' && window.location.host.endsWith('8bitworkshop.com');
 }
 function getCookie(name) {
     var nameEQ = name + "=";

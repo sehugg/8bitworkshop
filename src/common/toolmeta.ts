@@ -61,6 +61,10 @@ export interface ToolIncludePattern {
   re: RegExp;
   group?: number;
   suffix?: string;
+  /** true for system includes (#include <foo.h>) -- resolved from the
+   *  toolchain filesystem, not the project; used for UI links only,
+   *  not for build dependency scanning */
+  system?: boolean;
 }
    
 export interface ToolMeta {
@@ -90,6 +94,11 @@ export interface ToolMeta {
   includePatterns?: (RegExp | ToolIncludePattern)[];
   /** regexes matching link directives, used for dependency parsing */
   linkPatterns?: (RegExp | ToolIncludePattern)[];
+  /** directories inside the preload FS containing searchable shared code
+   *  (headers, asm includes). Paths are relative to the FS root as they appear
+   *  in the filesystem package metadata, e.g. ['/include', '/asminc'].
+   *  Only meaningful when paired with platforms[].preloadFS. */
+  includeDirs?: string[];
 
   // ---- per-platform metadata (was TOOL_PRELOADFS / PLATFORM_PARAMS) ----
 
@@ -129,6 +138,22 @@ export const VERILOG_INCLUDE_PATTERNS: (RegExp | ToolIncludePattern)[] = [
   { re: /^\s*([.]arch)\s+(\w+)/gmi, suffix: '.json' },
   /\$readmem[bh]\("(.+?)"/gmi,
 ];
+
+// C system includes: #include <file.h> -- resolved from the toolchain
+// preload filesystem rather than the project. Deliberately NOT part of
+// SHARED_INCLUDE_PATTERNS, so build dependency scanning skips them.
+export const SYSTEM_INCLUDE_PATTERNS: ToolIncludePattern[] = [
+  { re: /^\s*[.#%]?\s*include\s+<(.+?)>/gmi, system: true },
+];
+
+/**
+ * System include patterns (#include <foo.h>) for UI linking, for tools that
+ * have a bundled filesystem to search. Empty otherwise.
+ */
+export function getSystemIncludePatterns(tool?: string): ToolIncludePattern[] {
+  let meta = tool && getToolMeta(tool);
+  return (meta && meta.includeDirs && meta.includeDirs.length) ? SYSTEM_INCLUDE_PATTERNS : [];
+}
 
 // xasm6809 (USE) and merlin32 (ASM): "  USE file.ext"
 export const USE_ASM_INCLUDE_PATTERNS: RegExp[] = [
@@ -231,6 +256,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   cc65: {
     id: 'cc65', name: 'cc65', kind: 'compiler', arch: '6502',
     extensions: ['.c', '.h'],
+    includeDirs: ['/include', '/asminc'],
     editorStyle: 'text/x-csrc',
     helpURL: 'https://cc65.github.io/doc/cc65.html',
     wasmModule: 'cc65',
@@ -242,6 +268,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   ca65: {
     id: 'ca65', name: 'ca65', kind: 'assembler', arch: '6502',
     extensions: ['.s', '.ca65'],
+    includeDirs: ['/include', '/asminc'],
     editorStyle: '6502',
     helpURL: 'https://cc65.github.io/doc/ca65.html',
     wasmModule: 'ca65',
@@ -261,6 +288,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   sdcc: {
     id: 'sdcc', name: 'SDCC', kind: 'compiler', arch: 'z80',
     extensions: ['.c', '.h'],
+    includeDirs: ['/include'],
     editorStyle: 'text/x-csrc',
     helpURL: 'http://sdcc.sourceforge.net/doc/sdccman.pdf',
     wasmModule: 'sdcc',
@@ -272,6 +300,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   sdasz80: {
     id: 'sdasz80', name: 'sdasz80', kind: 'assembler', arch: 'z80',
     extensions: ['.s'],
+    includeDirs: ['/include'],
     editorStyle: 'z80',
     wasmModule: 'sdasz80',
     platforms: { default: { preloadFS: 'sdcc' } },
@@ -282,6 +311,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   sdasgb: {
     id: 'sdasgb', name: 'sdasgb', kind: 'assembler', arch: 'gbz80',
     extensions: ['.sgb'],
+    includeDirs: ['/include'],
     editorStyle: 'z80',
     wasmModule: 'sdasgb',
     platforms: { default: { preloadFS: 'sdcc' } },
@@ -344,6 +374,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   cmoc: {
     id: 'cmoc', name: 'CMOC', kind: 'compiler', arch: '6809',
     extensions: ['.c', '.h'],
+    includeDirs: ['/include'],
     editorStyle: 'text/x-csrc',
     helpURL: 'http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html',
     wasmModule: 'cmoc',
@@ -388,6 +419,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   armtcc: {
     id: 'armtcc', name: 'TCC (ARM)', kind: 'compiler', arch: 'arm32',
     extensions: ['.c', '.s'],
+    includeDirs: ['/include'],
     editorStyle: 'text/x-csrc',
     wasmModule: 'arm-tcc',
     includePatterns: SHARED_INCLUDE_PATTERNS,
@@ -405,6 +437,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   smlrc: {
     id: 'smlrc', name: 'SmallerC', kind: 'compiler', arch: 'x86',
     extensions: ['.c'],
+    includeDirs: ['/include'],
     editorStyle: 'text/x-csrc',
     wasmModule: 'smlrc',
     includePatterns: SHARED_INCLUDE_PATTERNS,
@@ -425,6 +458,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   oscar64: {
     id: 'oscar64', name: 'Oscar64', kind: 'compiler', arch: '6502',
     extensions: ['.c', '.cpp', '.cc', '.o64'],
+    includeDirs: ['/include'],
     editorStyle: 'text/x-csrc',
     helpURL: 'https://github.com/drmortalwombat/oscar64/blob/main/oscar64.md',
     wasmModule: 'oscar64',
@@ -435,6 +469,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   bataribasic: {
     id: 'bataribasic', name: 'batari Basic', kind: 'compiler', arch: '6502',
     extensions: ['.bb', '.bas'],
+    includeDirs: ['/includes'],
     editorStyle: 'bataribasic',
     helpURL: 'help/bataribasic/manual.html',
     wasmModule: 'bb2600basic',
@@ -483,6 +518,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   wiz: {
     id: 'wiz', name: 'wiz', kind: 'compiler',
     extensions: ['.wiz'],
+    includeDirs: ['/common'],
     editorStyle: 'text/x-wiz',
     helpURL: 'https://github.com/wiz-lang/wiz/blob/master/readme.md#wiz',
     wasmModule: 'wiz',
@@ -649,6 +685,15 @@ export function getLinkPatterns(tool?: string, platform?: string): (RegExp | Too
   if (meta && meta.linkPatterns) return meta.linkPatterns;
   if (platform && platform.startsWith('verilog')) return [];
   return SHARED_LINK_PATTERNS;
+}
+
+/**
+ * Directories containing shared code (headers etc.) for this tool's preload
+ * filesystem, e.g. ['/include','/asminc'] -- empty if none/unknown.
+ */
+export function getIncludeDirs(tool?: string): string[] {
+  let meta = tool && getToolMeta(tool);
+  return (meta && meta.includeDirs) || [];
 }
 
 /**
