@@ -25,6 +25,7 @@ import { disassemblyTheme } from "../../themes/disassemblyTheme";
 import { editorTheme } from "../../themes/editorTheme";
 import { mbo } from "../../themes/mbo";
 import { loadSettings, registerEditor, settingsExtensions } from "../settings";
+import { asmSpacesKeymap } from "./tabs";
 import { clearBreakpoint, current_project, lastDebugState, openHeaderFile, platform, qs, runToPC } from "../ui";
 import { createAssetHeaderPlugin } from "./assetdecorations";
 import { createIncludeLinkPlugin } from "./includedecorations";
@@ -230,6 +231,10 @@ export class SourceEditor implements ProjectView {
           return 0;
         }) : [],
 
+        // Asm files: tab/backspace work on inferred tab stops when
+        // "insert spaces when pressing tab" is enabled. Placed before the
+        // settings keymap so it takes precedence over indentMore/insertTab.
+        ...(isAsm ? [keymap.of(asmSpacesKeymap(() => loadSettings().tabsToSpaces))] : []),
         // Keybindings from settings must appear before default keymap.
         ...settingsExtensions(loadSettings()),
         // https://codemirror.net/docs/ref/#commands.defaultKeymap includes
