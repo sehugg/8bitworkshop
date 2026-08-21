@@ -2212,6 +2212,15 @@ async function startUI() {
         (0, sync_1.importProjectFromGithub)(exports.qs.githubURL, true);
         return;
     }
+    // repo= given, but not imported yet? offer to import it from github
+    // (repo can be "user/repo" or "user/repo/tree/branch/...")
+    if (hasLocalStorage && exports.qs.repo && !(0, services_1.getRepos)()[exports.qs.repo]) {
+        if (confirm(`Repository '${exports.qs.repo}' was not found locally. Import it from GitHub?`)) {
+            (0, sync_1.importProjectFromGithub)('https://github.com/' + exports.qs.repo, true);
+            return;
+        }
+        delete exports.qs.repo; // continue without repo
+    }
     getPlatformAndRepo();
     setupSplits();
     // get store ID, repo id or platform id
