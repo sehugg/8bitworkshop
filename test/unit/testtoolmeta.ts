@@ -2,7 +2,8 @@ import assert from "assert";
 import { describe, it } from "mocha";
 import {
   TOOL_META, getToolMeta, getToolMetaForFilename, getPreloadFSName, getSkeletonName,
-  getIncludePatterns, getLinkPatterns, matchDependencyPatterns
+  getIncludePatterns, getLinkPatterns, matchDependencyPatterns,
+  getSystemIncludePatterns, SYSTEM_INCLUDE_PATTERNS
 } from "../../src/common/toolmeta";
 // Node-friendly worker entry point (re-exports TOOLS without Worker wiring)
 import { TOOLS } from "../../src/worker/workerlib";
@@ -97,6 +98,25 @@ describe('Tool metadata registry', function () {
     // unknown tool falls back to the platform
     assert.deepStrictEqual(deps('`include "hvsync.v"\n', null, 'verilog'), ['hvsync.v']);
     assert.deepStrictEqual(deps('#include "foo.h"\n', null, 'c64'), ['foo.h']);
+    // system includes (<foo.h>) are NOT build dependencies
+    assert.deepStrictEqual(deps('#include <stdio.h>\n', 'cc65'), []);
+    assert.deepStrictEqual(deps('#include <stdio.h>\n', 'sdcc'), []);
+  });
+
+  it('matches system include patterns for UI links only', function () {
+    // tools with a bundled filesystem get system-include link patterns
+    assert.deepStrictEqual(getSystemIncludePatterns('cc65'), SYSTEM_INCLUDE_PATTERNS);
+    assert.deepStrictEqual(getSystemIncludePatterns('sdcc'), SYSTEM_INCLUDE_PATTERNS);
+    // tools without one do not (dasm has no includeDirs)
+    assert.deepStrictEqual(getSystemIncludePatterns('dasm'), []);
+    assert.deepStrictEqual(getSystemIncludePatterns('bogus'), []);
+    // ...and they extract the filename from <...>
+    let deps = (text: string, tool?: string) =>
+      matchDependencyPatterns(text, getSystemIncludePatterns(tool));
+    assert.deepStrictEqual(deps('#include <stdio.h>\n', 'cc65'), ['stdio.h']);
+    assert.deepStrictEqual(deps('  # include <atari7800.h>\n', 'cc65'), ['atari7800.h']);
+    // quoted includes are not matched by the system patterns
+    assert.deepStrictEqual(deps('#include "foo.h"\n', 'cc65'), []);
   });
 
   it('matches link directives only for tools that link', function () {

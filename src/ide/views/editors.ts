@@ -7,7 +7,9 @@ import { EditorState, Extension, StateEffect, StateField } from "@codemirror/sta
 import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, rectangularSelection, ViewUpdate } from "@codemirror/view";
 import { CodeAnalyzer } from "../../common/analysis";
 import { ProbeFlags, ProbeRecorder } from "../../common/probe";
-import { hex, rpad } from "../../common/util";
+import { getFilenameForPath, getFolderForPath, hex, rpad } from "../../common/util";
+import { getIncludeDirs, getIncludePatterns, getLinkPatterns, getPreloadFSName, getSystemIncludePatterns } from "../../common/toolmeta";
+import { WorkerMessage } from "../../common/workertypes";
 import { SourceFile, SourceLocation, WorkerError } from "../../common/workertypes";
 import { asm6502 } from "../../parser/lang-6502";
 import { basic } from "../../parser/lang-basic";
@@ -23,8 +25,9 @@ import { disassemblyTheme } from "../../themes/disassemblyTheme";
 import { editorTheme } from "../../themes/editorTheme";
 import { mbo } from "../../themes/mbo";
 import { loadSettings, registerEditor, settingsExtensions } from "../settings";
-import { clearBreakpoint, current_project, lastDebugState, platform, qs, runToPC } from "../ui";
+import { clearBreakpoint, current_project, lastDebugState, openHeaderFile, platform, qs, runToPC } from "../ui";
 import { createAssetHeaderPlugin } from "./assetdecorations";
+import { createIncludeLinkPlugin } from "./includedecorations";
 import { isMobileDevice, ProjectView } from "./baseviews";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
 import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset, statusMarkers } from "./gutter";
@@ -323,6 +326,31 @@ export class SourceEditor implements ProjectView {
         createAssetHeaderPlugin((lineNumber: number) => {
           window.location.hash = 'asseteditor/' + encodeURIComponent(this.path) + '/' + lineNumber;
         }),
+
+        // badges on include lines (#include, .include, ...) -> read-only view
+        qs['embed'] ? [] : createIncludeLinkPlugin(
+          () => {
+            var tool = current_project && current_project.getToolForFilename(this.path);
+            var platform_id = current_project && current_project.platform_id;
+            return [...getIncludePatterns(tool, platform_id),
+                    ...getLinkPatterns(tool, platform_id),
+                    ...getSystemIncludePatterns(tool)];
+          },
+          (filename: string, system: boolean) => {
+            // quoted includes: project files (presets/local) link to their own
+            // editor window; fall through to the read-only viewer otherwise
+            if (!system) {
+              var path = resolveIncludeFile(filename);
+              if (path) {
+                window.location.hash = '#' + encodeURIComponent(path);
+                return;
+              }
+            }
+            // system headers (<foo.h>) and unresolved files: toolchain
+            // filesystem via the read-only viewer
+            openHeaderFile(filename);
+          },
+        ),
 
         textTransformFilterCompartment.of([]),
 
@@ -903,4 +931,136 @@ export class ListingView extends DisassemblerView implements ProjectView {
     }
   }
 
+}
+
+///
+
+// Resolve an include filename (e.g. from `#include "foo.h"`) against the files
+// loaded in the current project. Tries the bare filename, then relative to the
+// main file's folder (same logic as CodeProject.pushAllFiles).
+export function resolveIncludeFile(fn: string): string | null {
+  let candidates = [fn];
+  try {
+    var dir = getFolderForPath(current_project.mainPath);
+    if (dir.length > 0 && dir != 'local') candidates.push(dir + '/' + fn);
+  } catch (e) {
+    // no main path yet; bare filename only
+  }
+  for (var c of candidates) {
+    var data = current_project && current_project.getFile(c);
+    if (typeof data === 'string') return c;
+  }
+  return null;
+}
+
+// Look up an include file inside the toolchain's preload filesystem
+// (e.g. /include/nes.h inside the cc65 package), via the worker.
+// Results are cached per filesystem+filename.
+const sharedFileCache = new Map<string, Promise<string | null>>();
+
+export function lookupSharedFileText(fn: string): Promise<string | null> {
+  const tool = current_project.getToolForFilename(current_project.mainPath);
+  const fsName = getPreloadFSName(tool, current_project.platform_id);
+  const dirs = getIncludeDirs(tool);
+  if (!fsName || !dirs.length) return Promise.resolve(null);
+  const key = fsName + ':' + fn;
+  if (!sharedFileCache.has(key)) {
+    sharedFileCache.set(key, (async () => {
+      for (var dir of dirs) {
+        var msg = { preload_fs: fsName, readshared: dir + '/' + fn, updates: [], buildsteps: [] } as WorkerMessage;
+        var result = await current_project.queryWorker(msg);
+        var output = result && (result as any).output;
+        if (output instanceof Uint8Array && output.length > 0) {
+          return new TextDecoder().decode(output);
+        }
+      }
+      return null;
+    })());
+  }
+  return sharedFileCache.get(key);
+}
+
+// Read-only viewer for toolchain include files (headers inside the tool's
+// preload filesystem), opened by clicking the badge next to an #include line.
+// Project files are linked to their own editor windows instead.
+// Each opened header gets its own window, id '#headerview/<filename>'.
+export class HeaderView implements ProjectView {
+  view: EditorView;
+  currentPath: string;
+
+  constructor(public fn?: string) {
+  }
+
+  createDiv(parent: HTMLElement) {
+    var div = document.createElement('div');
+    div.setAttribute("class", "editor");
+    parent.appendChild(div);
+    const parser: Extension = cpp();
+    this.view = new EditorView({
+      parent: div,
+      extensions: [
+        rectangularSelection(),
+        crosshairCursor(),
+        EditorState.allowMultipleSelections.of(true),
+        drawSelection(),
+        highlightActiveLine(),
+        highlightSelectionMatches(),
+        search({ top: true }),
+        keymap.of(searchKeymap),
+        parser,
+        mbo,
+        editorTheme,
+        EditorState.readOnly.of(true),
+      ],
+    });
+    this.refresh(false);
+    return div;
+  }
+
+  setVisible(showing: boolean) {
+    if (showing) this.refresh(false);
+  }
+
+  setHeaderText(text: string) {
+    this.view.dispatch({
+      changes: { from: 0, to: this.view.state.doc.length, insert: text }
+    });
+  }
+
+  refresh(moveCursor: boolean) {
+    var fn = this.fn;
+    if (!fn) {
+      // direct hash navigation: get filename from #headerview/<filename>
+      var hash = window.location.hash;
+      if (!hash || !hash.startsWith('#headerview/')) return;
+      fn = this.fn = decodeURIComponent(hash.substring('#headerview/'.length));
+    }
+    this.loadIncludeFile(fn);
+  }
+
+  async loadIncludeFile(fn: string) {
+    this.requestedFn = fn;
+    // 1) project files (local storage / presets)
+    var path = resolveIncludeFile(fn);
+    if (path) {
+      this.currentPath = path;
+      this.setHeaderText(current_project.getFile(path) as string);
+      return;
+    }
+    // 2) toolchain preload filesystem (via worker)
+    var text = await lookupSharedFileText(fn);
+    if (this.requestedFn !== fn) return; // a newer request superseded us
+    if (text != null) {
+      this.currentPath = fn;
+      this.setHeaderText(text);
+      return;
+    }
+    // not found
+    this.currentPath = fn;
+    this.setHeaderText('// ' + fn + ' was not found.\n'
+      + '// Project include files are loaded during a build -- try building first.\n'
+      + '// Toolchain headers are only available when the tool has a bundled filesystem.');
+  }
+  // track the most recent request so stale async lookups don't overwrite it
+  private requestedFn: string;
 }

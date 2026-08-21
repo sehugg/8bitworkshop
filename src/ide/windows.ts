@@ -104,7 +104,8 @@ export class ProjectWindows {
     if (id === this.project.mainPath) {
       document.title = this.titlePrefix + mainName;
     } else {
-      var viewName = id.startsWith('#') ? id : getFilenameForPath(id);
+      var viewName = id.startsWith('#headerview/') ? id.substring('#headerview/'.length)
+        : id.startsWith('#') ? id : getFilenameForPath(id);
       document.title = this.titlePrefix + mainName + ' | ' + viewName;
     }
   }

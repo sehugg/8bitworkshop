@@ -572,6 +572,22 @@ div.asset_block.asset_highlight {
   background: rgba(153, 204, 153, 0.3);
   text-decoration: underline;
 }
+.include-link-badge {
+  display: inline-block;
+  padding: 0 4px;
+  margin: 0 2px;
+  border-radius: 3px;
+  background: rgba(153, 204, 238, 0.15);
+  color: #99ccee;
+  font-size: 0.85em;
+  cursor: pointer;
+  opacity: 0.4;
+}
+.include-link-badge:hover {
+  opacity: 1;
+  background: rgba(153, 204, 238, 0.3);
+  text-decoration: underline;
+}
 .asset_no_assets {
   color: #999;
   padding: 2em;

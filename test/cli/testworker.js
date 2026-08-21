@@ -37,6 +37,16 @@ function compileFiles(tool, files, platform, callback, outlen, nlines, nerrors, 
   doBuild([msg], callback, outlen, nlines, nerrors, options);
 }
 
+// send an ad-hoc (qid-tagged) query to the worker and await its response
+async function queryWorker(msg) {
+  return new Promise((resolve) => {
+    global.postMessage = function(result) {
+      resolve(result);
+    };
+    global.onmessage({data:msg});
+  });
+}
+
 async function doBuild(msgs, callback, outlen, nlines, nerrors, options) {
     var msgcount = msgs.length;
     global.postMessage = function(msg) {
@@ -87,6 +97,24 @@ async function doBuild(msgs, callback, outlen, nlines, nerrors, options) {
 }
 
 describe('Worker', function() {
+  it('should list shared files in filesystem package', async function() {
+    var msg = await queryWorker({preload_fs:'65-nes', listshared:'/include', updates:[], buildsteps:[], qid:123});
+    assert.ok(Array.isArray(msg.output));
+    assert.ok(msg.output.length > 0);
+    assert.ok(msg.output.includes('/include/nes.h'));
+    assert.equal(msg.qid, 123);
+  });
+  it('should read a shared header from filesystem package', async function() {
+    var msg = await queryWorker({preload_fs:'65-nes', readshared:'/include/nes.h', updates:[], buildsteps:[], qid:124});
+    assert.ok(msg.output instanceof Uint8Array);
+    assert.ok(msg.output.length > 100);
+    assert.equal(msg.qid, 124);
+  });
+  it('should return null for missing shared file', async function() {
+    var msg = await queryWorker({preload_fs:'65-nes', readshared:'/include/nosuchfile.h', updates:[], buildsteps:[], qid:125});
+    assert.equal(msg.output, null);
+    assert.equal(msg.qid, 125);
+  });
   it('should assemble DASM', function(done) {
     compile('dasm', '\tprocessor 6502\n\torg $f000\n MAC mack\n lda #0\n ENDM\nfoo: mack\n mack\n', 'vcs.mame', done, 4, 4);
   });
