@@ -7,7 +7,7 @@ import { EmuHalt, PLATFORMS } from "../common/emu";
 import { StateRecorderImpl } from "../common/recorder";
 import {
   arrayCompare, byteArrayToUTF8, decodeQueryString, getBasePlatform, getCookie, getFilenameForPath, getFilenamePrefix,
-  getRootBasePlatform, getWithBinary, hex, highlightDifferences, isProbablyBinary, loadScript, parseBool, stringToByteArray
+  getRootBasePlatform, getWithBinary, hex, highlightDifferences, isProbablyBinary, isProductionHost, loadScript, parseBool, stringToByteArray
 } from "../common/util";
 import { getSkeletonName, getToolMeta } from "../common/toolmeta";
 import { FileData, WorkerError, WorkerResult } from "../common/workertypes";
@@ -1824,7 +1824,7 @@ async function showWelcomeMessage() {
         content: "This site works best on desktop browsers. For best results, rotate your device to landscape orientation."
       });
     }
-    if (window.location.host.endsWith('8bitworkshop.com')) {
+    if (isProductionHost()) {
       steps.unshift({
         element: "#dropdownMenuButton",
         placement: 'right',
@@ -2285,7 +2285,7 @@ function _switchToHTTPS() {
 }
 
 function redirectToHTTPS() {
-  if (window.location.protocol == 'http:' && window.location.host == '8bitworkshop.com') {
+  if (window.location.protocol == 'http:' && isProductionHost()) {
     if (shouldRedirectHTTPS()) {
       uninstallErrorHandler();
       window.location.replace(window.location.href.replace(/^http:/, 'https:'));

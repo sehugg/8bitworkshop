@@ -2,6 +2,7 @@ import { closeBrackets, deleteBracketPair } from "@codemirror/autocomplete";
 import { indentUnit } from "@codemirror/language";
 import { Compartment, EditorState, Extension } from "@codemirror/state";
 import { EditorView, highlightSpecialChars, highlightTrailingWhitespace, highlightWhitespace, keymap } from "@codemirror/view";
+import { isProductionHost } from "../common/util";
 import { debugHighlightTagsTooltip } from "./views/debug";
 import { insertTabKeymap, smartIndentKeymap } from "./views/tabs";
 
@@ -86,6 +87,7 @@ export function applySettingsToAll(settings: EditorSettings) {
 
 export function openSettings() {
   var settings = loadSettings();
+  var showInternal = !isProductionHost();
   bootbox.dialog({
     onEscape: true,
     title: "Settings",
@@ -97,9 +99,11 @@ export function openSettings() {
        <div class="checkbox"><label><input type="checkbox" id="setting_highlightWhitespace" ${settings.highlightWhitespace ? 'checked' : ''}> Highlight whitespace</label></div>
        <div class="checkbox"><label><input type="checkbox" id="setting_highlightTrailingWhitespace" ${settings.highlightTrailingWhitespace ? 'checked' : ''}> Highlight unwanted trailing whitespace</label></div>
        <div class="checkbox"><label><input type="checkbox" id="setting_closeBrackets" ${settings.closeBrackets ? 'checked' : ''}> Automatically add and remove closing brackets</label></div>
+       ${showInternal ? `
        <hr>
        <h5>8bitworkshop IDE internal settings</h5>
        <div class="checkbox"><label><input type="checkbox" id="setting_debugHighlightTags" ${settings.debugHighlightTags ? 'checked' : ''}> Debug editor syntax highlighting tags</label></div>
+       ` : ''}
       </form>`,
     buttons: {
       cancel: {
@@ -116,7 +120,7 @@ export function openSettings() {
           settings.highlightWhitespace = $('#setting_highlightWhitespace').is(':checked');
           settings.highlightTrailingWhitespace = $('#setting_highlightTrailingWhitespace').is(':checked');
           settings.closeBrackets = $('#setting_closeBrackets').is(':checked');
-          settings.debugHighlightTags = $('#setting_debugHighlightTags').is(':checked');
+          if (showInternal) settings.debugHighlightTags = $('#setting_debugHighlightTags').is(':checked');
           saveSettings(settings);
           applySettingsToAll(settings);
         }

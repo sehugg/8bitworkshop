@@ -703,6 +703,10 @@ export function replaceAll(s:string, search:string, replace:string) : string {
   return s.split(search).join(replace);
 }
 
+export function isProductionHost() : boolean {
+  return typeof window != 'undefined' && window.location.host.endsWith('8bitworkshop.com');
+}
+
 export function getCookie(name: string) : string {
   var nameEQ = name + "=";
   var ca = document.cookie.split(';');
