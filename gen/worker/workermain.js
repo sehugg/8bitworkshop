@@ -13,6 +13,13 @@ function setupRequireFunction() {
         }
     };
     wasmutils_1.emglobal['require'] = (modname) => {
+        // Emscripten glue may ask for Node builtins when running outside the browser
+        if (modname === 'path' || modname === 'fs') {
+            try {
+                return require(modname);
+            }
+            catch (e) { }
+        }
         console.log('require', modname, exports[modname] != null);
         return exports[modname];
     };

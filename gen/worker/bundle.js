@@ -15046,6 +15046,12 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       }
     };
     emglobal["require"] = (modname) => {
+      if (modname === "path" || modname === "fs") {
+        try {
+          return __require(modname);
+        } catch (e) {
+        }
+      }
       console.log("require", modname, exports2[modname] != null);
       return exports2[modname];
     };
