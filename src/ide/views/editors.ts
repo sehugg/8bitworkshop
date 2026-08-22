@@ -8,7 +8,7 @@ import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActive
 import { CodeAnalyzer } from "../../common/analysis";
 import { ProbeFlags, ProbeRecorder } from "../../common/probe";
 import { getFilenameForPath, getFolderForPath, hex, rpad } from "../../common/util";
-import { getIncludeDirs, getIncludePatterns, getLinkPatterns, getPreloadFSName, getSystemIncludePatterns } from "../../common/toolmeta";
+import { getIncludeDirs, getIncludePatterns, getLinkPatterns, getSharedFileSystemName, getSystemIncludePatterns } from "../../common/toolmeta";
 import { WorkerMessage } from "../../common/workertypes";
 import { SourceFile, SourceLocation, WorkerError } from "../../common/workertypes";
 import { asm6502 } from "../../parser/lang-6502";
@@ -965,14 +965,18 @@ const sharedFileCache = new Map<string, Promise<string | null>>();
 
 export function lookupSharedFileText(fn: string): Promise<string | null> {
   const tool = current_project.getToolForFilename(current_project.mainPath);
-  const fsName = getPreloadFSName(tool, current_project.platform_id);
-  const dirs = getIncludeDirs(tool);
+  const fsName = getSharedFileSystemName(tool, current_project.platform_id);
+  const dirs = getIncludeDirs(tool, current_project.platform_id);
   if (!fsName || !dirs.length) return Promise.resolve(null);
   const key = fsName + ':' + fn;
   if (!sharedFileCache.has(key)) {
     sharedFileCache.set(key, (async () => {
-      for (var dir of dirs) {
-        var msg = { preload_fs: fsName, readshared: dir + '/' + fn, updates: [], buildsteps: [] } as WorkerMessage;
+      // try the include under each known dir (e.g. /headers/vcs.h for "vcs.h"),
+      // then the filename as-is (some includes already carry the dir,
+      // e.g. "headers/vcs.h")
+      var candidates = [...dirs.map(dir => dir + '/' + fn), fn];
+      for (var path of candidates) {
+        var msg = { preload_fs: fsName, readshared: path, updates: [], buildsteps: [] } as WorkerMessage;
         var result = await current_project.queryWorker(msg);
         var output = result && (result as any).output;
         if (output instanceof Uint8Array && output.length > 0) {

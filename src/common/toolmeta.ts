@@ -22,6 +22,8 @@
  * (unless noWorkerBuild) and vice versa.
  */
 
+import { getRootBasePlatform } from "./util";
+
 export type ToolKind =
   | 'compiler'      // source -> object/output (cc65, sdcc, cmoc, oscar64, ...)
   | 'assembler'     // asm -> object (dasm, acme, ca65, ...)
@@ -94,11 +96,15 @@ export interface ToolMeta {
   includePatterns?: (RegExp | ToolIncludePattern)[];
   /** regexes matching link directives, used for dependency parsing */
   linkPatterns?: (RegExp | ToolIncludePattern)[];
-  /** directories inside the preload FS containing searchable shared code
+  /** directories inside the shared filesystem containing searchable shared code
    *  (headers, asm includes). Paths are relative to the FS root as they appear
-   *  in the filesystem package metadata, e.g. ['/include', '/asminc'].
-   *  Only meaningful when paired with platforms[].preloadFS. */
+   *  in the filesystem metadata, e.g. ['/include', '/asminc', '/headers'].
+   *  Used with platforms[].preloadFS or wasiFSZip. */
   includeDirs?: string[];
+  /** name of a WASI filesystem zip (in src/worker/fs/) that contains the
+   *  toolchain's headers, for tools that don't use an emscripten preloadFS
+   *  package (e.g. cc2600/cc7800). Referenced as 'wasi:<name>' in worker msgs. */
+  wasiFSZip?: string;
 
   // ---- per-platform metadata (was TOOL_PRELOADFS / PLATFORM_PARAMS) ----
 
@@ -374,7 +380,8 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   cmoc: {
     id: 'cmoc', name: 'CMOC', kind: 'compiler', arch: '6809',
     extensions: ['.c', '.h'],
-    includeDirs: ['/include'],
+    // NOTE: no bundled filesystem -- the compiler passes -I/share/include but
+    // never mounts one, so system headers can't be linked in the UI
     editorStyle: 'text/x-csrc',
     helpURL: 'http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html',
     wasmModule: 'cmoc',
@@ -420,6 +427,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     id: 'armtcc', name: 'TCC (ARM)', kind: 'compiler', arch: 'arm32',
     extensions: ['.c', '.s'],
     includeDirs: ['/include'],
+    wasiFSZip: 'arm32-fs.zip',
     editorStyle: 'text/x-csrc',
     wasmModule: 'arm-tcc',
     includePatterns: SHARED_INCLUDE_PATTERNS,
@@ -437,7 +445,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   smlrc: {
     id: 'smlrc', name: 'SmallerC', kind: 'compiler', arch: 'x86',
     extensions: ['.c'],
-    includeDirs: ['/include'],
+    // NOTE: no bundled filesystem and no -I arg -- no headers to link in the UI
     editorStyle: 'text/x-csrc',
     wasmModule: 'smlrc',
     includePatterns: SHARED_INCLUDE_PATTERNS,
@@ -459,6 +467,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     id: 'oscar64', name: 'Oscar64', kind: 'compiler', arch: '6502',
     extensions: ['.c', '.cpp', '.cc', '.o64'],
     includeDirs: ['/include'],
+    wasiFSZip: 'oscar64-fs.zip',
     editorStyle: 'text/x-csrc',
     helpURL: 'https://github.com/drmortalwombat/oscar64/blob/main/oscar64.md',
     wasmModule: 'oscar64',
@@ -494,6 +503,8 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     extensions: ['.cc2600'],
     editorStyle: 'text/x-csrc',
     wasmModule: 'cc2600',
+    wasiFSZip: 'cc2600-fs.zip',
+    includeDirs: ['/headers'],
     includePatterns: SHARED_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
   },
@@ -503,6 +514,8 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     extensions: ['.cc7800', '.c78'],
     editorStyle: 'text/x-csrc',
     wasmModule: 'cc7800',
+    wasiFSZip: 'cc7800-fs.zip',
+    includeDirs: ['/headers'],
     includePatterns: SHARED_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
   },
@@ -518,7 +531,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   wiz: {
     id: 'wiz', name: 'wiz', kind: 'compiler',
     extensions: ['.wiz'],
-    includeDirs: ['/common'],
+    includeDirs: ['/common/$platform'],
     editorStyle: 'text/x-wiz',
     helpURL: 'https://github.com/wiz-lang/wiz/blob/master/readme.md#wiz',
     wasmModule: 'wiz',
@@ -552,6 +565,8 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     editorStyle: 'dialog',
     helpURL: 'https://linusakesson.net/dialog/docs/',
     wasmModule: 'dialogc',
+    wasiFSZip: 'dialog-fs.zip',
+    includeDirs: ['/'],
     includePatterns: DIALOG_INCLUDE_PATTERNS,
   },
 
@@ -672,7 +687,7 @@ export function getSkeletonName(tool: string): string {
  * worked before this registry. A tool that really has no include directives
  * says so with an explicit empty list.
  */
-export function getIncludePatterns(tool?: string, platform?: string): (RegExp | ToolIncludePattern)[] {
+export function getIncludePatterns(tool: string, platform?: string): (RegExp | ToolIncludePattern)[] {
   let meta = tool && getToolMeta(tool);
   if (meta && meta.includePatterns) return meta.includePatterns;
   if (platform && platform.startsWith('verilog')) return VERILOG_INCLUDE_PATTERNS;
@@ -680,7 +695,7 @@ export function getIncludePatterns(tool?: string, platform?: string): (RegExp | 
 }
 
 /** Link patterns ("//#link") to use when scanning a source file. */
-export function getLinkPatterns(tool?: string, platform?: string): (RegExp | ToolIncludePattern)[] {
+export function getLinkPatterns(tool: string, platform?: string): (RegExp | ToolIncludePattern)[] {
   let meta = tool && getToolMeta(tool);
   if (meta && meta.linkPatterns) return meta.linkPatterns;
   if (platform && platform.startsWith('verilog')) return [];
@@ -688,12 +703,28 @@ export function getLinkPatterns(tool?: string, platform?: string): (RegExp | Too
 }
 
 /**
- * Directories containing shared code (headers etc.) for this tool's preload
- * filesystem, e.g. ['/include','/asminc'] -- empty if none/unknown.
+ * Directories containing shared code (headers etc.) for this tool's shared
+ * filesystem, e.g. ['/include','/asminc','/headers'] -- empty if none/unknown.
  */
-export function getIncludeDirs(tool?: string): string[] {
+export function getIncludeDirs(tool: string, platform_id: string): string[] {
+  platform_id = platform_id && getRootBasePlatform(platform_id);
   let meta = tool && getToolMeta(tool);
-  return (meta && meta.includeDirs) || [];
+  let out = (meta && meta.includeDirs) || [];
+  out = out.map(s => s.replace('$platform', platform_id));
+  return out;
+}
+
+/**
+ * Name of the shared filesystem to query for this tool's bundled files:
+ * either the emscripten preloadFS package name (e.g. '65-nes') or, for tools
+ * with a WASI filesystem zip (e.g. cc2600), 'wasi:<zipname>'.
+ * Undefined if the tool has no bundled filesystem.
+ */
+export function getSharedFileSystemName(tool: string, platform?: string): string | undefined {
+  var fsName = getPreloadFSName(tool, platform);
+  if (fsName) return fsName;
+  let meta = tool && getToolMeta(tool);
+  return (meta && meta.wasiFSZip) ? 'wasi:' + meta.wasiFSZip : undefined;
 }
 
 /**

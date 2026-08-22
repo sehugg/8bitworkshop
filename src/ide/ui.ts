@@ -289,10 +289,10 @@ var openHeaderViews: string[] = [];
 export function openHeaderFile(fn: string) {
   if (!openHeaderViews.includes(fn)) {
     openHeaderViews.push(fn);
-    projectWindows.setCreateFunc('#headerview/' + encodeURIComponent(fn), () => new HeaderView(fn));
+    projectWindows.setCreateFunc('#headerview/' + fn, () => new HeaderView(fn));
     refreshWindowList();
   }
-  var hash = '#headerview/' + encodeURIComponent(fn);
+  var hash = '#headerview/' + fn;
   if (window.location.hash !== hash) {
     window.location.hash = hash.substring(1);
   }
@@ -369,7 +369,7 @@ function refreshWindowList() {
 
   // add opened toolchain headers (from include badges)
   for (let hdrfn of openHeaderViews) {
-    let hdrid = '#headerview/' + encodeURIComponent(hdrfn);
+    let hdrid = '#headerview/' + hdrfn;
     projectWindows.setCreateFunc(hdrid, () => new HeaderView(hdrfn));
     addWindowItem(hdrid, getFilenameForPath(hdrfn), () => {
       return new HeaderView(hdrfn);

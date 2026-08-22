@@ -115,6 +115,24 @@ describe('Worker', function() {
     assert.equal(msg.output, null);
     assert.equal(msg.qid, 125);
   });
+  it('should list shared files in WASI filesystem zip', async function() {
+    var msg = await queryWorker({preload_fs:'wasi:cc7800-fs.zip', listshared:'/headers', updates:[], buildsteps:[], qid:126});
+    assert.ok(Array.isArray(msg.output));
+    assert.ok(msg.output.length > 0);
+    assert.ok(msg.output.includes('headers/prosystem.h'));
+    assert.equal(msg.qid, 126);
+  });
+  it('should read a shared header from WASI filesystem zip', async function() {
+    var msg = await queryWorker({preload_fs:'wasi:cc2600-fs.zip', readshared:'/headers/vcs.h', updates:[], buildsteps:[], qid:127});
+    assert.ok(msg.output instanceof Uint8Array);
+    assert.ok(msg.output.length > 100);
+    assert.equal(msg.qid, 127);
+  });
+  it('should return null for missing file in WASI filesystem zip', async function() {
+    var msg = await queryWorker({preload_fs:'wasi:cc2600-fs.zip', readshared:'/headers/nosuchfile.h', updates:[], buildsteps:[], qid:128});
+    assert.equal(msg.output, null);
+    assert.equal(msg.qid, 128);
+  });
   it('should assemble DASM', function(done) {
     compile('dasm', '\tprocessor 6502\n\torg $f000\n MAC mack\n lda #0\n ENDM\nfoo: mack\n mack\n', 'vcs.mame', done, 4, 4);
   });

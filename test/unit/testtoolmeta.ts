@@ -3,7 +3,7 @@ import { describe, it } from "mocha";
 import {
   TOOL_META, getToolMeta, getToolMetaForFilename, getPreloadFSName, getSkeletonName,
   getIncludePatterns, getLinkPatterns, matchDependencyPatterns,
-  getSystemIncludePatterns, SYSTEM_INCLUDE_PATTERNS
+  getSystemIncludePatterns, SYSTEM_INCLUDE_PATTERNS, getSharedFileSystemName
 } from "../../src/common/toolmeta";
 // Node-friendly worker entry point (re-exports TOOLS without Worker wiring)
 import { TOOLS } from "../../src/worker/workerlib";
@@ -117,6 +117,24 @@ describe('Tool metadata registry', function () {
     assert.deepStrictEqual(deps('  # include <atari7800.h>\n', 'cc65'), ['atari7800.h']);
     // quoted includes are not matched by the system patterns
     assert.deepStrictEqual(deps('#include "foo.h"\n', 'cc65'), []);
+  });
+
+  it('resolves shared filesystem names for all tools with includeDirs', function () {
+    // preloadFS-backed tools
+    assert.equal(getSharedFileSystemName('cc65', 'nes'), '65-nes');
+    assert.equal(getSharedFileSystemName('sdcc', 'coleco'), 'sdcc');
+    assert.equal(getSharedFileSystemName('bataribasic', 'vcs'), '2600basic');
+    assert.equal(getSharedFileSystemName('wiz'), 'wiz');
+    // WASI zip-backed tools (cc2600/cc7800/armtcc/oscar64/dialog)
+    assert.equal(getSharedFileSystemName('cc2600'), 'wasi:cc2600-fs.zip');
+    assert.equal(getSharedFileSystemName('cc7800'), 'wasi:cc7800-fs.zip');
+    assert.equal(getSharedFileSystemName('armtcc'), 'wasi:arm32-fs.zip');
+    assert.equal(getSharedFileSystemName('oscar64'), 'wasi:oscar64-fs.zip');
+    assert.equal(getSharedFileSystemName('dialog'), 'wasi:dialog-fs.zip');
+    // tools without a bundled filesystem
+    assert.equal(getSharedFileSystemName('cmoc'), undefined);
+    assert.equal(getSharedFileSystemName('smlrc'), undefined);
+    assert.equal(getSharedFileSystemName('dasm'), undefined);
   });
 
   it('matches link directives only for tools that link', function () {
