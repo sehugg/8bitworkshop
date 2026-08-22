@@ -1305,14 +1305,20 @@ function resetAndDebug() {
 function _breakExpression() {
   var modal = $("#debugExprModal");
   var btn = $("#debugExprSubmit");
-  $("#debugExprInput").val(lastBreakExpr);
+  var input = $("#debugExprInput");
+  input.val(lastBreakExpr);
   $("#debugExprExamples").text(getDebugExprExamples());
   modal.modal('show');
-  btn.off('click').on('click', () => {
-    var exprs = $("#debugExprInput").val() + "";
+  var submit = () => {
+    var exprs = input.val() + "";
     modal.modal('hide');
     breakExpression(exprs);
+  };
+  btn.off('click').on('click', submit);
+  input.off('keydown').on('keydown', (e) => {
+    if (e.key == 'Enter') submit();
   });
+  modal.one('shown.bs.modal', () => input.trigger('focus'));
 }
 
 function getDebugExprExamples(): string {
