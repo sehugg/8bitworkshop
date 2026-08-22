@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.debugHighlightTagsCompartment = exports.tabsToSpacesCompartment = exports.closeBracketsCompartment = exports.tabSizeCompartment = exports.highlightTrailingWhitespaceCompartment = exports.highlightWhitespaceCompartment = exports.highlightSpecialCharsCompartment = void 0;
+exports.lineNumbersCompartment = exports.debugHighlightTagsCompartment = exports.tabsToSpacesCompartment = exports.closeBracketsCompartment = exports.tabSizeCompartment = exports.highlightTrailingWhitespaceCompartment = exports.highlightWhitespaceCompartment = exports.highlightSpecialCharsCompartment = void 0;
 exports.loadSettings = loadSettings;
 exports.saveSettings = saveSettings;
 exports.settingsExtensions = settingsExtensions;
@@ -22,6 +22,7 @@ exports.tabSizeCompartment = new state_1.Compartment();
 exports.closeBracketsCompartment = new state_1.Compartment();
 exports.tabsToSpacesCompartment = new state_1.Compartment();
 exports.debugHighlightTagsCompartment = new state_1.Compartment();
+exports.lineNumbersCompartment = new state_1.Compartment();
 const SETTINGS_KEY = "8bitworkshop/editorSettings";
 const defaultSettings = {
     tabSize: 8,
@@ -31,6 +32,7 @@ const defaultSettings = {
     highlightTrailingWhitespace: false,
     closeBrackets: false,
     debugHighlightTags: false,
+    showLineNumbers: false,
 };
 function loadSettings() {
     try {
@@ -53,6 +55,7 @@ const compartmentValues = [
     [exports.highlightTrailingWhitespaceCompartment, s => s.highlightTrailingWhitespace ? (0, view_1.highlightTrailingWhitespace)() : []],
     [exports.closeBracketsCompartment, s => s.closeBrackets ? [(0, autocomplete_1.closeBrackets)(), view_1.keymap.of([{ key: "Backspace", run: autocomplete_1.deleteBracketPair }])] : []],
     [exports.debugHighlightTagsCompartment, s => s.debugHighlightTags ? debug_1.debugHighlightTagsTooltip : []],
+    [exports.lineNumbersCompartment, s => s.showLineNumbers ? (0, view_1.lineNumbers)() : []],
 ];
 function settingsExtensions(settings) {
     return compartmentValues.map(([c, fn]) => c.of(fn(settings)));
@@ -84,6 +87,7 @@ function openSettings() {
        <div class="checkbox"><label><input type="checkbox" id="setting_highlightSpecialChars" ${settings.highlightSpecialChars ? 'checked' : ''}> Highlight special characters</label></div>
        <div class="checkbox"><label><input type="checkbox" id="setting_highlightWhitespace" ${settings.highlightWhitespace ? 'checked' : ''}> Highlight whitespace</label></div>
        <div class="checkbox"><label><input type="checkbox" id="setting_highlightTrailingWhitespace" ${settings.highlightTrailingWhitespace ? 'checked' : ''}> Highlight unwanted trailing whitespace</label></div>
+       <div class="checkbox"><label><input type="checkbox" id="setting_showLineNumbers" ${settings.showLineNumbers ? 'checked' : ''}> Show line numbers</label></div>
        <div class="checkbox"><label><input type="checkbox" id="setting_closeBrackets" ${settings.closeBrackets ? 'checked' : ''}> Automatically add and remove closing brackets</label></div>
        ${showInternal ? `
        <hr>
@@ -106,6 +110,7 @@ function openSettings() {
                     settings.highlightWhitespace = $('#setting_highlightWhitespace').is(':checked');
                     settings.highlightTrailingWhitespace = $('#setting_highlightTrailingWhitespace').is(':checked');
                     settings.closeBrackets = $('#setting_closeBrackets').is(':checked');
+                    settings.showLineNumbers = $('#setting_showLineNumbers').is(':checked');
                     if (showInternal)
                         settings.debugHighlightTags = $('#setting_debugHighlightTags').is(':checked');
                     saveSettings(settings);
