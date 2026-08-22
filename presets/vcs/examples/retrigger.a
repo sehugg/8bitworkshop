@@ -392,6 +392,7 @@ Frame0
         .byte #%01111110;$FA
         .byte #%00111110;$FA
         .byte #%01000001;$FA
+;;
 ;;{pal:"vcs"};;
 ColorFrame0
 	.byte #10	; height

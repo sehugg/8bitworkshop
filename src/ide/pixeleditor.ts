@@ -291,7 +291,9 @@ export function convertWordsToImages(words:UintArray, fmt:PixelEditorImageFormat
 }
 
 function computeRequiredWords(fmt): number {
-  // same variables as convertWordsToImages
+  // mirrors the addressing performed by convertWordsToImages: the data must cover
+  // every word the converter can read, and must also span the full per-image block
+  // extent (wpimg * count), e.g. hardware sprite strides larger than the visible rows.
   var count = fmt.count || 1;
   var bpp = fmt.bpp || 1;
   var nplanes = fmt.np || 1;
@@ -300,29 +302,29 @@ function computeRequiredWords(fmt): number {
   var pofs = fmt.pofs || wordsperline * fmt.h * count;
   var skip = fmt.skip || 0;
   var wpimg = fmt.wpimg || (fmt.map === 'nesnt' ? 1024 : wordsperline * fmt.h);
+  var rowstride = wordsperline;
+  if (fmt.il) { wpimg = wordsperline; rowstride = wordsperline * count; }
 
-  var maxOffset = 0;
-  for (var n = 0; n < count; n++) {
-    for (var i = 0; i < wpimg; i++) {
-      var offset0 = wpimg * n + i;
-      var offset;
-      if (fmt.reindex) {
-        var maxReindexOfs = 0;
-        for (var x = 0; x < fmt.w; x++) {
-          maxReindexOfs = Math.max(maxReindexOfs, reindexMask(x, fmt.reindex)[0]);
-        }
-        offset = offset0 + maxReindexOfs;
-      } else {
-        offset = remapBits(offset0, fmt.remap);
-      }
-      maxOffset = Math.max(maxOffset, offset);
+  var maxReindexOfs = 0;
+  if (fmt.reindex) {
+    for (var x = 0; x < fmt.w; x++) {
+      maxReindexOfs = Math.max(maxReindexOfs, reindexMask(x, fmt.reindex)[0]);
     }
   }
-  // Planar formats (e.g. NES pofs>=wpimg) store extra planes past each image block.
-  // Interleaved formats (GB/SMS pofs < wpimg) already include plane bytes in maxOffset.
-  var planeExtent = (nplanes > 1) ? (nplanes - 1) * pofs : 0;
-  if (planeExtent < wpimg) planeExtent = 0;
-  return maxOffset + planeExtent + 1 + skip;
+  var maxAddr = 0;
+  for (var n = 0; n < count; n++) {
+    for (var y = 0; y < fmt.h; y++) {
+      var yp = fmt.flip ? fmt.h - 1 - y : y;
+      var ofs0 = wpimg * n + yp * rowstride;
+      var steps = Math.ceil(fmt.w * bpp / bitsperword);
+      for (var s = 0; s < steps; s++) {
+        var ofs = fmt.reindex ? (ofs0 + maxReindexOfs) : remapBits(ofs0, fmt.remap);
+        maxAddr = Math.max(maxAddr, ofs + (nplanes - 1) * pofs + skip);
+        ofs0++;
+      }
+    }
+  }
+  return Math.max(wpimg * count, maxAddr + 1);
 }
 
 export function validateAssetData(datastr: string, fmt): string | null {
