@@ -218,6 +218,58 @@ export function listSharedFiles(name: string, dir: string): string[] {
   return result.sort();
 }
 
+/// shared code in WASI filesystem zips (e.g. cc2600/cc7800 headers)
+// referenced by worker msgs as 'wasi:<zipname>'
+
+import { loadWASIFilesystemZip } from './wasiutils';
+import type { WASIMemoryFilesystem } from '../common/wasi/wasishim';
+
+var wasiFilesystems: { [zipname: string]: WASIMemoryFilesystem } = {};
+
+export async function ensureWasiFilesystem(zipname: string): Promise<WASIMemoryFilesystem | null> {
+  try {
+    if (!wasiFilesystems[zipname]) {
+      wasiFilesystems[zipname] = await loadWASIFilesystemZip(zipname);
+    }
+    return wasiFilesystems[zipname];
+  } catch (e) {
+    console.log('Error loading WASI filesystem', zipname, e);
+    return null;
+  }
+}
+
+// zip entries are stored under '<path>' (rootPath './' adds a './' prefix);
+// strip it plus any leading '/' so '/headers/vcs.h' matches 'headers/vcs.h'
+function normalizeWasiPath(path: string): string {
+  path = path.startsWith('./') ? path.substring(2) : path;
+  return path.startsWith('/') ? path.substring(1) : path;
+}
+
+/** Read a file from a WASI filesystem zip. Returns null if not found. */
+export async function readWasiSharedFile(zipname: string, path: string): Promise<Uint8Array | null> {
+  let fs = await ensureWasiFilesystem(zipname);
+  if (!fs) return null;
+  let norm = normalizeWasiPath(path);
+  // zip entries are stored under './<path>', so try both key forms
+  let fd = fs.getFile(norm) || fs.getFile('./' + norm);
+  if (!fd || !fd.size) return null;
+  let data = new Uint8Array(fd.size);
+  fd.offset = 0;
+  fd.read(data);
+  return data;
+}
+
+/** List files under a directory prefix (e.g. '/headers') of a WASI filesystem zip. */
+export async function listWasiSharedFiles(zipname: string, dir: string): Promise<string[]> {
+  let fs = await ensureWasiFilesystem(zipname);
+  if (!fs) return [];
+  let prefix = normalizeWasiPath(dir) + '/';
+  return fs.getFiles()
+    .map(f => normalizeWasiPath(f.name))
+    .filter(name => name.startsWith(prefix))
+    .sort();
+}
+
 /** Read a file from a filesystem package blob. Returns null if not found.
  *  Async because Blob reading is async; call from worker message handlers. */
 export async function readSharedFile(name: string, path: string): Promise<Uint8Array | null> {

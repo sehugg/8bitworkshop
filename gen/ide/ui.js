@@ -291,10 +291,10 @@ var openHeaderViews = [];
 function openHeaderFile(fn) {
     if (!openHeaderViews.includes(fn)) {
         openHeaderViews.push(fn);
-        exports.projectWindows.setCreateFunc('#headerview/' + encodeURIComponent(fn), () => new editors_1.HeaderView(fn));
+        exports.projectWindows.setCreateFunc('#headerview/' + fn, () => new editors_1.HeaderView(fn));
         refreshWindowList();
     }
-    var hash = '#headerview/' + encodeURIComponent(fn);
+    var hash = '#headerview/' + fn;
     if (window.location.hash !== hash) {
         window.location.hash = hash.substring(1);
     }
@@ -364,7 +364,7 @@ function refreshWindowList() {
     }
     // add opened toolchain headers (from include badges)
     for (let hdrfn of openHeaderViews) {
-        let hdrid = '#headerview/' + encodeURIComponent(hdrfn);
+        let hdrid = '#headerview/' + hdrfn;
         exports.projectWindows.setCreateFunc(hdrid, () => new editors_1.HeaderView(hdrfn));
         addWindowItem(hdrid, (0, util_1.getFilenameForPath)(hdrfn), () => {
             return new editors_1.HeaderView(hdrfn);
@@ -2214,7 +2214,7 @@ async function startUI() {
     }
     // repo= given, but not imported yet? offer to import it from github
     // (repo can be "user/repo" or "user/repo/tree/branch/...")
-    if (hasLocalStorage && exports.qs.repo && !(0, services_1.getRepos)()[exports.qs.repo]) {
+    if (hasLocalStorage && exports.qs.repo && !(0, services_1.getRepos)()[exports.qs.repo] && exports.qs.repo !== '/') {
         if (confirm(`Repository '${exports.qs.repo}' was not found locally. Import it from GitHub?`)) {
             (0, sync_1.importProjectFromGithub)('https://github.com/' + exports.qs.repo, true);
             return;

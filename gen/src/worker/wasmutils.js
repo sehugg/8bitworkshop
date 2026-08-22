@@ -16,6 +16,9 @@ exports.setupFS = setupFS;
 exports.ensureFilesystem = ensureFilesystem;
 exports.getSharedFileEntry = getSharedFileEntry;
 exports.listSharedFiles = listSharedFiles;
+exports.ensureWasiFilesystem = ensureWasiFilesystem;
+exports.readWasiSharedFile = readWasiSharedFile;
+exports.listWasiSharedFiles = listWasiSharedFiles;
 exports.readSharedFile = readSharedFile;
 exports.setupStdin = setupStdin;
 const builder_1 = require("./builder");
@@ -218,6 +221,54 @@ function listSharedFiles(name, dir) {
             result.push(f.filename);
     }
     return result.sort();
+}
+/// shared code in WASI filesystem zips (e.g. cc2600/cc7800 headers)
+// referenced by worker msgs as 'wasi:<zipname>'
+const wasiutils_1 = require("./wasiutils");
+var wasiFilesystems = {};
+async function ensureWasiFilesystem(zipname) {
+    try {
+        if (!wasiFilesystems[zipname]) {
+            wasiFilesystems[zipname] = await (0, wasiutils_1.loadWASIFilesystemZip)(zipname);
+        }
+        return wasiFilesystems[zipname];
+    }
+    catch (e) {
+        console.log('Error loading WASI filesystem', zipname, e);
+        return null;
+    }
+}
+// zip entries are stored under '<path>' (rootPath './' adds a './' prefix);
+// strip it plus any leading '/' so '/headers/vcs.h' matches 'headers/vcs.h'
+function normalizeWasiPath(path) {
+    path = path.startsWith('./') ? path.substring(2) : path;
+    return path.startsWith('/') ? path.substring(1) : path;
+}
+/** Read a file from a WASI filesystem zip. Returns null if not found. */
+async function readWasiSharedFile(zipname, path) {
+    let fs = await ensureWasiFilesystem(zipname);
+    if (!fs)
+        return null;
+    let norm = normalizeWasiPath(path);
+    // zip entries are stored under './<path>', so try both key forms
+    let fd = fs.getFile(norm) || fs.getFile('./' + norm);
+    if (!fd || !fd.size)
+        return null;
+    let data = new Uint8Array(fd.size);
+    fd.offset = 0;
+    fd.read(data);
+    return data;
+}
+/** List files under a directory prefix (e.g. '/headers') of a WASI filesystem zip. */
+async function listWasiSharedFiles(zipname, dir) {
+    let fs = await ensureWasiFilesystem(zipname);
+    if (!fs)
+        return [];
+    let prefix = normalizeWasiPath(dir) + '/';
+    return fs.getFiles()
+        .map(f => normalizeWasiPath(f.name))
+        .filter(name => name.startsWith(prefix))
+        .sort();
 }
 /** Read a file from a filesystem package blob. Returns null if not found.
  *  Async because Blob reading is async; call from worker message handlers. */

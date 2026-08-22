@@ -2775,7 +2775,8 @@
       kind: "compiler",
       arch: "6809",
       extensions: [".c", ".h"],
-      includeDirs: ["/include"],
+      // NOTE: no bundled filesystem -- the compiler passes -I/share/include but
+      // never mounts one, so system headers can't be linked in the UI
       editorStyle: "text/x-csrc",
       helpURL: "http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html",
       wasmModule: "cmoc",
@@ -2830,6 +2831,7 @@
       arch: "arm32",
       extensions: [".c", ".s"],
       includeDirs: ["/include"],
+      wasiFSZip: "arm32-fs.zip",
       editorStyle: "text/x-csrc",
       wasmModule: "arm-tcc",
       includePatterns: SHARED_INCLUDE_PATTERNS,
@@ -2850,7 +2852,7 @@
       kind: "compiler",
       arch: "x86",
       extensions: [".c"],
-      includeDirs: ["/include"],
+      // NOTE: no bundled filesystem and no -I arg -- no headers to link in the UI
       editorStyle: "text/x-csrc",
       wasmModule: "smlrc",
       includePatterns: SHARED_INCLUDE_PATTERNS,
@@ -2875,6 +2877,7 @@
       arch: "6502",
       extensions: [".c", ".cpp", ".cc", ".o64"],
       includeDirs: ["/include"],
+      wasiFSZip: "oscar64-fs.zip",
       editorStyle: "text/x-csrc",
       helpURL: "https://github.com/drmortalwombat/oscar64/blob/main/oscar64.md",
       wasmModule: "oscar64",
@@ -2916,6 +2919,8 @@
       extensions: [".cc2600"],
       editorStyle: "text/x-csrc",
       wasmModule: "cc2600",
+      wasiFSZip: "cc2600-fs.zip",
+      includeDirs: ["/headers"],
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2927,6 +2932,8 @@
       extensions: [".cc7800", ".c78"],
       editorStyle: "text/x-csrc",
       wasmModule: "cc7800",
+      wasiFSZip: "cc7800-fs.zip",
+      includeDirs: ["/headers"],
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2943,7 +2950,7 @@
       name: "wiz",
       kind: "compiler",
       extensions: [".wiz"],
-      includeDirs: ["/common"],
+      includeDirs: ["/common/$platform"],
       editorStyle: "text/x-wiz",
       helpURL: "https://github.com/wiz-lang/wiz/blob/master/readme.md#wiz",
       wasmModule: "wiz",
@@ -2983,6 +2990,8 @@
       editorStyle: "dialog",
       helpURL: "https://linusakesson.net/dialog/docs/",
       wasmModule: "dialogc",
+      wasiFSZip: "dialog-fs.zip",
+      includeDirs: ["/"],
       includePatterns: DIALOG_INCLUDE_PATTERNS
     },
     // ---- verilog / HDL ----
@@ -5799,6 +5808,632 @@
     "MODERN": MODERN_BASIC
   };
 
+  // src/worker/wasiutils.ts
+  var import_jszip = __toESM(require_jszip_min());
+
+  // src/common/wasi/wasishim.ts
+  var use_debug = false;
+  var debug = use_debug ? console.log : () => {
+  };
+  var warning = console.log;
+  var WASIFileDescriptor = class {
+    constructor(name, type, rights) {
+      this.name = name;
+      this.type = type;
+      this.rights = rights;
+      this.fdindex = -1;
+      this.data = new Uint8Array(16);
+      this.flags = 0;
+      this.size = 0;
+      this.offset = 0;
+      this.rights = -1;
+    }
+    ensureCapacity(size) {
+      if (this.data.byteLength < size) {
+        const newdata = new Uint8Array(size * 2);
+        newdata.set(this.data);
+        this.data = newdata;
+      }
+    }
+    write(chunk) {
+      this.ensureCapacity(this.offset + chunk.byteLength);
+      this.data.set(chunk, this.offset);
+      this.offset += chunk.byteLength;
+      this.size = Math.max(this.size, this.offset);
+    }
+    read(chunk) {
+      const len = Math.min(chunk.byteLength, this.size - this.offset);
+      chunk.set(this.data.subarray(this.offset, this.offset + len));
+      this.offset += len;
+      return len;
+    }
+    truncate() {
+      this.size = 0;
+      this.offset = 0;
+    }
+    llseek(offset, whence) {
+      switch (whence) {
+        case 0:
+          this.offset = offset;
+          break;
+        case 1:
+          this.offset += offset;
+          break;
+        case 2:
+          this.offset = this.size + offset;
+          break;
+      }
+      if (this.offset < 0) this.offset = 0;
+      if (this.offset > this.size) this.offset = this.size;
+    }
+    getBytes() {
+      return this.data.subarray(0, this.size);
+    }
+    getBytesAsString() {
+      return new TextDecoder().decode(this.getBytes());
+    }
+    toString() {
+      return `FD(${this.fdindex} "${this.name}" 0x${this.type.toString(16)} 0x${this.rights.toString(16)} ${this.offset}/${this.size}/${this.data.byteLength})`;
+    }
+  };
+  var WASIStreamingFileDescriptor = class extends WASIFileDescriptor {
+    constructor(fdindex, name, type, rights, stream) {
+      super(name, type, rights);
+      this.stream = stream;
+      this.fdindex = fdindex;
+    }
+    write(chunk) {
+      this.stream.write(chunk);
+    }
+  };
+  var WASIMemoryFilesystem = class {
+    constructor() {
+      this.parent = null;
+      this.files = /* @__PURE__ */ new Map();
+      this.dirs = /* @__PURE__ */ new Map();
+      this.putDirectory("/");
+    }
+    setParent(parent) {
+      this.parent = parent;
+    }
+    putDirectory(name, rights) {
+      if (!rights) rights = 8192 /* PATH_OPEN */ | 512 /* PATH_CREATE_DIRECTORY */ | 1024 /* PATH_CREATE_FILE */;
+      if (name != "/" && name.endsWith("/")) name = name.substring(0, name.length - 1);
+      const parent = name.substring(0, name.lastIndexOf("/"));
+      if (parent && parent != name) {
+        this.putDirectory(parent, rights);
+      }
+      const dir = new WASIFileDescriptor(name, 3 /* DIRECTORY */, rights);
+      this.dirs.set(name, dir);
+      return dir;
+    }
+    putFile(name, data, rights) {
+      if (typeof data === "string") {
+        data = new TextEncoder().encode(data);
+      }
+      if (!rights) rights = 2 /* FD_READ */ | 64 /* FD_WRITE */;
+      const file = new WASIFileDescriptor(name, 4 /* REGULAR_FILE */, rights);
+      file.write(data);
+      file.offset = 0;
+      this.files.set(name, file);
+      return file;
+    }
+    putSymbolicLink(name, target, rights) {
+      if (!rights) rights = 16777216 /* PATH_SYMLINK */;
+      const file = new WASIFileDescriptor(name, 7 /* SYMBOLIC_LINK */, rights);
+      file.write(new TextEncoder().encode(target));
+      file.offset = 0;
+      this.files.set(name, file);
+      return file;
+    }
+    getFile(name) {
+      var _a;
+      let file = this.files.get(name);
+      if (!file) {
+        file = (_a = this.parent) == null ? void 0 : _a.getFile(name);
+      }
+      return file;
+    }
+    getDirectories() {
+      return [...this.dirs.values()];
+    }
+    getFiles() {
+      return [...this.files.values()];
+    }
+  };
+  var _instance, _memarr8, _memarr32, _args, _envvars;
+  var WASIRunner = class {
+    constructor() {
+      __privateAdd(this, _instance);
+      // TODO
+      __privateAdd(this, _memarr8);
+      __privateAdd(this, _memarr32);
+      __privateAdd(this, _args, []);
+      __privateAdd(this, _envvars, []);
+      this.fds = [];
+      this.exited = false;
+      this.errno = -1;
+      this.fs = new WASIMemoryFilesystem();
+      this.createStdioBrowser();
+    }
+    exports() {
+      return __privateGet(this, _instance).exports;
+    }
+    createStdioNode() {
+      this.stdin = new WASIStreamingFileDescriptor(0, "<stdin>", 2 /* CHARACTER_DEVICE */, 2 /* FD_READ */, process.stdin);
+      this.stdout = new WASIStreamingFileDescriptor(1, "<stdout>", 2 /* CHARACTER_DEVICE */, 64 /* FD_WRITE */, process.stdout);
+      this.stderr = new WASIStreamingFileDescriptor(2, "<stderr>", 2 /* CHARACTER_DEVICE */, 64 /* FD_WRITE */, process.stderr);
+      this.fds[0] = this.stdin;
+      this.fds[1] = this.stdout;
+      this.fds[2] = this.stderr;
+    }
+    createStdioBrowser() {
+      this.stdin = new WASIFileDescriptor("<stdin>", 2 /* CHARACTER_DEVICE */, 2 /* FD_READ */);
+      this.stdout = new WASIFileDescriptor("<stdout>", 2 /* CHARACTER_DEVICE */, 64 /* FD_WRITE */);
+      this.stderr = new WASIFileDescriptor("<stderr>", 2 /* CHARACTER_DEVICE */, 64 /* FD_WRITE */);
+      this.stdin.fdindex = 0;
+      this.stdout.fdindex = 1;
+      this.stderr.fdindex = 2;
+      this.fds[0] = this.stdin;
+      this.fds[1] = this.stdout;
+      this.fds[2] = this.stderr;
+    }
+    initSync(wasmModule) {
+      __privateSet(this, _instance, new WebAssembly.Instance(wasmModule, this.getImportObject()));
+    }
+    loadSync(wasmSource) {
+      let wasmModule = new WebAssembly.Module(wasmSource);
+      this.initSync(wasmModule);
+    }
+    async loadAsync(wasmSource) {
+      let wasmModule = await WebAssembly.compile(wasmSource);
+      __privateSet(this, _instance, await WebAssembly.instantiate(wasmModule, this.getImportObject()));
+    }
+    setArgs(args) {
+      __privateSet(this, _args, args.map((arg) => new TextEncoder().encode(arg + "\0")));
+    }
+    addPreopenDirectory(name) {
+      return this.openFile(name, 2 /* DIRECTORY */ | 1 /* CREAT */);
+    }
+    openFile(path, o_flags, mode) {
+      let file = this.fs.getFile(path);
+      mode = typeof mode == "undefined" ? 438 : mode;
+      if (o_flags & 1 /* CREAT */) {
+        if (file == null) {
+          if (o_flags & 2 /* DIRECTORY */) {
+            file = this.fs.putDirectory(path);
+          } else {
+            file = this.fs.putFile(path, new Uint8Array(), 536870911 /* FD_ALL */);
+          }
+        } else {
+          if (o_flags & 8 /* TRUNC */) {
+            file.truncate();
+          } else return 28 /* INVAL */;
+        }
+      } else {
+        if (file == null) return 52 /* NOSYS */;
+        if (o_flags & 2 /* DIRECTORY */) {
+          if (file.type !== 3 /* DIRECTORY */) return 52 /* NOSYS */;
+        }
+        if (o_flags & 4 /* EXCL */) return 28 /* INVAL */;
+        if (o_flags & 8 /* TRUNC */) {
+          file.truncate();
+        } else {
+          file.llseek(0, 0);
+        }
+      }
+      file.fdindex = this.fds.length;
+      this.fds.push(file);
+      return file;
+    }
+    mem8() {
+      var _a;
+      if (!((_a = __privateGet(this, _memarr8)) == null ? void 0 : _a.byteLength)) {
+        __privateSet(this, _memarr8, new Uint8Array(__privateGet(this, _instance).exports.memory.buffer));
+      }
+      return __privateGet(this, _memarr8);
+    }
+    mem32() {
+      var _a;
+      if (!((_a = __privateGet(this, _memarr32)) == null ? void 0 : _a.byteLength)) {
+        __privateSet(this, _memarr32, new Int32Array(__privateGet(this, _instance).exports.memory.buffer));
+      }
+      return __privateGet(this, _memarr32);
+    }
+    run() {
+      try {
+        __privateGet(this, _instance).exports._start();
+        if (!this.exited) {
+          this.exited = true;
+          this.errno = 0;
+        }
+      } catch (err) {
+        if (!this.exited) throw err;
+      }
+      return this.getErrno();
+    }
+    initialize() {
+      __privateGet(this, _instance).exports._initialize();
+      return this.getErrno();
+    }
+    getImportObject() {
+      return {
+        "wasi_snapshot_preview1": this.getWASISnapshotPreview1(),
+        "env": this.getEnv()
+      };
+    }
+    peek8(ptr) {
+      return this.mem8()[ptr];
+    }
+    peek16(ptr) {
+      return this.mem8()[ptr] | this.mem8()[ptr + 1] << 8;
+    }
+    peek32(ptr) {
+      return this.mem32()[ptr >>> 2];
+    }
+    poke8(ptr, val) {
+      this.mem8()[ptr] = val;
+    }
+    poke16(ptr, val) {
+      this.mem8()[ptr] = val;
+      this.mem8()[ptr + 1] = val >> 8;
+    }
+    poke32(ptr, val) {
+      this.mem32()[ptr >>> 2] = val;
+    }
+    poke64(ptr, val) {
+      this.mem32()[ptr >>> 2] = val;
+      this.mem32()[(ptr >>> 2) + 1] = 0;
+    }
+    pokeUTF8(str, ptr, maxlen) {
+      const enc = new TextEncoder();
+      const bytes = enc.encode(str);
+      const len = Math.min(bytes.length, maxlen);
+      this.mem8().set(bytes.subarray(0, len), ptr);
+      return len;
+    }
+    peekUTF8(ptr, maxlen) {
+      const bytes = this.mem8().subarray(ptr, ptr + maxlen);
+      const dec = new TextDecoder();
+      return dec.decode(bytes);
+    }
+    getErrno() {
+      return this.errno;
+    }
+    poke_str_array_sizes(strs, count_ptr, buf_size_ptr) {
+      this.poke32(count_ptr, strs.length);
+      this.poke32(buf_size_ptr, strs.reduce((acc, arg) => acc + arg.length, 0));
+    }
+    poke_str_args(strs, argv_ptr, argv_buf_ptr) {
+      let argv = argv_ptr;
+      let argv_buf = argv_buf_ptr;
+      for (let arg of __privateGet(this, _args)) {
+        this.poke32(argv, argv_buf);
+        argv += 4;
+        for (let i = 0; i < arg.length; i++) {
+          this.poke8(argv_buf, arg[i]);
+          argv_buf++;
+        }
+      }
+    }
+    args_sizes_get(argcount_ptr, argv_buf_size_ptr) {
+      debug("args_sizes_get", argcount_ptr, argv_buf_size_ptr);
+      this.poke_str_array_sizes(__privateGet(this, _args), argcount_ptr, argv_buf_size_ptr);
+      return 0;
+    }
+    args_get(argv_ptr, argv_buf_ptr) {
+      debug("args_get", argv_ptr, argv_buf_ptr);
+      this.poke_str_args(__privateGet(this, _args), argv_ptr, argv_buf_ptr);
+      return 0;
+    }
+    environ_sizes_get(environ_count_ptr, environ_buf_size_ptr) {
+      debug("environ_sizes_get", environ_count_ptr, environ_buf_size_ptr);
+      this.poke_str_array_sizes(__privateGet(this, _envvars), environ_count_ptr, environ_buf_size_ptr);
+      return 0;
+    }
+    environ_get(environ_ptr, environ_buf_ptr) {
+      debug("environ_get", environ_ptr, environ_buf_ptr);
+      this.poke_str_args(__privateGet(this, _envvars), environ_ptr, environ_buf_ptr);
+      return 0;
+    }
+    fd_write(fd, iovs, iovs_len, nwritten_ptr) {
+      const stream = this.fds[fd];
+      const iovecs = this.mem32().subarray(iovs >>> 2, iovs + iovs_len * 8 >>> 2);
+      let total = 0;
+      for (let i = 0; i < iovs_len; i++) {
+        const ptr = iovecs[i * 2];
+        const len = iovecs[i * 2 + 1];
+        const chunk = this.mem8().subarray(ptr, ptr + len);
+        total += len;
+        stream.write(chunk);
+      }
+      this.poke32(nwritten_ptr, total);
+      debug("fd_write", fd, iovs, iovs_len, "->", total);
+      return 0;
+    }
+    fd_read(fd, iovs, iovs_len, nread_ptr) {
+      const stream = this.fds[fd];
+      const iovecs = this.mem32().subarray(iovs >>> 2, iovs + iovs_len * 8 >>> 2);
+      let total = 0;
+      for (let i = 0; i < iovs_len; i++) {
+        const ptr = iovecs[i * 2];
+        const len = iovecs[i * 2 + 1];
+        const chunk = this.mem8().subarray(ptr, ptr + len);
+        total += stream.read(chunk);
+      }
+      this.poke32(nread_ptr, total);
+      debug("fd_read", fd, iovs, iovs_len, "->", total);
+      return 0 /* SUCCESS */;
+    }
+    fd_seek(fd, offset, whence, newoffset_ptr) {
+      const file = this.fds[fd];
+      if (typeof offset == "bigint") offset = Number(offset);
+      debug("fd_seek", fd, offset, whence, file + "");
+      if (file != null) {
+        file.llseek(offset, whence);
+        this.poke64(newoffset_ptr, file.offset);
+        return 0 /* SUCCESS */;
+      }
+      return 8 /* BADF */;
+    }
+    fd_close(fd) {
+      debug("fd_close", fd);
+      const file = this.fds[fd];
+      if (file != null) {
+        this.fds[fd] = null;
+        return 0;
+      }
+      return 8 /* BADF */;
+    }
+    proc_exit(errno) {
+      debug("proc_exit", errno);
+      this.errno = errno;
+      this.exited = true;
+    }
+    fd_prestat_get(fd, prestat_ptr) {
+      const file = this.fds[fd];
+      debug("fd_prestat_get", fd, prestat_ptr, file == null ? void 0 : file.name, file == null ? void 0 : file.type);
+      if (file && file.type === 3 /* DIRECTORY */) {
+        const enc_name = new TextEncoder().encode(file.name);
+        this.poke64(prestat_ptr + 0, 0);
+        this.poke64(prestat_ptr + 8, enc_name.length);
+        return 0 /* SUCCESS */;
+      }
+      return 8 /* BADF */;
+    }
+    fd_fdstat_get(fd, fdstat_ptr) {
+      const file = this.fds[fd];
+      debug("fd_fdstat_get", fd, fdstat_ptr, file + "");
+      if (file != null) {
+        this.poke16(fdstat_ptr + 0, file.type);
+        this.poke16(fdstat_ptr + 2, file.flags);
+        this.poke64(fdstat_ptr + 8, file.rights);
+        this.poke64(fdstat_ptr + 16, file.rights);
+        return 0 /* SUCCESS */;
+      }
+      return 8 /* BADF */;
+    }
+    fd_prestat_dir_name(fd, path_ptr, path_len) {
+      const file = this.fds[fd];
+      debug("fd_prestat_dir_name", fd, path_ptr, path_len);
+      if (file != null) {
+        this.pokeUTF8(file.name, path_ptr, path_len);
+        return 0 /* SUCCESS */;
+      }
+      return 28 /* INVAL */;
+    }
+    path_open(dirfd, dirflags, path_ptr, path_len, o_flags, fs_rights_base, fs_rights_inheriting, fd_flags, fd_ptr) {
+      const dir = this.fds[dirfd];
+      if (dir == null) return 8 /* BADF */;
+      if (dir.type !== 3 /* DIRECTORY */) return 54 /* NOTDIR */;
+      const filename = this.peekUTF8(path_ptr, path_len);
+      const path = dir.name + "/" + filename;
+      const fd = this.openFile(path, o_flags, fd_flags);
+      debug(
+        "path_open",
+        path,
+        dirfd,
+        dirflags,
+        o_flags,
+        //fs_rights_base, fs_rights_inheriting,
+        fd_flags,
+        fd_ptr,
+        "->",
+        fd + ""
+      );
+      if (typeof fd === "number") return fd;
+      this.poke32(fd_ptr, fd.fdindex);
+      return 0 /* SUCCESS */;
+    }
+    random_get(ptr, len) {
+      debug("random_get", ptr, len);
+      for (let i = 0; i < len; i++) {
+        this.poke8(ptr + i, Math.floor(Math.random() * 256));
+      }
+      return 0 /* SUCCESS */;
+    }
+    path_filestat_get(dirfd, dirflags, path_ptr, path_len, filestat_ptr) {
+      const dir = this.fds[dirfd];
+      if (dir == null) return 8 /* BADF */;
+      if (dir.type !== 3 /* DIRECTORY */) return 54 /* NOTDIR */;
+      const filename = this.peekUTF8(path_ptr, path_len);
+      const path = filename.startsWith("/") ? filename : dir.name + "/" + filename;
+      const fd = this.fs.getFile(path);
+      debug("path_filestat_get", dir + "", filename, path, filestat_ptr, "->", fd + "");
+      if (!fd) return 44 /* NOENT */;
+      this.poke_filestat(filestat_ptr, fd);
+      return 0 /* SUCCESS */;
+    }
+    fd_filestat_get(fd, filestat_ptr) {
+      const file = this.fds[fd];
+      debug("fd_filestat_get", fd, filestat_ptr, file + "");
+      if (file == null) return 8 /* BADF */;
+      this.poke_filestat(filestat_ptr, file);
+      return 0 /* SUCCESS */;
+    }
+    poke_filestat(filestat_ptr, fd) {
+      this.poke64(filestat_ptr, fd.fdindex);
+      this.poke64(filestat_ptr + 8, 0);
+      this.poke8(filestat_ptr + 16, fd.type);
+      this.poke64(filestat_ptr + 24, 1);
+      this.poke64(filestat_ptr + 32, fd.size);
+      this.poke64(filestat_ptr + 40, 0);
+      this.poke64(filestat_ptr + 48, 0);
+      this.poke64(filestat_ptr + 56, 0);
+    }
+    path_readlink(dirfd, path_ptr, path_len, buf_ptr, buf_len, buf_used_ptr) {
+      const dir = this.fds[dirfd];
+      debug("path_readlink", dirfd, path_ptr, path_len, buf_ptr, buf_len, buf_used_ptr, dir + "");
+      if (dir == null) return 8 /* BADF */;
+      if (dir.type !== 3 /* DIRECTORY */) return 54 /* NOTDIR */;
+      const filename = this.peekUTF8(path_ptr, path_len);
+      const path = dir.name + "/" + filename;
+      const fd = this.fs.getFile(path);
+      debug("path_readlink", path, fd + "");
+      if (!fd) return 44 /* NOENT */;
+      if (fd.type !== 7 /* SYMBOLIC_LINK */) return 28 /* INVAL */;
+      const target = fd.getBytesAsString();
+      const len = this.pokeUTF8(target, buf_ptr, buf_len);
+      this.poke32(buf_used_ptr, len);
+      debug("path_readlink", path, "->", target);
+      return 0 /* SUCCESS */;
+    }
+    path_readlinkat(dirfd, path_ptr, path_len, buf_ptr, buf_len, buf_used_ptr) {
+      return this.path_readlink(dirfd, path_ptr, path_len, buf_ptr, buf_len, buf_used_ptr);
+    }
+    path_unlink_file(dirfd, path_ptr, path_len) {
+      const dir = this.fds[dirfd];
+      if (dir == null) return 8 /* BADF */;
+      if (dir.type !== 3 /* DIRECTORY */) return 54 /* NOTDIR */;
+      const filename = this.peekUTF8(path_ptr, path_len);
+      const path = dir.name + "/" + filename;
+      const fd = this.fs.getFile(path);
+      debug("path_unlink_file", dir + "", path, fd + "");
+      if (!fd) return 44 /* NOENT */;
+      this.fs.getFile(path);
+      return 0 /* SUCCESS */;
+    }
+    clock_time_get(clock_id, precision, time_ptr) {
+      const time = Date.now();
+      this.poke64(time_ptr, time);
+      return 0 /* SUCCESS */;
+    }
+    getWASISnapshotPreview1() {
+      return {
+        args_sizes_get: this.args_sizes_get.bind(this),
+        args_get: this.args_get.bind(this),
+        environ_sizes_get: this.environ_sizes_get.bind(this),
+        environ_get: this.environ_get.bind(this),
+        proc_exit: this.proc_exit.bind(this),
+        path_open: this.path_open.bind(this),
+        fd_prestat_get: this.fd_prestat_get.bind(this),
+        fd_prestat_dir_name: this.fd_prestat_dir_name.bind(this),
+        fd_fdstat_get: this.fd_fdstat_get.bind(this),
+        fd_read: this.fd_read.bind(this),
+        fd_write: this.fd_write.bind(this),
+        fd_seek: this.fd_seek.bind(this),
+        fd_close: this.fd_close.bind(this),
+        path_filestat_get: this.path_filestat_get.bind(this),
+        fd_filestat_get: this.fd_filestat_get.bind(this),
+        random_get: this.random_get.bind(this),
+        path_readlink: this.path_readlink.bind(this),
+        path_unlink_file: this.path_unlink_file.bind(this),
+        clock_time_get: this.clock_time_get.bind(this),
+        fd_fdstat_set_flags() {
+          warning("TODO: fd_fdstat_set_flags");
+          return 58 /* NOTSUP */;
+        },
+        fd_readdir() {
+          warning("TODO: fd_readdir");
+          return 58 /* NOTSUP */;
+        },
+        fd_tell() {
+          warning("TODO: fd_tell");
+          return 58 /* NOTSUP */;
+        },
+        path_remove_directory() {
+          warning("TODO: path_remove_directory");
+          return 0;
+        }
+      };
+    }
+    getEnv() {
+      return {
+        __syscall_unlinkat() {
+          warning("TODO: unlink");
+          return 58 /* NOTSUP */;
+        },
+        __syscall_faccessat() {
+          warning("TODO: faccessat");
+          return 58 /* NOTSUP */;
+        },
+        __syscall_readlinkat: this.path_readlinkat.bind(this),
+        __syscall_getcwd() {
+          warning("TODO: getcwd");
+          return 58 /* NOTSUP */;
+        },
+        __syscall_rmdir() {
+          warning("TODO: rmdir");
+          return 58 /* NOTSUP */;
+        },
+        segfault() {
+          warning("TODO: segfault");
+          return 58 /* NOTSUP */;
+        },
+        alignfault() {
+          warning("TODO: alignfault");
+          return 58 /* NOTSUP */;
+        },
+        __wasilibc_cwd: new WebAssembly.Global({
+          value: "i32",
+          mutable: true
+        }, 0)
+      };
+    }
+  };
+  _instance = new WeakMap();
+  _memarr8 = new WeakMap();
+  _memarr32 = new WeakMap();
+  _args = new WeakMap();
+  _envvars = new WeakMap();
+
+  // src/worker/wasiutils.ts
+  function loadBlobSync(path) {
+    var xhr = new XMLHttpRequest();
+    xhr.responseType = "blob";
+    xhr.open("GET", path, false);
+    xhr.send(null);
+    return xhr.response;
+  }
+  async function unzipWASIFilesystem(zipdata, rootPath = "./") {
+    if (zipdata && typeof zipdata.asArrayBuffer === "function") {
+      zipdata = zipdata.asArrayBuffer();
+    }
+    const jszip = new import_jszip.default();
+    await jszip.loadAsync(zipdata);
+    let fs = new WASIMemoryFilesystem();
+    let promises = [];
+    jszip.forEach(async (relativePath, zipEntry) => {
+      if (zipEntry.dir) {
+        fs.putDirectory(relativePath);
+      } else {
+        let path = rootPath + relativePath;
+        let prom = zipEntry.async("uint8array").then((data) => {
+          fs.putFile(path, data);
+        });
+        promises.push(prom);
+      }
+    });
+    await Promise.all(promises);
+    return fs;
+  }
+  async function loadWASIFilesystemZip(zippath, rootPath = "./") {
+    const jszip = new import_jszip.default();
+    const path = "../../src/worker/fs/" + zippath;
+    const zipdata = loadBlobSync(path);
+    return unzipWASIFilesystem(zipdata, rootPath);
+  }
+
   // src/worker/wasmutils.ts
   var ENVIRONMENT_IS_WEB = typeof window === "object";
   var ENVIRONMENT_IS_WORKER = typeof importScripts === "function";
@@ -5966,6 +6601,39 @@
       if (!dir || f.filename.startsWith(dir + "/")) result.push(f.filename);
     }
     return result.sort();
+  }
+  var wasiFilesystems = {};
+  async function ensureWasiFilesystem(zipname) {
+    try {
+      if (!wasiFilesystems[zipname]) {
+        wasiFilesystems[zipname] = await loadWASIFilesystemZip(zipname);
+      }
+      return wasiFilesystems[zipname];
+    } catch (e) {
+      console.log("Error loading WASI filesystem", zipname, e);
+      return null;
+    }
+  }
+  function normalizeWasiPath(path) {
+    path = path.startsWith("./") ? path.substring(2) : path;
+    return path.startsWith("/") ? path.substring(1) : path;
+  }
+  async function readWasiSharedFile(zipname, path) {
+    let fs = await ensureWasiFilesystem(zipname);
+    if (!fs) return null;
+    let norm = normalizeWasiPath(path);
+    let fd = fs.getFile(norm) || fs.getFile("./" + norm);
+    if (!fd || !fd.size) return null;
+    let data = new Uint8Array(fd.size);
+    fd.offset = 0;
+    fd.read(data);
+    return data;
+  }
+  async function listWasiSharedFiles(zipname, dir) {
+    let fs = await ensureWasiFilesystem(zipname);
+    if (!fs) return [];
+    let prefix = normalizeWasiPath(dir) + "/";
+    return fs.getFiles().map((f) => normalizeWasiPath(f.name)).filter((name) => name.startsWith(prefix)).sort();
   }
   async function readSharedFile(name, path) {
     let entry = getSharedFileEntry(name, path);
@@ -6598,592 +7266,6 @@
       files: [destpath]
     };
   }
-
-  // src/common/wasi/wasishim.ts
-  var use_debug = false;
-  var debug = use_debug ? console.log : () => {
-  };
-  var warning = console.log;
-  var WASIFileDescriptor = class {
-    constructor(name, type, rights) {
-      this.name = name;
-      this.type = type;
-      this.rights = rights;
-      this.fdindex = -1;
-      this.data = new Uint8Array(16);
-      this.flags = 0;
-      this.size = 0;
-      this.offset = 0;
-      this.rights = -1;
-    }
-    ensureCapacity(size) {
-      if (this.data.byteLength < size) {
-        const newdata = new Uint8Array(size * 2);
-        newdata.set(this.data);
-        this.data = newdata;
-      }
-    }
-    write(chunk) {
-      this.ensureCapacity(this.offset + chunk.byteLength);
-      this.data.set(chunk, this.offset);
-      this.offset += chunk.byteLength;
-      this.size = Math.max(this.size, this.offset);
-    }
-    read(chunk) {
-      const len = Math.min(chunk.byteLength, this.size - this.offset);
-      chunk.set(this.data.subarray(this.offset, this.offset + len));
-      this.offset += len;
-      return len;
-    }
-    truncate() {
-      this.size = 0;
-      this.offset = 0;
-    }
-    llseek(offset, whence) {
-      switch (whence) {
-        case 0:
-          this.offset = offset;
-          break;
-        case 1:
-          this.offset += offset;
-          break;
-        case 2:
-          this.offset = this.size + offset;
-          break;
-      }
-      if (this.offset < 0) this.offset = 0;
-      if (this.offset > this.size) this.offset = this.size;
-    }
-    getBytes() {
-      return this.data.subarray(0, this.size);
-    }
-    getBytesAsString() {
-      return new TextDecoder().decode(this.getBytes());
-    }
-    toString() {
-      return `FD(${this.fdindex} "${this.name}" 0x${this.type.toString(16)} 0x${this.rights.toString(16)} ${this.offset}/${this.size}/${this.data.byteLength})`;
-    }
-  };
-  var WASIStreamingFileDescriptor = class extends WASIFileDescriptor {
-    constructor(fdindex, name, type, rights, stream) {
-      super(name, type, rights);
-      this.stream = stream;
-      this.fdindex = fdindex;
-    }
-    write(chunk) {
-      this.stream.write(chunk);
-    }
-  };
-  var WASIMemoryFilesystem = class {
-    constructor() {
-      this.parent = null;
-      this.files = /* @__PURE__ */ new Map();
-      this.dirs = /* @__PURE__ */ new Map();
-      this.putDirectory("/");
-    }
-    setParent(parent) {
-      this.parent = parent;
-    }
-    putDirectory(name, rights) {
-      if (!rights) rights = 8192 /* PATH_OPEN */ | 512 /* PATH_CREATE_DIRECTORY */ | 1024 /* PATH_CREATE_FILE */;
-      if (name != "/" && name.endsWith("/")) name = name.substring(0, name.length - 1);
-      const parent = name.substring(0, name.lastIndexOf("/"));
-      if (parent && parent != name) {
-        this.putDirectory(parent, rights);
-      }
-      const dir = new WASIFileDescriptor(name, 3 /* DIRECTORY */, rights);
-      this.dirs.set(name, dir);
-      return dir;
-    }
-    putFile(name, data, rights) {
-      if (typeof data === "string") {
-        data = new TextEncoder().encode(data);
-      }
-      if (!rights) rights = 2 /* FD_READ */ | 64 /* FD_WRITE */;
-      const file = new WASIFileDescriptor(name, 4 /* REGULAR_FILE */, rights);
-      file.write(data);
-      file.offset = 0;
-      this.files.set(name, file);
-      return file;
-    }
-    putSymbolicLink(name, target, rights) {
-      if (!rights) rights = 16777216 /* PATH_SYMLINK */;
-      const file = new WASIFileDescriptor(name, 7 /* SYMBOLIC_LINK */, rights);
-      file.write(new TextEncoder().encode(target));
-      file.offset = 0;
-      this.files.set(name, file);
-      return file;
-    }
-    getFile(name) {
-      var _a;
-      let file = this.files.get(name);
-      if (!file) {
-        file = (_a = this.parent) == null ? void 0 : _a.getFile(name);
-      }
-      return file;
-    }
-    getDirectories() {
-      return [...this.dirs.values()];
-    }
-    getFiles() {
-      return [...this.files.values()];
-    }
-  };
-  var _instance, _memarr8, _memarr32, _args, _envvars;
-  var WASIRunner = class {
-    constructor() {
-      __privateAdd(this, _instance);
-      // TODO
-      __privateAdd(this, _memarr8);
-      __privateAdd(this, _memarr32);
-      __privateAdd(this, _args, []);
-      __privateAdd(this, _envvars, []);
-      this.fds = [];
-      this.exited = false;
-      this.errno = -1;
-      this.fs = new WASIMemoryFilesystem();
-      this.createStdioBrowser();
-    }
-    exports() {
-      return __privateGet(this, _instance).exports;
-    }
-    createStdioNode() {
-      this.stdin = new WASIStreamingFileDescriptor(0, "<stdin>", 2 /* CHARACTER_DEVICE */, 2 /* FD_READ */, process.stdin);
-      this.stdout = new WASIStreamingFileDescriptor(1, "<stdout>", 2 /* CHARACTER_DEVICE */, 64 /* FD_WRITE */, process.stdout);
-      this.stderr = new WASIStreamingFileDescriptor(2, "<stderr>", 2 /* CHARACTER_DEVICE */, 64 /* FD_WRITE */, process.stderr);
-      this.fds[0] = this.stdin;
-      this.fds[1] = this.stdout;
-      this.fds[2] = this.stderr;
-    }
-    createStdioBrowser() {
-      this.stdin = new WASIFileDescriptor("<stdin>", 2 /* CHARACTER_DEVICE */, 2 /* FD_READ */);
-      this.stdout = new WASIFileDescriptor("<stdout>", 2 /* CHARACTER_DEVICE */, 64 /* FD_WRITE */);
-      this.stderr = new WASIFileDescriptor("<stderr>", 2 /* CHARACTER_DEVICE */, 64 /* FD_WRITE */);
-      this.stdin.fdindex = 0;
-      this.stdout.fdindex = 1;
-      this.stderr.fdindex = 2;
-      this.fds[0] = this.stdin;
-      this.fds[1] = this.stdout;
-      this.fds[2] = this.stderr;
-    }
-    initSync(wasmModule) {
-      __privateSet(this, _instance, new WebAssembly.Instance(wasmModule, this.getImportObject()));
-    }
-    loadSync(wasmSource) {
-      let wasmModule = new WebAssembly.Module(wasmSource);
-      this.initSync(wasmModule);
-    }
-    async loadAsync(wasmSource) {
-      let wasmModule = await WebAssembly.compile(wasmSource);
-      __privateSet(this, _instance, await WebAssembly.instantiate(wasmModule, this.getImportObject()));
-    }
-    setArgs(args) {
-      __privateSet(this, _args, args.map((arg) => new TextEncoder().encode(arg + "\0")));
-    }
-    addPreopenDirectory(name) {
-      return this.openFile(name, 2 /* DIRECTORY */ | 1 /* CREAT */);
-    }
-    openFile(path, o_flags, mode) {
-      let file = this.fs.getFile(path);
-      mode = typeof mode == "undefined" ? 438 : mode;
-      if (o_flags & 1 /* CREAT */) {
-        if (file == null) {
-          if (o_flags & 2 /* DIRECTORY */) {
-            file = this.fs.putDirectory(path);
-          } else {
-            file = this.fs.putFile(path, new Uint8Array(), 536870911 /* FD_ALL */);
-          }
-        } else {
-          if (o_flags & 8 /* TRUNC */) {
-            file.truncate();
-          } else return 28 /* INVAL */;
-        }
-      } else {
-        if (file == null) return 52 /* NOSYS */;
-        if (o_flags & 2 /* DIRECTORY */) {
-          if (file.type !== 3 /* DIRECTORY */) return 52 /* NOSYS */;
-        }
-        if (o_flags & 4 /* EXCL */) return 28 /* INVAL */;
-        if (o_flags & 8 /* TRUNC */) {
-          file.truncate();
-        } else {
-          file.llseek(0, 0);
-        }
-      }
-      file.fdindex = this.fds.length;
-      this.fds.push(file);
-      return file;
-    }
-    mem8() {
-      var _a;
-      if (!((_a = __privateGet(this, _memarr8)) == null ? void 0 : _a.byteLength)) {
-        __privateSet(this, _memarr8, new Uint8Array(__privateGet(this, _instance).exports.memory.buffer));
-      }
-      return __privateGet(this, _memarr8);
-    }
-    mem32() {
-      var _a;
-      if (!((_a = __privateGet(this, _memarr32)) == null ? void 0 : _a.byteLength)) {
-        __privateSet(this, _memarr32, new Int32Array(__privateGet(this, _instance).exports.memory.buffer));
-      }
-      return __privateGet(this, _memarr32);
-    }
-    run() {
-      try {
-        __privateGet(this, _instance).exports._start();
-        if (!this.exited) {
-          this.exited = true;
-          this.errno = 0;
-        }
-      } catch (err) {
-        if (!this.exited) throw err;
-      }
-      return this.getErrno();
-    }
-    initialize() {
-      __privateGet(this, _instance).exports._initialize();
-      return this.getErrno();
-    }
-    getImportObject() {
-      return {
-        "wasi_snapshot_preview1": this.getWASISnapshotPreview1(),
-        "env": this.getEnv()
-      };
-    }
-    peek8(ptr) {
-      return this.mem8()[ptr];
-    }
-    peek16(ptr) {
-      return this.mem8()[ptr] | this.mem8()[ptr + 1] << 8;
-    }
-    peek32(ptr) {
-      return this.mem32()[ptr >>> 2];
-    }
-    poke8(ptr, val) {
-      this.mem8()[ptr] = val;
-    }
-    poke16(ptr, val) {
-      this.mem8()[ptr] = val;
-      this.mem8()[ptr + 1] = val >> 8;
-    }
-    poke32(ptr, val) {
-      this.mem32()[ptr >>> 2] = val;
-    }
-    poke64(ptr, val) {
-      this.mem32()[ptr >>> 2] = val;
-      this.mem32()[(ptr >>> 2) + 1] = 0;
-    }
-    pokeUTF8(str, ptr, maxlen) {
-      const enc = new TextEncoder();
-      const bytes = enc.encode(str);
-      const len = Math.min(bytes.length, maxlen);
-      this.mem8().set(bytes.subarray(0, len), ptr);
-      return len;
-    }
-    peekUTF8(ptr, maxlen) {
-      const bytes = this.mem8().subarray(ptr, ptr + maxlen);
-      const dec = new TextDecoder();
-      return dec.decode(bytes);
-    }
-    getErrno() {
-      return this.errno;
-    }
-    poke_str_array_sizes(strs, count_ptr, buf_size_ptr) {
-      this.poke32(count_ptr, strs.length);
-      this.poke32(buf_size_ptr, strs.reduce((acc, arg) => acc + arg.length, 0));
-    }
-    poke_str_args(strs, argv_ptr, argv_buf_ptr) {
-      let argv = argv_ptr;
-      let argv_buf = argv_buf_ptr;
-      for (let arg of __privateGet(this, _args)) {
-        this.poke32(argv, argv_buf);
-        argv += 4;
-        for (let i = 0; i < arg.length; i++) {
-          this.poke8(argv_buf, arg[i]);
-          argv_buf++;
-        }
-      }
-    }
-    args_sizes_get(argcount_ptr, argv_buf_size_ptr) {
-      debug("args_sizes_get", argcount_ptr, argv_buf_size_ptr);
-      this.poke_str_array_sizes(__privateGet(this, _args), argcount_ptr, argv_buf_size_ptr);
-      return 0;
-    }
-    args_get(argv_ptr, argv_buf_ptr) {
-      debug("args_get", argv_ptr, argv_buf_ptr);
-      this.poke_str_args(__privateGet(this, _args), argv_ptr, argv_buf_ptr);
-      return 0;
-    }
-    environ_sizes_get(environ_count_ptr, environ_buf_size_ptr) {
-      debug("environ_sizes_get", environ_count_ptr, environ_buf_size_ptr);
-      this.poke_str_array_sizes(__privateGet(this, _envvars), environ_count_ptr, environ_buf_size_ptr);
-      return 0;
-    }
-    environ_get(environ_ptr, environ_buf_ptr) {
-      debug("environ_get", environ_ptr, environ_buf_ptr);
-      this.poke_str_args(__privateGet(this, _envvars), environ_ptr, environ_buf_ptr);
-      return 0;
-    }
-    fd_write(fd, iovs, iovs_len, nwritten_ptr) {
-      const stream = this.fds[fd];
-      const iovecs = this.mem32().subarray(iovs >>> 2, iovs + iovs_len * 8 >>> 2);
-      let total = 0;
-      for (let i = 0; i < iovs_len; i++) {
-        const ptr = iovecs[i * 2];
-        const len = iovecs[i * 2 + 1];
-        const chunk = this.mem8().subarray(ptr, ptr + len);
-        total += len;
-        stream.write(chunk);
-      }
-      this.poke32(nwritten_ptr, total);
-      debug("fd_write", fd, iovs, iovs_len, "->", total);
-      return 0;
-    }
-    fd_read(fd, iovs, iovs_len, nread_ptr) {
-      const stream = this.fds[fd];
-      const iovecs = this.mem32().subarray(iovs >>> 2, iovs + iovs_len * 8 >>> 2);
-      let total = 0;
-      for (let i = 0; i < iovs_len; i++) {
-        const ptr = iovecs[i * 2];
-        const len = iovecs[i * 2 + 1];
-        const chunk = this.mem8().subarray(ptr, ptr + len);
-        total += stream.read(chunk);
-      }
-      this.poke32(nread_ptr, total);
-      debug("fd_read", fd, iovs, iovs_len, "->", total);
-      return 0 /* SUCCESS */;
-    }
-    fd_seek(fd, offset, whence, newoffset_ptr) {
-      const file = this.fds[fd];
-      if (typeof offset == "bigint") offset = Number(offset);
-      debug("fd_seek", fd, offset, whence, file + "");
-      if (file != null) {
-        file.llseek(offset, whence);
-        this.poke64(newoffset_ptr, file.offset);
-        return 0 /* SUCCESS */;
-      }
-      return 8 /* BADF */;
-    }
-    fd_close(fd) {
-      debug("fd_close", fd);
-      const file = this.fds[fd];
-      if (file != null) {
-        this.fds[fd] = null;
-        return 0;
-      }
-      return 8 /* BADF */;
-    }
-    proc_exit(errno) {
-      debug("proc_exit", errno);
-      this.errno = errno;
-      this.exited = true;
-    }
-    fd_prestat_get(fd, prestat_ptr) {
-      const file = this.fds[fd];
-      debug("fd_prestat_get", fd, prestat_ptr, file == null ? void 0 : file.name, file == null ? void 0 : file.type);
-      if (file && file.type === 3 /* DIRECTORY */) {
-        const enc_name = new TextEncoder().encode(file.name);
-        this.poke64(prestat_ptr + 0, 0);
-        this.poke64(prestat_ptr + 8, enc_name.length);
-        return 0 /* SUCCESS */;
-      }
-      return 8 /* BADF */;
-    }
-    fd_fdstat_get(fd, fdstat_ptr) {
-      const file = this.fds[fd];
-      debug("fd_fdstat_get", fd, fdstat_ptr, file + "");
-      if (file != null) {
-        this.poke16(fdstat_ptr + 0, file.type);
-        this.poke16(fdstat_ptr + 2, file.flags);
-        this.poke64(fdstat_ptr + 8, file.rights);
-        this.poke64(fdstat_ptr + 16, file.rights);
-        return 0 /* SUCCESS */;
-      }
-      return 8 /* BADF */;
-    }
-    fd_prestat_dir_name(fd, path_ptr, path_len) {
-      const file = this.fds[fd];
-      debug("fd_prestat_dir_name", fd, path_ptr, path_len);
-      if (file != null) {
-        this.pokeUTF8(file.name, path_ptr, path_len);
-        return 0 /* SUCCESS */;
-      }
-      return 28 /* INVAL */;
-    }
-    path_open(dirfd, dirflags, path_ptr, path_len, o_flags, fs_rights_base, fs_rights_inheriting, fd_flags, fd_ptr) {
-      const dir = this.fds[dirfd];
-      if (dir == null) return 8 /* BADF */;
-      if (dir.type !== 3 /* DIRECTORY */) return 54 /* NOTDIR */;
-      const filename = this.peekUTF8(path_ptr, path_len);
-      const path = dir.name + "/" + filename;
-      const fd = this.openFile(path, o_flags, fd_flags);
-      debug(
-        "path_open",
-        path,
-        dirfd,
-        dirflags,
-        o_flags,
-        //fs_rights_base, fs_rights_inheriting,
-        fd_flags,
-        fd_ptr,
-        "->",
-        fd + ""
-      );
-      if (typeof fd === "number") return fd;
-      this.poke32(fd_ptr, fd.fdindex);
-      return 0 /* SUCCESS */;
-    }
-    random_get(ptr, len) {
-      debug("random_get", ptr, len);
-      for (let i = 0; i < len; i++) {
-        this.poke8(ptr + i, Math.floor(Math.random() * 256));
-      }
-      return 0 /* SUCCESS */;
-    }
-    path_filestat_get(dirfd, dirflags, path_ptr, path_len, filestat_ptr) {
-      const dir = this.fds[dirfd];
-      if (dir == null) return 8 /* BADF */;
-      if (dir.type !== 3 /* DIRECTORY */) return 54 /* NOTDIR */;
-      const filename = this.peekUTF8(path_ptr, path_len);
-      const path = filename.startsWith("/") ? filename : dir.name + "/" + filename;
-      const fd = this.fs.getFile(path);
-      debug("path_filestat_get", dir + "", filename, path, filestat_ptr, "->", fd + "");
-      if (!fd) return 44 /* NOENT */;
-      this.poke_filestat(filestat_ptr, fd);
-      return 0 /* SUCCESS */;
-    }
-    fd_filestat_get(fd, filestat_ptr) {
-      const file = this.fds[fd];
-      debug("fd_filestat_get", fd, filestat_ptr, file + "");
-      if (file == null) return 8 /* BADF */;
-      this.poke_filestat(filestat_ptr, file);
-      return 0 /* SUCCESS */;
-    }
-    poke_filestat(filestat_ptr, fd) {
-      this.poke64(filestat_ptr, fd.fdindex);
-      this.poke64(filestat_ptr + 8, 0);
-      this.poke8(filestat_ptr + 16, fd.type);
-      this.poke64(filestat_ptr + 24, 1);
-      this.poke64(filestat_ptr + 32, fd.size);
-      this.poke64(filestat_ptr + 40, 0);
-      this.poke64(filestat_ptr + 48, 0);
-      this.poke64(filestat_ptr + 56, 0);
-    }
-    path_readlink(dirfd, path_ptr, path_len, buf_ptr, buf_len, buf_used_ptr) {
-      const dir = this.fds[dirfd];
-      debug("path_readlink", dirfd, path_ptr, path_len, buf_ptr, buf_len, buf_used_ptr, dir + "");
-      if (dir == null) return 8 /* BADF */;
-      if (dir.type !== 3 /* DIRECTORY */) return 54 /* NOTDIR */;
-      const filename = this.peekUTF8(path_ptr, path_len);
-      const path = dir.name + "/" + filename;
-      const fd = this.fs.getFile(path);
-      debug("path_readlink", path, fd + "");
-      if (!fd) return 44 /* NOENT */;
-      if (fd.type !== 7 /* SYMBOLIC_LINK */) return 28 /* INVAL */;
-      const target = fd.getBytesAsString();
-      const len = this.pokeUTF8(target, buf_ptr, buf_len);
-      this.poke32(buf_used_ptr, len);
-      debug("path_readlink", path, "->", target);
-      return 0 /* SUCCESS */;
-    }
-    path_readlinkat(dirfd, path_ptr, path_len, buf_ptr, buf_len, buf_used_ptr) {
-      return this.path_readlink(dirfd, path_ptr, path_len, buf_ptr, buf_len, buf_used_ptr);
-    }
-    path_unlink_file(dirfd, path_ptr, path_len) {
-      const dir = this.fds[dirfd];
-      if (dir == null) return 8 /* BADF */;
-      if (dir.type !== 3 /* DIRECTORY */) return 54 /* NOTDIR */;
-      const filename = this.peekUTF8(path_ptr, path_len);
-      const path = dir.name + "/" + filename;
-      const fd = this.fs.getFile(path);
-      debug("path_unlink_file", dir + "", path, fd + "");
-      if (!fd) return 44 /* NOENT */;
-      this.fs.getFile(path);
-      return 0 /* SUCCESS */;
-    }
-    clock_time_get(clock_id, precision, time_ptr) {
-      const time = Date.now();
-      this.poke64(time_ptr, time);
-      return 0 /* SUCCESS */;
-    }
-    getWASISnapshotPreview1() {
-      return {
-        args_sizes_get: this.args_sizes_get.bind(this),
-        args_get: this.args_get.bind(this),
-        environ_sizes_get: this.environ_sizes_get.bind(this),
-        environ_get: this.environ_get.bind(this),
-        proc_exit: this.proc_exit.bind(this),
-        path_open: this.path_open.bind(this),
-        fd_prestat_get: this.fd_prestat_get.bind(this),
-        fd_prestat_dir_name: this.fd_prestat_dir_name.bind(this),
-        fd_fdstat_get: this.fd_fdstat_get.bind(this),
-        fd_read: this.fd_read.bind(this),
-        fd_write: this.fd_write.bind(this),
-        fd_seek: this.fd_seek.bind(this),
-        fd_close: this.fd_close.bind(this),
-        path_filestat_get: this.path_filestat_get.bind(this),
-        fd_filestat_get: this.fd_filestat_get.bind(this),
-        random_get: this.random_get.bind(this),
-        path_readlink: this.path_readlink.bind(this),
-        path_unlink_file: this.path_unlink_file.bind(this),
-        clock_time_get: this.clock_time_get.bind(this),
-        fd_fdstat_set_flags() {
-          warning("TODO: fd_fdstat_set_flags");
-          return 58 /* NOTSUP */;
-        },
-        fd_readdir() {
-          warning("TODO: fd_readdir");
-          return 58 /* NOTSUP */;
-        },
-        fd_tell() {
-          warning("TODO: fd_tell");
-          return 58 /* NOTSUP */;
-        },
-        path_remove_directory() {
-          warning("TODO: path_remove_directory");
-          return 0;
-        }
-      };
-    }
-    getEnv() {
-      return {
-        __syscall_unlinkat() {
-          warning("TODO: unlink");
-          return 58 /* NOTSUP */;
-        },
-        __syscall_faccessat() {
-          warning("TODO: faccessat");
-          return 58 /* NOTSUP */;
-        },
-        __syscall_readlinkat: this.path_readlinkat.bind(this),
-        __syscall_getcwd() {
-          warning("TODO: getcwd");
-          return 58 /* NOTSUP */;
-        },
-        __syscall_rmdir() {
-          warning("TODO: rmdir");
-          return 58 /* NOTSUP */;
-        },
-        segfault() {
-          warning("TODO: segfault");
-          return 58 /* NOTSUP */;
-        },
-        alignfault() {
-          warning("TODO: alignfault");
-          return 58 /* NOTSUP */;
-        },
-        __wasilibc_cwd: new WebAssembly.Global({
-          value: "i32",
-          mutable: true
-        }, 0)
-      };
-    }
-  };
-  _instance = new WeakMap();
-  _memarr8 = new WeakMap();
-  _memarr32 = new WeakMap();
-  _args = new WeakMap();
-  _envvars = new WeakMap();
 
   // src/worker/tools/dasm.ts
   function parseDASMListing(lstpath, lsttext, listings, errors, unresolved) {
@@ -10559,44 +10641,6 @@
     checkPassPC() {
     }
   };
-
-  // src/worker/wasiutils.ts
-  var import_jszip = __toESM(require_jszip_min());
-  function loadBlobSync(path) {
-    var xhr = new XMLHttpRequest();
-    xhr.responseType = "blob";
-    xhr.open("GET", path, false);
-    xhr.send(null);
-    return xhr.response;
-  }
-  async function unzipWASIFilesystem(zipdata, rootPath = "./") {
-    if (zipdata && typeof zipdata.asArrayBuffer === "function") {
-      zipdata = zipdata.asArrayBuffer();
-    }
-    const jszip = new import_jszip.default();
-    await jszip.loadAsync(zipdata);
-    let fs = new WASIMemoryFilesystem();
-    let promises = [];
-    jszip.forEach(async (relativePath, zipEntry) => {
-      if (zipEntry.dir) {
-        fs.putDirectory(relativePath);
-      } else {
-        let path = rootPath + relativePath;
-        let prom = zipEntry.async("uint8array").then((data) => {
-          fs.putFile(path, data);
-        });
-        promises.push(prom);
-      }
-    });
-    await Promise.all(promises);
-    return fs;
-  }
-  async function loadWASIFilesystemZip(zippath, rootPath = "./") {
-    const jszip = new import_jszip.default();
-    const path = "../../src/worker/fs/" + zippath;
-    const zipdata = loadBlobSync(path);
-    return unzipWASIFilesystem(zipdata, rootPath);
-  }
 
   // src/worker/tools/arm.ts
   function assembleARMIPS(step) {
@@ -15038,6 +15082,9 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   }
 
   // src/worker/workermain.ts
+  function splitWasiFSName(fsName) {
+    return fsName.startsWith("wasi:") ? { wasi: true, name: fsName.substring(5) } : { wasi: false, name: fsName };
+  }
   function setupRequireFunction() {
     var exports2 = {};
     exports2["jsdom"] = {
@@ -15064,17 +15111,19 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       return;
     }
     if (data.readshared) {
-      ensureFilesystem(data.preload_fs);
-      var contents = await readSharedFile(data.preload_fs, data.readshared);
+      var fs1 = splitWasiFSName(data.preload_fs);
+      var contents = fs1.wasi ? await readWasiSharedFile(fs1.name, data.readshared) : (ensureFilesystem(fs1.name), await readSharedFile(fs1.name, data.readshared));
       return { output: contents, qid: data.qid };
     }
     if (data.listshared != null) {
-      ensureFilesystem(data.preload_fs);
-      var files = listSharedFiles(data.preload_fs, data.listshared);
+      var fs2 = splitWasiFSName(data.preload_fs);
+      var files = fs2.wasi ? await listWasiSharedFiles(fs2.name, data.listshared) : (ensureFilesystem(fs2.name), listSharedFiles(fs2.name, data.listshared));
       return { output: files, qid: data.qid };
     }
     if (data.preload_fs) {
-      ensureFilesystem(data.preload_fs);
+      var fs3 = splitWasiFSName(data.preload_fs);
+      if (fs3.wasi) await ensureWasiFilesystem(fs3.name);
+      else ensureFilesystem(fs3.name);
       return;
     }
     if (data.reset) {

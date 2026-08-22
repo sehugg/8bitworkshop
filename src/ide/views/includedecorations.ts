@@ -37,8 +37,11 @@ function buildIncludeLinkDecorations(view: EditorView, patterns: (RegExp | ToolI
       p.re.lastIndex = 0; // patterns are shared and global, so rewind first
       let m;
       while ((m = p.re.exec(text))) {
-        const filename = m[p.group != null ? p.group : m.length - 1];
-        if (!filename) continue;
+        const matched = m[p.group != null ? p.group : m.length - 1];
+        if (!matched) continue;
+        // apply any implicit extension (e.g. wiz `import "nes"` -> "nes.wiz"),
+        // same as matchDependencyPatterns() does for build deps
+        const filename = p.suffix ? matched + p.suffix : matched;
         // place widget at end of the line containing the match
         const matchEnd = Math.min(from + m.index + m[0].length, doc.length);
         const line = doc.lineAt(matchEnd);

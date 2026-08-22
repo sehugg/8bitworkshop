@@ -885,15 +885,19 @@ function resolveIncludeFile(fn) {
 const sharedFileCache = new Map();
 function lookupSharedFileText(fn) {
     const tool = ui_1.current_project.getToolForFilename(ui_1.current_project.mainPath);
-    const fsName = (0, toolmeta_1.getPreloadFSName)(tool, ui_1.current_project.platform_id);
-    const dirs = (0, toolmeta_1.getIncludeDirs)(tool);
+    const fsName = (0, toolmeta_1.getSharedFileSystemName)(tool, ui_1.current_project.platform_id);
+    const dirs = (0, toolmeta_1.getIncludeDirs)(tool, ui_1.current_project.platform_id);
     if (!fsName || !dirs.length)
         return Promise.resolve(null);
     const key = fsName + ':' + fn;
     if (!sharedFileCache.has(key)) {
         sharedFileCache.set(key, (async () => {
-            for (var dir of dirs) {
-                var msg = { preload_fs: fsName, readshared: dir + '/' + fn, updates: [], buildsteps: [] };
+            // try the include under each known dir (e.g. /headers/vcs.h for "vcs.h"),
+            // then the filename as-is (some includes already carry the dir,
+            // e.g. "headers/vcs.h")
+            var candidates = [...dirs.map(dir => dir + '/' + fn), fn];
+            for (var path of candidates) {
+                var msg = { preload_fs: fsName, readshared: path, updates: [], buildsteps: [] };
                 var result = await ui_1.current_project.queryWorker(msg);
                 var output = result && result.output;
                 if (output instanceof Uint8Array && output.length > 0) {

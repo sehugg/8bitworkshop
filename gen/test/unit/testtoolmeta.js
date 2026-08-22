@@ -105,6 +105,23 @@ const workerlib_1 = require("../../src/worker/workerlib");
         // quoted includes are not matched by the system patterns
         assert_1.default.deepStrictEqual(deps('#include "foo.h"\n', 'cc65'), []);
     });
+    (0, mocha_1.it)('resolves shared filesystem names for all tools with includeDirs', function () {
+        // preloadFS-backed tools
+        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('cc65', 'nes'), '65-nes');
+        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('sdcc', 'coleco'), 'sdcc');
+        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('bataribasic', 'vcs'), '2600basic');
+        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('wiz'), 'wiz');
+        // WASI zip-backed tools (cc2600/cc7800/armtcc/oscar64/dialog)
+        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('cc2600'), 'wasi:cc2600-fs.zip');
+        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('cc7800'), 'wasi:cc7800-fs.zip');
+        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('armtcc'), 'wasi:arm32-fs.zip');
+        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('oscar64'), 'wasi:oscar64-fs.zip');
+        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('dialog'), 'wasi:dialog-fs.zip');
+        // tools without a bundled filesystem
+        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('cmoc'), undefined);
+        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('smlrc'), undefined);
+        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('dasm'), undefined);
+    });
     (0, mocha_1.it)('matches link directives only for tools that link', function () {
         let deps = (text, tool, platform) => (0, toolmeta_1.matchDependencyPatterns)(text, (0, toolmeta_1.getLinkPatterns)(tool, platform));
         assert_1.default.deepStrictEqual(deps('//#link "foo.c"\n', 'cc65'), ['foo.c']);

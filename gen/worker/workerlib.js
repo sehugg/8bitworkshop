@@ -47,6 +47,10 @@ const builder_1 = require("./builder");
 Object.defineProperty(exports, "store", { enumerable: true, get: function () { return builder_1.store; } });
 Object.defineProperty(exports, "builder", { enumerable: true, get: function () { return builder_1.builder; } });
 const wasmutils_1 = require("./wasmutils");
+// shared FS names starting with 'wasi:' refer to a WASI filesystem zip
+function splitWasiFSName(fsName) {
+    return fsName.startsWith('wasi:') ? { wasi: true, name: fsName.substring(5) } : { wasi: false, name: fsName };
+}
 const workermain_1 = require("./workermain");
 var platforms_1 = require("./platforms");
 Object.defineProperty(exports, "PLATFORM_PARAMS", { enumerable: true, get: function () { return platforms_1.PLATFORM_PARAMS; } });
@@ -172,19 +176,25 @@ async function handleMessage(data) {
     }
     // read a file from a filesystem package (shared code)
     if (data.readshared) {
-        (0, wasmutils_1.ensureFilesystem)(data.preload_fs);
-        var contents = await (0, wasmutils_1.readSharedFile)(data.preload_fs, data.readshared);
+        var fs1 = splitWasiFSName(data.preload_fs);
+        var contents = fs1.wasi ? await (0, wasmutils_1.readWasiSharedFile)(fs1.name, data.readshared)
+            : ((0, wasmutils_1.ensureFilesystem)(fs1.name), await (0, wasmutils_1.readSharedFile)(fs1.name, data.readshared));
         return { output: contents, qid: data.qid };
     }
     // list files in a filesystem package directory (shared code)
     if (data.listshared != null) {
-        (0, wasmutils_1.ensureFilesystem)(data.preload_fs);
-        var files = (0, wasmutils_1.listSharedFiles)(data.preload_fs, data.listshared);
+        var fs2 = splitWasiFSName(data.preload_fs);
+        var files = fs2.wasi ? await (0, wasmutils_1.listWasiSharedFiles)(fs2.name, data.listshared)
+            : ((0, wasmutils_1.ensureFilesystem)(fs2.name), (0, wasmutils_1.listSharedFiles)(fs2.name, data.listshared));
         return { output: files, qid: data.qid };
     }
     // preload a filesystem package directly by name
     if (data.preload_fs) {
-        (0, wasmutils_1.ensureFilesystem)(data.preload_fs);
+        var fs3 = splitWasiFSName(data.preload_fs);
+        if (fs3.wasi)
+            await (0, wasmutils_1.ensureWasiFilesystem)(fs3.name);
+        else
+            (0, wasmutils_1.ensureFilesystem)(fs3.name);
         return;
     }
     // clear filesystem?

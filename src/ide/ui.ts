@@ -289,10 +289,10 @@ var openHeaderViews: string[] = [];
 export function openHeaderFile(fn: string) {
   if (!openHeaderViews.includes(fn)) {
     openHeaderViews.push(fn);
-    projectWindows.setCreateFunc('#headerview/' + encodeURIComponent(fn), () => new HeaderView(fn));
+    projectWindows.setCreateFunc('#headerview/' + fn, () => new HeaderView(fn));
     refreshWindowList();
   }
-  var hash = '#headerview/' + encodeURIComponent(fn);
+  var hash = '#headerview/' + fn;
   if (window.location.hash !== hash) {
     window.location.hash = hash.substring(1);
   }
@@ -369,7 +369,7 @@ function refreshWindowList() {
 
   // add opened toolchain headers (from include badges)
   for (let hdrfn of openHeaderViews) {
-    let hdrid = '#headerview/' + encodeURIComponent(hdrfn);
+    let hdrid = '#headerview/' + hdrfn;
     projectWindows.setCreateFunc(hdrid, () => new HeaderView(hdrfn));
     addWindowItem(hdrid, getFilenameForPath(hdrfn), () => {
       return new HeaderView(hdrfn);
@@ -2217,7 +2217,7 @@ export async function startUI() {
   }
   // repo= given, but not imported yet? offer to import it from github
   // (repo can be "user/repo" or "user/repo/tree/branch/...")
-  if (hasLocalStorage && qs.repo && !getRepos()[qs.repo]) {
+  if (hasLocalStorage && qs.repo && !getRepos()[qs.repo] && qs.repo !== '/') {
     if (confirm(`Repository '${qs.repo}' was not found locally. Import it from GitHub?`)) {
       importProjectFromGithub('https://github.com/' + qs.repo, true);
       return;
