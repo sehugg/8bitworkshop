@@ -9,13 +9,13 @@ export const mboTheme = EditorView.theme({
     caretColor: "#ffffec"
   },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
-    backgroundColor: "#716C62 !important"
+    backgroundColor: "#a29b8c7b !important"
   },
   ".cm-selectionMatch": {
     backgroundColor: "#ffffff30"
   },
   ".cm-activeLine": {
-    backgroundColor: "#494b41"
+    backgroundColor: "#ffffff0a"
   },
   ".cm-activeLineGutter": {
     backgroundColor: "#68686588"
