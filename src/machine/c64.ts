@@ -28,8 +28,6 @@ export class C64_WASMMachine extends BaseWASMMachine
   lightpen_y = 0;
 
   loadBIOS(srcArray: Uint8Array) {
-    var patch1ofs = 0xea24 - 0xe000 + 0x3000;
-    if (srcArray[patch1ofs] == 0xc4) srcArray[patch1ofs] = 0x60; // cursor move, KIL -> RTS
     super.loadBIOS(srcArray);
   }
   reset() {
@@ -79,6 +77,11 @@ export class C64_WASMMachine extends BaseWASMMachine
         for (var i=0; i<100000 && this.getPC() != this.prgstart; i++) {
           this.exports.machine_tick(this.sys);
         }
+        // release RETURN key
+        // (otherwise it stays stuck down and every keyboard read returns CR,
+        //  e.g. conio cgetc() always returning a bogus char - GH issue #203)
+        this.exports.machine_key_up(this.sys, 13);
+        this.exports.machine_exec(this.sys, 1); // chips/kbd.c has a "sticky counter"
       } else {
         // get out of reset
         this.exports.machine_exec(this.sys, 100);
