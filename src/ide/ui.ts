@@ -2217,7 +2217,7 @@ export async function startUI() {
   }
   // repo= given, but not imported yet? offer to import it from github
   // (repo can be "user/repo" or "user/repo/tree/branch/...")
-  if (hasLocalStorage && qs.repo && !getRepos()[qs.repo]) {
+  if (hasLocalStorage && qs.repo && !getRepos()[qs.repo] && qs.repo !== '/') {
     if (confirm(`Repository '${qs.repo}' was not found locally. Import it from GitHub?`)) {
       importProjectFromGithub('https://github.com/' + qs.repo, true);
       return;
