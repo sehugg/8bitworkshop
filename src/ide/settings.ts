@@ -1,7 +1,7 @@
 import { closeBrackets, deleteBracketPair } from "@codemirror/autocomplete";
 import { indentUnit } from "@codemirror/language";
 import { Compartment, EditorState, Extension } from "@codemirror/state";
-import { EditorView, highlightSpecialChars, highlightTrailingWhitespace, highlightWhitespace, keymap } from "@codemirror/view";
+import { EditorView, highlightSpecialChars, highlightTrailingWhitespace, highlightWhitespace, keymap, lineNumbers } from "@codemirror/view";
 import { isProductionHost } from "../common/util";
 import { debugHighlightTagsTooltip } from "./views/debug";
 import { insertTabKeymap, smartIndentKeymap } from "./views/tabs";
@@ -16,6 +16,7 @@ export const tabSizeCompartment = new Compartment();
 export const closeBracketsCompartment = new Compartment();
 export const tabsToSpacesCompartment = new Compartment();
 export const debugHighlightTagsCompartment = new Compartment();
+export const lineNumbersCompartment = new Compartment();
 
 export interface EditorSettings {
   tabSize: number;
@@ -25,6 +26,7 @@ export interface EditorSettings {
   highlightTrailingWhitespace: boolean;
   closeBrackets: boolean;
   debugHighlightTags: boolean;
+  showLineNumbers: boolean;
 }
 
 const SETTINGS_KEY = "8bitworkshop/editorSettings";
@@ -37,6 +39,7 @@ const defaultSettings: EditorSettings = {
   highlightTrailingWhitespace: false,
   closeBrackets: false,
   debugHighlightTags: false,
+  showLineNumbers: false,
 };
 
 export function loadSettings(): EditorSettings {
@@ -61,6 +64,7 @@ const compartmentValues: [Compartment, (s: EditorSettings) => Extension][] = [
   [highlightTrailingWhitespaceCompartment, s => s.highlightTrailingWhitespace ? highlightTrailingWhitespace() : []],
   [closeBracketsCompartment, s => s.closeBrackets ? [closeBrackets(), keymap.of([{ key: "Backspace", run: deleteBracketPair }])] : []],
   [debugHighlightTagsCompartment, s => s.debugHighlightTags ? debugHighlightTagsTooltip : []],
+  [lineNumbersCompartment, s => s.showLineNumbers ? lineNumbers() : []],
 ];
 
 export function settingsExtensions(settings: EditorSettings): Extension[] {
@@ -98,6 +102,7 @@ export function openSettings() {
        <div class="checkbox"><label><input type="checkbox" id="setting_highlightSpecialChars" ${settings.highlightSpecialChars ? 'checked' : ''}> Highlight special characters</label></div>
        <div class="checkbox"><label><input type="checkbox" id="setting_highlightWhitespace" ${settings.highlightWhitespace ? 'checked' : ''}> Highlight whitespace</label></div>
        <div class="checkbox"><label><input type="checkbox" id="setting_highlightTrailingWhitespace" ${settings.highlightTrailingWhitespace ? 'checked' : ''}> Highlight unwanted trailing whitespace</label></div>
+       <div class="checkbox"><label><input type="checkbox" id="setting_showLineNumbers" ${settings.showLineNumbers ? 'checked' : ''}> Show line numbers</label></div>
        <div class="checkbox"><label><input type="checkbox" id="setting_closeBrackets" ${settings.closeBrackets ? 'checked' : ''}> Automatically add and remove closing brackets</label></div>
        ${showInternal ? `
        <hr>
@@ -120,6 +125,7 @@ export function openSettings() {
           settings.highlightWhitespace = $('#setting_highlightWhitespace').is(':checked');
           settings.highlightTrailingWhitespace = $('#setting_highlightTrailingWhitespace').is(':checked');
           settings.closeBrackets = $('#setting_closeBrackets').is(':checked');
+          settings.showLineNumbers = $('#setting_showLineNumbers').is(':checked');
           if (showInternal) settings.debugHighlightTags = $('#setting_debugHighlightTags').is(':checked');
           saveSettings(settings);
           applySettingsToAll(settings);
