@@ -3360,7 +3360,8 @@
       define: ["__CBM__", "__C64__"],
       cfgfile: "c64.cfg",
       // SYS 2061
-      libargs: ["c64.lib"],
+      libargs: ["openroms-compat.o", "c64.lib"],
+      extra_link_files: ["openroms-compat.o"],
       acmeargs: ["-f", "cbm"]
       //extra_link_files: ['c64-cart.cfg'],
     },

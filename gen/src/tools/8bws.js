@@ -39,6 +39,7 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const testlib_1 = require("./testlib");
 const baseplatform_1 = require("../common/baseplatform");
+const emu_1 = require("../common/emu");
 const util_1 = require("../common/util");
 // ANSI color helpers
 const c = {
@@ -235,7 +236,8 @@ function usage() {
             commands: {
                 'compile': 'compile --platform <platform> [--tool <tool>] [--output <file>] [--symbols] [--save] <source>',
                 'check': 'check --platform <platform> [--tool <tool>] <source>',
-                'run': 'run (--platform <id> | --machine <module:ClassName>) [--frames N] [--output <file.png>] [--memdump start,end] [--info] <rom>',
+                'run': 'run (--platform <id> | --machine <module:ClassName>) [--frames N] [--script "cmds"|file] [--output <file.png>] [--memdump start,end] [--info] <rom>',
+                'script-cmds': RUN_SCRIPT_HELP,
                 'list-tools': 'list-tools',
                 'list-platforms': 'list-platforms',
             }
@@ -351,6 +353,211 @@ async function doCompile(args, positional, checkOnly) {
         data: compileData,
     });
 }
+const RUN_SCRIPT_HELP = [
+    'run N | wait N | frames N     - advance N frames (default 1)',
+    'runto ADDR [maxframes]        - run until PC==ADDR (cap default 1000 frames)',
+    'key KEY                       - press key (down, 3 frames, up)',
+    'keydown KEY / keyup KEY       - raw key down/up events',
+    'mem START LEN                 - hexdump memory',
+    'screen [START] [COLS] [ROWS]  - decode screen RAM to text (default $0400 40x25)',
+    'pc                            - print PC + disassembly at PC',
+    'reset                         - reset platform/machine',
+    'echo TEXT                     - print message',
+    '(KEY: char, ENTER/SPACE/LEFT/UP/RIGHT/DOWN/F1.., $hex; prefixes SHIFT+, CTRL+)',
+].join('\n');
+const KEY_NAMES = {
+    'ENTER': 13, 'RETURN': 13, 'CR': 13,
+    'SPACE': 32, 'ESC': 27, 'TAB': 9, 'BACKSPACE': 8, 'BS': 8,
+    'DELETE': 46, 'DEL': 46, 'INSERT': 45,
+    'LEFT': 37, 'UP': 38, 'RIGHT': 39, 'DOWN': 40,
+    'HOME': 36, 'END': 35, 'PAGEUP': 33, 'PAGEDOWN': 34,
+    'F1': 112, 'F2': 113, 'F3': 114, 'F4': 115, 'F5': 116, 'F6': 117,
+    'F7': 118, 'F8': 119, 'F9': 120, 'F10': 121, 'F11': 122, 'F12': 123,
+};
+function parseNum(s) {
+    s = s.trim();
+    if (s.startsWith('$'))
+        return parseInt(s.substring(1), 16);
+    if (/^0x[0-9a-f]+$/i.test(s))
+        return parseInt(s, 16);
+    if (/^\d+$/.test(s))
+        return parseInt(s, 10);
+    throw new Error(`bad number '${s}'`);
+}
+function parseKeyValue(tok) {
+    var flags = 0;
+    var t = tok.toUpperCase();
+    for (;;) {
+        if (t.startsWith('SHIFT+')) {
+            flags |= emu_1.KeyFlags.Shift;
+            t = t.substring(6);
+        }
+        else if (t.startsWith('CTRL+')) {
+            flags |= emu_1.KeyFlags.Ctrl;
+            t = t.substring(5);
+        }
+        else
+            break;
+    }
+    if (KEY_NAMES[t] != null)
+        return { key: KEY_NAMES[t], flags };
+    if (t.length == 1)
+        return { key: t.charCodeAt(0), flags };
+    if (/^0X[0-9A-F]+$/.test(t))
+        return { key: parseInt(t, 16), flags };
+    if (/^\d+$/.test(t))
+        return { key: parseInt(t, 10), flags };
+    throw new Error(`unknown key '${tok}'`);
+}
+// C64-style screen code -> ASCII (also close enough for VIC-20 et al)
+function screenCodeToChar(code) {
+    code &= 0xff;
+    if (code >= 0x40)
+        code &= 0x3f; // reverse-video / graphics variants
+    if (code < 0x20) {
+        const special = '@ABCDEFGHIJKLMNOPQRSTUVWXYZ[£]^_';
+        return special[code];
+    }
+    return String.fromCharCode(code); // $20-$3F identical to ASCII
+}
+function hexdumpMem(readFn, start, end) {
+    var len = end - start + 1;
+    for (var ofs = 0; ofs < len; ofs += 16) {
+        var line = `${(0, util_1.hex)(start + ofs, 4)}:`;
+        var ascii = '';
+        for (var i = 0; i < 16 && ofs + i < len; i++) {
+            if (i === 8)
+                line += ' ';
+            var byte = readFn(start + ofs + i);
+            line += ` ${(0, util_1.hex)(byte)}`;
+            ascii += (byte >= 0x20 && byte < 0x7f) ? String.fromCharCode(byte) : '.';
+        }
+        process.stdout.write(`${line}  ${ascii}\n`);
+    }
+}
+function executeRunScript(script, ctx) {
+    var lines = script.split(/\r?\n|;/);
+    for (var ln of lines) {
+        ln = ln.trim();
+        if (!ln || ln.startsWith('#') || ln.startsWith('//'))
+            continue;
+        var tokens = ln.split(/\s+/);
+        var cmd = tokens[0].toLowerCase();
+        try {
+            switch (cmd) {
+                case 'run':
+                case 'wait':
+                case 'frames': {
+                    var n = tokens[1] ? parseNum(tokens[1]) : 1;
+                    for (var i = 0; i < n; i++)
+                        ctx.advance();
+                    process.stdout.write(`[frame ${ctx.frameno()}] ran ${n} frame${n == 1 ? '' : 's'}\n`);
+                    break;
+                }
+                case 'runto': {
+                    if (!tokens[1])
+                        throw new Error('runto requires an address');
+                    var addr = parseNum(tokens[1]);
+                    var maxf = tokens[2] ? parseNum(tokens[2]) : 1000;
+                    var startFrame = ctx.frameno();
+                    while (ctx.frameno() - startFrame < maxf) {
+                        ctx.advance();
+                        var pc = ctx.getPC();
+                        if (pc == null || pc === addr)
+                            break;
+                    }
+                    var pc = ctx.getPC();
+                    var hit = pc != null && pc === addr;
+                    process.stdout.write(`[frame ${ctx.frameno()}] runto $${(0, util_1.hex)(addr, 4)}: ${hit ? 'HIT' : 'MISSED'} (pc=${pc != null ? '$' + (0, util_1.hex)(pc, 4) : '?'} after ${ctx.frameno() - startFrame} frames)\n`);
+                    break;
+                }
+                case 'key':
+                case 'press': {
+                    if (!tokens[1])
+                        throw new Error('key requires a key name');
+                    var { key, flags } = parseKeyValue(tokens[1]);
+                    ctx.sendKey(key, flags | emu_1.KeyFlags.KeyDown);
+                    for (var i = 0; i < 3; i++)
+                        ctx.advance();
+                    ctx.sendKey(key, flags | emu_1.KeyFlags.KeyUp);
+                    ctx.advance();
+                    process.stdout.write(`[frame ${ctx.frameno()}] pressed ${tokens[1]} ($${(0, util_1.hex)(key, 2)})\n`);
+                    break;
+                }
+                case 'keydown': {
+                    if (!tokens[1])
+                        throw new Error('keydown requires a key name');
+                    var { key, flags } = parseKeyValue(tokens[1]);
+                    ctx.sendKey(key, flags | emu_1.KeyFlags.KeyDown);
+                    process.stdout.write(`[frame ${ctx.frameno()}] keydown ${tokens[1]} ($${(0, util_1.hex)(key, 2)})\n`);
+                    break;
+                }
+                case 'keyup': {
+                    if (!tokens[1])
+                        throw new Error('keyup requires a key name');
+                    var { key, flags } = parseKeyValue(tokens[1]);
+                    ctx.sendKey(key, flags | emu_1.KeyFlags.KeyUp);
+                    process.stdout.write(`[frame ${ctx.frameno()}] keyup ${tokens[1]} ($${(0, util_1.hex)(key, 2)})\n`);
+                    break;
+                }
+                case 'mem': {
+                    if (!tokens[1])
+                        throw new Error('mem requires START [LEN]');
+                    var start = parseNum(tokens[1]);
+                    var len = tokens[2] ? parseNum(tokens[2]) : 16;
+                    process.stdout.write(`[frame ${ctx.frameno()}] mem $${(0, util_1.hex)(start, 4)}+$${(0, util_1.hex)(len, 4)}:\n`);
+                    hexdumpMem(ctx.readMem, start, start + len - 1);
+                    break;
+                }
+                case 'screen': {
+                    var start = tokens[1] ? parseNum(tokens[1]) : 0x400;
+                    var cols = tokens[2] ? parseNum(tokens[2]) : 40;
+                    var rows = tokens[3] ? parseNum(tokens[3]) : 25;
+                    process.stdout.write(`[frame ${ctx.frameno()}] screen at $${(0, util_1.hex)(start, 4)} (${cols}x${rows}):\n`);
+                    for (var y = 0; y < rows; y++) {
+                        var line = '';
+                        for (var x = 0; x < cols; x++)
+                            line += screenCodeToChar(ctx.readMem(start + y * cols + x));
+                        process.stdout.write(`|${line.replace(/\s+$/, '')}|\n`);
+                    }
+                    break;
+                }
+                case 'pc': {
+                    var pc = ctx.getPC();
+                    if (pc == null)
+                        throw new Error('no PC available');
+                    process.stdout.write(`[frame ${ctx.frameno()}] PC=$${(0, util_1.hex)(pc, 4)}\n`);
+                    var addr = pc;
+                    for (var i = 0; i < 8; i++) {
+                        var d = ctx.disassemble(addr);
+                        if (!d)
+                            break;
+                        var bytesStr = '';
+                        for (var b = 0; b < d.nbytes; b++)
+                            bytesStr += (0, util_1.hex)(ctx.readMem(addr + b)) + ' ';
+                        process.stdout.write(`  $${(0, util_1.hex)(addr, 4)}  ${bytesStr.padEnd(12)} ${d.line}\n`);
+                        addr += d.nbytes;
+                    }
+                    break;
+                }
+                case 'reset': {
+                    ctx.reset();
+                    process.stdout.write(`[frame ${ctx.frameno()}] reset\n`);
+                    break;
+                }
+                case 'echo': {
+                    process.stdout.write(ln.substring(cmd.length).trim() + '\n');
+                    break;
+                }
+                default:
+                    throw new Error(`unknown command (try: ${RUN_SCRIPT_HELP.split('\n')[0].split(' ')[0]}, ...)`);
+            }
+        }
+        catch (e) {
+            throw new Error(`script error on '${ln}': ${e.message}\nCommands:\n${RUN_SCRIPT_HELP}`);
+        }
+    }
+}
 async function doRun(args, positional) {
     var _a, _b, _c;
     var platformId = args['platform'];
@@ -371,17 +578,13 @@ async function doRun(args, positional) {
     var vid = null;
     var platformRunner = null;
     var machineInstance = null;
+    var runner = null;
     if (platformId) {
         // Platform mode: load platform module, mock video, run via Platform API
         var { PlatformRunner, loadPlatform } = await Promise.resolve().then(() => __importStar(require('./runmachine')));
         platformRunner = new PlatformRunner(await loadPlatform(platformId));
         await platformRunner.start();
         platformRunner.loadROM("ROM", romData);
-        for (var i = 0; i < frames; i++) {
-            platformRunner.run();
-        }
-        pixels = platformRunner.pixels;
-        vid = platformRunner.videoParams;
     }
     else {
         // Machine mode: load machine class directly
@@ -397,15 +600,72 @@ async function doRun(args, positional) {
         var [modname, clsname] = parts;
         var { MachineRunner, loadMachine } = await Promise.resolve().then(() => __importStar(require('./runmachine')));
         machineInstance = await loadMachine(modname, clsname);
-        var runner = new MachineRunner(machineInstance);
+        runner = new MachineRunner(machineInstance);
         runner.setup();
         machineInstance.loadROM(romData);
-        for (var i = 0; i < frames; i++) {
-            runner.run();
-        }
-        pixels = runner.pixels;
-        vid = pixels ? machineInstance.getVideoParams() : null;
     }
+    // Build the execution context for frame loop / run-script
+    var frameno = 0;
+    var advance = () => {
+        if (platformRunner)
+            platformRunner.run();
+        else
+            runner.run();
+        frameno++;
+    };
+    var debugTarget = platformRunner ? platformRunner.platform : machineInstance;
+    var keyTarget = platformRunner ? platformRunner.platform.machine : machineInstance;
+    var readMem = (addr) => {
+        if (platformRunner)
+            return platformRunner.platform.readAddress(addr);
+        var m = machineInstance;
+        return typeof m.readAddress === 'function' ? m.readAddress(addr) : m.readConst(addr);
+    };
+    var getPC = () => {
+        try {
+            return typeof debugTarget.getPC === 'function' ? debugTarget.getPC() : null;
+        }
+        catch (e) {
+            return null;
+        }
+    };
+    var sendKey = (key, flags) => {
+        if (keyTarget && typeof keyTarget.setKeyInput === 'function')
+            keyTarget.setKeyInput(key, key, flags);
+        else if (typeof debugTarget.setKeyInput === 'function')
+            debugTarget.setKeyInput(key, key, flags);
+        else
+            throw new Error('platform/machine does not support setKeyInput');
+    };
+    var disassemble = (addr) => {
+        try {
+            return typeof debugTarget.disassemble === 'function' ? debugTarget.disassemble(addr, readMem) : null;
+        }
+        catch (e) {
+            return null;
+        }
+    };
+    if (args['script']) {
+        // --script: inline commands or a path to a script file
+        var scriptText = args['script'];
+        if (fs.existsSync(scriptText))
+            scriptText = fs.readFileSync(scriptText, 'utf8');
+        executeRunScript(scriptText, {
+            advance,
+            frameno: () => frameno,
+            readMem,
+            getPC,
+            sendKey,
+            reset: () => debugTarget.reset(),
+            disassemble,
+        });
+    }
+    else {
+        for (var i = 0; i < frames; i++)
+            advance();
+    }
+    pixels = platformRunner ? platformRunner.pixels : runner.pixels;
+    vid = pixels ? (platformRunner ? platformRunner.videoParams : machineInstance.getVideoParams()) : null;
     output({
         success: true,
         command: 'run',
@@ -478,19 +738,8 @@ async function doRun(args, positional) {
             output({ success: false, command: 'run', error: 'Platform/machine does not support readAddress' });
             process.exit(1);
         }
-        var len = end - start + 1;
-        for (var ofs = 0; ofs < len; ofs += 16) {
-            var line = `${c.cyan}$${(0, util_1.hex)(start + ofs, 4)}${c.reset}:`;
-            var ascii = '';
-            for (var i = 0; i < 16 && ofs + i < len; i++) {
-                if (i === 8)
-                    line += ' ';
-                var byte = readFn2(start + ofs + i);
-                line += ` ${(0, util_1.hex)(byte)}`;
-                ascii += (byte >= 0x20 && byte < 0x7f) ? String.fromCharCode(byte) : '.';
-            }
-            process.stderr.write(`${line}  ${c.dim}${ascii}${c.reset}\n`);
-        }
+        process.stdout.write(`memdump $${(0, util_1.hex)(start, 4)}-$${(0, util_1.hex)(end, 4)}:\n`);
+        hexdumpMem(readFn2, start, end);
     }
     // Encode framebuffer as PNG if video is available
     var pngData = null;
