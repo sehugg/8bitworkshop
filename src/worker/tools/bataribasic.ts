@@ -7,7 +7,7 @@ import { CodeListingMap, WorkerError } from "../../common/workertypes";
 import { BuildStep, BuildStepResult, gatherFiles, staleFiles, store, putWorkFile, anyTargetChanged } from "../builder";
 import { loadWASMBinary } from "../wasmutils";
 import { loadWASIFilesystemZip } from "../wasiutils";
-import { parseDASMListing, parseSymbolMap, re_usl } from "./dasm";
+import { parseDASMListing, parseDASMOutput, parseSymbolMap } from "./dasm";
 import { msvcErrorMatcher } from "../listingutils";
 
 let bbModules: { [name: string]: WebAssembly.Module } = {};
@@ -122,15 +122,9 @@ export async function compileBatariBasic(step: BuildStep): Promise<BuildStepResu
     runRunner(dasm, "dasm", [destpath, "-I./includes", "-f3", "-p20",
         "-l" + lstpath, "-s" + sympath, "-o" + binpath], errors);
     // parse dasm stdout/stderr for warnings/errors
-    const matcher = msvcErrorMatcher(errors);
     const unresolved = {};
-    for (let line of dasm.fds[1].getBytesAsString().split("\n")) {
-        matcher(line);
-        let m = re_usl.exec(line);
-        if (m) {
-            unresolved[m[1]] = 0;
-        }
-    }
+    const fatal = parseDASMOutput(dasm.fds[1].getBytesAsString(), errors, unresolved);
+    const matcher = msvcErrorMatcher(errors);
     for (let line of dasm.fds[2].getBytesAsString().split("\n")) {
         matcher(line);
     }
@@ -143,6 +137,8 @@ export async function compileBatariBasic(step: BuildStep): Promise<BuildStepResu
         listings[path] = { lines: [] };
     }
     parseDASMListing(lstpath, alst, listings, errors, unresolved);
+    // the fatal summary only helps when we found nothing more specific
+    if (fatal && !errors.length) errors.push({ line: 0, msg: fatal });
     if (errors.length) {
         return { errors: errors };
     }

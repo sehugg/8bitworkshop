@@ -214,7 +214,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     extensions: ['.dasm'],
     editorStyle: '6502',
     helpURL: 'https://raw.githubusercontent.com/sehugg/dasm/master/doc/dasm.txt',
-    wasmModule: 'dasm',
+    wasmModule: 'dasm-wasisdk',
     includePatterns: SHARED_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
   },

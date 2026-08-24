@@ -98,6 +98,8 @@
     "fuzzbasic": "jsfuzz gen/common/basic/fuzz.js ~/basic/corpus/ --versifier false",
     "fuzzhdl": "jsfuzz -r binaryen gen/common/hdl/fuzz.js ~/verilator/corpus/ --versifier false",
     "cli": "node gen/tools/8bws.js",
+    "buildpresets": "NODE_PATH=$(pwd) node gen/tools/buildpresets.js",
+    "test-presets-build": "NODE_PATH=$(pwd) mocha --timeout 900000 test/cli/testpresetbuilds.js",
     "mkdoc": "typedoc --out web/jsdoc src/common/"
   },
   "keywords": [
