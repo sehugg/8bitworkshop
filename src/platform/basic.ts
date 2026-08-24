@@ -271,6 +271,7 @@ class BASICPlatform implements Platform {
             this.step();
         }
     }
+    hasCustomStepOver() { return true; }
     runUntilReturn() {
         var prevSP = this.getSP();
         this.runEval(() => this.getSP() > prevSP);

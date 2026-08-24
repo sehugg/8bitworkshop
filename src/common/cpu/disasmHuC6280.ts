@@ -261,7 +261,7 @@ export var OPS_HuC6280 = [
   {mn:"ISB",am:"AAAA,x",nb:3,il:1,c1:7,c2:0,nw:2,br:0,mod:"ACZVN"}, // ff
 ];
 
-export function disassembleHuC6280(pc:number, b0:number, b1:number, b2:number) : {line:string, nbytes:number, isaddr:boolean} {
+export function disassembleHuC6280(pc:number, b0:number, b1:number, b2:number) : {line:string, nbytes:number, isaddr:boolean, iscall?:boolean} {
 
   var op = OPS_HuC6280[b0];
   if (op == null) return {line:"???", nbytes:1, isaddr:false};
@@ -279,5 +279,5 @@ export function disassembleHuC6280(pc:number, b0:number, b1:number, b2:number) :
     if (am.indexOf('#') < 0 && am.indexOf('$') >= 0)
       isaddr = true;
   }
-  return {line:op.mn + " " + am, nbytes:op.nb, isaddr:isaddr};
+  return {line:op.mn + " " + am, nbytes:op.nb, isaddr:isaddr, iscall:op.mn=="JSR"};
 };

@@ -2,7 +2,7 @@
 // 8bitworkshop IDE user interface
 
 import * as localforage from "localforage";
-import { DebugEvalCondition, DebugSymbols, EmuState, isDebuggable, Platform, Preset } from "../common/baseplatform";
+import { BaseDebugPlatform, DebugEvalCondition, DebugSymbols, EmuState, isDebuggable, Platform, Preset } from "../common/baseplatform";
 import { EmuHalt, PLATFORMS } from "../common/emu";
 import { StateRecorderImpl } from "../common/recorder";
 import {
@@ -10,7 +10,7 @@ import {
   getRootBasePlatform, getWithBinary, hex, highlightDifferences, isProbablyBinary, isProductionHost, loadScript, parseBool, stringToByteArray
 } from "../common/util";
 import { getSkeletonName, getToolMeta, TOOL_META } from "../common/toolmeta";
-import { FileData, WorkerError, WorkerResult } from "../common/workertypes";
+import { CodeListingMap, FileData, WorkerError, WorkerResult } from "../common/workertypes";
 import { importPlatform } from "../platform/_index";
 import { alertError, alertInfo, fatalError, setWaitDialog } from "./dialogs";
 import { openSettings } from "./settings";
@@ -1212,7 +1212,69 @@ function singleStep() {
 function stepOver() {
   if (!checkRunReady()) return;
   setupBreakpoint("stepover");
-  platform.stepOver();
+  // platform-specific step-over (e.g. BASIC statements) takes precedence
+  if (platform.hasCustomStepOver && platform.hasCustomStepOver()) {
+    platform.stepOver();
+    return;
+  }
+  // source-level stepping: break at the first PC assigned to a source line,
+  // unless we're in the disassembly view -- then assume no line info
+  if (projectWindows.getActiveID() != '#disasm') {
+    var pcs = getSourceLineStartPCs();
+    if (pcs.size > 0 && stepOverSource(pcs)) {
+      return;
+    }
+  }
+  // fall back to instruction-level step-over
+  if (platform.stepOver) {
+    platform.stepOver();
+  } else {
+    platform.step();
+  }
+}
+
+var sourcePcsCache: { listings: CodeListingMap, pcs: Set<number> } = null;
+
+// build set of all PCs that begin a source line; cached until next build
+function getSourceLineStartPCs(): Set<number> {
+  var listings = current_project.getListings();
+  if (!sourcePcsCache || sourcePcsCache.listings !== listings) {
+    var pcs = new Set<number>();
+    if (listings) {
+      for (var lstfn in listings) {
+        var sourcefile = listings[lstfn].sourcefile;
+        if (!sourcefile) continue;
+        for (var line of sourcefile.lines) {
+          if (line.offset >= 0) pcs.add(line.offset);
+        }
+      }
+    }
+    sourcePcsCache = { listings: listings, pcs: pcs };
+  }
+  return sourcePcsCache.pcs;
+}
+
+// source-level step over: break at the next line-start PC, but skip over any
+// subroutine call made by the current instruction (and interrupts it triggers).
+// returns false if source-level stepping isn't possible here.
+function stepOverSource(pcs: Set<number>): boolean {
+  if (!platform.runEval || !lastDebugState || !lastDebugState.c) return false;
+  var pc = lastDebugState.c.EPC || lastDebugState.c.PC;
+  var sp0 = platform.getSP ? platform.getSP() : null;
+  // if current instruction is a subroutine call, don't stop inside it
+  var iscall = false;
+  var readfn = platform.readAddress?.bind(platform);
+  if (readfn && platform.disassemble) {
+    var d = platform.disassemble(pc, readfn);
+    iscall = !!(d && d.iscall);
+  }
+  platform.runEval((c) => {
+    var cur = c.EPC || c.PC;
+    if (cur == pc) return false;		// haven't left this instruction yet
+    if (iscall && sp0 != null && c.SP < sp0) return false;	// inside called subroutine (or IRQ)
+    return pcs.has(cur);
+  });
+  return true;
 }
 
 function singleFrameStep() {
