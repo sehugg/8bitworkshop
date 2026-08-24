@@ -1597,7 +1597,8 @@ function setupDebugControls() {
   if (platform.showHelp) {
     let { li, a } = newDropdownListItem('help__' + platform_id, platform_name + ' Help');
     $("#help_menu").append(li);
-    $(a).click(() => window.open(platform.showHelp(), '_8bws_help'));
+    // opens an external page; don't let the placeholder href change our URL hash
+    $(a).click((e) => { e.preventDefault(); window.open(platform.showHelp(), '_8bws_help'); });
   }
   // tool help
   let tool = platform.getToolForFilename(getCurrentMainFilename());
@@ -1609,7 +1610,8 @@ function setupDebugControls() {
     if (toolmeta!.version) label += ' (' + toolmeta!.version + ')';
     let { li, a } = newDropdownListItem('help__' + tool, label);
     $("#help_menu").append(li);
-    $(a).click(() => window.open(toolhelpurl!, '_8bws_help'));
+    // opens an external page; don't let the placeholder href change our URL hash
+    $(a).click((e) => { e.preventDefault(); window.open(toolhelpurl!, '_8bws_help'); });
   }
   // all toolchain versions
   $("#item_tool_versions").click(openToolVersions);
@@ -1986,7 +1988,7 @@ function installHashChangeHandler() {
 
 function navigateToInitialHash(initialHash: string) {
   if (initialHash && initialHash !== '#') {
-    const viewId = hashToViewIdResolved(initialHash) || getCurrentMainFilename();
+    const viewId = hashToViewIdResolved(initialHash) || current_project.mainPath;
     history.replaceState(null, '', initialHash);
     projectWindows.createOrShow(viewId);
   }
