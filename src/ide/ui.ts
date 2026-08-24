@@ -9,7 +9,7 @@ import {
   arrayCompare, byteArrayToUTF8, decodeQueryString, getBasePlatform, getCookie, getFilenameForPath, getFilenamePrefix,
   getRootBasePlatform, getWithBinary, hex, highlightDifferences, isProbablyBinary, isProductionHost, loadScript, parseBool, stringToByteArray
 } from "../common/util";
-import { getSkeletonName, getToolMeta } from "../common/toolmeta";
+import { getSkeletonName, getToolMeta, TOOL_META } from "../common/toolmeta";
 import { FileData, WorkerError, WorkerResult } from "../common/workertypes";
 import { importPlatform } from "../platform/_index";
 import { alertError, alertInfo, fatalError, setWaitDialog } from "./dialogs";
@@ -1601,12 +1601,36 @@ function setupDebugControls() {
   }
   // tool help
   let tool = platform.getToolForFilename(getCurrentMainFilename());
-  let toolhelpurl = tool && getToolMeta(tool)?.helpURL;
+  let toolmeta = tool && getToolMeta(tool);
+  let toolhelpurl = toolmeta?.helpURL;
   if (toolhelpurl) {
-    let { li, a } = newDropdownListItem('help__' + tool, tool + ' Help');
+    // include the vendored wasm version when we know it (TOOL_META.version)
+    let label = tool + ' Help';
+    if (toolmeta!.version) label += ' (' + toolmeta!.version + ')';
+    let { li, a } = newDropdownListItem('help__' + tool, label);
     $("#help_menu").append(li);
-    $(a).click(() => window.open(toolhelpurl, '_8bws_help'));
+    $(a).click(() => window.open(toolhelpurl!, '_8bws_help'));
   }
+  // all toolchain versions
+  $("#item_tool_versions").click(openToolVersions);
+}
+
+function openToolVersions() {
+  const row = (name: string, kind: string, version: string) =>
+    `<tr><td>${name}</td><td>${kind}</td><td>${version}</td></tr>`;
+  // only tools whose vendored wasm reported a version (see npm run toolversions)
+  const tools = Object.values(TOOL_META)
+    .filter(m => m.wasmModule && m.version)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  bootbox.dialog({
+    title: 'Toolchain Versions',
+    onEscape: true,
+    message: `
+    <table class="help">
+      <tr><th>Tool</th><th>Kind</th><th>Version</th></tr>
+      ${tools.map(m => row(m.name, m.kind, m.version ?? '?')).join('\n')}
+    </table>`,
+  });
 }
 
 function openKeyboardShortcuts() {
