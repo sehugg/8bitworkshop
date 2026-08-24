@@ -281,7 +281,7 @@ function disassembleHuC6280(pc, b0, b1, b2) {
         if (am.indexOf('#') < 0 && am.indexOf('$') >= 0)
             isaddr = true;
     }
-    return { line: op.mn + " " + am, nbytes: op.nb, isaddr: isaddr };
+    return { line: op.mn + " " + am, nbytes: op.nb, isaddr: isaddr, iscall: op.mn == "JSR" };
 }
 ;
 //# sourceMappingURL=disasmHuC6280.js.map

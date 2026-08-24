@@ -57,7 +57,7 @@ exports.mboHighlightStyle = language_1.HighlightStyle.define([
     { tag: [highlight_1.tags.processingInstruction], color: "#ff9cf7" },
     { tag: [highlight_1.tags.keyword, highlight_1.tags.controlKeyword, highlight_1.tags.modifier], color: "#ffb928" },
     { tag: [highlight_1.tags.name, highlight_1.tags.standard(highlight_1.tags.name), highlight_1.tags.variableName], color: "#ffffec" },
-    { tag: highlight_1.tags.local(highlight_1.tags.variableName), color: "#00a8c6" },
+    //{ tag: t.local(t.variableName), color: "#00a8c6" },
     { tag: [highlight_1.tags.deleted, highlight_1.tags.macroName], color: "#00a8c6" },
     { tag: [highlight_1.tags.string, highlight_1.tags.inserted], color: "#b4fdb7" },
     { tag: [highlight_1.tags.number], color: "#3abff8" },

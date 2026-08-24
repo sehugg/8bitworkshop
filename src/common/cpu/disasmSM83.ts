@@ -72,7 +72,7 @@ const SM83_OPS_CB = [
   "set 7,b","set 7,c","set 7,d","set 7,e","set 7,h","set 7,l","set 7,(hl)","set 7,a"
 ];
 
-export function disassembleSM83(pc: number, b0: number, b1: number, b2: number): { line: string, nbytes: number, isaddr: boolean } {
+export function disassembleSM83(pc: number, b0: number, b1: number, b2: number): { line: string, nbytes: number, isaddr: boolean, iscall?: boolean } {
   var am: string;
   var n = 1;
   var isaddr = false;
@@ -109,5 +109,5 @@ export function disassembleSM83(pc: number, b0: number, b1: number, b2: number):
     n += 1;
   }
 
-  return { line: am.toUpperCase(), nbytes: n, isaddr: isaddr };
+  return { line: am.toUpperCase(), nbytes: n, isaddr: isaddr, iscall: /^(call|rst)/.test(am) };
 }

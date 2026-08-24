@@ -243,6 +243,29 @@ class BaseDebugPlatform extends BasePlatform {
             return c.SP > SP0; // TODO: check for RTS/RET opcode
         });
     }
+    // step over one CPU instruction; if it is a subroutine call,
+    // run at full speed until the instruction following it
+    stepOver() {
+        var _a;
+        var p = this;
+        var pc = this.getPC();
+        var d = null;
+        var readfn = (_a = p.readAddress) === null || _a === void 0 ? void 0 : _a.bind(p);
+        if (readfn && p.disassemble) {
+            d = p.disassemble(pc, readfn);
+        }
+        if (d && d.iscall) {
+            // run until we return from the subroutine call
+            var nextPC = pc + d.nbytes;
+            this.debugTargetClock++;
+            this.runEval((c) => c.PC == nextPC);
+        }
+        else {
+            // not a call, just single-step
+            this.step();
+        }
+    }
+    hasCustomStepOver() { return false; }
     runToFrameClock(clock) {
         this.restartDebugging();
         this.debugTargetClock = clock;

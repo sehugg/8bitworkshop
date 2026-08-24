@@ -108,6 +108,6 @@ function disassembleSM83(pc, b0, b1, b2) {
         }
         n += 1;
     }
-    return { line: am.toUpperCase(), nbytes: n, isaddr: isaddr };
+    return { line: am.toUpperCase(), nbytes: n, isaddr: isaddr, iscall: /^(call|rst)/.test(am) };
 }
 //# sourceMappingURL=disasmSM83.js.map

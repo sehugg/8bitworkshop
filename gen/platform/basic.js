@@ -247,6 +247,7 @@ class BASICPlatform {
             this.step();
         }
     }
+    hasCustomStepOver() { return true; }
     runUntilReturn() {
         var prevSP = this.getSP();
         this.runEval(() => this.getSP() > prevSP);

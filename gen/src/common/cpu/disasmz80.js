@@ -9,6 +9,7 @@ function disassembleZ80(pc, b0, b1, b2, b3) {
     var op, n, am;
     var bytes = [b0, b1, b2, b3];
     var isaddr = false;
+    var iscall = false;
     n = 1;
     switch (b0) {
         case 0xcb:
@@ -45,6 +46,7 @@ function disassembleZ80(pc, b0, b1, b2, b3) {
     }
     if (!am || !am.length)
         am = "??";
+    iscall = /^(call|rst)/.test(am);
     if (/\bxx\b/.test(am)) {
         am = am.replace(/\bxx\b/, '$' + (0, util_1.hex)(bytes[n] + (bytes[n + 1] << 8), 4));
         n += 2;
@@ -62,7 +64,7 @@ function disassembleZ80(pc, b0, b1, b2, b3) {
         }
         n += 1;
     }
-    return { line: am.toUpperCase(), nbytes: n, isaddr: isaddr };
+    return { line: am.toUpperCase(), nbytes: n, isaddr: isaddr, iscall: iscall };
 }
 ;
 //# sourceMappingURL=disasmz80.js.map

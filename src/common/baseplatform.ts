@@ -43,7 +43,8 @@ export interface EmuControlsState {
 export type DisasmLine = {
   line: string,
   nbytes: number,
-  isaddr: boolean
+  isaddr: boolean,
+  iscall?: boolean	// true if instruction is a subroutine call
 };
 
 export type SymbolMap = { [ident: string]: number };
@@ -112,6 +113,7 @@ export interface Platform {
   runEval?(evalfunc: DebugEvalCondition): void;
   runToFrameClock?(clock: number): void;
   stepOver?(): void;
+  hasCustomStepOver?(): boolean; // true if stepOver() is not the generic instruction-level implementation
   restartAtPC?(pc: number): boolean;
 
   getOpcodeMetadata?(opcode: number, offset: number): OpcodeMetadata; //TODO
@@ -376,6 +378,27 @@ export abstract class BaseDebugPlatform extends BasePlatform {
       return c.SP > SP0; // TODO: check for RTS/RET opcode
     });
   }
+  // step over one CPU instruction; if it is a subroutine call,
+  // run at full speed until the instruction following it
+  stepOver() {
+    var p = <Platform>(<unknown>this);
+    var pc = this.getPC();
+    var d = null;
+    var readfn = p.readAddress?.bind(p);
+    if (readfn && p.disassemble) {
+      d = p.disassemble(pc, readfn);
+    }
+    if (d && d.iscall) {
+      // run until we return from the subroutine call
+      var nextPC = pc + d.nbytes;
+      this.debugTargetClock++;
+      this.runEval((c) => c.PC == nextPC);
+    } else {
+      // not a call, just single-step
+      this.step();
+    }
+  }
+  hasCustomStepOver() { return false; }
   runToFrameClock(clock: number): void {
     this.restartDebugging();
     this.debugTargetClock = clock;

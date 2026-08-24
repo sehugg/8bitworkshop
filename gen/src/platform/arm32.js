@@ -75,7 +75,8 @@ class ARM32Platform extends BaseARMMachinePlatform {
             return {
                 nbytes: i0.size,
                 line: i0.mnemonic + " " + i0.op_str,
-                isaddr: i0.address > 0
+                isaddr: i0.address > 0,
+                iscall: i0.mnemonic == "bl" || i0.mnemonic == "blx"
             };
         }
         else {
