@@ -1,5 +1,5 @@
  include fixed_point_math.asm
- rem Zombie Chase
+ rem Zombie (Duck) Chase
  rem A fun game that may help you learn batari Basic!
  rem
 
@@ -320,7 +320,7 @@ wrap
  turndelay = turndelay + 1
  turndelay = turndelay & %11111011
  temp1=turndelay&3
- if temp1 <> 0 goto SameFrame
+ if temp1 <> 0 then goto SameFrame
 
 
  if joy0left then carpos=carpos-1:gamebits{0}=1

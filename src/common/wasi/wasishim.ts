@@ -292,6 +292,12 @@ export class WASIMemoryFilesystem implements WASIFilesystem {
     }
     getFile(name: string) {
         let file = this.files.get(name);
+        // fallback: normalize leading './' so 'dir.name + "/" + path' joins still match
+        if (!file && name.startsWith('./')) {
+            const stripped = name.substring(2);
+            file = this.files.get(stripped)
+                ?? this.parent?.getFile(stripped);
+        }
         if (!file) {
             file = this.parent?.getFile(name);
         }

@@ -123,7 +123,7 @@ describe('Tool metadata registry', function () {
     // preloadFS-backed tools
     assert.equal(getSharedFileSystemName('cc65', 'nes'), '65-nes');
     assert.equal(getSharedFileSystemName('sdcc', 'coleco'), 'sdcc');
-    assert.equal(getSharedFileSystemName('bataribasic', 'vcs'), '2600basic');
+    assert.equal(getSharedFileSystemName('bataribasic', 'vcs'), 'wasi:bb-fs.zip');
     assert.equal(getSharedFileSystemName('wiz'), 'wiz');
     // WASI zip-backed tools (cc2600/cc7800/armtcc/oscar64/dialog)
     assert.equal(getSharedFileSystemName('cc2600'), 'wasi:cc2600-fs.zip');

@@ -4,7 +4,7 @@ import { BuildStep, BuildStepResult, populateFiles, putWorkFile, anyTargetChange
 import { msvcErrorMatcher, re_crlf, re_msvc } from "../listingutils";
 import { execMain, emglobal, EmscriptenModule, load, loadWASMBinary } from "../wasmutils";
 
-function parseDASMListing(lstpath: string, lsttext: string, listings: CodeListingMap, errors: WorkerError[], unresolved: {}) {
+export function parseDASMListing(lstpath: string, lsttext: string, listings: CodeListingMap, errors: WorkerError[], unresolved: {}) {
     // TODO: this gets very slow
     // TODO: macros that are on adjacent lines don't get offset addresses
     //        4  08ee		       a9 00	   start      lda	#01workermain.js:23:5
@@ -120,9 +120,9 @@ function parseDASMListing(lstpath: string, lsttext: string, listings: CodeListin
     }
 }
 
-var re_usl = /(\w+)\s+0000\s+[?][?][?][?]/;
+export var re_usl = /(\w+)\s+0000\s+[?][?][?][?]/;
 
-function parseSymbolMap(asym: string) {
+export function parseSymbolMap(asym: string) {
     var symbolmap = {};
     for (var s of asym.split("\n")) {
         var toks = s.split(/\s+/);
