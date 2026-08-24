@@ -18,6 +18,7 @@ import {
   getToolForFilename_6502,
   getToolForFilename_z80,
   getToolForFilename_6809,
+  getToolForFilename_arm32,
   getOpcodeMetadata_6502,
   cpuStateToLongString_6502,
   cpuStateToLongString_Z80,
@@ -209,6 +210,19 @@ describe('Tool Filename Detection', function () {
 
     it('should default to zmac for unknown extensions', function () {
       assert.strictEqual(getToolForFilename_z80('unknown'), 'zmac');
+    });
+  });
+
+  describe('ARM32 tools', function () {
+    it('should detect assembly language', function () {
+      assert.strictEqual(getToolForFilename_arm32('test.vasm'), 'vasmarm');
+      assert.strictEqual(getToolForFilename_arm32('test.armips'), 'armips');
+    });
+
+    it('should default to armtcc', function () {
+      assert.strictEqual(getToolForFilename_arm32('test.c'), 'armtcc');
+      assert.strictEqual(getToolForFilename_arm32('test.s'), 'armtcc');
+      assert.strictEqual(getToolForFilename_arm32('unknown'), 'armtcc');
     });
   });
 

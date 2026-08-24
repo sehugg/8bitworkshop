@@ -24,6 +24,7 @@ determine the new position of the star pixel when we animate.
 #include <cvu.h>
 
 //#link "common.c"
+//#link "fonts.s"
 #include "common.h"
 
 // the starting character index in the pattern table

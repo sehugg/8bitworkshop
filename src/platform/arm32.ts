@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-import { Platform, DisasmLine, Machine, BaseMachinePlatform } from "../common/baseplatform";
+import { Platform, DisasmLine, Machine, BaseMachinePlatform, getToolForFilename_arm32 } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 import { loadScript } from "../common/util";
 import { ARM32Machine } from "../machine/arm32";
@@ -34,14 +34,7 @@ const ARM32_PRESETS = [
 export abstract class BaseARMMachinePlatform<T extends Machine> extends BaseMachinePlatform<T> {
 
     //getOpcodeMetadata     = getOpcodeMetadata_z80;
-    getToolForFilename(fn: string)  {
-      fn = fn.toLowerCase();
-      if (fn.endsWith('.vasm')) return "vasmarm";
-      if (fn.endsWith('.armips')) return "armips";
-      if (fn.endsWith('.c')) return "armtcc";
-      if (fn.endsWith('.s')) return "armtcc";
-      return "armtcc";
-    }
+    getToolForFilename = getToolForFilename_arm32;
     getPresets()          { return ARM32_PRESETS; }
     getDefaultExtensions() { return [".c", ".armips", ".vasm"]; }
   }

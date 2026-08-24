@@ -656,6 +656,13 @@ export function cpuStateToLongString_6809(c) {
     ;
 }
 
+export function getToolForFilename_arm32(fn: string): string {
+  fn = fn.toLowerCase();
+  if (fn.endsWith(".vasm")) return "vasmarm";
+  if (fn.endsWith(".armips")) return "armips";
+  return "armtcc";
+}
+
 export function getToolForFilename_6809(fn: string): string {
   if (fn.endsWith(".c")) return "cmoc";
   if (fn.endsWith(".h")) return "cmoc";

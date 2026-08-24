@@ -7,7 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { WorkerResult, WorkerMessage, WorkerErrorResult, WorkerOutputResult, Dependency } from "../common/workertypes";
 import { getFolderForPath, isProbablyBinary, getBasePlatform, getRootBasePlatform } from "../common/util";
-import { getToolForFilename_z80, getToolForFilename_6502, getToolForFilename_6809 } from "../common/baseplatform";
+import { getToolForFilename_z80, getToolForFilename_6502, getToolForFilename_6809, getToolForFilename_arm32 } from "../common/baseplatform";
 import { ToolIncludePattern, getIncludePatterns, getLinkPatterns, matchDependencyPatterns } from "../common/toolmeta";
 import { setupNodeEnvironment, handleMessage, store } from "../worker/workerlib";
 import { PLATFORM_PARAMS } from "../worker/platforms";
@@ -272,9 +272,12 @@ export function getToolForFilename(fn: string, platform: string): string {
     case 'gbz80':
       return getToolForFilename_z80(fn);
     case '6502':
+    case 'huc6280':   // PC Engine: cc65/ca65, like any other 6502
       return getToolForFilename_6502(fn);
     case '6809':
       return getToolForFilename_6809(fn);
+    case 'arm32':
+      return getToolForFilename_arm32(fn);
     case 'verilog':
       if (fn.endsWith('.asm')) return 'jsasm';
       return fn.endsWith('.ice') ? 'silice' : 'verilator';

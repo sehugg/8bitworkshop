@@ -295,8 +295,8 @@ function captureOutput() {
     };
 }
 
-// A build step can reach for a second tool (the arm32 skeleton compiles part
-// of itself with sdcc), whose filesystem nobody preloaded. Load it and retry.
+// A build step can reach for a second tool -- a project that links sources of
+// more than one kind -- whose filesystem nobody preloaded. Load it and retry.
 const RE_NO_FS = /No filesystem for '([^']+)'/;
 
 export async function buildPreset(

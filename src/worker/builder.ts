@@ -407,6 +407,23 @@ export function anyTargetChanged(step: BuildStep, targets: string[]) {
   return false;
 }
 
+/**
+ * Some platforms link a hand-written assembly project differently than a C one.
+ * The VCS is the case in point: a ca65 program supplies its own reset code and
+ * interrupt vectors, so linking it against crt0.o (which has vectors of its
+ * own) and the bank-switched config its C programs use can only collide. A
+ * platform spells the difference out with asm_-prefixed copies of the link
+ * params -- asm_cfgfile, asm_libargs, asm_extra_link_files -- which the
+ * assembler applies when the project's main file is its own source, and which
+ * nothing else looks at. Runs before fixParamsWithDefines() so that a source
+ * file's own //#define CFGFILE still has the last word.
+ */
+export function applyAsmProjectParams(params) {
+  for (const key of Object.keys(params)) {
+    if (key.startsWith('asm_')) params[key.substring(4)] = params[key];
+  }
+}
+
 export function fixParamsWithDefines(path: string, params) {
   var libargs = params.libargs;
   if (path && libargs) {

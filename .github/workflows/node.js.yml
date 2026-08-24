@@ -30,6 +30,7 @@ jobs:
     - run: npm test
       env:
         TEST8BIT_GITHUB_TOKEN: ${{ secrets.TEST8BIT_GITHUB_TOKEN }}
+    - run: npm run buildpresets
     - run: make distro
     - name: Deploy
       if: github.event_name == 'push' && github.ref == 'refs/heads/master'

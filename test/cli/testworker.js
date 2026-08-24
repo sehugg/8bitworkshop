@@ -314,12 +314,13 @@ describe('Worker', function() {
     compile('cc65', csource, 'apple2', done, 3023+58, 4, 0);
   });
   // TODO: test if compile, errors, then compile same file
-  // TODO: params persist because of fixParamsWithDefines()
   it('should compile CC65 banked', function(done) {
     compile('cc65', '#define NES_MAPPER 4\nint main() {\nint x=1;\nreturn x+2;\n}', 'nes', done, 131088, 3);
   });
+  // the plain (unbanked) nes config -- the NES_MAPPER 4 of the build above no
+  // longer follows one build into the next
   it('should assemble CA65', function(done) {
-    compile('ca65', ';#define LIBARGS ,\n\t.segment "HEADER"\n\t.segment "STARTUP"\n\t.segment "CHARS"\n\t.segment "VECTORS"\n\t.segment "SAMPLES"\n\t.segment "CODE"\n.ifdef __MAIN__\n\tlda #0\n\tsta $1\n.endif\n', 'nes', done, 131088, 2);
+    compile('ca65', ';#define LIBARGS ,\n\t.segment "HEADER"\n\t.segment "STARTUP"\n\t.segment "CHARS"\n\t.segment "VECTORS"\n\t.segment "SAMPLES"\n\t.segment "CODE"\n.ifdef __MAIN__\n\tlda #0\n\tsta $1\n.endif\n', 'nes', done, 40976, 2);
   });
   it('should compile C64 cc65 skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/c64/skeleton.cc65'));
