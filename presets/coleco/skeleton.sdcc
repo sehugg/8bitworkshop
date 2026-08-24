@@ -6,6 +6,7 @@
 
 #include "common.h"
 //#link "common.c"
+//#link "fonts.s"
 
 void main() {
   vdp_setup();

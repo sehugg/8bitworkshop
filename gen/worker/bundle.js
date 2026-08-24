@@ -2581,7 +2581,7 @@
       extensions: [".dasm"],
       editorStyle: "6502",
       helpURL: "https://raw.githubusercontent.com/sehugg/dasm/master/doc/dasm.txt",
-      wasmModule: "dasm",
+      wasmModule: "dasm-wasisdk",
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2893,8 +2893,8 @@
       includeDirs: ["/includes"],
       editorStyle: "bataribasic",
       helpURL: "help/bataribasic/manual.html",
-      wasmModule: "bb2600basic",
-      platforms: { default: { preloadFS: "2600basic" } },
+      wasiFSZip: "bb-fs.zip",
+      platforms: { default: {} },
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -3090,6 +3090,11 @@
       cfgfile: "atari2600.cfg",
       libargs: ["crt0.o", "atari2600.lib"],
       extra_link_files: ["crt0.o", "atari2600.cfg"],
+      // a hand-written ca65 program brings its own reset code and vectors, so
+      // it links as a plain 4K cart with no C runtime (see applyAsmProjectParams)
+      asm_cfgfile: "atari2600-asm.cfg",
+      asm_libargs: [],
+      asm_extra_link_files: ["atari2600-asm.cfg"],
       define: ["__ATARI2600__"]
     },
     "mw8080bw": {
@@ -5928,10 +5933,14 @@
       return file;
     }
     getFile(name) {
-      var _a;
+      var _a, _b, _c;
       let file = this.files.get(name);
+      if (!file && name.startsWith("./")) {
+        const stripped = name.substring(2);
+        file = (_b = this.files.get(stripped)) != null ? _b : (_a = this.parent) == null ? void 0 : _a.getFile(stripped);
+      }
       if (!file) {
-        file = (_a = this.parent) == null ? void 0 : _a.getFile(name);
+        file = (_c = this.parent) == null ? void 0 : _c.getFile(name);
       }
       return file;
     }
@@ -7042,6 +7051,10 @@
     gatherFiles(step, { mainFilePath: "main.s" });
     var objpath = step.prefix + ".o";
     var lstpath = step.prefix + ".lst";
+    if (step.mainfile) {
+      applyAsmProjectParams(step.params);
+    }
+    fixParamsWithDefines(step.path, step.params);
     if (staleFiles(step, [objpath, lstpath])) {
       var objout, lstout;
       var CA65 = emglobal.ca65({
@@ -7054,7 +7067,6 @@
       var FS = CA65.FS;
       setupFS(FS, "65-" + getRootBasePlatform(step.platform));
       populateFiles(step, FS);
-      fixParamsWithDefines(step.path, step.params);
       var args = ["-v", "-g", "-I", "/share/asminc", "-o", objpath, "-l", lstpath, step.path];
       args.unshift.apply(args, ["-D", "__8BITWORKSHOP__=1"]);
       if (step.mainfile) {
@@ -7269,24 +7281,92 @@
   }
 
   // src/worker/tools/dasm.ts
+  var COL_BYTES = 31;
+  var COL_OVERFLOW = 42;
+  var COL_LABEL = 43;
+  var COL_MNEMONIC = 54;
+  var re_fileMarker = /^-------\s+FILE\s+(.+?)(?:\s+LEVEL\s+(\d+)\s+PASS\s+(\d+))?\s*$/;
+  var re_lineStart = /^\s*(\d+) (.)([0-9a-f]+)( \?{4})?/i;
+  var re_equ = /\bequ\b/i;
+  var re_mac = /\bMAC\s+(\S+)/i;
+  var re_endm = /^ENDM\b/i;
+  var re_repeat = /^REPE(AT|ND)\b/i;
+  function expandTabs(s, tabsize = 8) {
+    let out = "";
+    for (let i = 0; i < s.length; i++) {
+      if (s[i] === "	") {
+        do {
+          out += " ";
+        } while (out.length % tabsize);
+      } else {
+        out += s[i];
+      }
+    }
+    return out;
+  }
+  function parseDASMListingLine(rawline) {
+    const line = expandTabs(rawline);
+    const m = re_lineStart.exec(line);
+    if (!m) return null;
+    const linenum = parseInt(m[1]);
+    const uninit = m[2] === "U";
+    const offset = parseInt(m[3], 16);
+    const unresolved = m[4] != null;
+    const shift = Math.max(0, m[3].length - 4);
+    const mnemcol = COL_MNEMONIC + shift;
+    let insns = line.substring(COL_BYTES + shift, COL_OVERFLOW + shift).trim();
+    if (!insns || uninit || unresolved) insns = null;
+    const rest = line.substring(COL_LABEL + shift).trim();
+    let op = line.substring(mnemcol).trim();
+    if (line.length > mnemcol && line.charAt(mnemcol - 1) !== " ") {
+      const sp = rest.search(/\s/);
+      op = sp < 0 ? "" : rest.substring(sp).trim();
+    }
+    return { linenum, offset, insns, rest, op };
+  }
   function parseDASMListing(lstpath, lsttext, listings, errors, unresolved) {
-    let lineMatch = /\s*(\d+)\s+(\S+)\s+([0-9a-f]+)\s+([?0-9a-f][?0-9a-f ]+)?\s+(.+)?/i;
-    let equMatch = /\bequ\b/i;
-    let macroMatch = /\bMAC\s+(\S+)?/i;
+    const macros = {};
+    const filestack = [];
+    const macstack = [];
+    let curfile = "";
     let lastline = 0;
-    let macros = {};
+    let pendingInclude = false;
+    let pendingMac = null;
     let lstline = 0;
     let lstlist = listings[lstpath];
-    for (let line of lsttext.split(re_crlf)) {
+    function macroLastLine(depth) {
+      return depth > 0 ? macstack[depth - 1].lastline : lastline;
+    }
+    for (let rawline of lsttext.split(re_crlf)) {
       lstline++;
-      let linem = lineMatch.exec(line + "    ");
-      if (linem && linem[1] != null) {
-        let linenum = parseInt(linem[1]);
-        let filename = linem[2];
-        let offset = parseInt(linem[3], 16);
-        let insns = linem[4];
-        let restline = linem[5];
-        if (insns && insns.startsWith("?")) insns = null;
+      let filem = re_fileMarker.exec(rawline);
+      if (filem) {
+        if (filem[2] != null) {
+          filestack.push({ file: curfile, lastline: lastline + 1 });
+          lastline = 0;
+          pendingInclude = true;
+        } else {
+          let prev;
+          while (filestack.length) {
+            prev = filestack.pop();
+            if (prev.file === filem[1]) break;
+          }
+          lastline = prev ? prev.lastline : 0;
+          pendingInclude = false;
+        }
+        curfile = filem[1];
+        macstack.length = 0;
+        pendingMac = null;
+        continue;
+      }
+      let linem = parseDASMListingLine(rawline);
+      if (linem) {
+        const { linenum, offset, insns, rest, op } = linem;
+        if (pendingInclude && linenum === 0) {
+          pendingInclude = false;
+          continue;
+        }
+        pendingInclude = false;
         if (lstlist && lstlist.lines) {
           lstlist.lines.push({
             line: lstline,
@@ -7295,62 +7375,85 @@
             iscode: true
           });
         }
-        let lst = listings[filename];
-        if (lst) {
-          var lines = lst.lines;
-          let macmatch = macroMatch.exec(restline);
-          if (macmatch) {
-            macros[macmatch[1]] = { line: parseInt(linem[1]), file: linem[2].toLowerCase() };
-          } else if (insns && restline && !restline.match(equMatch)) {
-            lines.push({
-              line: linenum,
-              offset,
-              insns,
-              iscode: restline[0] != "."
-            });
+        while (macstack.length) {
+          const top = macstack[macstack.length - 1];
+          const len = macros[top.name] ? macros[top.name].len : 0;
+          const finished = len > 0 && top.lastline >= len - 1;
+          const inbody = !len || linenum <= len - 1;
+          if (linenum === 0) {
+            if (!finished) break;
+          } else if (linenum === top.lastline + 1 && inbody) {
+            break;
+          } else if (!finished && inbody && re_repeat.test(op)) {
+            break;
           }
-          lastline = linenum;
-        } else {
-          let mac = macros[filename.toLowerCase()];
-          if (mac && linenum == 0) {
-            lines.push({
-              line: lastline + 1,
+          macstack.pop();
+        }
+        let lst = listings[curfile];
+        let srcpath = curfile;
+        let srcline = linenum;
+        if (linenum === 0) {
+          const depth = macstack.length;
+          const callerline = macroLastLine(depth) + 1;
+          if (depth > 0) macstack[depth - 1].lastline = callerline;
+          else lastline = callerline;
+          srcline = callerline;
+          if (lst && lst.lines && depth === 0) {
+            lst.lines.push({
+              line: callerline,
               offset,
               insns,
               iscode: true
             });
           }
-          if (insns && mac) {
-            let maclst = listings[mac.file];
-            if (maclst && maclst.lines) {
-              maclst.lines.push({
-                path: mac.file,
-                line: mac.line + linenum,
-                offset,
-                insns,
-                iscode: true
-              });
-            }
-          } else {
-            if (insns && linem[3] && lastline > 0) {
-              lines.push({
-                line: lastline + 1,
-                offset,
-                insns: null
-              });
-            }
+          const macname = op.split(/\s+/)[0].toLowerCase();
+          macstack.push({ name: macname, lastline: 0 });
+        } else if (macstack.length) {
+          const top = macstack[macstack.length - 1];
+          top.lastline = linenum;
+          const mac = macros[top.name];
+          if (mac) {
+            srcpath = mac.file;
+            srcline = mac.line + linenum;
+          }
+          const maclst = mac && listings[mac.file];
+          if (insns && maclst && maclst.lines) {
+            maclst.lines.push({
+              path: mac.file,
+              line: mac.line + linenum,
+              offset,
+              insns,
+              iscode: true
+            });
+          }
+        } else {
+          lastline = linenum;
+          let macm = re_mac.exec(op);
+          if (macm) {
+            pendingMac = { name: macm[1].toLowerCase(), line: linenum };
+            macros[pendingMac.name] = { line: linenum, file: curfile, len: 0 };
+          } else if (pendingMac && re_endm.test(op)) {
+            macros[pendingMac.name].len = linenum - pendingMac.line;
+            pendingMac = null;
+          } else if (insns && rest && !rest.match(re_equ) && lst && lst.lines) {
+            lst.lines.push({
+              line: linenum,
+              offset,
+              insns,
+              iscode: rest[0] != "."
+            });
           }
         }
         for (let key in unresolved) {
-          let l = restline || line;
+          let l = rest || rawline;
           let pos = l.indexOf(key);
           if (pos >= 0) {
             let cmt = l.indexOf(";");
             if (cmt < 0 || cmt > pos) {
               if (new RegExp("\\b" + key + "\\b").exec(l)) {
                 errors.push({
-                  path: filename,
-                  line: linenum,
+                  path: srcpath,
+                  line: srcline,
                   msg: "Unresolved symbol '" + key + "'"
                 });
               }
@@ -7358,7 +7461,7 @@
           }
         }
       }
-      let errm = re_msvc.exec(line);
+      let errm = re_msvc.exec(rawline);
       if (errm) {
         errors.push({
           path: errm[1],
@@ -7395,65 +7498,111 @@
     }
     return minOffset;
   }
-  function assembleDASM(step) {
-    load("dasm");
-    var unresolved = {};
-    var errors = [];
-    var errorMatcher = msvcErrorMatcher(errors);
-    function match_fn(s) {
-      var matches = re_usl.exec(s);
+  function parseDASMOutput(stdout, errors, unresolved) {
+    const matcher = msvcErrorMatcher(errors);
+    let fatal = null;
+    for (let line of stdout.split(re_crlf)) {
+      let matches = re_usl.exec(line);
       if (matches) {
-        var key = matches[1];
+        let key = matches[1];
         if (key != "NO_ILLEGAL_OPCODES") {
-          unresolved[matches[1]] = 0;
+          unresolved[key] = 0;
         }
-      } else if (s.startsWith("Warning:")) {
-        errors.push({ line: 0, msg: s.substr(9) });
-      } else if (s.startsWith("unable ")) {
-        errors.push({ line: 0, msg: s });
-      } else if (s.startsWith("segment: ")) {
-        errors.push({ line: 0, msg: "Segment overflow: " + s.substring(9) });
-      } else if (s.toLowerCase().indexOf("error:") >= 0) {
-        errors.push({ line: 0, msg: s.trim() });
+      } else if (re_msvc.test(line)) {
+        matcher(line);
+      } else if (line.startsWith("Warning:")) {
+        errors.push({ line: 0, msg: line.substr(9) });
+      } else if (line.startsWith("unable ")) {
+        errors.push({ line: 0, msg: line });
+      } else if (line.startsWith("segment: ")) {
+        errors.push({ line: 0, msg: "Segment overflow: " + line.substring(9) });
+      } else if (line.startsWith("Fatal assembly error:")) {
+        fatal = line.trim();
+      } else if (line.toLowerCase().indexOf("error:") >= 0) {
+        errors.push({ line: 0, msg: line.trim() });
       } else {
-        errorMatcher(s);
+        matcher(line);
       }
     }
-    var Module = emglobal.DASM({
-      noInitialRun: true,
-      print: match_fn
+    return fatal;
+  }
+  function dedupeErrors(errors) {
+    const seen = {};
+    return errors.filter((e) => {
+      const key = e.path + "\n" + e.line + "\n" + e.msg;
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
     });
-    var FS = Module.FS;
-    populateFiles(step, FS, {
-      mainFilePath: "main.a"
-    });
-    var binpath = step.prefix + ".bin";
-    var lstpath = step.prefix + ".lst";
-    var sympath = step.prefix + ".sym";
-    execMain(step, Module, [
+  }
+  var wasiModule = null;
+  function assembleDASM(step) {
+    let errors = [];
+    gatherFiles(step, { mainFilePath: "main.a" });
+    if (!wasiModule) {
+      wasiModule = new WebAssembly.Module(loadWASMBinary("dasm-wasisdk"));
+    }
+    const binpath = step.prefix + ".bin";
+    const lstpath = step.prefix + ".lst";
+    const sympath = step.prefix + ".sym";
+    const wasi = new WASIRunner();
+    wasi.initSync(wasiModule);
+    for (let file of step.files) {
+      wasi.fs.putFile("./" + file, store.getFileData(file));
+    }
+    wasi.addPreopenDirectory(".");
+    wasi.setArgs([
+      "dasm",
       step.path,
       "-f3",
       "-l" + lstpath,
       "-o" + binpath,
       "-s" + sympath
     ]);
-    var alst = FS.readFile(lstpath, { "encoding": "utf8" });
-    var listings = {};
+    let crash = null;
+    try {
+      wasi.run();
+    } catch (e) {
+      crash = "" + e;
+    }
+    const stdout = wasi.fds[1].getBytesAsString();
+    const unresolved = {};
+    const fatal = parseDASMOutput(stdout, errors, unresolved);
+    const listings = {};
     for (let path of step.files) {
       listings[path] = { lines: [] };
     }
+    let alst;
+    try {
+      alst = wasi.fs.getFile("./" + lstpath).getBytesAsString();
+    } catch (e) {
+      console.log(e);
+      if (fatal) errors.push({ line: 0, msg: fatal });
+      if (crash) errors.push({ line: 0, msg: crash });
+      if (!errors.length)
+        errors.push({ line: 0, msg: "No listing generated, maybe fatal assembly error?" });
+      return { errors };
+    }
     parseDASMListing(lstpath, alst, listings, errors, unresolved);
+    errors = dedupeErrors(errors);
+    if (fatal && !errors.length) errors.push({ line: 0, msg: fatal });
     if (errors.length) {
       return { errors };
     }
-    var aout, asym;
-    aout = FS.readFile(binpath);
+    let aout;
+    let asym;
     try {
-      asym = FS.readFile(sympath, { "encoding": "utf8" });
+      aout = wasi.fs.getFile("./" + binpath).getBytes();
     } catch (e) {
       console.log(e);
-      errors.push({ line: 0, msg: "No symbol table generated, maybe segment overflow?" });
+      if (crash) errors.push({ line: 0, msg: crash });
+      errors.push({ line: 0, msg: "No binary output generated, maybe segment overflow?" });
       return { errors };
+    }
+    try {
+      asym = wasi.fs.getFile("./" + sympath).getBytesAsString();
+    } catch (e) {
+      asym = "";
     }
     putWorkFile(binpath, aout);
     putWorkFile(lstpath, alst);
@@ -7570,6 +7719,10 @@
         var offset = (arr[1] << 8) + arr[2] - rom_start;
         var rectype = arr[3];
         if (rectype == 0) {
+          if (offset < 0 || offset + count > rom_size) {
+            console.log(`skipping IHX record outside ROM: 0x${offset.toString(16)} +${count}`);
+            continue;
+          }
           if (output[offset] !== 0) {
             errors.push({ line: 0, msg: `IHX overlap offset 0x${offset.toString(16)}` });
           }
@@ -14135,7 +14288,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
 
   // src/worker/tools/cc7800.ts
   var cc7800_fs = null;
-  var wasiModule = null;
+  var wasiModule2 = null;
   async function compileCC7800(step) {
     const errors = [];
     gatherFiles(step, { mainFilePath: "main.c" });
@@ -14144,11 +14297,11 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       if (!cc7800_fs) {
         cc7800_fs = await loadWASIFilesystemZip("cc7800-fs.zip");
       }
-      if (!wasiModule) {
-        wasiModule = new WebAssembly.Module(loadWASMBinary("cc7800"));
+      if (!wasiModule2) {
+        wasiModule2 = new WebAssembly.Module(loadWASMBinary("cc7800"));
       }
       const wasi = new WASIRunner();
-      wasi.initSync(wasiModule);
+      wasi.initSync(wasiModule2);
       wasi.fs.setParent(cc7800_fs);
       for (let file of step.files) {
         wasi.fs.putFile("./" + file, store.getFileData(file));
@@ -14188,7 +14341,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
 
   // src/worker/tools/cc2600.ts
   var cc2600_fs = null;
-  var wasiModule2 = null;
+  var wasiModule3 = null;
   async function compilecc2600(step) {
     const errors = [];
     gatherFiles(step, { mainFilePath: "main.c" });
@@ -14197,11 +14350,11 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       if (!cc2600_fs) {
         cc2600_fs = await loadWASIFilesystemZip("cc2600-fs.zip");
       }
-      if (!wasiModule2) {
-        wasiModule2 = new WebAssembly.Module(loadWASMBinary("cc2600"));
+      if (!wasiModule3) {
+        wasiModule3 = new WebAssembly.Module(loadWASMBinary("cc2600"));
       }
       const wasi = new WASIRunner();
-      wasi.initSync(wasiModule2);
+      wasi.initSync(wasiModule3);
       wasi.fs.setParent(cc2600_fs);
       for (let file of step.files) {
         wasi.fs.putFile("./" + file, store.getFileData(file));
@@ -14240,96 +14393,167 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   }
 
   // src/worker/tools/bataribasic.ts
-  function preprocessBatariBasic(code) {
-    load("bbpreprocess");
-    var bbout = "";
-    function addbbout_fn(s) {
-      bbout += s;
-      bbout += "\n";
+  var bbModules = {};
+  var bbFS = null;
+  function getBBModule(name) {
+    if (!bbModules[name]) {
+      bbModules[name] = new WebAssembly.Module(loadWASMBinary("bb/" + name));
     }
-    var BBPRE = emglobal.preprocess({
-      noInitialRun: true,
-      //logReadFiles:true,
-      print: addbbout_fn,
-      printErr: print_fn,
-      noFSInit: true
-    });
-    var FS = BBPRE.FS;
-    setupStdin(FS, code);
-    BBPRE.callMain([]);
-    console.log("preprocess " + code.length + " -> " + bbout.length + " bytes");
-    return bbout;
+    return bbModules[name];
   }
-  function compileBatariBasic(step) {
-    load("bb2600basic");
-    var params = step.params;
-    var asmout = "";
-    function addasmout_fn(s) {
-      asmout += s;
-      asmout += "\n";
+  async function getBBFilesystem() {
+    if (!bbFS) {
+      bbFS = await loadWASIFilesystemZip("bb-fs.zip");
     }
-    var re_err1 = /[(](\d+)[)]:?\s*(.+)/;
-    var errors = [];
-    var errline = 0;
-    function match_fn(s) {
-      console.log(s);
-      var matches = re_err1.exec(s);
-      if (matches) {
-        errline = parseInt(matches[1]);
-        errors.push({
-          line: errline,
-          msg: matches[2]
-        });
+    return bbFS;
+  }
+  function makeRunner(name) {
+    const wasi = new WASIRunner();
+    wasi.initSync(getBBModule(name));
+    wasi.fs.setParent(bbFS);
+    wasi.addPreopenDirectory(".");
+    return wasi;
+  }
+  function runRunner(wasi, name, args, errors) {
+    wasi.setArgs([name, ...args]);
+    try {
+      wasi.run();
+    } catch (e) {
+      errors.push({ line: 0, msg: "" + e });
+    }
+  }
+  function matchBasicErrors(stderr, path, errors) {
+    const re = /\((\d+)\):?\s*(.+)/;
+    for (let line of stderr.split("\n")) {
+      const m = re.exec(line);
+      if (m) {
+        errors.push({ path, line: parseInt(m[1]), msg: m[2] });
+      } else if (line.indexOf("error") >= 0 || line.indexOf("Error") >= 0) {
+        errors.push({ line: 0, msg: line.trim() });
       }
     }
+  }
+  async function compileBatariBasic(step) {
     gatherFiles(step, { mainFilePath: "main.bas" });
-    var destpath = step.prefix + ".asm";
-    if (staleFiles(step, [destpath])) {
-      var BB = emglobal.bb2600basic({
-        noInitialRun: true,
-        //logReadFiles:true,
-        print: addasmout_fn,
-        printErr: match_fn,
-        noFSInit: true,
-        TOTAL_MEMORY: 64 * 1024 * 1024
-      });
-      var FS = BB.FS;
-      populateFiles(step, FS);
-      var code = getWorkFileAsString(step.path);
-      code = preprocessBatariBasic(code);
-      setupStdin(FS, code);
-      setupFS(FS, "2600basic");
-      execMain(step, BB, ["-i", "/share", step.path]);
-      if (errors.length)
-        return { errors };
-      var includesout = FS.readFile("includes.bB", { encoding: "utf8" });
-      var redefsout = FS.readFile("2600basic_variable_redefs.h", { encoding: "utf8" });
-      var includes = includesout.trim().split("\n");
-      var combinedasm = "";
-      var splitasm = asmout.split("bB.asm file is split here");
-      for (var incfile of includes) {
-        var inctext;
-        if (incfile == "bB.asm")
-          inctext = splitasm[0];
-        else if (incfile == "bB2.asm")
-          inctext = splitasm[1];
-        else
-          inctext = FS.readFile("/share/includes/" + incfile, { encoding: "utf8" });
-        console.log(incfile, inctext.length);
-        combinedasm += "\n\n;;;" + incfile + "\n\n";
-        combinedasm += inctext;
+    const destpath = step.prefix + ".asm";
+    const binpath = step.prefix + ".bin";
+    const lstpath = step.prefix + ".lst";
+    const sympath = step.prefix + ".sym";
+    if (!staleFiles(step, [destpath])) {
+      return;
+    }
+    await getBBFilesystem();
+    const errors = [];
+    const srcpath = step.path;
+    const srcdata = store.getFileData(srcpath);
+    const source = typeof srcdata === "string" ? new TextEncoder().encode(srcdata) : srcdata;
+    const pre = makeRunner("preprocess");
+    pre.stdin.write(source);
+    pre.stdin.offset = 0;
+    runRunner(pre, "preprocess", [], errors);
+    matchBasicErrors(pre.fds[2].getBytesAsString(), srcpath, errors);
+    if (errors.length) return { errors };
+    const preprocessed = pre.fds[1].getBytes();
+    function checkExit(wasi, msg) {
+      if (wasi.errno != 0 && !errors.length) {
+        errors.push({ line: 0, msg });
       }
-      putWorkFile(destpath, combinedasm);
-      putWorkFile("2600basic.h", FS.readFile("/share/includes/2600basic.h"));
-      putWorkFile("2600basic_variable_redefs.h", redefsout);
+    }
+    const basic = makeRunner("2600basic");
+    basic.stdin.write(preprocessed);
+    basic.stdin.offset = 0;
+    runRunner(basic, "2600basic", ["-i", "."], errors);
+    const basicerr = basic.fds[2].getBytesAsString();
+    matchBasicErrors(basicerr, srcpath, errors);
+    checkExit(basic, "Compilation failed.");
+    if (errors.length) return { errors };
+    const bbasm = basic.fds[1].getBytes();
+    const post = makeRunner("postprocess");
+    post.fs.putFile("./bB.asm", bbasm);
+    for (const f of basic.fs.getFiles()) {
+      if (!f.name.startsWith("./includes/")) post.fs.putFile(f.name, f.getBytes());
+    }
+    runRunner(post, "postprocess", ["-i", "."], errors);
+    checkExit(post, "Postprocess failed.");
+    if (errors.length) return { errors };
+    const asmout = post.fds[1].getBytes();
+    putWorkFile(destpath, asmout);
+    const dasm = makeRunner("dasm");
+    dasm.fs.putFile("./" + destpath, asmout);
+    for (const f of basic.fs.getFiles()) {
+      if (!f.name.startsWith("./includes/")) dasm.fs.putFile(f.name, f.getBytes());
+    }
+    runRunner(dasm, "dasm", [
+      destpath,
+      "-I./includes",
+      "-f3",
+      "-p20",
+      "-l" + lstpath,
+      "-s" + sympath,
+      "-o" + binpath
+    ], errors);
+    const unresolved = {};
+    const fatal = parseDASMOutput(dasm.fds[1].getBytesAsString(), errors, unresolved);
+    const matcher = msvcErrorMatcher(errors);
+    for (let line of dasm.fds[2].getBytesAsString().split("\n")) {
+      matcher(line);
+    }
+    if (errors.length) {
+      return { errors };
+    }
+    const alst = dasm.fs.getFile("./" + lstpath).getBytesAsString();
+    const listings = {};
+    for (let path of [...step.files, destpath]) {
+      listings[path] = { lines: [] };
+    }
+    parseDASMListing(lstpath, alst, listings, errors, unresolved);
+    if (fatal && !errors.length) errors.push({ line: 0, msg: fatal });
+    if (errors.length) {
+      return { errors };
+    }
+    let asym;
+    try {
+      asym = dasm.fs.getFile("./" + sympath).getBytesAsString();
+    } catch (e) {
+      console.log(e);
+      return { errors: [{ line: 0, msg: "No symbol table generated, maybe segment overflow?" }] };
+    }
+    const symbolmap = parseSymbolMap(asym);
+    const aout = dasm.fs.getFile("./" + binpath).getBytes();
+    putWorkFile(binpath, aout);
+    putWorkFile(lstpath, alst);
+    putWorkFile(sympath, asym);
+    if (!anyTargetChanged(step, [binpath]))
+      return;
+    let lst = listings[destpath];
+    if (lst) {
+      lst.asmlines = lst.lines;
+      lst.text = alst;
+      lst.lines = [];
     }
     return {
-      nexttool: "dasm",
-      path: destpath,
-      args: [destpath],
-      files: [destpath, "2600basic.h", "2600basic_variable_redefs.h"],
-      bblines: true
+      output: aout,
+      listings,
+      errors,
+      symbolmap,
+      origin: getOrigin(listings)
     };
+  }
+  function getOrigin(listings) {
+    let minOffset;
+    for (let key in listings) {
+      let lst = listings[key];
+      if (lst && lst.asmlines) {
+        for (let line of lst.asmlines) {
+          if (line.iscode && line.offset > 0) {
+            if (minOffset === void 0 || line.offset < minOffset) {
+              minOffset = line.offset;
+            }
+          }
+        }
+      }
+    }
+    return minOffset;
   }
 
   // src/worker/tools/oscar64parse.ts
@@ -14418,7 +14642,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
 
   // src/worker/tools/oscar64.ts
   var oscar64_fs = null;
-  var wasiModule3 = null;
+  var wasiModule4 = null;
   function getWasiFileAsString(wasi, suffix) {
     for (const fd of wasi.fs.getFiles()) {
       if (fd.name.endsWith(suffix)) {
@@ -14435,11 +14659,11 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       if (!oscar64_fs) {
         oscar64_fs = await loadWASIFilesystemZip("oscar64-fs.zip");
       }
-      if (!wasiModule3) {
-        wasiModule3 = new WebAssembly.Module(loadWASMBinary("oscar64"));
+      if (!wasiModule4) {
+        wasiModule4 = new WebAssembly.Module(loadWASMBinary("oscar64"));
       }
       const wasi = new WASIRunner();
-      wasi.initSync(wasiModule3);
+      wasi.initSync(wasiModule4);
       wasi.fs.setParent(oscar64_fs);
       for (let file of step.files) {
         wasi.fs.putFile("./" + file, store.getFileData(file));
@@ -14562,7 +14786,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     }
     return origin;
   }
-  var wasiModule4 = null;
+  var wasiModule5 = null;
   function assembleXA(step) {
     var _a, _b, _c, _d;
     const errors = [];
@@ -14571,11 +14795,11 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     const lstpath = step.prefix + ".lst";
     const sympath = step.prefix + ".lbl";
     if (staleFiles(step, [binpath])) {
-      if (!wasiModule4) {
-        wasiModule4 = new WebAssembly.Module(loadWASMBinary("xa"));
+      if (!wasiModule5) {
+        wasiModule5 = new WebAssembly.Module(loadWASMBinary("xa"));
       }
       const wasi = new WASIRunner();
-      wasi.initSync(wasiModule4);
+      wasi.initSync(wasiModule5);
       for (const file of step.files) {
         wasi.fs.putFile("./" + file, store.getFileData(file));
       }
@@ -14632,7 +14856,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   // src/worker/tools/dialog.ts
   var STDLIB = "stdlib.dg";
   var dialog_fs = null;
-  var wasiModule5 = null;
+  var wasiModule6 = null;
   var re_error2 = /^Error:\s+(?:(\S+?), line (\d+):\s+)?(.+)/;
   async function compileDialog(step) {
     const errors = [];
@@ -14642,11 +14866,11 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       if (!dialog_fs) {
         dialog_fs = await loadWASIFilesystemZip("dialog-fs.zip");
       }
-      if (!wasiModule5) {
-        wasiModule5 = new WebAssembly.Module(loadWASMBinary("dialogc"));
+      if (!wasiModule6) {
+        wasiModule6 = new WebAssembly.Module(loadWASMBinary("dialogc"));
       }
       const wasi = new WASIRunner();
-      wasi.initSync(wasiModule5);
+      wasi.initSync(wasiModule6);
       wasi.fs.setParent(dialog_fs);
       for (let file of step.files) {
         wasi.fs.putFile("./" + file, store.getFileData(file));
@@ -14795,13 +15019,36 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     constructor() {
       this.steps = [];
       this.startseq = 0;
+      // platform params for the build in progress -- see paramsForBuild()
+      this.buildParams = {};
     }
     // returns true if file changed during this build step
     wasChanged(entry) {
       return entry.ts > this.startseq;
     }
+    /**
+     * The platform params for this build. Tools rewrite them in place --
+     * fixParamsWithDefines() applies //#define CFGFILE=, LIBARGS=, NES_MAPPER=,
+     * and ecs picks its own cfgfile -- and later steps read the result, which is
+     * how the linker learns which config file to use. So the copy is per build,
+     * not per step: shared by every step of one build, thrown away afterwards so
+     * one source file's directives can't follow the next build around.
+     */
+    paramsForBuild(platform) {
+      const base = getBasePlatform(platform);
+      if (!this.buildParams[base]) {
+        const params = PLATFORM_PARAMS[base];
+        const copy = {};
+        for (const key in params) {
+          copy[key] = Array.isArray(params[key]) ? params[key].slice() : params[key];
+        }
+        this.buildParams[base] = copy;
+      }
+      return this.buildParams[base];
+    }
     async executeBuildSteps() {
       this.startseq = store.currentVersion();
+      this.buildParams = {};
       var linkstep = null;
       while (this.steps.length) {
         var step = this.steps.shift();
@@ -14814,7 +15061,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
         if (remoteTool) {
           step.tool = remoteTool;
         }
-        step.params = PLATFORM_PARAMS[getBasePlatform(platform)];
+        step.params = this.paramsForBuild(platform);
         try {
           step.result = await toolfn(step);
         } catch (e) {
@@ -15023,6 +15270,11 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     }
     console.log("unchanged", step.maxts, targets);
     return false;
+  }
+  function applyAsmProjectParams(params) {
+    for (const key of Object.keys(params)) {
+      if (key.startsWith("asm_")) params[key.substring(4)] = params[key];
+    }
   }
   function fixParamsWithDefines(path, params) {
     var libargs = params.libargs;

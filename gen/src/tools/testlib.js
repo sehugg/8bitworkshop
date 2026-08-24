@@ -226,23 +226,60 @@ function resolveAllDependencies(mainText, mainPath, platform, sourceDir) {
 // TODO: refactor dependency parsing and tool selection into a common library
 // shared between CodeProject (src/ide/project.ts) and testlib
 /**
+ * Extension overrides individual platforms apply on top of the per-architecture
+ * defaults -- see the getToolForFilename members in src/platform/*.ts, which
+ * this mirrors. Without these, e.g. a VCS .bas file is handed to dasm.
+ */
+function getToolForFilename_platform(fn, base) {
+    if (base === 'vcs') {
+        if (fn.endsWith('.cc2600'))
+            return 'cc2600';
+        if (fn.endsWith('.bb') || fn.endsWith('.bas'))
+            return 'bataribasic';
+    }
+    if (base.startsWith('atari8')) {
+        if (fn.endsWith('.bas') || fn.endsWith('.fb') || fn.endsWith('.fbi'))
+            return 'fastbasic';
+    }
+    if (base.startsWith('apple2')) {
+        if (fn.endsWith('.lnk'))
+            return 'merlin32';
+    }
+    if (base === 'nes') {
+        if (fn.endsWith('.nesasm'))
+            return 'nesasm';
+    }
+    return null;
+}
+/**
  * Select the appropriate tool for a filename based on platform architecture.
  */
 function getToolForFilename(fn, platform) {
-    var params = platforms_1.PLATFORM_PARAMS[(0, util_1.getBasePlatform)(platform)];
+    var base = (0, util_1.getBasePlatform)(platform);
+    var override = getToolForFilename_platform(fn, base);
+    if (override)
+        return override;
+    // a specialization like verilog-vga has no params of its own; its root
+    // platform's arch is the one that applies
+    var params = platforms_1.PLATFORM_PARAMS[base] || platforms_1.PLATFORM_PARAMS[(0, util_1.getRootBasePlatform)(platform)];
     var arch = params && params.arch;
     switch (arch) {
         case 'z80':
         case 'gbz80':
             return (0, baseplatform_1.getToolForFilename_z80)(fn);
         case '6502':
+        case 'huc6280': // PC Engine: cc65/ca65, like any other 6502
             return (0, baseplatform_1.getToolForFilename_6502)(fn);
         case '6809':
             return (0, baseplatform_1.getToolForFilename_6809)(fn);
+        case 'arm32':
+            return (0, baseplatform_1.getToolForFilename_arm32)(fn);
         case 'verilog':
             if (fn.endsWith('.asm'))
                 return 'jsasm';
             return fn.endsWith('.ice') ? 'silice' : 'verilator';
+        case 'x86':
+            return fn.endsWith('.c') ? 'smlrc' : 'yasm';
         default:
             return (0, baseplatform_1.getToolForFilename_z80)(fn); // fallback
     }
@@ -250,11 +287,13 @@ function getToolForFilename(fn, platform) {
 /**
  * Compile an arbitrary source file path.
  * Parses include/link/resource directives and loads dependent files.
+ * `buildAs` renames the file for the build, for sources whose name on disk
+ * isn't one the tool accepts (the IDE's skeleton.<tool> templates).
  */
-async function compileSourceFile(tool, platform, filePath) {
+async function compileSourceFile(tool, platform, filePath, buildAs) {
     await initialize();
     var code = fs.readFileSync(filePath, 'utf-8');
-    var basename = filePath.split('/').pop();
+    var basename = buildAs || filePath.split('/').pop();
     var sourceDir = path.dirname(path.resolve(filePath));
     // Auto-detect tool from filename if not specified
     if (!tool) {

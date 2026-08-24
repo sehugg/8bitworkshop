@@ -73,11 +73,14 @@ function displayKitty(pngData: Uint8Array, w: number, h: number, scale: number):
   const cols = Math.ceil(w * scale / 8);
   const rows = Math.ceil(h * scale / 16);
 
+  // q=2 = silent mode: suppresses the terminal's OK/error acknowledgements.
+  // Without it, the terminal writes responses (\x1b_Gi=<id>;OK\x1b\\) to stdin,
+  // which leak into the shell's input buffer after we exit and garble the prompt.
   for (let i = 0; i < b64.length; i += chunkSize) {
     const chunk = b64.slice(i, i + chunkSize);
     const more = i + chunkSize < b64.length ? 1 : 0;
     if (i === 0) {
-      process.stdout.write(`\x1b_Gf=100,a=T,c=${cols},r=${rows},m=${more};${chunk}\x1b\\`);
+      process.stdout.write(`\x1b_Gf=100,a=T,c=${cols},r=${rows},q=2,m=${more};${chunk}\x1b\\`);
     } else {
       process.stdout.write(`\x1b_Gm=${more};${chunk}\x1b\\`);
     }

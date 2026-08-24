@@ -10,6 +10,7 @@ exports.cpuStateToLongString_Z80 = cpuStateToLongString_Z80;
 exports.cpuStateToLongString_SM83 = cpuStateToLongString_SM83;
 exports.getToolForFilename_z80 = getToolForFilename_z80;
 exports.cpuStateToLongString_6809 = cpuStateToLongString_6809;
+exports.getToolForFilename_arm32 = getToolForFilename_arm32;
 exports.getToolForFilename_6809 = getToolForFilename_6809;
 exports.dumpStackToString = dumpStackToString;
 exports.lookupSymbol = lookupSymbol;
@@ -315,6 +316,8 @@ function getToolForFilename_6502(fn) {
         return "ca65";
     if (fn.endsWith(".dasm"))
         return "dasm";
+    if (fn.endsWith(".bb"))
+        return "bataribasic";
     if (fn.endsWith(".acme"))
         return "acme";
     if (fn.endsWith(".xa"))
@@ -528,6 +531,14 @@ function cpuStateToLongString_6809(c) {
         + " X " + (0, util_1.hex)(c.X, 4) + "\n"
         + " Y " + (0, util_1.hex)(c.Y, 4) + "\n"
         + " U " + (0, util_1.hex)(c.U, 4) + "\n";
+}
+function getToolForFilename_arm32(fn) {
+    fn = fn.toLowerCase();
+    if (fn.endsWith(".vasm"))
+        return "vasmarm";
+    if (fn.endsWith(".armips"))
+        return "armips";
+    return "armtcc";
 }
 function getToolForFilename_6809(fn) {
     if (fn.endsWith(".c"))

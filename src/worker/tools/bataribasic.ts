@@ -1,100 +1,192 @@
-import { BuildStep, BuildStepResult, gatherFiles, getWorkFileAsString, populateFiles, putWorkFile, staleFiles } from "../builder";
-import { EmscriptenModule, emglobal, execMain, load, print_fn, setupFS, setupStdin } from "../wasmutils";
+// batari Basic compiler (WASI/wasmtime build, v1.9)
+// Pipeline: preprocess | 2600basic > bB.asm ; postprocess -i . > final.asm ;
+//           dasm final.asm -I./includes -f3 -p20 -> .bin/.lst/.sym
+// (The optional optimize/bbfilter/relocateBB stages are not used here.)
+import { WASIRunner } from "../../common/wasi/wasishim";
+import { CodeListingMap, WorkerError } from "../../common/workertypes";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, store, putWorkFile, anyTargetChanged } from "../builder";
+import { loadWASMBinary } from "../wasmutils";
+import { loadWASIFilesystemZip } from "../wasiutils";
+import { parseDASMListing, parseDASMOutput, parseSymbolMap } from "./dasm";
+import { msvcErrorMatcher } from "../listingutils";
 
-function preprocessBatariBasic(code: string): string {
-    load("bbpreprocess");
-    var bbout = "";
-    function addbbout_fn(s) {
-        bbout += s;
-        bbout += "\n";
+let bbModules: { [name: string]: WebAssembly.Module } = {};
+let bbFS: any = null;
+
+function getBBModule(name: string): WebAssembly.Module {
+    if (!bbModules[name]) {
+        bbModules[name] = new WebAssembly.Module(loadWASMBinary("bb/" + name));
     }
-    var BBPRE: EmscriptenModule = emglobal.preprocess({
-        noInitialRun: true,
-        //logReadFiles:true,
-        print: addbbout_fn,
-        printErr: print_fn,
-        noFSInit: true,
-    });
-    var FS = BBPRE.FS;
-    setupStdin(FS, code);
-    BBPRE.callMain([]);
-    console.log("preprocess " + code.length + " -> " + bbout.length + " bytes");
-    return bbout;
+    return bbModules[name];
 }
 
-export function compileBatariBasic(step: BuildStep): BuildStepResult {
-    load("bb2600basic");
-    var params = step.params;
-    // stdout
-    var asmout = "";
-    function addasmout_fn(s) {
-        asmout += s;
-        asmout += "\n";
+async function getBBFilesystem() {
+    if (!bbFS) {
+        bbFS = await loadWASIFilesystemZip("bb-fs.zip");
     }
-    // stderr
-    var re_err1 = /[(](\d+)[)]:?\s*(.+)/;
-    var errors = [];
-    var errline = 0;
-    function match_fn(s) {
-        console.log(s);
-        var matches = re_err1.exec(s);
-        if (matches) {
-            errline = parseInt(matches[1]);
-            errors.push({
-                line: errline,
-                msg: matches[2]
-            });
+    return bbFS;
+}
+
+function makeRunner(name: string): WASIRunner {
+    const wasi = new WASIRunner();
+    wasi.initSync(getBBModule(name));
+    wasi.fs.setParent(bbFS);
+    wasi.addPreopenDirectory(".");
+    return wasi;
+}
+
+function runRunner(wasi: WASIRunner, name: string, args: string[], errors: WorkerError[]): void {
+    wasi.setArgs([name, ...args]);
+    try {
+        wasi.run();
+    } catch (e) {
+        errors.push({ line: 0, msg: "" + e });
+    }
+}
+
+// match "line #: error msg" lines from the 2600basic stderr
+function matchBasicErrors(stderr: string, path: string, errors: WorkerError[]): void {
+    // e.g. "(14): error: Unknown keyword"
+    const re = /\((\d+)\):?\s*(.+)/;
+    for (let line of stderr.split("\n")) {
+        const m = re.exec(line);
+        if (m) {
+            errors.push({ path: path, line: parseInt(m[1]), msg: m[2] });
+        } else if (line.indexOf("error") >= 0 || line.indexOf("Error") >= 0) {
+            errors.push({ line: 0, msg: line.trim() });
         }
     }
+}
+
+export async function compileBatariBasic(step: BuildStep): Promise<BuildStepResult> {
     gatherFiles(step, { mainFilePath: "main.bas" });
-    var destpath = step.prefix + '.asm';
-    if (staleFiles(step, [destpath])) {
-        var BB: EmscriptenModule = emglobal.bb2600basic({
-            noInitialRun: true,
-            //logReadFiles:true,
-            print: addasmout_fn,
-            printErr: match_fn,
-            noFSInit: true,
-            TOTAL_MEMORY: 64 * 1024 * 1024,
-        });
-        var FS = BB.FS;
-        populateFiles(step, FS);
-        // preprocess, pipe file to stdin
-        var code = getWorkFileAsString(step.path);
-        code = preprocessBatariBasic(code);
-        setupStdin(FS, code);
-        setupFS(FS, '2600basic');
-        execMain(step, BB, ["-i", "/share", step.path]);
-        if (errors.length)
-            return { errors: errors };
-        // build final assembly output from include file list
-        var includesout = FS.readFile("includes.bB", { encoding: 'utf8' });
-        var redefsout = FS.readFile("2600basic_variable_redefs.h", { encoding: 'utf8' });
-        var includes = includesout.trim().split("\n");
-        var combinedasm = "";
-        var splitasm = asmout.split("bB.asm file is split here");
-        for (var incfile of includes) {
-            var inctext;
-            if (incfile == "bB.asm")
-                inctext = splitasm[0];
-            else if (incfile == "bB2.asm")
-                inctext = splitasm[1];
-            else
-                inctext = FS.readFile("/share/includes/" + incfile, { encoding: 'utf8' });
-            console.log(incfile, inctext.length);
-            combinedasm += "\n\n;;;" + incfile + "\n\n";
-            combinedasm += inctext;
+    const destpath = step.prefix + '.asm';
+    const binpath = step.prefix + '.bin';
+    const lstpath = step.prefix + '.lst';
+    const sympath = step.prefix + '.sym';
+    if (!staleFiles(step, [destpath])) {
+        return;
+    }
+    await getBBFilesystem();
+    const errors: WorkerError[] = [];
+    const srcpath = step.path;
+    const srcdata = store.getFileData(srcpath);
+    const source = typeof srcdata === 'string' ? new TextEncoder().encode(srcdata) : srcdata;
+
+    // 1. preprocess: source on stdin -> tokenized output
+    const pre = makeRunner("preprocess");
+    pre.stdin.write(source);
+    pre.stdin.offset = 0; // reset so fd_read starts at BOF
+    runRunner(pre, "preprocess", [], errors);
+    matchBasicErrors(pre.fds[2].getBytesAsString(), srcpath, errors);
+    if (errors.length) return { errors };
+    const preprocessed = pre.fds[1].getBytes();
+
+    // helper: fail if the compiler exited nonzero with no parsed errors
+    function checkExit(wasi: WASIRunner, msg: string) {
+        if (wasi.errno != 0 && !errors.length) {
+            errors.push({ line: 0, msg: msg });
         }
-        // TODO: ; bB.asm file is split here
-        putWorkFile(destpath, combinedasm);
-        putWorkFile("2600basic.h", FS.readFile("/share/includes/2600basic.h"));
-        putWorkFile("2600basic_variable_redefs.h", redefsout);
+    }
+
+    // 2. 2600basic: preprocessed code on stdin -> bB.asm on stdout,
+    //    writes includes.bB + 2600basic_variable_redefs.h to cwd (-i . => ./includes)
+    const basic = makeRunner("2600basic");
+    basic.stdin.write(preprocessed);
+    basic.stdin.offset = 0;
+    runRunner(basic, "2600basic", ["-i", "."], errors);
+    const basicerr = basic.fds[2].getBytesAsString();
+    matchBasicErrors(basicerr, srcpath, errors);
+    checkExit(basic, "Compilation failed.");
+    if (errors.length) return { errors };
+    const bbasm = basic.fds[1].getBytes();
+
+    // 3. postprocess: reads includes.bB + bB.asm from cwd -> composite asm on stdout
+    const post = makeRunner("postprocess");
+    post.fs.putFile("./bB.asm", bbasm);
+    for (const f of basic.fs.getFiles()) {
+        if (!f.name.startsWith('./includes/')) post.fs.putFile(f.name, f.getBytes());
+    }
+    runRunner(post, "postprocess", ["-i", "."], errors);
+    checkExit(post, "Postprocess failed.");
+    if (errors.length) return { errors };
+    const asmout = post.fds[1].getBytes();
+    putWorkFile(destpath, asmout);
+
+    // 4. dasm: assemble composite asm with include dir
+    const dasm = makeRunner("dasm");
+    dasm.fs.putFile("./" + destpath, asmout);
+    for (const f of basic.fs.getFiles()) {
+        if (!f.name.startsWith('./includes/')) dasm.fs.putFile(f.name, f.getBytes());
+    }
+    runRunner(dasm, "dasm", [destpath, "-I./includes", "-f3", "-p20",
+        "-l" + lstpath, "-s" + sympath, "-o" + binpath], errors);
+    // parse dasm stdout/stderr for warnings/errors
+    const unresolved = {};
+    const fatal = parseDASMOutput(dasm.fds[1].getBytesAsString(), errors, unresolved);
+    const matcher = msvcErrorMatcher(errors);
+    for (let line of dasm.fds[2].getBytesAsString().split("\n")) {
+        matcher(line);
+    }
+    if (errors.length) {
+        return { errors: errors };
+    }
+    const alst = dasm.fs.getFile("./" + lstpath).getBytesAsString();
+    const listings: CodeListingMap = {};
+    for (let path of [...step.files, destpath]) {
+        listings[path] = { lines: [] };
+    }
+    parseDASMListing(lstpath, alst, listings, errors, unresolved);
+    // the fatal summary only helps when we found nothing more specific
+    if (fatal && !errors.length) errors.push({ line: 0, msg: fatal });
+    if (errors.length) {
+        return { errors: errors };
+    }
+    let asym;
+    try {
+        asym = dasm.fs.getFile("./" + sympath).getBytesAsString();
+    } catch (e) {
+        console.log(e);
+        return { errors: [{ line: 0, msg: "No symbol table generated, maybe segment overflow?" }] };
+    }
+    const symbolmap = parseSymbolMap(asym);
+    const aout = dasm.fs.getFile("./" + binpath).getBytes();
+    putWorkFile(binpath, aout);
+    putWorkFile(lstpath, alst);
+    putWorkFile(sympath, asym);
+    // return unchanged if no files changed
+    if (!anyTargetChanged(step, [binpath]))
+        return;
+    // map asm listing onto the BASIC editor view
+    let lst = listings[destpath];
+    if (lst) {
+        lst.asmlines = lst.lines;
+        lst.text = alst;
+        lst.lines = [];
     }
     return {
-        nexttool: "dasm",
-        path: destpath,
-        args: [destpath],
-        files: [destpath, "2600basic.h", "2600basic_variable_redefs.h"],
-        bblines: true,
+        output: aout,
+        listings: listings,
+        errors: errors,
+        symbolmap: symbolmap,
+        origin: getOrigin(listings),
     };
+}
+
+// Determine likely origin address from listing
+function getOrigin(listings: CodeListingMap): number | undefined {
+    let minOffset: number | undefined;
+    for (let key in listings) {
+        let lst = listings[key];
+        if (lst && lst.asmlines) {
+            for (let line of lst.asmlines) {
+                if (line.iscode && line.offset > 0) {
+                    if (minOffset === undefined || line.offset < minOffset) {
+                        minOffset = line.offset;
+                    }
+                }
+            }
+        }
+    }
+    return minOffset;
 }

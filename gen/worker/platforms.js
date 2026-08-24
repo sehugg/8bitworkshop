@@ -34,6 +34,11 @@ exports.PLATFORM_PARAMS = {
         cfgfile: 'atari2600.cfg',
         libargs: ['crt0.o', 'atari2600.lib'],
         extra_link_files: ['crt0.o', 'atari2600.cfg'],
+        // a hand-written ca65 program brings its own reset code and vectors, so
+        // it links as a plain 4K cart with no C runtime (see applyAsmProjectParams)
+        asm_cfgfile: 'atari2600-asm.cfg',
+        asm_libargs: [],
+        asm_extra_link_files: ['atari2600-asm.cfg'],
         define: ['__ATARI2600__'],
     },
     'mw8080bw': {

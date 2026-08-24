@@ -27,6 +27,15 @@ function parseIHX(ihx, rom_start, rom_size, errors) {
             var rectype = arr[3];
             //console.log(rectype,address.toString(16),count,arr);
             if (rectype == 0) {
+                // The linker also emits records for whatever it placed outside
+                // the ROM -- initialized data, or a GSINIT area that landed in
+                // the _DATA area's RAM. Those bytes are not part of the ROM
+                // image; reading past the end of output to check them yields
+                // undefined, which used to be reported as an overlap.
+                if (offset < 0 || offset + count > rom_size) {
+                    console.log(`skipping IHX record outside ROM: 0x${offset.toString(16)} +${count}`);
+                    continue;
+                }
                 if (output[offset] !== 0) {
                     errors.push({ line: 0, msg: `IHX overlap offset 0x${(offset).toString(16)}` });
                 }

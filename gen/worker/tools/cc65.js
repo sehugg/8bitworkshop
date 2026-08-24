@@ -116,6 +116,12 @@ function assembleCA65(step) {
     (0, builder_1.gatherFiles)(step, { mainFilePath: "main.s" });
     var objpath = step.prefix + ".o";
     var lstpath = step.prefix + ".lst";
+    // the link step reads these params, so they have to be settled even when
+    // the object file is up to date and nothing below runs
+    if (step.mainfile) {
+        (0, builder_1.applyAsmProjectParams)(step.params); // an asm project, not a C one
+    }
+    (0, builder_1.fixParamsWithDefines)(step.path, step.params);
     if ((0, builder_1.staleFiles)(step, [objpath, lstpath])) {
         var objout, lstout;
         var CA65 = wasmutils_1.emglobal.ca65({
@@ -128,7 +134,6 @@ function assembleCA65(step) {
         var FS = CA65.FS;
         (0, wasmutils_1.setupFS)(FS, '65-' + (0, util_1.getRootBasePlatform)(step.platform));
         (0, builder_1.populateFiles)(step, FS);
-        (0, builder_1.fixParamsWithDefines)(step.path, step.params);
         var args = ['-v', '-g', '-I', '/share/asminc', '-o', objpath, '-l', lstpath, step.path];
         args.unshift.apply(args, ["-D", "__8BITWORKSHOP__=1"]);
         if (step.mainfile) {

@@ -10,7 +10,7 @@
   },
   "license": "GPL-3.0",
   "bin": {
-    "8bws": "./gen/cli/8bws.js"
+    "8bws": "./gen/tools/8bws.js"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.2",
@@ -90,14 +90,16 @@
     "test-profile": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000 --prof test/cli gen/test",
     "test-worker": "NODE_PATH=$(pwd) mocha --timeout 60000 test/cli/testworker.js",
     "test-platforms": "NODE_PATH=$(pwd) mocha --timeout 60000 test/cli/testplatforms.js",
+    "test-cli": "NODE_PATH=$(pwd) mocha --timeout 60000 test/cli/testcli.js",
     "test-services": "NODE_PATH=$(pwd) mocha --timeout 60000 test/services",
     "test-verilog": "NODE_PATH=$(pwd) mocha --timeout 60000 --reporter mocha-simple-html-reporter --reporter-options output=test/output/verilog.html test/verilog/testverilog.js",
     "test-web-quick": "nightwatch -e chrome test/web/testembed.js",
     "test-web-all": "nightwatch -e chrome test/web",
     "fuzzbasic": "jsfuzz gen/common/basic/fuzz.js ~/basic/corpus/ --versifier false",
     "fuzzhdl": "jsfuzz -r binaryen gen/common/hdl/fuzz.js ~/verilator/corpus/ --versifier false",
-    "machine": "node gen/tools/runmachine.js",
     "cli": "node gen/tools/8bws.js",
+    "buildpresets": "NODE_PATH=$(pwd) node gen/tools/buildpresets.js",
+    "test-presets-build": "NODE_PATH=$(pwd) mocha --timeout 900000 test/cli/testpresetbuilds.js",
     "mkdoc": "typedoc --out web/jsdoc src/common/"
   },
   "keywords": [

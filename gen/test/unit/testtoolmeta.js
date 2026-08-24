@@ -109,7 +109,7 @@ const workerlib_1 = require("../../src/worker/workerlib");
         // preloadFS-backed tools
         assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('cc65', 'nes'), '65-nes');
         assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('sdcc', 'coleco'), 'sdcc');
-        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('bataribasic', 'vcs'), '2600basic');
+        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('bataribasic', 'vcs'), 'wasi:bb-fs.zip');
         assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('wiz'), 'wiz');
         // WASI zip-backed tools (cc2600/cc7800/armtcc/oscar64/dialog)
         assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('cc2600'), 'wasi:cc2600-fs.zip');

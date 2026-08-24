@@ -1,7 +1,7 @@
 
 import { getRootBasePlatform } from "../../common/util";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, fixParamsWithDefines, putWorkFile, populateExtraFiles, store, populateEntry, anyTargetChanged, processEmbedDirective } from "../builder";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, fixParamsWithDefines, applyAsmProjectParams, putWorkFile, populateExtraFiles, store, populateEntry, anyTargetChanged, processEmbedDirective } from "../builder";
 import { re_crlf, makeErrorMatcher } from "../listingutils";
 import { loadNative, moduleInstFn, print_fn, setupFS, execMain, emglobal, EmscriptenModule } from "../wasmutils";
 
@@ -112,6 +112,12 @@ export function assembleCA65(step: BuildStep): BuildStepResult {
     gatherFiles(step, { mainFilePath: "main.s" });
     var objpath = step.prefix + ".o";
     var lstpath = step.prefix + ".lst";
+    // the link step reads these params, so they have to be settled even when
+    // the object file is up to date and nothing below runs
+    if (step.mainfile) {
+        applyAsmProjectParams(step.params);   // an asm project, not a C one
+    }
+    fixParamsWithDefines(step.path, step.params);
     if (staleFiles(step, [objpath, lstpath])) {
         var objout, lstout;
         var CA65: EmscriptenModule = emglobal.ca65({
@@ -124,7 +130,6 @@ export function assembleCA65(step: BuildStep): BuildStepResult {
         var FS = CA65.FS;
         setupFS(FS, '65-' + getRootBasePlatform(step.platform));
         populateFiles(step, FS);
-        fixParamsWithDefines(step.path, step.params);
         var args = ['-v', '-g', '-I', '/share/asminc', '-o', objpath, '-l', lstpath, step.path];
         args.unshift.apply(args, ["-D", "__8BITWORKSHOP__=1"]);
         if (step.mainfile) {

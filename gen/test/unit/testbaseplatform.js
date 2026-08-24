@@ -153,6 +153,17 @@ const baseplatform_1 = require("../../src/common/baseplatform");
             assert_1.default.strictEqual((0, baseplatform_1.getToolForFilename_z80)('unknown'), 'zmac');
         });
     });
+    (0, mocha_1.describe)('ARM32 tools', function () {
+        (0, mocha_1.it)('should detect assembly language', function () {
+            assert_1.default.strictEqual((0, baseplatform_1.getToolForFilename_arm32)('test.vasm'), 'vasmarm');
+            assert_1.default.strictEqual((0, baseplatform_1.getToolForFilename_arm32)('test.armips'), 'armips');
+        });
+        (0, mocha_1.it)('should default to armtcc', function () {
+            assert_1.default.strictEqual((0, baseplatform_1.getToolForFilename_arm32)('test.c'), 'armtcc');
+            assert_1.default.strictEqual((0, baseplatform_1.getToolForFilename_arm32)('test.s'), 'armtcc');
+            assert_1.default.strictEqual((0, baseplatform_1.getToolForFilename_arm32)('unknown'), 'armtcc');
+        });
+    });
     (0, mocha_1.describe)('6809 tools', function () {
         (0, mocha_1.it)('should detect C language', function () {
             assert_1.default.strictEqual((0, baseplatform_1.getToolForFilename_6809)('test.c'), 'cmoc');

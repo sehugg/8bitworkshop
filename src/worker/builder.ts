@@ -118,13 +118,39 @@ export function errorResult(msg: string): WorkerErrorResult {
 export class Builder {
   steps: BuildStep[] = [];
   startseq: number = 0;
+  // platform params for the build in progress -- see paramsForBuild()
+  buildParams: { [platform: string]: {} } = {};
 
   // returns true if file changed during this build step
   wasChanged(entry: FileEntry): boolean {
     return entry.ts > this.startseq;
   }
+
+  /**
+   * The platform params for this build. Tools rewrite them in place --
+   * fixParamsWithDefines() applies //#define CFGFILE=, LIBARGS=, NES_MAPPER=,
+   * and ecs picks its own cfgfile -- and later steps read the result, which is
+   * how the linker learns which config file to use. So the copy is per build,
+   * not per step: shared by every step of one build, thrown away afterwards so
+   * one source file's directives can't follow the next build around.
+   */
+  paramsForBuild(platform: string) {
+    const base = getBasePlatform(platform);
+    if (!this.buildParams[base]) {
+      const params = PLATFORM_PARAMS[base];
+      const copy = {};
+      // values are strings, numbers, and arrays of those
+      for (const key in params) {
+        copy[key] = Array.isArray(params[key]) ? params[key].slice() : params[key];
+      }
+      this.buildParams[base] = copy;
+    }
+    return this.buildParams[base];
+  }
+
   async executeBuildSteps(): Promise<WorkerResult> {
     this.startseq = store.currentVersion();
+    this.buildParams = {};
     var linkstep: BuildStep = null;
     while (this.steps.length) {
       var step = this.steps.shift(); // get top of array
@@ -137,7 +163,7 @@ export class Builder {
       if (remoteTool) {
         step.tool = remoteTool;
       }
-      step.params = PLATFORM_PARAMS[getBasePlatform(platform)];
+      step.params = this.paramsForBuild(platform);
       try {
         step.result = await toolfn(step);
       } catch (e) {
@@ -379,6 +405,23 @@ export function anyTargetChanged(step: BuildStep, targets: string[]) {
   }
   console.log("unchanged", step.maxts, targets);
   return false;
+}
+
+/**
+ * Some platforms link a hand-written assembly project differently than a C one.
+ * The VCS is the case in point: a ca65 program supplies its own reset code and
+ * interrupt vectors, so linking it against crt0.o (which has vectors of its
+ * own) and the bank-switched config its C programs use can only collide. A
+ * platform spells the difference out with asm_-prefixed copies of the link
+ * params -- asm_cfgfile, asm_libargs, asm_extra_link_files -- which the
+ * assembler applies when the project's main file is its own source, and which
+ * nothing else looks at. Runs before fixParamsWithDefines() so that a source
+ * file's own //#define CFGFILE still has the last word.
+ */
+export function applyAsmProjectParams(params) {
+  for (const key of Object.keys(params)) {
+    if (key.startsWith('asm_')) params[key.substring(4)] = params[key];
+  }
 }
 
 export function fixParamsWithDefines(path: string, params) {

@@ -30,18 +30,10 @@ const ARM32_PRESETS = [
     { id: 'vidfill.c', name: 'Video Memory Fill' },
 ];
 class BaseARMMachinePlatform extends baseplatform_1.BaseMachinePlatform {
-    //getOpcodeMetadata     = getOpcodeMetadata_z80;
-    getToolForFilename(fn) {
-        fn = fn.toLowerCase();
-        if (fn.endsWith('.vasm'))
-            return "vasmarm";
-        if (fn.endsWith('.armips'))
-            return "armips";
-        if (fn.endsWith('.c'))
-            return "armtcc";
-        if (fn.endsWith('.s'))
-            return "armtcc";
-        return "armtcc";
+    constructor() {
+        super(...arguments);
+        //getOpcodeMetadata     = getOpcodeMetadata_z80;
+        this.getToolForFilename = baseplatform_1.getToolForFilename_arm32;
     }
     getPresets() { return ARM32_PRESETS; }
     getDefaultExtensions() { return [".c", ".armips", ".vasm"]; }

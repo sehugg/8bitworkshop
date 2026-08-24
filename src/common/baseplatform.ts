@@ -440,6 +440,7 @@ export function getToolForFilename_6502(fn: string): string {
   if (fn.endsWith(".s")) return "ca65";
   if (fn.endsWith(".ca65")) return "ca65";
   if (fn.endsWith(".dasm")) return "dasm";
+  if (fn.endsWith(".bb")) return "bataribasic";
   if (fn.endsWith(".acme")) return "acme";
   if (fn.endsWith(".xa")) return "xa";
   if (fn.endsWith(".wiz")) return "wiz";
@@ -653,6 +654,13 @@ export function cpuStateToLongString_6809(c) {
     + " Y " + hex(c.Y, 4) + "\n"
     + " U " + hex(c.U, 4) + "\n"
     ;
+}
+
+export function getToolForFilename_arm32(fn: string): string {
+  fn = fn.toLowerCase();
+  if (fn.endsWith(".vasm")) return "vasmarm";
+  if (fn.endsWith(".armips")) return "armips";
+  return "armtcc";
 }
 
 export function getToolForFilename_6809(fn: string): string {

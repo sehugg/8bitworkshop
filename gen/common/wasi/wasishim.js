@@ -303,10 +303,15 @@ class WASIMemoryFilesystem {
         return file;
     }
     getFile(name) {
-        var _a;
+        var _a, _b, _c;
         let file = this.files.get(name);
+        // fallback: normalize leading './' so 'dir.name + "/" + path' joins still match
+        if (!file && name.startsWith('./')) {
+            const stripped = name.substring(2);
+            file = (_a = this.files.get(stripped)) !== null && _a !== void 0 ? _a : (_b = this.parent) === null || _b === void 0 ? void 0 : _b.getFile(stripped);
+        }
         if (!file) {
-            file = (_a = this.parent) === null || _a === void 0 ? void 0 : _a.getFile(name);
+            file = (_c = this.parent) === null || _c === void 0 ? void 0 : _c.getFile(name);
         }
         return file;
     }
