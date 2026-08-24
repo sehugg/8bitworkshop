@@ -56,7 +56,7 @@ export const mboHighlightStyle = HighlightStyle.define([
   { tag: [t.processingInstruction], color: "#ff9cf7" },
   { tag: [t.keyword, t.controlKeyword, t.modifier], color: "#ffb928" },
   { tag: [t.name, t.standard(t.name), t.variableName], color: "#ffffec" },
-  { tag: t.local(t.variableName), color: "#00a8c6" },
+  //{ tag: t.local(t.variableName), color: "#00a8c6" },
   { tag: [t.deleted, t.macroName], color: "#00a8c6" },
   { tag: [t.string, t.inserted], color: "#b4fdb7" },
   { tag: [t.number], color: "#3abff8" },
