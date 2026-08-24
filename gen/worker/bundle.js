@@ -2580,8 +2580,9 @@
       arch: "6502",
       extensions: [".dasm"],
       editorStyle: "6502",
-      helpURL: "https://raw.githubusercontent.com/sehugg/dasm/master/doc/dasm.txt",
+      helpURL: "https://raw.githubusercontent.com/dasm-assembler/dasm/refs/tags/v2.20.17/docs/dasm.txt",
       wasmModule: "dasm-wasisdk",
+      version: "2.20.17",
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2594,6 +2595,7 @@
       editorStyle: "6502",
       helpURL: "https://raw.githubusercontent.com/sehugg/acme/main/docs/QuickRef.txt",
       wasmModule: "acme",
+      version: "0.97.1",
       includePatterns: [...SHARED_INCLUDE_PATTERNS, ...ACME_INCLUDE_PATTERNS],
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2606,6 +2608,7 @@
       editorStyle: "6502",
       helpURL: "https://www.floodgap.com/retrotech/xa/",
       wasmModule: "xa",
+      version: "2.4.1",
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2617,6 +2620,7 @@
       extensions: [".nesasm"],
       editorStyle: "6502",
       wasmModule: "nesasm",
+      version: "3.1",
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2628,6 +2632,7 @@
       extensions: [".lnk"],
       editorStyle: "6502",
       wasmModule: "merlin32",
+      version: "1.1.1",
       includePatterns: [...SHARED_INCLUDE_PATTERNS, ...USE_ASM_INCLUDE_PATTERNS],
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2642,6 +2647,7 @@
       editorStyle: "text/x-csrc",
       helpURL: "https://cc65.github.io/doc/cc65.html",
       wasmModule: "cc65",
+      version: "2.19",
       platforms: CC65_PRELOADFS,
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
@@ -2656,6 +2662,7 @@
       editorStyle: "6502",
       helpURL: "https://cc65.github.io/doc/ca65.html",
       wasmModule: "ca65",
+      version: "2.19",
       platforms: CC65_PRELOADFS,
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
@@ -2666,7 +2673,8 @@
       kind: "linker",
       arch: "6502",
       extensions: [],
-      wasmModule: "ld65"
+      wasmModule: "ld65",
+      version: "2.19"
     },
     // ---- SDCC toolchain (z80) ----
     sdcc: {
@@ -2679,6 +2687,7 @@
       editorStyle: "text/x-csrc",
       helpURL: "http://sdcc.sourceforge.net/doc/sdccman.pdf",
       wasmModule: "sdcc",
+      version: "3.6.5",
       platforms: { default: { preloadFS: "sdcc" } },
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
@@ -2692,6 +2701,7 @@
       includeDirs: ["/include"],
       editorStyle: "z80",
       wasmModule: "sdasz80",
+      version: "02.00",
       platforms: { default: { preloadFS: "sdcc" } },
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
@@ -2715,7 +2725,8 @@
       kind: "linker",
       arch: "z80",
       extensions: [],
-      wasmModule: "sdldz80"
+      wasmModule: "sdldz80",
+      version: "03.00"
     },
     sccz80: {
       id: "sccz80",
@@ -2743,6 +2754,7 @@
       editorStyle: "z80",
       helpURL: "https://raw.githubusercontent.com/sehugg/zmac/master/doc.txt",
       wasmModule: "zmac",
+      version: "28jul2018",
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2780,6 +2792,7 @@
       editorStyle: "text/x-csrc",
       helpURL: "http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html",
       wasmModule: "cmoc",
+      version: "0.1.67",
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2790,6 +2803,7 @@
       arch: "6809",
       extensions: [".lwasm"],
       wasmModule: "lwasm",
+      version: "4.17",
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2799,7 +2813,8 @@
       kind: "linker",
       arch: "6809",
       extensions: [],
-      wasmModule: "lwlink"
+      wasmModule: "lwlink",
+      version: "4.17"
     },
     // ---- ARM ----
     vasmarm: {
@@ -2810,6 +2825,7 @@
       extensions: [".vasm"],
       editorStyle: "vasm",
       wasmModule: "vasmarm_std",
+      version: "1.8k",
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2821,6 +2837,7 @@
       extensions: [".armips"],
       editorStyle: "vasm",
       wasmModule: "armips",
+      version: "0.11.0",
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2866,6 +2883,7 @@
       extensions: [".asm"],
       editorStyle: "gas",
       wasmModule: "yasm",
+      version: "1.3.0.47.gc9db",
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2879,8 +2897,9 @@
       includeDirs: ["/include"],
       wasiFSZip: "oscar64-fs.zip",
       editorStyle: "text/x-csrc",
-      helpURL: "https://github.com/drmortalwombat/oscar64/blob/main/oscar64.md",
+      helpURL: "https://github.com/drmortalwombat/oscar64/blob/v1.32.266/oscar64.md",
       wasmModule: "oscar64",
+      version: "1.32.266",
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2905,8 +2924,9 @@
       arch: "6502",
       extensions: [".bas", ".fb", ".fbi"],
       editorStyle: "fastbasic",
-      helpURL: "https://github.com/dmsc/fastbasic/blob/master/manual.md",
+      helpURL: "https://github.com/dmsc/fastbasic/blob/v4.4/manual.md",
       wasmModule: "fastbasic-int",
+      version: "4.4",
       platforms: { default: { preloadFS: "65-atari8" } },
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
@@ -2919,6 +2939,7 @@
       extensions: [".cc2600"],
       editorStyle: "text/x-csrc",
       wasmModule: "cc2600",
+      version: "0.4.5",
       wasiFSZip: "cc2600-fs.zip",
       includeDirs: ["/headers"],
       includePatterns: SHARED_INCLUDE_PATTERNS,
@@ -2932,6 +2953,7 @@
       extensions: [".cc7800", ".c78"],
       editorStyle: "text/x-csrc",
       wasmModule: "cc7800",
+      version: "0.2.28",
       wasiFSZip: "cc7800-fs.zip",
       includeDirs: ["/headers"],
       includePatterns: SHARED_INCLUDE_PATTERNS,
@@ -2954,6 +2976,7 @@
       editorStyle: "text/x-wiz",
       helpURL: "https://github.com/wiz-lang/wiz/blob/master/readme.md#wiz",
       wasmModule: "wiz",
+      version: "0.1.2",
       platforms: { default: { preloadFS: "wiz" } },
       includePatterns: WIZ_INCLUDE_PATTERNS
     },
@@ -2979,6 +3002,7 @@
       extensions: [".inf"],
       editorStyle: "inform6",
       wasmModule: "inform",
+      version: "6.34",
       platforms: { default: { preloadFS: "inform" } }
     },
     dialog: {
@@ -2990,6 +3014,8 @@
       editorStyle: "dialog",
       helpURL: "https://linusakesson.net/dialog/docs/",
       wasmModule: "dialogc",
+      // self-reported build tag, not a numeric release
+      version: "1c/03-dev",
       wasiFSZip: "dialog-fs.zip",
       includeDirs: ["/"],
       includePatterns: DIALOG_INCLUDE_PATTERNS
@@ -3002,8 +3028,9 @@
       arch: "verilog",
       extensions: [".v"],
       editorStyle: "verilog",
-      helpURL: "https://www.veripool.org/ftp/verilator_doc.pdf",
+      helpURL: "https://verilator.org/guide/4.205/",
       wasmModule: "verilator_bin",
+      version: "4.205",
       includePatterns: VERILOG_INCLUDE_PATTERNS,
       linkPatterns: []
     },
@@ -3026,6 +3053,7 @@
       editorStyle: "verilog",
       helpURL: "https://github.com/sylefeb/Silice",
       wasmModule: "silice",
+      version: "0.1",
       platforms: { default: { preloadFS: "Silice" } },
       includePatterns: VERILOG_INCLUDE_PATTERNS,
       linkPatterns: []

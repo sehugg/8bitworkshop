@@ -1487,7 +1487,6 @@ function _addLinkFile() {
         (0, dialogs_1.alertError)("Can't add linked file to this project type (" + tool + ")");
 }
 function setupDebugControls() {
-    var _a;
     // create toolbar buttons
     uitoolbar = new toolbar_1.Toolbar($("#toolbar")[0], null);
     uitoolbar.grp.prop('id', 'run_bar');
@@ -1589,12 +1588,35 @@ function setupDebugControls() {
     }
     // tool help
     let tool = exports.platform.getToolForFilename(getCurrentMainFilename());
-    let toolhelpurl = tool && ((_a = (0, toolmeta_1.getToolMeta)(tool)) === null || _a === void 0 ? void 0 : _a.helpURL);
+    let toolmeta = tool && (0, toolmeta_1.getToolMeta)(tool);
+    let toolhelpurl = toolmeta === null || toolmeta === void 0 ? void 0 : toolmeta.helpURL;
     if (toolhelpurl) {
-        let { li, a } = newDropdownListItem('help__' + tool, tool + ' Help');
+        // include the vendored wasm version when we know it (TOOL_META.version)
+        let label = tool + ' Help';
+        if (toolmeta.version)
+            label += ' (' + toolmeta.version + ')';
+        let { li, a } = newDropdownListItem('help__' + tool, label);
         $("#help_menu").append(li);
         $(a).click(() => window.open(toolhelpurl, '_8bws_help'));
     }
+    // all toolchain versions
+    $("#item_tool_versions").click(openToolVersions);
+}
+function openToolVersions() {
+    const row = (name, kind, version) => `<tr><td>${name}</td><td>${kind}</td><td>${version}</td></tr>`;
+    // only tools whose vendored wasm reported a version (see npm run toolversions)
+    const tools = Object.values(toolmeta_1.TOOL_META)
+        .filter(m => m.wasmModule && m.version)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    bootbox.dialog({
+        title: 'Toolchain Versions',
+        onEscape: true,
+        message: `
+    <table class="help">
+      <tr><th>Tool</th><th>Kind</th><th>Version</th></tr>
+      ${tools.map(m => { var _a; return row(m.name, m.kind, (_a = m.version) !== null && _a !== void 0 ? _a : '?'); }).join('\n')}
+    </table>`,
+    });
 }
 function openKeyboardShortcuts() {
     const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
