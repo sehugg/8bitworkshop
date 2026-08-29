@@ -140,10 +140,11 @@ export function openSearchDialog() {
         rec.kind === 'enum' ? 'E' :
         rec.kind === 'text' ? '≡' : '•';
       const loc = rec.file && rec.line ? `${rec.file}:${rec.line}` : (rec.file || '');
+      const isSmart = rec.kind !== 'text';
       const li = $('<li class="list-group-item search-hit" style="cursor:pointer;padding:6px 10px"></li>');
       li.html(
         `<span class="search-kind" style="margin-right:6px;font-weight:bold">${kindIcon}</span>` +
-        `<strong>${escapeHtml(rec.name)}</strong>` +
+        (isSmart ? `<strong>${escapeHtml(rec.name)}</strong>` : `<span class="search-dumb">${escapeHtml(rec.name)}</span>`) +
         (rec.brief ? ` <span class="text-muted">- ${escapeHtml(rec.brief)}</span>` : '') +
         `<span class="pull-right text-muted" style="font-size:small">${escapeHtml(srcName)}${loc ? ' · ' + escapeHtml(loc) : ''}</span>`
       );
