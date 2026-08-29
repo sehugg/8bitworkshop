@@ -11,15 +11,7 @@ import { getFilenameForPath, getFolderForPath, hex, rpad } from "../../common/ut
 import { getIncludeDirs, getIncludePatterns, getLinkPatterns, getSharedFileSystemName, getSystemIncludePatterns } from "../../common/toolmeta";
 import { WorkerMessage } from "../../common/workertypes";
 import { SourceFile, SourceLocation, WorkerError } from "../../common/workertypes";
-import { asm6502 } from "../../parser/lang-6502";
-import { basic } from "../../parser/lang-basic";
-import { batariBasic } from "../../parser/lang-bataribasic";
-import { dialog } from "../../parser/lang-dialog";
-import { fastBasic } from "../../parser/lang-fastbasic";
-import { inform6 } from "../../parser/lang-inform6";
-import { verilog } from "../../parser/lang-verilog";
-import { wiz } from "../../parser/lang-wiz";
-import { asmZ80 } from "../../parser/lang-z80";
+import { parserRegistry, getLanguageSupportForStyle } from "../../parser/registry";
 import { cobalt } from "../../themes/cobalt";
 import { disassemblyTheme } from "../../themes/disassemblyTheme";
 import { editorTheme } from "../../themes/editorTheme";
@@ -174,43 +166,12 @@ export class SourceEditor implements ProjectView {
     const minimalGutters = modedef.noGutters || isMobileDevice;
 
     var parser: Extension;
-    switch (this.mode) {
-      case '6502':
-        parser = asm6502();
-        break;
-      case 'basic':
-        parser = basic();
-        break;
-      case 'bataribasic':
-        parser = batariBasic();
-        break;
-      case 'fastbasic':
-        parser = fastBasic();
-        break;
-      case 'dialog':
-        parser = dialog();
-        break;
-      case 'inform6':
-        parser = inform6();
-        break;
-      case 'markdown':
-        parser = markdown();
-        break;
-      case 'text/x-csrc':
-        parser = cpp();
-        break;
-      case 'text/x-wiz':
-        parser = wiz();
-        break;
-      case 'verilog':
-        parser = verilog();
-        break;
-      case 'z80':
-        parser = asmZ80();
-        break;
-      default:
-        console.warn("Unknown mode: " + this.mode);
-        break;
+    const registryEntry = parserRegistry[this.mode];
+    if (registryEntry) {
+      parser = registryEntry.language;
+    } else {
+      console.warn("Unknown mode: " + this.mode);
+      parser = null;
     }
     this.editor = new EditorView({
       parent: parent,
@@ -1069,6 +1030,19 @@ export class HeaderView implements ProjectView {
     this.setHeaderText('// ' + fn + ' was not found.\n'
       + '// Project include files are loaded during a build -- try building first.\n'
       + '// Toolchain headers are only available when the tool has a bundled filesystem.');
+  }
+
+  /** Jump to a line in the header (after content loads). */
+  navigateToLine(line: number) {
+    if (!this.view || line < 1) return;
+    if (line <= this.view.state.doc.lines) {
+      const target = this.view.state.doc.line(line);
+      this.view.dispatch({
+        selection: { anchor: target.from },
+        effects: [EditorView.scrollIntoView(target.from, { y: "center" })],
+      });
+      this.view.focus();
+    }
   }
   // track the most recent request so stale async lookups don't overwrite it
   private requestedFn: string;

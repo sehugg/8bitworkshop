@@ -163,6 +163,8 @@ function createWizParser(): StreamParser<WizState> {
 /**
  * Language support for Wiz
  */
+export const wizStreamParser: StreamParser<WizState> = createWizParser();
+
 export function wiz(): LanguageSupport {
-    return new LanguageSupport(StreamLanguage.define(createWizParser()));
+    return new LanguageSupport(StreamLanguage.define(wizStreamParser));
 }
