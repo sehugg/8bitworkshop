@@ -6,14 +6,22 @@ import { extractSymbols } from "../../common/symbols";
 // Avoid a hard dependency on ../ui (which pulls in the whole IDE and its
 // language grammar imports that crash under plain Node). ui.ts registers a
 // getter here during startup instead.
-type ProjectProvider = () => { mainPath: string; iterateFiles(cb: (path: string, data: any) => void): void } | null;
+export interface SearchableProject {
+  mainPath: string;
+  platform_id?: string;
+  getToolForFilename?(path: string): string;
+  iterateFiles(cb: (path: string, data: any) => void): void;
+  queryWorker?(msg: any): Promise<any | null>;
+}
+
+type ProjectProvider = () => SearchableProject | null;
 let projectProvider: ProjectProvider = () => null;
 
 export function setProjectProvider(fn: ProjectProvider) {
   projectProvider = fn;
 }
 
-function getProject() {
+export function getProject(): SearchableProject | null {
   return projectProvider();
 }
 

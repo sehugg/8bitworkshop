@@ -10,7 +10,7 @@ export interface SearchSource {
   id: string;
   kind: SymbolSourceKind;
   ready(): Promise<void>;
-  query(needle: string, limit: number): SearchHit[];
+  query(needle: string, limit: number): SearchHit[] | Promise<SearchHit[]>;
 }
 
 export interface SearchQuery {
