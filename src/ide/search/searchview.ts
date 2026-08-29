@@ -101,14 +101,23 @@ export function openSearchDialog() {
       $(el).toggleClass('active', j === selectedIdx);
     });
     if (selectedIdx >= 0) {
+      const box = resultsDiv[0] as HTMLElement;
       const li = resultsDiv.find('li.search-hit').eq(selectedIdx);
       if (li.length) {
-        const box = resultsDiv[0] as HTMLElement;
         const item = li[0] as HTMLElement;
-        if (item.offsetTop < box.scrollTop) {
-          box.scrollTop = item.offsetTop;
-        } else if (item.offsetTop + item.offsetHeight > box.scrollTop + box.clientHeight) {
-          box.scrollTop = item.offsetTop + item.offsetHeight - box.clientHeight;
+        // Compare the item against the scroll container using viewport-relative
+        // rects. offsetTop is measured from the nearest positioned ancestor
+        // (the bootstrap modal is position:fixed), so it can't be compared
+        // with box.scrollTop directly.
+        const boxRect = box.getBoundingClientRect();
+        const itemRect = item.getBoundingClientRect();
+        const relTop = itemRect.top - boxRect.top;
+        if (relTop < 0) {
+          // selected item above the visible area: scroll up to reveal it
+          box.scrollTop += relTop;
+        } else if (relTop + itemRect.height > boxRect.height) {
+          // selected item below the visible area: scroll down to reveal it
+          box.scrollTop += relTop + itemRect.height - boxRect.height;
         }
       }
     }
