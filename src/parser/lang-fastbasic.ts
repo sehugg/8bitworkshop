@@ -165,6 +165,8 @@ function createFastBasicParser(): StreamParser<FastBasicState> {
 /**
  * Language support for FastBASIC
  */
+export const fastBasicStreamParser: StreamParser<FastBasicState> = createFastBasicParser();
+
 export function fastBasic(): LanguageSupport {
-    return new LanguageSupport(StreamLanguage.define(createFastBasicParser()));
+    return new LanguageSupport(StreamLanguage.define(fastBasicStreamParser));
 }

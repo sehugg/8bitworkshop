@@ -460,16 +460,12 @@ function createVerilogParser(config: VerilogConfig = {}): StreamParser<VerilogSt
     };
 }
 
-/**
- * Language support for Verilog
- */
+export const verilogStreamParser: StreamParser<VerilogState> = createVerilogParser();
+
 export function verilog(): LanguageSupport {
-    return new LanguageSupport(StreamLanguage.define(createVerilogParser()));
+    return new LanguageSupport(StreamLanguage.define(verilogStreamParser));
 }
 
-/**
- * Language support for SystemVerilog
- */
 export function systemverilog(): LanguageSupport {
-    return new LanguageSupport(StreamLanguage.define(createVerilogParser()));
+    return new LanguageSupport(StreamLanguage.define(verilogStreamParser));
 }

@@ -109,6 +109,8 @@ function createInform6Parser(): StreamParser<Inform6State> {
 /**
  * Language support for Inform6
  */
+export const inform6StreamParser: StreamParser<Inform6State> = createInform6Parser();
+
 export function inform6(): LanguageSupport {
-    return new LanguageSupport(StreamLanguage.define(createInform6Parser()));
+    return new LanguageSupport(StreamLanguage.define(inform6StreamParser));
 }

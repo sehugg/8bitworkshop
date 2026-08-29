@@ -20,6 +20,8 @@ import { getRepos, parseGithubURL } from "./services";
 import { _downloadAllFilesZipFile, _downloadCassetteFile, _downloadProjectZipFile, _downloadROMImage, _downloadSourceFile, _downloadSymFile, _getCassetteFunction, _recordVideo, _shareEmbedLink } from "./shareexport";
 import { _importProjectFromGithub, _loginToGithub, _logoutOfGithub, _publishProjectToGithub, _pullProjectFromGithub, _pushProjectToGithub, _removeRepository, importProjectFromGithub } from "./sync";
 import { Toolbar } from "./toolbar";
+import { openSearchDialog } from "./search/searchview";
+import { setProjectProvider } from "./search/projectsource";
 import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
 import { AddressHeatMapView, BinaryFileView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterStackMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
@@ -232,6 +234,7 @@ async function newFilesystem() {
 async function initProject() {
   var filesystem = await newFilesystem();
   current_project = new CodeProject(newWorker(), platform_id, platform, filesystem);
+  setProjectProvider(() => current_project);
   current_project.remoteTool = qs.tool || null;
   projectWindows = new ProjectWindows($("#workspace")[0] as HTMLElement, current_project);
   current_project.callbackBuildResult = (result: WorkerResult) => {
@@ -1597,6 +1600,7 @@ function setupDebugControls() {
   }
   uitoolbar.newGroup();
   uitoolbar.grp.prop('id', 'xtra_bar');
+  uitoolbar.add('shift+ctrl+/', 'Search', 'glyphicon-search', openSearchDialog).prop('id', 'dbg_search');
   // add menu clicks
   $(".dropdown-menu").collapse({ toggle: false });
   $("#item_new_file").click(_createNewFile);
@@ -1710,6 +1714,7 @@ function openKeyboardShortcuts() {
     message: `
     <table class="help">
       <tr><th colspan="2">Custom</th></tr>
+      ${shortcut(`${mod}+${shift}+F`, 'Search symbols, files, and docs')}
       ${shortcut(`${shift}+${alt}+F`, 'Format document, or selected range(s)')}
       ${shortcut('Tab', 'Insert to next tab stop, or indent selected range(s)')}
       ${shortcut(`${shift}+Tab`, 'Outdent line(s) or selected range(s)')}

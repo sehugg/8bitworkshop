@@ -163,6 +163,8 @@ function tokenString(stream: any, state: BasicState): string {
   return "string";
 }
 
+export const basicStreamParser: StreamParser<BasicState> = basicParser;
+
 export function basic(): LanguageSupport {
-  return new LanguageSupport(StreamLanguage.define(basicParser));
+  return new LanguageSupport(StreamLanguage.define(basicStreamParser));
 }
