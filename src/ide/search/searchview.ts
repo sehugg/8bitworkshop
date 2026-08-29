@@ -90,13 +90,47 @@ export function openSearchDialog() {
 
   const resultsDiv = $('#searchboxResults');
 
+  // Current result list + selection index (for arrow-key navigation).
+  let currentHits: SearchHit[] = [];
+  let selectedIdx = -1;
+
+  /** Highlight the list item at index i (or none if i < 0). */
+  const selectRow = (i: number) => {
+    selectedIdx = Math.max(-1, Math.min(i, currentHits.length - 1));
+    resultsDiv.find('li.search-hit').each((j, el) => {
+      $(el).toggleClass('active', j === selectedIdx);
+    });
+    if (selectedIdx >= 0) {
+      const li = resultsDiv.find('li.search-hit').eq(selectedIdx);
+      if (li.length) {
+        const box = resultsDiv[0] as HTMLElement;
+        const item = li[0] as HTMLElement;
+        if (item.offsetTop < box.scrollTop) {
+          box.scrollTop = item.offsetTop;
+        } else if (item.offsetTop + item.offsetHeight > box.scrollTop + box.clientHeight) {
+          box.scrollTop = item.offsetTop + item.offsetHeight - box.clientHeight;
+        }
+      }
+    }
+  };
+
+  /** Open the currently selected (or given) hit. */
+  const openSelected = (i: number = selectedIdx) => {
+    const hit = currentHits[i];
+    if (!hit) return;
+    openSearchHit(hit);
+    bootbox.hideAll();
+  };
+
   const render = (hits: SearchHit[]) => {
-    if (!hits || hits.length === 0) {
+    currentHits = hits || [];
+    if (currentHits.length === 0) {
+      selectedIdx = -1;
       resultsDiv.html('<div class="text-muted" style="padding:8px">No matches.</div>');
       return;
     }
     const ul = $('<ul class="list-group" style="margin-bottom:0"></ul>');
-    for (const hit of hits) {
+    for (const hit of currentHits) {
       const rec = hit.record;
       const srcName = rec.source;
       const kindIcon = rec.kind === 'func' ? 'ƒ' :
@@ -114,17 +148,20 @@ export function openSearchDialog() {
         `<span class="pull-right text-muted" style="font-size:small">${escapeHtml(srcName)}${loc ? ' · ' + escapeHtml(loc) : ''}</span>`
       );
       li.click(() => {
-        openSearchHit(hit);
-        bootbox.hideAll();
+        openSelected(currentHits.indexOf(hit));
       });
       ul.append(li);
     }
     resultsDiv.empty().append(ul);
+    // Auto-select the first result so Enter opens something immediately.
+    selectRow(0);
   };
 
   const doSearch = debounce(async () => {
     const needle = input.val() as string;
     if (!needle) {
+      currentHits = [];
+      selectedIdx = -1;
       resultsDiv.empty();
       return;
     }
@@ -138,6 +175,25 @@ export function openSearchDialog() {
 
   input.on('input', doSearch);
   input.on('keydown', (e) => {
-    if (e.key === 'Enter') doSearch();
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectRow(selectedIdx + 1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectRow(selectedIdx - 1);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedIdx >= 0) {
+        openSelected();
+      } else {
+        doSearch();
+      }
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      selectRow(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      selectRow(currentHits.length - 1);
+    }
   });
 }
