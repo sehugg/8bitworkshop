@@ -155,7 +155,7 @@ export function openSearchDialog() {
         `<span class="search-kind" style="margin-right:6px;font-weight:bold">${kindIcon}</span>` +
         (isSmart ? `<strong>${escapeHtml(rec.name)}</strong>` : `<span class="search-dumb">${escapeHtml(rec.name)}</span>`) +
         (rec.brief ? ` <span class="text-muted">- ${escapeHtml(rec.brief)}</span>` : '') +
-        `<span class="pull-right text-muted" style="font-size:small">${escapeHtml(srcName)}${loc ? ' · ' + escapeHtml(loc) : ''}</span>`
+        `<span class="pull-right" style="font-style:italic;font-size:small">${escapeHtml(srcName)}${loc ? ' · ' + escapeHtml(loc) : ''}</span>`
       );
       li.click(() => {
         openSelected(currentHits.indexOf(hit));
