@@ -3,12 +3,12 @@ import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, foldGutter, indentOnInput, indentService, indentUnit } from "@codemirror/language";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
-import { EditorState, Extension, StateEffect, StateField } from "@codemirror/state";
+import { Compartment, EditorState, Extension, StateEffect, StateField } from "@codemirror/state";
 import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, rectangularSelection, ViewUpdate } from "@codemirror/view";
 import { CodeAnalyzer } from "../../common/analysis";
 import { ProbeFlags, ProbeRecorder } from "../../common/probe";
 import { getFilenameForPath, getFolderForPath, hex, rpad } from "../../common/util";
-import { getIncludeDirs, getIncludePatterns, getLinkPatterns, getSharedFileSystemName, getSystemIncludePatterns } from "../../common/toolmeta";
+import { getIncludeDirs, getIncludePatterns, getLinkPatterns, getSharedFileSystemName, getSystemIncludePatterns, getToolMetaForFilename } from "../../common/toolmeta";
 import { WorkerMessage } from "../../common/workertypes";
 import { SourceFile, SourceLocation, WorkerError } from "../../common/workertypes";
 import { parserRegistry, getLanguageSupportForStyle } from "../../parser/registry";
@@ -919,6 +919,19 @@ export function resolveIncludeFile(fn: string): string | null {
   return null;
 }
 
+// Pick a syntax highlighting language for a read-only file view based on its
+// filename. Uses whichever registered tool claims the file's extension
+// (e.g. .inc -> ca65 -> 6502 asm, .h -> cc65 -> C). Returns null if no
+// tool/language matches.
+export function getLanguageForFilename(fn: string): Extension | null {
+  for (var meta of getToolMetaForFilename(fn)) {
+    if (!meta.editorStyle) continue;
+    var lang = getLanguageSupportForStyle(meta.editorStyle);
+    if (lang) return lang;
+  }
+  return null;
+}
+
 // Look up an include file inside the toolchain's preload filesystem
 // (e.g. /include/nes.h inside the cc65 package), via the worker.
 // Results are cached per filesystem+filename.
@@ -957,6 +970,7 @@ export function lookupSharedFileText(fn: string): Promise<string | null> {
 export class HeaderView implements ProjectView {
   view: EditorView;
   currentPath: string;
+  languageCompartment = new Compartment();
 
   constructor(public fn?: string) {
   }
@@ -965,7 +979,8 @@ export class HeaderView implements ProjectView {
     var div = document.createElement('div');
     div.setAttribute("class", "editor");
     parent.appendChild(div);
-    const parser: Extension = cpp();
+    // language based on filename when known; reconfigured in setHeaderText
+    var lang = getLanguageForFilename(this.fn || this.currentPath || '') || cpp();
     this.view = new EditorView({
       parent: div,
       extensions: [
@@ -977,7 +992,7 @@ export class HeaderView implements ProjectView {
         highlightSelectionMatches(),
         search({ top: true }),
         keymap.of(searchKeymap),
-        parser,
+        this.languageCompartment.of(lang),
         mbo,
         editorTheme,
         EditorState.readOnly.of(true),
@@ -992,7 +1007,10 @@ export class HeaderView implements ProjectView {
   }
 
   setHeaderText(text: string) {
+    // (re)configure highlighting now that we know the actual path
+    var lang = getLanguageForFilename(this.currentPath || this.fn || '') || cpp();
     this.view.dispatch({
+      effects: this.languageCompartment.reconfigure(lang),
       changes: { from: 0, to: this.view.state.doc.length, insert: text }
     });
   }
