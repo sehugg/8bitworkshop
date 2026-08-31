@@ -97,3 +97,76 @@ export class KeyBinder {
         window.removeEventListener('keydown', this.handler);
     }
 }
+
+// --- CodeMirror keymap interop ---
+//
+// CodeMirror calls preventDefault() on any key one of its keymaps handles, and
+// KeyBinder (above) deliberately defers to that, so a key CodeMirror binds can
+// never reach the IDE while an editor is focused. Handing a key over to the IDE
+// therefore means removing CodeMirror's binding for it.
+//
+// The specs can't be compared as strings: CodeMirror writes modifiers in
+// whatever order each binding's author chose ("Shift-Mod-k" for deleteLine,
+// "Mod-Shift-l" for selectSelectionMatches), and a binding may carry
+// per-platform specs that override its default one.
+
+export interface CMKeyBinding {
+    key?: string;
+    mac?: string;
+    win?: string;
+    linux?: string;
+}
+
+const CM_MODIFIERS: { [k: string]: string } = {
+    mod: 'Mod', cmd: 'Mod', meta: 'Mod', ctrl: 'Ctrl', control: 'Ctrl',
+    shift: 'Shift', alt: 'Alt', option: 'Alt',
+};
+
+var _isWin: boolean | null = null;
+
+function isWindows(): boolean {
+    if (_isWin === null) {
+        var nav = typeof navigator !== 'undefined' ? navigator : null;
+        _isWin = !!nav && /win/i.test(nav.platform || nav.userAgent || '');
+    }
+    return _isWin;
+}
+
+// "Shift-Mod-k" and "Mod-Shift-K" both become "Mod-Shift-k"
+export function normalizeCMKeySpec(spec: string): string {
+    var parts = spec.split('-');
+    var key = parts.pop() as string;
+    if (key === '') key = '-'; // trailing dash means the key itself is '-'
+    var mods: string[] = [];
+    for (var p of parts) {
+        if (p === '') continue; // "Mod--" splits to ['Mod', '', '']
+        var m = CM_MODIFIERS[p.toLowerCase()] || p;
+        if (m == 'Ctrl' && !isMacOS()) m = 'Mod'; // off macOS, Ctrl *is* Mod
+        if (mods.indexOf(m) < 0) mods.push(m);
+    }
+    mods.sort();
+    return mods.concat([key.toLowerCase()]).join('-');
+}
+
+// the spec CodeMirror will actually use on this platform
+export function effectiveCMKeySpec(b: CMKeyBinding): string | undefined {
+    var platform = isMacOS() ? b.mac : (isWindows() ? b.win : b.linux);
+    return platform || b.key;
+}
+
+// every mod+shift+<letter> the IDE binds -- see the shortcuts in ui.ts, which
+// testkeys.ts checks this list against
+export const IDE_RESERVED_KEYS = [
+    'Mod-Shift-a', 'Mod-Shift-d', 'Mod-Shift-e', 'Mod-Shift-f', 'Mod-Shift-g',
+    'Mod-Shift-h', 'Mod-Shift-i', 'Mod-Shift-j', 'Mod-Shift-k', 'Mod-Shift-l',
+    'Mod-Shift-r', 'Mod-Shift-x', 'Mod-Shift-y',
+];
+
+// drop the bindings that would swallow one of the IDE's own shortcuts
+export function stripCMKeymap<T extends CMKeyBinding>(keymap: readonly T[], specs: string[]): T[] {
+    var freed = specs.map(normalizeCMKeySpec);
+    return keymap.filter(function (b) {
+        var spec = effectiveCMKeySpec(b);
+        return !spec || freed.indexOf(normalizeCMKeySpec(spec)) < 0;
+    });
+}

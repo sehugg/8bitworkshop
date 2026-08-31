@@ -19,16 +19,14 @@ import { mbo } from "../../themes/mbo";
 import { loadSettings, registerEditor, settingsExtensions } from "../settings";
 import { asmSpacesKeymap } from "./tabs";
 import { clearBreakpoint, current_project, lastDebugState, openHeaderFile, platform, qs, runToPC } from "../ui";
+import { IDE_RESERVED_KEYS, stripCMKeymap } from "../keys";
 
-// Free Mod-Shift-K (deleteLine) and Mod-Shift-L (selectSelectionMatches) so the
-// IDE's debug shortcuts (see src/ide/keys.ts) work while the editor is focused;
-// deleteLine moves to Mod-Shift-Backspace.
-const freedDebugKeys = ["Mod-Shift-k", "Mod-Shift-l"];
-function stripKeys(kb: readonly KeyBinding[], keys: string[]): KeyBinding[] {
-    return kb.filter((b) => keys.indexOf(b.key) < 0);
-}
-const ideDefaultKeymap: KeyBinding[] = [...stripKeys(defaultKeymap, freedDebugKeys), { key: "Mod-Shift-Backspace", run: deleteLine }];
-const ideSearchKeymap: KeyBinding[] = stripKeys(searchKeymap, freedDebugKeys);
+// Free the mod+shift+<letter> keys the IDE binds (see IDE_RESERVED_KEYS) so its
+// debug shortcuts work while an editor is focused. CodeMirror claims two of
+// them today: deleteLine ("Shift-Mod-k") and selectSelectionMatches
+// ("Mod-Shift-l"); deleteLine keeps a home on Mod-Shift-Backspace.
+const ideDefaultKeymap: KeyBinding[] = [...stripCMKeymap(defaultKeymap, IDE_RESERVED_KEYS), { key: "Mod-Shift-Backspace", run: deleteLine }];
+const ideSearchKeymap: KeyBinding[] = stripCMKeymap(searchKeymap, IDE_RESERVED_KEYS);
 import { createAssetHeaderPlugin } from "./assetdecorations";
 import { createIncludeLinkPlugin } from "./includedecorations";
 import { isMobileDevice, ProjectView } from "./baseviews";
