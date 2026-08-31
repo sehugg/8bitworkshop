@@ -4,6 +4,7 @@
 // Original copyright (c) by Marijn Haverbeke and others
 // Distributed under an MIT license: https://codemirror.net/5/LICENSE
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.wizStreamParser = void 0;
 exports.wiz = wiz;
 const language_1 = require("@codemirror/language");
 const language_2 = require("@codemirror/language");
@@ -138,7 +139,8 @@ function createWizParser() {
 /**
  * Language support for Wiz
  */
+exports.wizStreamParser = createWizParser();
 function wiz() {
-    return new language_2.LanguageSupport(language_1.StreamLanguage.define(createWizParser()));
+    return new language_2.LanguageSupport(language_1.StreamLanguage.define(exports.wizStreamParser));
 }
 //# sourceMappingURL=lang-wiz.js.map

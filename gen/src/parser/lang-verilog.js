@@ -4,6 +4,7 @@
 // Original copyright (c) by Marijn Haverbeke and others
 // Distributed under an MIT license: https://codemirror.net/5/LICENSE
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.verilogStreamParser = void 0;
 exports.verilog = verilog;
 exports.systemverilog = systemverilog;
 const language_1 = require("@codemirror/language");
@@ -405,16 +406,11 @@ function createVerilogParser(config = {}) {
         }
     };
 }
-/**
- * Language support for Verilog
- */
+exports.verilogStreamParser = createVerilogParser();
 function verilog() {
-    return new language_2.LanguageSupport(language_1.StreamLanguage.define(createVerilogParser()));
+    return new language_2.LanguageSupport(language_1.StreamLanguage.define(exports.verilogStreamParser));
 }
-/**
- * Language support for SystemVerilog
- */
 function systemverilog() {
-    return new language_2.LanguageSupport(language_1.StreamLanguage.define(createVerilogParser()));
+    return new language_2.LanguageSupport(language_1.StreamLanguage.define(exports.verilogStreamParser));
 }
 //# sourceMappingURL=lang-verilog.js.map

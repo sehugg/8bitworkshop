@@ -4,6 +4,7 @@
 // Original copyright (c) by Marijn Haverbeke and others
 // Distributed under an MIT license: https://codemirror.net/5/LICENSE
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.fastBasicStreamParser = void 0;
 exports.fastBasic = fastBasic;
 const language_1 = require("@codemirror/language");
 const language_2 = require("@codemirror/language");
@@ -156,7 +157,8 @@ function createFastBasicParser() {
 /**
  * Language support for FastBASIC
  */
+exports.fastBasicStreamParser = createFastBasicParser();
 function fastBasic() {
-    return new language_2.LanguageSupport(language_1.StreamLanguage.define(createFastBasicParser()));
+    return new language_2.LanguageSupport(language_1.StreamLanguage.define(exports.fastBasicStreamParser));
 }
 //# sourceMappingURL=lang-fastbasic.js.map

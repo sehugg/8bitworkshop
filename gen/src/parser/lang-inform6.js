@@ -4,6 +4,7 @@
 // Original copyright (c) by Marijn Haverbeke and others
 // Distributed under an MIT license: https://codemirror.net/5/LICENSE
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.inform6StreamParser = void 0;
 exports.inform6 = inform6;
 const language_1 = require("@codemirror/language");
 const language_2 = require("@codemirror/language");
@@ -105,7 +106,8 @@ function createInform6Parser() {
 /**
  * Language support for Inform6
  */
+exports.inform6StreamParser = createInform6Parser();
 function inform6() {
-    return new language_2.LanguageSupport(language_1.StreamLanguage.define(createInform6Parser()));
+    return new language_2.LanguageSupport(language_1.StreamLanguage.define(exports.inform6StreamParser));
 }
 //# sourceMappingURL=lang-inform6.js.map

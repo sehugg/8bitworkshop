@@ -4,6 +4,7 @@
 // Original copyright (c) by Marijn Haverbeke and others
 // Distributed under an MIT license: https://codemirror.net/5/LICENSE
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.basicStreamParser = void 0;
 exports.basic = basic;
 const language_1 = require("@codemirror/language");
 // TODO: Migrate to CodeMirror 6 Lezer parser.
@@ -145,7 +146,8 @@ function tokenString(stream, state) {
     state.tokenize = tokenBase;
     return "string";
 }
+exports.basicStreamParser = basicParser;
 function basic() {
-    return new language_1.LanguageSupport(language_1.StreamLanguage.define(basicParser));
+    return new language_1.LanguageSupport(language_1.StreamLanguage.define(exports.basicStreamParser));
 }
 //# sourceMappingURL=lang-basic.js.map

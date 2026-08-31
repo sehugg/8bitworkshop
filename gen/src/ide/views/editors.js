@@ -3,10 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.HeaderView = exports.ListingView = exports.DisassemblerView = exports.SourceEditor = exports.textMapFunctions = exports.PC_LINE_LOOKAHEAD = void 0;
 exports.setUppercaseOnly = setUppercaseOnly;
 exports.resolveIncludeFile = resolveIncludeFile;
+exports.getLanguageForFilename = getLanguageForFilename;
 exports.lookupSharedFileText = lookupSharedFileText;
 const commands_1 = require("@codemirror/commands");
 const lang_cpp_1 = require("@codemirror/lang-cpp");
-const lang_markdown_1 = require("@codemirror/lang-markdown");
 const language_1 = require("@codemirror/language");
 const search_1 = require("@codemirror/search");
 const state_1 = require("@codemirror/state");
@@ -14,15 +14,7 @@ const view_1 = require("@codemirror/view");
 const probe_1 = require("../../common/probe");
 const util_1 = require("../../common/util");
 const toolmeta_1 = require("../../common/toolmeta");
-const lang_6502_1 = require("../../parser/lang-6502");
-const lang_basic_1 = require("../../parser/lang-basic");
-const lang_bataribasic_1 = require("../../parser/lang-bataribasic");
-const lang_dialog_1 = require("../../parser/lang-dialog");
-const lang_fastbasic_1 = require("../../parser/lang-fastbasic");
-const lang_inform6_1 = require("../../parser/lang-inform6");
-const lang_verilog_1 = require("../../parser/lang-verilog");
-const lang_wiz_1 = require("../../parser/lang-wiz");
-const lang_z80_1 = require("../../parser/lang-z80");
+const registry_1 = require("../../parser/registry");
 const cobalt_1 = require("../../themes/cobalt");
 const disassemblyTheme_1 = require("../../themes/disassemblyTheme");
 const editorTheme_1 = require("../../themes/editorTheme");
@@ -159,43 +151,13 @@ class SourceEditor {
         }
         const minimalGutters = modedef.noGutters || baseviews_1.isMobileDevice;
         var parser;
-        switch (this.mode) {
-            case '6502':
-                parser = (0, lang_6502_1.asm6502)();
-                break;
-            case 'basic':
-                parser = (0, lang_basic_1.basic)();
-                break;
-            case 'bataribasic':
-                parser = (0, lang_bataribasic_1.batariBasic)();
-                break;
-            case 'fastbasic':
-                parser = (0, lang_fastbasic_1.fastBasic)();
-                break;
-            case 'dialog':
-                parser = (0, lang_dialog_1.dialog)();
-                break;
-            case 'inform6':
-                parser = (0, lang_inform6_1.inform6)();
-                break;
-            case 'markdown':
-                parser = (0, lang_markdown_1.markdown)();
-                break;
-            case 'text/x-csrc':
-                parser = (0, lang_cpp_1.cpp)();
-                break;
-            case 'text/x-wiz':
-                parser = (0, lang_wiz_1.wiz)();
-                break;
-            case 'verilog':
-                parser = (0, lang_verilog_1.verilog)();
-                break;
-            case 'z80':
-                parser = (0, lang_z80_1.asmZ80)();
-                break;
-            default:
-                console.warn("Unknown mode: " + this.mode);
-                break;
+        const registryEntry = registry_1.parserRegistry[this.mode];
+        if (registryEntry) {
+            parser = registryEntry.language;
+        }
+        else {
+            console.warn("Unknown mode: " + this.mode);
+            parser = null;
         }
         this.editor = new view_1.EditorView({
             parent: parent,
@@ -879,6 +841,20 @@ function resolveIncludeFile(fn) {
     }
     return null;
 }
+// Pick a syntax highlighting language for a read-only file view based on its
+// filename. Uses whichever registered tool claims the file's extension
+// (e.g. .inc -> ca65 -> 6502 asm, .h -> cc65 -> C). Returns null if no
+// tool/language matches.
+function getLanguageForFilename(fn) {
+    for (var meta of (0, toolmeta_1.getToolMetaForFilename)(fn)) {
+        if (!meta.editorStyle)
+            continue;
+        var lang = (0, registry_1.getLanguageSupportForStyle)(meta.editorStyle);
+        if (lang)
+            return lang;
+    }
+    return null;
+}
 // Look up an include file inside the toolchain's preload filesystem
 // (e.g. /include/nes.h inside the cc65 package), via the worker.
 // Results are cached per filesystem+filename.
@@ -916,12 +892,14 @@ function lookupSharedFileText(fn) {
 class HeaderView {
     constructor(fn) {
         this.fn = fn;
+        this.languageCompartment = new state_1.Compartment();
     }
     createDiv(parent) {
         var div = document.createElement('div');
         div.setAttribute("class", "editor");
         parent.appendChild(div);
-        const parser = (0, lang_cpp_1.cpp)();
+        // language based on filename when known; reconfigured in setHeaderText
+        var lang = getLanguageForFilename(this.fn || this.currentPath || '') || (0, lang_cpp_1.cpp)();
         this.view = new view_1.EditorView({
             parent: div,
             extensions: [
@@ -933,7 +911,7 @@ class HeaderView {
                 (0, search_1.highlightSelectionMatches)(),
                 (0, search_1.search)({ top: true }),
                 view_1.keymap.of(search_1.searchKeymap),
-                parser,
+                this.languageCompartment.of(lang),
                 mbo_1.mbo,
                 editorTheme_1.editorTheme,
                 state_1.EditorState.readOnly.of(true),
@@ -947,7 +925,10 @@ class HeaderView {
             this.refresh(false);
     }
     setHeaderText(text) {
+        // (re)configure highlighting now that we know the actual path
+        var lang = getLanguageForFilename(this.currentPath || this.fn || '') || (0, lang_cpp_1.cpp)();
         this.view.dispatch({
+            effects: this.languageCompartment.reconfigure(lang),
             changes: { from: 0, to: this.view.state.doc.length, insert: text }
         });
     }
@@ -985,6 +966,19 @@ class HeaderView {
         this.setHeaderText('// ' + fn + ' was not found.\n'
             + '// Project include files are loaded during a build -- try building first.\n'
             + '// Toolchain headers are only available when the tool has a bundled filesystem.');
+    }
+    /** Jump to a line in the header (after content loads). */
+    navigateToLine(line) {
+        if (!this.view || line < 1)
+            return;
+        if (line <= this.view.state.doc.lines) {
+            const target = this.view.state.doc.line(line);
+            this.view.dispatch({
+                selection: { anchor: target.from },
+                effects: [view_1.EditorView.scrollIntoView(target.from, { y: "center" })],
+            });
+            this.view.focus();
+        }
     }
 }
 exports.HeaderView = HeaderView;

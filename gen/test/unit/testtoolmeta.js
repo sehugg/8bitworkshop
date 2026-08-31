@@ -49,6 +49,14 @@ const workerlib_1 = require("../../src/worker/workerlib");
         assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('sdcc'), 'sdcc'); // default config
         assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('dasm'), undefined);
     });
+    (0, mocha_1.it)('getPreloadFSName resolves suffixed platform ids to their root base', function () {
+        // atari8 runs as 'atari8-800' / 'atari8-5200' / *.xlmame variants
+        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('cc65', 'atari8'), '65-atari8');
+        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('cc65', 'atari8-800'), '65-atari8');
+        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('cc65', 'atari8-800.xlmame'), '65-atari8');
+        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('cc65', 'atari8-5200'), '65-atari8');
+        assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('cc65', 'atari8-800'), '65-atari8');
+    });
     (0, mocha_1.it)('getSkeletonName defaults to the tool id', function () {
         assert_1.default.strictEqual((0, toolmeta_1.getSkeletonName)('dasm'), 'dasm');
         assert_1.default.strictEqual((0, toolmeta_1.getSkeletonName)('remote:llvm-mos'), 'llvm-mos');

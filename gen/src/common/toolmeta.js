@@ -168,7 +168,7 @@ exports.TOOL_META = {
     },
     ca65: {
         id: 'ca65', name: 'ca65', kind: 'assembler', arch: '6502',
-        extensions: ['.s', '.ca65'],
+        extensions: ['.s', '.ca65', '.inc'],
         includeDirs: ['/include', '/asminc'],
         editorStyle: '6502',
         helpURL: 'https://cc65.github.io/doc/ca65.html',
@@ -536,9 +536,18 @@ function getPreloadFSName(tool, platform) {
         return undefined;
     if (meta.platforms) {
         if (platform) {
+            // Try the exact id, then the root base id so suffixed platform ids
+            // (e.g. 'atari8-800', 'atari8-5200.xlmame') resolve to the shared
+            // filesystem registered under the root ('atari8' -> '65-atari8').
             let p = meta.platforms[platform];
             if (p && p.preloadFS)
                 return p.preloadFS;
+            let base = (0, util_1.getRootBasePlatform)(platform);
+            if (base && base !== platform) {
+                let b = meta.platforms[base];
+                if (b && b.preloadFS)
+                    return b.preloadFS;
+            }
         }
         let d = meta.platforms['default'];
         if (d && d.preloadFS)

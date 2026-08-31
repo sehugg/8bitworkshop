@@ -94,6 +94,8 @@ function createBatariBasicParser(): StreamParser<BatariBasicState> {
 /**
  * Language support for Batari Basic
  */
+export const batariBasicStreamParser: StreamParser<BatariBasicState> = createBatariBasicParser();
+
 export function batariBasic(): LanguageSupport {
-    return new LanguageSupport(StreamLanguage.define(createBatariBasicParser()));
+    return new LanguageSupport(StreamLanguage.define(batariBasicStreamParser));
 }

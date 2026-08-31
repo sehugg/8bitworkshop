@@ -87,6 +87,8 @@ function createDialogParser(): StreamParser<DialogState> {
 /**
  * Language support for Dialog
  */
+export const dialogStreamParser: StreamParser<DialogState> = createDialogParser();
+
 export function dialog(): LanguageSupport {
-    return new LanguageSupport(StreamLanguage.define(createDialogParser()));
+    return new LanguageSupport(StreamLanguage.define(dialogStreamParser));
 }

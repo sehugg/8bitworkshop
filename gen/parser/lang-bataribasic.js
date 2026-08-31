@@ -4,6 +4,7 @@
 // Original copyright (c) by Marijn Haverbeke and others
 // Distributed under an MIT license: https://codemirror.net/5/LICENSE
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.batariBasicStreamParser = void 0;
 exports.batariBasic = batariBasic;
 const language_1 = require("@codemirror/language");
 const language_2 = require("@codemirror/language");
@@ -83,7 +84,8 @@ function createBatariBasicParser() {
 /**
  * Language support for Batari Basic
  */
+exports.batariBasicStreamParser = createBatariBasicParser();
 function batariBasic() {
-    return new language_2.LanguageSupport(language_1.StreamLanguage.define(createBatariBasicParser()));
+    return new language_2.LanguageSupport(language_1.StreamLanguage.define(exports.batariBasicStreamParser));
 }
 //# sourceMappingURL=lang-bataribasic.js.map

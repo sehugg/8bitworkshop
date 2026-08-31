@@ -71,6 +71,8 @@ const services_1 = require("./services");
 const shareexport_1 = require("./shareexport");
 const sync_1 = require("./sync");
 const toolbar_1 = require("./toolbar");
+const searchview_1 = require("./search/searchview");
+const projectsource_1 = require("./search/projectsource");
 const asseteditor_1 = require("./views/asseteditor");
 const baseviews_1 = require("./views/baseviews");
 const debugviews_1 = require("./views/debugviews");
@@ -235,6 +237,7 @@ async function newFilesystem() {
 async function initProject() {
     var filesystem = await newFilesystem();
     exports.current_project = new project_1.CodeProject(newWorker(), exports.platform_id, exports.platform, filesystem);
+    (0, projectsource_1.setProjectProvider)(() => exports.current_project);
     exports.current_project.remoteTool = exports.qs.tool || null;
     exports.projectWindows = new windows_1.ProjectWindows($("#workspace")[0], exports.current_project);
     exports.current_project.callbackBuildResult = (result) => {
@@ -1587,6 +1590,7 @@ function setupDebugControls() {
     }
     uitoolbar.newGroup();
     uitoolbar.grp.prop('id', 'xtra_bar');
+    uitoolbar.add('shift+ctrl+/', 'Search', 'glyphicon-search', searchview_1.openSearchDialog).prop('id', 'dbg_search');
     // add menu clicks
     $(".dropdown-menu").collapse({ toggle: false });
     $("#item_new_file").click(_createNewFile);
@@ -1698,6 +1702,7 @@ function openKeyboardShortcuts() {
         message: `
     <table class="help">
       <tr><th colspan="2">Custom</th></tr>
+      ${shortcut(`${mod}+${shift}+F`, 'Search symbols, files, and docs')}
       ${shortcut(`${shift}+${alt}+F`, 'Format document, or selected range(s)')}
       ${shortcut('Tab', 'Insert to next tab stop, or indent selected range(s)')}
       ${shortcut(`${shift}+Tab`, 'Outdent line(s) or selected range(s)')}

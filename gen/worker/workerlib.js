@@ -41,7 +41,6 @@ exports.setupNodeEnvironment = setupNodeEnvironment;
 exports.handleMessage = handleMessage;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
-const util_1 = require("../common/util");
 const toolmeta_1 = require("../common/toolmeta");
 const builder_1 = require("./builder");
 Object.defineProperty(exports, "store", { enumerable: true, get: function () { return builder_1.store; } });
@@ -168,8 +167,7 @@ function setupNodeEnvironment() {
 async function handleMessage(data) {
     // preload file system
     if (data.preload) {
-        var fsName = (0, toolmeta_1.getPreloadFSName)(data.preload, data.platform && (0, util_1.getBasePlatform)(data.platform))
-            || (0, toolmeta_1.getPreloadFSName)(data.preload, data.platform && (0, util_1.getRootBasePlatform)(data.platform));
+        var fsName = (0, toolmeta_1.getPreloadFSName)(data.preload, data.platform);
         if (fsName && !wasmutils_1.fsMeta[fsName])
             (0, wasmutils_1.loadFilesystem)(fsName);
         return;

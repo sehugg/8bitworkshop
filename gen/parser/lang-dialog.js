@@ -2,6 +2,7 @@
 // CodeMirror 6 language support for Dialog
 // https://linusakesson.net/dialog/docs/
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.dialogStreamParser = void 0;
 exports.dialog = dialog;
 const language_1 = require("@codemirror/language");
 const language_2 = require("@codemirror/language");
@@ -82,7 +83,8 @@ function createDialogParser() {
 /**
  * Language support for Dialog
  */
+exports.dialogStreamParser = createDialogParser();
 function dialog() {
-    return new language_2.LanguageSupport(language_1.StreamLanguage.define(createDialogParser()));
+    return new language_2.LanguageSupport(language_1.StreamLanguage.define(exports.dialogStreamParser));
 }
 //# sourceMappingURL=lang-dialog.js.map

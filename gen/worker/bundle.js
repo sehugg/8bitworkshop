@@ -2657,7 +2657,7 @@
       name: "ca65",
       kind: "assembler",
       arch: "6502",
-      extensions: [".s", ".ca65"],
+      extensions: [".s", ".ca65", ".inc"],
       includeDirs: ["/include", "/asminc"],
       editorStyle: "6502",
       helpURL: "https://cc65.github.io/doc/ca65.html",
@@ -3098,6 +3098,11 @@
       if (platform) {
         let p = meta.platforms[platform];
         if (p && p.preloadFS) return p.preloadFS;
+        let base = getRootBasePlatform(platform);
+        if (base && base !== platform) {
+          let b = meta.platforms[base];
+          if (b && b.preloadFS) return b.preloadFS;
+        }
       }
       let d = meta.platforms["default"];
       if (d && d.preloadFS) return d.preloadFS;
@@ -15386,7 +15391,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   }
   async function handleMessage(data) {
     if (data.preload) {
-      var fs = getPreloadFSName(data.preload, data.platform && getBasePlatform(data.platform)) || getPreloadFSName(data.preload, data.platform && getRootBasePlatform(data.platform));
+      var fs = getPreloadFSName(data.preload, data.platform);
       if (fs && !fsMeta[fs])
         loadFilesystem(fs);
       return;
