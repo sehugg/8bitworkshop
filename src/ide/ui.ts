@@ -2220,11 +2220,17 @@ async function startPlatform() {
     initShortcutBar($("#shortcuts_bar")[0]);
     setGlobalShortcutsFn(getGlobalShortcuts);
     setViewShortcutsFn(() => {
+      // view-specific keys (CodeMirror bindings) only apply while that view has
+      // focus; e.g. clicking the verilog waveform keeps the editor active but blurs it
+      var div = projectWindows.id2div[projectWindows.activeid];
+      var viewHasFocus = div && document.activeElement && div.contains(document.activeElement);
       var wnd = projectWindows.getActive();
-      var shortcuts = wnd && wnd.getShortcuts ? wnd.getShortcuts() : [];
+      var shortcuts = viewHasFocus && wnd && wnd.getShortcuts ? wnd.getShortcuts() : [];
       // debug chips ride along with the view zone (they're gated on debugSessionActive)
       return [...getDebugShortcuts(), ...shortcuts];
     });
+    // focus changes can invalidate view-specific shortcuts
+    $(document).on('focusin focusout', () => refreshShortcutBar());
     refreshShortcutBar();
     setBarVisible(loadSettings().showStatusBar);
   }

@@ -73,8 +73,7 @@ export class ShortcutBar {
             span.append($(document.createElement("kbd")).text(formatKey(s.key)));
             span.append(document.createTextNode(" " + s.label));
             if (s.fn) {
-                span.addClass("clickable");
-                span.click(s.fn);
+                makeClickable(span, s.fn);
             }
             this.shortcutsZone.append(span);
         }
@@ -96,12 +95,19 @@ export class ShortcutBar {
             if (s.title) span.prop("title", s.title);
             span.text(s.text);
             if (s.fn) {
-                span.addClass("clickable");
-                span.click(s.fn);
+                makeClickable(span, s.fn);
             }
             this.statusZone.append(span);
         }
     }
+}
+
+function makeClickable(span: JQuery, fn: (e?) => void) {
+    // don't steal focus on mousedown: clicking a chip would blur the active
+    // view and re-render the bar (removing the chip) before the click lands
+    span.addClass("clickable");
+    span.mousedown((e) => e.preventDefault());
+    span.click(fn);
 }
 
 // module-level singleton + provider wiring
