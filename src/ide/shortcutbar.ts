@@ -31,7 +31,7 @@ export interface StatusItem {
 // unknown parts (e.g. punctuation keys) pass through unchanged
 const MAC_SYMBOLS: { [mod: string]: string } = { shift: '⇧', ctrl: '⌃', alt: '⌥', meta: '⌘', mod: '⌘', cmd: '⌘' };
 const PC_NAMES: { [mod: string]: string } = { shift: 'Shift', ctrl: 'Ctrl', alt: 'Alt', meta: 'Win', mod: 'Ctrl', cmd: 'Cmd' };
-const ARROW_SYMBOLS: { [k: string]: string } = { arrowleft: '←', arrowright: '→', arrowup: '↑', arrowdown: '↓' };
+const KEY_SYMBOLS: { [k: string]: string } = { arrowleft: '←', arrowright: '→', arrowup: '↑', arrowdown: '↓', backspace: '⌫', enter: '↩', tab: '⇥', escape: '⎋' };
 
 export function formatKey(key: string): string {
     var parts = key.toLowerCase().split('+');
@@ -42,7 +42,7 @@ export function formatKey(key: string): string {
     var uniq = order.filter((p) => parts.indexOf(p) >= 0);
     for (var p of parts) if (uniq.indexOf(p) < 0) uniq.push(p);
     var modStr = uniq.map((p) => isMac ? (MAC_SYMBOLS[p] || p) : (PC_NAMES[p] || p)).join(isMac ? '' : '+');
-    var mainDisp = /^[a-z]$/.test(main) ? main.toUpperCase() : (ARROW_SYMBOLS[main] || main);
+    var mainDisp = /^[a-z]$/.test(main) ? main.toUpperCase() : (KEY_SYMBOLS[main] || (isMac ? main : main.charAt(0).toUpperCase() + main.slice(1)));
     return (modStr ? modStr + (isMac ? '' : '+') : '') + mainDisp;
 }
 

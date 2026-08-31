@@ -86,13 +86,12 @@
   left:0;
   right:0;
   height:2.15em;
+  line-height:2em;
   background-color:#999;
-  color:#fff;
+  color:#111;
   display:flex;
   align-items:center;
   padding:0 0.5em;
-  font-size:0.9em;
-  line-height:2em;
   z-index:10;
   overflow:hidden;
   white-space:nowrap;

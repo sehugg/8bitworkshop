@@ -1,8 +1,8 @@
-import { defaultKeymap, deleteLine, history, historyKeymap, isolateHistory, redo, undo } from "@codemirror/commands";
+import { defaultKeymap, deleteLine, history, historyKeymap, isolateHistory, redo, undo, toggleComment } from "@codemirror/commands";
 import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, foldGutter, indentOnInput, indentService, indentUnit } from "@codemirror/language";
-import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
+import { highlightSelectionMatches, search, searchKeymap, openSearchPanel, findNext, selectNextOccurrence } from "@codemirror/search";
 import { Compartment, EditorState, Extension, StateEffect, StateField } from "@codemirror/state";
 import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, KeyBinding, rectangularSelection, ViewUpdate } from "@codemirror/view";
 import { CodeAnalyzer } from "../../common/analysis";
@@ -30,6 +30,7 @@ const ideSearchKeymap: KeyBinding[] = stripCMKeymap(searchKeymap, IDE_RESERVED_K
 import { createAssetHeaderPlugin } from "./assetdecorations";
 import { createIncludeLinkPlugin } from "./includedecorations";
 import { isMobileDevice, ProjectView } from "./baseviews";
+import { Shortcut } from "../shortcutbar";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
 import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset, statusMarkers } from "./gutter";
 import { currentPc, errorMessages, errorSpans, highlightLines, showValue, tracedLines } from "./visuals";
@@ -137,6 +138,23 @@ export class SourceEditor implements ProjectView {
     } else {
       this.stopTracing();
     }
+  }
+
+  // a few of the CodeMirror bindings available while editing;
+  // chips are clickable and run the command on this editor
+  getShortcuts(): Shortcut[] {
+    if (!this.editor) return [];
+    var ed = this.editor;
+    var mk = (key: string, label: string, cmd: (v: EditorView) => boolean): Shortcut => ({
+      key, label, fn: () => { cmd(ed); ed.focus(); }
+    });
+    return [
+      mk('mod+f', 'Find', openSearchPanel),
+      mk('mod+g', 'Find Next', findNext),
+      mk('mod+d', 'Next Occurrence', selectNextOccurrence),
+      mk('mod+shift+backspace', 'Delete Line', deleteLine),
+      mk('mod+/', 'Toggle Comment', toggleComment),
+    ];
   }
 
   startTracing() {

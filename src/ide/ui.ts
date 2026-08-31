@@ -20,7 +20,7 @@ import { getRepos, parseGithubURL } from "./services";
 import { _downloadAllFilesZipFile, _downloadCassetteFile, _downloadProjectZipFile, _downloadROMImage, _downloadSourceFile, _downloadSymFile, _getCassetteFunction, _recordVideo, _shareEmbedLink } from "./shareexport";
 import { _importProjectFromGithub, _loginToGithub, _logoutOfGithub, _publishProjectToGithub, _pullProjectFromGithub, _pushProjectToGithub, _removeRepository, importProjectFromGithub } from "./sync";
 import { Toolbar } from "./toolbar";
-import { Shortcut, initShortcutBar, setGlobalShortcutsFn, setViewShortcutsFn, setBarStatus, setBarVisible, refreshShortcutBar } from "./shortcutbar";
+import { Shortcut, initShortcutBar, setGlobalShortcutsFn, setViewShortcutsFn, setBarVisible, refreshShortcutBar } from "./shortcutbar";
 import { openSearchDialog } from "./search/searchview";
 import { setProjectProvider } from "./search/projectsource";
 import { AssetEditorView } from "./views/asseteditor";
@@ -944,7 +944,6 @@ function getErrorElement(err: WorkerError) {
 function hideErrorAlerts() {
   $("#error_alert").hide();
   errorWasRuntime = false;
-  setBarStatus("errors", null);
 }
 
 function showErrorAlert(errors: WorkerError[], runtime: boolean) {
@@ -960,12 +959,6 @@ function showErrorAlert(errors: WorkerError[], runtime: boolean) {
   if (jumpErr && projectWindows.isWindow(jumpErr.path == getCurrentMainFilename() ? current_project.mainPath : jumpErr.path)) {
     fn = () => { jumpToError(jumpErr); };
   }
-  setBarStatus("errors", {
-    text: "✗ " + errors.length + (errors.length == 1 ? " error" : " errors"),
-    cls: "error",
-    title: runtime ? "Runtime error - click to jump to first error" : "Build error - click to jump to first error",
-    fn
-  });
 }
 
 function showExceptionAsError(err, msg: string) {
@@ -994,7 +987,6 @@ async function setCompileOutput(data: WorkerResult) {
     toolbar.removeClass("has-errors"); // may be added in next callback
     projectWindows.setErrors(null);
     hideErrorAlerts();
-    setBarStatus("build", { text: "✓", cls: "ok", title: "Build OK" });
     // exit if compile output unchanged
     if (data == null || ('unchanged' in data && data.unchanged)) return;
     // make sure it's a WorkerOutputResult
@@ -1089,27 +1081,7 @@ function showDebugInfo(state?) {
 function setDebugButtonState(btnid: string, btnstate: string) {
   $("#debug_bar, #run_bar").find("button").removeClass("btn_active").removeClass("btn_stopped");
   $("#dbg_" + btnid).addClass("btn_" + btnstate);
-  updateDebugStatusChip(btnstate);
   refreshShortcutBar();
-}
-
-function updateDebugStatusChip(btnstate: string) {
-  if (btnstate == "stopped") {
-    var pc = lastDebugState && lastDebugState.c ? (lastDebugState.c.EPC || lastDebugState.c.PC) : null;
-    setBarStatus("debug", {
-      text: pc != null ? "⏸ $" + hex(pc, 4) : "⏸ paused",
-      cls: "stopped",
-      title: "Paused - click to resume",
-      fn: () => resume()
-    });
-  } else {
-    setBarStatus("debug", {
-      text: "▶ running",
-      cls: "running",
-      title: "Running - click to pause",
-      fn: () => pause()
-    });
-  }
 }
 
 // context-sensitive shortcut providers for the bottom bar
@@ -1126,16 +1098,19 @@ function jumpToError(err: WorkerError) {
 function getGlobalShortcuts(): Shortcut[] {
   var shortcuts: Shortcut[] = [];
   if (platform && isPlatformReady()) {
-    shortcuts.push({ key: 'mod+shift+r', label: 'Reset & Run', fn: resetAndRun });
     // debug shortcuts appear only once a debug session has started
     if (!debugSessionActive) {
-      if (platform.isRunning && platform.isRunning())
-        shortcuts.push({ key: 'mod+shift+h', label: 'Pause', fn: pause });
-    } else if (platform.isRunning && platform.isRunning()) {
+      shortcuts.push({ key: 'mod+shift+r', label: 'Reset & Run', fn: resetAndRun });
+      shortcuts.push({ key: 'mod+shift+f', label: 'Search', fn: openSearchDialog });
+      if (platform.step)
+        shortcuts.push({ key: 'mod+shift+l', label: 'Debug', fn: singleStep });
+    }
+    if (platform.isRunning && platform.isRunning()) {
       // in a debug session but emulator running: just Pause
       shortcuts.push({ key: 'mod+shift+h', label: 'Pause', fn: pause });
+    } else if (platform.isRunning && !platform.isRunning()) {
+      shortcuts.push({ key: 'mod+shift+g', label: 'Resume', fn: resume });
     }
-    shortcuts.push({ key: 'mod+shift+f', label: 'Search', fn: openSearchDialog });
   }
   return shortcuts;
 }
@@ -1143,8 +1118,7 @@ function getGlobalShortcuts(): Shortcut[] {
 function getDebugShortcuts(): Shortcut[] {
   var shortcuts: Shortcut[] = [];
   if (!debugSessionActive || !platform || !isPlatformReady()) return shortcuts;
-  if (platform.isRunning && platform.isRunning()) return shortcuts; // step keys only make sense when paused
-  shortcuts.push({ key: 'mod+shift+g', label: 'Resume', fn: resume });
+  var running = platform.isRunning && platform.isRunning();
   if (platform.step)
     shortcuts.push({ key: 'mod+shift+l', label: 'Step', fn: singleStep });
   if (platform.stepOver)
@@ -1157,8 +1131,12 @@ function getDebugShortcuts(): Shortcut[] {
     shortcuts.push({ key: 'mod+shift+x', label: 'Next Frame', fn: singleFrameStep });
   if (platform.restartAtPC)
     shortcuts.push({ key: 'mod+shift+a', label: 'Restart at Cursor', fn: restartAtCursor });
+  // TODO: check to see if line has debug info
   if ((platform.runEval || platform.runToPC) && !platform_id.startsWith('verilog'))
     shortcuts.push({ key: 'mod+shift+y', label: 'Run To Line', fn: runToCursor });
+  // session-level actions are always available once debugging
+  shortcuts.push({ key: 'mod+shift+d', label: 'Reset & Debug', fn: resetAndDebug });
+  shortcuts.push({ key: 'mod+shift+e', label: recorderActive ? 'Stop Recording' : 'Record', fn: _toggleRecording });
   return shortcuts;
 }
 
@@ -1580,6 +1558,7 @@ function _toggleRecording() {
   } else {
     _enableRecording();
   }
+  refreshShortcutBar();
 }
 
 function _toggleTraceLines() {
@@ -2242,7 +2221,9 @@ async function startPlatform() {
     setGlobalShortcutsFn(getGlobalShortcuts);
     setViewShortcutsFn(() => {
       var wnd = projectWindows.getActive();
-      return wnd && wnd.getShortcuts ? wnd.getShortcuts() : [];
+      var shortcuts = wnd && wnd.getShortcuts ? wnd.getShortcuts() : [];
+      // debug chips ride along with the view zone (they're gated on debugSessionActive)
+      return [...getDebugShortcuts(), ...shortcuts];
     });
     refreshShortcutBar();
     setBarVisible(loadSettings().showStatusBar);
