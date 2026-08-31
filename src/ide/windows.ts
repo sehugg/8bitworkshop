@@ -4,6 +4,7 @@ import { getFilenameForPath, getFilenamePrefix } from "../common/util";
 import { FileData, WorkerError } from "../common/workertypes";
 import { CodeProject } from "./project";
 import { ProjectView } from "./views/baseviews";
+import { Shortcut, refreshShortcutBar } from "./shortcutbar";
 
 type WindowCreateFunction = (id: string) => ProjectView;
 type WindowShowFunction = (id: string, view: ProjectView) => void;
@@ -76,6 +77,7 @@ export class ProjectWindows {
       this.refreshErrors();
       wnd.setVisible && wnd.setVisible(true);
       this.id2showfn[id] && this.id2showfn[id](id, wnd);
+      refreshShortcutBar(); // active view changed -> update context-sensitive shortcuts
     } else if (moveCursor) {
       this.refresh(moveCursor);
     }

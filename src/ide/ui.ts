@@ -13,13 +13,14 @@ import { getSkeletonName, getToolMeta, TOOL_META } from "../common/toolmeta";
 import { CodeListingMap, FileData, WorkerError, WorkerResult } from "../common/workertypes";
 import { importPlatform } from "../platform/_index";
 import { alertError, alertInfo, fatalError, setWaitDialog } from "./dialogs";
-import { openSettings } from "./settings";
+import { openSettings, loadSettings } from "./settings";
 import { getPersistStatusMessage, getQuotaExceededMessage, requestPersistentStorage } from "./storage";
 import { CodeProject, createNewPersistentStore, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
 import { getRepos, parseGithubURL } from "./services";
 import { _downloadAllFilesZipFile, _downloadCassetteFile, _downloadProjectZipFile, _downloadROMImage, _downloadSourceFile, _downloadSymFile, _getCassetteFunction, _recordVideo, _shareEmbedLink } from "./shareexport";
 import { _importProjectFromGithub, _loginToGithub, _logoutOfGithub, _publishProjectToGithub, _pullProjectFromGithub, _pushProjectToGithub, _removeRepository, importProjectFromGithub } from "./sync";
 import { Toolbar } from "./toolbar";
+import { Shortcut, initShortcutBar, setGlobalShortcutsFn, setViewShortcutsFn, setBarStatus, setBarVisible, refreshShortcutBar } from "./shortcutbar";
 import { openSearchDialog } from "./search/searchview";
 import { setProjectProvider } from "./search/projectsource";
 import { AssetEditorView } from "./views/asseteditor";
@@ -77,6 +78,7 @@ var toolbar = $("#controls_top");
 var uitoolbar: Toolbar;
 var stateRecorder: StateRecorderImpl;
 var userPaused: boolean;		// did user explicitly pause?
+var debugSessionActive: boolean;	// has the user entered a debug session? (drives debug shortcut chips)
 var current_output: any;     // current ROM (or other object)
 var current_preset: Preset;	// current preset object (if selected)
 var store: LocalForage;			// persistent store
@@ -942,6 +944,7 @@ function getErrorElement(err: WorkerError) {
 function hideErrorAlerts() {
   $("#error_alert").hide();
   errorWasRuntime = false;
+  setBarStatus("errors", null);
 }
 
 function showErrorAlert(errors: WorkerError[], runtime: boolean) {
@@ -951,6 +954,18 @@ function showErrorAlert(errors: WorkerError[], runtime: boolean) {
   }
   $("#error_alert").show();
   errorWasRuntime = runtime;
+  // status chip: click jumps to first error that has an openable path
+  var jumpErr = errors.find((err) => err.path != null);
+  var fn;
+  if (jumpErr && projectWindows.isWindow(jumpErr.path == getCurrentMainFilename() ? current_project.mainPath : jumpErr.path)) {
+    fn = () => { jumpToError(jumpErr); };
+  }
+  setBarStatus("errors", {
+    text: "✗ " + errors.length + (errors.length == 1 ? " error" : " errors"),
+    cls: "error",
+    title: runtime ? "Runtime error - click to jump to first error" : "Build error - click to jump to first error",
+    fn
+  });
 }
 
 function showExceptionAsError(err, msg: string) {
@@ -979,6 +994,7 @@ async function setCompileOutput(data: WorkerResult) {
     toolbar.removeClass("has-errors"); // may be added in next callback
     projectWindows.setErrors(null);
     hideErrorAlerts();
+    setBarStatus("build", { text: "✓", cls: "ok", title: "Build OK" });
     // exit if compile output unchanged
     if (data == null || ('unchanged' in data && data.unchanged)) return;
     // make sure it's a WorkerOutputResult
@@ -1073,6 +1089,77 @@ function showDebugInfo(state?) {
 function setDebugButtonState(btnid: string, btnstate: string) {
   $("#debug_bar, #run_bar").find("button").removeClass("btn_active").removeClass("btn_stopped");
   $("#dbg_" + btnid).addClass("btn_" + btnstate);
+  updateDebugStatusChip(btnstate);
+  refreshShortcutBar();
+}
+
+function updateDebugStatusChip(btnstate: string) {
+  if (btnstate == "stopped") {
+    var pc = lastDebugState && lastDebugState.c ? (lastDebugState.c.EPC || lastDebugState.c.PC) : null;
+    setBarStatus("debug", {
+      text: pc != null ? "⏸ $" + hex(pc, 4) : "⏸ paused",
+      cls: "stopped",
+      title: "Paused - click to resume",
+      fn: () => resume()
+    });
+  } else {
+    setBarStatus("debug", {
+      text: "▶ running",
+      cls: "running",
+      title: "Running - click to pause",
+      fn: () => pause()
+    });
+  }
+}
+
+// context-sensitive shortcut providers for the bottom bar
+
+function jumpToError(err: WorkerError) {
+  var path = err.path == getCurrentMainFilename() ? current_project.mainPath : err.path;
+  if (!projectWindows.isWindow(path)) return;
+  var wnd = projectWindows.createOrShow(path);
+  if (wnd instanceof SourceEditor) {
+    wnd.navigateToLine(err.line);
+  }
+}
+
+function getGlobalShortcuts(): Shortcut[] {
+  var shortcuts: Shortcut[] = [];
+  if (platform && isPlatformReady()) {
+    shortcuts.push({ key: 'Ctrl+Alt+R', label: 'Reset & Run', fn: resetAndRun });
+    // debug shortcuts appear only once a debug session has started
+    if (!debugSessionActive) {
+      if (platform.isRunning && platform.isRunning())
+        shortcuts.push({ key: 'Ctrl+Alt+,', label: 'Pause', fn: pause });
+    } else if (platform.isRunning && platform.isRunning()) {
+      // in a debug session but emulator running: just Pause
+      shortcuts.push({ key: 'Ctrl+Alt+,', label: 'Pause', fn: pause });
+    }
+    shortcuts.push({ key: 'Ctrl+Shift+/', label: 'Search', fn: openSearchDialog });
+  }
+  return shortcuts;
+}
+
+function getDebugShortcuts(): Shortcut[] {
+  var shortcuts: Shortcut[] = [];
+  if (!debugSessionActive || !platform || !isPlatformReady()) return shortcuts;
+  if (platform.isRunning && platform.isRunning()) return shortcuts; // step keys only make sense when paused
+  shortcuts.push({ key: 'Ctrl+Alt+.', label: 'Resume', fn: resume });
+  if (platform.step)
+    shortcuts.push({ key: 'Ctrl+Alt+S', label: 'Step', fn: singleStep });
+  if (platform.stepOver)
+    shortcuts.push({ key: 'Ctrl+Alt+T', label: 'Step Over', fn: stepOver });
+  if (platform.runUntilReturn)
+    shortcuts.push({ key: 'Ctrl+Alt+O', label: 'Step Out', fn: runUntilReturn });
+  if (platform.stepBack)
+    shortcuts.push({ key: 'Ctrl+Alt+B', label: 'Step Back', fn: runStepBackwards });
+  if (platform.runToVsync)
+    shortcuts.push({ key: 'Ctrl+Alt+N', label: 'Next Frame', fn: singleFrameStep });
+  if (platform.restartAtPC)
+    shortcuts.push({ key: 'Ctrl+Alt+/', label: 'Restart at Cursor', fn: restartAtCursor });
+  if ((platform.runEval || platform.runToPC) && !platform_id.startsWith('verilog'))
+    shortcuts.push({ key: 'Ctrl+Alt+L', label: 'Run To Line', fn: runToCursor });
+  return shortcuts;
 }
 
 function isPlatformReady() {
@@ -1130,6 +1217,7 @@ function openRelevantListing(state: EmuState) {
 }
 
 function uiDebugCallback(state: EmuState) {
+  debugSessionActive = true;
   lastDebugState = state;
   showDebugInfo(state);
   openRelevantListing(state);
@@ -1150,12 +1238,15 @@ function setupDebugCallback(btnid?: DebugCommandType) {
 
 export function setupBreakpoint(btnid?: DebugCommandType) {
   if (!checkRunReady()) return;
+  debugSessionActive = true;
   _disableRecording();
   setupDebugCallback(btnid);
   if (btnid) setDebugButtonState(btnid, "active");
+  refreshShortcutBar();
 }
 
 function _pause() {
+  debugSessionActive = true;
   if (platform && platform.isRunning()) {
     platform.pause();
     console.log("Paused");
@@ -1345,9 +1436,11 @@ function resetPlatform() {
 
 function resetAndRun() {
   if (!checkRunReady()) return;
+  debugSessionActive = false; // plain run: hide debug shortcut chips
   clearBreakpoint();
   resetPlatform();
   _resume();
+  refreshShortcutBar();
 }
 
 function resetAndDebug() {
@@ -2143,6 +2236,17 @@ async function startPlatform() {
   installHashChangeHandler();
   platform.sourceFileFetch = (path) => current_project.filedata[path];
   setupDebugControls();
+  // context-sensitive shortcuts/status bar (hidden by CSS on small windows)
+  if (!isMobileDevice && $("#shortcuts_bar").length) {
+    initShortcutBar($("#shortcuts_bar")[0]);
+    setGlobalShortcutsFn(getGlobalShortcuts);
+    setViewShortcutsFn(() => {
+      var wnd = projectWindows.getActive();
+      return wnd && wnd.getShortcuts ? wnd.getShortcuts() : [];
+    });
+    refreshShortcutBar();
+    setBarVisible(loadSettings().showStatusBar);
+  }
   addPageFocusHandlers();
   showInstructions();
   if (isEmbed) {

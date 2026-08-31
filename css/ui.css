@@ -68,7 +68,7 @@
 #notebook {
   position:absolute;
   top:3em;
-  bottom:0;
+  bottom:2em;
   left:0;
   right:0;
   background-color:#666;
@@ -79,6 +79,77 @@
 #workspace {
   background-color:#333;
   overflow:hidden;
+}
+#shortcuts_bar {
+  position:absolute;
+  bottom:0;
+  left:0;
+  right:0;
+  height:2.15em;
+  background-color:#999;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  padding:0 0.5em;
+  font-size:0.9em;
+  line-height:2em;
+  z-index:10;
+  overflow:hidden;
+  white-space:nowrap;
+}
+#shortcuts_bar .shortcuts_zone {
+  flex:1 1 auto;
+  overflow:hidden;
+}
+#shortcuts_bar .status_zone {
+  flex:0 0 auto;
+  margin-left:auto;
+  padding-left:1em;
+}
+#shortcuts_bar .shortcut {
+  margin-right:1.25em;
+}
+#shortcuts_bar kbd {
+  background-color:#333;
+  color:#fff;
+  border-radius:3px;
+  padding:0.1em 0.4em;
+  font-family:inherit;
+  font-size:0.9em;
+}
+#shortcuts_bar .clickable {
+  cursor:pointer;
+}
+#shortcuts_bar .clickable:hover {
+  text-decoration:underline;
+}
+#shortcuts_bar .status_item {
+  margin-left:0.75em;
+}
+#shortcuts_bar .status_item.error {
+  color:#ffaaaa;
+  font-weight:bold;
+}
+#shortcuts_bar .status_item.ok {
+  color:#ccffcc;
+}
+#shortcuts_bar .status_item.running {
+  color:#ccc;
+}
+#shortcuts_bar .status_item.stopped {
+  color:#ffdd99;
+  font-weight:bold;
+}
+@media (max-width: 1000px) {
+  #shortcuts_bar {
+    display:none;
+  }
+}
+body.statusbar-hidden #shortcuts_bar {
+  display:none;
+}
+body.statusbar-hidden #notebook {
+  bottom:0;
 }
 div.editor {
   font-size: 1.25rem;

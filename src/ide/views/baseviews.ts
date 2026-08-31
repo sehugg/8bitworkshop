@@ -1,6 +1,7 @@
 
 import { CodeAnalyzer } from "../../common/analysis";
 import { SourceFile, WorkerError } from "../../common/workertypes";
+import { Shortcut } from "../shortcutbar";
 
 export interface ProjectView {
     createDiv(parent: HTMLElement): HTMLElement;
@@ -26,6 +27,7 @@ export interface ProjectView {
     getAssetText?(id: string): string | null;
     replaceAssetText?(id: string, text: string): void;
     clearAssetRanges?(): void;
+    getShortcuts?(): Shortcut[];  // context-sensitive shortcuts for the bottom bar
 };
 
 // detect mobile (https://stackoverflow.com/questions/3514784/what-is-the-best-way-to-detect-a-mobile-device)
