@@ -1,10 +1,10 @@
-import { defaultKeymap, history, historyKeymap, isolateHistory, redo, undo } from "@codemirror/commands";
+import { defaultKeymap, deleteLine, history, historyKeymap, isolateHistory, redo, undo } from "@codemirror/commands";
 import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, foldGutter, indentOnInput, indentService, indentUnit } from "@codemirror/language";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState, Extension, StateEffect, StateField } from "@codemirror/state";
-import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, rectangularSelection, ViewUpdate } from "@codemirror/view";
+import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, KeyBinding, rectangularSelection, ViewUpdate } from "@codemirror/view";
 import { CodeAnalyzer } from "../../common/analysis";
 import { ProbeFlags, ProbeRecorder } from "../../common/probe";
 import { getFilenameForPath, getFolderForPath, hex, rpad } from "../../common/util";
@@ -19,6 +19,16 @@ import { mbo } from "../../themes/mbo";
 import { loadSettings, registerEditor, settingsExtensions } from "../settings";
 import { asmSpacesKeymap } from "./tabs";
 import { clearBreakpoint, current_project, lastDebugState, openHeaderFile, platform, qs, runToPC } from "../ui";
+
+// Free Mod-Shift-K (deleteLine) and Mod-Shift-L (selectSelectionMatches) so the
+// IDE's debug shortcuts (see src/ide/keys.ts) work while the editor is focused;
+// deleteLine moves to Mod-Shift-Backspace.
+const freedDebugKeys = ["Mod-Shift-k", "Mod-Shift-l"];
+function stripKeys(kb: readonly KeyBinding[], keys: string[]): KeyBinding[] {
+    return kb.filter((b) => keys.indexOf(b.key) < 0);
+}
+const ideDefaultKeymap: KeyBinding[] = [...stripKeys(defaultKeymap, freedDebugKeys), { key: "Mod-Shift-Backspace", run: deleteLine }];
+const ideSearchKeymap: KeyBinding[] = stripKeys(searchKeymap, freedDebugKeys);
 import { createAssetHeaderPlugin } from "./assetdecorations";
 import { createIncludeLinkPlugin } from "./includedecorations";
 import { isMobileDevice, ProjectView } from "./baseviews";
@@ -200,7 +210,7 @@ export class SourceEditor implements ProjectView {
         ...settingsExtensions(loadSettings()),
         // https://codemirror.net/docs/ref/#commands.defaultKeymap includes
         // https://codemirror.net/docs/ref/#commands.standardKeymap
-        keymap.of(defaultKeymap),
+        keymap.of(ideDefaultKeymap),
 
         lineNums ? lineNumbers() : [],
 
@@ -228,7 +238,7 @@ export class SourceEditor implements ProjectView {
         highlightSelectionMatches(),
 
         search({ top: true }),
-        keymap.of(searchKeymap),
+        keymap.of(ideSearchKeymap),
 
         // lintGutter(),
         // autocompletion(),
@@ -991,7 +1001,7 @@ export class HeaderView implements ProjectView {
         highlightActiveLine(),
         highlightSelectionMatches(),
         search({ top: true }),
-        keymap.of(searchKeymap),
+        keymap.of(ideSearchKeymap),
         this.languageCompartment.of(lang),
         mbo,
         editorTheme,

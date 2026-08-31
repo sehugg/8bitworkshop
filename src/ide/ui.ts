@@ -1126,16 +1126,16 @@ function jumpToError(err: WorkerError) {
 function getGlobalShortcuts(): Shortcut[] {
   var shortcuts: Shortcut[] = [];
   if (platform && isPlatformReady()) {
-    shortcuts.push({ key: 'Ctrl+Alt+R', label: 'Reset & Run', fn: resetAndRun });
+    shortcuts.push({ key: 'mod+shift+r', label: 'Reset & Run', fn: resetAndRun });
     // debug shortcuts appear only once a debug session has started
     if (!debugSessionActive) {
       if (platform.isRunning && platform.isRunning())
-        shortcuts.push({ key: 'Ctrl+Alt+,', label: 'Pause', fn: pause });
+        shortcuts.push({ key: 'mod+shift+h', label: 'Pause', fn: pause });
     } else if (platform.isRunning && platform.isRunning()) {
       // in a debug session but emulator running: just Pause
-      shortcuts.push({ key: 'Ctrl+Alt+,', label: 'Pause', fn: pause });
+      shortcuts.push({ key: 'mod+shift+h', label: 'Pause', fn: pause });
     }
-    shortcuts.push({ key: 'Ctrl+Shift+/', label: 'Search', fn: openSearchDialog });
+    shortcuts.push({ key: 'mod+shift+f', label: 'Search', fn: openSearchDialog });
   }
   return shortcuts;
 }
@@ -1144,21 +1144,21 @@ function getDebugShortcuts(): Shortcut[] {
   var shortcuts: Shortcut[] = [];
   if (!debugSessionActive || !platform || !isPlatformReady()) return shortcuts;
   if (platform.isRunning && platform.isRunning()) return shortcuts; // step keys only make sense when paused
-  shortcuts.push({ key: 'Ctrl+Alt+.', label: 'Resume', fn: resume });
+  shortcuts.push({ key: 'mod+shift+g', label: 'Resume', fn: resume });
   if (platform.step)
-    shortcuts.push({ key: 'Ctrl+Alt+S', label: 'Step', fn: singleStep });
+    shortcuts.push({ key: 'mod+shift+l', label: 'Step', fn: singleStep });
   if (platform.stepOver)
-    shortcuts.push({ key: 'Ctrl+Alt+T', label: 'Step Over', fn: stepOver });
+    shortcuts.push({ key: 'mod+shift+k', label: 'Step Over', fn: stepOver });
   if (platform.runUntilReturn)
-    shortcuts.push({ key: 'Ctrl+Alt+O', label: 'Step Out', fn: runUntilReturn });
+    shortcuts.push({ key: 'mod+shift+i', label: 'Step Out', fn: runUntilReturn });
   if (platform.stepBack)
-    shortcuts.push({ key: 'Ctrl+Alt+B', label: 'Step Back', fn: runStepBackwards });
+    shortcuts.push({ key: 'mod+shift+j', label: 'Step Back', fn: runStepBackwards });
   if (platform.runToVsync)
-    shortcuts.push({ key: 'Ctrl+Alt+N', label: 'Next Frame', fn: singleFrameStep });
+    shortcuts.push({ key: 'mod+shift+x', label: 'Next Frame', fn: singleFrameStep });
   if (platform.restartAtPC)
-    shortcuts.push({ key: 'Ctrl+Alt+/', label: 'Restart at Cursor', fn: restartAtCursor });
+    shortcuts.push({ key: 'mod+shift+a', label: 'Restart at Cursor', fn: restartAtCursor });
   if ((platform.runEval || platform.runToPC) && !platform_id.startsWith('verilog'))
-    shortcuts.push({ key: 'Ctrl+Alt+L', label: 'Run To Line', fn: runToCursor });
+    shortcuts.push({ key: 'mod+shift+y', label: 'Run To Line', fn: runToCursor });
   return shortcuts;
 }
 
@@ -1662,38 +1662,38 @@ function setupDebugControls() {
   // create toolbar buttons
   uitoolbar = new Toolbar($("#toolbar")[0], null);
   uitoolbar.grp.prop('id', 'run_bar');
-  uitoolbar.add('ctrl+alt+r', 'Reset', 'glyphicon-refresh', resetAndRun).prop('id', 'dbg_reset');
-  uitoolbar.add('ctrl+alt+,', 'Pause', 'glyphicon-pause', pause).prop('id', 'dbg_pause');
-  uitoolbar.add('ctrl+alt+.', 'Resume', 'glyphicon-play', resume).prop('id', 'dbg_go');
+  uitoolbar.add('mod+shift+r', 'Reset', 'glyphicon-refresh', resetAndRun).prop('id', 'dbg_reset');
+  uitoolbar.add('mod+shift+h', 'Pause', 'glyphicon-pause', pause).prop('id', 'dbg_pause');
+  uitoolbar.add('mod+shift+g', 'Resume', 'glyphicon-play', resume).prop('id', 'dbg_go');
   if (platform.restartAtPC) {
-    uitoolbar.add('ctrl+alt+/', 'Restart at Cursor', 'glyphicon-play-circle', restartAtCursor).prop('id', 'dbg_restartatline');
+    uitoolbar.add('mod+shift+a', 'Restart at Cursor', 'glyphicon-play-circle', restartAtCursor).prop('id', 'dbg_restartatline');
   }
   uitoolbar.newGroup();
   uitoolbar.grp.prop('id', 'debug_bar');
   if (platform.runEval) {
-    uitoolbar.add('ctrl+alt+e', 'Reset and Debug', 'glyphicon-fast-backward', resetAndDebug).prop('id', 'dbg_restart');
+    uitoolbar.add('mod+shift+d', 'Reset and Debug', 'glyphicon-fast-backward', resetAndDebug).prop('id', 'dbg_restart');
   }
   if (platform.stepBack) {
-    uitoolbar.add('ctrl+alt+b', 'Step Backwards', 'glyphicon-step-backward', runStepBackwards).prop('id', 'dbg_stepback');
+    uitoolbar.add('mod+shift+j', 'Step Backwards', 'glyphicon-step-backward', runStepBackwards).prop('id', 'dbg_stepback');
   }
   if (platform.step) {
-    uitoolbar.add('ctrl+alt+s', 'Single Step', 'glyphicon-step-forward', singleStep).prop('id', 'dbg_step');
+    uitoolbar.add('mod+shift+l', 'Single Step', 'glyphicon-step-forward', singleStep).prop('id', 'dbg_step');
   }
   if (platform.stepOver) {
-    uitoolbar.add('ctrl+alt+t', 'Step Over', 'glyphicon-hand-right', stepOver).prop('id', 'dbg_stepover');
+    uitoolbar.add('mod+shift+k', 'Step Over', 'glyphicon-hand-right', stepOver).prop('id', 'dbg_stepover');
   }
   if (platform.runUntilReturn) {
-    uitoolbar.add('ctrl+alt+o', 'Step Out of Subroutine', 'glyphicon-hand-up', runUntilReturn).prop('id', 'dbg_stepout');
+    uitoolbar.add('mod+shift+i', 'Step Out of Subroutine', 'glyphicon-hand-up', runUntilReturn).prop('id', 'dbg_stepout');
   }
   if (platform.runToVsync) {
-    uitoolbar.add('ctrl+alt+n', 'Next Frame/Interrupt', 'glyphicon-forward', singleFrameStep).prop('id', 'dbg_tovsync');
+    uitoolbar.add('mod+shift+x', 'Next Frame/Interrupt', 'glyphicon-forward', singleFrameStep).prop('id', 'dbg_tovsync');
   }
   if ((platform.runEval || platform.runToPC) && !platform_id.startsWith('verilog')) {
-    uitoolbar.add('ctrl+alt+l', 'Run To Line', 'glyphicon-save', runToCursor).prop('id', 'dbg_toline');
+    uitoolbar.add('mod+shift+y', 'Run To Line', 'glyphicon-save', runToCursor).prop('id', 'dbg_toline');
   }
   uitoolbar.newGroup();
   uitoolbar.grp.prop('id', 'xtra_bar');
-  uitoolbar.add('shift+ctrl+/', 'Search', 'glyphicon-search', openSearchDialog).prop('id', 'dbg_search');
+  uitoolbar.add('mod+shift+f', 'Search', 'glyphicon-search', openSearchDialog).prop('id', 'dbg_search');
   // add menu clicks
   $(".dropdown-menu").collapse({ toggle: false });
   $("#item_new_file").click(_createNewFile);
@@ -1939,7 +1939,7 @@ function setupReplaySlider() {
   $("#clock_back").click(() => { setClockTo(parseInt(clockslider.val().toString()) - 1); });
   $("#clock_fwd").click(() => { setClockTo(parseInt(clockslider.val().toString()) + 1); });
   $("#replay_bar").show();
-  uitoolbar.add('ctrl+alt+0', 'Start/Stop Replay Recording', 'glyphicon-record', _toggleRecording).prop('id', 'dbg_record');
+  uitoolbar.add('mod+shift+e', 'Start/Stop Replay Recording', 'glyphicon-record', _toggleRecording).prop('id', 'dbg_record');
 }
 
 
