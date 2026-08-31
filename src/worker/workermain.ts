@@ -1,6 +1,5 @@
 
 import type { WorkerResult, WorkerMessage, WorkerError, SourceLine } from "../common/workertypes";
-import { getBasePlatform, getRootBasePlatform } from "../common/util";
 import { getPreloadFSName } from "../common/toolmeta";
 import { store, builder, errorResult, getWorkFileAsString } from "./builder";
 import { emglobal, fsMeta, loadFilesystem, listSharedFiles, readSharedFile, ensureFilesystem, readWasiSharedFile, listWasiSharedFiles, ensureWasiFilesystem } from "./wasmutils";
@@ -37,8 +36,7 @@ export function setupRequireFunction() {
 async function handleMessage(data: WorkerMessage): Promise<WorkerResult> {
   // preload file system
   if (data.preload) {
-    var fs = getPreloadFSName(data.preload, data.platform && getBasePlatform(data.platform))
-      || getPreloadFSName(data.preload, data.platform && getRootBasePlatform(data.platform));
+    var fs = getPreloadFSName(data.preload, data.platform);
     if (fs && !fsMeta[fs])
       loadFilesystem(fs);
     return;

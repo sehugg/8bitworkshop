@@ -6,7 +6,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { WorkerResult, WorkerMessage } from "../common/workertypes";
-import { getBasePlatform, getRootBasePlatform } from "../common/util";
 import { getPreloadFSName } from "../common/toolmeta";
 import { store, builder } from "./builder";
 import { emglobal, fsMeta, loadFilesystem, listSharedFiles, readSharedFile, ensureFilesystem, readWasiSharedFile, listWasiSharedFiles, ensureWasiFilesystem } from "./wasmutils";
@@ -136,8 +135,7 @@ export function setupNodeEnvironment() {
 export async function handleMessage(data: WorkerMessage): Promise<WorkerResult> {
   // preload file system
   if (data.preload) {
-    var fsName = getPreloadFSName(data.preload, data.platform && getBasePlatform(data.platform))
-      || getPreloadFSName(data.preload, data.platform && getRootBasePlatform(data.platform));
+    var fsName = getPreloadFSName(data.preload, data.platform);
     if (fsName && !fsMeta[fsName])
       loadFilesystem(fsName);
     return;

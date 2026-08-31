@@ -53,6 +53,15 @@ describe('Tool metadata registry', function () {
     assert.strictEqual(getPreloadFSName('dasm'), undefined);
   });
 
+  it('getPreloadFSName resolves suffixed platform ids to their root base', function () {
+    // atari8 runs as 'atari8-800' / 'atari8-5200' / *.xlmame variants
+    assert.strictEqual(getPreloadFSName('cc65', 'atari8'), '65-atari8');
+    assert.strictEqual(getPreloadFSName('cc65', 'atari8-800'), '65-atari8');
+    assert.strictEqual(getPreloadFSName('cc65', 'atari8-800.xlmame'), '65-atari8');
+    assert.strictEqual(getPreloadFSName('cc65', 'atari8-5200'), '65-atari8');
+    assert.strictEqual(getSharedFileSystemName('cc65', 'atari8-800'), '65-atari8');
+  });
+
   it('getSkeletonName defaults to the tool id', function () {
     assert.strictEqual(getSkeletonName('dasm'), 'dasm');
     assert.strictEqual(getSkeletonName('remote:llvm-mos'), 'llvm-mos');
