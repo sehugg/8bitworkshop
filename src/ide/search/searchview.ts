@@ -67,7 +67,7 @@ export function openSearchDialog() {
     message: `
       <div id="searchbox_form">
         <input type="text" id="searchboxInput" class="form-control"
-               placeholder="Search symbols, files, docs... (# symbols, > files, ? docs)"
+               placeholder="Search symbols, files, docs"
                autocomplete="off" style="margin-bottom:8px">
         <div id="searchboxResults" style="max-height:340px;overflow-y:auto"></div>
       </div>
@@ -150,12 +150,14 @@ export function openSearchDialog() {
         rec.kind === 'text' ? '≡' : '•';
       const loc = rec.file && rec.line ? `${rec.file}:${rec.line}` : (rec.file || '');
       const isSmart = rec.kind !== 'text';
-      const li = $('<li class="list-group-item search-hit" style="cursor:pointer;padding:6px 10px"></li>');
+      const li = $('<li class="list-group-item search-hit" style="cursor:pointer;padding:6px 10px;display:flex;align-items:center;overflow:hidden"></li>');
       li.html(
-        `<span class="search-kind" style="margin-right:6px;font-weight:bold">${kindIcon}</span>` +
-        (isSmart ? `<strong>${escapeHtml(rec.name)}</strong>` : `<span class="search-dumb">${escapeHtml(rec.name)}</span>`) +
-        (rec.brief ? ` <span class="text-muted">- ${escapeHtml(rec.brief)}</span>` : '') +
-        `<span class="pull-right" style="font-style:italic;font-size:small">${escapeHtml(srcName)}${loc ? ' · ' + escapeHtml(loc) : ''}</span>`
+        `<span class="search-kind" style="margin-right:6px;font-weight:bold;flex:0 0 auto">${kindIcon}</span>` +
+        `<span class="search-name" style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">` +
+          (isSmart ? `<strong>${escapeHtml(rec.name)}</strong>` : `<span class="search-dumb">${escapeHtml(rec.name)}</span>`) +
+          (rec.brief ? ` <span class="text-muted">- ${escapeHtml(rec.brief)}</span>` : '') +
+        `</span>` +
+        `<span class="search-loc" style="flex:0 0 auto;margin-left:8px;font-style:italic;font-size:small;white-space:nowrap">${loc ? escapeHtml(loc) : ''}</span>`
       );
       li.click(() => {
         openSelected(currentHits.indexOf(hit));

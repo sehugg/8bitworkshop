@@ -17,8 +17,9 @@ export class DocsSource implements SearchSource {
   }
 
   private async load() {
+    return; // TODO
     try {
-      const response = await fetch('https://8bitworkshop.com/docs/searchindex.json');
+      const response = await fetch('/docs/searchindex.json');
       if (!response.ok) {
         return;
       }
