@@ -154,6 +154,8 @@ export class SourceEditor implements ProjectView {
       mk('mod+d', 'Next Occurrence', selectNextOccurrence),
       mk('mod+shift+backspace', 'Delete Line', deleteLine),
       mk('mod+/', 'Toggle Comment', toggleComment),
+      mk('mod+z', 'Undo', undo),
+      mk('mod+shift+z', 'Redo', redo),
     ];
   }
 

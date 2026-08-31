@@ -1,5 +1,6 @@
 
 import { Toolbar } from "./toolbar";
+import { registerElementShortcuts, Shortcut } from "./shortcutbar";
 import { VirtualList } from "../common/vlist";
 import DOMPurify from "dompurify";
 
@@ -44,7 +45,27 @@ export class WaveformView {
   constructor(parent:HTMLElement, wfp:WaveformProvider) {
     this.parent = parent;
     this.wfp = wfp;
+    // focusable container + chip registration so the shortcut bar can show
+    // this widget's keys while it has focus (the canvas itself can't take focus)
+    this.parent.setAttribute('tabindex', '-1');
+    this.parent.addEventListener('mousedown', () => { this.parent.focus(); });
+    registerElementShortcuts(this.parent, () => this.getShortcuts());
     this.recreate();
+  }
+
+  // chips for the widget's mousetrap-scoped toolbar bindings
+  getShortcuts(): Shortcut[] {
+    return [
+      { key: '=', label: 'Zoom In', fn: () => this.setZoom(this.zoom * 2) },
+      { key: '-', label: 'Zoom Out', fn: () => this.setZoom(this.zoom / 2) },
+      { key: 'ctrl+shift+left', label: 'To Start', fn: () => { this.setSelTime(0); this.setOrgTime(0); } },
+      { key: 'shift+left', label: 'Page Left', fn: () => this.setSelTime(this.tsel - this.clocksPerPage/4) },
+      { key: 'left', label: 'Left', fn: () => this.setSelTime(this.tsel - 1) },
+      { key: 'right', label: 'Right', fn: () => this.setSelTime(this.tsel + 1) },
+      { key: 'shift+right', label: 'Page Right', fn: () => this.setSelTime(this.tsel + this.clocksPerPage/4) },
+      { key: 'space', label: 'Go To Current', fn: () => { this.setOrgTime(this.tnow); this.setSelTime(this.tnow); } },
+      { key: 'h', label: 'Hex/Dec', fn: () => { this.hexformat = !this.hexformat; this.refresh(); } },
+    ];
   }
 
   wtimer;

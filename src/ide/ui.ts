@@ -1099,11 +1099,11 @@ function getGlobalShortcuts(): Shortcut[] {
   var shortcuts: Shortcut[] = [];
   if (platform && isPlatformReady()) {
     // debug shortcuts appear only once a debug session has started
+    if (platform.setupDebug && platform.runEval) // TODO??
+        shortcuts.push({ key: 'mod+shift+d', label: 'Reset & Debug', fn: resetAndDebug });
     if (!debugSessionActive) {
       shortcuts.push({ key: 'mod+shift+r', label: 'Reset & Run', fn: resetAndRun });
       shortcuts.push({ key: 'mod+shift+f', label: 'Search', fn: openSearchDialog });
-      if (platform.step)
-        shortcuts.push({ key: 'mod+shift+l', label: 'Debug', fn: singleStep });
     }
     if (platform.isRunning && platform.isRunning()) {
       // in a debug session but emulator running: just Pause
@@ -1135,8 +1135,7 @@ function getDebugShortcuts(): Shortcut[] {
   if ((platform.runEval || platform.runToPC) && !platform_id.startsWith('verilog'))
     shortcuts.push({ key: 'mod+shift+y', label: 'Run To Line', fn: runToCursor });
   // session-level actions are always available once debugging
-  shortcuts.push({ key: 'mod+shift+d', label: 'Reset & Debug', fn: resetAndDebug });
-  shortcuts.push({ key: 'mod+shift+e', label: recorderActive ? 'Stop Recording' : 'Record', fn: _toggleRecording });
+  //shortcuts.push({ key: 'mod+shift+e', label: recorderActive ? 'Stop Recording' : 'Record', fn: _toggleRecording });
   return shortcuts;
 }
 

@@ -31,7 +31,7 @@ export interface StatusItem {
 // unknown parts (e.g. punctuation keys) pass through unchanged
 const MAC_SYMBOLS: { [mod: string]: string } = { shift: '⇧', ctrl: '⌃', alt: '⌥', meta: '⌘', mod: '⌘', cmd: '⌘' };
 const PC_NAMES: { [mod: string]: string } = { shift: 'Shift', ctrl: 'Ctrl', alt: 'Alt', meta: 'Win', mod: 'Ctrl', cmd: 'Cmd' };
-const KEY_SYMBOLS: { [k: string]: string } = { arrowleft: '←', arrowright: '→', arrowup: '↑', arrowdown: '↓', backspace: '⌫', enter: '↩', tab: '⇥', escape: '⎋' };
+const KEY_SYMBOLS: { [k: string]: string } = { arrowleft: '←', arrowright: '→', arrowup: '↑', arrowdown: '↓', backspace: '⌫', enter: '↩', tab: '⇥', escape: '⎋', space: '␣' };
 
 export function formatKey(key: string): string {
     var parts = key.toLowerCase().split('+');
@@ -147,7 +147,25 @@ export function setBarVisible(visible: boolean) {
 }
 
 export function refreshShortcutBar() {
-    if (shortcutBar) shortcutBar.setShortcuts([...globalShortcutsFn(), ...viewShortcutsFn()].filter((s) => !isBrowserEaten(s.key)));
+    if (!shortcutBar) return;
+    var shortcuts = [...globalShortcutsFn(), ...viewShortcutsFn()];
+    // widget-scoped providers (e.g. the waveform viewer): show chips while
+    // the widget's container has focus
+    var ae = document.activeElement;
+    for (var es of elementShortcuts) {
+        if (ae && es.div.contains(ae)) shortcuts = shortcuts.concat(es.fn());
+    }
+    shortcutBar.setShortcuts(shortcuts.filter((s) => !isBrowserEaten(s.key)));
+}
+
+var elementShortcuts: { div: HTMLElement; fn: () => Shortcut[] }[] = [];
+
+export function registerElementShortcuts(div: HTMLElement, fn: () => Shortcut[]) {
+    elementShortcuts.push({ div, fn });
+}
+
+export function unregisterElementShortcuts(div: HTMLElement) {
+    elementShortcuts = elementShortcuts.filter((es) => es.div !== div);
 }
 
 // combos the browser/OS reserves and won't let a page intercept:
