@@ -793,9 +793,9 @@ export class DisassemblerView implements ProjectView {
   }
 
   // TODO: too many globals
-  refresh(moveCursor: boolean) {
+  refresh(moveCursor: boolean, centerAddr?: number) {
     let state = lastDebugState || platform.saveState(); // TODO?
-    let pc = state.c ? state.c.PC : 0;
+    let pc = centerAddr !== undefined ? centerAddr : (state.c ? state.c.PC : 0);
     let curline = 0;
     let selline = 0;
     let addr2symbol = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
@@ -860,6 +860,35 @@ export class DisassemblerView implements ProjectView {
         effects: EditorView.scrollIntoView(line.from, { y: "center" }),
       });
     }
+  }
+
+  // jump to an address (or symbol), via the Go To Address prompt
+  goToAddress(addr: number) {
+    addr |= 0;
+    if (!this.findAndSelectAddress(addr)) {
+      // re-center the disassembly window on this address
+      this.refresh(false, addr);
+      this.findAndSelectAddress(addr);
+    }
+    this.disasmview.focus();
+  }
+
+  private findAndSelectAddress(addr: number): boolean {
+    const h = hex(addr, 4); // every line starts with the address + tab
+    const doc = this.disasmview.state.doc;
+    for (let i = 1; i <= doc.lines; i++) {
+      const line = doc.line(i);
+      if (line.text.startsWith(h + "\t")) {
+        // select the address so the line stays highlighted; scrollIntoView
+        // centers it in the viewport
+        this.disasmview.dispatch({
+          selection: { anchor: line.from, head: line.from + h.length },
+          effects: EditorView.scrollIntoView(line.from, { y: "center" }),
+        });
+        return true;
+      }
+    }
+    return false;
   }
 
   getCursorPC(): number {

@@ -537,6 +537,11 @@ div.markdown th {
 .seg_io { color: #ffcccc; }
 .seg_stack { color: #ffff66; }
 .seg_unknown { color: #cccccc; }
+.goto_line {
+  background-color: #1155cc;
+  color: #ffffff;
+  width: 100%;
+}
 .segment.segment-ram {
   background-color:#aaeeaa;
 }

@@ -1095,6 +1095,55 @@ function jumpToError(err: WorkerError) {
   }
 }
 
+// go-to-address (mod+shift+g): works while the Disassembly, Memory Browser,
+// or VRAM Browser is the active view; accepts a hex address ("$1234", "0x1234",
+// "1234") or a symbol name ("main")
+
+function getGoToAddressView(): DisassemblerView | MemoryView | null {
+  var wnd = projectWindows.getActive();
+  if (wnd instanceof DisassemblerView || wnd instanceof MemoryView) return wnd;
+  return null;
+}
+
+function parseGoToTarget(s: string): number {
+  s = s.trim();
+  if (!s) return -1;
+  // symbol name first (so symbols like "add" aren't parsed as hex)
+  var symmap = platform.debugSymbols && platform.debugSymbols.symbolmap;
+  if (symmap && s in symmap) return symmap[s];
+  var ls = s.toLowerCase();
+  if (symmap) {
+    for (var sym in symmap) {
+      if (sym.toLowerCase() === ls) return symmap[sym];
+    }
+  }
+  // hex address (bare digits are parsed as hex, like the listings)
+  if (/^(0x|\$)[0-9a-f]+$/i.test(s)) return parseInt(s.replace(/^(0x|\$)/i, ''), 16);
+  if (/^[0-9a-f]+$/i.test(s)) return parseInt(s, 16);
+  return -1;
+}
+
+function promptGoToAddress(): boolean {
+  var wnd = getGoToAddressView();
+  if (!wnd) return false;
+  var cur = (wnd as any).getCursorPC ? (wnd as any).getCursorPC() : -1;
+  (bootbox as any).prompt({
+    title: "Go to Address",
+    placeholder: "address in hex",
+    value: cur >= 0 ? hex(cur, 4) : "",
+    callback: (result: string) => {
+      if (!result) return; // canceled or empty
+      var addr = parseGoToTarget(result);
+      if (isNaN(addr) || addr < 0) {
+        alertError("Can't find address or symbol: " + DOMPurify.sanitize(result));
+        return;
+      }
+      wnd.goToAddress(addr);
+    }
+  });
+  return true;
+}
+
 function getGlobalShortcuts(): Shortcut[] {
   var shortcuts: Shortcut[] = [];
   if (platform && isPlatformReady()) {
@@ -1108,8 +1157,12 @@ function getGlobalShortcuts(): Shortcut[] {
     if (platform.isRunning && platform.isRunning()) {
       // in a debug session but emulator running: just Pause
       shortcuts.push({ key: 'mod+shift+h', label: 'Pause', fn: pause });
-    } else if (platform.isRunning && !platform.isRunning()) {
+    } else if (platform.isRunning && !platform.isRunning() && !getGoToAddressView()) {
+      // mod+shift+g becomes "Go To Address" while a debug tool view is active
       shortcuts.push({ key: 'mod+shift+g', label: 'Resume', fn: resume });
+    }
+    if (getGoToAddressView()) {
+      shortcuts.push({ key: 'mod+shift+g', label: 'Go To Address', fn: promptGoToAddress });
     }
   }
   return shortcuts;
@@ -1642,6 +1695,11 @@ function setupDebugControls() {
   uitoolbar.grp.prop('id', 'run_bar');
   uitoolbar.add('mod+shift+r', 'Reset', 'glyphicon-refresh', resetAndRun).prop('id', 'dbg_reset');
   uitoolbar.add('mod+shift+h', 'Pause', 'glyphicon-pause', pause).prop('id', 'dbg_pause');
+  // bound before Resume so it takes priority in the debug tool views;
+  // falls through to Resume everywhere else
+  uitoolbar.add('mod+shift+g', 'Go To Address', '', (e) => {
+    if (!promptGoToAddress()) resume();
+  });
   uitoolbar.add('mod+shift+g', 'Resume', 'glyphicon-play', resume).prop('id', 'dbg_go');
   if (platform.restartAtPC) {
     uitoolbar.add('mod+shift+a', 'Restart at Cursor', 'glyphicon-play-circle', restartAtCursor).prop('id', 'dbg_restartatline');
