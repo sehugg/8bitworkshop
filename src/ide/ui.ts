@@ -11,6 +11,7 @@ import {
 } from "../common/util";
 import { getSkeletonName, getToolMeta, TOOL_META } from "../common/toolmeta";
 import { CodeListingMap, FileData, WorkerError, WorkerResult } from "../common/workertypes";
+import { reportErrorToServer } from "./errorreport";
 import { importPlatform } from "../platform/_index";
 import { alertError, alertInfo, fatalError, setWaitDialog } from "./dialogs";
 import { openSettings, loadSettings } from "./settings";
@@ -2104,6 +2105,9 @@ function globalErrorHandler(msgevent) {
     var err = msgevent.error || msgevent.reason;
     if (err != null && err instanceof EmuHalt) {
       haltEmulation(err);
+    } else if (isProductionHost()) {
+      // lightweight self-hosted error reporting
+      reportErrorToServer(msg, err);
     }
   }
 }
