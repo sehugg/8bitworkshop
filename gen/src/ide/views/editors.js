@@ -22,6 +22,13 @@ const mbo_1 = require("../../themes/mbo");
 const settings_1 = require("../settings");
 const tabs_1 = require("./tabs");
 const ui_1 = require("../ui");
+const keys_1 = require("../keys");
+// Free the mod+shift+<letter> keys the IDE binds (see IDE_RESERVED_KEYS) so its
+// debug shortcuts work while an editor is focused. CodeMirror claims two of
+// them today: deleteLine ("Shift-Mod-k") and selectSelectionMatches
+// ("Mod-Shift-l"); deleteLine keeps a home on Mod-Shift-Backspace.
+const ideDefaultKeymap = [...(0, keys_1.stripCMKeymap)(commands_1.defaultKeymap, keys_1.IDE_RESERVED_KEYS), { key: "Mod-Shift-Backspace", run: commands_1.deleteLine }];
+const ideSearchKeymap = (0, keys_1.stripCMKeymap)(search_1.searchKeymap, keys_1.IDE_RESERVED_KEYS);
 const assetdecorations_1 = require("./assetdecorations");
 const includedecorations_1 = require("./includedecorations");
 const baseviews_1 = require("./baseviews");
@@ -118,6 +125,25 @@ class SourceEditor {
             this.stopTracing();
         }
     }
+    // a few of the CodeMirror bindings available while editing;
+    // chips are clickable and run the command on this editor
+    getShortcuts() {
+        if (!this.editor)
+            return [];
+        var ed = this.editor;
+        var mk = (key, label, cmd) => ({
+            key, label, fn: () => { cmd(ed); ed.focus(); }
+        });
+        return [
+            mk('mod+f', 'Find', search_1.openSearchPanel),
+            mk('mod+g', 'Find Next', search_1.findNext),
+            mk('mod+d', 'Next Occurrence', search_1.selectNextOccurrence),
+            mk('mod+shift+backspace', 'Delete Line', commands_1.deleteLine),
+            mk('mod+/', 'Toggle Comment', commands_1.toggleComment),
+            mk('mod+z', 'Undo', commands_1.undo),
+            mk('mod+shift+z', 'Redo', commands_1.redo),
+        ];
+    }
     startTracing() {
         if (!this.probe && ui_1.platform.startProbing) {
             this.probe = ui_1.platform.startProbing();
@@ -184,7 +210,7 @@ class SourceEditor {
                 ...(0, settings_1.settingsExtensions)((0, settings_1.loadSettings)()),
                 // https://codemirror.net/docs/ref/#commands.defaultKeymap includes
                 // https://codemirror.net/docs/ref/#commands.standardKeymap
-                view_1.keymap.of(commands_1.defaultKeymap),
+                view_1.keymap.of(ideDefaultKeymap),
                 lineNums ? (0, view_1.lineNumbers)() : [],
                 // Undo history.
                 (0, commands_1.history)(),
@@ -203,7 +229,7 @@ class SourceEditor {
                 (0, view_1.highlightActiveLineGutter)(),
                 (0, search_1.highlightSelectionMatches)(),
                 (0, search_1.search)({ top: true }),
-                view_1.keymap.of(search_1.searchKeymap),
+                view_1.keymap.of(ideSearchKeymap),
                 // lintGutter(),
                 // autocompletion(),
                 parser || [],
@@ -689,9 +715,9 @@ class DisassemblerView {
         });
     }
     // TODO: too many globals
-    refresh(moveCursor) {
+    refresh(moveCursor, centerAddr) {
         let state = ui_1.lastDebugState || ui_1.platform.saveState(); // TODO?
-        let pc = state.c ? state.c.PC : 0;
+        let pc = centerAddr !== undefined ? centerAddr : (state.c ? state.c.PC : 0);
         let curline = 0;
         let selline = 0;
         let addr2symbol = (ui_1.platform.debugSymbols && ui_1.platform.debugSymbols.addr2symbol) || {};
@@ -759,6 +785,33 @@ class DisassemblerView {
                 effects: view_1.EditorView.scrollIntoView(line.from, { y: "center" }),
             });
         }
+    }
+    // jump to an address (or symbol), via the Go To Address prompt
+    goToAddress(addr) {
+        addr |= 0;
+        if (!this.findAndSelectAddress(addr)) {
+            // re-center the disassembly window on this address
+            this.refresh(false, addr);
+            this.findAndSelectAddress(addr);
+        }
+        this.disasmview.focus();
+    }
+    findAndSelectAddress(addr) {
+        const h = (0, util_1.hex)(addr, 4); // every line starts with the address + tab
+        const doc = this.disasmview.state.doc;
+        for (let i = 1; i <= doc.lines; i++) {
+            const line = doc.line(i);
+            if (line.text.startsWith(h + "\t")) {
+                // select the address so the line stays highlighted; scrollIntoView
+                // centers it in the viewport
+                this.disasmview.dispatch({
+                    selection: { anchor: line.from, head: line.from + h.length },
+                    effects: view_1.EditorView.scrollIntoView(line.from, { y: "center" }),
+                });
+                return true;
+            }
+        }
+        return false;
     }
     getCursorPC() {
         const pos = this.disasmview.state.selection.main.head;
@@ -910,7 +963,7 @@ class HeaderView {
                 (0, view_1.highlightActiveLine)(),
                 (0, search_1.highlightSelectionMatches)(),
                 (0, search_1.search)({ top: true }),
-                view_1.keymap.of(search_1.searchKeymap),
+                view_1.keymap.of(ideSearchKeymap),
                 this.languageCompartment.of(lang),
                 mbo_1.mbo,
                 editorTheme_1.editorTheme,

@@ -3,6 +3,7 @@ import { indentUnit } from "@codemirror/language";
 import { Compartment, EditorState, Extension } from "@codemirror/state";
 import { EditorView, highlightSpecialChars, highlightTrailingWhitespace, highlightWhitespace, keymap, lineNumbers } from "@codemirror/view";
 import { isProductionHost } from "../common/util";
+import { setBarVisible } from "./shortcutbar";
 import { debugHighlightTagsTooltip } from "./views/debug";
 import { insertTabKeymap, smartIndentKeymap } from "./views/tabs";
 
@@ -27,6 +28,7 @@ export interface EditorSettings {
   closeBrackets: boolean;
   debugHighlightTags: boolean;
   showLineNumbers: boolean;
+  showStatusBar: boolean;
 }
 
 const SETTINGS_KEY = "8bitworkshop/editorSettings";
@@ -40,6 +42,7 @@ const defaultSettings: EditorSettings = {
   closeBrackets: false,
   debugHighlightTags: false,
   showLineNumbers: false,
+  showStatusBar: true,
 };
 
 export function loadSettings(): EditorSettings {
@@ -96,7 +99,6 @@ export function openSettings() {
     onEscape: true,
     title: "Settings",
     message: `<form id="settingsForm" onsubmit="return false">
-       <h5>Editor preferences</h5>
        <div class="form-group"><label>Tab size: <input type="number" id="setting_tabSize" min="1" max="40" value="${settings.tabSize}" style="width:4em"></label></div>
        <div class="checkbox"><label><input type="checkbox" id="setting_tabsToSpaces" ${settings.tabsToSpaces ? 'checked' : ''}> Insert spaces when pressing TAB</label></div>
        <div class="checkbox"><label><input type="checkbox" id="setting_highlightSpecialChars" ${settings.highlightSpecialChars ? 'checked' : ''}> Highlight special characters</label></div>
@@ -104,9 +106,10 @@ export function openSettings() {
        <div class="checkbox"><label><input type="checkbox" id="setting_highlightTrailingWhitespace" ${settings.highlightTrailingWhitespace ? 'checked' : ''}> Highlight unwanted trailing whitespace</label></div>
        <div class="checkbox"><label><input type="checkbox" id="setting_showLineNumbers" ${settings.showLineNumbers ? 'checked' : ''}> Show line numbers</label></div>
        <div class="checkbox"><label><input type="checkbox" id="setting_closeBrackets" ${settings.closeBrackets ? 'checked' : ''}> Automatically add and remove closing brackets</label></div>
+       <div class="checkbox"><label><input type="checkbox" id="setting_showStatusBar" ${settings.showStatusBar ? 'checked' : ''}> Show keyboard shortcuts / status bar</label></div>
        ${showInternal ? `
        <hr>
-       <h5>8bitworkshop IDE internal settings</h5>
+       <h5>Internal</h5>
        <div class="checkbox"><label><input type="checkbox" id="setting_debugHighlightTags" ${settings.debugHighlightTags ? 'checked' : ''}> Debug editor syntax highlighting tags</label></div>
        ` : ''}
       </form>`,
@@ -127,8 +130,10 @@ export function openSettings() {
           settings.closeBrackets = $('#setting_closeBrackets').is(':checked');
           settings.showLineNumbers = $('#setting_showLineNumbers').is(':checked');
           if (showInternal) settings.debugHighlightTags = $('#setting_debugHighlightTags').is(':checked');
+          settings.showStatusBar = $('#setting_showStatusBar').is(':checked');
           saveSettings(settings);
           applySettingsToAll(settings);
+          setBarVisible(settings.showStatusBar);
         }
       }
     }

@@ -47,7 +47,19 @@ function getMousetrap() {
 class AssetEditorView {
     createDiv(parent) {
         this.maindiv = (0, baseviews_1.newDiv)(parent, "vertical-scroll");
-        return this.maindiv[0];
+        // focusable so the shortcut bar can tell when this view has focus
+        // (default focus still applies to inner inputs, refining this)
+        var div = this.maindiv[0];
+        div.setAttribute('tabindex', '-1');
+        div.addEventListener('mousedown', () => { div.focus(); });
+        return div;
+    }
+    // chips for the global asset undo/redo (bound via mousetrap in setVisible)
+    getShortcuts() {
+        return [
+            { key: 'mod+z', label: 'Undo', fn: () => ui_1.projectWindows.undoStep() },
+            { key: 'mod+shift+z', label: 'Redo', fn: () => ui_1.projectWindows.redoStep() },
+        ];
     }
     clearAssets() {
         this.rootnodes = [];
@@ -504,6 +516,8 @@ class AssetEditorView {
                 Mousetrap.bind('mod+z', (e) => { ui_1.projectWindows.undoStep(); return false; });
                 Mousetrap.bind('mod+shift+z', (e) => { ui_1.projectWindows.redoStep(); return false; });
             }
+            // focus so the shortcut bar's view chips (undo/redo) show
+            this.maindiv && this.maindiv[0] && this.maindiv[0].focus();
         }
         else {
             const Mousetrap = getMousetrap();

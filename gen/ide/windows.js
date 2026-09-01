@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProjectWindows = void 0;
 const $ = require("jquery");
 const util_1 = require("../common/util");
+const shortcutbar_1 = require("./shortcutbar");
 class ProjectWindows {
     constructor(containerdiv, project) {
         this.id2window = {};
@@ -45,11 +46,15 @@ class ProjectWindows {
             this.activewnd && this.activewnd.setVisible && this.activewnd.setVisible(false);
             this.activediv = div;
             this.activewnd = wnd;
+            // set before showing: setVisible() may focus the view, whose focusin
+            // handler refreshes the shortcut bar against the new active view
+            this.activeid = id;
             $(div).show();
             this.refresh(true); // needed to tell asset editor 1st time running, but that's bad
             this.refreshErrors();
             wnd.setVisible && wnd.setVisible(true);
             this.id2showfn[id] && this.id2showfn[id](id, wnd);
+            (0, shortcutbar_1.refreshShortcutBar)(); // active view changed -> update context-sensitive shortcuts
         }
         else if (moveCursor) {
             this.refresh(moveCursor);

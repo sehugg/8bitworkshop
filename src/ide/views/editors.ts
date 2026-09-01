@@ -1,10 +1,10 @@
-import { defaultKeymap, history, historyKeymap, isolateHistory, redo, undo } from "@codemirror/commands";
+import { defaultKeymap, deleteLine, history, historyKeymap, isolateHistory, redo, undo, toggleComment } from "@codemirror/commands";
 import { cpp } from "@codemirror/lang-cpp";
 import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, foldGutter, indentOnInput, indentService, indentUnit } from "@codemirror/language";
-import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
+import { highlightSelectionMatches, search, searchKeymap, openSearchPanel, findNext, selectNextOccurrence } from "@codemirror/search";
 import { Compartment, EditorState, Extension, StateEffect, StateField } from "@codemirror/state";
-import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, rectangularSelection, ViewUpdate } from "@codemirror/view";
+import { crosshairCursor, drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, keymap, lineNumbers, KeyBinding, rectangularSelection, ViewUpdate } from "@codemirror/view";
 import { CodeAnalyzer } from "../../common/analysis";
 import { ProbeFlags, ProbeRecorder } from "../../common/probe";
 import { getFilenameForPath, getFolderForPath, hex, rpad } from "../../common/util";
@@ -19,9 +19,18 @@ import { mbo } from "../../themes/mbo";
 import { loadSettings, registerEditor, settingsExtensions } from "../settings";
 import { asmSpacesKeymap } from "./tabs";
 import { clearBreakpoint, current_project, lastDebugState, openHeaderFile, platform, qs, runToPC } from "../ui";
+import { IDE_RESERVED_KEYS, stripCMKeymap } from "../keys";
+
+// Free the mod+shift+<letter> keys the IDE binds (see IDE_RESERVED_KEYS) so its
+// debug shortcuts work while an editor is focused. CodeMirror claims two of
+// them today: deleteLine ("Shift-Mod-k") and selectSelectionMatches
+// ("Mod-Shift-l"); deleteLine keeps a home on Mod-Shift-Backspace.
+const ideDefaultKeymap: KeyBinding[] = [...stripCMKeymap(defaultKeymap, IDE_RESERVED_KEYS), { key: "Mod-Shift-Backspace", run: deleteLine }];
+const ideSearchKeymap: KeyBinding[] = stripCMKeymap(searchKeymap, IDE_RESERVED_KEYS);
 import { createAssetHeaderPlugin } from "./assetdecorations";
 import { createIncludeLinkPlugin } from "./includedecorations";
 import { isMobileDevice, ProjectView } from "./baseviews";
+import { Shortcut } from "../shortcutbar";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
 import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset, statusMarkers } from "./gutter";
 import { currentPc, errorMessages, errorSpans, highlightLines, showValue, tracedLines } from "./visuals";
@@ -131,6 +140,25 @@ export class SourceEditor implements ProjectView {
     }
   }
 
+  // a few of the CodeMirror bindings available while editing;
+  // chips are clickable and run the command on this editor
+  getShortcuts(): Shortcut[] {
+    if (!this.editor) return [];
+    var ed = this.editor;
+    var mk = (key: string, label: string, cmd: (v: EditorView) => boolean): Shortcut => ({
+      key, label, fn: () => { cmd(ed); ed.focus(); }
+    });
+    return [
+      mk('mod+f', 'Find', openSearchPanel),
+      mk('mod+g', 'Find Next', findNext),
+      mk('mod+d', 'Next Occurrence', selectNextOccurrence),
+      mk('mod+shift+backspace', 'Delete Line', deleteLine),
+      mk('mod+/', 'Toggle Comment', toggleComment),
+      mk('mod+z', 'Undo', undo),
+      mk('mod+shift+z', 'Redo', redo),
+    ];
+  }
+
   startTracing() {
     if (!this.probe && platform.startProbing) {
       this.probe = platform.startProbing();
@@ -200,7 +228,7 @@ export class SourceEditor implements ProjectView {
         ...settingsExtensions(loadSettings()),
         // https://codemirror.net/docs/ref/#commands.defaultKeymap includes
         // https://codemirror.net/docs/ref/#commands.standardKeymap
-        keymap.of(defaultKeymap),
+        keymap.of(ideDefaultKeymap),
 
         lineNums ? lineNumbers() : [],
 
@@ -228,7 +256,7 @@ export class SourceEditor implements ProjectView {
         highlightSelectionMatches(),
 
         search({ top: true }),
-        keymap.of(searchKeymap),
+        keymap.of(ideSearchKeymap),
 
         // lintGutter(),
         // autocompletion(),
@@ -765,9 +793,9 @@ export class DisassemblerView implements ProjectView {
   }
 
   // TODO: too many globals
-  refresh(moveCursor: boolean) {
+  refresh(moveCursor: boolean, centerAddr?: number) {
     let state = lastDebugState || platform.saveState(); // TODO?
-    let pc = state.c ? state.c.PC : 0;
+    let pc = centerAddr !== undefined ? centerAddr : (state.c ? state.c.PC : 0);
     let curline = 0;
     let selline = 0;
     let addr2symbol = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
@@ -832,6 +860,35 @@ export class DisassemblerView implements ProjectView {
         effects: EditorView.scrollIntoView(line.from, { y: "center" }),
       });
     }
+  }
+
+  // jump to an address (or symbol), via the Go To Address prompt
+  goToAddress(addr: number) {
+    addr |= 0;
+    if (!this.findAndSelectAddress(addr)) {
+      // re-center the disassembly window on this address
+      this.refresh(false, addr);
+      this.findAndSelectAddress(addr);
+    }
+    this.disasmview.focus();
+  }
+
+  private findAndSelectAddress(addr: number): boolean {
+    const h = hex(addr, 4); // every line starts with the address + tab
+    const doc = this.disasmview.state.doc;
+    for (let i = 1; i <= doc.lines; i++) {
+      const line = doc.line(i);
+      if (line.text.startsWith(h + "\t")) {
+        // select the address so the line stays highlighted; scrollIntoView
+        // centers it in the viewport
+        this.disasmview.dispatch({
+          selection: { anchor: line.from, head: line.from + h.length },
+          effects: EditorView.scrollIntoView(line.from, { y: "center" }),
+        });
+        return true;
+      }
+    }
+    return false;
   }
 
   getCursorPC(): number {
@@ -991,7 +1048,7 @@ export class HeaderView implements ProjectView {
         highlightActiveLine(),
         highlightSelectionMatches(),
         search({ top: true }),
-        keymap.of(searchKeymap),
+        keymap.of(ideSearchKeymap),
         this.languageCompartment.of(lang),
         mbo,
         editorTheme,

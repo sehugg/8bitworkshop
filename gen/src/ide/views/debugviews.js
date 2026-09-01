@@ -23,6 +23,7 @@ class MemoryView {
         this.recreateOnResize = true;
         this.hibits = 0; // a hack to make it work with 32-bit addresses
         this.totalRows = 0x1400; // a little more room in case we split lots of lines
+        this.gotoRow = -1; // row highlighted by the Go To Address prompt
     }
     createDiv(parent) {
         var div = document.createElement('div');
@@ -45,6 +46,8 @@ class MemoryView {
                     if (dlr)
                         linediv.classList.add('seg_' + this.getMemorySegment(this.dumplines[row].a | this.hibits));
                 }
+                if (row == this.gotoRow)
+                    linediv.classList.add('goto_line');
                 linediv.appendChild(document.createTextNode(s));
                 return linediv;
             }
@@ -61,6 +64,29 @@ class MemoryView {
             this.memorylist.scrollToItem(this.findMemoryWindowLine(addr & 0xffff));
         }
     }
+    // jump to an address (or symbol), via the Go To Address prompt;
+    // centers the target row in the viewport and highlights it
+    goToAddress(addr) {
+        this.hibits = addr & 0xffff0000;
+        var dump = this.getDumpLines();
+        var row;
+        if (dump && dump.length) {
+            row = this.findMemoryWindowLine(addr & 0xffff);
+        }
+        else {
+            // no symbol map (e.g. VRAM): rows are raw 16-byte chunks
+            row = (addr & 0xffff) >> 4;
+        }
+        if (row === undefined)
+            return;
+        this.gotoRow = row;
+        if (this.memorylist) {
+            var c = this.memorylist.container;
+            var y = row * this.memorylist.itemHeight - (c.clientHeight - this.memorylist.itemHeight) / 2;
+            c.scrollTop = Math.max(0, y);
+        }
+        this.tick();
+    }
     refresh() {
         this.dumplines = null;
         this.tick();
@@ -74,6 +100,7 @@ class MemoryView {
                 var newtext = this.getMemoryLineAt(row);
                 if (oldtext != newtext)
                     div.text(newtext);
+                div.toggleClass('goto_line', row == this.gotoRow);
             });
         }
     }

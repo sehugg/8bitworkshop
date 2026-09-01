@@ -1373,7 +1373,7 @@ class PixEditor extends Viewer {
         return span;
     }
     createToolbarButtons(parent) {
-        var toolbar = new toolbar_1.Toolbar(parent, null);
+        var toolbar = new toolbar_1.Toolbar(parent, parent); // scope key bindings to the pixel editor
         toolbar.add('ctrl+shift+h', 'Flip X', 'glyphicon-resize-horizontal', this.flipX.bind(this));
         toolbar.add('ctrl+shift+v', 'Flip Y', 'glyphicon-resize-vertical', this.flipY.bind(this));
         toolbar.add('ctrl+shift+9', 'Rotate', 'glyphicon-repeat', this.rotate90.bind(this));

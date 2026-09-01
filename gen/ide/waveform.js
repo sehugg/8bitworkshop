@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WaveformView = void 0;
 const toolbar_1 = require("./toolbar");
+const shortcutbar_1 = require("./shortcutbar");
 const vlist_1 = require("../common/vlist");
 const dompurify_1 = __importDefault(require("dompurify"));
 const BUILTIN_INPUT_PORTS = [
@@ -21,7 +22,26 @@ class WaveformView {
         this.scrollbarWidth = 12;
         this.parent = parent;
         this.wfp = wfp;
+        // focusable container + chip registration so the shortcut bar can show
+        // this widget's keys while it has focus (the canvas itself can't take focus)
+        this.parent.setAttribute('tabindex', '-1');
+        this.parent.addEventListener('mousedown', () => { this.parent.focus(); });
+        (0, shortcutbar_1.registerElementShortcuts)(this.parent, () => this.getShortcuts());
         this.recreate();
+    }
+    // chips for the widget's mousetrap-scoped toolbar bindings
+    getShortcuts() {
+        return [
+            { key: '=', label: 'Zoom In', fn: () => this.setZoom(this.zoom * 2) },
+            { key: '-', label: 'Zoom Out', fn: () => this.setZoom(this.zoom / 2) },
+            { key: 'ctrl+shift+left', label: 'To Start', fn: () => { this.setSelTime(0); this.setOrgTime(0); } },
+            { key: 'shift+left', label: 'Page Left', fn: () => this.setSelTime(this.tsel - this.clocksPerPage / 4) },
+            { key: 'left', label: 'Left', fn: () => this.setSelTime(this.tsel - 1) },
+            { key: 'right', label: 'Right', fn: () => this.setSelTime(this.tsel + 1) },
+            { key: 'shift+right', label: 'Page Right', fn: () => this.setSelTime(this.tsel + this.clocksPerPage / 4) },
+            { key: 'space', label: 'Go To Current', fn: () => { this.setOrgTime(this.tnow); this.setSelTime(this.tnow); } },
+            { key: 'h', label: 'Hex/Dec', fn: () => { this.hexformat = !this.hexformat; this.refresh(); } },
+        ];
     }
     recreate() {
         clearTimeout(this.wtimer);

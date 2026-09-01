@@ -4,6 +4,7 @@ import { hex, rgb2bgr, safeident } from "../../common/util";
 import { FileData } from "../../common/workertypes";
 import * as pixed from "../pixeleditor";
 import { current_project, platform_id, projectWindows } from "../ui";
+import { Shortcut } from "../shortcutbar";
 import { newDiv, ProjectView } from "./baseviews";
 
 // Lazy mousetrap require: mousetrap references `document` at module load time,
@@ -21,7 +22,20 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
   deferrednodes: pixed.PixNode[];
   createDiv(parent: HTMLElement) {
     this.maindiv = newDiv(parent, "vertical-scroll");
-    return this.maindiv[0];
+    // focusable so the shortcut bar can tell when this view has focus
+    // (default focus still applies to inner inputs, refining this)
+    var div = this.maindiv[0];
+    div.setAttribute('tabindex', '-1');
+    div.addEventListener('mousedown', () => { div.focus(); });
+    return div;
+  }
+
+  // chips for the global asset undo/redo (bound via mousetrap in setVisible)
+  getShortcuts(): Shortcut[] {
+    return [
+      { key: 'mod+z', label: 'Undo', fn: () => projectWindows.undoStep() },
+      { key: 'mod+shift+z', label: 'Redo', fn: () => projectWindows.redoStep() },
+    ];
   }
 
   clearAssets() {
@@ -485,6 +499,8 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
         Mousetrap.bind('mod+z', (e) => { projectWindows.undoStep(); return false; });
         Mousetrap.bind('mod+shift+z', (e) => { projectWindows.redoStep(); return false; });
       }
+      // focus so the shortcut bar's view chips (undo/redo) show
+      this.maindiv && this.maindiv[0] && this.maindiv[0].focus();
     } else {
       const Mousetrap = getMousetrap();
       if (Mousetrap.unbind) {

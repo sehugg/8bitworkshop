@@ -13,13 +13,14 @@ import { getSkeletonName, getToolMeta, TOOL_META } from "../common/toolmeta";
 import { CodeListingMap, FileData, WorkerError, WorkerResult } from "../common/workertypes";
 import { importPlatform } from "../platform/_index";
 import { alertError, alertInfo, fatalError, setWaitDialog } from "./dialogs";
-import { openSettings } from "./settings";
+import { openSettings, loadSettings } from "./settings";
 import { getPersistStatusMessage, getQuotaExceededMessage, requestPersistentStorage } from "./storage";
 import { CodeProject, createNewPersistentStore, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
 import { getRepos, parseGithubURL } from "./services";
 import { _downloadAllFilesZipFile, _downloadCassetteFile, _downloadProjectZipFile, _downloadROMImage, _downloadSourceFile, _downloadSymFile, _getCassetteFunction, _recordVideo, _shareEmbedLink } from "./shareexport";
 import { _importProjectFromGithub, _loginToGithub, _logoutOfGithub, _publishProjectToGithub, _pullProjectFromGithub, _pushProjectToGithub, _removeRepository, importProjectFromGithub } from "./sync";
 import { Toolbar } from "./toolbar";
+import { Shortcut, initShortcutBar, setGlobalShortcutsFn, setViewShortcutsFn, setBarVisible, refreshShortcutBar } from "./shortcutbar";
 import { openSearchDialog } from "./search/searchview";
 import { setProjectProvider } from "./search/projectsource";
 import { AssetEditorView } from "./views/asseteditor";
@@ -77,6 +78,7 @@ var toolbar = $("#controls_top");
 var uitoolbar: Toolbar;
 var stateRecorder: StateRecorderImpl;
 var userPaused: boolean;		// did user explicitly pause?
+var debugSessionActive: boolean;	// has the user entered a debug session? (drives debug shortcut chips)
 var current_output: any;     // current ROM (or other object)
 var current_preset: Preset;	// current preset object (if selected)
 var store: LocalForage;			// persistent store
@@ -951,6 +953,12 @@ function showErrorAlert(errors: WorkerError[], runtime: boolean) {
   }
   $("#error_alert").show();
   errorWasRuntime = runtime;
+  // status chip: click jumps to first error that has an openable path
+  var jumpErr = errors.find((err) => err.path != null);
+  var fn;
+  if (jumpErr && projectWindows.isWindow(jumpErr.path == getCurrentMainFilename() ? current_project.mainPath : jumpErr.path)) {
+    fn = () => { jumpToError(jumpErr); };
+  }
 }
 
 function showExceptionAsError(err, msg: string) {
@@ -1073,6 +1081,115 @@ function showDebugInfo(state?) {
 function setDebugButtonState(btnid: string, btnstate: string) {
   $("#debug_bar, #run_bar").find("button").removeClass("btn_active").removeClass("btn_stopped");
   $("#dbg_" + btnid).addClass("btn_" + btnstate);
+  refreshShortcutBar();
+}
+
+// context-sensitive shortcut providers for the bottom bar
+
+function jumpToError(err: WorkerError) {
+  var path = err.path == getCurrentMainFilename() ? current_project.mainPath : err.path;
+  if (!projectWindows.isWindow(path)) return;
+  var wnd = projectWindows.createOrShow(path);
+  if (wnd instanceof SourceEditor) {
+    wnd.navigateToLine(err.line);
+  }
+}
+
+// go-to-address (mod+shift+g): works while the Disassembly, Memory Browser,
+// or VRAM Browser is the active view; accepts a hex address ("$1234", "0x1234",
+// "1234") or a symbol name ("main")
+
+function getGoToAddressView(): DisassemblerView | MemoryView | null {
+  var wnd = projectWindows.getActive();
+  if (wnd instanceof DisassemblerView || wnd instanceof MemoryView) return wnd;
+  return null;
+}
+
+function parseGoToTarget(s: string): number {
+  s = s.trim();
+  if (!s) return -1;
+  // symbol name first (so symbols like "add" aren't parsed as hex)
+  var symmap = platform.debugSymbols && platform.debugSymbols.symbolmap;
+  if (symmap && s in symmap) return symmap[s];
+  var ls = s.toLowerCase();
+  if (symmap) {
+    for (var sym in symmap) {
+      if (sym.toLowerCase() === ls) return symmap[sym];
+    }
+  }
+  // hex address (bare digits are parsed as hex, like the listings)
+  if (/^(0x|\$)[0-9a-f]+$/i.test(s)) return parseInt(s.replace(/^(0x|\$)/i, ''), 16);
+  if (/^[0-9a-f]+$/i.test(s)) return parseInt(s, 16);
+  return -1;
+}
+
+function promptGoToAddress(): boolean {
+  var wnd = getGoToAddressView();
+  if (!wnd) return false;
+  var cur = (wnd as any).getCursorPC ? (wnd as any).getCursorPC() : -1;
+  (bootbox as any).prompt({
+    title: "Go to Address",
+    placeholder: "address in hex",
+    value: cur >= 0 ? hex(cur, 4) : "",
+    callback: (result: string) => {
+      if (!result) return; // canceled or empty
+      var addr = parseGoToTarget(result);
+      if (isNaN(addr) || addr < 0) {
+        alertError("Can't find address or symbol: " + DOMPurify.sanitize(result));
+        return;
+      }
+      wnd.goToAddress(addr);
+    }
+  });
+  return true;
+}
+
+function getGlobalShortcuts(): Shortcut[] {
+  var shortcuts: Shortcut[] = [];
+  if (platform && isPlatformReady()) {
+    // debug shortcuts appear only once a debug session has started
+    if (platform.setupDebug && platform.runEval) // TODO??
+        shortcuts.push({ key: 'mod+shift+d', label: 'Reset & Debug', fn: resetAndDebug });
+    if (!debugSessionActive) {
+      shortcuts.push({ key: 'mod+shift+r', label: 'Reset & Run', fn: resetAndRun });
+      shortcuts.push({ key: 'mod+shift+f', label: 'Search', fn: openSearchDialog });
+    }
+    if (platform.isRunning && platform.isRunning()) {
+      // in a debug session but emulator running: just Pause
+      shortcuts.push({ key: 'mod+shift+h', label: 'Pause', fn: pause });
+    } else if (platform.isRunning && !platform.isRunning() && !getGoToAddressView()) {
+      // mod+shift+g becomes "Go To Address" while a debug tool view is active
+      shortcuts.push({ key: 'mod+shift+g', label: 'Resume', fn: resume });
+    }
+    if (getGoToAddressView()) {
+      shortcuts.push({ key: 'mod+shift+g', label: 'Go To Address', fn: promptGoToAddress });
+    }
+  }
+  return shortcuts;
+}
+
+function getDebugShortcuts(): Shortcut[] {
+  var shortcuts: Shortcut[] = [];
+  if (!debugSessionActive || !platform || !isPlatformReady()) return shortcuts;
+  var running = platform.isRunning && platform.isRunning();
+  if (platform.step)
+    shortcuts.push({ key: 'mod+shift+l', label: 'Step', fn: singleStep });
+  if (platform.stepOver)
+    shortcuts.push({ key: 'mod+shift+k', label: 'Step Over', fn: stepOver });
+  if (platform.runUntilReturn)
+    shortcuts.push({ key: 'mod+shift+i', label: 'Step Out', fn: runUntilReturn });
+  if (platform.stepBack)
+    shortcuts.push({ key: 'mod+shift+j', label: 'Step Back', fn: runStepBackwards });
+  if (platform.runToVsync)
+    shortcuts.push({ key: 'mod+shift+x', label: 'Next Frame', fn: singleFrameStep });
+  if (platform.restartAtPC)
+    shortcuts.push({ key: 'mod+shift+a', label: 'Restart at Cursor', fn: restartAtCursor });
+  // TODO: check to see if line has debug info
+  if ((platform.runEval || platform.runToPC) && !platform_id.startsWith('verilog'))
+    shortcuts.push({ key: 'mod+shift+y', label: 'Run To Line', fn: runToCursor });
+  // session-level actions are always available once debugging
+  //shortcuts.push({ key: 'mod+shift+e', label: recorderActive ? 'Stop Recording' : 'Record', fn: _toggleRecording });
+  return shortcuts;
 }
 
 function isPlatformReady() {
@@ -1130,6 +1247,7 @@ function openRelevantListing(state: EmuState) {
 }
 
 function uiDebugCallback(state: EmuState) {
+  debugSessionActive = true;
   lastDebugState = state;
   showDebugInfo(state);
   openRelevantListing(state);
@@ -1150,12 +1268,15 @@ function setupDebugCallback(btnid?: DebugCommandType) {
 
 export function setupBreakpoint(btnid?: DebugCommandType) {
   if (!checkRunReady()) return;
+  debugSessionActive = true;
   _disableRecording();
   setupDebugCallback(btnid);
   if (btnid) setDebugButtonState(btnid, "active");
+  refreshShortcutBar();
 }
 
 function _pause() {
+  debugSessionActive = true;
   if (platform && platform.isRunning()) {
     platform.pause();
     console.log("Paused");
@@ -1345,9 +1466,11 @@ function resetPlatform() {
 
 function resetAndRun() {
   if (!checkRunReady()) return;
+  debugSessionActive = false; // plain run: hide debug shortcut chips
   clearBreakpoint();
   resetPlatform();
   _resume();
+  refreshShortcutBar();
 }
 
 function resetAndDebug() {
@@ -1487,6 +1610,7 @@ function _toggleRecording() {
   } else {
     _enableRecording();
   }
+  refreshShortcutBar();
 }
 
 function _toggleTraceLines() {
@@ -1569,38 +1693,43 @@ function setupDebugControls() {
   // create toolbar buttons
   uitoolbar = new Toolbar($("#toolbar")[0], null);
   uitoolbar.grp.prop('id', 'run_bar');
-  uitoolbar.add('ctrl+alt+r', 'Reset', 'glyphicon-refresh', resetAndRun).prop('id', 'dbg_reset');
-  uitoolbar.add('ctrl+alt+,', 'Pause', 'glyphicon-pause', pause).prop('id', 'dbg_pause');
-  uitoolbar.add('ctrl+alt+.', 'Resume', 'glyphicon-play', resume).prop('id', 'dbg_go');
+  uitoolbar.add('mod+shift+r', 'Reset', 'glyphicon-refresh', resetAndRun).prop('id', 'dbg_reset');
+  uitoolbar.add('mod+shift+h', 'Pause', 'glyphicon-pause', pause).prop('id', 'dbg_pause');
+  // bound before Resume so it takes priority in the debug tool views;
+  // falls through to Resume everywhere else
+  uitoolbar.add('mod+shift+g', 'Go To Address', '', (e) => {
+    if (!promptGoToAddress()) resume();
+  });
+  uitoolbar.add('mod+shift+g', 'Resume', 'glyphicon-play', resume).prop('id', 'dbg_go');
   if (platform.restartAtPC) {
-    uitoolbar.add('ctrl+alt+/', 'Restart at Cursor', 'glyphicon-play-circle', restartAtCursor).prop('id', 'dbg_restartatline');
+    uitoolbar.add('mod+shift+a', 'Restart at Cursor', 'glyphicon-play-circle', restartAtCursor).prop('id', 'dbg_restartatline');
   }
   uitoolbar.newGroup();
   uitoolbar.grp.prop('id', 'debug_bar');
   if (platform.runEval) {
-    uitoolbar.add('ctrl+alt+e', 'Reset and Debug', 'glyphicon-fast-backward', resetAndDebug).prop('id', 'dbg_restart');
+    uitoolbar.add('mod+shift+d', 'Reset and Debug', 'glyphicon-fast-backward', resetAndDebug).prop('id', 'dbg_restart');
   }
   if (platform.stepBack) {
-    uitoolbar.add('ctrl+alt+b', 'Step Backwards', 'glyphicon-step-backward', runStepBackwards).prop('id', 'dbg_stepback');
+    uitoolbar.add('mod+shift+j', 'Step Backwards', 'glyphicon-step-backward', runStepBackwards).prop('id', 'dbg_stepback');
   }
   if (platform.step) {
-    uitoolbar.add('ctrl+alt+s', 'Single Step', 'glyphicon-step-forward', singleStep).prop('id', 'dbg_step');
+    uitoolbar.add('mod+shift+l', 'Single Step', 'glyphicon-step-forward', singleStep).prop('id', 'dbg_step');
   }
   if (platform.stepOver) {
-    uitoolbar.add('ctrl+alt+t', 'Step Over', 'glyphicon-hand-right', stepOver).prop('id', 'dbg_stepover');
+    uitoolbar.add('mod+shift+k', 'Step Over', 'glyphicon-hand-right', stepOver).prop('id', 'dbg_stepover');
   }
   if (platform.runUntilReturn) {
-    uitoolbar.add('ctrl+alt+o', 'Step Out of Subroutine', 'glyphicon-hand-up', runUntilReturn).prop('id', 'dbg_stepout');
+    uitoolbar.add('mod+shift+i', 'Step Out of Subroutine', 'glyphicon-hand-up', runUntilReturn).prop('id', 'dbg_stepout');
   }
   if (platform.runToVsync) {
-    uitoolbar.add('ctrl+alt+n', 'Next Frame/Interrupt', 'glyphicon-forward', singleFrameStep).prop('id', 'dbg_tovsync');
+    uitoolbar.add('mod+shift+x', 'Next Frame/Interrupt', 'glyphicon-forward', singleFrameStep).prop('id', 'dbg_tovsync');
   }
   if ((platform.runEval || platform.runToPC) && !platform_id.startsWith('verilog')) {
-    uitoolbar.add('ctrl+alt+l', 'Run To Line', 'glyphicon-save', runToCursor).prop('id', 'dbg_toline');
+    uitoolbar.add('mod+shift+y', 'Run To Line', 'glyphicon-save', runToCursor).prop('id', 'dbg_toline');
   }
   uitoolbar.newGroup();
   uitoolbar.grp.prop('id', 'xtra_bar');
-  uitoolbar.add('shift+ctrl+/', 'Search', 'glyphicon-search', openSearchDialog).prop('id', 'dbg_search');
+  uitoolbar.add('mod+shift+f', 'Search', 'glyphicon-search', openSearchDialog).prop('id', 'dbg_search');
   // add menu clicks
   $(".dropdown-menu").collapse({ toggle: false });
   $("#item_new_file").click(_createNewFile);
@@ -1846,7 +1975,7 @@ function setupReplaySlider() {
   $("#clock_back").click(() => { setClockTo(parseInt(clockslider.val().toString()) - 1); });
   $("#clock_fwd").click(() => { setClockTo(parseInt(clockslider.val().toString()) + 1); });
   $("#replay_bar").show();
-  uitoolbar.add('ctrl+alt+0', 'Start/Stop Replay Recording', 'glyphicon-record', _toggleRecording).prop('id', 'dbg_record');
+  uitoolbar.add('mod+shift+e', 'Start/Stop Replay Recording', 'glyphicon-record', _toggleRecording).prop('id', 'dbg_record');
 }
 
 
@@ -2143,6 +2272,25 @@ async function startPlatform() {
   installHashChangeHandler();
   platform.sourceFileFetch = (path) => current_project.filedata[path];
   setupDebugControls();
+  // context-sensitive shortcuts/status bar (hidden by CSS on small windows)
+  if (!isMobileDevice && $("#shortcuts_bar").length) {
+    initShortcutBar($("#shortcuts_bar")[0]);
+    setGlobalShortcutsFn(getGlobalShortcuts);
+    setViewShortcutsFn(() => {
+      // view-specific keys (CodeMirror bindings) only apply while that view has
+      // focus; e.g. clicking the verilog waveform keeps the editor active but blurs it
+      var div = projectWindows.id2div[projectWindows.activeid];
+      var viewHasFocus = div && document.activeElement && div.contains(document.activeElement);
+      var wnd = projectWindows.getActive();
+      var shortcuts = viewHasFocus && wnd && wnd.getShortcuts ? wnd.getShortcuts() : [];
+      // debug chips ride along with the view zone (they're gated on debugSessionActive)
+      return [...getDebugShortcuts(), ...shortcuts];
+    });
+    // focus changes can invalidate view-specific shortcuts
+    $(document).on('focusin focusout', () => refreshShortcutBar());
+    refreshShortcutBar();
+    setBarVisible(loadSettings().showStatusBar);
+  }
   addPageFocusHandlers();
   showInstructions();
   if (isEmbed) {
