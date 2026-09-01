@@ -1007,3 +1007,116 @@ div.scripting-cell button.scripting-enabled {
 .dialog-help {
   color: #6666ff;
 }
+/* breakpoints window */
+.bp-view {
+  background-color: #333;
+  color: #ddd;
+  padding: 0.6em;
+  font-size: 0.9em;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+.bp-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: 0.4em;
+  margin-bottom: 0.8em;
+}
+.bp-input {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #222;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 3px;
+  padding: 0.3em 0.5em;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+}
+.bp-input:focus {
+  outline: none;
+  border-color: #7ec7ff;
+}
+.bp-input::placeholder {
+  color: #888;
+}
+.bp-submit {
+  min-width: 3.5em;
+}
+.bp-row {
+  display: flex;
+  gap: 0.6em;
+  align-items: center;
+  padding: 0.3em 0.4em;
+  border-radius: 3px;
+  border-bottom: 1px solid #3d3d3d;
+}
+.bp-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.bp-row.bp-current {
+  background: #7e2a70; /* matches the editor's current-PC line highlight */
+}
+.bp-row.bp-current:hover {
+  background: #8f3282;
+}
+.bp-row.bp-disabled .bp-loc,
+.bp-row.bp-disabled .bp-addr,
+.bp-row.bp-disabled .bp-cond {
+  opacity: 0.5;
+}
+.bp-chk {
+  margin: 0;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.bp-loc {
+  cursor: pointer;
+  font-weight: bold;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  min-width: 8em;
+}
+.bp-loc:hover {
+  text-decoration: underline;
+  color: #7ec7ff;
+}
+.bp-addr {
+  color: #7ec7ff;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  min-width: 4.5em;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+}
+.bp-addr.bp-error {
+  color: #ff6a6a;
+  font-family: inherit;
+}
+.bp-cond {
+  color: #9c9cff;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+}
+.bp-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+  flex: 0 0 auto;
+  border-radius: 3px;
+}
+.bp-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+.bp-hint {
+  color: #888;
+  font-size: 0.85em;
+  margin-top: 0.8em;
+  line-height: 1.4;
+}

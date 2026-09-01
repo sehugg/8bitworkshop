@@ -108,6 +108,10 @@ export interface Platform {
   step?(): void;
   runToVsync?(): void;
   runToPC?(pc: number[]): void;
+  // like runToPC(), but each address may carry its own extra condition
+  // (null = break unconditionally); handles debug-clock bookkeeping so
+  // callers don't have to reach into internal fields to arm a runEval()
+  runEvalAtPC?(targets: Map<number, DebugEvalCondition | null>): void;
   runUntilReturn?(): void;
   stepBack?(): void;
   runEval?(evalfunc: DebugEvalCondition): void;
@@ -370,6 +374,15 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     const pcs = new Set(pc);
     this.runEval((c) => {
       return pcs.has(c.PC);
+    });
+  }
+  runEvalAtPC(targets: Map<number, DebugEvalCondition | null>) {
+    this.debugTargetClock++;
+    this.runEval((c) => {
+      const epc = c.EPC != null ? c.EPC : c.PC;
+      if (!targets.has(epc)) return false;
+      const cond = targets.get(epc);
+      return cond ? cond(c) : true;
     });
   }
   runUntilReturn() {
