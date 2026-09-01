@@ -102,7 +102,6 @@
     "cli": "node gen/tools/8bws.js",
     "buildpresets": "NODE_PATH=$(pwd) node gen/tools/buildpresets.js",
     "toolversions": "node gen/tools/toolversions.js",
-    "test-presets-build": "NODE_PATH=$(pwd) mocha --timeout 900000 test/cli/testpresetbuilds.js",
     "mkdoc": "typedoc --out web/jsdoc src/common/"
   },
   "keywords": [
