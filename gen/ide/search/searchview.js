@@ -8,8 +8,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.openSearchHit = openSearchHit;
 exports.openSearchDialog = openSearchDialog;
 const service_1 = require("./service");
+const util_1 = require("../../common/util");
 const ui_1 = require("../ui");
 const editors_1 = require("../views/editors");
+const debugviews_1 = require("../views/debugviews");
+const debuggerhit_1 = require("./debuggerhit");
 /** Debounce helper */
 function debounce(fn, ms) {
     let timer = null;
@@ -26,6 +29,7 @@ function escapeHtml(s) {
 }
 /** Open the file/header/doc associated with a search hit. */
 function openSearchHit(hit) {
+    var _a;
     const rec = hit.record;
     if (rec.source === 'project') {
         // Open a project file at the matching line
@@ -46,6 +50,23 @@ function openSearchHit(hit) {
         const wnd = ui_1.projectWindows.createOrShow('#headerview/' + fn);
         if (wnd instanceof editors_1.HeaderView && rec.line) {
             wnd.navigateToLine(rec.line);
+        }
+    }
+    else if (rec.source === 'debugger') {
+        // Runtime symbol/address with no source: jump to it in the
+        // disassembler (code segments) or memory browser (everything else)
+        const addr = (_a = rec.addr) !== null && _a !== void 0 ? _a : -1;
+        if (addr < 0)
+            return;
+        if (rec.kind === 'label' && ui_1.projectWindows.isWindow('#disasm')) {
+            const wnd = ui_1.projectWindows.createOrShow('#disasm');
+            if (wnd instanceof editors_1.DisassemblerView)
+                wnd.goToAddress(addr);
+        }
+        else {
+            const wnd = ui_1.projectWindows.createOrShow('#memory');
+            if (wnd instanceof debugviews_1.MemoryView)
+                wnd.goToAddress(addr);
         }
     }
     else if (rec.source === 'docs') {
@@ -139,7 +160,8 @@ function openSearchDialog() {
                         rec.kind === 'struct' ? 'S' :
                             rec.kind === 'enum' ? 'E' :
                                 rec.kind === 'text' ? '≡' : '•';
-            const loc = rec.file && rec.line ? `${rec.file}:${rec.line}` : (rec.file || '');
+            const loc = rec.source === 'debugger' ? (0, util_1.hex)(rec.addr, 4)
+                : rec.file && rec.line ? `${rec.file}:${rec.line}` : (rec.file || '');
             const isSmart = rec.kind !== 'text';
             const li = $('<li class="list-group-item search-hit" style="cursor:pointer;padding:6px 10px;display:flex;align-items:center;overflow:hidden"></li>');
             li.html(`<span class="search-kind" style="margin-right:6px;font-weight:bold;flex:0 0 auto">${kindIcon}</span>` +
@@ -167,6 +189,13 @@ function openSearchDialog() {
         }
         try {
             const hits = await service_1.searchService.query(needle, MAX_RESULTS);
+            // offer a jump to the emulator views for runtime symbols/addresses;
+            // exact symbol matches always appear (below source hits), raw hex
+            // addresses only when there are no source hits
+            const target = (0, debuggerhit_1.resolveDebuggerTarget)(needle, ui_1.platform && ui_1.platform.debugSymbols && ui_1.platform.debugSymbols.symbolmap);
+            if (target && (0, debuggerhit_1.shouldOfferDebuggerHit)(target, hits.length > 0)) {
+                hits.push((0, debuggerhit_1.makeDebuggerHit)(needle, target, ui_1.current_project && ui_1.current_project.segments));
+            }
             render(hits);
         }
         catch (e) {

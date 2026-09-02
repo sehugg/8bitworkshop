@@ -58,6 +58,11 @@ function keyEvent(key, mods) {
     it('should map arrow aliases', () => {
         assert_1.default.strictEqual((0, keys_1.parseKeyBinding)('mod+left').key, 'arrowleft');
     });
+    it('should parse f-keys', () => {
+        assert_1.default.deepStrictEqual((0, keys_1.parseKeyBinding)('f8'), { mod: false, shift: false, key: 'f8' });
+        assert_1.default.deepStrictEqual((0, keys_1.parseKeyBinding)('F12'), { mod: false, shift: false, key: 'f12' });
+        assert_1.default.strictEqual((0, keys_1.parseKeyBinding)('f13'), null);
+    });
     it('should reject layout-dependent specs', () => {
         assert_1.default.strictEqual((0, keys_1.parseKeyBinding)('mod+alt+k'), null); // alt is never bound
         assert_1.default.strictEqual((0, keys_1.parseKeyBinding)('mod+shift+='), null); // shift mutates punctuation

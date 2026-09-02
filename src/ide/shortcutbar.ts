@@ -42,7 +42,7 @@ export function formatKey(key: string): string {
     var uniq = order.filter((p) => parts.indexOf(p) >= 0);
     for (var p of parts) if (uniq.indexOf(p) < 0) uniq.push(p);
     var modStr = uniq.map((p) => isMac ? (MAC_SYMBOLS[p] || p) : (PC_NAMES[p] || p)).join(isMac ? '' : '+');
-    var mainDisp = /^[a-z]$/.test(main) ? main.toUpperCase() : (KEY_SYMBOLS[main] || (isMac ? main : main.charAt(0).toUpperCase() + main.slice(1)));
+    var mainDisp = /^[a-z][0-9]?$/.test(main) ? main.toUpperCase() : (KEY_SYMBOLS[main] || (isMac ? main : main.charAt(0).toUpperCase() + main.slice(1)));
     return (modStr ? modStr + (isMac ? '' : '+') : '') + mainDisp;
 }
 

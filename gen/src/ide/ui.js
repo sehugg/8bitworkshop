@@ -42,6 +42,7 @@ exports.getWorkerParams = getWorkerParams;
 exports.openHeaderFile = openHeaderFile;
 exports.getCurrentMainFilename = getCurrentMainFilename;
 exports.getCurrentEditorFilename = getCurrentEditorFilename;
+exports.parseGoToTarget = parseGoToTarget;
 exports.setupBreakpoint = setupBreakpoint;
 exports.runToPC = runToPC;
 exports.clearBreakpoint = clearBreakpoint;
@@ -62,6 +63,7 @@ const emu_1 = require("../common/emu");
 const recorder_1 = require("../common/recorder");
 const util_1 = require("../common/util");
 const toolmeta_1 = require("../common/toolmeta");
+const errorreport_1 = require("./errorreport");
 const _index_1 = require("../platform/_index");
 const dialogs_1 = require("./dialogs");
 const settings_1 = require("./settings");
@@ -73,6 +75,7 @@ const sync_1 = require("./sync");
 const toolbar_1 = require("./toolbar");
 const shortcutbar_1 = require("./shortcutbar");
 const searchview_1 = require("./search/searchview");
+const debuggerhit_1 = require("./search/debuggerhit");
 const projectsource_1 = require("./search/projectsource");
 const asseteditor_1 = require("./views/asseteditor");
 const baseviews_1 = require("./views/baseviews");
@@ -1092,26 +1095,8 @@ function getGoToAddressView() {
     return null;
 }
 function parseGoToTarget(s) {
-    s = s.trim();
-    if (!s)
-        return -1;
-    // symbol name first (so symbols like "add" aren't parsed as hex)
-    var symmap = exports.platform.debugSymbols && exports.platform.debugSymbols.symbolmap;
-    if (symmap && s in symmap)
-        return symmap[s];
-    var ls = s.toLowerCase();
-    if (symmap) {
-        for (var sym in symmap) {
-            if (sym.toLowerCase() === ls)
-                return symmap[sym];
-        }
-    }
-    // hex address (bare digits are parsed as hex, like the listings)
-    if (/^(0x|\$)[0-9a-f]+$/i.test(s))
-        return parseInt(s.replace(/^(0x|\$)/i, ''), 16);
-    if (/^[0-9a-f]+$/i.test(s))
-        return parseInt(s, 16);
-    return -1;
+    var target = (0, debuggerhit_1.resolveDebuggerTarget)(s, exports.platform && exports.platform.debugSymbols && exports.platform.debugSymbols.symbolmap);
+    return target ? target.addr : -1;
 }
 function promptGoToAddress() {
     var wnd = getGoToAddressView();
@@ -1138,6 +1123,13 @@ function promptGoToAddress() {
 function getGlobalShortcuts() {
     var shortcuts = [];
     if (exports.platform && isPlatformReady()) {
+        // single-key pause/resume toggle (works while the editor is focused);
+        // mod+shift+h / mod+shift+g still work outside the editor.
+        // pushed first so its position doesn't shift when other chips come and
+        // go as the debug session starts
+        if (exports.platform.isRunning) {
+            shortcuts.push({ key: 'F8', label: exports.platform.isRunning() ? 'Pause' : 'Resume', fn: togglePauseResume });
+        }
         // debug shortcuts appear only once a debug session has started
         if (exports.platform.setupDebug && exports.platform.runEval) // TODO??
             shortcuts.push({ key: 'mod+shift+d', label: 'Reset & Debug', fn: resetAndDebug });
@@ -1145,15 +1137,8 @@ function getGlobalShortcuts() {
             shortcuts.push({ key: 'mod+shift+r', label: 'Reset & Run', fn: resetAndRun });
             shortcuts.push({ key: 'mod+shift+f', label: 'Search', fn: searchview_1.openSearchDialog });
         }
-        if (exports.platform.isRunning && exports.platform.isRunning()) {
-            // in a debug session but emulator running: just Pause
-            shortcuts.push({ key: 'mod+shift+h', label: 'Pause', fn: pause });
-        }
-        else if (exports.platform.isRunning && !exports.platform.isRunning() && !getGoToAddressView()) {
-            // mod+shift+g becomes "Go To Address" while a debug tool view is active
-            shortcuts.push({ key: 'mod+shift+g', label: 'Resume', fn: resume });
-        }
         if (getGoToAddressView()) {
+            // mod+shift+g becomes "Go To Address" while a debug tool view is active
             shortcuts.push({ key: 'mod+shift+g', label: 'Go To Address', fn: promptGoToAddress });
         }
     }
@@ -1281,6 +1266,17 @@ function pause() {
     clearBreakpoint();
     _pause();
     userPaused = true;
+}
+// F8 pauses a running emulator and resumes a paused one. Unmodified and not
+// bound by CodeMirror, so it always reaches the IDE -- even while typing in
+// the editor, where mod+shift+g stays find-next/previous.
+function togglePauseResume() {
+    if (!checkRunReady())
+        return;
+    if (exports.platform.isRunning && exports.platform.isRunning())
+        pause();
+    else
+        resume();
 }
 function _resume() {
     if (!exports.platform.isRunning()) {
@@ -1695,6 +1691,8 @@ function setupDebugControls() {
             resume();
     });
     uitoolbar.add('mod+shift+g', 'Resume', 'glyphicon-play', resume).prop('id', 'dbg_go');
+    // F8: single-key pause/resume toggle; chip shown via getGlobalShortcuts()
+    uitoolbar.add('F8', 'Pause/Resume', '', togglePauseResume);
     if (exports.platform.restartAtPC) {
         uitoolbar.add('mod+shift+a', 'Restart at Cursor', 'glyphicon-play-circle', restartAtCursor).prop('id', 'dbg_restartatline');
     }
@@ -2096,6 +2094,10 @@ function globalErrorHandler(msgevent) {
         var err = msgevent.error || msgevent.reason;
         if (err != null && err instanceof emu_1.EmuHalt) {
             haltEmulation(err);
+        }
+        else if ((0, util_1.isProductionHost)()) {
+            // lightweight self-hosted error reporting
+            (0, errorreport_1.reportErrorToServer)(msg, err);
         }
     }
 }

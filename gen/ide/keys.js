@@ -46,8 +46,9 @@ function parseKeyBinding(spec) {
     }
     key = NAMED_KEYS[key] || key;
     var isLetter = /^[a-z]$/.test(key);
-    if (!isLetter && !/^[0-9]$/.test(key) && !/^arrow/.test(key)) {
-        console.warn('Keyboard shortcut "' + spec + '": key "' + key + '" is layout-dependent (use a-z, 0-9), skipping');
+    var isFKey = /^f([1-9]|1[0-2])$/.test(key);
+    if (!isLetter && !isFKey && !/^[0-9]$/.test(key) && !/^arrow/.test(key)) {
+        console.warn('Keyboard shortcut "' + spec + '": key "' + key + '" is layout-dependent (use a-z, 0-9, f1-f12), skipping');
         return null;
     }
     if (b.shift && !isLetter && !/^arrow/.test(key)) {

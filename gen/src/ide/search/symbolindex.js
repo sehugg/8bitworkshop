@@ -42,6 +42,7 @@ const SOURCE_WEIGHTS = {
     project: 1.3,
     toolchain: 1.0,
     docs: 0.7,
+    debugger: 0.9, // runtime symbols (never indexed here; weight unused)
 };
 // Declarations (real code symbols) rank above docs; text hits rank lowest.
 const KIND_WEIGHTS = {
