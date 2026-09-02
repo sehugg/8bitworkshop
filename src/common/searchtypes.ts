@@ -12,7 +12,7 @@ export type SymbolKind =
   | 'doc'
   | 'text';
 
-export type SymbolSourceKind = 'project' | 'toolchain' | 'docs';
+export type SymbolSourceKind = 'project' | 'toolchain' | 'docs' | 'debugger';
 
 export interface SymbolRecord {
   id: string;              // stable, unique within a corpus: \`${file}:${line}:${name}\`
@@ -26,6 +26,7 @@ export interface SymbolRecord {
   file: string;            // project path | '/include/joystick.h' | page URL
   line?: number;           // 1-based
   url?: string;            // docs only
+  addr?: number;           // debugger only: runtime address of the symbol
 }
 
 /** On-disk shape of a prebuilt index (gen/symidx/<name>.json). */

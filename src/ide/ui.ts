@@ -23,6 +23,7 @@ import { _importProjectFromGithub, _loginToGithub, _logoutOfGithub, _publishProj
 import { Toolbar } from "./toolbar";
 import { Shortcut, initShortcutBar, setGlobalShortcutsFn, setViewShortcutsFn, setBarVisible, refreshShortcutBar } from "./shortcutbar";
 import { openSearchDialog } from "./search/searchview";
+import { resolveDebuggerTarget } from "./search/debuggerhit";
 import { setProjectProvider } from "./search/projectsource";
 import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
@@ -1106,22 +1107,9 @@ function getGoToAddressView(): DisassemblerView | MemoryView | null {
   return null;
 }
 
-function parseGoToTarget(s: string): number {
-  s = s.trim();
-  if (!s) return -1;
-  // symbol name first (so symbols like "add" aren't parsed as hex)
-  var symmap = platform.debugSymbols && platform.debugSymbols.symbolmap;
-  if (symmap && s in symmap) return symmap[s];
-  var ls = s.toLowerCase();
-  if (symmap) {
-    for (var sym in symmap) {
-      if (sym.toLowerCase() === ls) return symmap[sym];
-    }
-  }
-  // hex address (bare digits are parsed as hex, like the listings)
-  if (/^(0x|\$)[0-9a-f]+$/i.test(s)) return parseInt(s.replace(/^(0x|\$)/i, ''), 16);
-  if (/^[0-9a-f]+$/i.test(s)) return parseInt(s, 16);
-  return -1;
+export function parseGoToTarget(s: string): number {
+  var target = resolveDebuggerTarget(s, platform && platform.debugSymbols && platform.debugSymbols.symbolmap);
+  return target ? target.addr : -1;
 }
 
 function promptGoToAddress(): boolean {

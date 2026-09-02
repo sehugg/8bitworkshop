@@ -6,8 +6,11 @@
 
 import { searchService } from "./service";
 import { SearchHit } from "./types";
-import { projectWindows, openHeaderFile } from "../ui";
-import { SourceEditor, HeaderView } from "../views/editors";
+import { hex } from "../../common/util";
+import { projectWindows, openHeaderFile, current_project, platform } from "../ui";
+import { SourceEditor, HeaderView, DisassemblerView } from "../views/editors";
+import { MemoryView } from "../views/debugviews";
+import { resolveDebuggerTarget, makeDebuggerHit, shouldOfferDebuggerHit } from "./debuggerhit";
 
 declare var $: JQueryStatic;
 declare var bootbox: any;
@@ -50,6 +53,18 @@ export function openSearchHit(hit: SearchHit) {
     const wnd = projectWindows.createOrShow('#headerview/' + fn);
     if (wnd instanceof HeaderView && rec.line) {
       wnd.navigateToLine(rec.line);
+    }
+  } else if (rec.source === 'debugger') {
+    // Runtime symbol/address with no source: jump to it in the
+    // disassembler (code segments) or memory browser (everything else)
+    const addr = rec.addr ?? -1;
+    if (addr < 0) return;
+    if (rec.kind === 'label' && projectWindows.isWindow('#disasm')) {
+      const wnd = projectWindows.createOrShow('#disasm');
+      if (wnd instanceof DisassemblerView) wnd.goToAddress(addr);
+    } else {
+      const wnd = projectWindows.createOrShow('#memory');
+      if (wnd instanceof MemoryView) wnd.goToAddress(addr);
     }
   } else if (rec.source === 'docs') {
     // External docs: open the URL in a new tab
@@ -148,7 +163,8 @@ export function openSearchDialog() {
         rec.kind === 'struct' ? 'S' :
         rec.kind === 'enum' ? 'E' :
         rec.kind === 'text' ? '≡' : '•';
-      const loc = rec.file && rec.line ? `${rec.file}:${rec.line}` : (rec.file || '');
+      const loc = rec.source === 'debugger' ? hex(rec.addr, 4)
+        : rec.file && rec.line ? `${rec.file}:${rec.line}` : (rec.file || '');
       const isSmart = rec.kind !== 'text';
       const li = $('<li class="list-group-item search-hit" style="cursor:pointer;padding:6px 10px;display:flex;align-items:center;overflow:hidden"></li>');
       li.html(
@@ -179,6 +195,13 @@ export function openSearchDialog() {
     }
     try {
       const hits = await searchService.query(needle, MAX_RESULTS);
+      // offer a jump to the emulator views for runtime symbols/addresses;
+      // exact symbol matches always appear (below source hits), raw hex
+      // addresses only when there are no source hits
+      const target = resolveDebuggerTarget(needle, platform && platform.debugSymbols && platform.debugSymbols.symbolmap);
+      if (target && shouldOfferDebuggerHit(target, hits.length > 0)) {
+        hits.push(makeDebuggerHit(needle, target, current_project && current_project.segments));
+      }
       render(hits);
     } catch (e) {
       resultsDiv.html('<div class="text-danger" style="padding:8px">Search failed.</div>');
