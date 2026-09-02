@@ -1136,6 +1136,13 @@ function promptGoToAddress(): boolean {
 function getGlobalShortcuts(): Shortcut[] {
   var shortcuts: Shortcut[] = [];
   if (platform && isPlatformReady()) {
+    // single-key pause/resume toggle (works while the editor is focused);
+    // mod+shift+h / mod+shift+g still work outside the editor.
+    // pushed first so its position doesn't shift when other chips come and
+    // go as the debug session starts
+    if (platform.isRunning) {
+      shortcuts.push({ key: 'F8', label: platform.isRunning() ? 'Pause' : 'Resume', fn: togglePauseResume });
+    }
     // debug shortcuts appear only once a debug session has started
     if (platform.setupDebug && platform.runEval) // TODO??
         shortcuts.push({ key: 'mod+shift+d', label: 'Reset & Debug', fn: resetAndDebug });
@@ -1143,14 +1150,8 @@ function getGlobalShortcuts(): Shortcut[] {
       shortcuts.push({ key: 'mod+shift+r', label: 'Reset & Run', fn: resetAndRun });
       shortcuts.push({ key: 'mod+shift+f', label: 'Search', fn: openSearchDialog });
     }
-    if (platform.isRunning && platform.isRunning()) {
-      // in a debug session but emulator running: just Pause
-      shortcuts.push({ key: 'mod+shift+h', label: 'Pause', fn: pause });
-    } else if (platform.isRunning && !platform.isRunning() && !getGoToAddressView()) {
-      // mod+shift+g becomes "Go To Address" while a debug tool view is active
-      shortcuts.push({ key: 'mod+shift+g', label: 'Resume', fn: resume });
-    }
     if (getGoToAddressView()) {
+      // mod+shift+g becomes "Go To Address" while a debug tool view is active
       shortcuts.push({ key: 'mod+shift+g', label: 'Go To Address', fn: promptGoToAddress });
     }
   }
@@ -1278,6 +1279,15 @@ function pause() {
   clearBreakpoint();
   _pause();
   userPaused = true;
+}
+
+// F8 pauses a running emulator and resumes a paused one. Unmodified and not
+// bound by CodeMirror, so it always reaches the IDE -- even while typing in
+// the editor, where mod+shift+g stays find-next/previous.
+function togglePauseResume() {
+  if (!checkRunReady()) return;
+  if (platform.isRunning && platform.isRunning()) pause();
+  else resume();
 }
 
 function _resume() {
@@ -1690,6 +1700,8 @@ function setupDebugControls() {
     if (!promptGoToAddress()) resume();
   });
   uitoolbar.add('mod+shift+g', 'Resume', 'glyphicon-play', resume).prop('id', 'dbg_go');
+  // F8: single-key pause/resume toggle; chip shown via getGlobalShortcuts()
+  uitoolbar.add('F8', 'Pause/Resume', '', togglePauseResume);
   if (platform.restartAtPC) {
     uitoolbar.add('mod+shift+a', 'Restart at Cursor', 'glyphicon-play-circle', restartAtCursor).prop('id', 'dbg_restartatline');
   }

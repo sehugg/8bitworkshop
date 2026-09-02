@@ -25,6 +25,11 @@ describe('parseKeyBinding', () => {
     it('should map arrow aliases', () => {
         assert.strictEqual(parseKeyBinding('mod+left').key, 'arrowleft');
     });
+    it('should parse f-keys', () => {
+        assert.deepStrictEqual(parseKeyBinding('f8'), { mod: false, shift: false, key: 'f8' });
+        assert.deepStrictEqual(parseKeyBinding('F12'), { mod: false, shift: false, key: 'f12' });
+        assert.strictEqual(parseKeyBinding('f13'), null);
+    });
     it('should reject layout-dependent specs', () => {
         assert.strictEqual(parseKeyBinding('mod+alt+k'), null);  // alt is never bound
         assert.strictEqual(parseKeyBinding('mod+shift+='), null); // shift mutates punctuation
