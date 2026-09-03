@@ -53,6 +53,9 @@ export class ShortcutBar {
     shortcutsZone: JQuery;
     statusZone: JQuery;
     visible: boolean = true;
+    // re-renders deferred while a mouse button is down (see trackMousePress)
+    pendingShortcuts: Shortcut[] | null = null;
+    pendingStatus: boolean = false;
 
     constructor(div: HTMLElement) {
         this.div = div;
@@ -66,6 +69,10 @@ export class ShortcutBar {
         // skip re-render if nothing changed
         var sig = shortcuts.map((s) => s.key + "\u0001" + s.label).join("\u0002");
         if (sig === this.shortcutsSig) return;
+        if (mouseDown) {
+            this.pendingShortcuts = shortcuts;
+            return;
+        }
         this.shortcutsSig = sig;
         this.shortcutsZone.empty();
         for (var s of shortcuts) {
@@ -87,6 +94,10 @@ export class ShortcutBar {
 
     renderStatus() {
         if (!this.visible) return;
+        if (mouseDown) {
+            this.pendingStatus = true;
+            return;
+        }
         this.statusZone.empty();
         for (var key of Object.keys(this.status)) {
             var s = this.status[key];
@@ -110,6 +121,32 @@ function makeClickable(span: JQuery, fn: (e?) => void) {
     span.click(fn);
 }
 
+// while a mouse button is down, defer bar re-renders until mouseup:
+// focus changes fire during mousedown (widgets focus() their container,
+// chips can blur the active view), and re-rendering mid-press would swap
+// the chips out from under the cursor before the click event lands
+var mouseDown = false;
+
+function flushPendingRenders() {
+    if (!shortcutBar) return;
+    if (shortcutBar.pendingShortcuts) {
+        var shortcuts = shortcutBar.pendingShortcuts;
+        shortcutBar.pendingShortcuts = null;
+        shortcutBar.setShortcuts(shortcuts);
+    }
+    if (shortcutBar.pendingStatus) {
+        shortcutBar.pendingStatus = false;
+        shortcutBar.renderStatus();
+    }
+}
+
+function trackMousePress() {
+    $(document).on('mousedown.shortcutbar', () => { mouseDown = true; });
+    $(document).on('mouseup.shortcutbar', () => { mouseDown = false; flushPendingRenders(); });
+    // released outside the window: no mouseup fires, so flush on blur instead
+    $(window).on('blur.shortcutbar', () => { mouseDown = false; flushPendingRenders(); });
+}
+
 // module-level singleton + provider wiring
 // (avoids circular imports between ui.ts / windows.ts / views)
 
@@ -117,6 +154,7 @@ export var shortcutBar: ShortcutBar = null;
 
 export function initShortcutBar(div: HTMLElement) {
     shortcutBar = new ShortcutBar(div);
+    trackMousePress();
 }
 
 var globalShortcutsFn: () => Shortcut[] = () => [];
