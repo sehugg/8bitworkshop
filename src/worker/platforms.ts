@@ -410,6 +410,8 @@ export var PLATFORM_PARAMS = {
     },
 };
   
-  PLATFORM_PARAMS['sms-sms-libcv'] = PLATFORM_PARAMS['sms-sg1000-libcv'];
+  // SMS/GG mode-4 variants of the shared libcv common.[ch] (2 bytes per tile, 32x28)
+  PLATFORM_PARAMS['sms-sms-libcv'] = { ...PLATFORM_PARAMS['sms-sg1000-libcv'],
+    extra_preproc_args: ['-I', '.', '-D', 'CV_SMS', '-D', 'CV_MODE4'] };
   PLATFORM_PARAMS['sms-gg-libcv'] = PLATFORM_PARAMS['sms-sms-libcv'];
   

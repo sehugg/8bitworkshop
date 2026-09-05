@@ -1,10 +1,14 @@
-
 #include <stdlib.h>
 #include <string.h>
 #include <cv.h>
 #include <cvu.h>
 
 #include "common.h"
+
+/* Unified common code for libcv platforms (coleco, msx-libcv, sms-sg1000-libcv,
+   sms-sms-libcv, sms-gg-libcv). Differences are selected by the CV_CV / CV_MSX /
+   CV_SMS defines (set by the platform) plus CV_MODE4 for SMS/GG mode-4 builds.
+   Keep this file identical across those preset directories. */
 
 volatile uint_fast8_t vint_counter;
 
@@ -22,16 +26,20 @@ byte reverse_bits(byte n) {
 void flip_sprite_patterns(word dest, const byte* patterns, word len) {
   word i;
   for (i=0; i<len; i++) {
+#if defined(CV_MODE4)
+    cvu_voutb(reverse_bits(*patterns++), dest++);
+#else
     cvu_voutb(reverse_bits(*patterns++), dest++ ^ 16); // swap left/right chars
+#endif
   }
 }
 
 void clrscr() {
-  cvu_vmemset(IMAGE, 0, COLS*ROWS);
+  cvu_vmemset(IMAGE, 0, ROWSTRIDE*ROWS);
 }
 
 word getimageaddr(byte x, byte y) {
-  return IMAGE + y*COLS + x;
+  return IMAGE + y*ROWSTRIDE + x;
 }
 
 byte getcharxy(byte x, byte y) {
@@ -47,6 +55,21 @@ void putstringxy(byte x, byte y, const char* string) {
     putcharxy(x++, y, CHAR(*string++));
   }
 }
+
+#if defined(CV_MODE4)
+// mode 4 aliases (same functions, shorter names)
+byte getchar(byte x, byte y) {
+  return getcharxy(x, y);
+}
+
+void putchar(byte x, byte y, byte attr) {
+  putcharxy(x, y, attr);
+}
+
+void putstring(byte x, byte y, const char* string) {
+  putstringxy(x, y, string);
+}
+#endif
 
 void delay(byte i) {
   while (i--) {
@@ -103,11 +126,25 @@ __endasm;
 
 void vdp_setup() {
   cv_set_screen_active(false);
+#if defined(CV_MODE4)
+  cv_set_screen_mode(CV_SCREENMODE_4_224);
+  cv_set_character_pattern_t(PATTERN | 0x3000);
+  cv_set_image_table(IMAGE | 0x400);
+//  cv_set_color_table(COLOR | 0xfff);
+//  cv_set_sprite_pattern_table(SPRITE_PATTERNS | 0x1800);
+#else
   cv_set_screen_mode(CV_SCREENMODE_STANDARD);
   cv_set_image_table(IMAGE);
   cv_set_character_pattern_t(PATTERN);
   cv_set_color_table(COLOR);
   cv_set_sprite_pattern_table(SPRITE_PATTERNS);
+  // load the default font and set a visible default color (white on black).
+  // the MSX startup code does this for us, but the ColecoVision and
+  // SG-1000 leave VRAM zeroed -- without this, putstringxy() output is
+  // invisible (blank pattern table) and the color table is transparent.
+  copy_default_character_set();
+  cvu_vmemset(COLOR, 0xf1, 32);
+#endif
   cv_set_sprite_attribute_table(SPRITES);
   cv_set_sprite_big(true);
 }
@@ -124,6 +161,7 @@ void set_shifted_pattern(const byte* src, word dest, byte shift) {
   }
 }
 
+#if !defined(CV_MODE4)
 void copy_default_character_set() {
 #ifdef CV_MSX
   static byte __at(0xf91f) CGPNT;
@@ -133,3 +171,4 @@ void copy_default_character_set() {
   cvu_memtovmemcpy(PATTERN, (void *)(font_bitmap_0 - '0'*8), 256*8);
 #endif
 }
+#endif
