@@ -110,6 +110,11 @@ export class History<S = any> {
     this.onChange?.();
   }
 
+  /** Round a target to what the core can actually stop at. */
+  clamp(t: Timestamp): Timestamp {
+    return this.core.clamp ? this.core.clamp(t) : t;
+  }
+
   /** Oldest point still reachable. Earlier checkpoints have been dropped. */
   first(): Timestamp { return this.checkpoints[0].at; }
   /** The present: the furthest point recording has reached. */
@@ -162,6 +167,7 @@ export class History<S = any> {
    * costs the same as seeking forwards -- that's the whole trick.
    */
   seek(t: Timestamp, trap?: TrapCondition | null): RunResult {
+    t = this.clamp(t);
     if (compareTimestamps(t, this.head) > 0) t = this.head;
     const cp = this.checkpointAtOrBefore(t);
     if (!cp) {
@@ -181,6 +187,7 @@ export class History<S = any> {
    * hook lands in the right place; the core handles everything within a frame.
    */
   private runTo(t: Timestamp, trap?: TrapCondition | null): RunResult {
+    t = this.clamp(t);
     while (compareTimestamps(this.core.now(), t) < 0) {
       const at = this.core.now();
       if (at.step === 0) this.input?.replay(at.frame);
@@ -188,6 +195,8 @@ export class History<S = any> {
       const stop = compareTimestamps(frameEnd, t) < 0 ? frameEnd : t;
       const r = this.core.runUntil(stop, trap);
       if (r.trapped) return r;
+      // a core that reports no progress can't reach t; stop rather than spin
+      if (compareTimestamps(r.at, at) <= 0) break;
     }
     return { at: this.core.now(), trapped: false };
   }
@@ -197,8 +206,8 @@ export class History<S = any> {
    * the hit, or at `to` if there wasn't one.
    */
   findNext(cond: SearchCondition, from?: Timestamp, to?: Timestamp): Timestamp | null {
-    from = from ?? this.core.now();
-    to = to ?? this.head;
+    from = this.clamp(from ?? this.core.now());
+    to = this.clamp(to ?? this.head);
     if (compareTimestamps(from, to) >= 0) return null;
     return this.withProbe(cond, () => {
       this.seek(from);
@@ -232,8 +241,8 @@ export class History<S = any> {
    * far back the answer is. Leaves the core parked on the hit.
    */
   findLast(cond: SearchCondition, from?: Timestamp, to?: Timestamp): Timestamp | null {
-    from = from ?? this.first();
-    to = to ?? this.core.now();
+    from = this.clamp(from ?? this.first());
+    to = this.clamp(to ?? this.core.now());
     if (compareTimestamps(from, to) >= 0) return null;
     return this.withProbe(cond, () => this.findLastUnprobed(cond, from, to));
   }

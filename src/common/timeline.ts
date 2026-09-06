@@ -87,6 +87,13 @@ export interface DeterministicCore<S = any> {
    */
   runUntil(target: Timestamp, trap?: TrapCondition | null): RunResult;
 
+  /**
+   * Round a target to something this core can actually stop at. A frame-only
+   * core rounds sub-frame targets down; without this a caller could ask for a
+   * position the core can never reach and wait forever for progress.
+   */
+  clamp?(t: Timestamp): Timestamp;
+
   /** Connect a probe, if this core supports probing. */
   connectProbe?(probe: ProbeAll): void;
 }
