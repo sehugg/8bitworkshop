@@ -137,4 +137,9 @@ Log.prototype.info = function (message) {
     this.print(message);
 };
 
-exports.Log = Log;
+// Export for node/CommonJS consumers, or publish globally for <script> tags.
+if (typeof exports !== 'undefined') {
+    exports.Log = Log;
+} else {
+    this.Log = Log;
+}

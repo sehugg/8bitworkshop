@@ -29,6 +29,7 @@ export function mockAudio() {
         writeRegister() { }
         writeRegisterSN() { }
         writeRegisterAY() { }
+        readRegister() { return 0; }
     }
     class NullMasterChannel {
         addChannel() { }

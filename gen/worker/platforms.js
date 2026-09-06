@@ -411,6 +411,7 @@ exports.PLATFORM_PARAMS = {
         // TODO: IHX can't handle > 64 KB, so ihx2sms looks for segments in a certain order
     },
 };
-exports.PLATFORM_PARAMS['sms-sms-libcv'] = exports.PLATFORM_PARAMS['sms-sg1000-libcv'];
+// SMS/GG mode-4 variants of the shared libcv common.[ch] (2 bytes per tile, 32x28)
+exports.PLATFORM_PARAMS['sms-sms-libcv'] = Object.assign(Object.assign({}, exports.PLATFORM_PARAMS['sms-sg1000-libcv']), { extra_preproc_args: ['-I', '.', '-D', 'CV_SMS', '-D', 'CV_MODE4'] });
 exports.PLATFORM_PARAMS['sms-gg-libcv'] = exports.PLATFORM_PARAMS['sms-sms-libcv'];
 //# sourceMappingURL=platforms.js.map

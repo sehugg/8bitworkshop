@@ -3,40 +3,59 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.assembleZMAC = assembleZMAC;
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
+const listingutils_2 = require("../listingutils");
+const wasishim_1 = require("../../common/wasi/wasishim");
 const wasmutils_1 = require("../wasmutils");
+let wasiModule = null;
 function assembleZMAC(step) {
-    (0, wasmutils_1.loadNative)("zmac");
-    var hexout, lstout, binout;
-    var errors = [];
+    let errors = [];
     var params = step.params;
     (0, builder_1.gatherFiles)(step, { mainFilePath: "main.asm" });
     var lstpath = step.prefix + ".lst";
     var binpath = step.prefix + ".cim";
     if ((0, builder_1.staleFiles)(step, [binpath])) {
+        if (!wasiModule) {
+            wasiModule = new WebAssembly.Module((0, wasmutils_1.loadWASMBinary)("zmac"));
+        }
+        const wasi = new wasishim_1.WASIRunner();
+        wasi.initSync(wasiModule);
+        for (let file of step.files) {
+            wasi.fs.putFile("./" + file, builder_1.store.getFileData(file));
+        }
+        wasi.addPreopenDirectory(".");
         /*
       error1.asm(4) : 'l18d4' Undeclared
              JP      L18D4
-      
+    
       error1.asm(11): warning: 'foobar' treated as label (instruction typo?)
           Add a colon or move to first column to stop this warning.
       1 errors (see listing if no diagnostics appeared here)
         */
-        var ZMAC = wasmutils_1.emglobal.zmac({
-            instantiateWasm: (0, wasmutils_1.moduleInstFn)('zmac'),
-            noInitialRun: true,
-            //logReadFiles:true,
-            print: wasmutils_1.print_fn,
-            printErr: (0, listingutils_1.makeErrorMatcher)(errors, /([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+)/, 2, 3, step.path),
-        });
-        var FS = ZMAC.FS;
-        (0, builder_1.populateFiles)(step, FS);
+        const matcher = (0, listingutils_1.makeErrorMatcher)(errors, /([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+)/, 2, 3, step.path);
         // TODO: don't know why CIM (hexary) doesn't work
-        (0, wasmutils_1.execMain)(step, ZMAC, ['-z', '-c', '--oo', 'lst,cim', step.path]);
+        wasi.setArgs(['zmac', '-z', '-c', '--oo', 'lst,cim', step.path]);
+        try {
+            wasi.run();
+        }
+        catch (e) {
+            errors.push({ line: 0, msg: "" + e });
+        }
+        const stderr = wasi.fds[2].getBytesAsString();
+        for (let line of stderr.split(listingutils_2.re_crlf)) {
+            matcher(line);
+        }
         if (errors.length) {
             return { errors: errors };
         }
-        lstout = FS.readFile("zout/" + lstpath, { encoding: 'utf8' });
-        binout = FS.readFile("zout/" + binpath, { encoding: 'binary' });
+        let lstout, binout;
+        try {
+            lstout = wasi.fs.getFile("./zout/" + lstpath).getBytesAsString();
+            binout = wasi.fs.getFile("./zout/" + binpath).getBytes();
+        }
+        catch (e) {
+            errors.push({ line: 0, msg: "No output generated, maybe a fatal assembly error?" });
+            return { errors: errors };
+        }
         (0, builder_1.putWorkFile)(binpath, binout);
         (0, builder_1.putWorkFile)(lstpath, lstout);
         if (!(0, builder_1.anyTargetChanged)(step, [binpath, lstpath]))

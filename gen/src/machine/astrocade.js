@@ -57,6 +57,7 @@ const ASTROCADE_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
 ]);
 const audioOversample = 2;
 const _BallyAstrocade = function (arcade) {
+    var machine;
     var cpu;
     var ram;
     var membus, iobus;
@@ -71,6 +72,28 @@ const _BallyAstrocade = function (arcade) {
     const INITIAL_WATCHDOG = 256;
     const PIXEL_ON = 0xffeeeeee;
     const PIXEL_OFF = 0xff000000;
+    /*
+    Screen RAM is DRAM shared by three requesters in priority order: DRAM refresh
+    (blanking only, so it never costs the CPU), screen refresh, then Z80/Magic.
+    CAS# free-runs, so memory timeslots are fixed and one Z80 M clock wide:
+  
+    - Every Z80 screen-RAM access takes at least T1,T2,Tw,T3 — "A Z80 access cycle
+      to this memory always results in at least one wait state" — blanked or not.
+      That's +1 over the usual 3 T-states.
+    - During active video, the refresh wins the slot. Consumer mode fetches 1 byte
+      (4 px) every 4 PX = every 2 M clocks → memory is unavailable half the time
+      → 50% of accesses eat a second wait state. Commercial/arcade fetches 4 bytes
+      (16 px) every 8 PX = every 4 M clocks → unavailable ¼ of the time → 25% eat
+      a second one.
+    - The fetch only runs for the 40 (consumer) / 20 (arcade) reads per line — 160
+      px of the 63.5 µs line, ≈70%. Border and hblank are free, as is ROM and the
+      arcade's separate scratch RAM board.
+    */
+    const REFRESH_SLOT_MASK = arcade ? 3 : 1;
+    // the refresh reads 40 (consumer) or 20 (commercial) times per line, covering the
+    // 160 displayed pixels of the 63.5 us line; the rest is border and hblank
+    const ACTIVE_LINE_FRACTION = 0.7;
+    var activecycles = 0; // = ACTIVE_LINE_FRACTION of a scanline, set by init()
     // state variables
     var inputs = new Uint8Array(0x20);
     var magicop = 0;
@@ -90,12 +113,24 @@ const _BallyAstrocade = function (arcade) {
     var rotcount = 0;
     var intst = 0;
     var waitstates = 0;
+    var slotphase = 0;
     var patboard = new Uint8Array(0x08);
     var patdest = 0;
+    // is the video refresh reading screen RAM at this point in the frame?
+    function refreshing() {
+        return machine.scanline < verbl && machine.getRasterX() < activecycles;
+    }
+    // charge the Z80 for one screen RAM (DRAM) bus cycle
+    function screenwait() {
+        waitstates++; // always at least one wait state
+        if (refreshing() && !(slotphase++ & REFRESH_SLOT_MASK)) {
+            waitstates++; // and a second one when we collide with the screen refresh
+        }
+    }
     function ramwrite(a, v) {
         // set RAM
         ram[a] = v;
-        waitstates++;
+        screenwait();
         // mark scanline as dirty
         dirtylines[((a & samask) / swbytes) | 0] = 1;
         // this was old behavior where we updated instantly
@@ -208,6 +243,7 @@ const _BallyAstrocade = function (arcade) {
         let curwidth;
         let u13ff = 0;
         let cycles = 0;
+        const wsave = waitstates;
         u13ff = 0;
         if ((m_pattern_mode & 0x02) === 0) {
             u13ff = 1;
@@ -275,9 +311,10 @@ const _BallyAstrocade = function (arcade) {
             }
             m_pattern_height--;
         }
-        // Adjust m_maincpu.icount
-        // m_maincpu.adjust_icount(-cycles);
-        // Replace the above line with the actual adjustment of icount.
+        // the pattern board owns the bus while it runs, so its own cycles (two reads
+        // and two writes per byte, as MAME counts them) replace the Z80 wait states
+        // that the transfers above accrued
+        waitstates = wsave + cycles;
     }
     this.drawScanline = (sl) => {
         // interrupt
@@ -297,7 +334,9 @@ const _BallyAstrocade = function (arcade) {
             refreshline(sl);
         }
     };
-    this.init = (machine, c, r, inp, psgg) => {
+    this.init = (mach, c, r, inp, psgg) => {
+        machine = mach;
+        activecycles = mach.cpuCyclesPerLine * ACTIVE_LINE_FRACTION;
         cpu = c;
         ram = r;
         inputs = inp;
@@ -310,7 +349,7 @@ const _BallyAstrocade = function (arcade) {
                 read: (0, emu_1.newAddressDecoder)([
                     [0x0000, 0x1fff, 0x1fff, function (a) { return bios[a]; }],
                     [0x2000, 0x3fff, 0x1fff, function (a) { return rom ? rom[a] : 0; }],
-                    [0x4000, 0x4fff, 0xfff, function (a) { waitstates++; return ram[a]; }],
+                    [0x4000, 0x4fff, 0xfff, function (a) { screenwait(); return ram[a]; }],
                 ]),
                 write: (0, emu_1.newAddressDecoder)([
                     [0x4000, 0x4fff, 0xfff, ramwrite],
@@ -319,18 +358,18 @@ const _BallyAstrocade = function (arcade) {
             };
         }
         else {
-            // arcade game (TODO: wait states 1/4 of the time)
+            // arcade game
             membus = {
                 read: (0, emu_1.newAddressDecoder)([
-                    [0x4000, 0x7fff, 0x3fff, function (a) { return ram[a]; }], // screen RAM
-                    [0xd000, 0xdfff, 0x0fff, function (a) { return ram[a + 0x4000]; }], // static RAM
+                    [0x4000, 0x7fff, 0x3fff, function (a) { screenwait(); return ram[a]; }], // screen RAM
+                    [0xd000, 0xdfff, 0x0fff, function (a) { return ram[a + 0x4000]; }], // static RAM (own board, no wait states)
                     [0x0000, 0x3fff, 0x3fff, function (a) { return rom ? rom[a] : 0; }], // ROM
                     [0x8000, 0xbfff, 0x3fff, function (a) { return rom ? rom[a + 0x4000] : 0; }], // ROM
                 ]),
                 write: (0, emu_1.newAddressDecoder)([
                     [0x4000, 0x7fff, 0x3fff, ramwrite],
                     [0x0000, 0x3fff, 0x3fff, magicwrite],
-                    [0xd000, 0xdfff, 0x0fff, function (a, v) { ramwrite(a + 0x4000, v); }], // static RAM
+                    [0xd000, 0xdfff, 0x0fff, function (a, v) { ram[a + 0x4000] = v; }], // static RAM (not displayed, no wait states)
                 ]),
             };
         }
@@ -442,8 +481,8 @@ const _BallyAstrocade = function (arcade) {
                 }
             }
         };
-        machine.connectCPUMemoryBus(membus);
-        machine.connectCPUIOBus(iobus);
+        mach.connectCPUMemoryBus(membus);
+        mach.connectCPUIOBus(iobus);
         this.membus = membus;
         this.iobus = iobus;
         // default palette
@@ -451,10 +490,18 @@ const _BallyAstrocade = function (arcade) {
             setpalette(i, i);
         }
     };
-    this.resetWaitStates = function (sl) {
-        var n = sl < verbl ? waitstates : 0; // only wait if video active
+    // wait states accrued since the last call, charged to the CPU by advanceCPU()
+    this.resetWaitStates = function () {
+        var n = waitstates;
         waitstates = 0;
         return n;
+    };
+    // read for the debugger/UI, without stalling the CPU
+    this.peek = function (a) {
+        var n = waitstates;
+        var v = membus.read(a);
+        waitstates = n;
+        return v;
     };
     this.loadState = (state) => {
         cpu.loadState(state.c);
@@ -473,6 +520,7 @@ const _BallyAstrocade = function (arcade) {
         rotcount = state.rotcount;
         rotdata.set(state.rotdata);
         intst = state.intst;
+        slotphase = state.slotphase | 0;
         inputs.set(state.inputs);
         patboard.set(state.patboard);
         patdest = state.patdest;
@@ -497,6 +545,7 @@ const _BallyAstrocade = function (arcade) {
             rotcount: rotcount,
             rotdata: rotdata.slice(0),
             intst: intst,
+            slotphase: slotphase,
             patboard: patboard.slice(0),
             patdest: patdest,
         };
@@ -544,12 +593,17 @@ class BallyAstrocade extends devices_1.BasicScanlineMachine {
     constructor(arcade) {
         super();
         this.cpuFrequency = 1789000;
-        this.numTotalScanlines = 262;
-        this.sampleRate = 60 * 262 * audioOversample;
         this.arcade = arcade;
         this.cpu = new ZilogZ80_1.Z80();
         this.psg = new AstrocadeAudio(new audio_1.MasterAudio());
-        this.audioadapter = new audio_1.TssChannelAdapter(this.psg.psg, audioOversample, this.sampleRate);
+        // in consumer mode every line of screen RAM is displayed twice, so one emulated
+        // scanline is two of the 262 NTSC lines (as are INLIN and VERBL, hence the >>1)
+        this.numTotalScanlines = arcade ? 262 : 131;
+        // one audio sample per emulated scanline, so oversample twice as much in
+        // consumer mode to keep the sample rate the same
+        var oversample = audioOversample * (arcade ? 1 : 2);
+        this.sampleRate = 60 * this.numTotalScanlines * oversample;
+        this.audioadapter = new audio_1.TssChannelAdapter(this.psg.psg, oversample, this.sampleRate);
         this.handler = (0, emu_1.newKeyboardHandler)(this.inputs, ASTROCADE_KEYCODE_MAP);
         this.defaultROMSize = arcade ? 0xb000 : 0x2000;
         this.ram = new Uint8Array(arcade ? 0x5000 : 0x1000);
@@ -568,7 +622,7 @@ class BallyAstrocade extends devices_1.BasicScanlineMachine {
         }
     }
     read(a) {
-        return this.m.membus.read(a);
+        return this.m.peek(a);
     }
     write(a, v) {
         this.m.membus.write(a, v);
@@ -580,7 +634,7 @@ class BallyAstrocade extends devices_1.BasicScanlineMachine {
         this.m.connectVideo(this.backbuffer);
     }
     preFrame() {
-        this.m.resetWaitStates(0);
+        this.m.resetWaitStates();
     }
     postFrame() {
         // copy back buffer to front buffer, omitting bottom non-visible pixels
@@ -613,8 +667,8 @@ class BallyAstrocade extends devices_1.BasicScanlineMachine {
     }
     advanceCPU() {
         var clk = super.advanceCPU();
-        // TODO: disable 33% of the time (hblank)
-        var xtra = this.m.resetWaitStates(this.scanline);
+        // charge the CPU for screen RAM contention during this instruction
+        var xtra = this.m.resetWaitStates();
         if (xtra) {
             clk += xtra;
             this.probe.logClocks(xtra);
