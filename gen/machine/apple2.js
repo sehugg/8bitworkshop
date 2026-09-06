@@ -168,8 +168,7 @@ class AppleII extends devices_1.BasicScanlineMachine {
                 const hdrOrigin = this.rom[0] | (this.rom[1] << 8);
                 const size = this.rom[2] | (this.rom[3] << 8);
                 let isPlausible = hdrOrigin < 0xc000
-                    && hdrOrigin + size < 0x13000
-                    && (hdrOrigin == 0x803 || (hdrOrigin & 0xff) == 0);
+                    && hdrOrigin + size < 0x13000;
                 if (size == data.length - 4 && isPlausible) {
                     this.LOAD_BASE = hdrOrigin;
                     this.HDR_SIZE = 4;
