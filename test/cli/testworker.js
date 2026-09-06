@@ -345,6 +345,88 @@ describe('Worker', function() {
   it('should compile CC65 flags', function(done) {
     compile('cc65', '#define CC65_FLAGS -Or,-g,-j\nint main() {\nint x=1;\nreturn x+2;\n}', 'apple2', done, 416+58, 3);
   });
+
+  // merlin32 is driven by a .lnk link file that names the sources to assemble
+  var MERLIN32_LNK = '              TYP   $06\n' +
+                     '              DSK   main.bin\n' +
+                     '              ORG   $2000\n' +
+                     '              ASM   hello.asm\n';
+  function merlin32Msgs(asm) {
+    return [{
+      updates: [
+        {path:'main.lnk', data:MERLIN32_LNK},
+        {path:'hello.asm', data:asm}
+      ],
+      buildsteps: [
+        {path:'main.lnk', platform:'apple2', tool:'merlin32', mainfile:true,
+         files:['main.lnk', 'hello.asm']}
+      ]
+    }];
+  }
+  it('should assemble Merlin32', function(done) {
+    var asm = '              ORG   $2000\n' +
+              'START         LDA   #$C1\n' +
+              '              STA   $0400\n' +
+              '              RTS\n';
+    doBuild(merlin32Msgs(asm), function(err, msg) {
+      if (err) return done(err);
+      try {
+        // LDA #$C1 / STA $0400 / RTS
+        assert.deepEqual(Array.from(msg.output), [0xa9, 0xc1, 0x8d, 0x00, 0x04, 0x60]);
+        var lst = msg.listings['hello.asm'];
+        assert.equal(lst.lines[1].line, 2);
+        assert.equal(lst.lines[1].offset, 0x2000);
+        assert.equal(lst.lines[2].offset, 0x2002);
+        done();
+      } catch (e) { done(e); }
+    }, 6, [5], 0);
+  });
+  it('should NOT assemble Merlin32 (syntax error)', function(done) {
+    var asm = '              ORG   $2000\n' +
+              'START         LDA   #$C1\n' +
+              '              BOGUS $0400\n' +
+              '              RTS\n';
+    doBuild(merlin32Msgs(asm), function(err, msg) {
+      if (err) return done(err);
+      try {
+        assert.equal(msg.errors[0].line, 3);
+        assert.equal(msg.errors[0].path, 'hello.asm');
+        done();
+      } catch (e) { done(e); }
+    }, 0, 0, 1, {ignoreErrorPath:true});
+  });
+
+  // nesasm needs the iNES header directives and a bank/org before any code
+  var NESASM_HEADER = '\t.inesprg 1\n\t.ineschr 0\n\t.inesmap 0\n\t.inesmir 0\n';
+  it('should assemble NESASM', function(done) {
+    var asm = NESASM_HEADER +
+              '\t.list\n\t.bank 0\n\t.org $8000\n' +
+              'Start:\n\tlda #$c1\n\tsta $0400\n\trts\n' +
+              '\t.bank 1\n\t.org $fffa\n\t.dw 0,Start,0\n';
+    compile('nesasm', asm, 'nes', function(err, msg) {
+      if (err) return done(err);
+      try {
+        assert.deepEqual(Array.from(msg.output.slice(0,4)), [0x4e, 0x45, 0x53, 0x1a]); // "NES\x1a"
+        assert.equal(msg.symbolmap['Start'], 0x8000);
+        var lst = msg.listings['src.lst'];
+        assert.equal(lst.lines[1].offset, 0x8000);
+        assert.equal(lst.lines[1].insns, 'A9 C1');
+        assert.equal(lst.lines[2].offset, 0x8002);
+        done();
+      } catch (e) { done(e); }
+    }, 16400, [5], 0);
+  });
+  it('should NOT assemble NESASM (unknown instruction)', function(done) {
+    var asm = NESASM_HEADER + '\t.bank 0\n\t.org $8000\n\tbogus #$c1\n\trts\n';
+    compile('nesasm', asm, 'nes', function(err, msg) {
+      if (err) return done(err);
+      try {
+        assert.equal(msg.errors[0].line, 7);
+        assert.ok(/Unknown instruction/.test(msg.errors[0].msg));
+        done();
+      } catch (e) { done(e); }
+    }, 0, 0, 1);
+  });
   /*
   it('should compile gameboy', function(done) {
     compile('sdcc', '//#link "gb/sfr.sgb"\n//#link "gb/crt0.sgb"\nvoid main(void){}\n', 'gb', done, 416+58, 3);

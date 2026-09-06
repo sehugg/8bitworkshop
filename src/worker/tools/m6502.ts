@@ -1,13 +1,15 @@
 
 import { WorkerError, CodeListingMap } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, populateFiles, putWorkFile, anyTargetChanged, gatherFiles, staleFiles } from "../builder";
-import { parseListing, makeErrorMatcher } from "../listingutils";
-import { loadNative, emglobal, moduleInstFn, execMain, print_fn } from "../wasmutils";
+import { BuildStep, BuildStepResult, populateFiles, putWorkFile, anyTargetChanged, gatherFiles, staleFiles, store } from "../builder";
+import { parseListing, makeErrorMatcher, re_crlf } from "../listingutils";
+import { loadNative, emglobal, moduleInstFn, execMain, print_fn, loadWASMBinary } from "../wasmutils";
 import { EmscriptenModule } from "../wasmutils";
+import { WASIRunner } from "../../common/wasi/wasishim";
 
 // http://www.nespowerpak.com/nesasm/
+let nesasmWasiModule: WebAssembly.Module | null = null;
+
 export function assembleNESASM(step: BuildStep): BuildStepResult {
-    loadNative("nesasm");
     var re_filename = /\#\[(\d+)\]\s+(\S+)/;
     var re_insn = /\s+(\d+)\s+([0-9A-F]+):([0-9A-F]+)/;
     var re_error = /\s+(.+)/;
@@ -38,23 +40,36 @@ export function assembleNESASM(step: BuildStep): BuildStepResult {
                 break;
         }
     }
-    var Module: EmscriptenModule = emglobal.nesasm({
-        instantiateWasm: moduleInstFn('nesasm'),
-        noInitialRun: true,
-        print: match_fn
-    });
-    var FS = Module.FS;
-    populateFiles(step, FS, {
+    gatherFiles(step, {
         mainFilePath: 'main.a'
     });
     var binpath = step.prefix + '.nes';
     var lstpath = step.prefix + '.lst';
     var sympath = step.prefix + '.fns';
-    execMain(step, Module, [step.path, '-s', "-l", "2"]);
+    if (!nesasmWasiModule) {
+        nesasmWasiModule = new WebAssembly.Module(loadWASMBinary("nesasm"));
+    }
+    const wasi = new WASIRunner();
+    wasi.initSync(nesasmWasiModule);
+    for (let file of step.files) {
+        wasi.fs.putFile("./" + file, store.getFileData(file));
+    }
+    wasi.addPreopenDirectory(".");
+    wasi.setArgs(['nesasm', step.path, '-s', "-l", "2"]);
+    try {
+        wasi.run();
+    } catch (e) {
+        errors.push({ line: 0, msg: "" + e });
+    }
+    const stdout = wasi.fds[1].getBytesAsString();
+    for (let line of stdout.split(re_crlf)) {
+        match_fn(line);
+    }
     // parse main listing, get errors and listings for each file
     var listings: CodeListingMap = {};
+    var alst;
     try {
-        var alst = FS.readFile(lstpath, { 'encoding': 'utf8' });
+        alst = wasi.fs.getFile("./" + lstpath).getBytesAsString();
         //   16  00:C004  8E 17 40    STX $4017    ; disable APU frame IRQ
         var asmlines = parseListing(alst, /^\s*(\d+)\s+([0-9A-F]+):([0-9A-F]+)\s+([0-9A-F ]+?)  (.*)/i, 1, 3, 4);
         putWorkFile(lstpath, alst);
@@ -70,9 +85,9 @@ export function assembleNESASM(step: BuildStep): BuildStepResult {
     }
     // read binary rom output and symbols
     var aout, asym;
-    aout = FS.readFile(binpath);
+    aout = wasi.fs.getFile("./" + binpath).getBytes();
     try {
-        asym = FS.readFile(sympath, { 'encoding': 'utf8' });
+        asym = wasi.fs.getFile("./" + sympath).getBytesAsString();
     } catch (e) {
         console.log(e);
         errors.push({ line: 0, msg: "No symbol table generated, maybe missing ENDM or segment overflow?" });
@@ -116,50 +131,62 @@ Line | # File       Line | Line Type   | MX |  Reloc  | Size | Address   Object 
         => Creating Output file 'pcs.bin_S01__Output.txt'
 
 */
+let merlin32WasiModule: WebAssembly.Module | null = null;
+
 export function assembleMerlin32(step: BuildStep): BuildStepResult {
-    loadNative("merlin32");
     var errors = [];
     var lstfiles = [];
     gatherFiles(step, { mainFilePath: "main.lnk" });
     var objpath = step.prefix + ".bin";
     if (staleFiles(step, [objpath])) {
         var args = ['-v', step.path];
-        var merlin32: EmscriptenModule = emglobal.merlin32({
-            instantiateWasm: moduleInstFn('merlin32'),
-            noInitialRun: true,
-            print: (s: string) => {
-                var m = /\s*=>\s*Creating Output file '(.+?)'/.exec(s);
-                if (m) {
-                    lstfiles.push(m[1]);
-                }
-                var errpos = s.indexOf('Error');
-                if (errpos >= 0) {
-                    s = s.slice(errpos + 6).trim();
-                    var mline = /\bline (\d+)\b/.exec(s);
-                    var mpath = /\bfile '(.+?)'/.exec(s);
-                    errors.push({
-                        line: parseInt(mline[1]) || 0,
-                        msg: s,
-                        path: mpath[1] || step.path,
-                    });
-                }
-            },
-            printErr: print_fn,
-        });
-        var FS = merlin32.FS;
-        populateFiles(step, FS);
-        execMain(step, merlin32, args);
+        if (!merlin32WasiModule) {
+            merlin32WasiModule = new WebAssembly.Module(loadWASMBinary("merlin32"));
+        }
+        const wasi = new WASIRunner();
+        wasi.initSync(merlin32WasiModule);
+        for (let file of step.files) {
+            wasi.fs.putFile("./" + file, store.getFileData(file));
+        }
+        wasi.addPreopenDirectory(".");
+        wasi.setArgs(['merlin32', ...args]);
+        try {
+            wasi.run();
+        } catch (e) {
+            errors.push({ line: 0, msg: "" + e });
+        }
+        const stdout = wasi.fds[1].getBytesAsString();
+        const stderr = wasi.fds[2].getBytesAsString();
+        for (let s of stdout.split(re_crlf)) {
+            var m = /\s*=>\s*Creating Output file '(.+?)'/.exec(s);
+            if (m) {
+                lstfiles.push(m[1]);
+            }
+            var errpos = s.indexOf('Error');
+            if (errpos >= 0) {
+                s = s.slice(errpos + 6).trim();
+                var mline = /\bline (\d+)\b/.exec(s);
+                var mpath = /\bfile '(.+?)'/.exec(s);
+                errors.push({
+                    line: mline ? parseInt(mline[1]) : 0,
+                    msg: s,
+                    path: mpath ? mpath[1] : step.path,
+                });
+            }
+        }
+        if (stderr)
+            console.log(stderr);
         if (errors.length)
             return { errors: errors };
 
         var errout = null;
         try {
-            errout = FS.readFile("error_output.txt", { encoding: 'utf8' });
+            errout = wasi.fs.getFile("./error_output.txt").getBytesAsString();
         } catch (e) {
             //
         }
 
-        var objout = FS.readFile(objpath, { encoding: 'binary' });
+        var objout = wasi.fs.getFile("./" + objpath).getBytes();
         putWorkFile(objpath, objout);
         if (!anyTargetChanged(step, [objpath]))
             return;
@@ -168,7 +195,7 @@ export function assembleMerlin32(step: BuildStep): BuildStepResult {
         var segments = [];
         var listings: CodeListingMap = {};
         lstfiles.forEach((lstfn) => {
-            var lst = FS.readFile(lstfn, { encoding: 'utf8' }) as string;
+            var lst = wasi.fs.getFile("./" + lstfn).getBytesAsString() as string;
             lst.split('\n').forEach((line) => {
                 var toks = line.split(/\s*\|\s*/);
                 if (toks && toks[6]) {

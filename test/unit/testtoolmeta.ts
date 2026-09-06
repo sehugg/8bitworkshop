@@ -70,7 +70,7 @@ describe('Tool metadata registry', function () {
   it('covers the previously-scattered editor styles and help URLs', function () {
     // spot-check ids that used to live in TOOL_TO_SOURCE_STYLE / TOOL_TO_HELPURL
     for (let id of ['dasm', 'acme', 'cc65', 'ca65', 'sdcc', 'cmoc', 'zmac',
-      'nesasm', 'bataribasic', 'fastbasic', 'wiz', 'silice', 'ecs', 'dialog']) {
+      'nesasm', 'merlin32', 'bataribasic', 'fastbasic', 'wiz', 'silice', 'ecs', 'dialog']) {
       assert.ok(TOOL_META[id], `expected tool '${id}' in registry`);
     }
     assert.strictEqual(TOOL_META['cc65'].editorStyle, 'text/x-csrc');
@@ -95,6 +95,8 @@ describe('Tool metadata registry', function () {
     assert.deepStrictEqual(deps('!src "foo.acme"\n', 'acme'), ['foo.acme']);
     assert.deepStrictEqual(deps('%% #include "foo.dg"\n', 'dialog'), ['foo.dg']);
     assert.deepStrictEqual(deps('  USE foo.xasm\n', 'xasm6809'), ['foo.xasm']);
+    // merlin32 link files name their sources with ASM
+    assert.deepStrictEqual(deps('              ASM   hello.asm\n', 'merlin32'), ['hello.asm']);
     // ecs uses both its own import and the shared .include directive
     assert.deepStrictEqual(deps('.include "vcs.h"\nimport "lib.ecs"\n', 'ecs'),
       ['vcs.h', 'lib.ecs']);
