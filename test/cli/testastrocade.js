@@ -9,6 +9,7 @@ global.self = global;
 function includeInThisContext(path) {
   vm.runInThisContext(fs.readFileSync(path), path);
 }
+global.exports = {};
 includeInThisContext('tss/js/Log.js');
 includeInThisContext('tss/js/tss/PsgDeviceChannel.js');
 includeInThisContext('tss/js/tss/MasterChannel.js');
