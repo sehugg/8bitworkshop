@@ -9,7 +9,7 @@
 ; --------------------------------------------------
 ; Set PGM_START to desired start of program execution
 ; - PGM_START must be less than $C000
-; - PGM_START + SIZE must be less than $13000
+; - PGM_START + PGM_LENGTH must be less than $13000
 ; --------------------------------------------------
 PGM_START    equ     $2000
 PGM_LENGTH   equ     PGM_END - PGM_START
