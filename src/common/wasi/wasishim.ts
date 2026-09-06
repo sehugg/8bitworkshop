@@ -633,6 +633,16 @@ export class WASIRunner {
         this.poke_filestat(filestat_ptr, fd);
         return WASIErrors.SUCCESS;
     }
+    fd_filestat_set_size(fd: number, size: number | bigint) {
+        const file = this.fds[fd];
+        debug("fd_filestat_set_size", fd, size, file + "");
+        if (file == null) return WASIErrors.BADF;
+        if (typeof size == 'bigint') size = Number(size);
+        file.ensureCapacity(size);
+        if (size < file.size) file.offset = Math.min(file.offset, size);
+        file.size = size;
+        return WASIErrors.SUCCESS;
+    }
     fd_filestat_get(fd: number, filestat_ptr: number) {
         const file = this.fds[fd];
         debug("fd_filestat_get", fd, filestat_ptr, file + "");
@@ -687,6 +697,16 @@ export class WASIRunner {
         this.poke64(time_ptr, time);
         return WASIErrors.SUCCESS;
     }
+    path_create_directory(fd: number, path_ptr: number, path_len: number) {
+        const dir = this.fds[fd];
+        if (dir == null) return WASIErrors.BADF;
+        if (dir.type !== FDType.DIRECTORY) return WASIErrors.NOTDIR;
+        const filename = this.peekUTF8(path_ptr, path_len);
+        const path = dir.name + '/' + filename;
+        debug("path_create_directory", path);
+        this.fs.putDirectory(path);
+        return WASIErrors.SUCCESS;
+    }
     getWASISnapshotPreview1() {
         return {
             args_sizes_get: this.args_sizes_get.bind(this),
@@ -704,9 +724,11 @@ export class WASIRunner {
             fd_close: this.fd_close.bind(this),
             path_filestat_get: this.path_filestat_get.bind(this),
             fd_filestat_get: this.fd_filestat_get.bind(this),
+            fd_filestat_set_size: this.fd_filestat_set_size.bind(this),
             random_get: this.random_get.bind(this),
             path_readlink: this.path_readlink.bind(this),
             path_unlink_file: this.path_unlink_file.bind(this),
+            path_create_directory: this.path_create_directory.bind(this),
             clock_time_get: this.clock_time_get.bind(this),
             fd_fdstat_set_flags() { warning("TODO: fd_fdstat_set_flags"); return WASIErrors.NOTSUP; },
             fd_readdir() { warning("TODO: fd_readdir"); return WASIErrors.NOTSUP; },

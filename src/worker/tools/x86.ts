@@ -1,10 +1,13 @@
 import { WorkerError, CodeListingMap } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, staleFiles, getWorkFileAsString, populateFiles, fixParamsWithDefines, putWorkFile, anyTargetChanged } from "../builder";
-import { msvcErrorMatcher, parseListing } from "../listingutils";
-import { EmscriptenModule, emglobal, execMain, loadNative, moduleInstFn, print_fn } from "../wasmutils";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, getWorkFileAsString, populateFiles, fixParamsWithDefines, putWorkFile, anyTargetChanged, store } from "../builder";
+import { msvcErrorMatcher, parseListing, re_crlf } from "../listingutils";
+import { EmscriptenModule, emglobal, execMain, loadNative, moduleInstFn, print_fn, loadWASMBinary } from "../wasmutils";
+import { WASIRunner } from "../../common/wasi/wasishim";
 import { preprocessMCPP } from "./mcpp";
 
 // http://www.techhelpmanual.com/829-program_startup___exit.html
+let wasiModule: WebAssembly.Module | null = null;
+
 export function compileSmallerC(step: BuildStep): BuildStepResult {
   loadNative("smlrc");
   var params = step.params;
@@ -71,8 +74,7 @@ export function compileSmallerC(step: BuildStep): BuildStepResult {
 }
 
 export function assembleYASM(step: BuildStep): BuildStepResult {
-  loadNative("yasm");
-  var errors = [];
+  var errors: WorkerError[] = [];
   gatherFiles(step, { mainFilePath: "main.asm" });
   var objpath = step.prefix + ".exe";
   var lstpath = step.prefix + ".lst";
@@ -85,25 +87,37 @@ export function assembleYASM(step: BuildStep): BuildStepResult {
       //'-I/share/asminc',
       '-o', objpath, '-l', lstpath, '--mapfile=' + mappath,
       step.path];
-    // return yasm/*.ready*/
-    var YASM: EmscriptenModule = emglobal.yasm({
-      instantiateWasm: moduleInstFn('yasm'),
-      noInitialRun: true,
-      //logReadFiles:true,
-      print: print_fn,
-      printErr: msvcErrorMatcher(errors),
-    });
-    var FS = YASM.FS;
-    //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
-    populateFiles(step, FS);
-    //fixParamsWithDefines(step.path, step.params);
-    execMain(step, YASM, args);
+    if (!wasiModule) {
+      wasiModule = new WebAssembly.Module(loadWASMBinary("yasm"));
+    }
+    const wasi = new WASIRunner();
+    wasi.initSync(wasiModule);
+    for (let file of step.files) {
+      wasi.fs.putFile("./" + file, store.getFileData(file));
+    }
+    wasi.addPreopenDirectory(".");
+    wasi.setArgs(['yasm', ...args]);
+    try {
+      wasi.run();
+    } catch (e) {
+      errors.push({ line: 0, msg: "" + e });
+    }
+    const stderr = wasi.fds[2].getBytesAsString();
+    const matcher = msvcErrorMatcher(errors);
+    for (let line of stderr.split(re_crlf)) {
+      matcher(line);
+    }
     if (errors.length)
       return { errors: errors };
     var objout, lstout, mapout;
-    objout = FS.readFile(objpath, { encoding: 'binary' });
-    lstout = FS.readFile(lstpath, { encoding: 'utf8' });
-    mapout = FS.readFile(mappath, { encoding: 'utf8' });
+    try {
+      objout = wasi.fs.getFile("./" + objpath).getBytes();
+      lstout = wasi.fs.getFile("./" + lstpath).getBytesAsString();
+      mapout = wasi.fs.getFile("./" + mappath).getBytesAsString();
+    } catch (e) {
+      errors.push({ line: 0, msg: "No output generated, maybe a fatal assembly error?" });
+      return { errors: errors };
+    }
     putWorkFile(objpath, objout);
     putWorkFile(lstpath, lstout);
     //putWorkFile(mappath, mapout);
