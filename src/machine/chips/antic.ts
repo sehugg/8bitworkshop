@@ -56,8 +56,15 @@ export class ANTIC {
 
     regs = new Uint8Array(0x10);				// registers
 
-    left: number;
-    right: number;					// left/right clocks for mode
+    // Initialized so they are always own properties and therefore always
+    // round-trip through saveState()/loadState() -- safe_extend() copies only
+    // the keys present in the source, so a field that is merely declared is
+    // absent from a save state and keeps its old value on load, which leaks
+    // state backwards across a rewind. -1 behaves exactly as undefined did in
+    // every comparison below (h is never negative, and h >= 2 && h <= 1 is
+    // never true), so this does not change emulation.
+    left: number = -1;
+    right: number = -1;				// left/right clocks for mode
 
     dma_enabled: boolean = false;
     dliop: number = 0;    // dli operation

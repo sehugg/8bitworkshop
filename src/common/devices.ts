@@ -235,6 +235,14 @@ export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, P
 
   nullProbe = new NullProbe();
   probe: ProbeAll = this.nullProbe;
+  // True only while a real probe is attached. The probe wrapper around the CPU
+  // buses costs ~20% of a frame even when every call lands in NullProbe, so it
+  // is spliced in on connectProbe() and taken back out on disconnect rather
+  // than left installed for the life of the machine.
+  probing: boolean = false;
+  // the buses as the machine wired them, before any probe wrapper
+  protected cpuMemoryBus: Bus & Partial<Bus32>;
+  protected cpuIOBus: Bus;
 
   abstract read(a: number): number;
   abstract write(a: number, v: number): void;
@@ -244,6 +252,20 @@ export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, P
   }
   connectProbe(probe: ProbeAll): void {
     this.probe = probe || this.nullProbe;
+    var probing = this.probe !== this.nullProbe;
+    if (probing !== this.probing) {
+      this.probing = probing;
+      this.rewireCPUBuses();
+    }
+  }
+  /** Connect the CPU to the raw buses, or to probe-wrapped ones while probing. */
+  protected rewireCPUBuses(): void {
+    if (this.cpuMemoryBus) {
+      this.cpu.connectMemoryBus(this.probing ? this.probeMemoryBus(this.cpuMemoryBus) : this.cpuMemoryBus);
+    }
+    if (this.cpuIOBus) {
+      this.cpu['connectIOBus'](this.probing ? this.probeIOBus(this.cpuIOBus) : this.cpuIOBus);
+    }
   }
   reset() {
     this.cpu.reset();
@@ -277,10 +299,10 @@ export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, P
   advanceCPU() {
     var c = this.cpu as any;
     var n = 1;
-    if (this.cpu.isStable()) { this.probe.logExecute(this.cpu.getPC(), this.cpu.getSP()); }
+    if (this.probing && this.cpu.isStable()) { this.probe.logExecute(this.cpu.getPC(), this.cpu.getSP()); }
     if (c.advanceClock) { c.advanceClock(); }
     else if (c.advanceInsn) { n = c.advanceInsn(1); }
-    this.probe.logClocks(n);
+    if (this.probing) { this.probe.logClocks(n); }
     return n;
   }
   probeMemoryBus(membus: Bus & Partial<Bus32>): Bus & Partial<Bus32> {
@@ -306,7 +328,8 @@ export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, P
     };
   }
   connectCPUMemoryBus(membus: Bus): void {
-    this.cpu.connectMemoryBus(this.probeMemoryBus(membus as Bus&Bus32));
+    this.cpuMemoryBus = membus as Bus & Bus32;
+    this.rewireCPUBuses();
   }
   probeIOBus(iobus: Bus): Bus {
     return {
@@ -335,7 +358,8 @@ export abstract class BasicHeadlessMachine implements HasCPU, Bus, AcceptsROM, P
     };
   }
   connectCPUIOBus(iobus: Bus): void {
-    this.cpu['connectIOBus'](this.probeIOBus(iobus));
+    this.cpuIOBus = iobus;
+    this.rewireCPUBuses();
   }
 }
 
