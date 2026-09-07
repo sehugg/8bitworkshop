@@ -130,11 +130,18 @@ export class VIC20_WASMMachine extends BaseWASMMachine implements Machine, Probe
       c:this.getCPUState(),
       state:this.statearr.slice(0),
       ram:this.statearr.slice(18640, 18640+0x200), // ZP and stack (TODO)
+      // the joystick mask lives on this object, not in the WASM state blob,
+      // so it has to be saved explicitly or it leaks across a rewind
+      joymask0: this.joymask0,
+      joymask1: this.joymask1,
     };
   }
   loadState(state) : void {
     this.statearr.set(state.state);
     this.exports.machine_load_state(this.sys, this.stateptr);
+    this.joymask0 = state.joymask0 | 0;
+    this.joymask1 = state.joymask1 | 0;
+    this.exports.vic20_joystick(this.sys, this.joymask0, this.joymask1);
   }
   getVideoParams() {
    return {width:232, height:272, overscan:true, videoFrequency:50, aspect:1.5};

@@ -48,6 +48,15 @@ exports.MODE_SHIFT = [0, 0, 1, 1, 2, 2, 2, 2, 8, 4, 4, 2, 2, 2, 2, 1];
 class ANTIC {
     constructor(readfn, nmifn) {
         this.regs = new Uint8Array(0x10); // registers
+        // Initialized so they are always own properties and therefore always
+        // round-trip through saveState()/loadState() -- safe_extend() copies only
+        // the keys present in the source, so a field that is merely declared is
+        // absent from a save state and keeps its old value on load, which leaks
+        // state backwards across a rewind. -1 behaves exactly as undefined did in
+        // every comparison below (h is never negative, and h >= 2 && h <= 1 is
+        // never true), so this does not change emulation.
+        this.left = -1;
+        this.right = -1; // left/right clocks for mode
         this.dma_enabled = false;
         this.dliop = 0; // dli operation
         this.mode = 0; // current mode

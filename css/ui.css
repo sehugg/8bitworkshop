@@ -68,7 +68,7 @@
 #notebook {
   position:absolute;
   top:3em;
-  bottom:2em;
+  bottom:1.8em;
   left:0;
   right:0;
   background-color:#666;
@@ -85,7 +85,7 @@
   bottom:0;
   left:0;
   right:0;
-  height:2.2em;
+  height:2em;
   line-height:2em;
   font-size:0.9em;
   background-color:#999;
@@ -140,9 +140,12 @@
   color:#ffdd99;
   font-weight:bold;
 }
-@media (max-width: 1000px) {
+@media (max-width: 1000px), (max-height: 500px) {
   #shortcuts_bar {
     display:none;
+  }
+  #notebook {
+    bottom:0;
   }
 }
 body.statusbar-hidden #shortcuts_bar {

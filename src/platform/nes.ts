@@ -74,6 +74,14 @@ const JSNES_KEYCODE_MAP = makeKeycodeMap([
   [Keys.P2_RIGHT,  1, 7],
 ]);
 
+/** Replace every typed array in `o` with a copy, breaking aliasing. */
+function copyTypedArrays(o: any) {
+  if (!o) return;
+  for (var k in o) {
+    if (ArrayBuffer.isView(o[k])) o[k] = (o[k] as any).slice(0);
+  }
+}
+
 class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
 
   mainElement : HTMLElement;
@@ -325,9 +333,14 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     }
     s.c = s.cpu;
     this.copy6502REGvars(s.c);
-    s.b = s.cpu.mem = s.cpu.mem.slice(0);
-    s.ppu.vramMem = s.ppu.vramMem.slice(0);
-    s.ppu.spriteMem = s.ppu.spriteMem.slice(0);
+    // jsnes's utils.toJSON() stores *references* to the live typed arrays
+    // (jsnes/src/utils.js), so a save state keeps changing as the emulator
+    // runs on. Copy every one of them, or a checkpoint is worthless the moment
+    // it is taken -- restoring it would be a no-op self-copy.
+    copyTypedArrays(s.cpu);
+    copyTypedArrays(s.ppu);
+    copyTypedArrays(s.mmap);
+    s.b = s.cpu.mem;
     s.ctrl = this.saveControlsState();
     return s;
   }
@@ -338,9 +351,10 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     //this.nes.cpu.fromJSON(state.cpu);
     //this.nes.mmap.fromJSON(state.mmap);
     //this.nes.ppu.fromJSON(state.ppu);
+    // fromJSON() copies typed arrays in with .set(), so nothing here aliases
+    // the state -- but the plain `mem` reference does, and the debugger reads
+    // through it
     this.nes.cpu.mem = state.cpu.mem.slice(0);
-    this.nes.ppu.vramMem = state.ppu.vramMem.slice(0);
-    this.nes.ppu.spriteMem = state.ppu.spriteMem.slice(0);
     this.loadControlsState(state.ctrl);
     //$.extend(this.nes, state);
     this.installIntercepts();

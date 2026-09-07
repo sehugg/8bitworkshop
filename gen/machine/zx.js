@@ -82,11 +82,16 @@ class ZX_WASMMachine extends wasmplatform_1.BaseWASMMachine {
         return {
             c: this.getCPUState(),
             state: this.statearr.slice(0),
+            // the joystick mask lives on this object, not in the WASM state blob,
+            // so it has to be saved explicitly or it leaks across a rewind
+            joymask0: this.joymask0,
         };
     }
     loadState(state) {
         this.statearr.set(state.state);
         this.exports.machine_load_state(this.sys, this.stateptr);
+        this.joymask0 = state.joymask0 | 0;
+        this.exports.zx_joystick(this.sys, this.joymask0, 0);
     }
     getVideoParams() {
         return { width: 320, height: 256, overscan: true, videoFrequency: 50 };

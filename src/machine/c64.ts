@@ -144,12 +144,19 @@ export class C64_WASMMachine extends BaseWASMMachine
       cia2:this.statearr.slice(cia2, cia2+64),
       vic:this.statearr.slice(vic+1, vic+1+64),
       sid:this.statearr.slice(sid, sid+32),
-      pla:this.statearr.slice(pla, pla+16)
+      pla:this.statearr.slice(pla, pla+16),
+      // the joystick mask lives on this object, not in the WASM state blob,
+      // so it has to be saved explicitly or it leaks across a rewind
+      joymask0: this.joymask0,
+      joymask1: this.joymask1,
     };
   }
   loadState(state) : void {
     this.statearr.set(state.state);
     this.exports.machine_load_state(this.sys, this.stateptr);
+    this.joymask0 = state.joymask0 | 0;
+    this.joymask1 = state.joymask1 | 0;
+    this.exports.c64_joystick(this.sys, this.joymask0, this.joymask1);
   }
   getVideoParams() {
    return {width:392, height:272, overscan:true, videoFrequency:50, aspect:392/272*0.9365};
