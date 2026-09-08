@@ -1834,7 +1834,6 @@ function openToolVersions() {
 function openKeyboardShortcuts() {
   const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
   const mod = isMac ? '&#8984;' : 'Ctrl';
-  const alt = isMac ? '&#8997;' : 'Alt';
   const shift = isMac ? '&#8679;' : 'Shift';
   const shortcut = (keys: string, desc: string) =>
     `<tr><td><kbd>${keys}</kbd></td><td>${desc}</td></tr>`;
@@ -1845,10 +1844,9 @@ function openKeyboardShortcuts() {
     <table class="help">
       <tr><th colspan="2">Custom</th></tr>
       ${shortcut(`${mod}+${shift}+F`, 'Search symbols, files, and docs')}
-      ${shortcut(`${shift}+${alt}+F`, 'Format document, or selected range(s)')}
       ${shortcut('Tab', 'Insert to next tab stop, or indent selected range(s)')}
       ${shortcut(`${shift}+Tab`, 'Outdent line(s) or selected range(s)')}
-      ${shortcut(`Enter`, 'Insert newline, keep cursor at same column pos')}
+      ${shortcut(`${mod}+${shift}+Backspace`, 'Delete line')}
       <tr><th colspan="2">Standard</th></tr>
       <tr>
         <td>Built-in</td>
