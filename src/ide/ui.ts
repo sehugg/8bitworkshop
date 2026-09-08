@@ -27,10 +27,13 @@ import { resolveDebuggerTarget } from "./search/debuggerhit";
 import { setProjectProvider } from "./search/projectsource";
 import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
-import { AddressHeatMapView, BinaryFileView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterStackMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
+import { AddressHeatMapView, BinaryFileView, BreakpointsView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterStackMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
 import { DisassemblerView, HeaderView, ListingView, PC_LINE_LOOKAHEAD, SourceEditor, setUppercaseOnly } from "./views/editors";
 import { CallStackView, DebugBrowserView } from "./views/treeviews";
 import { ProjectWindows } from "./windows";
+import { bpStore, resolveBreakpoints } from "./breakpoints";
+import { CondFn } from "./breakcond";
+import { findListingLocation as findListingLocationPure } from "./search/listinglocation";
 import Split = require('split.js');
 import DOMPurify = require("dompurify");
 
@@ -437,6 +440,11 @@ function refreshWindowList() {
       return new DebugBrowserView();
     });
   }
+  if (platform.runEval || platform.runToPC) {
+    addWindowItem("#breakpoints", "Breakpoints", () => {
+      return new BreakpointsView();
+    });
+  }
   addWindowItem('#asseteditor', 'Asset Editor', () => {
     return new AssetEditorView();
   });
@@ -472,6 +480,9 @@ async function loadProject(preset_id: string) {
   // set current file ID
   // TODO: this is done twice (mainPath and mainpath!)
   current_project.mainPath = preset_id;
+  // load persisted breakpoints for this platform/project
+  bpStore.setContextFn(() => platform_id + '/' + current_project.mainPath);
+  bpStore.load();
   userPrefs.setLastPreset(preset_id);
   // load files from storage or web URLs
   var result = await current_project.loadFiles([preset_id]);
@@ -1145,7 +1156,7 @@ function getGlobalShortcuts(): Shortcut[] {
     }
     // debug shortcuts appear only once a debug session has started
     if (platform.setupDebug && platform.runEval) // TODO??
-        shortcuts.push({ key: 'mod+shift+d', label: 'Reset & Debug', fn: resetAndDebug });
+        shortcuts.push({ key: 'mod+shift+d', label: 'Reset & Break', fn: resetAndDebug });
     if (!debugSessionActive) {
       shortcuts.push({ key: 'mod+shift+r', label: 'Reset & Run', fn: resetAndRun });
       shortcuts.push({ key: 'mod+shift+f', label: 'Search', fn: openSearchDialog });
@@ -1194,6 +1205,19 @@ function checkRunReady() {
     return true;
 }
 
+// find the best known listing window + source line for a PC value, among
+// listings with a window we can show (see ProjectWindows.isWindow -- this
+// just means "known window id", not "currently open"). Pure logic lives in
+// listinglocation.ts (unit tested); this just wires up the live IDE state.
+function findListingLocation(pc: number): { wndid: string, line: number } | null {
+  return findListingLocationPure(pc, {
+    listings: current_project.getListings(),
+    filename2path: current_project.filename2path,
+    isWindow: (id) => projectWindows.isWindow(id),
+    findWindowWithFilePrefix: (fn) => projectWindows.findWindowWithFilePrefix(fn),
+  }, PC_LINE_LOOKAHEAD);
+}
+
 function openRelevantListing(state: EmuState) {
   // if we clicked on a specific tool, don't switch windows
   if (lastViewClicked && lastViewClicked.startsWith('#')) return;
@@ -1201,39 +1225,24 @@ function openRelevantListing(state: EmuState) {
   if (['toline', 'restart', 'tovsync', 'stepover'].includes(lastDebugCommand)) return;
   // has to support disassembly, at least
   if (!platform.disassemble) return;
-  // search through listings
-  let listings = current_project.getListings();
-  let bestid = "#disasm";
-  let bestscore = 256;
-  if (listings) {
-    let pc = state.c ? (state.c.EPC || state.c.PC) : 0;
-    for (let lstfn in listings) {
-      let lst = listings[lstfn];
-      let file = lst.assemblyfile || lst.sourcefile;
-      // pick either listing or source file
-      let wndid = current_project.filename2path[lstfn] || lstfn;
-      if (file == lst.sourcefile) wndid = projectWindows.findWindowWithFilePrefix(lstfn);
-      // does this window exist?
-      if (projectWindows.isWindow(wndid)) {
-        // find the source line at the PC or closely before it
-        let srcline1 = file && file.findLineForOffset(pc, PC_LINE_LOOKAHEAD);
-        if (srcline1) {
-          // try to find the next line and bound the PC
-          let srcline2 = file.lines[srcline1.line + 1];
-          if (!srcline2 || pc < srcline2.offset) {
-            let score = pc - srcline1.offset;
-            if (score < bestscore) {
-              bestid = wndid;
-              bestscore = score;
-            }
-          }
-          //console.log(hex(pc,4), srcline1, srcline2, wndid, lstfn, bestid, bestscore);
-        }
-      }
-    }
-  }
+  let pc = state.c ? (state.c.EPC || state.c.PC) : 0;
+  let best = findListingLocation(pc);
   // if no appropriate listing found, use disassembly view
-  projectWindows.createOrShow(bestid, true);
+  projectWindows.createOrShow(best ? best.wndid : "#disasm", true);
+}
+
+// jump to (and highlight) the best known source line for an address --
+// e.g. for a symbol/address breakpoint, which has no stored file/line of
+// its own. Falls back to the disassembly view if no source line resolves.
+export function openLocationForPC(pc: number) {
+  if (!platform.disassemble) return;
+  let best = findListingLocation(pc);
+  let wnd = projectWindows.createOrShow(best ? best.wndid : "#disasm", true);
+  if (best && wnd instanceof SourceEditor) {
+    wnd.highlightLines(best.line - 1, best.line - 1);
+  } else if (wnd instanceof DisassemblerView) {
+    wnd.goToAddress(pc);
+  }
 }
 
 function uiDebugCallback(state: EmuState) {
@@ -1302,19 +1311,14 @@ function _resume() {
 function resume() {
   if (!checkRunReady()) return;
 
-  // If the active editor has breakpoints, resume with them
-  var wnd = projectWindows.getActive();
-  if (wnd instanceof SourceEditor) {
-    var bpPCs = wnd.getBreakpointPCs();
-    if (bpPCs.length > 0) {
-      if (!platform.isRunning()) {
-        projectWindows.refresh(false);
-      }
-      runToPC(bpPCs);
-      userPaused = false;
-      lastViewClicked = null;
-      return;
+  // If there are enabled breakpoints, resume with them armed
+  if (bpStore.getEnabled().length > 0 && armBreakpoints()) {
+    if (!platform.isRunning()) {
+      projectWindows.refresh(false);
     }
+    userPaused = false;
+    lastViewClicked = null;
+    return;
   }
 
   clearBreakpoint();
@@ -1411,6 +1415,66 @@ function getEditorPC(): number {
   return wnd && wnd.getCursorPC && wnd.getCursorPC();
 }
 
+// Arm all enabled breakpoints from the shared store: break when the CPU
+// reaches any breakpoint location (and, for conditional breakpoints, when
+// its condition evaluates true). Returns true if anything was armed.
+export function armBreakpoints(): boolean {
+  if (!checkRunReady()) return false;
+  const rbps = resolveBreakpoints().filter(r => r.bp.enabled && !r.error && r.pc >= 0);
+  if (rbps.length == 0) return false;
+  lastDebugState = null;
+  hideDebugInfo();
+  projectWindows.refresh(false); // clear any "stopped here" highlight (e.g. Breakpoints window)
+  setupBreakpoint("toline");
+  const targets = new Map<number, CondFn | null>();
+  for (const r of rbps) targets.set(r.pc, r.condFn || null);
+  if (platform.runEvalAtPC) {
+    platform.runEvalAtPC(targets);
+  } else if (platform.runToPC) {
+    // platform can't arm per-address conditions: break on locations, ignore conditions
+    if (rbps.some(r => r.condFn)) console.log("breakpoints: conditions not supported on this platform");
+    platform.runToPC([...targets.keys()]);
+  } else if (platform.runEval) {
+    // platform has neither helper (e.g. vcs, which wraps its own emulator
+    // core's debug API directly) -- fall back to a hand-rolled matcher,
+    // same as the plain runToPC() function below does in this case
+    platform.runEval((c) => {
+      const epc = c.EPC != null ? c.EPC : c.PC;
+      const cond = targets.get(epc);
+      return cond !== undefined && (cond ? cond(c) : true);
+    });
+  } else {
+    return false;
+  }
+  return true;
+}
+
+// push store state into every open editor's gutter markers
+function syncEditorBreakpoints() {
+  for (var id in projectWindows.id2window) {
+    var wnd = projectWindows.id2window[id];
+    if (wnd instanceof SourceEditor) {
+      try { wnd.syncBreakpoints(); } catch (e) { }
+    }
+  }
+}
+
+// single store listener: persist, sync UI, and re-arm while running
+// (mirrors the old gutter-toggle behavior)
+bpStore.subscribe(() => {
+  syncEditorBreakpoints();
+  if (projectWindows.getActiveID() == '#breakpoints') {
+    projectWindows.refresh(false);
+  }
+  if (isPlatformReady() && platform.isRunning()) {
+    if (bpStore.getEnabled().length > 0) {
+      armBreakpoints();
+    } else {
+      clearBreakpoint();
+    }
+  }
+});
+
 export function runToPC(pc: number[]) {
   if (!checkRunReady()) return;
   if (pc.length === 0 || pc.some(p => !(p >= 0))) return;
@@ -1465,10 +1529,16 @@ function resetPlatform() {
 
 function resetAndRun() {
   if (!checkRunReady()) return;
-  debugSessionActive = false; // plain run: hide debug shortcut chips
   clearBreakpoint();
   resetPlatform();
-  _resume();
+  // if there are enabled breakpoints, restart with them armed
+  if (bpStore.getEnabled().length > 0 && armBreakpoints()) {
+    debugSessionActive = true;
+  } else {
+    debugSessionActive = false; // plain run: hide debug shortcut chips
+    projectWindows.refresh(false); // clear any stale "stopped here" highlight
+    _resume();
+  }
   refreshShortcutBar();
 }
 
@@ -1834,7 +1904,6 @@ function openToolVersions() {
 function openKeyboardShortcuts() {
   const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
   const mod = isMac ? '&#8984;' : 'Ctrl';
-  const alt = isMac ? '&#8997;' : 'Alt';
   const shift = isMac ? '&#8679;' : 'Shift';
   const shortcut = (keys: string, desc: string) =>
     `<tr><td><kbd>${keys}</kbd></td><td>${desc}</td></tr>`;
@@ -1843,13 +1912,11 @@ function openKeyboardShortcuts() {
     onEscape: true,
     message: `
     <table class="help">
-      <tr><th colspan="2">Custom</th></tr>
+      <tr><th colspan="2">Editor</th></tr>
       ${shortcut(`${mod}+${shift}+F`, 'Search symbols, files, and docs')}
-      ${shortcut(`${shift}+${alt}+F`, 'Format document, or selected range(s)')}
       ${shortcut('Tab', 'Insert to next tab stop, or indent selected range(s)')}
       ${shortcut(`${shift}+Tab`, 'Outdent line(s) or selected range(s)')}
-      ${shortcut(`Enter`, 'Insert newline, keep cursor at same column pos')}
-      <tr><th colspan="2">Standard</th></tr>
+      ${shortcut(`${mod}+${shift}+Backspace`, 'Delete line')}
       <tr>
         <td>Built-in</td>
         <td>

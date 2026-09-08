@@ -7,7 +7,10 @@ const util_1 = require("../../common/util");
 const setOffset = state_1.StateEffect.define();
 const setBytes = state_1.StateEffect.define();
 const setClock = state_1.StateEffect.define();
-const toggleBreakpoint = state_1.StateEffect.define();
+// clicking the gutter only *requests* a toggle; the breakpoint store
+// (breakpoints.ts) decides the new state and syncs it back via setAll
+const requestToggleBreakpoint = state_1.StateEffect.define();
+const setAllBreakpoints = state_1.StateEffect.define();
 const setErrors = state_1.StateEffect.define();
 const setCurrentPc = state_1.StateEffect.define();
 const runToLineEffect = state_1.StateEffect.define();
@@ -77,24 +80,16 @@ const breakpointField = state_1.StateField.define({
     update(value, tr) {
         value = value.map(tr.changes);
         for (let e of tr.effects) {
-            if (e.is(toggleBreakpoint)) {
-                if (e.value === null) {
-                    value = state_1.RangeSet.empty;
+            if (e.is(setAllBreakpoints)) {
+                // replace the whole marker set with the store's state for this file
+                const ranges = [];
+                const bps = e.value.filter(bp => bp.line >= 1 && bp.line <= tr.state.doc.lines)
+                    .sort((a, b) => a.line - b.line);
+                for (let bp of bps) {
+                    const pos = tr.state.doc.line(bp.line).from;
+                    ranges.push((bp.enabled ? BREAKPOINT_MARKER : DISABLED_BREAKPOINT_MARKER).range(pos));
                 }
-                else {
-                    const line = e.value;
-                    if (line >= 1 && line <= tr.state.doc.lines) {
-                        const pos = tr.state.doc.line(line).from;
-                        let hasBreakpoint = false;
-                        value.between(pos, pos, () => { hasBreakpoint = true; return false; });
-                        if (hasBreakpoint) {
-                            value = value.update({ filter: from => from !== pos });
-                        }
-                        else {
-                            value = value.update({ add: [BREAKPOINT_MARKER.range(pos)] });
-                        }
-                    }
-                }
+                value = state_1.RangeSet.of(ranges, true);
             }
         }
         return value;
@@ -192,16 +187,23 @@ const BREAKPOINT_PLACEHOLDER_MARKER = new class extends view_1.GutterMarker {
         return span;
     }
 };
-const BREAKPOINT_MARKER = new class extends view_1.GutterMarker {
+class BreakpointMarker extends view_1.GutterMarker {
+    constructor(enabled) {
+        super();
+        this.enabled = enabled;
+    }
     toDOM() {
         const span = document.createElement("span");
         span.innerHTML = "●";
-        span.style.color = "rgba(255, 0, 0, 1.0)";
+        span.style.color = this.enabled ? "rgba(255, 0, 0, 1.0)" : "rgba(255, 255, 255, 0.35)";
         span.style.cursor = "pointer";
-        span.title = "Click to run to here"; // "Click to toggle breakpoint";
+        span.title = this.enabled ? "Breakpoint (click to remove; manage in Breakpoints window)" : "Disabled breakpoint (click to remove)";
         return span;
     }
-};
+    eq(other) { return this.enabled == other.enabled; }
+}
+const BREAKPOINT_MARKER = new BreakpointMarker(true);
+const DISABLED_BREAKPOINT_MARKER = new BreakpointMarker(false);
 class ErrorMarker extends view_1.GutterMarker {
     constructor(line, msg) {
         super();
@@ -301,7 +303,7 @@ const statusGutter = (0, view_1.gutter)({
             else {
                 const lineNum = view.state.doc.lineAt(line.from).number;
                 view.dispatch({
-                    effects: toggleBreakpoint.of(lineNum)
+                    effects: requestToggleBreakpoint.of(lineNum)
                 });
             }
             return true;
@@ -342,7 +344,8 @@ exports.clock = {
     gutter: clockGutter,
 };
 exports.breakpointMarkers = {
-    set: toggleBreakpoint,
+    requestToggle: requestToggleBreakpoint,
+    setAll: setAllBreakpoints,
     field: breakpointField,
 };
 exports.errorMarkers = {

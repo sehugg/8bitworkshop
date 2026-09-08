@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ProbeSymbolView = exports.ScanlineIOView = exports.ProbeLogView = exports.RasterStackMapView = exports.RasterPCHeatMapView = exports.AddressHeatMapView = exports.ProbeViewBaseBase = exports.MemoryMapView = exports.BinaryFileView = exports.VRAMMemoryView = exports.MemoryView = void 0;
+exports.BreakpointsView = exports.ProbeSymbolView = exports.ScanlineIOView = exports.ProbeLogView = exports.RasterStackMapView = exports.RasterPCHeatMapView = exports.AddressHeatMapView = exports.ProbeViewBaseBase = exports.MemoryMapView = exports.BinaryFileView = exports.VRAMMemoryView = exports.MemoryView = void 0;
 const baseplatform_1 = require("../../common/baseplatform");
 const emu_1 = require("../../common/emu");
 const vtextscroller_1 = require("../../common/vtextscroller");
@@ -9,6 +9,7 @@ const probe_1 = require("../../common/probe");
 const util_1 = require("../../common/util");
 const vlist_1 = require("../../common/vlist");
 const ui_1 = require("../ui");
+const breakpoints_1 = require("../breakpoints");
 const baseviews_1 = require("./baseviews");
 ///
 function ignoreSymbol(sym) {
@@ -982,4 +983,133 @@ class ProbeSymbolView extends ProbeViewBaseBase {
 }
 exports.ProbeSymbolView = ProbeSymbolView;
 ///
+class BreakpointsView {
+    constructor() {
+        this.editingId = null; // breakpoint being edited in the add form
+    }
+    createDiv(parent) {
+        this.maindiv = (0, baseviews_1.newDiv)(parent, 'vertical-scroll bp-view');
+        this.render();
+        return this.maindiv[0];
+    }
+    refresh(moveCursor) {
+        this.render();
+    }
+    render() {
+        const div = this.maindiv.empty();
+        const resolved = (0, breakpoints_1.resolveBreakpoints)();
+        // add/edit form
+        const editing = this.editingId != null ? resolved.find(r => r.bp.id == this.editingId) : null;
+        const form = $('<div class="bp-form"/>');
+        const targetInput = $('<input type="text" class="bp-input" spellcheck="false"/>')
+            .attr('placeholder', 'address or symbol (e.g. $8000, mainloop)')
+            .val(editing && editing.bp.type == 'address' ? editing.bp.target : '');
+        const condInput = $('<input type="text" class="bp-input" spellcheck="false"/>')
+            .attr('placeholder', 'condition (e.g. A == $20 && X < 4)')
+            .val(editing ? editing.bp.condition || '' : '');
+        const submit = $('<button class="btn btn-default btn-xs bp-submit"/>').text(editing ? 'Save' : 'Add');
+        const cancel = $('<button class="btn btn-default btn-xs bp-submit"/>').text('Cancel');
+        cancel.toggle(editing != null);
+        cancel.click(() => { this.editingId = null; this.render(); });
+        const doSubmit = () => {
+            const target = String(targetInput.val() || '').trim();
+            const cond = String(condInput.val() || '').trim() || undefined;
+            if (editing) {
+                if (editing.bp.type == 'address')
+                    breakpoints_1.bpStore.update(editing.bp.id, { target, condition: cond });
+                else
+                    breakpoints_1.bpStore.update(editing.bp.id, { condition: cond });
+                this.editingId = null;
+            }
+            else if (target) {
+                breakpoints_1.bpStore.addAddressBreakpoint(target, cond);
+                targetInput.val('');
+                condInput.val('');
+            }
+            this.render();
+        };
+        submit.click(doSubmit);
+        form.append(targetInput, condInput, submit, cancel);
+        form.on('keydown', (e) => {
+            if (e.key == 'Enter') {
+                e.preventDefault();
+                doSubmit();
+            }
+            if (e.key == 'Escape') {
+                this.editingId = null;
+                this.render();
+            }
+        });
+        div.append(form);
+        // breakpoint rows
+        for (const r of resolved) {
+            div.append(this.renderRow(r));
+        }
+        if (resolved.length == 0) {
+            div.append($('<div class="bp-hint"/>')
+                .text('No breakpoints. Click a line in the editor gutter (left of the line numbers), or add an address or symbol above.'));
+        }
+    }
+    renderRow(r) {
+        const bp = r.bp;
+        const row = $('<div class="bp-row"/>');
+        // is the CPU currently stopped exactly at this breakpoint's address?
+        const c = ui_1.lastDebugState && ui_1.lastDebugState.c;
+        const stoppedPC = c ? (c.EPC != null ? c.EPC : c.PC) : undefined;
+        if (r.pc != null && stoppedPC === r.pc)
+            row.addClass('bp-current');
+        const chk = $('<input type="checkbox" class="bp-chk"/>')
+            .prop('checked', bp.enabled)
+            .attr('title', bp.enabled ? 'Disable breakpoint' : 'Enable breakpoint')
+            .on('click', (e) => { e.stopPropagation(); breakpoints_1.bpStore.setEnabled(bp.id, !bp.enabled); });
+        row.append(chk);
+        // location: click to jump to the source line (or disassembly, if unresolved)
+        let loc;
+        if (bp.type == 'source') {
+            loc = (0, util_1.getFilenameForPath)(bp.file) + ':' + bp.line;
+        }
+        else {
+            loc = bp.target;
+        }
+        const locSpan = $('<span class="bp-loc"/>').text(loc);
+        if (bp.type == 'source') {
+            locSpan.attr('title', bp.file + ':' + bp.line + ' (click to open)');
+            locSpan.on('click', () => {
+                const wnd = ui_1.projectWindows.createOrShow(bp.file);
+                if (wnd && wnd.highlightLines) {
+                    wnd.highlightLines(bp.line - 1, bp.line - 1);
+                }
+            });
+        }
+        else if (r.pc != null) {
+            locSpan.attr('title', loc + ' ($' + (0, util_1.hex)(r.pc, 4) + ', click to open)');
+            locSpan.on('click', () => (0, ui_1.openLocationForPC)(r.pc));
+        }
+        row.append(locSpan);
+        // resolved address or error
+        const addrSpan = $('<span class="bp-addr"/>');
+        if (r.pc != null) {
+            addrSpan.text('$' + (0, util_1.hex)(r.pc, 4));
+        }
+        else {
+            addrSpan.text(r.error || '?').addClass('bp-error').attr('title', r.error);
+        }
+        row.append(addrSpan);
+        const condSpan = $('<span class="bp-cond"/>')
+            .text(bp.condition ? 'if ' + bp.condition : '')
+            .attr('title', bp.condition ? 'if ' + bp.condition : '');
+        row.append(condSpan);
+        const editBtn = $('<button class="bp-btn"><span class="glyphicon glyphicon-pencil"/></button>')
+            .attr('title', 'Edit breakpoint')
+            .on('click', () => { this.editingId = bp.id; this.render(); });
+        const delBtn = $('<button class="bp-btn"><span class="glyphicon glyphicon-trash"/></button>')
+            .attr('title', 'Delete breakpoint')
+            .on('click', () => breakpoints_1.bpStore.remove(bp.id));
+        row.append(editBtn, delBtn);
+        if (!bp.enabled)
+            row.addClass('bp-disabled');
+        return row;
+    }
+}
+exports.BreakpointsView = BreakpointsView;
 //# sourceMappingURL=debugviews.js.map

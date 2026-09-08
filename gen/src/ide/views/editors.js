@@ -22,6 +22,7 @@ const mbo_1 = require("../../themes/mbo");
 const settings_1 = require("../settings");
 const tabs_1 = require("./tabs");
 const ui_1 = require("../ui");
+const breakpoints_1 = require("../breakpoints");
 const keys_1 = require("../keys");
 // Free the mod+shift+<letter> keys the IDE binds (see IDE_RESERVED_KEYS) so its
 // debug shortcuts work while an editor is focused. CodeMirror claims two of
@@ -110,6 +111,7 @@ class SourceEditor {
         this.editor.dispatch({
             effects: (0, filters_1.createTextTransformFilterEffect)(exports.textMapFunctions),
         });
+        this.syncBreakpoints(); // render breakpoints from the shared store
         if (ui_1.current_project.getToolForFilename(this.path).startsWith("remote:")) {
             this.refreshDelayMsec = 1000; // remote URLs get slower refresh
         }
@@ -251,10 +253,9 @@ class SourceEditor {
                 gutter_1.statusMarkers.gutter,
                 view_1.EditorView.updateListener.of(update => {
                     for (let effect of update.transactions.flatMap(tr => tr.effects)) {
-                        if (effect.is(gutter_1.breakpointMarkers.set)) {
-                            if (ui_1.platform.isRunning()) {
-                                this.runToBreakpoints(update.state);
-                            }
+                        if (effect.is(gutter_1.breakpointMarkers.requestToggle)) {
+                            // the store notifies listeners, which syncs markers and re-arms
+                            breakpoints_1.bpStore.toggleSourceLine(this.path, effect.value);
                         }
                         if (effect.is(gutter_1.currentPcMarker.runToLine)) {
                             const lineNum = effect.value;
@@ -656,29 +657,11 @@ class SourceEditor {
     redoStep() {
         (0, commands_1.redo)(this.editor);
     }
-    getBreakpointPCs() {
-        if (this.sourcefile == null)
-            return [];
-        const pcs = [];
-        const bpField = this.editor.state.field(gutter_1.breakpointMarkers.field);
-        const cursor = bpField.iter();
-        while (cursor.value) {
-            const line = this.editor.state.doc.lineAt(cursor.from).number;
-            const pc = this.sourcefile.line2offset[line];
-            if (pc >= 0)
-                pcs.push(pc);
-            cursor.next();
-        }
-        return pcs;
-    }
-    runToBreakpoints(state) {
-        const pcs = this.getBreakpointPCs();
-        if (pcs.length > 0) {
-            (0, ui_1.runToPC)(pcs);
-        }
-        else {
-            (0, ui_1.clearBreakpoint)();
-        }
+    // push the store's breakpoints for this file into the gutter markers
+    syncBreakpoints() {
+        const markers = breakpoints_1.bpStore.getSourceBreakpointsForFile(this.path)
+            .map(bp => ({ line: bp.line, enabled: bp.enabled }));
+        this.editor.dispatch({ effects: gutter_1.breakpointMarkers.setAll.of(markers) });
     }
 }
 exports.SourceEditor = SourceEditor;
@@ -870,6 +853,22 @@ class ListingView extends DisassemblerView {
                 }
             }
         }
+    }
+    // jump to an arbitrary address in this listing. Overrides the
+    // DisassemblerView version, which looks for lines starting with a plain
+    // "XXXX\t" hex address -- that's the synthetic disassembly text format,
+    // not this raw compiler-generated listing, so it never matches here.
+    goToAddress(addr) {
+        this.refreshListing();
+        const res = this.assemblyfile && this.assemblyfile.findLineForOffset(addr, exports.PC_LINE_LOOKAHEAD);
+        if (res) {
+            const line = this.disasmview.state.doc.line(res.line);
+            this.disasmview.dispatch({
+                selection: { anchor: line.from, head: line.from },
+                effects: view_1.EditorView.scrollIntoView(line.from, { y: "center" }),
+            });
+        }
+        this.disasmview.focus();
     }
 }
 exports.ListingView = ListingView;

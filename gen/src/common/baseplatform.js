@@ -237,6 +237,16 @@ class BaseDebugPlatform extends BasePlatform {
             return pcs.has(c.PC);
         });
     }
+    runEvalAtPC(targets) {
+        this.debugTargetClock++;
+        this.runEval((c) => {
+            const epc = c.EPC != null ? c.EPC : c.PC;
+            if (!targets.has(epc))
+                return false;
+            const cond = targets.get(epc);
+            return cond ? cond(c) : true;
+        });
+    }
     runUntilReturn() {
         var SP0 = this.getSP();
         this.runEval((c) => {
