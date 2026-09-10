@@ -1288,6 +1288,7 @@ function pause() {
   clearBreakpoint();
   _pause();
   userPaused = true;
+  refreshShortcutBar(); // debug chips appear once the session starts
 }
 
 // F8 pauses a running emulator and resumes a paused one. Unmodified and not
@@ -1311,7 +1312,8 @@ function _resume() {
 function resume() {
   if (!checkRunReady()) return;
 
-  // If there are enabled breakpoints, resume with them armed
+  // If there are enabled breakpoints, resume with them armed; the debug
+  // session stays active so the debug chips keep showing
   if (bpStore.getEnabled().length > 0 && armBreakpoints()) {
     if (!platform.isRunning()) {
       projectWindows.refresh(false);
@@ -1322,12 +1324,16 @@ function resume() {
   }
 
   clearBreakpoint();
+  // plain run: end the debug session so the Reset & Run / Search chips return
+  // (pause() set debugSessionActive; undo it here unless breakpoints were armed)
+  debugSessionActive = false;
   if (!platform.isRunning()) {
     projectWindows.refresh(false);
   }
   _resume();
   userPaused = false;
   lastViewClicked = null;
+  refreshShortcutBar();
 }
 
 function singleStep() {
