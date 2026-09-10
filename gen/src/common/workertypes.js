@@ -15,25 +15,36 @@ class SourceFile {
             if (info.offset >= 0) {
                 // first line wins (is assigned to offset)
                 // TODO: handle macros/includes w/ multiple offsets per line
-                if (!this.offset2loc[info.offset])
-                    this.offset2loc[info.offset] = info;
-                if (!this.line2offset[info.line])
-                    this.line2offset[info.line] = info.offset;
+                if (!this.offset2loc.has(info.offset))
+                    this.offset2loc.set(info.offset, info);
+                if (!this.line2offset.has(info.line))
+                    this.line2offset.set(info.line, info.offset);
             }
         }
+        this.sortedOffsets = Array.from(this.offset2loc.keys()).sort((a, b) => a - b);
     }
-    // TODO: smarter about looking for source lines between two addresses
+    // returns the line whose offset is nearest to (but not greater than) PC,
+    // provided it is within `lookbehind` bytes; null otherwise
     findLineForOffset(PC, lookbehind) {
-        if (this.offset2loc) {
-            for (var i = 0; i <= lookbehind; i++) {
-                var loc = this.offset2loc[PC];
-                if (loc) {
-                    return loc;
-                }
-                PC--;
+        const offsets = this.sortedOffsets;
+        // binary search for last offset <= PC
+        var lo = 0, hi = offsets.length - 1, ans = -1;
+        while (lo <= hi) {
+            var mid = (lo + hi) >> 1;
+            if (offsets[mid] <= PC) {
+                ans = mid;
+                lo = mid + 1;
+            }
+            else {
+                hi = mid - 1;
             }
         }
-        return null;
+        if (ans < 0)
+            return null;
+        var off = offsets[ans];
+        if (PC - off > lookbehind)
+            return null;
+        return this.offset2loc.get(off);
     }
     lineCount() { return this.lines.length; }
 }

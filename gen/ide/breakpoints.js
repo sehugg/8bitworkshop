@@ -155,7 +155,7 @@ function resolveBreakpoint(bp) {
             let sf = lst && (lst.sourcefile || lst.assemblyfile);
             if (!sf)
                 return { bp, error: "no debug info (build first?)" };
-            pc = sf.line2offset[bp.line];
+            pc = sf.line2offset.get(bp.line);
             if (!(pc >= 0))
                 return { bp, error: "line has no code" };
         }

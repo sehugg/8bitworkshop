@@ -95,9 +95,9 @@ const probe_1 = require("../../src/common/probe");
             { line: 3, offset: 4, insns: 'RTS' },
         ];
         const sf = new workertypes_1.SourceFile(lines, '');
-        assert_1.default.ok(sf.offset2loc[0]);
-        assert_1.default.ok(sf.offset2loc[2]);
-        assert_1.default.ok(sf.offset2loc[4]);
+        assert_1.default.ok(sf.offset2loc.get(0));
+        assert_1.default.ok(sf.offset2loc.get(2));
+        assert_1.default.ok(sf.offset2loc.get(4));
     });
     (0, mocha_1.it)('should build line to offset mapping', function () {
         const lines = [
@@ -106,9 +106,9 @@ const probe_1 = require("../../src/common/probe");
             { line: 3, offset: 4 },
         ];
         const sf = new workertypes_1.SourceFile(lines, '');
-        assert_1.default.strictEqual(sf.line2offset[1], 0);
-        assert_1.default.strictEqual(sf.line2offset[2], 2);
-        assert_1.default.strictEqual(sf.line2offset[3], 4);
+        assert_1.default.strictEqual(sf.line2offset.get(1), 0);
+        assert_1.default.strictEqual(sf.line2offset.get(2), 2);
+        assert_1.default.strictEqual(sf.line2offset.get(3), 4);
     });
     (0, mocha_1.it)('should handle negative offsets gracefully', function () {
         const lines = [
@@ -118,8 +118,8 @@ const probe_1 = require("../../src/common/probe");
         ];
         const sf = new workertypes_1.SourceFile(lines, '');
         // Negative offsets should not be added to mapping
-        assert_1.default.ok(!sf.offset2loc[-1]);
-        assert_1.default.ok(sf.offset2loc[0]);
+        assert_1.default.ok(!sf.offset2loc.has(-1));
+        assert_1.default.ok(sf.offset2loc.get(0));
     });
     (0, mocha_1.it)('findLineForOffset should locate source line by address', function () {
         const lines = [

@@ -294,7 +294,7 @@ export class SourceEditor implements ProjectView {
             if (effect.is(currentPcMarker.runToLine)) {
               const lineNum = effect.value;
               if (this.sourcefile && this.sourcefile.line2offset) {
-                const pc = this.sourcefile.line2offset[lineNum];
+                const pc = this.sourcefile.line2offset.get(lineNum);
                 if (pc >= 0) {
                   runToPC([pc]);
                 }
@@ -576,8 +576,7 @@ export class SourceEditor implements ProjectView {
   setTimingResult(result: CodeAnalyzer): void {
     if (this.sourcefile == null) return;
     var newBytes = new Map<number, string>();
-    for (const line of Object.keys(this.sourcefile.line2offset)) {
-      let pc = this.sourcefile.line2offset[line];
+    for (const [line, pc] of this.sourcefile.line2offset) {
       let clocks = result.pc2clockrange[pc];
       var minclocks = clocks && clocks.minclocks;
       var maxclocks = clocks && clocks.maxclocks;
@@ -589,7 +588,7 @@ export class SourceEditor implements ProjectView {
           s = minclocks + "-" + maxclocks;
         if (maxclocks == result.MAX_CLOCKS)
           s += "+";
-        newBytes.set(parseInt(line), s);
+        newBytes.set(line, s);
       }
     }
     this.editor.dispatch({
@@ -719,7 +718,7 @@ export class SourceEditor implements ProjectView {
   getCursorPC(): number {
     var line = this.getCurrentLine();
     while (this.sourcefile && line >= 0) {
-      var pc = this.sourcefile.line2offset[line];
+      var pc = this.sourcefile.line2offset.get(line);
       if (pc >= 0) return pc;
       line--;
     }
