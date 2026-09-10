@@ -76,7 +76,7 @@ class GameBoyPlatform extends BaseMachinePlatform<GameBoyMachine> implements Pla
 }
 
 const GBC_PRESETS: Preset[] = [
-  { id: 'hello_color.c', name: 'Hello Color World (C)' },
+  //{ id: 'hello_color.c', name: 'Hello Color World (C)' },
 ];
 
 class GameBoyColorPlatform extends GameBoyPlatform {

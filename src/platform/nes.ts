@@ -587,6 +587,5 @@ class NESMAMEPlatform extends BaseMAME6502Platform implements Platform {
 ///
 
 PLATFORMS['nes'] = JSNESPlatform;
-PLATFORMS['nes-asm'] = JSNESPlatform;
 PLATFORMS['nes.mame'] = NESMAMEPlatform;
 

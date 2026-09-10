@@ -835,4 +835,3 @@ var VerilogVGAPlatform = function(mainElement, options) {
 
 PLATFORMS['verilog'] = VerilogPlatform;
 PLATFORMS['verilog-vga'] = VerilogVGAPlatform;
-PLATFORMS['verilog-test'] = VerilogPlatform;

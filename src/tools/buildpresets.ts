@@ -60,6 +60,12 @@ export interface BuildOptions {
 
 const DEFAULT_TIMEOUT = 120000;
 
+const SKIP_PLATFORMS = [
+    'atari8-800xl.mame',
+    'vector-ataribw',
+    'williams-defender',
+];
+
 // Load every platform module so it registers itself in PLATFORMS. A couple of
 // them touch the DOM at import time and can't run here; they're reported
 // rather than hidden.
@@ -144,7 +150,9 @@ function listSkeletons(dir: string, platform: string, skelTools: { [name: string
 // be named several times; it is built once, under the first platform that
 // claims it.
 export async function listPresets(
-    filter?: string, platform?: string, warn: (s: string) => void = () => { }
+    filter?: string, platform?: string,
+    warn: (s: string) => void = () => { },
+    err: (s: string) => void = () => { }
 ): Promise<PresetEntry[]> {
     await importAllPlatforms(warn);
     const found: PresetEntry[] = [];
@@ -160,11 +168,16 @@ export async function listPresets(
         found.push(e);
     };
     for (const id of Object.keys(PLATFORMS).sort()) {
+        if (SKIP_PLATFORMS.includes(id)) continue;
+
         let presets: { id: string }[];
         let plat: any;
         try {
             plat = new PLATFORMS[id](null);
             presets = plat.getPresets ? plat.getPresets() : [];
+            if (presets.length === 0) {
+                warn(`platform ${id}: no presets listed in getPresets()`);
+            }
         } catch (e) {
             warn(`platform ${id}: ${e}`);
             continue;
@@ -178,6 +191,7 @@ export async function listPresets(
             if (!seen.has(relpath) && !fs.existsSync(path.join(PRESETS_DIR, relpath))) {
                 missing[id] = (missing[id] || 0) + 1;
                 seen.add(relpath);
+                warn(`platform ${id}: ${relpath} not found`);
                 continue;
             }
             const tool = toolForPreset(relpath, id, plat);
@@ -187,7 +201,7 @@ export async function listPresets(
         for (const skel of listSkeletons(dir, id, skelTools)) keep(skel);
     }
     for (const id of Object.keys(missing).sort()) {
-        warn(`platform ${id}: ${missing[id]} preset(s) not in presets/${getBasePlatform(id)}/`);
+        err(`platform ${id}: ${missing[id]} preset(s) not in presets/${getBasePlatform(id)}/`);
     }
     found.sort((a, b) => a.preset < b.preset ? -1 : a.preset > b.preset ? 1 : 0);
     return found;
@@ -433,8 +447,13 @@ async function main() {
     const timeout = arg(argv, 'timeout') ? parseInt(arg(argv, 'timeout')) : undefined;
 
     const warnings: string[] = [];
-    const presets = await listPresets(filter, platform, (w) => warnings.push(w));
+    const errors: string[] = [];
+    const presets = await listPresets(filter, platform, (w) => warnings.push(w), (e) => errors.push(e));
     for (const w of warnings) console.log(dim(`note: ${w}`));
+    for (const e of errors) console.log(red(`error: ${e}`));
+    if (errors.length) {
+        console.error(red(`aborting: ${errors.length} platform(s) list preset files that don't exist`));
+    }
     console.log(bold(`building ${presets.length} presets...`));
     const results = await buildAllPresets({
         presets, timeout, verbose, onResult: (r) => {
@@ -471,6 +490,9 @@ async function main() {
     }
     if (baseline) {
         process.exit(compareToBaseline(results, baseline) ? 1 : 0);
+    }
+    if (errors.length) {
+        process.exit(1);
     }
 }
 
