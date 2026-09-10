@@ -113,9 +113,9 @@ describe('SourceFile Class', function () {
     ];
     const sf = new SourceFile(lines, '');
 
-    assert.ok(sf.offset2loc[0]);
-    assert.ok(sf.offset2loc[2]);
-    assert.ok(sf.offset2loc[4]);
+    assert.ok(sf.offset2loc.get(0));
+    assert.ok(sf.offset2loc.get(2));
+    assert.ok(sf.offset2loc.get(4));
   });
 
   it('should build line to offset mapping', function () {
@@ -126,9 +126,9 @@ describe('SourceFile Class', function () {
     ];
     const sf = new SourceFile(lines, '');
 
-    assert.strictEqual(sf.line2offset[1], 0);
-    assert.strictEqual(sf.line2offset[2], 2);
-    assert.strictEqual(sf.line2offset[3], 4);
+    assert.strictEqual(sf.line2offset.get(1), 0);
+    assert.strictEqual(sf.line2offset.get(2), 2);
+    assert.strictEqual(sf.line2offset.get(3), 4);
   });
 
   it('should handle negative offsets gracefully', function () {
@@ -140,8 +140,8 @@ describe('SourceFile Class', function () {
     const sf = new SourceFile(lines, '');
 
     // Negative offsets should not be added to mapping
-    assert.ok(!sf.offset2loc[-1]);
-    assert.ok(sf.offset2loc[0]);
+    assert.ok(!sf.offset2loc.has(-1));
+    assert.ok(sf.offset2loc.get(0));
   });
 
   it('findLineForOffset should locate source line by address', function () {

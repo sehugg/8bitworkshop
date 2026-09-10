@@ -175,7 +175,7 @@ export function resolveBreakpoint(bp: Breakpoint): ResolvedBreakpoint {
             let lst = current_project.getListingForFile(bp.file);
             let sf = lst && (lst.sourcefile || lst.assemblyfile);
             if (!sf) return { bp, error: "no debug info (build first?)" };
-            pc = sf.line2offset[bp.line];
+            pc = sf.line2offset.get(bp.line);
             if (!(pc >= 0)) return { bp, error: "line has no code" };
         } else {
             let r = parseTarget(bp.target, makeSymbolLookup());
