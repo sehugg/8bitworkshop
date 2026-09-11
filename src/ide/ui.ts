@@ -2180,7 +2180,11 @@ function globalErrorHandler(msgevent) {
       haltEmulation(err);
     } else if (isProductionHost()) {
       // lightweight self-hosted error reporting
-      reportErrorToServer(msg, err);
+      reportErrorToServer(msg, err, {
+        platform: platform_id,
+        window: projectWindows ? projectWindows.getActiveID() : '',
+        errors: projectWindows.lasterrors || [],
+      });
     }
   }
 }
