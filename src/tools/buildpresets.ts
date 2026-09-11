@@ -60,10 +60,13 @@ export interface BuildOptions {
 
 const DEFAULT_TIMEOUT = 120000;
 
+// skip these platforms, they aren't ready yet or otherwise broken
 const SKIP_PLATFORMS = [
     'atari8-800xl.mame',
     'vector-ataribw',
     'williams-defender',
+    'astrocade-arcade',
+    'mcr',
 ];
 
 // Load every platform module so it registers itself in PLATFORMS. A couple of
