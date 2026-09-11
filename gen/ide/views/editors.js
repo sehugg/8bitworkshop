@@ -140,8 +140,8 @@ class SourceEditor {
             mk('mod+f', 'Find', search_1.openSearchPanel),
             mk('mod+g', 'Find Next', search_1.findNext),
             mk('mod+d', 'Next Occurrence', search_1.selectNextOccurrence),
-            mk('mod+shift+backspace', 'Delete Line', commands_1.deleteLine),
-            mk('mod+/', 'Toggle Comment', commands_1.toggleComment),
+            //mk('mod+shift+backspace', 'Delete Line', deleteLine),
+            //mk('mod+/', 'Toggle Comment', toggleComment),
             mk('mod+z', 'Undo', commands_1.undo),
             mk('mod+shift+z', 'Redo', commands_1.redo),
         ];

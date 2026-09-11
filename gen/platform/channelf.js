@@ -12,7 +12,7 @@ const channelf_1 = require("../machine/channelf");
 const disasmF8_1 = require("../common/cpu/disasmF8");
 const util_1 = require("../common/util");
 var CHANNELF_PRESETS = [
-    { id: 'hello.dasm', name: 'Hello World (ASM)' },
+//{ id: 'hello.dasm', name: 'Hello World (ASM)' },
 ];
 function cpuStateToLongString_F8(c) {
     return "PC0 = " + (0, util_1.hex)(c.PC0, 4) + "  PC1 = " + (0, util_1.hex)(c.PC1, 4) + "\n"

@@ -12,7 +12,7 @@ import { disassembleF8 } from "../common/cpu/disasmF8";
 import { hex, printFlags } from "../common/util";
 
 var CHANNELF_PRESETS = [
-  { id: 'hello.dasm', name: 'Hello World (ASM)' },
+  //{ id: 'hello.dasm', name: 'Hello World (ASM)' },
 ];
 
 function cpuStateToLongString_F8(c): string {

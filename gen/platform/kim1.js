@@ -4,7 +4,7 @@ const emu_1 = require("../common/emu");
 const kim1_1 = require("../machine/kim1");
 const baseplatform_1 = require("../common/baseplatform");
 var KIM1_PRESETS = [
-    { id: 'hello.dasm', name: 'Hello World (ASM)' },
+//{id:'hello.dasm', name:'Hello World (ASM)'},
 ];
 class KIM1Platform extends baseplatform_1.Base6502MachinePlatform {
     constructor() {

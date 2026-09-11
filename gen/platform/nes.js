@@ -567,6 +567,5 @@ class NESMAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
 }
 ///
 emu_1.PLATFORMS['nes'] = JSNESPlatform;
-emu_1.PLATFORMS['nes-asm'] = JSNESPlatform;
 emu_1.PLATFORMS['nes.mame'] = NESMAMEPlatform;
 //# sourceMappingURL=nes.js.map

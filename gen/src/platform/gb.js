@@ -5,12 +5,17 @@ const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
 const disasmSM83_1 = require("../common/cpu/disasmSM83");
 const GB_PRESETS = [
-    { id: 'hello.c', name: 'Hello World (C)' },
-    { id: 'testdrawing.c', name: 'Drawing Routines (C)' },
-    { id: 'testphys.c', name: 'Sprite Test (C)' },
+    { id: 'hello.c', name: 'Hello World', category: 'C' },
+    { id: 'testdrawing.c', name: 'Drawing Routines' },
+    { id: 'testphys.c', name: 'Joypad Sprite' },
+    { id: 'sprites.c', name: 'Multiple Sprites' },
+    { id: 'metasprites.c', name: 'Metasprites' },
+    { id: 'scroll.c', name: 'Scrolling' },
+    { id: 'music.c', name: 'Music Player' },
+    { id: 'siegegame.c', name: 'Siege Game' },
     { id: 'chase.c', name: "Shiru's Chase Game" },
     { id: 'pakupaku.c', name: 'Paku Paku' },
-    { id: 'hello.sgb', name: 'Hello World (ASM)' },
+    { id: 'hello.sgb', name: 'Hello World (ASM)', category: 'assembler' },
     { id: 'main.wiz', name: 'Snake Game (Wiz)' },
 ];
 class GameBoyPlatform extends baseplatform_1.BaseMachinePlatform {
@@ -71,7 +76,7 @@ class GameBoyPlatform extends baseplatform_1.BaseMachinePlatform {
     }
 }
 const GBC_PRESETS = [
-    { id: 'hello_color.c', name: 'Hello Color World (C)' },
+//{ id: 'hello_color.c', name: 'Hello Color World (C)' },
 ];
 class GameBoyColorPlatform extends GameBoyPlatform {
     newMachine() {

@@ -792,5 +792,4 @@ var VerilogVGAPlatform = function (mainElement, options) {
 ////////////////
 emu_1.PLATFORMS['verilog'] = VerilogPlatform;
 emu_1.PLATFORMS['verilog-vga'] = VerilogVGAPlatform;
-emu_1.PLATFORMS['verilog-test'] = VerilogPlatform;
 //# sourceMappingURL=verilog.js.map

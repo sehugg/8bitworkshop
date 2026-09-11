@@ -5,7 +5,7 @@ import { KIM1 } from "../machine/kim1";
 import { Base6502MachinePlatform } from "../common/baseplatform";
 
 var KIM1_PRESETS = [
-  {id:'hello.dasm', name:'Hello World (ASM)'},
+  //{id:'hello.dasm', name:'Hello World (ASM)'},
 ];
 
 class KIM1Platform extends Base6502MachinePlatform<KIM1> implements Platform {

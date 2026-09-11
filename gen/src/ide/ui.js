@@ -1275,6 +1275,7 @@ function pause() {
     clearBreakpoint();
     _pause();
     userPaused = true;
+    (0, shortcutbar_1.refreshShortcutBar)(); // debug chips appear once the session starts
 }
 // F8 pauses a running emulator and resumes a paused one. Unmodified and not
 // bound by CodeMirror, so it always reaches the IDE -- even while typing in
@@ -1300,7 +1301,8 @@ function _resume() {
 function resume() {
     if (!checkRunReady())
         return;
-    // If there are enabled breakpoints, resume with them armed
+    // If there are enabled breakpoints, resume with them armed; the debug
+    // session stays active so the debug chips keep showing
     if (breakpoints_1.bpStore.getEnabled().length > 0 && armBreakpoints()) {
         if (!exports.platform.isRunning()) {
             exports.projectWindows.refresh(false);
@@ -1310,12 +1312,16 @@ function resume() {
         return;
     }
     clearBreakpoint();
+    // plain run: end the debug session so the Reset & Run / Search chips return
+    // (pause() set debugSessionActive; undo it here unless breakpoints were armed)
+    debugSessionActive = false;
     if (!exports.platform.isRunning()) {
         exports.projectWindows.refresh(false);
     }
     _resume();
     userPaused = false;
     lastViewClicked = null;
+    (0, shortcutbar_1.refreshShortcutBar)();
 }
 function singleStep() {
     if (!checkRunReady())
@@ -2296,8 +2302,9 @@ function showInstructions() {
         vcanvas.on('focus', () => {
             if (exports.platform.isRunning()) {
                 div.fadeIn(200);
-                // toggle sound for browser autoplay
-                exports.platform.pause();
+                // unlock audio for browser autoplay policy (resume() no-ops if already running;
+                // don't pair with pause() first -- suspend()/resume() are async and racing them
+                // here left the AudioContext stuck suspended)
                 exports.platform.resume();
             }
         });

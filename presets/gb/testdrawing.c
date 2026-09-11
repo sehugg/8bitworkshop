@@ -1,4 +1,20 @@
 
+/*
+Drawing primitives demo for Game Boy.
+Uses the GBDK pixel plotting library (gb/drawing.h) to draw
+characters, circles, boxes, and lines in the various draw
+modes (SOLID, XOR) and foreground/background colors.
+
+No font data is included in this file. The characters drawn by
+gprintf()/gotogxy() use the 256-character IBM fixed-width font
+(font_ibm_fixed) compiled into the GBDK drawing library, which
+is linked in automatically via gb.lib.
+
+The last section scrolls the whole screen by replotting every
+pixel one row up at a time. This is slow, since each call to
+plot_point() reads and writes a byte of pixel memory.
+*/
+
 //#link "gb/sfr.sgb"
 //#link "gb/crt0.sgb"
 //#resource "gb/global.sgb"
@@ -9,18 +25,19 @@
 #include "gb/gb.h"
 #include "gb/drawing.h"
 
+// draw a starburst of lines radiating from (x,y)
 void linetest(uint8_t x, uint8_t y, uint8_t w) {
     color(DKGREY,WHITE,SOLID);
 	for (int i = -w; i <= w; i++) line(x,y,x+i,y-w);
 	for (int i = -w; i <= w; i++) line(x,y,x+w,y+i);
 	for (int i = -w; i <= w; i++) line(x,y,x+i,y+w);
-	for (int i = -w; i <= w; i++) line(x,y,x-w,y+i);	
+	for (int i = -w; i <= w; i++) line(x,y,x-w,y+i);
 }
 
 void main(void)
 {
-    uint8_t  a,b,c,d,e;
-    c=0;
+    uint8_t  a,b,c,d,e;  // loop counters and color indices
+    c=0;  // character code to draw, starting at 0
     /* Draw many characters on the screen with different fg and bg colours */
     for (a=0; a<=15; a++) {
 	for (b=0; b<=15; b++) {
@@ -32,7 +49,7 @@ void main(void)
 	    }
 	    color(d,e,SOLID);
 	    gprintf("%c",c++);
-	} 
+	}
     }
 
     /* Draw two circles, a line, and two boxes in different drawing modes */
@@ -47,6 +64,7 @@ void main(void)
     box(0,130,40,143,M_NOFILL);
     box(50,130,90,143,M_FILL);
 
+    // draw lines fanning out from a point
     linetest(130, 100, 20);
 
     /* Scroll the screen using the hardest method imaginable :) */
