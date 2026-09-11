@@ -2304,8 +2304,9 @@ function showInstructions() {
     vcanvas.on('focus', () => {
       if (platform.isRunning()) {
         div.fadeIn(200);
-        // toggle sound for browser autoplay
-        platform.pause();
+        // unlock audio for browser autoplay policy (resume() no-ops if already running;
+        // don't pair with pause() first -- suspend()/resume() are async and racing them
+        // here left the AudioContext stuck suspended)
         platform.resume();
       }
     });
