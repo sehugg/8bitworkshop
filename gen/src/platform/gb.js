@@ -75,16 +75,14 @@ class GameBoyPlatform extends baseplatform_1.BaseMachinePlatform {
         return "https://8bitworkshop.com/docs/platforms/gameboy/";
     }
 }
-const GBC_PRESETS = [
-//{ id: 'hello_color.c', name: 'Hello Color World (C)' },
-];
 class GameBoyColorPlatform extends GameBoyPlatform {
     newMachine() {
         var m = new gb_1.GameBoyMachine();
-        m.forceColor = true;
+        // not needed, gb.color sets the CGB header byte to 0x80
+        //m.forceColor = true;
         return m;
     }
-    getPresets() { return GBC_PRESETS; }
+    getPresets() { return GB_PRESETS; }
     getROMExtension() {
         return ".gbc";
     }

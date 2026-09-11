@@ -17,6 +17,13 @@ function cgbColorToARGB(lo, hi) {
     var b8 = (b5 * 527 + 23) >> 6;
     return 0xFF000000 | (b8 << 16) | (g8 << 8) | r8;
 }
+// CGB boot ROM default palette: 8 palettes of white/light-grey/dark-grey/black.
+// Each entry is a little-endian 15-bit BGR555 color (0x7FFF, 0x56B5, 0x294A, 0x0000).
+// Without this, CGB mode starts with palette RAM all-zeroed/white and DMG-style
+// games that rely on the default shades render blank.
+var CGB_DEFAULT_PALETTE = new Uint8Array([
+    0xFF, 0x7F, 0xB5, 0x56, 0x4A, 0x29, 0x00, 0x00,
+]);
 var GB_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
     // D-pad
     [emu_1.Keys.RIGHT, 0, 0x01],
@@ -739,6 +746,7 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
         this.sampleRate = 154 * 60 * 4; // ~36960 Hz: 4 audio samples per scanline
         this.overscan = false;
         this.defaultROMSize = 0x8000; // 32KB minimum
+        this.aspectRatio = 10 / 9;
         this.cpu = new SM83_1.SM83();
         this.ram = new Uint8Array(0x2000); // Work RAM (C000-DFFF)
         this.vram = new Uint8Array(0x2000); // Video RAM (8000-9FFF)
@@ -1787,8 +1795,10 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
         this.vramBankSelect = 0;
         this.wramBanks.fill(0);
         this.wramBankSelect = 1;
-        this.bgCRAM.fill(0xFF);
-        this.objCRAM.fill(0xFF);
+        for (var pal = 0; pal < 8; pal++) {
+            this.bgCRAM.set(CGB_DEFAULT_PALETTE, pal * 8);
+            this.objCRAM.set(CGB_DEFAULT_PALETTE, pal * 8);
+        }
         this.bgCRAMIndex = 0;
         this.bgCRAMAutoInc = false;
         this.objCRAMIndex = 0;

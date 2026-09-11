@@ -19,6 +19,7 @@
 #include "gb/types.h"
 #include "gb/hardware.h"
 #include "gb/gb.h"
+#include "gb/cgb.h"
 
 typedef uint8_t byte;
 typedef uint16_t word;
@@ -207,6 +208,15 @@ const Level levels[LEVELS_FIXED] = {
   { 14,  9, level_3 },
   { 14, 11, level_4 },
   { 16, 13, level_5 },
+};
+
+/*{pal:555,n:16}*/
+palette_color_t bkg_palettes[1][4] = {
+  { 0x2062, 0x318E, 0x6A28, 0x7714 },
+};
+/*{pal:555,n:16}*/
+palette_color_t fg_palettes[1][4] = {
+  { 0x73DB, 0x4BDC, 0x2B31, 0x14A3 },
 };
 
 /* Filled by generate_level() for endless mazes after the fixed set */
@@ -782,6 +792,11 @@ void draw_cell(byte x, byte y) {
     set_bkg_tile_xy(sx, sy + 1, TILE_FLOOR);
     set_bkg_tile_xy(sx + 1, sy + 1, TILE_FLOOR);
   }
+}
+
+void set_color_palettes(byte i) {
+  set_bkg_palette(0, 1, bkg_palettes[i]);
+  set_sprite_palette(0, 1, fg_palettes[i]);
 }
 
 void draw_hud(void) {
@@ -1394,6 +1409,7 @@ void setup_graphics(void) {
   set_bkg_1bpp_data(0, 32, font_1bpp);
   set_bkg_data(BKG_BASE, 13, bkg_tiles);
   set_sprite_data(16, 12, sprite_tiles);
+  set_color_palettes(0);
   /* same font tiles for window HUD */
   for (x = 0; x < 20; x++) set_win_tile_xy(x, 0, 0);
   SPRITES_8x16;

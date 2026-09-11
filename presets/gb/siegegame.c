@@ -32,6 +32,7 @@ Controls: D-pad moves player 1, Start starts the game.
 #include "gb/types.h"
 #include "gb/hardware.h"
 #include "gb/gb.h"
+#include "gb/cgb.h"
 #include "gbtext.h"
 
 typedef uint8_t byte;
@@ -40,6 +41,11 @@ typedef uint16_t word;
 // screen is 20x18 tiles; leave the bottom row blank
 #define COLS 20
 #define ROWS 17
+
+/*{pal:555,n:4}*/
+palette_color_t bkg_palette[4] = {
+  0x6FFF, 0x5A31, 0x2A1F, 0x00,
+};
 
 ////////// GAME DATA
 
@@ -331,6 +337,8 @@ void play_game() {
 void main() {
   byte i, x, y;
   DISPLAY_OFF;
+  // set CGB background palette 0
+  set_bkg_palette(0, 1, bkg_palette);
   // unsigned tile indexing so ASCII codes work; must be set before
   // set_bkg_data(), which uses it to pick the VRAM tile base
   LCDC_REG |= LCDCF_BG8000;

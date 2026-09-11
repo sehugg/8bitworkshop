@@ -397,6 +397,7 @@ exports.PLATFORM_PARAMS = {
             '-g', '_shadow_OAM=0xC000',
             '-g', '.STACK=0xE000',
             '-g', '.refresh_OAM=0xFF80',
+            '-g', 'GB_CGB_FLAGS=0x0',
         ],
         wiz_sys_type: 'gb',
         wiz_inc_dir: 'gb',
@@ -414,4 +415,5 @@ exports.PLATFORM_PARAMS = {
 // SMS/GG mode-4 variants of the shared libcv common.[ch] (2 bytes per tile, 32x28)
 exports.PLATFORM_PARAMS['sms-sms-libcv'] = Object.assign(Object.assign({}, exports.PLATFORM_PARAMS['sms-sg1000-libcv']), { extra_preproc_args: ['-I', '.', '-D', 'CV_SMS', '-D', 'CV_MODE4'] });
 exports.PLATFORM_PARAMS['sms-gg-libcv'] = exports.PLATFORM_PARAMS['sms-sms-libcv'];
+exports.PLATFORM_PARAMS['gb.color'] = Object.assign(Object.assign({}, exports.PLATFORM_PARAMS['gb']), { extra_link_args: exports.PLATFORM_PARAMS['gb'].extra_link_args.map(arg => arg === 'GB_CGB_FLAGS=0x0' ? 'GB_CGB_FLAGS=0x80' : arg) });
 //# sourceMappingURL=platforms.js.map

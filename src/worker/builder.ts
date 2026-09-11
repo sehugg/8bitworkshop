@@ -135,17 +135,16 @@ export class Builder {
    * one source file's directives can't follow the next build around.
    */
   paramsForBuild(platform: string) {
-    const base = getBasePlatform(platform);
-    if (!this.buildParams[base]) {
-      const params = PLATFORM_PARAMS[base];
+    if (!this.buildParams[platform]) {
+      const params = PLATFORM_PARAMS[platform] || PLATFORM_PARAMS[getBasePlatform(platform)];
       const copy = {};
       // values are strings, numbers, and arrays of those
       for (const key in params) {
         copy[key] = Array.isArray(params[key]) ? params[key].slice() : params[key];
       }
-      this.buildParams[base] = copy;
+      this.buildParams[platform] = copy;
     }
-    return this.buildParams[base];
+    return this.buildParams[platform];
   }
 
   async executeBuildSteps(): Promise<WorkerResult> {

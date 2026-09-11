@@ -726,6 +726,57 @@ div.asset_toolbar {
   padding:8px;
   margin:8px;
 }
+.asset_colorpicker {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:0.5em;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+}
+.asset_colorpicker_preview {
+  width:4em;
+  height:4em;
+  border:2px solid #333;
+  border-radius:0.5em;
+}
+.asset_colorpicker_colorinput {
+  width:4em;
+  height:2em;
+}
+.asset_colorpicker_hex {
+  color:#222;
+  font-size:0.85em;
+  white-space:nowrap;
+}
+.asset_colorpicker_controls {
+  display:flex;
+  flex-direction:column;
+  gap:0.25em;
+}
+.asset_colorpicker_row {
+  display:flex;
+  align-items:center;
+  gap:0.5em;
+}
+.asset_colorpicker_row label {
+  width:1.2em;
+  text-align:right;
+}
+.asset_colorpicker_slider {
+  width:12em;
+}
+.asset_colorpicker_value {
+  width:1.5em;
+  text-align:left;
+}
+.asset_colorpicker_grid {
+  max-height:20em;
+  max-width:32em;
+  overflow:auto;
+}
+.asset_colorpicker_grid div.asset_grid {
+  margin:0;
+}
 .control-insns {
   margin-top: auto;
   margin-bottom: 2em;

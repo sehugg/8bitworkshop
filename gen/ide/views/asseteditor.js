@@ -231,8 +231,12 @@ class AssetEditorView {
     addPaletteEditorViews(parentdiv, pal2rgb, callback) {
         var adual = $('<div class="asset_dual"/>').appendTo(parentdiv);
         var aeditor = $('<div class="asset_editor"/>').hide(); // contains editor, when selected
+        // Direct-color palettes (pal:444 etc.) have thousands of colors; the picker
+        // edits RGB directly instead of enumerating every swatch.
+        var directcolor = pixed.getDirectColorChannels(pal2rgb.palfmt);
         var allrgbimgs = [];
-        pal2rgb.getAllColors().forEach((rgba) => { allrgbimgs.push(new Uint32Array([rgba])); }); // array of array of 1 rgb color (for picker)
+        if (!directcolor)
+            pal2rgb.getAllColors().forEach((rgba) => { allrgbimgs.push(new Uint32Array([rgba])); }); // array of array of 1 rgb color (for picker)
         var atable = $('<table/>').appendTo(adual);
         aeditor.appendTo(adual);
         // make default layout if not exists
@@ -271,14 +275,11 @@ class AssetEditorView {
                     cells.push({ cell, index: i });
                     updateCell(cell, i);
                     cell.click((e) => {
-                        var chooser = new pixed.ImageChooser();
-                        chooser.rgbimgs = allrgbimgs;
-                        chooser.width = 1;
-                        chooser.height = 1;
-                        chooser.recreate(aeditor, (index, newvalue) => {
-                            callback(i, index);
+                        var picker = new pixed.PaletteColorPicker(pal2rgb.palfmt, allrgbimgs, (word) => {
+                            callback(i, word);
                             updateCell(cell, i);
                         });
+                        picker.recreate(aeditor, pal2rgb.words[i]);
                         this.setCurrentEditor(aeditor, cell, pal2rgb);
                     });
                 });

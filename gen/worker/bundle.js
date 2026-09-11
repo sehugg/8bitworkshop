@@ -3511,7 +3511,9 @@
         "-g",
         ".STACK=0xE000",
         "-g",
-        ".refresh_OAM=0xFF80"
+        ".refresh_OAM=0xFF80",
+        "-g",
+        "GB_CGB_FLAGS=0x0"
       ],
       wiz_sys_type: "gb",
       wiz_inc_dir: "gb"
@@ -3530,6 +3532,9 @@
     extra_preproc_args: ["-I", ".", "-D", "CV_SMS", "-D", "CV_MODE4"]
   });
   PLATFORM_PARAMS["sms-gg-libcv"] = PLATFORM_PARAMS["sms-sms-libcv"];
+  PLATFORM_PARAMS["gb.color"] = __spreadProps(__spreadValues({}, PLATFORM_PARAMS["gb"]), {
+    extra_link_args: PLATFORM_PARAMS["gb"].extra_link_args.map((arg) => arg === "GB_CGB_FLAGS=0x0" ? "GB_CGB_FLAGS=0x80" : arg)
+  });
 
   // src/common/basic/compiler.ts
   var CompileError = class _CompileError extends Error {
@@ -7697,7 +7702,7 @@
   function preprocessMCPP(step, filesys) {
     load("mcpp");
     var platform = step.platform;
-    var params = PLATFORM_PARAMS[getBasePlatform(platform)];
+    var params = PLATFORM_PARAMS[platform] || PLATFORM_PARAMS[getBasePlatform(platform)];
     if (!params) throw Error("Platform not supported: " + platform);
     var errors = [];
     var match_fn = makeErrorMatcher(errors, /<stdin>:(\d+): (.+)/, 1, 2, step.path);
@@ -15126,16 +15131,15 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
      * one source file's directives can't follow the next build around.
      */
     paramsForBuild(platform) {
-      const base = getBasePlatform(platform);
-      if (!this.buildParams[base]) {
-        const params = PLATFORM_PARAMS[base];
+      if (!this.buildParams[platform]) {
+        const params = PLATFORM_PARAMS[platform] || PLATFORM_PARAMS[getBasePlatform(platform)];
         const copy = {};
         for (const key in params) {
           copy[key] = Array.isArray(params[key]) ? params[key].slice() : params[key];
         }
-        this.buildParams[base] = copy;
+        this.buildParams[platform] = copy;
       }
-      return this.buildParams[base];
+      return this.buildParams[platform];
     }
     async executeBuildSteps() {
       this.startseq = store.currentVersion();

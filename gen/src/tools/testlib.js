@@ -261,7 +261,7 @@ function getToolForFilename(fn, platform) {
         return override;
     // a specialization like verilog-vga has no params of its own; its root
     // platform's arch is the one that applies
-    var params = platforms_1.PLATFORM_PARAMS[base] || platforms_1.PLATFORM_PARAMS[(0, util_1.getRootBasePlatform)(platform)];
+    var params = platforms_1.PLATFORM_PARAMS[platform] || platforms_1.PLATFORM_PARAMS[base] || platforms_1.PLATFORM_PARAMS[(0, util_1.getRootBasePlatform)(platform)];
     var arch = params && params.arch;
     switch (arch) {
         case 'z80':

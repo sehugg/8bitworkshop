@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TwoWayMapper = exports.Viewer = exports.MapEditor = exports.CharmapEditor = exports.ImageChooser = exports.NESNametableConverter = exports.MetaspriteCompositor = exports.Compositor = exports.PaletteEditorView = exports.PaletteFormatToRGB = exports.Palettizer = exports.Mapper = exports.Compressor = exports.TextDataNode = exports.FileDataNode = exports.PixNode = void 0;
+exports.TwoWayMapper = exports.Viewer = exports.MapEditor = exports.CharmapEditor = exports.PaletteColorPicker = exports.ImageChooser = exports.NESNametableConverter = exports.MetaspriteCompositor = exports.Compositor = exports.PaletteEditorView = exports.PaletteFormatToRGB = exports.Palettizer = exports.Mapper = exports.Compressor = exports.TextDataNode = exports.FileDataNode = exports.PixNode = void 0;
 exports.parseHexWords = parseHexWords;
 exports.replaceHexWords = replaceHexWords;
 exports.convertWordsToImages = convertWordsToImages;
@@ -13,6 +13,9 @@ exports.convertPaletteBytes = convertPaletteBytes;
 exports.decodePacmanColorPromByte = decodePacmanColorPromByte;
 exports.getPaletteLength = getPaletteLength;
 exports.convertPaletteFormat = convertPaletteFormat;
+exports.getDirectColorChannels = getDirectColorChannels;
+exports.encodeDirectColorWord = encodeDirectColorWord;
+exports.decodeDirectColorWord = decodeDirectColorWord;
 exports.getPixelClipboard = getPixelClipboard;
 exports.setPixelClipboard = setPixelClipboard;
 exports.pasteClipboardPixels = pasteClipboardPixels;
@@ -512,6 +515,40 @@ function convertPaletteFormat(palbytes, palfmt) {
     }
     return newpalette;
 }
+function getDirectColorChannels(palfmt) {
+    var pal = palfmt.pal;
+    if (typeof pal !== 'number' || !isFinite(pal))
+        return null;
+    var rr = Math.floor(Math.abs(pal / 100) % 10);
+    var gg = Math.floor(Math.abs(pal / 10) % 10);
+    var bb = Math.floor(Math.abs(pal) % 10);
+    if (rr + gg + bb <= 0)
+        return null;
+    if (pal >= 0)
+        return { r: rr, g: gg, b: bb, rshift: 0, gshift: rr, bshift: rr + gg };
+    // negative pal: convertPaletteBytes(arr, rr+gg, bb, rr, gg, 0, rr)
+    return { r: bb, g: gg, b: rr, rshift: rr + gg, gshift: rr, bshift: 0 };
+}
+// Pack per-channel values into a direct-color palette word (inverse of
+// decodeDirectColorWord / convertPaletteFormat).
+function encodeDirectColorWord(palfmt, r, g, b) {
+    var c = getDirectColorChannels(palfmt);
+    if (!c)
+        return 0;
+    return ((r & ((1 << c.r) - 1)) << c.rshift)
+        | ((g & ((1 << c.g) - 1)) << c.gshift)
+        | ((b & ((1 << c.b) - 1)) << c.bshift);
+}
+function decodeDirectColorWord(palfmt, word) {
+    var c = getDirectColorChannels(palfmt);
+    if (!c)
+        return null;
+    return {
+        r: (word >> c.rshift) & ((1 << c.r) - 1),
+        g: (word >> c.gshift) & ((1 << c.g) - 1),
+        b: (word >> c.bshift) & ((1 << c.b) - 1),
+    };
+}
 // TODO: illegal colors?
 const PREDEF_PALETTES = {
     // LCD polarity: index 0 = lightest (pixel off), 3 = darkest (pixel on)
@@ -997,6 +1034,156 @@ class ImageChooser {
     }
 }
 exports.ImageChooser = ImageChooser;
+// A color picker for a single palette entry.
+//
+// Direct-color formats (pal:444, pal:332, ...) encode RGB in the word itself;
+// a 444 palette has 4096 possible colors so showing a swatch for each one is
+// unusable. Those get an RGB color input plus per-channel sliders. Indexed
+// palettes get a scrollable swatch grid (their tables are small).
+class PaletteColorPicker {
+    constructor(palfmt, rgbimgs, onpick) {
+        this.viewers = [];
+        this.sliders = [];
+        this.currentWord = 0;
+        this.palfmt = palfmt;
+        this.rgbimgs = rgbimgs;
+        this.channels = getDirectColorChannels(palfmt);
+        this.onpick = onpick;
+    }
+    recreate(parentdiv, currentWord) {
+        parentdiv.empty();
+        this.viewers = [];
+        this.sliders = [];
+        this.previewEl = null;
+        this.colorInput = null;
+        this.hexEl = null;
+        if (this.channels)
+            this.createSliders(parentdiv);
+        else
+            this.createGrid(parentdiv);
+        this.setCurrent(currentWord);
+    }
+    paletteColor(word) {
+        var cols = convertPaletteFormat([word], this.palfmt);
+        return (cols && cols[0]) || 0xff000000;
+    }
+    updateColorWidgets(word) {
+        var rgb = this.paletteColor(word);
+        var hexcol = '#' + (0, util_1.hex)((0, util_1.rgb2bgr)(rgb & 0xffffff), 6);
+        if (this.previewEl)
+            this.previewEl.css('background-color', hexcol);
+        if (this.colorInput && this.colorInput.value !== hexcol)
+            this.colorInput.value = hexcol;
+        if (this.hexEl)
+            this.hexEl.text(hexcol + '  $' + (0, util_1.hex)(word, 4));
+    }
+    setCurrent(word) {
+        this.currentWord = word;
+        if (this.channels) {
+            var c = decodeDirectColorWord(this.palfmt, word);
+            if (c) {
+                for (var s of this.sliders) {
+                    var v = s.channel === 'r' ? c.r : s.channel === 'g' ? c.g : c.b;
+                    s.input.value = String(v);
+                    s.valueLabel.text(String(v));
+                }
+            }
+            this.updateColorWidgets(word);
+        }
+        else {
+            this.viewers.forEach((v, i) => $(v.canvas).toggleClass('selected', i === word));
+        }
+    }
+    channelBits(name) {
+        var c = this.channels;
+        if (!c)
+            return 0;
+        return name === 'r' ? c.r : name === 'g' ? c.g : c.b;
+    }
+    pickFromSliders() {
+        var vals = { r: 0, g: 0, b: 0 };
+        for (var s of this.sliders)
+            vals[s.channel] = Number(s.input.value);
+        var word = encodeDirectColorWord(this.palfmt, vals['r'], vals['g'], vals['b']);
+        this.setCurrent(word);
+        this.onpick(word);
+    }
+    createSliders(parentdiv) {
+        var c = this.channels;
+        var box = newDiv(parentdiv, 'asset_colorpicker');
+        this.previewEl = newDiv(box, 'asset_colorpicker_preview');
+        // native <input type=color> only addresses 8 bits/channel
+        if (c.r <= 8 && c.g <= 8 && c.b <= 8) {
+            this.colorInput = document.createElement('input');
+            this.colorInput.type = 'color';
+            this.colorInput.className = 'asset_colorpicker_colorinput';
+            box.append(this.colorInput);
+        }
+        this.hexEl = newDiv(box, 'asset_colorpicker_hex');
+        var controls = newDiv(box, 'asset_colorpicker_controls');
+        for (var name of ['r', 'g', 'b']) {
+            var bits = this.channelBits(name);
+            if (bits <= 0)
+                continue;
+            var row = newDiv(controls, 'asset_colorpicker_row');
+            $('<label/>').text(name.toUpperCase()).appendTo(row);
+            var input = document.createElement('input');
+            input.type = 'range';
+            input.min = '0';
+            input.max = String((1 << bits) - 1);
+            input.step = '1';
+            input.className = 'asset_colorpicker_slider';
+            row.append(input);
+            var valueLabel = $('<span class="asset_colorpicker_value"/>').appendTo(row);
+            input.value = '0';
+            this.sliders.push({ input, valueLabel, channel: name });
+            $(input).on('input', () => this.pickFromSliders());
+        }
+        if (this.colorInput)
+            $(this.colorInput).on('input', () => {
+                // native color input is 8 bits/channel; quantize to the palette's depth
+                var v = this.colorInput.value;
+                var r = parseInt(v.substring(1, 3), 16);
+                var g = parseInt(v.substring(3, 5), 16);
+                var b = parseInt(v.substring(5, 7), 16);
+                var word = encodeDirectColorWord(this.palfmt, r >> (8 - c.r), g >> (8 - c.g), b >> (8 - c.b));
+                this.setCurrent(word);
+                this.onpick(word);
+            });
+    }
+    createGrid(parentdiv) {
+        var scroll = newDiv(parentdiv, 'asset_colorpicker_grid');
+        var agrid = newDiv(scroll, 'asset_grid');
+        var imgsperline = 16;
+        var span = null;
+        this.rgbimgs.forEach((imdata, i) => {
+            var viewer = new Viewer();
+            viewer.width = 1;
+            viewer.height = 1;
+            viewer.recreate();
+            viewer.canvas.style.width = '16px';
+            viewer.canvas.style.height = '16px';
+            viewer.updateImage(imdata);
+            $(viewer.canvas).addClass('asset_cell');
+            $(viewer.canvas).attr('title', '$' + (0, util_1.hex)(i) + '  #' + (0, util_1.hex)((0, util_1.rgb2bgr)(imdata[0] & 0xffffff), 6));
+            $(viewer.canvas).click(() => {
+                this.setCurrent(i);
+                this.onpick(i);
+            });
+            this.viewers.push(viewer);
+            if (!span) {
+                span = $('<span/>');
+                agrid.append(span);
+            }
+            span.append(viewer.canvas);
+            if ((i % imgsperline) === imgsperline - 1) {
+                agrid.append($('<br/>'));
+                span = null;
+            }
+        });
+    }
+}
+exports.PaletteColorPicker = PaletteColorPicker;
 function newDiv(parent, cls) {
     var div = $(document.createElement("div"));
     if (parent)
