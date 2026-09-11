@@ -15,6 +15,7 @@
 #include "gb/types.h"
 #include "gb/hardware.h"
 #include "gb/gb.h"
+#include "gb/cgb.h"
 
 typedef uint8_t byte;
 typedef uint16_t word;
@@ -80,6 +81,15 @@ byte joy_left, joy_right, joy_fire, joy_start;
 byte sfx_timer;
 byte sfx_kind; /* 0=off 1/2=waka 3=eat 4=death 6=power */
 byte death_phase;
+
+/*{pal:555,n:4}*/
+palette_color_t bkg_palette[4] = {
+  0x2062, 0x5A31, 0x2A16, 0x6B11,
+};
+/*{pal:555,n:4}*/
+palette_color_t fg_palette[4] = {
+  0x1462, 0x463C, 0x2B31, 0x7FFF,
+};
 
 const uint8_t font_1bpp[] = {
   /* 0 space */ 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -612,6 +622,8 @@ void setup_graphics(void) {
   set_bkg_1bpp_data(0, 35, font_1bpp);
   set_bkg_data(BKG_BASE, 4, bkg_tiles);
   set_sprite_data(SPR_BASE, SPR_TILE_COUNT, sprite_tiles);
+  set_bkg_palette(0, 1, bkg_palette);
+  set_sprite_palette(0, 1, fg_palette);
   SPRITES_8x16;
   BGP_REG = 0xE4;
   OBP0_REG = 0xE4;

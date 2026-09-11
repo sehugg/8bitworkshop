@@ -149,6 +149,9 @@ _refresh_OAM::
         .org    0x134
         .asciz  "Title"
 
+        .org    0x143
+        .byte   GB_CGB_FLAGS
+
         .org    0x144
         .byte   0,0,0
 

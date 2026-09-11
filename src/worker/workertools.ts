@@ -19,7 +19,6 @@ import * as oscar64 from './tools/oscar64'
 import * as xa from './tools/xa'
 import * as dialog from './tools/dialog'
 
-import { PLATFORM_PARAMS } from "./platforms";
 
 export const TOOLS = {
   'dasm': dasm.assembleDASM,

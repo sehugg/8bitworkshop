@@ -11,7 +11,7 @@ function makeCPPSafe(s: string): string {
 export function preprocessMCPP(step: BuildStep, filesys: string) {
     load("mcpp");
     var platform = step.platform;
-    var params = PLATFORM_PARAMS[getBasePlatform(platform)];
+    var params = PLATFORM_PARAMS[platform] || PLATFORM_PARAMS[getBasePlatform(platform)];
     if (!params) throw Error("Platform not supported: " + platform);
     // <stdin>:2: error: Can't open include file "foo.h"
     var errors = [];
