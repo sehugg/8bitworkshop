@@ -1,4 +1,12 @@
 
+/*
+Physics demo for Game Boy.
+A single sprite with velocity and friction, using fixed-point
+coordinates: positions are 16-bit values where the lower 4 bits
+are the sub-pixel fraction, dropped with >> 4 when the sprite
+is moved. Arrow keys apply thrust; holding A gives a jump burst.
+*/
+
 //#link "gb/sfr.sgb"
 //#link "gb/crt0.sgb"
 //#resource "gb/global.sgb"
@@ -12,6 +20,7 @@
 // Postion values are calculated as 16 bit numbers and their
 // lower 4 bits are dropped when applying them to the sprite
 
+// 4 frames of a ball sprite (8x8, 1bpp)
 UINT8 sprite_data[] = { 
 /*;;{w:8,h:8,bpp:1,count:4,brev:1,np:2,pofs:1,sl:2};;*/
     0x3C,0x3C,0x42,0x7E,0x99,0xFF,0xA9,0xFF,0x89,0xFF,0x89,0xFF,0x42,0x7E,0x3C,0x3C,
@@ -23,12 +32,12 @@ UINT8 sprite_data[] = {
 
 joypads_t joypads;
 
-// sprite coords
-UINT16 PosX, PosY;
-INT16 SpdX, SpdY;
-UINT8 Jump;
+// fixed-point sprite coords (fraction in lower 4 bits)
+UINT16 PosX, PosY;  // position
+INT16 SpdX, SpdY;   // velocity
+UINT8 Jump;         // frames of jump thrust remaining
 
-// main funxction
+// main function
 void main(void) {
     // init palettes
     BGP_REG = OBP0_REG = OBP1_REG = 0xE4;
@@ -45,14 +54,16 @@ void main(void) {
     // init 2 joypads
     joypad_init(1, &joypads);
  
+    // start at screen center with zero velocity
     PosX = PosY = 64 << 4;
     Jump = SpdX = SpdY = 0;
 
+    // loop forever
     while(1) {        
         // poll joypads
         joypad_ex(&joypads);
         
-        // game object
+        // game object: arrow keys apply thrust, clamped to a max speed
         if (joypads.joy0 & J_UP) {
             SpdY -= 2;
             if (SpdY < -64) SpdY = -64;
@@ -67,24 +78,26 @@ void main(void) {
             SpdX += 2;
             if (SpdX > 64) SpdX = 64;
         }
+        // A button triggers a 3-frame jump (only when grounded)
         if ((joypads.joy0 & J_A) && (!Jump)) {
             Jump = 3;
         }
 
-        // jump
+        // jump: apply upward impulse while Jump counts down
         if (Jump) {
             SpdY -= 8;
             if (SpdY < -32) SpdY = -32;
             Jump--;
         }
 
+        // apply velocity to position
         PosX += SpdX, PosY += SpdY; 
 
         // Translate to pixels and move sprite
         // Downshift by 4 bits to use the whole number values
         move_sprite(0, PosX >> 4, PosY >> 4);
 
-        // decelerate 
+        // friction: velocities decay toward zero each frame
         if (SpdY >= 0) {
             if (SpdY) SpdY--; 
         } else SpdY ++;

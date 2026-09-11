@@ -67,7 +67,7 @@
 #ifndef _METASPRITES_H_INCLUDE
 #define _METASPRITES_H_INCLUDE
 
-#include <gb/hardware.h>
+//#include <gb/hardware.h>
 #include "types.h"
 #include <stdint.h>
 
