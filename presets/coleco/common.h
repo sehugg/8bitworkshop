@@ -67,11 +67,7 @@ extern char font_bitmap_0[];
 #define COLOR_FG(fg) (((fg)<<4))
 
 #ifndef LOCHAR
-#if defined(CV_MODE4)
-#define LOCHAR 0x20
-#else
 #define LOCHAR 0x0
-#endif
 #endif
 
 #define CHAR(ch) (ch-LOCHAR)
@@ -94,10 +90,10 @@ extern byte getcharxy(byte x, byte y);
 extern void putcharxy(byte x, byte y, byte attr);
 extern void putstringxy(byte x, byte y, const char* string);
 #if defined(CV_MODE4)
-// mode 4 aliases (same functions, shorter names)
-extern byte getchar(byte x, byte y);
-extern void putchar(byte x, byte y, byte attr);
-extern void putstring(byte x, byte y, const char* string);
+// name-table attribute (palette/flip/priority) used by putcharxy()/putstringxy()
+extern byte text_attr;
+// load the default 32-entry mode-4 palette into CRAM
+extern void set_default_palette();
 #endif
 extern void delay(byte i);
 extern byte rndint(byte a, byte b);
