@@ -10,6 +10,7 @@ import {
   getRootBasePlatform, getWithBinary, hex, highlightDifferences, isProbablyBinary, isProductionHost, loadScript, parseBool, stringToByteArray
 } from "../common/util";
 import { getSkeletonName, getToolMeta, TOOL_META } from "../common/toolmeta";
+import { PLATFORM_PARAMS } from "../worker/platforms";
 import { CodeListingMap, FileData, WorkerError, WorkerResult } from "../common/workertypes";
 import { reportErrorToServer } from "./errorreport";
 import { importPlatform } from "../platform/_index";
@@ -1919,20 +1920,92 @@ function showContextHelp() {
 }
 
 function openToolVersions() {
-  const row = (name: string, kind: string, version: string) =>
-    `<tr><td>${name}</td><td>${kind}</td><td>${version}</td></tr>`;
-  // only tools whose vendored wasm reported a version (see npm run toolversions)
-  const tools = Object.values(TOOL_META)
-    .filter(m => m.wasmModule && m.version)
-    .sort((a, b) => a.name.localeCompare(b.name));
-  bootbox.dialog({
-    title: 'Toolchain Versions',
-    onEscape: true,
-    message: `
+  const esc = (s: any) => String(s == null ? '' : s)
+    .replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const addr = (v: number, size?: number) =>
+    '$' + hex(v, 4).toUpperCase() + (size != null ? '+$' + hex(size, 4).toUpperCase() : '');
+
+  // ---- current platform summary (params + the tools it can reach) ----
+  const params = PLATFORM_PARAMS[platform_id]
+    || PLATFORM_PARAMS[getBasePlatform(platform_id)]
+    || PLATFORM_PARAMS[getRootBasePlatform(platform_id)];
+  const arch = (params && params.arch) || '—';
+  const mem: string[] = [];
+  if (params) {
+    if (params.rom_start != null) mem.push('rom ' + addr(params.rom_start, params.rom_size));
+    if (params.code_start != null) mem.push('code ' + addr(params.code_start, params.code_size));
+    if (params.data_start != null) mem.push('data ' + addr(params.data_start, params.data_size));
+    if (params.stack_end != null) mem.push('stack $' + hex(params.stack_end, 4).toUpperCase());
+  }
+
+  // extension -> tool, using the platform's own selector. The universe is the
+  // tools' declared extensions (plus dasm's implicit .a), so this matches the
+  // generated docs rather than just the new-file skeletons.
+  const allExts = new Set<string>(['.a']);
+  for (const id in TOOL_META) for (const e of TOOL_META[id].extensions || []) allExts.add(e);
+  const toolExts: { [tool: string]: string[] } = {};
+  const order: string[] = [];
+  const add = (tool: string, ext: string) => {
+    if (!tool) return;
+    if (!toolExts[tool]) { toolExts[tool] = []; order.push(tool); }
+    if (ext && toolExts[tool].indexOf(ext) < 0) toolExts[tool].push(ext);
+  };
+  if (platform.getDefaultExtensions) {
+    for (const ext of allExts) {
+      let tool = platform.getToolForFilename('test' + ext);
+      let meta = tool && getToolMeta(tool);
+      let claims = !!meta && (meta.extensions || []).indexOf(ext) >= 0;
+      if (claims || (ext === '.a' && tool === 'dasm')) add(tool, ext);
+    }
+  }
+  // always include the tool handling the file that's actually open
+  const mainFile = getCurrentMainFilename();
+  if (mainFile) {
+    let mainTool = platform.getToolForFilename(mainFile);
+    let dot = mainFile.lastIndexOf('.');
+    add(mainTool, dot >= 0 ? mainFile.substring(dot) : '');
+  }
+  order.sort((a, b) => (getToolMeta(a)?.name || a).localeCompare(getToolMeta(b)?.name || b));
+
+  const platformTable = `
     <table class="help">
-      <tr><th>Tool</th><th>Kind</th><th>Version</th></tr>
-      ${tools.map(m => row(m.name, m.kind, m.version ?? '?')).join('\n')}
-    </table>`,
+      <tr><th>Architecture</th><td>${esc(arch)}</td></tr>
+      <tr><th>Memory</th><td>${mem.length ? mem.join(' · ') : '—'}</td></tr>
+      ${params && params.cfgfile ? `<tr><th>Linker config</th><td>${esc(params.cfgfile)}</td></tr>` : ''}
+      ${params && params.libargs && params.libargs.length ? `<tr><th>Link libraries</th><td>${esc(params.libargs.join(' '))}</td></tr>` : ''}
+      ${params && params.define && params.define.length ? `<tr><th>Defines</th><td>${esc(params.define.join(' '))}</td></tr>` : ''}
+    </table>`;
+
+  const toolTable = order.map(tool => {
+    let meta = getToolMeta(tool);
+    let version = (meta && meta.version) || '—';
+    let kind = (meta && meta.kind) || '—';
+    let exts = toolExts[tool].length ? toolExts[tool].map(e => `<code>${esc(e)}</code>`).join(' ') : '—';
+    let name = (meta && meta.name) || tool;
+    return `<tr><td>${esc(name)}</td><td>${esc(kind)}</td><td>${esc(version)}</td><td>${exts}</td></tr>`;
+  }).join('\n');
+
+  bootbox.dialog({
+    title: 'Toolchain Info',
+    onEscape: true,
+    buttons: {
+      docs: {
+        label: 'Full reference',
+        className: 'btn-link',
+        callback: () => { window.location.hash = '#help/toolchains'; },
+      },
+      ok: { label: 'Close', className: 'btn-primary' },
+    },
+    message: `
+    <div class="dialog-scroll">
+      <h5 class="dialog-title">${esc(platform_name)} <small>${esc(platform_id)}</small></h5>
+      ${platformTable}
+      <h5 class="dialog-title">Tools on this platform</h5>
+      <table class="help">
+        <tr><th>Tool</th><th>Kind</th><th>Version</th><th>Extensions</th></tr>
+        ${toolTable}
+      </table>
+    </div>`,
   });
 }
 

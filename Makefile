@@ -35,6 +35,7 @@ submodules:
 
 buildtsc: submodules buildgrammars
 	npm run esbuild-clean
+	npm run doctools
 	npm run tsbuild
 	npm run esbuild
 
@@ -45,9 +46,6 @@ prepare: buildtsc
 	#cp ./unicorn.js/demos/externals/capstone-arm.min.js ./lib/
 	cp gif.js/dist/* ./lib/
 	cd jsnes && npm i
-
-mkdoc:
-	npm run mkdoc
 
 distro: buildtsc
 	rm -fr $(TMP) && mkdir -p $(TMP)

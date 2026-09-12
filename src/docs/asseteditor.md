@@ -56,7 +56,7 @@ a grid of swatches to choose from — hover over one to see its value and
 hex color. Larger, direct-color palettes get color sliders instead. As you
 change a color, the source code is updated right away.
 
-### Editing tilemaps
+### Viewing tilemaps
 
 NES nametable assets (`map:"nesnt"`) show the whole tilemap composited
 from your project's graphics and palette, as a single preview.

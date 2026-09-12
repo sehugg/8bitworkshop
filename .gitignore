@@ -11,3 +11,4 @@ node_modules
 config.js
 chromedriver.log
 nightwatch.conf.js
+/src/docs/toolchains.md

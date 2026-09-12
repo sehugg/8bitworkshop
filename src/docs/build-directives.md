@@ -215,14 +215,24 @@ Either pragma slows builds but produces faster and smaller code.
 ## File extensions
 
 The extension of your source file determines the tool used to assemble
-or compile it. Common extensions:
+or compile it. The current platform resolves extensions that several
+tools share (`.c`, `.s`, `.bas`), so the mapping depends on both. Common
+cases:
 
-| Extension | File type | Tool |
+| Extension | File type | Tool (platform) |
 | --- | --- | --- |
-| `.c` | C source file | cc65, sdcc, cmoc |
-| `.s` `.ca65` | Assembler file | ca65 |
-| `.a` | Assembler file | dasm |
-| `.zmac` | Assembler file | zmac (Z80) |
-| `.v` | Verilog file | Verilator |
+| `.c` | C source file | cc65 (6502), sdcc (Z80), cmoc (6809), smlrc (x86), TCC (ARM) |
+| `.s` `.ca65` | Assembler file | ca65 (6502) |
+| `.s` | Assembler file | sdasz80 (Z80), TCC (ARM) |
+| `.dasm` `.a` | Assembler file | dasm |
+| `.z` | Assembler file | zmac (Z80) |
+| `.nesasm` | Assembler file | NESASM (nes) |
+| `.lnk` | Assembler file | Merlin 32 (apple2) |
 | `.bb` `.bas` | batariBASIC file | batariBASIC (vcs) |
-| `.fb` `.bas` | FastBASIC file | FastBASIC (atari8) |
+| `.fb` `.bas` | FastBasic file | FastBasic (atari8) |
+| `.cc2600` | C source file | CC2600 (vcs) |
+| `.cc7800` `.c78` | C source file | CC7800 (atari7800) |
+| `.v` | Verilog file | Verilator |
+
+See [Toolchains & Platforms](toolchains.md) for the full
+platform × extension → tool table.

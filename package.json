@@ -103,6 +103,7 @@
     "cli": "node gen/tools/8bws.js",
     "buildpresets": "NODE_PATH=$(pwd) node gen/tools/buildpresets.js",
     "toolversions": "node gen/tools/toolversions.js",
+    "doctools": "node gen/tools/doctools.js",
     "mkdoc": "typedoc --out web/jsdoc src/common/"
   },
   "keywords": [

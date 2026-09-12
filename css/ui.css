@@ -2,10 +2,9 @@
   font-size: 0.8em;
 }
 .help th {
-  padding-top: 8px;
+  padding: 0 6px;
 }
 .help td {
-  vertical-align: top;
   padding: 0 6px;
 }
 .help td:first-child {
@@ -1135,6 +1134,11 @@ div.scripting-cell button.scripting-enabled {
 }
 .dialog-help {
   color: #6666ff;
+}
+/* scrollable body for long info dialogs (e.g. Toolchain Info) */
+.dialog-scroll {
+  max-height: 65vh;
+  overflow-y: auto;
 }
 /* breakpoints window */
 .bp-view {

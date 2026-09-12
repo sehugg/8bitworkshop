@@ -4,25 +4,27 @@ The 8bitworkshop IDE is a browser-based development environment for
 micro computers and consoles.
 The IDE compiles or assembles your source code
 while you type, then the emulator runs your code.
-This happens all locally in your web browser.
+This all happens locally in your web browser.
 
 ## Choosing a platform
 
-Switch between hardware platforms using the green **Platform Selector**
+First, choose a hardware platform using the green **Platform Selector**
 to the right of the main menu.
-Each platform has its own virtual file system in the browser, so edits and
-new files are only visible to the current platform.
+This reloads the IDE with the appropriate emulator and toolchain.
 
-## Example programs
+Each platform has several example programs that you can view and edit.
+Use the **Project Selector** drop-down (next to the menu icon) to choose one.
 
-The IDE ships with example programs for every platform. Use the
-**Project Selector** drop-down (next to the menu icon) to load one.
+## Editing files
 
 Edits are persisted in browser local storage and survive closing the
 tab. To restore an example to its original state, choose
 **File &raquo; Revert to Original&hellip;**. To start from scratch, choose
 **New Project&hellip;** and enter a filename (typically `.c` for C, or
 `.asm` for assembly).
+
+Each platform has its own virtual file system in the browser, so edits and
+new files are only visible to the current platform.
 
 See [Managing Files](managing-files.md) for how to 
 export and import files, share playable links and videos, sync projects to GitHub, and pull projects from GitHub.
@@ -46,6 +48,9 @@ you see changes near-instantly.
 
 See [Build Directives](build-directives.md) for information on
 multi-file projects, compiler/linker directives, and file extensions.
+
+See [Toolchains & Platforms](toolchains.md) for the full list of tools and
+the complete platform × extension → tool reference.
 
 
 ## Debugger
