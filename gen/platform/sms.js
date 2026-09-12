@@ -23,6 +23,14 @@ exports.SG1000_PRESETS = [
 ];
 exports.SMS_PRESETS = [
     { id: 'mode4test.c', name: 'Mode 4 Test' },
+    { id: 'text.c', name: 'Text Mode' },
+    { id: 'hello.c', name: 'Scrolling Text' },
+    { id: 'text32.c', name: '32-Column Color Text' },
+    { id: 'stars.c', name: 'Scrolling Starfield' },
+    { id: 'cursorsmooth.c', name: 'Moving Cursor' },
+    { id: 'simplemusic.c', name: 'Simple Music' },
+    { id: 'musicplayer.c', name: 'Multivoice Music' },
+    { id: 'siegegame.c', name: 'Siege Game' },
     { id: 'climber.c', name: 'Climber Game' },
 ];
 ///

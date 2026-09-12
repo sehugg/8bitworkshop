@@ -11,14 +11,19 @@ It bundles toolchains and emulators for dozens of platforms, including the
 Atari 2600/7800/8-bit, Commodore 64/VIC-20, NES, Game Boy, ColecoVision,
 MSX, ZX Spectrum, Amstrad CPC, PC Engine, Vectrex, Apple II, and a
 number of arcade boards. See
-[Toolchains & Platforms](src/docs/toolchains.md) for the complete list.
+[Toolchains & Platforms](https://sehugg.github.io/8bitworkshop/#help/toolchains)
+for the complete list.
 
 ![8bitworkshop IDE](https://8bitworkshop.com/images/ide_screenshot1.png)
 
 ## Use Online
 
 Latest release:
-- https://8bitworkshop.com/latest/ (bleeding edge, built from main branch)
+- https://8bitworkshop.com/redir.html
+
+Bleeding edge (built from HEAD):
+- https://sehugg.github.io/8bitworkshop/
+- https://8bitworkshop.com/latest/ (same, redirects to GitHub)
 
 ## Features
 

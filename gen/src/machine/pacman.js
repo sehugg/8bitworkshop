@@ -282,12 +282,14 @@ class PacmanMachine extends devices_1.BasicScanlineMachine {
                 this.watchdog_counter = INITIAL_WATCHDOG;
             }
         };
-        this.cpu.connectIOBus({
+        // Go through the base connect* helpers so the probe wrapper is spliced
+        // in when probing is toggled (and removed when it is not).
+        this.connectCPUIOBus({
             read: (_p) => 0xff,
             write: (port, val) => { if ((port & 0xff) === 0)
                 this.interruptVector = val & 0xff; }
         });
-        this.cpu.connectMemoryBus({ read: this.readByte, write: this.writeByte });
+        this.connectCPUMemoryBus({ read: this.readByte, write: this.writeByte });
         this.cpu.retryInterrupts = true;
         this.rom = new Uint8Array(this.defaultROMSize);
         this.gfx = new PacmanVideo(this.rom, this.vram, this.cram, this.ram);
@@ -323,7 +325,6 @@ class PacmanMachine extends devices_1.BasicScanlineMachine {
         }
         this.waveforms = hasCustom ? custom : PacmanMachine.WAVEFORMS;
     }
-    advanceCPU() { return this.cpu.advanceInsn(); }
     /** Rebuild voice frequency from low-nibble registers. Voice 0 is 20-bit; 1/2 are 16-bit. */
     voiceFreq(v) {
         var r = this.soundRegs;

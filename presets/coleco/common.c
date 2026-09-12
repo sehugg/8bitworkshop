@@ -5,12 +5,40 @@
 
 #include "common.h"
 
-/* Unified common code for libcv platforms (coleco, msx-libcv, sms-sg1000-libcv,
-   sms-sms-libcv, sms-gg-libcv). Differences are selected by the CV_CV / CV_MSX /
-   CV_SMS defines (set by the platform) plus CV_MODE4 for SMS/GG mode-4 builds.
+/* Unified common code for libcv platforms.
+   Differences are selected by the CV_CV / CV_MSX / CV_SMS defines
+   (set by the platform) plus CV_MODE4 for SMS/GG mode-4 builds.
    Keep this file identical across those preset directories. */
 
 volatile uint_fast8_t vint_counter;
+
+#if defined(CV_MODE4)
+// current name-table attribute (palette/flip/priority) used for text output
+byte text_attr = 0;
+
+// default mode-4 palette: entries 0-15 are the background (tile) palette,
+// entries 16-31 are the sprite palette. CHR_GENERIC glyphs use colors 0-3.
+#if defined(__PLATFORM_SMS_GG_LIBCV__)
+#define PALCOL(r,g,b) ((unsigned short)(((b)*5)<<8 | ((g)*5)<<4 | ((r)*5)))
+const unsigned short DEFAULT_PALETTE[32] = {
+#else
+#define PALCOL(r,g,b) ((unsigned char)(((b)<<4) | ((g)<<2) | (r)))
+const unsigned char DEFAULT_PALETTE[32] = {
+#endif
+  PALCOL(0,0,0), PALCOL(3,3,3), PALCOL(3,3,0), PALCOL(1,3,1),
+  PALCOL(0,0,3), PALCOL(3,0,0), PALCOL(3,0,3), PALCOL(0,3,3),
+  PALCOL(2,2,2), PALCOL(1,1,1), PALCOL(3,1,1), PALCOL(3,3,1),
+  PALCOL(1,1,3), PALCOL(2,0,0), PALCOL(0,2,0), PALCOL(0,0,2),
+  PALCOL(0,0,0), PALCOL(3,3,3), PALCOL(3,3,0), PALCOL(3,0,0),
+  PALCOL(0,3,0), PALCOL(0,0,3), PALCOL(3,0,3), PALCOL(0,3,3),
+  PALCOL(2,2,2), PALCOL(3,1,1), PALCOL(1,3,1), PALCOL(1,1,3),
+  PALCOL(2,0,0), PALCOL(0,2,0), PALCOL(0,0,2), PALCOL(1,1,1),
+};
+
+void set_default_palette() {
+  cvu_memtocmemcpy(0xc000, DEFAULT_PALETTE, sizeof(DEFAULT_PALETTE));
+}
+#endif
 
 void vint_handler(void) {
   vint_counter++;
@@ -39,7 +67,12 @@ void clrscr() {
 }
 
 word getimageaddr(byte x, byte y) {
+#if defined(CV_MODE4)
+  // mode 4: two bytes per cell (tile + attribute)
+  return IMAGE + y*ROWSTRIDE + x*2;
+#else
   return IMAGE + y*ROWSTRIDE + x;
+#endif
 }
 
 byte getcharxy(byte x, byte y) {
@@ -47,7 +80,13 @@ byte getcharxy(byte x, byte y) {
 }
 
 void putcharxy(byte x, byte y, byte attr) {
+#if defined(CV_MODE4)
+  cv_vmemp addr = getimageaddr(x,y);
+  cvu_voutb(attr, addr);
+  cvu_voutb(text_attr, addr+1);
+#else
   cvu_voutb(attr, getimageaddr(x,y));
+#endif
 }
 
 void putstringxy(byte x, byte y, const char* string) {
@@ -57,18 +96,7 @@ void putstringxy(byte x, byte y, const char* string) {
 }
 
 #if defined(CV_MODE4)
-// mode 4 aliases (same functions, shorter names)
-byte getchar(byte x, byte y) {
-  return getcharxy(x, y);
-}
-
-void putchar(byte x, byte y, byte attr) {
-  putcharxy(x, y, attr);
-}
-
-void putstring(byte x, byte y, const char* string) {
-  putstringxy(x, y, string);
-}
+// mode 4 uses the same putcharxy()/putstringxy()/getcharxy() API as other modes.
 #endif
 
 void delay(byte i) {
@@ -130,8 +158,6 @@ void vdp_setup() {
   cv_set_screen_mode(CV_SCREENMODE_4_224);
   cv_set_character_pattern_t(PATTERN | 0x3000);
   cv_set_image_table(IMAGE | 0x400);
-//  cv_set_color_table(COLOR | 0xfff);
-//  cv_set_sprite_pattern_table(SPRITE_PATTERNS | 0x1800);
 #else
   cv_set_screen_mode(CV_SCREENMODE_STANDARD);
   cv_set_image_table(IMAGE);
@@ -145,6 +171,7 @@ void vdp_setup() {
   copy_default_character_set();
   cvu_vmemset(COLOR, 0xf1, 32);
 #endif
+  cvu_vmemset(SPRITES, 0xff, 0x400);
   cv_set_sprite_attribute_table(SPRITES);
   cv_set_sprite_big(true);
 }
