@@ -1,6 +1,6 @@
 
 // reserve space for the HGR1 screen buffer
-#define CFGFILE apple2-hgr.cfg
+//#tooldef ld cfgfile=apple2-hgr.cfg
 #pragma data-name(push,"HGR")
 #pragma data-name(pop)
 

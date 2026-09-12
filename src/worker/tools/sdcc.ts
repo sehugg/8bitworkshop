@@ -1,4 +1,5 @@
 import { Worker } from "node:worker_threads";
+import { defineArgs, extraArgsFor, linkSymbolArgs } from "../../common/toolmeta";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
 import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, populateExtraFiles, anyTargetChanged, getWorkFileAsString } from "../builder";
 import { parseListing, parseSourceLines, msvcErrorMatcher } from "../listingutils";
@@ -197,6 +198,9 @@ export function linkSDLDZ80(step: BuildStep) {
             '-l', arch];
         if (params.extra_link_args)
             args.push.apply(args, params.extra_link_args);
+        // //#symbol ld (sdldz80 uses -g sym=expr) and //#flag ld
+        args.push.apply(args, linkSymbolArgs('sdldz80', params.symbols && params.symbols.linker));
+        args.push.apply(args, extraArgsFor('sdldz80', params.buildArgs));
         args.push.apply(args, step.args);
         //console.log(args);
         execMain(step, LDZ80, args);
@@ -340,6 +344,9 @@ export function compileSDCC(step: BuildStep): BuildStepResult {
         if (params.extra_compile_args) {
             args.push.apply(args, params.extra_compile_args);
         }
+        // //#symbol c and //#flag c
+        args.push.apply(args, defineArgs('sdcc', params.symbols && params.symbols.compiler));
+        args.push.apply(args, extraArgsFor('sdcc', params.buildArgs));
         execMain(step, SDCC, args);
         // TODO: preprocessor errors w/ correct file
         if (errors.length /* && nwarnings < msvc_errors.length*/) {

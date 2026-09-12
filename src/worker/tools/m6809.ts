@@ -1,4 +1,5 @@
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
+import { defineArgs, extraArgsFor, linkSymbolArgs } from "../../common/toolmeta";
 import { BuildStep, BuildStepResult, populateFiles, putWorkFile, gatherFiles, staleFiles, getWorkFileAsString, fixParamsWithDefines, populateExtraFiles, anyTargetChanged } from "../builder";
 import { parseListing, msvcErrorMatcher, parseSourceLines } from "../listingutils";
 import { EmscriptenModule, emglobal, execMain, load, loadNative, moduleInstFn, print_fn } from "../wasmutils";
@@ -113,6 +114,9 @@ export function compileCMOC(step: BuildStep): BuildStepResult {
         if (params.extra_compile_args) {
             args.unshift.apply(args, params.extra_compile_args);
         }
+        // //#symbol c / //#flag c
+        args.unshift.apply(args, defineArgs('cmoc', params.symbols && params.symbols.compiler)
+            .concat(extraArgsFor('cmoc', params.buildArgs)));
         execMain(step, CMOC, args);
         if (errors.length)
             return { errors: errors };
@@ -138,7 +142,11 @@ export function assembleLWASM(step: BuildStep): BuildStepResult {
     const isRaw = step.path.endsWith('.asm');
     if (staleFiles(step, [objpath, lstpath])) {
         var objout, lstout;
-        var args = ['-9', '-I/share/asminc', '-o' + objpath, '-l' + lstpath, step.path];
+        var args = ['-9', '-I/share/asminc', '-o' + objpath, '-l' + lstpath];
+        // //#symbol as / //#flag as
+        args.push.apply(args, defineArgs('lwasm', step.params.symbols && step.params.symbols.assembler));
+        args.push.apply(args, extraArgsFor('lwasm', step.params.buildArgs));
+        args.push(step.path);
         args.push(isRaw ? '-r' : '--obj');
         var LWASM: EmscriptenModule = emglobal.lwasm({
             instantiateWasm: moduleInstFn('lwasm'),
@@ -201,6 +209,9 @@ export function linkLWLINK(step: BuildStep): BuildStepResult {
             '--raw',
             '--output=main',
             '--map=main.map'].concat(libargs, step.args);
+        // //#flag ld / //#symbol ld
+        args.push.apply(args, linkSymbolArgs('lwlink', params.symbols && params.symbols.linker));
+        args.push.apply(args, extraArgsFor('lwlink', params.buildArgs));
         console.log(args);
         execMain(step, LWLINK, args);
         if (errors.length)

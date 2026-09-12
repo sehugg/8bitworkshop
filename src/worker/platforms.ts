@@ -205,6 +205,8 @@ export var PLATFORM_PARAMS = {
         '-D', 'NES_MIRRORING=0', // horizontal mirroring
         ],
       extra_link_files: ['crt0.o', 'neslib2.lib', 'neslib2.cfg', 'nesbanked.cfg'],
+      // source link symbol -> linker config (was hardcoded in fixParamsWithDefines)
+      symbolConfigs: { NES_MAPPER: { '4': 'nesbanked.cfg' } },
       wiz_rom_ext: '.nes',
     },
     'apple2': {

@@ -23,8 +23,9 @@
 import { DWARFParser, ELFParser } from "../../common/binutils";
 import { hex } from "../../common/util";
 import { WASIFilesystem } from "../../common/wasi/wasishim";
+import { defineArgs, extraArgsFor, linkSymbolArgs } from "../../common/toolmeta";
 import { CodeListingMap, SourceLine, WorkerError, WorkerResult } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, anyTargetChanged, getPrefix, getWorkFileAsString, populateExtraFiles, processEmbedDirective } from "../builder";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, anyTargetChanged, getPrefix, getWorkFileAsString, populateExtraFiles, processEmbedDirective, fixParamsWithDefines } from "../builder";
 import { makeErrorMatcher, re_crlf } from "../listingutils";
 import { loadWASIFilesystemZip } from "../wasiutils";
 import { loadNative, moduleInstFn, execMain, emglobal, EmscriptenModule } from "../wasmutils";
@@ -33,6 +34,7 @@ export function assembleARMIPS(step: BuildStep): WorkerResult {
     loadNative("armips");
     var errors = [];
     gatherFiles(step, { mainFilePath: "main.asm" });
+    fixParamsWithDefines(step.path, step.params);
     var objpath = "main.bin";
     var lstpath = step.prefix + ".lst";
     var sympath = step.prefix + ".sym";
@@ -41,6 +43,10 @@ export function assembleARMIPS(step: BuildStep): WorkerResult {
 
     if (staleFiles(step, [objpath])) {
         var args = [step.path, '-temp', lstpath, '-sym', sympath, '-erroronwarning'];
+        // //#symbol as / //#flag as (armips itself has no -D, but flags pass through)
+        args.splice(1, 0,
+            ...defineArgs('armips', step.params.symbols && step.params.symbols.assembler),
+            ...extraArgsFor('armips', step.params.buildArgs));
         var armips: EmscriptenModule = emglobal.armips({
             instantiateWasm: moduleInstFn('armips'),
             noInitialRun: true,
@@ -168,11 +174,15 @@ export function assembleVASMARM(step: BuildStep): BuildStepResult {
     }
 
     gatherFiles(step, { mainFilePath: "main.asm" });
+    fixParamsWithDefines(step.path, step.params);
     var objpath = step.prefix + ".bin";
     var lstpath = step.prefix + ".lst";
 
     if (staleFiles(step, [objpath])) {
-        var args = ['-Fbin', '-m7tdmi', '-x', '-wfail', step.path, '-o', objpath, '-L', lstpath];
+        var args = ['-Fbin', '-m7tdmi', '-x', '-wfail'];
+        args.push.apply(args, defineArgs('vasmarm', step.params.symbols && step.params.symbols.assembler));
+        args.push.apply(args, extraArgsFor('vasmarm', step.params.buildArgs));
+        args.push(step.path, '-o', objpath, '-L', lstpath);
         var vasm: EmscriptenModule = emglobal.vasm({
             instantiateWasm: moduleInstFn('vasmarm_std'),
             noInitialRun: true,
@@ -274,6 +284,7 @@ export async function compileARMTCC(step: BuildStep): Promise<BuildStepResult> {
     const params = step.params;
     const errors = [];
     gatherFiles(step, { mainFilePath: "main.c" });
+    fixParamsWithDefines(step.path, step.params);
     const objpath = step.prefix + ".o";
     const error_fn = tccErrorMatcher(errors, step.path);
 
@@ -301,6 +312,9 @@ export async function compileARMTCC(step: BuildStep): Promise<BuildStepResult> {
         if (params.extra_compile_args) {
             args = args.concat(params.extra_compile_args);
         }
+        // //#symbol c / //#flag c
+        args = args.concat(defineArgs('armtcc', params.symbols && params.symbols.compiler),
+            extraArgsFor('armtcc', params.buildArgs));
         args.push(step.path);
     
         const FS = armtcc.FS;
@@ -341,6 +355,7 @@ export async function linkARMTCC(step: BuildStep): Promise<WorkerResult> {
     const params = step.params;
     const errors = [];
     gatherFiles(step, { mainFilePath: "main.c" });
+    fixParamsWithDefines(step.path, step.params);
     const objpath = "main.elf";
     const error_fn = tccErrorMatcher(errors, step.path);
 
@@ -364,6 +379,9 @@ export async function linkARMTCC(step: BuildStep): Promise<WorkerResult> {
         if (params.extra_link_args) {
             args = args.concat(params.extra_link_args);
         }
+        // //#flag ld / //#symbol ld
+        args = args.concat(linkSymbolArgs('armtcclink', params.symbols && params.symbols.linker),
+            extraArgsFor('armtcclink', params.buildArgs));
 
         const FS = armtcc.FS;
         populateExtraFiles(step, FS, params.extra_link_files);

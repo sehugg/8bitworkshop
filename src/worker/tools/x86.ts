@@ -1,3 +1,4 @@
+import { defineArgs, extraArgsFor } from "../../common/toolmeta";
 import { WorkerError, CodeListingMap } from "../../common/workertypes";
 import { BuildStep, BuildStepResult, gatherFiles, staleFiles, getWorkFileAsString, populateFiles, fixParamsWithDefines, putWorkFile, anyTargetChanged } from "../builder";
 import { msvcErrorMatcher, parseListing } from "../listingutils";
@@ -56,6 +57,9 @@ export function compileSmallerC(step: BuildStep): BuildStepResult {
     if (params.extra_compile_args) {
       args.unshift.apply(args, params.extra_compile_args);
     }
+    // //#symbol c / //#flag c
+    args.unshift.apply(args, defineArgs('smlrc', params.symbols && params.symbols.compiler)
+      .concat(extraArgsFor('smlrc', params.buildArgs)));
     execMain(step, smlrc, args);
     if (errors.length)
       return { errors: errors };
@@ -72,6 +76,7 @@ export function compileSmallerC(step: BuildStep): BuildStepResult {
 
 export function assembleYASM(step: BuildStep): BuildStepResult {
   loadNative("yasm");
+  var params = step.params;
   var errors = [];
   gatherFiles(step, { mainFilePath: "main.asm" });
   var objpath = step.prefix + ".exe";
@@ -96,7 +101,11 @@ export function assembleYASM(step: BuildStep): BuildStepResult {
     var FS = YASM.FS;
     //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
     populateFiles(step, FS);
-    //fixParamsWithDefines(step.path, step.params);
+    fixParamsWithDefines(step.path, step.params);
+    // //#symbol as / //#flag as (insert before the source filename)
+    args.splice(args.length - 1, 0,
+      ...defineArgs('yasm', params.symbols && params.symbols.assembler),
+      ...extraArgsFor('yasm', params.buildArgs));
     execMain(step, YASM, args);
     if (errors.length)
       return { errors: errors };

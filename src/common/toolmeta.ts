@@ -35,6 +35,18 @@ export type ToolKind =
 export type ToolArch =
   | '6502' | 'z80' | '6809' | 'arm32' | 'x86' | 'gbz80' | 'verilog' | 'zmachine';
 
+/**
+ * Extra raw argv for one build phase. Source directives (`//#flag <phase> ...`)
+ * and platform/ToolMeta defaults both land here; each tool picks the list
+ * matching its ToolKind. Distinct from `defines` (symbols) because these are
+ * opaque flags the build engine cannot interpret or validate.
+ */
+export interface BuildArgs {
+  compiler?: string[];
+  assembler?: string[];
+  linker?: string[];
+}
+
 export interface PlatformToolConfig {
   /** preload filesystem name for this platform (was TOOL_PRELOADFS compound keys) */
   preloadFS?: string;
@@ -46,6 +58,10 @@ export interface PlatformToolConfig {
   cfgfile?: string;
   /** extra compiler args (was PLATFORM_PARAMS.extra_compile_args) */
   extraCompileArgs?: string[];
+  /** preprocessor defines for this platform (NAME or NAME=VALUE) */
+  defines?: string[];
+  /** extra raw args per phase */
+  buildArgs?: BuildArgs;
   /** default output filename (was server buildenv platform_configs.outfile) */
   defaultOutput?: string;
 }
@@ -94,6 +110,21 @@ export interface ToolMeta {
   skeleton?: string;
   /** wasm/emscripten module name loaded by the worker (was loadNative() arg) */
   wasmModule?: string;
+
+  // ---- symbol capability ----
+
+  /** flag defining a preprocessor/assembler symbol, e.g. '-D'. Undefined means
+   *  the tool has no command-line define mechanism (e.g. sdasz80). */
+  defineFlag?: string;
+  /** true if the value is joined to the flag ('-DFOO=1') rather than separate
+   *  ('-D', 'FOO=1'). cc65/sdcc join, ca65 does not. */
+  defineInline?: boolean;
+  /** flag a linker uses to define a global symbol with an integer expression,
+   *  e.g. '-D' (ld65) or '-g' (sdldz80). Undefined means no link symbols. */
+  linkSymbolFlag?: string;
+  /** true if the link symbol value is joined to the flag */
+  linkSymbolInline?: boolean;
+
   /** tool version string, as reported by the vendored wasm binary.
    *  Static per committed binary -- refresh with `npm run toolversions`. */
   version?: string;
@@ -277,6 +308,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     helpURL: 'https://cc65.github.io/doc/cc65.html',
     wasmModule: 'cc65',
     version: '2.19',
+    defineFlag: '-D', defineInline: true,
     platforms: CC65_PRELOADFS,
     includePatterns: SHARED_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
@@ -290,6 +322,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     helpURL: 'https://cc65.github.io/doc/ca65.html',
     wasmModule: 'ca65',
     version: '2.19',
+    defineFlag: '-D', defineInline: false,
     platforms: CC65_PRELOADFS,
     includePatterns: SHARED_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
@@ -300,6 +333,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     extensions: [],
     wasmModule: 'ld65',
     version: '2.19',
+    linkSymbolFlag: '-D', linkSymbolInline: false,
   },
 
   // ---- SDCC toolchain (z80) ----
@@ -312,6 +346,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     helpURL: 'http://sdcc.sourceforge.net/doc/sdccman.pdf',
     wasmModule: 'sdcc',
     version: '3.6.5',
+    defineFlag: '-D', defineInline: true,
     platforms: { default: { preloadFS: 'sdcc' } },
     includePatterns: SHARED_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
@@ -345,6 +380,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     extensions: [],
     wasmModule: 'sdldz80',
     version: '03.00',
+    linkSymbolFlag: '-g', linkSymbolInline: false,
   },
 
   sccz80: {
@@ -403,6 +439,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     helpURL: 'http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html',
     wasmModule: 'cmoc',
     version: '0.1.67',
+    defineFlag: '-D', defineInline: false,
     includePatterns: SHARED_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
   },
@@ -431,6 +468,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     editorStyle: 'vasm',
     wasmModule: 'vasmarm_std',
     version: '1.8k',
+    defineFlag: '-D', defineInline: false,
     includePatterns: SHARED_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
   },
@@ -452,6 +490,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     wasiFSZip: 'arm32-fs.zip',
     editorStyle: 'text/x-csrc',
     wasmModule: 'arm-tcc',
+    defineFlag: '-D', defineInline: false,
     includePatterns: SHARED_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
   },
@@ -470,6 +509,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     // NOTE: no bundled filesystem and no -I arg -- no headers to link in the UI
     editorStyle: 'text/x-csrc',
     wasmModule: 'smlrc',
+    defineFlag: '-D', defineInline: false,
     includePatterns: SHARED_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
   },
@@ -480,6 +520,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     editorStyle: 'gas',
     wasmModule: 'yasm',
     version: '1.3.0',
+    defineFlag: '-D', defineInline: false,
     includePatterns: SHARED_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
   },
@@ -690,6 +731,23 @@ export function getToolMetaForFilename(fn: string): ToolMeta[] {
 }
 
 /**
+ * The per-platform ToolMeta config for a tool, resolving suffixed platform ids
+ * to their root base and falling back to 'default'. Used by the Builder to
+ * layer platform-level defines/buildArgs under source directives.
+ */
+export function getPlatformToolConfig(tool: string, platform?: string): PlatformToolConfig | undefined {
+  let meta = tool && getToolMeta(tool);
+  if (!meta || !meta.platforms) return undefined;
+  if (platform) {
+    let p = meta.platforms[platform];
+    if (p) return p;
+    let base = getRootBasePlatform(platform);
+    if (base && base !== platform && meta.platforms[base]) return meta.platforms[base];
+  }
+  return meta.platforms['default'];
+}
+
+/**
  * Resolve the preload filesystem name for a tool on a platform
  * (was TOOL_PRELOADFS, including compound 'tool-platform' keys).
  */
@@ -733,6 +791,51 @@ export function getIncludePatterns(tool: string, platform?: string): (RegExp | T
   if (meta && meta.includePatterns) return meta.includePatterns;
   if (platform && platform.startsWith('verilog')) return VERILOG_INCLUDE_PATTERNS;
   return SHARED_INCLUDE_PATTERNS;
+}
+
+/**
+ * Format a list of preprocessor/assembler defines as argv for a tool, using
+ * the flag and joining style declared in its ToolMeta. Returns [] when the
+ * tool has no command-line define mechanism (e.g. sdasz80).
+ */
+export function defineArgs(tool: string, defines?: string[]): string[] {
+  let meta = tool && getToolMeta(tool);
+  if (!meta || !meta.defineFlag || !defines || !defines.length) return [];
+  let out: string[] = [];
+  for (let d of defines) {
+    if (meta.defineInline) out.push(meta.defineFlag + d);
+    else out.push(meta.defineFlag, d);
+  }
+  return out;
+}
+
+/**
+ * Format link-time global symbols as argv for a linker tool, using the flag
+ * declared in its ToolMeta ('-D' for ld65, '-g' for sdldz80). Returns [] when
+ * the tool cannot define symbols on the command line.
+ */
+export function linkSymbolArgs(tool: string, symbols?: string[]): string[] {
+  let meta = tool && getToolMeta(tool);
+  if (!meta || !meta.linkSymbolFlag || !symbols || !symbols.length) return [];
+  let out: string[] = [];
+  for (let s of symbols) {
+    if (meta.linkSymbolInline) out.push(meta.linkSymbolFlag + s);
+    else out.push(meta.linkSymbolFlag, s);
+  }
+  return out;
+}
+
+/**
+ * Extra raw args from params.buildArgs for the phase matching the tool's kind
+ * (compiler/assembler/linker). Interpreter/hdl/remote tools get nothing.
+ */
+export function extraArgsFor(tool: string, buildArgs?: BuildArgs): string[] {
+  let meta = tool && getToolMeta(tool);
+  if (!meta || !buildArgs) return [];
+  let kind = meta.kind;
+  if (kind === 'compiler' || kind === 'assembler' || kind === 'linker')
+    return buildArgs[kind] || [];
+  return [];
 }
 
 /** Link patterns ("//#link") to use when scanning a source file. */
