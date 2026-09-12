@@ -2,23 +2,48 @@
 
 ## Importing and exporting files
 
-If you plan to clear cookies, or move between browsers or computers, you
-may need to export your work and import it later.
-
-To save your files outside of browser cache:
+To save your files outside of the browser:
 
 1. Select **Download** from the menu.
 2. Choose an option:
    - **Download Source File** — download the active source file.
    - **Download ROM Image** — download the compiled ROM, which can be
      used in a standalone emulator.
-   - **Download Project as Zip** — download the active project as a zip.
-   - **Download All Changes as Zip** — download all files in the active
+   - **Download Project as ZIP** — download the active project as a zip.
+   - **Download All Changes as ZIP** — download all files in the active
      platform.
+   - **Download Debug Symbols** — download the debug symbol file
+     produced by the build for use in an external debugger. This option
+     is only available with certain toolchains like NES.
 3. Choose a location and save the file.
 
 To import source files back into the browser, select **Upload** from the
 menu, choose the file, and click **Open**.
+
+## Renaming, deleting, and adding files
+
+The **File** submenu acts on the file in the active editor window:
+
+- **Revert to Original…** — restore the active example to its original
+  state, discarding your edits.
+- **Rename File…** — rename the active source file. If it is the main
+  file, the project reloads under the new name.
+- **Delete File…** — remove the active file from the project after
+  confirming.
+- **Add Include File…** — create a new file and add it to the main file
+  with the include directive appropriate for the platform's toolchain
+  (`#include` for C, `.include` for assembly, and so on).
+- **Add Linked File…** — create a new file and link it into the build
+  with a `//#link` or `;#link` directive.
+
+See [Build Directives](build-directives.md) for how include and linked
+files are referenced.
+
+## Managing browser storage
+
+Browsers may occasionally delete local files.
+Select **File &raquo; Request Local Storage Permissions** to ask the
+browser to keep your files permanently.
 
 ## Sharing projects
 
@@ -44,6 +69,13 @@ support the resulting URL length.
    As…** to save the animated GIF.
 4. Click **Close**.
 
+### Making a cassette audio file
+
+For platforms with cassette support, select **Share &raquo; Make Cassette
+Audio…** to export the compiled program as an audio (WAV) file that can
+be loaded from a real or emulated cassette drive. This option is hidden
+on platforms that don't support it.
+
 ## Syncing with GitHub
 
 You can import projects from GitHub repositories, publish your projects,
@@ -54,6 +86,8 @@ push, the IDE uploads your code and a compiled ROM file.
 
 1. From the menu, select **Sync &raquo; Sign in to GitHub…**.
 2. Enter your GitHub username and password.
+
+To sign out, select **Sync &raquo; Log out**.
 
 ### Importing a project
 

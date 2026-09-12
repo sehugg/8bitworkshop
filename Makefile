@@ -35,8 +35,8 @@ submodules:
 
 buildtsc: submodules buildgrammars
 	npm run esbuild-clean
-	npm run doctools
 	npm run tsbuild
+	npm run doctools
 	npm run esbuild
 
 prepare: buildtsc
