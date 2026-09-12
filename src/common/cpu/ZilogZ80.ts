@@ -3383,12 +3383,17 @@ export class Z80 implements CPU, InstructionBased, IOBusConnected, SavesState<Z8
   retryData : number = -1;
   
   private buildCPU() {
-    if (this.memBus && this.ioBus) {
+    // Build the core only once and route its callbacks through the current
+    // bus fields. BasicHeadlessMachine.rewireCPUBuses() swaps memBus/ioBus
+    // whenever a probe is attached or detached; rebuilding here would throw
+    // away the whole register state (i.e. reset the machine). FastZ80 calls
+    // core.mem_read/... at instruction time, so the closures pick up the swap.
+    if (this.memBus && this.ioBus && !this.cpu) {
       this.cpu = new FastZ80({
-        mem_read: this.memBus.read.bind(this.memBus),
-        mem_write: this.memBus.write.bind(this.memBus),
-        io_read: this.ioBus.read.bind(this.ioBus),
-        io_write: this.ioBus.write.bind(this.ioBus),
+        mem_read: (a) => this.memBus.read(a),
+        mem_write: (a, v) => this.memBus.write(a, v),
+        io_read: (a) => this.ioBus.read(a),
+        io_write: (a, v) => this.ioBus.write(a, v),
       });
     }
   }
