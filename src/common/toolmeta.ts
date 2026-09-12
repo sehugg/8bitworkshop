@@ -282,6 +282,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     id: 'nesasm', name: 'NESASM', kind: 'assembler', arch: '6502',
     extensions: ['.nesasm'],
     editorStyle: '6502',
+    helpURL: 'https://github.com/camsaul/nesasm',
     wasmModule: 'nesasm',
     version: '3.1',
     includePatterns: SHARED_INCLUDE_PATTERNS,
@@ -292,6 +293,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     id: 'merlin32', name: 'Merlin 32', kind: 'assembler', arch: '6502',
     extensions: ['.lnk'],
     editorStyle: '6502',
+    helpURL: 'https://github.com/apple2accumulator/merlin32',
     wasmModule: 'merlin32',
     version: '1.1.10',
     includePatterns: [...SHARED_INCLUDE_PATTERNS, ...USE_ASM_INCLUDE_PATTERNS],
@@ -393,6 +395,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   naken: {
     id: 'naken', name: 'Naken', kind: 'assembler',
     extensions: ['.ns'],
+    helpURL: 'https://github.com/mikeakohn/naken_asm',
     noWorkerBuild: true,
   },
 
@@ -436,7 +439,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     // NOTE: no bundled filesystem -- the compiler passes -I/share/include but
     // never mounts one, so system headers can't be linked in the UI
     editorStyle: 'text/x-csrc',
-    helpURL: 'http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html',
+    helpURL: 'https://github.com/stahta01/cmoc/',
     wasmModule: 'cmoc',
     version: '0.1.67',
     defineFlag: '-D', defineInline: false,
@@ -506,6 +509,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   smlrc: {
     id: 'smlrc', name: 'SmallerC', kind: 'compiler', arch: 'x86',
     extensions: ['.c'],
+    helpURL: 'https://github.com/alexfru/SmallerC/blob/master/v0100/doc/smlrc.md',
     // NOTE: no bundled filesystem and no -I arg -- no headers to link in the UI
     editorStyle: 'text/x-csrc',
     wasmModule: 'smlrc',
@@ -518,6 +522,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     id: 'yasm', name: 'YASM', kind: 'assembler', arch: 'x86',
     extensions: ['.asm'],
     editorStyle: 'gas',
+    helpURL: 'https://www.tortall.net/projects/yasm/manual/html/manual.html',
     wasmModule: 'yasm',
     version: '1.3.0',
     defineFlag: '-D', defineInline: false,
@@ -568,6 +573,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     id: 'cc2600', name: 'CC2600', kind: 'compiler', arch: '6502',
     extensions: ['.cc2600'],
     editorStyle: 'text/x-csrc',
+    helpURL: 'https://github.com/steux/cc2600',
     wasmModule: 'cc2600',
     version: '0.4.5',
     wasiFSZip: 'cc2600-fs.zip',
@@ -580,6 +586,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     id: 'cc7800', name: 'CC7800', kind: 'compiler', arch: '6502',
     extensions: ['.cc7800', '.c78'],
     editorStyle: 'text/x-csrc',
+    helpURL: 'https://github.com/steux/cc7800',
     wasmModule: 'cc7800',
     version: '0.2.28',
     wasiFSZip: 'cc7800-fs.zip',

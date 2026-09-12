@@ -2,14 +2,46 @@
 
 ![Build Status](https://github.com/sehugg/8bitworkshop/actions/workflows/node.js.yml/badge.svg)
 
+8bitworkshop is a browser-based IDE for micro computers and consoles.
+It compiles or assembles your code as you type,
+then runs the result in a built-in emulator — all locally in your
+browser, with no server round-trip.
+
+It bundles toolchains and emulators for dozens of platforms, including the
+Atari 2600/7800/8-bit, Commodore 64/VIC-20, NES, Game Boy, ColecoVision,
+MSX, ZX Spectrum, Amstrad CPC, PC Engine, Vectrex, Apple II, and a
+number of arcade boards. See
+[Toolchains & Platforms](src/docs/toolchains.md) for the complete list.
+
+![8bitworkshop IDE](https://8bitworkshop.com/images/ide_screenshot1.png)
 
 ## Use Online
 
 Latest release:
-- https://8bitworkshop.com/latest/ or
-- https://sehugg.github.io/8bitworkshop/
+- https://8bitworkshop.com/latest/ (bleeding edge, built from main branch)
+
+## Features
+
+* In-browser compilers and assemblers (cc65, SDCC, Z80/6502/6809
+  assemblers, and more) — see [Tools](src/docs/toolchains.md)
+* Built-in emulators with keyboard and gamepad input
+* Debugger with breakpoints, stepping, memory browser, disassembly,
+  call stack, memory probes, and time-travel replay
+* Hardware simulation with Verilog
+* Asset editor for bitmaps and palettes
+* Export ROMs, save screenshots/videos, share playable links, and sync
+  projects to GitHub
+
+Read the [IDE documentation](src/docs/index.md) for a guided tour.
 
 ## Install Locally
+
+Requirements:
+
+* [Node.js](https://nodejs.org/) 24.x
+* [npm](https://www.npmjs.com/)
+* `make` and `git`
+* Python 3 (for the local dev server)
 
 To clone just the main branch:
 
@@ -25,11 +57,16 @@ To build the 8bitworkshop IDE:
 make
 ```
 
-To use GitHub integration locally, download the Firebase config file, e.g. https://8bitworkshop.com/v[version]/config.js
+`make` initializes git submodules, installs npm dependencies, builds the
+TypeScript and lezer grammars, and runs esbuild.
+
+To use GitHub integration locally, download the Firebase config file,
+e.g. https://8bitworkshop.com/v[version]/config.js
 
 ### Start Local Web Server
 
-Start a web server on http://localhost:8000/ while TypeScript compiles in the background:
+Start a web server on http://localhost:8000/ while TypeScript compiles
+in the background:
 
 ```sh
 make tsweb
@@ -45,21 +82,39 @@ export TEST8BIT_GITHUB_TOKEN="<github_personal_access_token>"
 npm test
 ```
 
-## License
+## Command-Line Tool
 
-Copyright © 2016-2026 [Steven E. Hugg](https://github.com/sehugg).
+The `8bws` CLI builds and runs projects headlessly, without a browser.
+It is useful for scripting, CI, and regression tests.
 
+```sh
+# Build a source file to a ROM
+npm run cli -- build --platform c64 hello.c -o hello.prg --symbols
 
-This project, unless specifically noted, is multi-licensed.
-You may choose to adhere to the terms of either the [GPL-3.0](https://github.com/sehugg/8bitworkshop/blob/master/LICENSE) License for the entire project or respect the individual licenses of its dependencies and included code samples, as applicable.
+# Run a ROM for 200 frames and take a screenshot
+npm run cli -- run --platform nes --frames 200 --png shot.png game.nes
 
-This project includes various dependencies, modules, and components that retain their original licenses.
-For detailed licensing information for each dependency, please refer to the respective files and documentation.
+# Run with a debugger script (symbolic addresses come from the build)
+npm run cli -- run --platform gb hello.c -e "break _main; pc 4"
 
-All included code samples located in the `presets/` directory are licensed under
-[CC0](https://creativecommons.org/publicdomain/zero/1.0/)
-unless a different license is explicitly stated within the specific code sample.
+npm run cli -- list-platforms
+npm run cli -- list-tools
+```
 
+Run scripts (`-e` or `--script <file>`) can `run`, `break`, `step`,
+`trace`, `hist`, `key`, `mem`, `screen`, `pc`, `info`, `reset`, and
+`echo`. Run `npm run cli -- help` for the full list.
+
+## Documentation
+
+The IDE manual lives in [`src/docs/`](src/docs/index.md):
+
+* [IDE Overview](src/docs/index.md)
+* [Managing Files](src/docs/managing-files.md) — export, share, GitHub sync
+* [Build Directives](src/docs/build-directives.md) — multi-file projects
+* [Toolchains & Platforms](src/docs/toolchains.md) — tools and file extensions
+* [Debugger](src/docs/breakpoints.md) — breakpoints and stepping
+* [Embedding the IDE](src/docs/embedding-ide.md) — iframe embeds
 
 ## Contributing
 
@@ -76,67 +131,125 @@ It likes:
 
 The code samples in `presets/` are intended to be studied by humans.
 LLM usage for generating code samples is discouraged, as they tend to hide subtle errors in code and in comments, and it diminishes the human achievement and human-to-human communication aspects of the project.
+Please thoroughly review and edit such code.
 
 Adapting third party sample code with permissive licenses and giving credit to the original author(s) is encouraged.
 
+## Credits
+
+8bitworkshop is created and maintained by
+[Steven E. Hugg](https://github.com/sehugg).
+
+Major contributors:
+* [Fred Sauer](https://github.com/fredsa) - CodeMirror 6 editor migration, Apple II enhancements, and general IDE work.
+* [Mike DX](https://github.com/MikeDX) - PC Engine / Game Boy / Williams 6809 enhancements, library code, and examples.
+* [Micah Cowan](https://github.com/micahcowan) - Apple II enhancements.
+
+The emulators, compilers, assemblers, and libraries that this project
+builds on are credited in [Dependencies](#dependencies) and retain their
+own licenses (see [License](#license)).
+
+For the complete list of contributors, see the
+[GitHub contributors graph](https://github.com/sehugg/8bitworkshop/graphs/contributors).
+
+## License
+
+The original source code in this repository is Copyright © 2016-2026
+[Steven E. Hugg](https://github.com/sehugg) and is licensed under the
+[GPL-3.0](https://github.com/sehugg/8bitworkshop/blob/master/LICENSE).
+
+This project also bundles and links against third-party components,
+including emulators, compilers, and libraries. These components are
+**not** covered by the GPL-3.0 license above; they remain under their
+own licenses, and you must comply with those terms when redistributing
+this project or a modified version of it. 
+See the individual dependencies' own license files for details.
+
+All included code samples located in the `presets/` directory are licensed under
+[CC0](https://creativecommons.org/publicdomain/zero/1.0/)
+unless a different license is explicitly stated within the specific code sample.
 
 ## Dependencies
 
 ### Emulators
 
-* https://javatari.org/
-* https://jsnes.org/
-* https://www.mamedev.org/
-* https://github.com/floooh/chips
-* https://github.com/DrGoldfire/Z80.js
+* https://javatari.org/ (AGPL-3.0)
+* https://jsnes.org/ (Apache 2.0)
+* https://www.mamedev.org/ (BSD-3-Clause)
+* https://github.com/floooh/chips (Zlib)
+* https://github.com/DrGoldfire/Z80.js (MIT)
 * http://www.twitchasylum.com/jsvecx/
-* https://github.com/curiousdannii/ifvms.js/
-* https://6502ts.github.io/typedoc/stellerator-embedded/
-* https://github.com/yhzmr442/jspce
+* https://github.com/curiousdannii/ifvms.js/ (MIT)
+* https://github.com/6502ts/6502.ts (MIT)
+* https://github.com/yhzmr442/jspce (MIT)
+* https://github.com/gasman/jsspeccy2 (GPL-3)
 
 ### Compilers
 
-* https://cc65.github.io/
-* http://sdcc.sourceforge.net/
-* http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html
+* https://cc65.github.io/ (zlib)
+* http://sdcc.sourceforge.net/ (GPL-2)
+* https://github.com/stahta01/cmoc/ (GPL-3.0)
 * https://github.com/batari-Basic/batari-Basic
-* https://www.veripool.org/wiki/verilator
-* http://mcpp.sourceforge.net/
-* http://www.ifarchive.org/indexes/if-archiveXinfocomXcompilersXinform6.html
-* https://github.com/dmsc/fastbasic
-* https://github.com/wiz-lang/wiz
-* https://github.com/sylefeb/Silice
-* https://github.com/steux/cc7800
+* https://www.veripool.org/wiki/verilator (GNU Lesser Public License Version 3)
+* http://mcpp.sourceforge.net/ (BSD-2)
+* https://github.com/DavidKinder/Inform6
+* https://github.com/dmsc/fastbasic (GPL-2.0)
+* https://github.com/wiz-lang/wiz (MIT)
+* https://github.com/sylefeb/Silice (GPL-3.0)
+* https://github.com/steux/cc7800 (GPL-3.0)
 * https://bellard.org/tcc/
+* https://github.com/Dialog-IF/dialog
+* https://github.com/alexfru/SmallerC (BSD-2-Clause)
+* https://github.com/drmortalwombat/oscar64/ (GPL-3.0)
 
 ### Assemblers/Linkers
 
-* https://dasm-assembler.github.io/
+* https://dasm-assembler.github.io/ (GPL-2)
 * http://atjs.mbnet.fi/mc6809/Assembler/xasm-990104.tar.gz
-* http://48k.ca/zmac.html
+* http://48k.ca/zmac.html (public domain)
 * https://github.com/apple2accumulator/merlin32
 * https://github.com/camsaul/nesasm
+* https://www.floodgap.com/retrotech/xa/
+* https://github.com/mikeakohn/naken_asm (GPL-3)
+* https://github.com/yasm/yasm
+* https://github.com/mbitsnbites/vasm-mirror
+* https://github.com/sehugg/acme (GPL-2.0)
 
 ### Dev Kits / Libraries
 
 * https://shiru.untergrund.net/code.shtml
 * http://www.colecovision.eu/ColecoVision/development/libcv.shtml
-* https://github.com/toyoshim/tss
-* https://github.com/lronaldo/cpctelera
+* https://github.com/toyoshim/tss (BSD-3-Clause)
+* https://github.com/lronaldo/cpctelera (LGPL-3.0)
+* https://github.com/datajerk/c2t (BSD-3)
+* https://github.com/sehugg/6809tools
+* https://github.com/mbitsnbites/liblzg (Zlib)
+* https://github.com/sehugg/makewav
+* https://github.com/Kingcom/armips (MIT)
+* https://github.com/dmsc/mkatr (GPL-2.0)
 
 ### Firmware
 
+The emulator cores need system firmware to boot. Only freely
+distributable replacement images are included — see
+[`mame/roms/README.md`](mame/roms/README.md) for their provenance and
+licenses.
+
+To use your own firmware, add it to the project as a binary file named
+`<platform-id>.rom` (for example `c64.rom`); the IDE loads it as the
+BIOS at startup. Only freely distributable firmware should be shared.
+
 * http://www.virtualdub.org/altirra.html
-* https://github.com/MEGA65/open-roms
+* https://github.com/MEGA65/open-roms (LGPL-3.0)
 * https://sourceforge.net/projects/cbios/
 * https://www.pledgebank.com/opense
 
 ### Related Projects
 
 * https://github.com/sehugg/8bitworkshop-compilers
-* https://github.com/sehugg/8bit-tools
-* https://github.com/sehugg/awesome-8bitgamedev
-* https://github.com/sehugg?tab=repositories
+* https://github.com/sehugg/8bit-tools (CC0-1.0)
+* https://github.com/sehugg/awesome-8bitgamedev (Public Domain)
+* https://github.com/sehugg?tab=repositories (CC0-1.0)
 
 
 ## Tool Server (experimental)
