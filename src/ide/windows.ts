@@ -110,6 +110,7 @@ export class ProjectWindows {
       document.title = this.titlePrefix + mainName;
     } else {
       var viewName = id.startsWith('#headerview/') ? id.substring('#headerview/'.length)
+        : id.startsWith('#help/') ? id.substring('#help/'.length)
         : id.startsWith('#') ? id : getFilenameForPath(id);
       document.title = this.titlePrefix + mainName + ' | ' + viewName;
     }

@@ -67,9 +67,12 @@ export function openSearchHit(hit: SearchHit) {
       if (wnd instanceof MemoryView) wnd.goToAddress(addr);
     }
   } else if (rec.source === 'docs') {
-    // External docs: open the URL in a new tab
-    const url = rec.detail || rec.file || '';
-    if (url) {
+    // In-IDE help pages route through ProjectWindows; anything else is an
+    // external URL opened in a new tab.
+    const url = rec.url || '';
+    if (url.startsWith('#help/')) {
+      projectWindows.createOrShow(url);
+    } else if (url) {
       window.open(url, '_blank');
     }
   }

@@ -29,6 +29,7 @@ import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
 import { AddressHeatMapView, BinaryFileView, BreakpointsView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterStackMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
 import { DisassemblerView, HeaderView, ListingView, PC_LINE_LOOKAHEAD, SourceEditor, setUppercaseOnly } from "./views/editors";
+import { HELP_TOPICS, HelpView, helpTopicForView } from "./views/helpview";
 import { CallStackView, DebugBrowserView } from "./views/treeviews";
 import { ProjectWindows } from "./windows";
 import { bpStore, resolveBreakpoints } from "./breakpoints";
@@ -448,6 +449,14 @@ function refreshWindowList() {
   addWindowItem('#asseteditor', 'Asset Editor', () => {
     return new AssetEditorView();
   });
+
+  // Help: markdown docs shipped with the IDE. Only the index is listed in the
+  // sidebar; every topic still gets a create fn so #help/<id> deep links work.
+  //separate = true;
+  addWindowItem('#help', 'Help', () => new HelpView('#help'));
+  for (let topic of HELP_TOPICS) {
+    projectWindows.setCreateFunc('#help/' + topic.id, () => new HelpView(topic.id));
+  }
 }
 
 function highlightLines(path: string, hispec: string) {
@@ -1147,6 +1156,7 @@ function promptGoToAddress(): boolean {
 function getGlobalShortcuts(): Shortcut[] {
   var shortcuts: Shortcut[] = [];
   if (platform && isPlatformReady()) {
+    shortcuts.push({ key: 'F1', label: 'Help', fn: showContextHelp });
     // single-key pause/resume toggle (works while the editor is focused);
     // mod+shift+h / mod+shift+g still work outside the editor.
     // pushed first so its position doesn't shift when other chips come and
@@ -1778,6 +1788,8 @@ function setupDebugControls() {
   uitoolbar.add('mod+shift+g', 'Resume', 'glyphicon-play', resume).prop('id', 'dbg_go');
   // F8: single-key pause/resume toggle; chip shown via getGlobalShortcuts()
   uitoolbar.add('F8', 'Pause/Resume', '', togglePauseResume);
+  // F1: context-sensitive help for the active view (editor/tool/platform)
+  uitoolbar.add('F1', 'Help', '', showContextHelp);
   if (platform.restartAtPC) {
     uitoolbar.add('mod+shift+a', 'Restart at Cursor', 'glyphicon-play-circle', restartAtCursor).prop('id', 'dbg_restartatline');
   }
@@ -1851,8 +1863,6 @@ function setupDebugControls() {
   $("#item_addfile_link").click(_addLinkFile);
   $("#item_request_persist").click(() => requestPersistPermission(true, false));
   $("#item_settings").click(openSettings);
-  $("#item_keyboard_shortcuts").click(openKeyboardShortcuts);
-  $("#item_asset_editor_help").click(openAssetEditorHelp);
   updateDebugWindows();
   // code analyzer?
   if (platform.newCodeAnalyzer) {
@@ -1885,8 +1895,27 @@ function setupDebugControls() {
     // opens an external page; don't let the placeholder href change our URL hash
     $(a).click((e) => { e.preventDefault(); window.open(toolhelpurl!, '_8bws_help'); });
   }
+  // internal IDE help (markdown docs shipped with the IDE)
+  {
+    let { li } = newDropdownListItem('#help', 'IDE Help');
+    $("#help_menu").prepend(li);
+  }
   // all toolchain versions
   $("#item_tool_versions").click(openToolVersions);
+}
+
+// F1: open the help topic that matches whatever is focused right now.
+// Going through the hash means Back returns to the previous view.
+function showContextHelp() {
+  if (!projectWindows) return;
+  var isEditor = projectWindows.getActive() instanceof SourceEditor;
+  var id = helpTopicForView(projectWindows.getActiveID(), isEditor);
+  var hash = '#help/' + id;
+  if (window.location.hash === hash) {
+    projectWindows.createOrShow(hash);
+  } else {
+    window.location.hash = hash;
+  }
 }
 
 function openToolVersions() {
@@ -1904,92 +1933,6 @@ function openToolVersions() {
       <tr><th>Tool</th><th>Kind</th><th>Version</th></tr>
       ${tools.map(m => row(m.name, m.kind, m.version ?? '?')).join('\n')}
     </table>`,
-  });
-}
-
-function openKeyboardShortcuts() {
-  const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
-  const mod = isMac ? '&#8984;' : 'Ctrl';
-  const shift = isMac ? '&#8679;' : 'Shift';
-  const shortcut = (keys: string, desc: string) =>
-    `<tr><td><kbd>${keys}</kbd></td><td>${desc}</td></tr>`;
-  bootbox.dialog({
-    title: "Keyboard shortcuts",
-    onEscape: true,
-    message: `
-    <table class="help">
-      <tr><th colspan="2">Editor</th></tr>
-      ${shortcut(`${mod}+${shift}+F`, 'Search symbols, files, and docs')}
-      ${shortcut('Tab', 'Insert to next tab stop, or indent selected range(s)')}
-      ${shortcut(`${shift}+Tab`, 'Outdent line(s) or selected range(s)')}
-      ${shortcut(`${mod}+${shift}+Backspace`, 'Delete line')}
-      <tr>
-        <td>Built-in</td>
-        <td>
-          Included CodeMirror shortcuts:<br>
-          <a target="_blank" href="https://codemirror.net/docs/ref/#commands.defaultKeymap">defaultKeymap</a>,
-          <a target="_blank" href="https://codemirror.net/docs/ref/#commands.standardKeymap">standardKeymap</a>,
-          <a target="_blank" href="https://codemirror.net/docs/ref/#commands.historyKeymap">historyKeymap</a>,
-          <a target="_blank" href="https://codemirror.net/docs/ref/#search.searchKeymap">searchKeymap</a>
-        </td>
-      </tr>
-    </table>`,
-    buttons: {
-      ok: { label: "OK", className: "btn-primary" }
-    }
-  });
-}
-
-function openAssetEditorHelp() {
-  const row = (field: string, dflt: string, desc: string) =>
-    `<tr><td><code>${field}</code></td><td>${dflt}</td><td>${desc}</td></tr>`;
-  bootbox.dialog({
-    title: "Asset Editor Reference",
-    onEscape: true,
-    message: `
-    <p>Add asset headers in source code as comments containing JSON format descriptors:</p>
-    <p>
-      C: <code>/*{w:8,h:8}*/</code> followed by data, terminated by <code>;</code><br>
-      ASM: <code>;;{w:8,h:8};;</code> followed by data, terminated by <code>;;</code>
-    </p>
-    <table class="help">
-      <tr><th colspan="3">Image Format</th></tr>
-      <tr><td><b>Field</b></td><td><b>Default</b></td><td><b>Description</b></td></tr>
-      ${row('w', '<i>required</i>', 'Width in pixels')}
-      ${row('h', '<i>required</i>', 'Height in pixels')}
-      ${row('count', '1', 'Number of images')}
-      ${row('bpp', '1', 'Bits per pixel')}
-      ${row('np', '1', 'Number of bitplanes (total colors = 2<sup>bpp&times;np</sup>)')}
-      ${row('bpw', '8', 'Bits per word (8, 16, 32)')}
-      ${row('sl', 'ceil(w&times;bpp/bpw)', 'Words per scanline (stride)')}
-      ${row('brev', 'false', 'Bit reverse: true = MSB is leftmost pixel')}
-      ${row('flip', 'false', 'Flip vertically (y=0 is bottom row)')}
-      ${row('skip', '0', 'Skip bytes at start of each image')}
-      ${row('pofs', 'sl&times;h&times;count', 'Offset between bitplanes')}
-      ${row('il', '0', 'Interleave images row by row (data stored as one wide block)')}
-      ${row('remap', '&mdash;', 'Bit remapping table for address lines')}
-      ${row('reindex', '&mdash;', 'Pixel-to-byte/bit remapping')}
-      ${row('wpimg', 'sl&times;h', 'Words per image')}
-      ${row('aspect', '1', 'Pixel aspect ratio for display')}
-      ${row('xform', '&mdash;', 'CSS transform on canvas')}
-      ${row('art', 'false', 'Artifact color mode: true = Apple II HGR (bit 7 toggles artifact color)')}
-      <tr><th colspan="3">Palette Format</th></tr>
-      <tr><td><b>Field</b></td><td><b>Default</b></td><td><b>Description</b></td></tr>
-      ${row('pal', '&mdash;', 'Palette: number (e.g. 332 = 3R,3G,2B) or name (nes, vcs, c64, ap2lores, astrocade)')}
-      ${row('n', '&mdash;', 'Number of palette entries')}
-      ${row('layout', '&mdash;', 'Palette editor layout (nes, astrocade)')}
-      <tr><th colspan="3">Examples</th></tr>
-      <tr><td colspan="2"><code>/*{w:8,h:8,bpp:1,brev:1}*/</code></td><td>8x8 1bpp, MSB first (NES-style)</td></tr>
-      <tr><td colspan="2"><code>;;{w:8,h:5,count:4,il:1};;</code></td><td>4 interleaved 8x5 chars (stored as 32x5 block)</td></tr>
-      <tr><td colspan="2"><code>;;{w:7,h:8};;</code></td><td>7x8 1bpp, LSB first (Apple II HGR)</td></tr>
-      <tr><td colspan="2"><code>;;{w:8,h:8,art:true};;</code></td><td>8x8 with artifact color (Apple II HGR, bit 7 toggle)</td></tr>
-      <tr><td colspan="2"><code>/*{w:16,h:16,bpp:4,np:1}*/</code></td><td>16x16 4bpp</td></tr>
-      <tr><td colspan="2"><code>/*{pal:332,n:16}*/</code></td><td>16-entry RGB332 palette</pre></td></tr>
-    </table>`,
-    buttons: {
-      ok: { label: "OK", className: "btn-primary" }
-    },
-    size: "large"
   });
 }
 
