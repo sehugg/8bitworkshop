@@ -1214,6 +1214,10 @@ class CharmapEditor extends PixNode {
             for (var i = 0; i < this.chooser.viewers.length; i++) {
                 this.rgbimgs[i] = this.chooser.viewers[i].rgbdata;
             }
+            // the palette (e.g. changed via the selector) also drives the editor's
+            // selectable color buttons, so update them to match
+            if (this.editor)
+                this.editor.setPalette(this.left.palette);
             return true;
         }
         var adual = newDiv(this.parentdiv.empty(), "asset_dual"); // contains grid and editor
@@ -1288,6 +1292,7 @@ class CharmapEditor extends PixNode {
         im.canvas.style.width = w + 'px'; // TODO
         im.canvas.style.height = h + 'px'; // TODO
         im.makeEditable(this, aeditor, this.left.palette);
+        this.editor = im;
         return im;
     }
 }
@@ -1486,9 +1491,24 @@ class PixEditor extends Viewer {
             }
         });
         aeditor.empty();
+        this.aeditor = aeditor;
         this.createToolbarButtons(aeditor[0]);
         aeditor.append(this.canvas);
         aeditor.append(this.createPaletteButtons());
+        this.setPaletteColor(1);
+    }
+    // Update the palette used for the selectable color buttons (e.g. after the
+    // palette selector dropdown changes). Rebuilds the buttons and keeps the
+    // current selection valid for the new palette size.
+    setPalette(palette) {
+        if (this.palette === palette)
+            return;
+        this.palette = palette;
+        this.curpalcol = -1;
+        if (this.aeditor) {
+            this.palbtnspan.remove();
+            this.aeditor.append(this.createPaletteButtons());
+        }
         this.setPaletteColor(1);
     }
     isArtPixel(x) {
@@ -1546,7 +1566,7 @@ class PixEditor extends Viewer {
     }
     createPaletteButtons() {
         this.palbtns = [];
-        var span = newDiv(null, "asset_toolbar");
+        var span = this.palbtnspan = newDiv(null, "asset_toolbar");
         for (var i = 0; i < this.palette.length; i++) {
             var btn = $(document.createElement('button')).addClass('palbtn');
             var rgb = this.palette[i] & 0xffffff;

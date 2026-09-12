@@ -87,12 +87,30 @@ export interface WorkerFileUpdate {
   path:string
   data:FileData
 };
+/** Per-phase raw argv overrides carried on a build step (CLI / project). */
+export interface BuildArgLists {
+  compiler?:string[]
+  assembler?:string[]
+  linker?:string[]
+}
+
+/** Per-phase symbol overrides carried on a build step (CLI / project). */
+export interface BuildSymbolLists {
+  compiler?:string[]
+  assembler?:string[]
+  linker?:string[]
+}
+
 export interface WorkerBuildStep {
   path?:string
   files?:string[]
   platform:string
   tool:string
   mainfile?:boolean
+  /** extra symbols layered above platform defaults, below source directives */
+  symbols?:BuildSymbolLists
+  /** extra raw args layered above platform defaults, below source directives */
+  buildArgs?:BuildArgLists
 };
 export interface WorkerItemUpdate {
   key:string

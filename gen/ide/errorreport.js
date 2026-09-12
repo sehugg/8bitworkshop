@@ -1,38 +1,70 @@
 "use strict";
 // Lightweight error reporting to our own server (replaces sentry).
-// Sends a GET image beacon to /err.gif - the web server returns 404,
-// but the request (with the error in the query string) lands in the
-// access log. Grep it with:
-//   grep 'err.gif' access.log
-// No dependencies, fire-and-forget, safe to call from error handlers.
-// NOTE: no server-side rate limiting or log rotation - the web
-// server's log rotation handles size; client-side limits below
-// prevent flooding.
+// POSTs a small JSON payload to /error.php, which logs it server-side.
+// See web/error.php. No dependencies and fire-and-forget: safe to call
+// from error handlers, never throws. Client-side limits below prevent
+// flooding.
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reportErrorToServer = reportErrorToServer;
 const MAX_ERRORS_PER_SESSION = 10;
+const MIN_MS_BETWEEN_IDENTICAL = 10000;
+const SEND_URL = '/error.php';
+const MAX_FIELD = 2000;
 let errorsSent = 0;
 let lastMsgSent = '';
 let lastMsgTime = 0;
-function reportErrorToServer(msg, err) {
+function clamp(val, max) {
+    try {
+        if (val == null)
+            return '';
+        var s = typeof val === 'string' ? val : (typeof val === 'object' ? JSON.stringify(val) : val + '');
+        return s.substring(0, max);
+    }
+    catch (e) {
+        return '';
+    }
+}
+function reportErrorToServer(msg, err, context) {
     try {
         if (errorsSent >= MAX_ERRORS_PER_SESSION)
             return;
-        // don't repeat the same error more than once per 10 seconds
-        const now = Date.now();
-        if (msg === lastMsgSent && now - lastMsgTime < 10000)
+        // don't repeat the same error more than once every 10 seconds
+        var now = Date.now();
+        if (msg === lastMsgSent && now - lastMsgTime < MIN_MS_BETWEEN_IDENTICAL)
             return;
         errorsSent++;
         lastMsgSent = msg;
         lastMsgTime = now;
-        var params = {
-            msg: (msg + '').substring(0, 300),
-            stack: (err && err.stack ? err.stack + '' : '').substring(0, 1000),
-            url: window.location.href,
+        var payload = {
+            msg: clamp(msg, 500),
+            stack: clamp(err && err.stack, 2000),
+            window: clamp(context && context.window, 200),
+            platform: clamp(context && context.platform, 200),
+            url: clamp(window.location.href, 500),
+            userAgent: clamp(navigator.userAgent, 500),
+            language: clamp(navigator.language, 50),
+            clientTime: new Date().toISOString(),
         };
-        var qs = Object.keys(params).map((k) => k + '=' + encodeURIComponent(params[k])).join('&');
-        var img = new Image();
-        img.src = '/err.gif?' + qs;
+        // copy any extra caller-supplied context fields
+        if (context) {
+            for (var k in context) {
+                if (!(k in payload))
+                    payload[k] = clamp(context[k], MAX_FIELD);
+            }
+        }
+        var body = JSON.stringify(payload);
+        // sendBeacon survives page unload; fall back to fetch with keepalive
+        if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+            navigator.sendBeacon(SEND_URL, new Blob([body], { type: 'application/json' }));
+        }
+        else if (typeof fetch !== 'undefined') {
+            fetch(SEND_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: body,
+                keepalive: true,
+            }).catch(function () { });
+        }
     }
     catch (e) {
         // never let error reporting throw

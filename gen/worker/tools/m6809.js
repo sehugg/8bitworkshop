@@ -4,6 +4,7 @@ exports.assembleXASM6809 = assembleXASM6809;
 exports.compileCMOC = compileCMOC;
 exports.assembleLWASM = assembleLWASM;
 exports.linkLWLINK = linkLWLINK;
+const toolmeta_1 = require("../../common/toolmeta");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const wasmutils_1 = require("../wasmutils");
@@ -118,6 +119,9 @@ function compileCMOC(step) {
         if (params.extra_compile_args) {
             args.unshift.apply(args, params.extra_compile_args);
         }
+        // //#symbol c / //#flag c
+        args.unshift.apply(args, (0, toolmeta_1.defineArgs)('cmoc', params.symbols && params.symbols.compiler)
+            .concat((0, toolmeta_1.extraArgsFor)('cmoc', params.buildArgs)));
         (0, wasmutils_1.execMain)(step, CMOC, args);
         if (errors.length)
             return { errors: errors };
@@ -142,7 +146,11 @@ function assembleLWASM(step) {
     const isRaw = step.path.endsWith('.asm');
     if ((0, builder_1.staleFiles)(step, [objpath, lstpath])) {
         var objout, lstout;
-        var args = ['-9', '-I/share/asminc', '-o' + objpath, '-l' + lstpath, step.path];
+        var args = ['-9', '-I/share/asminc', '-o' + objpath, '-l' + lstpath];
+        // //#symbol as / //#flag as
+        args.push.apply(args, (0, toolmeta_1.defineArgs)('lwasm', step.params.symbols && step.params.symbols.assembler));
+        args.push.apply(args, (0, toolmeta_1.extraArgsFor)('lwasm', step.params.buildArgs));
+        args.push(step.path);
         args.push(isRaw ? '-r' : '--obj');
         var LWASM = wasmutils_1.emglobal.lwasm({
             instantiateWasm: (0, wasmutils_1.moduleInstFn)('lwasm'),
@@ -205,6 +213,9 @@ function linkLWLINK(step) {
             '--output=main',
             '--map=main.map'
         ].concat(libargs, step.args);
+        // //#flag ld / //#symbol ld
+        args.push.apply(args, (0, toolmeta_1.linkSymbolArgs)('lwlink', params.symbols && params.symbols.linker));
+        args.push.apply(args, (0, toolmeta_1.extraArgsFor)('lwlink', params.buildArgs));
         console.log(args);
         (0, wasmutils_1.execMain)(step, LWLINK, args);
         if (errors.length)

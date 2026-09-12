@@ -5,7 +5,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { WorkerResult, WorkerMessage, WorkerErrorResult, WorkerOutputResult, Dependency } from "../common/workertypes";
+import type { WorkerResult, WorkerMessage, WorkerErrorResult, WorkerOutputResult, Dependency, BuildArgLists, BuildSymbolLists } from "../common/workertypes";
 import { getFolderForPath, isProbablyBinary, getBasePlatform, getRootBasePlatform } from "../common/util";
 import { getToolForFilename_z80, getToolForFilename_6502, getToolForFilename_6809, getToolForFilename_arm32 } from "../common/baseplatform";
 import { ToolIncludePattern, getIncludePatterns, getLinkPatterns, matchDependencyPatterns } from "../common/toolmeta";
@@ -23,6 +23,10 @@ export interface CompileOptions {
   files?: { path: string; data: string | Uint8Array }[];
   buildsteps?: { path: string; platform: string; tool: string }[];
   mainfile?: boolean;
+  /** extra symbols layered above platform defaults, below source directives */
+  symbols?: BuildSymbolLists;
+  /** extra raw args per phase, layered above platform defaults */
+  buildArgs?: BuildArgLists;
 }
 
 export interface CompileResult {
@@ -86,8 +90,10 @@ export async function compile(options: CompileOptions): Promise<CompileResult> {
       platform: options.platform,
       tool: options.tool,
       path: options.path || ('src.' + options.tool),
-      mainfile: options.mainfile !== false
+      mainfile: options.mainfile !== false,
     };
+    if (options.symbols) msg.symbols = options.symbols;
+    if (options.buildArgs) msg.buildArgs = options.buildArgs;
     result = await handleMessage(msg);
   }
 
@@ -294,7 +300,8 @@ export function getToolForFilename(fn: string, platform: string): string {
  * `buildAs` renames the file for the build, for sources whose name on disk
  * isn't one the tool accepts (the IDE's skeleton.<tool> templates).
  */
-export async function compileSourceFile(tool: string, platform: string, filePath: string, buildAs?: string): Promise<CompileResult> {
+export async function compileSourceFile(tool: string, platform: string, filePath: string, buildAs?: string,
+  opts?: { symbols?: BuildSymbolLists; buildArgs?: BuildArgLists }): Promise<CompileResult> {
   await initialize();
 
   var code = fs.readFileSync(filePath, 'utf-8');
@@ -311,12 +318,15 @@ export async function compileSourceFile(tool: string, platform: string, filePath
 
   if (deps.length === 0) {
     // No dependencies found, use simple single-file path
-    return compile({
+    var single: any = {
       tool: tool,
       platform: platform,
       code: code,
       path: basename,
-    });
+    };
+    if (opts && opts.symbols) single.symbols = opts.symbols;
+    if (opts && opts.buildArgs) single.buildArgs = opts.buildArgs;
+    return compile(single);
   }
 
   // Build multi-file message with updates and buildsteps
@@ -336,13 +346,16 @@ export async function compileSourceFile(tool: string, platform: string, filePath
 
   // Build steps: main file first
   var buildsteps: any[] = [];
-  buildsteps.push({
+  var mainstep: any = {
     path: basename,
     files: [basename].concat(depFilenames),
     platform: platform,
     tool: tool,
     mainfile: true,
-  });
+  };
+  if (opts && opts.symbols) mainstep.symbols = opts.symbols;
+  if (opts && opts.buildArgs) mainstep.buildArgs = opts.buildArgs;
+  buildsteps.push(mainstep);
 
   // Link dependencies get their own build steps, with tool selected by extension
   for (var dep of deps) {

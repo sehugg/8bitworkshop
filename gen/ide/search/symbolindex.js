@@ -100,7 +100,11 @@ class SymbolIndex {
         this.msOptions = {
             idField: 'id',
             fields: ['name', 'brief', 'detail'],
-            storeFields: ['id', 'name', 'kind', 'brief', 'detail', 'source', 'file', 'line'],
+            storeFields: ['id', 'name', 'kind', 'brief', 'detail', 'source', 'file', 'line', 'url'],
+            // Split on punctuation as well as whitespace so key names like
+            // "mod+Shift+Backspace" index as separate terms. Underscores are kept so
+            // identifiers (joy_read) stay one token.
+            tokenize: (text) => text.split(/[^A-Za-z0-9_]+/).filter((t) => t.length > 0),
         };
     }
     /** Initialize indexers (uFuzzy + MiniSearch) */

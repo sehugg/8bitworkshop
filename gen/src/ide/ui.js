@@ -65,6 +65,7 @@ const emu_1 = require("../common/emu");
 const recorder_1 = require("../common/recorder");
 const util_1 = require("../common/util");
 const toolmeta_1 = require("../common/toolmeta");
+const platforms_1 = require("../worker/platforms");
 const errorreport_1 = require("./errorreport");
 const _index_1 = require("../platform/_index");
 const dialogs_1 = require("./dialogs");
@@ -83,6 +84,7 @@ const asseteditor_1 = require("./views/asseteditor");
 const baseviews_1 = require("./views/baseviews");
 const debugviews_1 = require("./views/debugviews");
 const editors_1 = require("./views/editors");
+const helpview_1 = require("./views/helpview");
 const treeviews_1 = require("./views/treeviews");
 const windows_1 = require("./windows");
 const breakpoints_1 = require("./breakpoints");
@@ -444,6 +446,13 @@ function refreshWindowList() {
     addWindowItem('#asseteditor', 'Asset Editor', () => {
         return new asseteditor_1.AssetEditorView();
     });
+    // Help: markdown docs shipped with the IDE. Only the index is listed in the
+    // sidebar; every topic still gets a create fn so #help/<id> deep links work.
+    //separate = true;
+    addWindowItem('#help', 'Help', () => new helpview_1.HelpView('#help'));
+    for (let topic of helpview_1.HELP_TOPICS) {
+        exports.projectWindows.setCreateFunc('#help/' + topic.id, () => new helpview_1.HelpView(topic.id));
+    }
 }
 function highlightLines(path, hispec) {
     if (hispec) {
@@ -1135,6 +1144,7 @@ function promptGoToAddress() {
 function getGlobalShortcuts() {
     var shortcuts = [];
     if (exports.platform && isPlatformReady()) {
+        shortcuts.push({ key: 'F1', label: 'Help', fn: showContextHelp });
         // single-key pause/resume toggle (works while the editor is focused);
         // mod+shift+h / mod+shift+g still work outside the editor.
         // pushed first so its position doesn't shift when other chips come and
@@ -1778,6 +1788,8 @@ function setupDebugControls() {
     uitoolbar.add('mod+shift+g', 'Resume', 'glyphicon-play', resume).prop('id', 'dbg_go');
     // F8: single-key pause/resume toggle; chip shown via getGlobalShortcuts()
     uitoolbar.add('F8', 'Pause/Resume', '', togglePauseResume);
+    // F1: context-sensitive help for the active view (editor/tool/platform)
+    uitoolbar.add('F1', 'Help', '', showContextHelp);
     if (exports.platform.restartAtPC) {
         uitoolbar.add('mod+shift+a', 'Restart at Cursor', 'glyphicon-play-circle', restartAtCursor).prop('id', 'dbg_restartatline');
     }
@@ -1852,8 +1864,6 @@ function setupDebugControls() {
     $("#item_addfile_link").click(_addLinkFile);
     $("#item_request_persist").click(() => requestPersistPermission(true, false));
     $("#item_settings").click(settings_1.openSettings);
-    $("#item_keyboard_shortcuts").click(openKeyboardShortcuts);
-    $("#item_asset_editor_help").click(openAssetEditorHelp);
     updateDebugWindows();
     // code analyzer?
     if (exports.platform.newCodeAnalyzer) {
@@ -1887,105 +1897,122 @@ function setupDebugControls() {
         // opens an external page; don't let the placeholder href change our URL hash
         $(a).click((e) => { e.preventDefault(); window.open(toolhelpurl, '_8bws_help'); });
     }
+    // internal IDE help (markdown docs shipped with the IDE)
+    {
+        let { li } = newDropdownListItem('#help', 'IDE Help');
+        $("#help_menu").prepend(li);
+    }
     // all toolchain versions
     $("#item_tool_versions").click(openToolVersions);
 }
+// F1: open the help topic that matches whatever is focused right now.
+// Going through the hash means Back returns to the previous view.
+function showContextHelp() {
+    if (!exports.projectWindows)
+        return;
+    var isEditor = exports.projectWindows.getActive() instanceof editors_1.SourceEditor;
+    var id = (0, helpview_1.helpTopicForView)(exports.projectWindows.getActiveID(), isEditor);
+    var hash = '#help/' + id;
+    if (window.location.hash === hash) {
+        exports.projectWindows.createOrShow(hash);
+    }
+    else {
+        window.location.hash = hash;
+    }
+}
 function openToolVersions() {
-    const row = (name, kind, version) => `<tr><td>${name}</td><td>${kind}</td><td>${version}</td></tr>`;
-    // only tools whose vendored wasm reported a version (see npm run toolversions)
-    const tools = Object.values(toolmeta_1.TOOL_META)
-        .filter(m => m.wasmModule && m.version)
-        .sort((a, b) => a.name.localeCompare(b.name));
-    bootbox.dialog({
-        title: 'Toolchain Versions',
-        onEscape: true,
-        message: `
-    <table class="help">
-      <tr><th>Tool</th><th>Kind</th><th>Version</th></tr>
-      ${tools.map(m => { var _a; return row(m.name, m.kind, (_a = m.version) !== null && _a !== void 0 ? _a : '?'); }).join('\n')}
-    </table>`,
-    });
-}
-function openKeyboardShortcuts() {
-    const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
-    const mod = isMac ? '&#8984;' : 'Ctrl';
-    const shift = isMac ? '&#8679;' : 'Shift';
-    const shortcut = (keys, desc) => `<tr><td><kbd>${keys}</kbd></td><td>${desc}</td></tr>`;
-    bootbox.dialog({
-        title: "Keyboard shortcuts",
-        onEscape: true,
-        message: `
-    <table class="help">
-      <tr><th colspan="2">Editor</th></tr>
-      ${shortcut(`${mod}+${shift}+F`, 'Search symbols, files, and docs')}
-      ${shortcut('Tab', 'Insert to next tab stop, or indent selected range(s)')}
-      ${shortcut(`${shift}+Tab`, 'Outdent line(s) or selected range(s)')}
-      ${shortcut(`${mod}+${shift}+Backspace`, 'Delete line')}
-      <tr>
-        <td>Built-in</td>
-        <td>
-          Included CodeMirror shortcuts:<br>
-          <a target="_blank" href="https://codemirror.net/docs/ref/#commands.defaultKeymap">defaultKeymap</a>,
-          <a target="_blank" href="https://codemirror.net/docs/ref/#commands.standardKeymap">standardKeymap</a>,
-          <a target="_blank" href="https://codemirror.net/docs/ref/#commands.historyKeymap">historyKeymap</a>,
-          <a target="_blank" href="https://codemirror.net/docs/ref/#search.searchKeymap">searchKeymap</a>
-        </td>
-      </tr>
-    </table>`,
-        buttons: {
-            ok: { label: "OK", className: "btn-primary" }
+    const esc = (s) => String(s == null ? '' : s)
+        .replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const addr = (v, size) => '$' + (0, util_1.hex)(v, 4).toUpperCase() + (size != null ? '+$' + (0, util_1.hex)(size, 4).toUpperCase() : '');
+    // ---- current platform summary (params + the tools it can reach) ----
+    const params = platforms_1.PLATFORM_PARAMS[exports.platform_id]
+        || platforms_1.PLATFORM_PARAMS[(0, util_1.getBasePlatform)(exports.platform_id)]
+        || platforms_1.PLATFORM_PARAMS[(0, util_1.getRootBasePlatform)(exports.platform_id)];
+    const arch = (params && params.arch) || '—';
+    const mem = [];
+    if (params) {
+        if (params.rom_start != null)
+            mem.push('rom ' + addr(params.rom_start, params.rom_size));
+        if (params.code_start != null)
+            mem.push('code ' + addr(params.code_start, params.code_size));
+        if (params.data_start != null)
+            mem.push('data ' + addr(params.data_start, params.data_size));
+        if (params.stack_end != null)
+            mem.push('stack $' + (0, util_1.hex)(params.stack_end, 4).toUpperCase());
+    }
+    // extension -> tool, using the platform's own selector. The universe is the
+    // tools' declared extensions (plus dasm's implicit .a), so this matches the
+    // generated docs rather than just the new-file skeletons.
+    const allExts = new Set(['.a']);
+    for (const id in toolmeta_1.TOOL_META)
+        for (const e of toolmeta_1.TOOL_META[id].extensions || [])
+            allExts.add(e);
+    const toolExts = {};
+    const order = [];
+    const add = (tool, ext) => {
+        if (!tool)
+            return;
+        if (!toolExts[tool]) {
+            toolExts[tool] = [];
+            order.push(tool);
         }
-    });
-}
-function openAssetEditorHelp() {
-    const row = (field, dflt, desc) => `<tr><td><code>${field}</code></td><td>${dflt}</td><td>${desc}</td></tr>`;
-    bootbox.dialog({
-        title: "Asset Editor Reference",
-        onEscape: true,
-        message: `
-    <p>Add asset headers in source code as comments containing JSON format descriptors:</p>
-    <p>
-      C: <code>/*{w:8,h:8}*/</code> followed by data, terminated by <code>;</code><br>
-      ASM: <code>;;{w:8,h:8};;</code> followed by data, terminated by <code>;;</code>
-    </p>
+        if (ext && toolExts[tool].indexOf(ext) < 0)
+            toolExts[tool].push(ext);
+    };
+    if (exports.platform.getDefaultExtensions) {
+        for (const ext of allExts) {
+            let tool = exports.platform.getToolForFilename('test' + ext);
+            let meta = tool && (0, toolmeta_1.getToolMeta)(tool);
+            let claims = !!meta && (meta.extensions || []).indexOf(ext) >= 0;
+            if (claims || (ext === '.a' && tool === 'dasm'))
+                add(tool, ext);
+        }
+    }
+    // always include the tool handling the file that's actually open
+    const mainFile = getCurrentMainFilename();
+    if (mainFile) {
+        let mainTool = exports.platform.getToolForFilename(mainFile);
+        let dot = mainFile.lastIndexOf('.');
+        add(mainTool, dot >= 0 ? mainFile.substring(dot) : '');
+    }
+    order.sort((a, b) => { var _a, _b; return (((_a = (0, toolmeta_1.getToolMeta)(a)) === null || _a === void 0 ? void 0 : _a.name) || a).localeCompare(((_b = (0, toolmeta_1.getToolMeta)(b)) === null || _b === void 0 ? void 0 : _b.name) || b); });
+    const platformTable = `
     <table class="help">
-      <tr><th colspan="3">Image Format</th></tr>
-      <tr><td><b>Field</b></td><td><b>Default</b></td><td><b>Description</b></td></tr>
-      ${row('w', '<i>required</i>', 'Width in pixels')}
-      ${row('h', '<i>required</i>', 'Height in pixels')}
-      ${row('count', '1', 'Number of images')}
-      ${row('bpp', '1', 'Bits per pixel')}
-      ${row('np', '1', 'Number of bitplanes (total colors = 2<sup>bpp&times;np</sup>)')}
-      ${row('bpw', '8', 'Bits per word (8, 16, 32)')}
-      ${row('sl', 'ceil(w&times;bpp/bpw)', 'Words per scanline (stride)')}
-      ${row('brev', 'false', 'Bit reverse: true = MSB is leftmost pixel')}
-      ${row('flip', 'false', 'Flip vertically (y=0 is bottom row)')}
-      ${row('skip', '0', 'Skip bytes at start of each image')}
-      ${row('pofs', 'sl&times;h&times;count', 'Offset between bitplanes')}
-      ${row('il', '0', 'Interleave images row by row (data stored as one wide block)')}
-      ${row('remap', '&mdash;', 'Bit remapping table for address lines')}
-      ${row('reindex', '&mdash;', 'Pixel-to-byte/bit remapping')}
-      ${row('wpimg', 'sl&times;h', 'Words per image')}
-      ${row('aspect', '1', 'Pixel aspect ratio for display')}
-      ${row('xform', '&mdash;', 'CSS transform on canvas')}
-      ${row('art', 'false', 'Artifact color mode: true = Apple II HGR (bit 7 toggles artifact color)')}
-      <tr><th colspan="3">Palette Format</th></tr>
-      <tr><td><b>Field</b></td><td><b>Default</b></td><td><b>Description</b></td></tr>
-      ${row('pal', '&mdash;', 'Palette: number (e.g. 332 = 3R,3G,2B) or name (nes, vcs, c64, ap2lores, astrocade)')}
-      ${row('n', '&mdash;', 'Number of palette entries')}
-      ${row('layout', '&mdash;', 'Palette editor layout (nes, astrocade)')}
-      <tr><th colspan="3">Examples</th></tr>
-      <tr><td colspan="2"><code>/*{w:8,h:8,bpp:1,brev:1}*/</code></td><td>8x8 1bpp, MSB first (NES-style)</td></tr>
-      <tr><td colspan="2"><code>;;{w:8,h:5,count:4,il:1};;</code></td><td>4 interleaved 8x5 chars (stored as 32x5 block)</td></tr>
-      <tr><td colspan="2"><code>;;{w:7,h:8};;</code></td><td>7x8 1bpp, LSB first (Apple II HGR)</td></tr>
-      <tr><td colspan="2"><code>;;{w:8,h:8,art:true};;</code></td><td>8x8 with artifact color (Apple II HGR, bit 7 toggle)</td></tr>
-      <tr><td colspan="2"><code>/*{w:16,h:16,bpp:4,np:1}*/</code></td><td>16x16 4bpp</td></tr>
-      <tr><td colspan="2"><code>/*{pal:332,n:16}*/</code></td><td>16-entry RGB332 palette</pre></td></tr>
-    </table>`,
+      <tr><th>Architecture</th><td>${esc(arch)}</td></tr>
+      <tr><th>Memory</th><td>${mem.length ? mem.join(' · ') : '—'}</td></tr>
+      ${params && params.cfgfile ? `<tr><th>Linker config</th><td>${esc(params.cfgfile)}</td></tr>` : ''}
+      ${params && params.libargs && params.libargs.length ? `<tr><th>Link libraries</th><td>${esc(params.libargs.join(' '))}</td></tr>` : ''}
+      ${params && params.define && params.define.length ? `<tr><th>Defines</th><td>${esc(params.define.join(' '))}</td></tr>` : ''}
+    </table>`;
+    const toolTable = order.map(tool => {
+        let meta = (0, toolmeta_1.getToolMeta)(tool);
+        let version = (meta && meta.version) || '—';
+        let kind = (meta && meta.kind) || '—';
+        let exts = toolExts[tool].length ? toolExts[tool].map(e => `<code>${esc(e)}</code>`).join(' ') : '—';
+        let name = (meta && meta.name) || tool;
+        return `<tr><td>${esc(name)}</td><td>${esc(kind)}</td><td>${esc(version)}</td><td>${exts}</td></tr>`;
+    }).join('\n');
+    bootbox.dialog({
+        title: 'Toolchain Info',
+        onEscape: true,
         buttons: {
-            ok: { label: "OK", className: "btn-primary" }
+            docs: {
+                label: 'Full reference',
+                className: 'btn-link',
+                callback: () => { window.location.hash = '#help/toolchains'; },
+            },
+            ok: { label: 'Close', className: 'btn-primary' },
         },
-        size: "large"
+        message: `
+    <div class="dialog-scroll">
+      <h5 class="dialog-title">${esc(platform_name)} <small>${esc(exports.platform_id)}</small></h5>
+      ${platformTable}
+      <h5 class="dialog-title">Tools on this platform</h5>
+      <table class="help">
+        <tr><th>Tool</th><th>Kind</th><th>Version</th><th>Extensions</th></tr>
+        ${toolTable}
+      </table>
+    </div>`,
     });
 }
 function setupReplaySlider() {
@@ -2179,7 +2206,11 @@ function globalErrorHandler(msgevent) {
         }
         else if ((0, util_1.isProductionHost)()) {
             // lightweight self-hosted error reporting
-            (0, errorreport_1.reportErrorToServer)(msg, err);
+            (0, errorreport_1.reportErrorToServer)(msg, err, {
+                platform: exports.platform_id,
+                window: exports.projectWindows ? exports.projectWindows.getActiveID() : '',
+                errors: exports.projectWindows.lasterrors || [],
+            });
         }
     }
 }

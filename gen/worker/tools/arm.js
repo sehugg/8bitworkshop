@@ -27,6 +27,7 @@ exports.compileARMTCC = compileARMTCC;
 exports.linkARMTCC = linkARMTCC;
 const binutils_1 = require("../../common/binutils");
 const util_1 = require("../../common/util");
+const toolmeta_1 = require("../../common/toolmeta");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const wasiutils_1 = require("../wasiutils");
@@ -35,6 +36,7 @@ function assembleARMIPS(step) {
     (0, wasmutils_1.loadNative)("armips");
     var errors = [];
     (0, builder_1.gatherFiles)(step, { mainFilePath: "main.asm" });
+    (0, builder_1.fixParamsWithDefines)(step.path, step.params);
     var objpath = "main.bin";
     var lstpath = step.prefix + ".lst";
     var sympath = step.prefix + ".sym";
@@ -42,6 +44,8 @@ function assembleARMIPS(step) {
     var error_fn = (0, listingutils_1.makeErrorMatcher)(errors, /^(.+?)\((\d+)\)\s+(fatal error|error|warning):\s+(.+)/, 2, 4, step.path, 1);
     if ((0, builder_1.staleFiles)(step, [objpath])) {
         var args = [step.path, '-temp', lstpath, '-sym', sympath, '-erroronwarning'];
+        // //#symbol as / //#flag as (armips itself has no -D, but flags pass through)
+        args.splice(1, 0, ...(0, toolmeta_1.defineArgs)('armips', step.params.symbols && step.params.symbols.assembler), ...(0, toolmeta_1.extraArgsFor)('armips', step.params.buildArgs));
         var armips = wasmutils_1.emglobal.armips({
             instantiateWasm: (0, wasmutils_1.moduleInstFn)('armips'),
             noInitialRun: true,
@@ -168,10 +172,14 @@ function assembleVASMARM(step) {
         }
     }
     (0, builder_1.gatherFiles)(step, { mainFilePath: "main.asm" });
+    (0, builder_1.fixParamsWithDefines)(step.path, step.params);
     var objpath = step.prefix + ".bin";
     var lstpath = step.prefix + ".lst";
     if ((0, builder_1.staleFiles)(step, [objpath])) {
-        var args = ['-Fbin', '-m7tdmi', '-x', '-wfail', step.path, '-o', objpath, '-L', lstpath];
+        var args = ['-Fbin', '-m7tdmi', '-x', '-wfail'];
+        args.push.apply(args, (0, toolmeta_1.defineArgs)('vasmarm', step.params.symbols && step.params.symbols.assembler));
+        args.push.apply(args, (0, toolmeta_1.extraArgsFor)('vasmarm', step.params.buildArgs));
+        args.push(step.path, '-o', objpath, '-L', lstpath);
         var vasm = wasmutils_1.emglobal.vasm({
             instantiateWasm: (0, wasmutils_1.moduleInstFn)('vasmarm_std'),
             noInitialRun: true,
@@ -273,6 +281,7 @@ async function compileARMTCC(step) {
     const params = step.params;
     const errors = [];
     (0, builder_1.gatherFiles)(step, { mainFilePath: "main.c" });
+    (0, builder_1.fixParamsWithDefines)(step.path, step.params);
     const objpath = step.prefix + ".o";
     const error_fn = tccErrorMatcher(errors, step.path);
     if (!armtcc_fs) {
@@ -297,6 +306,8 @@ async function compileARMTCC(step) {
         if (params.extra_compile_args) {
             args = args.concat(params.extra_compile_args);
         }
+        // //#symbol c / //#flag c
+        args = args.concat((0, toolmeta_1.defineArgs)('armtcc', params.symbols && params.symbols.compiler), (0, toolmeta_1.extraArgsFor)('armtcc', params.buildArgs));
         args.push(step.path);
         const FS = armtcc.FS;
         // TODO: only should do once?
@@ -334,6 +345,7 @@ async function linkARMTCC(step) {
     const params = step.params;
     const errors = [];
     (0, builder_1.gatherFiles)(step, { mainFilePath: "main.c" });
+    (0, builder_1.fixParamsWithDefines)(step.path, step.params);
     const objpath = "main.elf";
     const error_fn = tccErrorMatcher(errors, step.path);
     if ((0, builder_1.staleFiles)(step, [objpath])) {
@@ -355,6 +367,8 @@ async function linkARMTCC(step) {
         if (params.extra_link_args) {
             args = args.concat(params.extra_link_args);
         }
+        // //#flag ld / //#symbol ld
+        args = args.concat((0, toolmeta_1.linkSymbolArgs)('armtcclink', params.symbols && params.symbols.linker), (0, toolmeta_1.extraArgsFor)('armtcclink', params.buildArgs));
         const FS = armtcc.FS;
         (0, builder_1.populateExtraFiles)(step, FS, params.extra_link_files);
         (0, builder_1.populateFiles)(step, FS);

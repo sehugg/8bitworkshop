@@ -33,7 +33,11 @@
     throw Error('Dynamic require of "' + x + '" is not supported');
   });
   var __commonJS = (cb, mod) => function __require2() {
-    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+    try {
+      return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+    } catch (e) {
+      throw mod = 0, e;
+    }
   };
   var __copyProps = (to, from, except, desc) => {
     if (from && typeof from === "object" || typeof from === "function") {
@@ -287,7 +291,7 @@
               return e2;
             };
           }
-          (n.prototype = e("./object")).loadAsync = e("./load"), n.support = e("./support"), n.defaults = e("./defaults"), n.version = "3.10.1", n.loadAsync = function(e2, t2) {
+          (n.prototype = e("./object")).loadAsync = e("./load"), n.support = e("./support"), n.defaults = e("./defaults"), n.version = "3.10.2", n.loadAsync = function(e2, t2) {
             return new n().loadAsync(e2, t2);
           }, n.external = e("./external"), t.exports = n;
         }, { "./defaults": 5, "./external": 6, "./load": 11, "./object": 15, "./support": 30 }], 11: [function(e, t, r) {
@@ -930,7 +934,9 @@
             }
             return r2.join("/");
           }, a.getTypeOf = function(e2) {
-            return "string" == typeof e2 ? "string" : "[object Array]" === Object.prototype.toString.call(e2) ? "array" : o.nodebuffer && r.isBuffer(e2) ? "nodebuffer" : o.uint8array && e2 instanceof Uint8Array ? "uint8array" : o.arraybuffer && e2 instanceof ArrayBuffer ? "arraybuffer" : void 0;
+            if ("string" == typeof e2) return "string";
+            var t2 = Object.prototype.toString.call(e2);
+            return "[object Array]" === t2 ? "array" : o.nodebuffer && r.isBuffer(e2) ? "nodebuffer" : o.uint8array && "[object Uint8Array]" === t2 ? "uint8array" : o.arraybuffer && "[object ArrayBuffer]" === t2 ? "arraybuffer" : void 0;
           }, a.checkSupport = function(e2) {
             if (!o[e2.toLowerCase()]) throw new Error(e2 + " is not supported by this platform");
           }, a.MAX_VALUE_16BITS = 65535, a.MAX_VALUE_32BITS = -1, a.pretty = function(e2) {
@@ -951,14 +957,14 @@
             return r2;
           }, a.prepareContent = function(r2, e2, n2, i2, s2) {
             return u.Promise.resolve(e2).then(function(n3) {
-              return o.blob && (n3 instanceof Blob || -1 !== ["[object File]", "[object Blob]"].indexOf(Object.prototype.toString.call(n3))) && "undefined" != typeof FileReader ? new u.Promise(function(t2, r3) {
+              return o.blob && (n3 instanceof Blob || -1 !== ["[object File]", "[object Blob]"].indexOf(Object.prototype.toString.call(n3))) ? void 0 !== Blob.prototype.arrayBuffer ? n3.arrayBuffer() : "undefined" != typeof FileReader ? new u.Promise(function(t2, r3) {
                 var e3 = new FileReader();
                 e3.onload = function(e4) {
                   t2(e4.target.result);
                 }, e3.onerror = function(e4) {
                   r3(e4.target.error);
                 }, e3.readAsArrayBuffer(n3);
-              }) : n3;
+              }) : u.Promise.reject(new Error(r2 + " is a Blob, but we have no way of reading it.")) : n3;
             }).then(function(e3) {
               var t2 = a.getTypeOf(e3);
               return t2 ? ("arraybuffer" === t2 ? e3 = a.transformTo("uint8array", e3) : "string" === t2 && (s2 ? e3 = h.decode(e3) : n2 && true !== i2 && (e3 = (function(e4) {
@@ -2651,6 +2657,8 @@
       helpURL: "https://cc65.github.io/doc/cc65.html",
       wasmModule: "cc65",
       version: "2.19",
+      defineFlag: "-D",
+      defineInline: true,
       platforms: CC65_PRELOADFS,
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
@@ -2666,6 +2674,8 @@
       helpURL: "https://cc65.github.io/doc/ca65.html",
       wasmModule: "ca65",
       version: "2.19",
+      defineFlag: "-D",
+      defineInline: false,
       platforms: CC65_PRELOADFS,
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
@@ -2677,7 +2687,9 @@
       arch: "6502",
       extensions: [],
       wasmModule: "ld65",
-      version: "2.19"
+      version: "2.19",
+      linkSymbolFlag: "-D",
+      linkSymbolInline: false
     },
     // ---- SDCC toolchain (z80) ----
     sdcc: {
@@ -2691,6 +2703,8 @@
       helpURL: "http://sdcc.sourceforge.net/doc/sdccman.pdf",
       wasmModule: "sdcc",
       version: "3.6.5",
+      defineFlag: "-D",
+      defineInline: true,
       platforms: { default: { preloadFS: "sdcc" } },
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
@@ -2729,7 +2743,9 @@
       arch: "z80",
       extensions: [],
       wasmModule: "sdldz80",
-      version: "03.00"
+      version: "03.00",
+      linkSymbolFlag: "-g",
+      linkSymbolInline: false
     },
     sccz80: {
       id: "sccz80",
@@ -2796,6 +2812,8 @@
       helpURL: "http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html",
       wasmModule: "cmoc",
       version: "0.1.67",
+      defineFlag: "-D",
+      defineInline: false,
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2829,6 +2847,8 @@
       editorStyle: "vasm",
       wasmModule: "vasmarm_std",
       version: "1.8k",
+      defineFlag: "-D",
+      defineInline: false,
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2854,6 +2874,8 @@
       wasiFSZip: "arm32-fs.zip",
       editorStyle: "text/x-csrc",
       wasmModule: "arm-tcc",
+      defineFlag: "-D",
+      defineInline: false,
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2875,6 +2897,8 @@
       // NOTE: no bundled filesystem and no -I arg -- no headers to link in the UI
       editorStyle: "text/x-csrc",
       wasmModule: "smlrc",
+      defineFlag: "-D",
+      defineInline: false,
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2887,6 +2911,8 @@
       editorStyle: "gas",
       wasmModule: "yasm",
       version: "1.3.0",
+      defineFlag: "-D",
+      defineInline: false,
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -3094,6 +3120,17 @@
   function getToolMeta(id) {
     return TOOL_META[id.replace(/^remote:/, "")];
   }
+  function getPlatformToolConfig(tool, platform) {
+    let meta = tool && getToolMeta(tool);
+    if (!meta || !meta.platforms) return void 0;
+    if (platform) {
+      let p = meta.platforms[platform];
+      if (p) return p;
+      let base = getRootBasePlatform(platform);
+      if (base && base !== platform && meta.platforms[base]) return meta.platforms[base];
+    }
+    return meta.platforms["default"];
+  }
   function getPreloadFSName(tool, platform) {
     let meta = getToolMeta(tool);
     if (!meta) return void 0;
@@ -3111,6 +3148,34 @@
       if (d && d.preloadFS) return d.preloadFS;
     }
     return void 0;
+  }
+  function defineArgs(tool, defines) {
+    let meta = tool && getToolMeta(tool);
+    if (!meta || !meta.defineFlag || !defines || !defines.length) return [];
+    let out = [];
+    for (let d of defines) {
+      if (meta.defineInline) out.push(meta.defineFlag + d);
+      else out.push(meta.defineFlag, d);
+    }
+    return out;
+  }
+  function linkSymbolArgs(tool, symbols) {
+    let meta = tool && getToolMeta(tool);
+    if (!meta || !meta.linkSymbolFlag || !symbols || !symbols.length) return [];
+    let out = [];
+    for (let s of symbols) {
+      if (meta.linkSymbolInline) out.push(meta.linkSymbolFlag + s);
+      else out.push(meta.linkSymbolFlag, s);
+    }
+    return out;
+  }
+  function extraArgsFor(tool, buildArgs) {
+    let meta = tool && getToolMeta(tool);
+    if (!meta || !buildArgs) return [];
+    let kind = meta.kind;
+    if (kind === "compiler" || kind === "assembler" || kind === "linker")
+      return buildArgs[kind] || [];
+    return [];
   }
 
   // src/worker/platforms.ts
@@ -3315,6 +3380,8 @@
         // horizontal mirroring
       ],
       extra_link_files: ["crt0.o", "neslib2.lib", "neslib2.cfg", "nesbanked.cfg"],
+      // source link symbol -> linker config (was hardcoded in fixParamsWithDefines)
+      symbolConfigs: { NES_MAPPER: { "4": "nesbanked.cfg" } },
       wiz_rom_ext: ".nes"
     },
     "apple2": {
@@ -3512,6 +3579,12 @@
         ".STACK=0xE000",
         "-g",
         ".refresh_OAM=0xFF80",
+        "-g",
+        "GB_MAPPER=0x0",
+        "-g",
+        "GB_ROM_SIZE=0x0",
+        "-g",
+        "GB_RAM_SIZE=0x0",
         "-g",
         "GB_CGB_FLAGS=0x0"
       ],
@@ -7137,6 +7210,8 @@
       if (step.mainfile) {
         args.unshift.apply(args, ["-D", "__MAIN__=1"]);
       }
+      var extra = defineArgs("ca65", step.params.symbols && step.params.symbols.assembler).concat(extraArgsFor("ca65", step.params.buildArgs));
+      args.splice(args.length - 1, 0, ...extra);
       execMain(step, CA65, args);
       if (errors.length) {
         let listings = {};
@@ -7194,6 +7269,8 @@
         "-m",
         "main.map"
       ].concat(step.args, libargs);
+      args.push.apply(args, linkSymbolArgs("ld65", params.symbols && params.symbols.linker));
+      args.push.apply(args, extraArgsFor("ld65", params.buildArgs));
       execMain(step, LD65, args);
       if (errors.length)
         return { errors };
@@ -7328,6 +7405,8 @@
       if (step.mainfile) {
         args.unshift.apply(args, ["-D", "__MAIN__"]);
       }
+      args.push.apply(args, defineArgs("cc65", params.symbols && params.symbols.compiler));
+      args.push.apply(args, extraArgsFor("cc65", params.buildArgs));
       var customArgs = params.extra_compiler_args || ["-T", "-g", "-Oirs", "-Cl", "-W", "-pointer-sign,-no-effect"];
       args = args.concat(customArgs, args);
       args.push(step.path);
@@ -7945,6 +8024,8 @@
       ];
       if (params.extra_link_args)
         args.push.apply(args, params.extra_link_args);
+      args.push.apply(args, linkSymbolArgs("sdldz80", params.symbols && params.symbols.linker));
+      args.push.apply(args, extraArgsFor("sdldz80", params.buildArgs));
       args.push.apply(args, step.args);
       execMain(step, LDZ80, args);
       if (errors.length) {
@@ -8079,6 +8160,8 @@
       if (params.extra_compile_args) {
         args.push.apply(args, params.extra_compile_args);
       }
+      args.push.apply(args, defineArgs("sdcc", params.symbols && params.symbols.compiler));
+      args.push.apply(args, extraArgsFor("sdcc", params.buildArgs));
       execMain(step, SDCC, args);
       if (errors.length) {
         return { errors };
@@ -9563,6 +9646,7 @@
       if (params.extra_compile_args) {
         args.unshift.apply(args, params.extra_compile_args);
       }
+      args.unshift.apply(args, defineArgs("cmoc", params.symbols && params.symbols.compiler).concat(extraArgsFor("cmoc", params.buildArgs)));
       execMain(step, CMOC, args);
       if (errors.length)
         return { errors };
@@ -9589,7 +9673,10 @@
     const isRaw = step.path.endsWith(".asm");
     if (staleFiles(step, [objpath, lstpath])) {
       var objout, lstout;
-      var args = ["-9", "-I/share/asminc", "-o" + objpath, "-l" + lstpath, step.path];
+      var args = ["-9", "-I/share/asminc", "-o" + objpath, "-l" + lstpath];
+      args.push.apply(args, defineArgs("lwasm", step.params.symbols && step.params.symbols.assembler));
+      args.push.apply(args, extraArgsFor("lwasm", step.params.buildArgs));
+      args.push(step.path);
       args.push(isRaw ? "-r" : "--obj");
       var LWASM = emglobal.lwasm({
         instantiateWasm: moduleInstFn("lwasm"),
@@ -9650,6 +9737,8 @@
         "--output=main",
         "--map=main.map"
       ].concat(libargs, step.args);
+      args.push.apply(args, linkSymbolArgs("lwlink", params.symbols && params.symbols.linker));
+      args.push.apply(args, extraArgsFor("lwlink", params.buildArgs));
       console.log(args);
       execMain(step, LWLINK, args);
       if (errors.length)
@@ -10033,6 +10122,7 @@
       if (params.extra_compile_args) {
         args.unshift.apply(args, params.extra_compile_args);
       }
+      args.unshift.apply(args, defineArgs("smlrc", params.symbols && params.symbols.compiler).concat(extraArgsFor("smlrc", params.buildArgs)));
       execMain(step, smlrc, args);
       if (errors.length)
         return { errors };
@@ -10048,6 +10138,7 @@
   }
   function assembleYASM(step) {
     loadNative("yasm");
+    var params = step.params;
     var errors = [];
     gatherFiles(step, { mainFilePath: "main.asm" });
     var objpath = step.prefix + ".exe";
@@ -10083,6 +10174,13 @@
       });
       var FS = YASM.FS;
       populateFiles(step, FS);
+      fixParamsWithDefines(step.path, step.params);
+      args.splice(
+        args.length - 1,
+        0,
+        ...defineArgs("yasm", params.symbols && params.symbols.assembler),
+        ...extraArgsFor("yasm", params.buildArgs)
+      );
       execMain(step, YASM, args);
       if (errors.length)
         return { errors };
@@ -10881,12 +10979,19 @@
     loadNative("armips");
     var errors = [];
     gatherFiles(step, { mainFilePath: "main.asm" });
+    fixParamsWithDefines(step.path, step.params);
     var objpath = "main.bin";
     var lstpath = step.prefix + ".lst";
     var sympath = step.prefix + ".sym";
     var error_fn = makeErrorMatcher(errors, /^(.+?)\((\d+)\)\s+(fatal error|error|warning):\s+(.+)/, 2, 4, step.path, 1);
     if (staleFiles(step, [objpath])) {
       var args = [step.path, "-temp", lstpath, "-sym", sympath, "-erroronwarning"];
+      args.splice(
+        1,
+        0,
+        ...defineArgs("armips", step.params.symbols && step.params.symbols.assembler),
+        ...extraArgsFor("armips", step.params.buildArgs)
+      );
       var armips = emglobal.armips({
         instantiateWasm: moduleInstFn("armips"),
         noInitialRun: true,
@@ -11002,10 +11107,14 @@
       }
     }
     gatherFiles(step, { mainFilePath: "main.asm" });
+    fixParamsWithDefines(step.path, step.params);
     var objpath = step.prefix + ".bin";
     var lstpath = step.prefix + ".lst";
     if (staleFiles(step, [objpath])) {
-      var args = ["-Fbin", "-m7tdmi", "-x", "-wfail", step.path, "-o", objpath, "-L", lstpath];
+      var args = ["-Fbin", "-m7tdmi", "-x", "-wfail"];
+      args.push.apply(args, defineArgs("vasmarm", step.params.symbols && step.params.symbols.assembler));
+      args.push.apply(args, extraArgsFor("vasmarm", step.params.buildArgs));
+      args.push(step.path, "-o", objpath, "-L", lstpath);
       var vasm = emglobal.vasm({
         instantiateWasm: moduleInstFn("vasmarm_std"),
         noInitialRun: true,
@@ -11091,6 +11200,7 @@
     const params = step.params;
     const errors = [];
     gatherFiles(step, { mainFilePath: "main.c" });
+    fixParamsWithDefines(step.path, step.params);
     const objpath = step.prefix + ".o";
     const error_fn = tccErrorMatcher(errors, step.path);
     if (!armtcc_fs) {
@@ -11120,6 +11230,10 @@
       if (params.extra_compile_args) {
         args = args.concat(params.extra_compile_args);
       }
+      args = args.concat(
+        defineArgs("armtcc", params.symbols && params.symbols.compiler),
+        extraArgsFor("armtcc", params.buildArgs)
+      );
       args.push(step.path);
       const FS = armtcc.FS;
       armtcc_fs.getDirectories().forEach((dir) => {
@@ -11155,6 +11269,7 @@
     const params = step.params;
     const errors = [];
     gatherFiles(step, { mainFilePath: "main.c" });
+    fixParamsWithDefines(step.path, step.params);
     const objpath = "main.elf";
     const error_fn = tccErrorMatcher(errors, step.path);
     if (staleFiles(step, [objpath])) {
@@ -11181,6 +11296,10 @@
       if (params.extra_link_args) {
         args = args.concat(params.extra_link_args);
       }
+      args = args.concat(
+        linkSymbolArgs("armtcclink", params.symbols && params.symbols.linker),
+        extraArgsFor("armtcclink", params.buildArgs)
+      );
       const FS = armtcc.FS;
       populateExtraFiles(step, FS, params.extra_link_files);
       populateFiles(step, FS);
@@ -11473,7 +11592,7 @@
   }
   var Bin = class {
     constructor(binbounds) {
-      this.binbounds = binbounds;
+      __publicField(this, "binbounds", binbounds);
       __publicField(this, "boxes", []);
       __publicField(this, "free", []);
       __publicField(this, "extents", { left: 0, top: 0, right: 0, bottom: 0 });
@@ -12056,7 +12175,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   };
   var IndexRegister = class _IndexRegister {
     constructor(scope, eset) {
-      this.scope = scope;
+      __publicField(this, "scope", scope);
       __publicField(this, "lo");
       __publicField(this, "hi");
       __publicField(this, "elo");
@@ -12120,10 +12239,10 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   var ActionEval = class {
     //used = new Set<string>(); // TODO
     constructor(scope, instance, action, eventargs) {
-      this.scope = scope;
-      this.instance = instance;
-      this.action = action;
-      this.eventargs = eventargs;
+      __publicField(this, "scope", scope);
+      __publicField(this, "instance", instance);
+      __publicField(this, "action", action);
+      __publicField(this, "eventargs", eventargs);
       __publicField(this, "em");
       __publicField(this, "dialect");
       __publicField(this, "tmplabel", "");
@@ -12549,19 +12668,19 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   };
   var EventCodeStats = class {
     constructor(inst, action, eventcode) {
-      this.inst = inst;
-      this.action = action;
-      this.eventcode = eventcode;
+      __publicField(this, "inst", inst);
+      __publicField(this, "action", action);
+      __publicField(this, "eventcode", eventcode);
       __publicField(this, "labels", []);
       __publicField(this, "count", 0);
     }
   };
   var EntityScope = class {
     constructor(em, dialect, name, parent) {
-      this.em = em;
-      this.dialect = dialect;
-      this.name = name;
-      this.parent = parent;
+      __publicField(this, "em", em);
+      __publicField(this, "dialect", dialect);
+      __publicField(this, "name", name);
+      __publicField(this, "parent", parent);
       __publicField(this, "$loc");
       __publicField(this, "childScopes", []);
       __publicField(this, "instances", []);
@@ -13050,7 +13169,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   };
   var EntityManager = class {
     constructor(dialect) {
-      this.dialect = dialect;
+      __publicField(this, "dialect", dialect);
       __publicField(this, "archetypes", {});
       __publicField(this, "components", {});
       __publicField(this, "systems", {});
@@ -13479,8 +13598,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   var ECSCompiler = class _ECSCompiler extends Tokenizer {
     constructor(em, isMainFile) {
       super();
-      this.em = em;
-      this.isMainFile = isMainFile;
+      __publicField(this, "em", em);
+      __publicField(this, "isMainFile", isMainFile);
       __publicField(this, "currentScope", null);
       __publicField(this, "currentContext", null);
       __publicField(this, "includeDebugInfo", false);
@@ -15124,20 +15243,18 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     }
     /**
      * The platform params for this build. Tools rewrite them in place --
-     * fixParamsWithDefines() applies //#define CFGFILE=, LIBARGS=, NES_MAPPER=,
-     * and ecs picks its own cfgfile -- and later steps read the result, which is
-     * how the linker learns which config file to use. So the copy is per build,
-     * not per step: shared by every step of one build, thrown away afterwards so
-     * one source file's directives can't follow the next build around.
+     * fixParamsWithDefines() applies the source build directives (//#symbol,
+     * //#flag, //#tooldef, plus the legacy #define CFGFILE/LIBARGS/NES_MAPPER
+     * forms), and ecs picks its own cfgfile -- and later steps read the result,
+     * which is how the linker learns which config file to use. So the copy is
+     * per build, not per step: shared by every step of one build, thrown away
+     * afterwards so one source file's directives can't follow the next build
+     * around.
      */
     paramsForBuild(platform) {
       if (!this.buildParams[platform]) {
         const params = PLATFORM_PARAMS[platform] || PLATFORM_PARAMS[getBasePlatform(platform)];
-        const copy = {};
-        for (const key in params) {
-          copy[key] = Array.isArray(params[key]) ? params[key].slice() : params[key];
-        }
-        this.buildParams[platform] = copy;
+        this.buildParams[platform] = cloneParams(params);
       }
       return this.buildParams[platform];
     }
@@ -15158,6 +15275,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
         }
         step.params = this.paramsForBuild(platform);
         try {
+          applyPlatformAndStepParams(step);
           step.result = await toolfn(step);
         } catch (e) {
           console.log("EXCEPTION", e, e.stack);
@@ -15371,48 +15489,248 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       if (key.startsWith("asm_")) params[key.substring(4)] = params[key];
     }
   }
-  function fixParamsWithDefines(path, params) {
-    var libargs = params.libargs;
-    if (path && libargs) {
-      var code = getWorkFileAsString(path);
-      if (code) {
-        var oldcfgfile = params.cfgfile;
-        var ident2index = {};
-        for (var i = 0; i < libargs.length; i++) {
-          var toks = libargs[i].split("=");
-          if (toks.length == 2) {
-            ident2index[toks[0]] = i;
-          }
-        }
-        var re = /^[;/]?#define\s+(\w+)\s+(\S+)/gmi;
-        var m;
-        while (m = re.exec(code)) {
-          var ident = m[1];
-          var value = m[2];
-          var index = ident2index[ident];
-          if (index >= 0) {
-            libargs[index] = ident + "=" + value;
-            console.log("Using libargs", index, libargs[index]);
-            if (ident == "NES_MAPPER" && value == "4") {
-              params.cfgfile = "nesbanked.cfg";
-              console.log("using config file", params.cfgfile);
-            }
-          } else if (ident == "CFGFILE" && value) {
-            params.cfgfile = value;
-          } else if (ident == "LIBARGS" && value) {
-            params.libargs = value.split(",").filter((s) => {
-              return s != "";
-            });
-            console.log("Using libargs", params.libargs);
-          } else if (ident == "CC65_FLAGS" && value) {
-            params.extra_compiler_args = value.split(",").filter((s) => {
-              return s != "";
-            });
-            console.log("Using compiler flags", params.extra_compiler_args);
-          }
+  var PHASE_ALIASES = {
+    c: "compiler",
+    cc: "compiler",
+    compiler: "compiler",
+    as: "assembler",
+    asm: "assembler",
+    assembler: "assembler",
+    ld: "linker",
+    link: "linker",
+    linker: "linker"
+  };
+  var PHASES = ["compiler", "assembler", "linker"];
+  function cloneParams(params) {
+    if (!params || typeof params !== "object") return params;
+    if (Array.isArray(params)) return params.slice();
+    let copy = {};
+    for (const key in params) copy[key] = cloneParams(params[key]);
+    return copy;
+  }
+  function emptyDirectives() {
+    return {
+      symbols: { compiler: [], assembler: [], linker: [] },
+      flags: { compiler: [], assembler: [], linker: [] },
+      tooldefs: [],
+      errors: []
+    };
+  }
+  function mergeDirectives(a, b) {
+    for (let phase of PHASES) {
+      a.symbols[phase].push.apply(a.symbols[phase], b.symbols[phase]);
+      a.flags[phase].push.apply(a.flags[phase], b.flags[phase]);
+    }
+    a.tooldefs.push.apply(a.tooldefs, b.tooldefs);
+    a.errors.push.apply(a.errors, b.errors);
+  }
+  function directivesFromConfig(tool, cfg) {
+    let dir = emptyDirectives();
+    let meta = getToolMeta(tool);
+    let symphase = meta && meta.kind === "assembler" ? "assembler" : "compiler";
+    if (cfg.defines) dir.symbols[symphase].push.apply(dir.symbols[symphase], cfg.defines);
+    if (cfg.buildArgs) {
+      for (let phase of PHASES) {
+        if (cfg.buildArgs[phase]) dir.flags[phase].push.apply(dir.flags[phase], cfg.buildArgs[phase]);
+      }
+    }
+    return dir;
+  }
+  function directivesFromOverrides(symbols, buildArgs) {
+    let dir = emptyDirectives();
+    if (symbols) {
+      for (let phase of PHASES) if (symbols[phase]) dir.symbols[phase].push.apply(dir.symbols[phase], symbols[phase]);
+    }
+    if (buildArgs) {
+      for (let phase of PHASES) if (buildArgs[phase]) dir.flags[phase].push.apply(dir.flags[phase], buildArgs[phase]);
+    }
+    return dir;
+  }
+  function applyPlatformAndStepParams(step) {
+    let params = step.params;
+    if (!params || typeof params !== "object") return;
+    let cfgKey = step.tool + "|" + step.platform;
+    params.appliedPlatformCfg = params.appliedPlatformCfg || {};
+    let dir = emptyDirectives();
+    if (!params.appliedPlatformCfg[cfgKey]) {
+      let cfg = getPlatformToolConfig(step.tool, step.platform);
+      if (cfg && (cfg.defines || cfg.buildArgs)) {
+        params.appliedPlatformCfg[cfgKey] = true;
+        mergeDirectives(dir, directivesFromConfig(step.tool, cfg));
+      }
+    }
+    let symbols = step.symbols, buildArgs = step.buildArgs;
+    if (symbols || buildArgs)
+      mergeDirectives(dir, directivesFromOverrides(symbols, buildArgs));
+    applyBuildDirectives(dir, params);
+    if (dir.errors.length)
+      throw new Error("build config error: " + dir.errors.join("; "));
+  }
+  function splitDirectiveArgs(s) {
+    let out = [];
+    let re = /"([^"]*)"|'([^']*)'|(\S+)/g;
+    let m;
+    while (m = re.exec(s))
+      out.push(m[1] != null ? m[1] : m[2] != null ? m[2] : m[3]);
+    return out;
+  }
+  function isIntegerExpression(v) {
+    return v.length > 0 && /^[\s0-9a-fA-F$xX+\-*/%()&|^~<>]+$/.test(v);
+  }
+  function mergeByName(list, entry) {
+    let name = entry.split("=")[0];
+    return list.filter((e) => e.split("=")[0] !== name).concat(entry);
+  }
+  function applySymbolConfigs(params, entries) {
+    let configs = params && params.symbolConfigs;
+    if (!configs) return;
+    for (let e of entries) {
+      let eq = e.indexOf("=");
+      if (eq < 0) continue;
+      let name = e.substring(0, eq), value = e.substring(eq + 1);
+      let cfg = configs[name] && configs[name][value];
+      if (cfg) {
+        params.cfgfile = cfg;
+        console.log("using config file", cfg);
+      }
+    }
+  }
+  function setLinkSymbol(params, symbols, entry) {
+    let name = entry.split("=")[0];
+    let la = params.libargs;
+    if (la) {
+      for (let i = 0; i < la.length; i++) {
+        if (la[i].split("=")[0] === name) {
+          la[i] = entry;
+          applySymbolConfigs(params, [entry]);
+          return;
         }
       }
     }
+    symbols.linker = mergeByName(symbols.linker, entry);
+    applySymbolConfigs(params, [entry]);
+  }
+  function parseBuildDirectives(code) {
+    let out = emptyDirectives();
+    if (!code) return out;
+    let re = /^[ \t]*(?:\/\/|;)#(symbol|flag|tooldef)\b([^\n]*)/gmi;
+    let m;
+    while (m = re.exec(code)) {
+      let kw = m[1].toLowerCase();
+      let raw = m[2].trim();
+      let parts = raw.split(/\s+/);
+      let phase = "compiler";
+      let rest = raw;
+      if (parts.length > 1 && PHASE_ALIASES[parts[0].toLowerCase()]) {
+        phase = PHASE_ALIASES[parts[0].toLowerCase()];
+        rest = raw.substring(parts[0].length).trim();
+      }
+      if (kw === "flag") {
+        let argv = splitDirectiveArgs(rest);
+        if (!argv.length) {
+          out.errors.push(`#flag: expected '<phase> args...'`);
+          continue;
+        }
+        out.flags[phase].push.apply(out.flags[phase], argv);
+      } else if (kw === "symbol") {
+        let sm = /^(\w+)(?:\s*=\s*(.+))?$/.exec(rest);
+        if (!sm) {
+          out.errors.push(`#symbol: expected 'NAME[=VALUE]': '${raw}'`);
+          continue;
+        }
+        let value = sm[2] != null ? sm[2].trim() : null;
+        let entry = value != null ? sm[1] + "=" + value : sm[1];
+        if (phase === "linker" && !isIntegerExpression(value || "")) {
+          out.errors.push(`#symbol linker: value must be an integer expression: '${entry}'`);
+          continue;
+        }
+        out.symbols[phase].push(entry);
+      } else {
+        let tm = /^(\w+)\s*=\s*(.+)$/.exec(rest);
+        if (!tm) {
+          out.errors.push(`#tooldef: expected 'NAME=VALUE': '${raw}'`);
+          continue;
+        }
+        out.tooldefs.push({ phase, name: tm[1], value: tm[2].trim() });
+      }
+    }
+    return out;
+  }
+  function applyBuildDirectives(dir, params) {
+    if (!params) return;
+    let S = params.symbols;
+    if (!S) S = params.symbols = { compiler: [], assembler: [], linker: [] };
+    for (let phase of PHASES) if (!S[phase]) S[phase] = [];
+    let B = params.buildArgs;
+    if (!B) B = params.buildArgs = { compiler: [], assembler: [], linker: [] };
+    for (let phase of PHASES) {
+      for (let s of dir.symbols[phase]) {
+        if (phase === "linker") {
+          let eq = s.indexOf("=");
+          if (eq < 0 || !isIntegerExpression(s.substring(eq + 1))) {
+            dir.errors.push(`link symbol must be NAME=INTEXPR: '${s}'`);
+            continue;
+          }
+          setLinkSymbol(params, S, s);
+        } else {
+          S[phase] = mergeByName(S[phase], s);
+        }
+      }
+      B[phase].push.apply(B[phase], dir.flags[phase]);
+    }
+    for (let td of dir.tooldefs) {
+      if (td.phase === "linker" && td.name === "cfgfile") {
+        params.cfgfile = td.value;
+      } else if (td.phase === "linker" && td.name === "libargs") {
+        params.libargs = td.value.split(",").filter((s) => s !== "");
+      } else {
+        dir.errors.push(`#tooldef: unknown ${td.phase} param '${td.name}'`);
+      }
+    }
+  }
+  function fixParamsWithDefines(path, params) {
+    if (!path) return;
+    var code = getWorkFileAsString(path);
+    if (!code) return;
+    params.directivePaths = params.directivePaths || {};
+    if (params.directivePaths[path]) return;
+    params.directivePaths[path] = true;
+    var libargs = params.libargs;
+    if (libargs) {
+      var ident2index = {};
+      for (var i = 0; i < libargs.length; i++) {
+        var toks = libargs[i].split("=");
+        if (toks.length == 2) ident2index[toks[0]] = i;
+      }
+      var re = /^[;/]?#define\s+(\w+)\s+(\S+)/gmi;
+      var m;
+      while (m = re.exec(code)) {
+        var ident = m[1];
+        var value = m[2];
+        var index = ident2index[ident];
+        if (index >= 0) {
+          libargs[index] = ident + "=" + value;
+          console.log("Using libargs", index, libargs[index]);
+          applySymbolConfigs(params, [libargs[index]]);
+        } else if (ident == "CFGFILE" && value) {
+          params.cfgfile = value;
+        } else if (ident == "LIBARGS" && value) {
+          params.libargs = value.split(",").filter((s) => {
+            return s != "";
+          });
+          console.log("Using libargs", params.libargs);
+        } else if (ident == "CC65_FLAGS" && value) {
+          params.extra_compiler_args = value.split(",").filter((s) => {
+            return s != "";
+          });
+          console.log("Using compiler flags", params.extra_compiler_args);
+        }
+      }
+    }
+    var dir = parseBuildDirectives(code);
+    applyBuildDirectives(dir, params);
+    if (dir.errors.length)
+      throw new Error("build directive error: " + dir.errors.join("; "));
   }
   function processEmbedDirective(code) {
     let re3 = /^\s*#embed\s+"(.+?)"/gm;
@@ -15505,7 +15823,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
 jszip/dist/jszip.min.js:
   (*!
   
-  JSZip v3.10.1 - A JavaScript class for generating and reading zip files
+  JSZip v3.10.2 - A JavaScript class for generating and reading zip files
   <http://stuartk.com/jszip>
   
   (c) 2009-2016 Stuart Knightley <stuart [at] stuartk.com>

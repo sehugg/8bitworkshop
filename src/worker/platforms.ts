@@ -205,6 +205,8 @@ export var PLATFORM_PARAMS = {
         '-D', 'NES_MIRRORING=0', // horizontal mirroring
         ],
       extra_link_files: ['crt0.o', 'neslib2.lib', 'neslib2.cfg', 'nesbanked.cfg'],
+      // source link symbol -> linker config (was hardcoded in fixParamsWithDefines)
+      symbolConfigs: { NES_MAPPER: { '4': 'nesbanked.cfg' } },
       wiz_rom_ext: '.nes',
     },
     'apple2': {
@@ -395,6 +397,9 @@ export var PLATFORM_PARAMS = {
         '-g', '_shadow_OAM=0xC000',
         '-g', '.STACK=0xE000',
         '-g', '.refresh_OAM=0xFF80',
+        '-g', 'GB_MAPPER=0x0',
+        '-g', 'GB_ROM_SIZE=0x0',
+        '-g', 'GB_RAM_SIZE=0x0',
         '-g', 'GB_CGB_FLAGS=0x0',
       ],
       wiz_sys_type: 'gb',

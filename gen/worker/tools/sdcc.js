@@ -4,6 +4,7 @@ exports.assembleSDASZ80 = assembleSDASZ80;
 exports.assembleSDASGB = assembleSDASGB;
 exports.linkSDLDZ80 = linkSDLDZ80;
 exports.compileSDCC = compileSDCC;
+const toolmeta_1 = require("../../common/toolmeta");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const wasmutils_1 = require("../wasmutils");
@@ -199,6 +200,9 @@ function linkSDLDZ80(step) {
             '-l', arch];
         if (params.extra_link_args)
             args.push.apply(args, params.extra_link_args);
+        // //#symbol ld (sdldz80 uses -g sym=expr) and //#flag ld
+        args.push.apply(args, (0, toolmeta_1.linkSymbolArgs)('sdldz80', params.symbols && params.symbols.linker));
+        args.push.apply(args, (0, toolmeta_1.extraArgsFor)('sdldz80', params.buildArgs));
         args.push.apply(args, step.args);
         //console.log(args);
         (0, wasmutils_1.execMain)(step, LDZ80, args);
@@ -344,6 +348,9 @@ function compileSDCC(step) {
         if (params.extra_compile_args) {
             args.push.apply(args, params.extra_compile_args);
         }
+        // //#symbol c and //#flag c
+        args.push.apply(args, (0, toolmeta_1.defineArgs)('sdcc', params.symbols && params.symbols.compiler));
+        args.push.apply(args, (0, toolmeta_1.extraArgsFor)('sdcc', params.buildArgs));
         (0, wasmutils_1.execMain)(step, SDCC, args);
         // TODO: preprocessor errors w/ correct file
         if (errors.length /* && nwarnings < msvc_errors.length*/) {

@@ -3,7 +3,7 @@ import localforage from "localforage";
 import { Platform } from "../common/baseplatform";
 import { getBasePlatform, getFilenamePrefix, getFolderForPath, getWithBinary, isProbablyBinary } from "../common/util";
 import { getIncludePatterns, getLinkPatterns, matchDependencyPatterns } from "../common/toolmeta";
-import { CodeListing, CodeListingMap, Dependency, FileData, Segment, SourceFile, WorkerErrorResult, WorkerItemUpdate, WorkerMessage, WorkerOutputResult, WorkerResult, isErrorResult, isOutputResult } from "../common/workertypes";
+import { BuildArgLists, BuildSymbolLists, CodeListing, CodeListingMap, Dependency, FileData, Segment, SourceFile, WorkerErrorResult, WorkerItemUpdate, WorkerMessage, WorkerOutputResult, WorkerResult, isErrorResult, isOutputResult } from "../common/workertypes";
 
 export interface ProjectFilesystem {
   getFileData(path: string): Promise<FileData>;
@@ -116,6 +116,10 @@ export class CodeProject {
   filesystem: ProjectFilesystem;
   dataItems: WorkerItemUpdate[];
   remoteTool?: string;
+  // per-project build overrides, applied under the source's own directives.
+  // Set via setBuildOverrides(); no settings UI yet.
+  buildSymbols?: BuildSymbolLists;
+  buildArgs?: BuildArgLists;
 
   callbackBuildResult: BuildResultCallback;
   callbackBuildStatus: BuildStatusCallback;
@@ -282,13 +286,16 @@ export class CodeProject {
       }
       this.filename2path[dep.filename] = dep.path;
     }
-    msg.buildsteps.push({
+    var mainstep: any = {
       path: mainfilename,
       files: [mainfilename].concat(depfiles),
       platform: this.platform_id,
       tool: this.getToolForFilename(this.mainPath),
-      mainfile: true
-    });
+      mainfile: true,
+    };
+    if (this.buildSymbols) mainstep.symbols = this.buildSymbols;
+    if (this.buildArgs) mainstep.buildArgs = this.buildArgs;
+    msg.buildsteps.push(mainstep);
     for (var dep of depends) {
       if (dep.data && dep.link) {
         this.preloadWorker(dep.filename);
@@ -452,6 +459,17 @@ export class CodeProject {
       }
     }
     return path;
+  }
+
+  /**
+   * Set per-project build overrides (symbols / raw args per phase). These are
+   * layered above platform defaults but below the source's own //# directives,
+   * matching the CLI's --define/--cflag/... options. Triggers a rebuild.
+   */
+  setBuildOverrides(symbols?: BuildSymbolLists, buildArgs?: BuildArgLists) {
+    this.buildSymbols = symbols;
+    this.buildArgs = buildArgs;
+    if (this.okToSend()) this.sendBuild();
   }
 
   updateDataItems(items: WorkerItemUpdate[]) {

@@ -256,13 +256,18 @@ class CodeProject {
             }
             this.filename2path[dep.filename] = dep.path;
         }
-        msg.buildsteps.push({
+        var mainstep = {
             path: mainfilename,
             files: [mainfilename].concat(depfiles),
             platform: this.platform_id,
             tool: this.getToolForFilename(this.mainPath),
-            mainfile: true
-        });
+            mainfile: true,
+        };
+        if (this.buildSymbols)
+            mainstep.symbols = this.buildSymbols;
+        if (this.buildArgs)
+            mainstep.buildArgs = this.buildArgs;
+        msg.buildsteps.push(mainstep);
         for (var dep of depends) {
             if (dep.data && dep.link) {
                 this.preloadWorker(dep.filename);
@@ -425,6 +430,17 @@ class CodeProject {
             }
         }
         return path;
+    }
+    /**
+     * Set per-project build overrides (symbols / raw args per phase). These are
+     * layered above platform defaults but below the source's own //# directives,
+     * matching the CLI's --define/--cflag/... options. Triggers a rebuild.
+     */
+    setBuildOverrides(symbols, buildArgs) {
+        this.buildSymbols = symbols;
+        this.buildArgs = buildArgs;
+        if (this.okToSend())
+            this.sendBuild();
     }
     updateDataItems(items) {
         this.dataItems = items;

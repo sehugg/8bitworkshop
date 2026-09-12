@@ -157,15 +157,15 @@ _refresh_OAM::
 
         ;; Cartridge type is ROM only
         .org    0x147
-        .byte   0
+        .byte   GB_MAPPER
 
         ;; ROM size is 32kB
         .org    0x148
-        .byte   0
+        .byte   GB_ROM_SIZE
 
         ;; RAM size is 0kB
         .org    0x149
-        .byte   0
+        .byte   GB_RAM_SIZE
 
         ;; Maker ID
         .org    0x14A

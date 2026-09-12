@@ -1,4 +1,5 @@
 
+import { defineArgs, extraArgsFor, linkSymbolArgs } from "../../common/toolmeta";
 import { getRootBasePlatform } from "../../common/util";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
 import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, fixParamsWithDefines, applyAsmProjectParams, putWorkFile, populateExtraFiles, store, populateEntry, anyTargetChanged, processEmbedDirective } from "../builder";
@@ -135,6 +136,10 @@ export function assembleCA65(step: BuildStep): BuildStepResult {
         if (step.mainfile) {
             args.unshift.apply(args, ["-D", "__MAIN__=1"]);
         }
+        // //#symbol as / //#flag as (insert before the source filename)
+        var extra = defineArgs('ca65', step.params.symbols && step.params.symbols.assembler)
+            .concat(extraArgsFor('ca65', step.params.buildArgs));
+        args.splice(args.length - 1, 0, ...extra);
         execMain(step, CA65, args);
         if (errors.length) {
             let listings : CodeListingMap = {};
@@ -185,6 +190,9 @@ export function linkLD65(step: BuildStep): BuildStepResult {
             //'--dbgfile', 'main.dbg', // TODO: get proper line numbers
             '-o', 'main',
             '-m', 'main.map'].concat(step.args, libargs);
+        // //#symbol ld (symbols not already merged into libargs) and //#flag ld
+        args.push.apply(args, linkSymbolArgs('ld65', params.symbols && params.symbols.linker));
+        args.push.apply(args, extraArgsFor('ld65', params.buildArgs));
         execMain(step, LD65, args);
         if (errors.length)
             return { errors: errors };
@@ -326,6 +334,9 @@ export function compileCC65(step: BuildStep): BuildStepResult {
         if (step.mainfile) {
             args.unshift.apply(args, ["-D", "__MAIN__"]);
         }
+        // //#symbol c / //#flag c
+        args.push.apply(args, defineArgs('cc65', params.symbols && params.symbols.compiler));
+        args.push.apply(args, extraArgsFor('cc65', params.buildArgs));
         var customArgs = params.extra_compiler_args || ['-T', '-g', '-Oirs', '-Cl', '-W', '-pointer-sign,-no-effect'];
         args = args.concat(customArgs, args);
         args.push(step.path);

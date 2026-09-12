@@ -27,9 +27,13 @@ exports.TOOL_META = exports.DIALOG_INCLUDE_PATTERNS = exports.ECS_INCLUDE_PATTER
 exports.getSystemIncludePatterns = getSystemIncludePatterns;
 exports.getToolMeta = getToolMeta;
 exports.getToolMetaForFilename = getToolMetaForFilename;
+exports.getPlatformToolConfig = getPlatformToolConfig;
 exports.getPreloadFSName = getPreloadFSName;
 exports.getSkeletonName = getSkeletonName;
 exports.getIncludePatterns = getIncludePatterns;
+exports.defineArgs = defineArgs;
+exports.linkSymbolArgs = linkSymbolArgs;
+exports.extraArgsFor = extraArgsFor;
 exports.getLinkPatterns = getLinkPatterns;
 exports.getIncludeDirs = getIncludeDirs;
 exports.getSharedFileSystemName = getSharedFileSystemName;
@@ -162,6 +166,7 @@ exports.TOOL_META = {
         helpURL: 'https://cc65.github.io/doc/cc65.html',
         wasmModule: 'cc65',
         version: '2.19',
+        defineFlag: '-D', defineInline: true,
         platforms: CC65_PRELOADFS,
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
@@ -174,6 +179,7 @@ exports.TOOL_META = {
         helpURL: 'https://cc65.github.io/doc/ca65.html',
         wasmModule: 'ca65',
         version: '2.19',
+        defineFlag: '-D', defineInline: false,
         platforms: CC65_PRELOADFS,
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
@@ -183,6 +189,7 @@ exports.TOOL_META = {
         extensions: [],
         wasmModule: 'ld65',
         version: '2.19',
+        linkSymbolFlag: '-D', linkSymbolInline: false,
     },
     // ---- SDCC toolchain (z80) ----
     sdcc: {
@@ -193,6 +200,7 @@ exports.TOOL_META = {
         helpURL: 'http://sdcc.sourceforge.net/doc/sdccman.pdf',
         wasmModule: 'sdcc',
         version: '3.6.5',
+        defineFlag: '-D', defineInline: true,
         platforms: { default: { preloadFS: 'sdcc' } },
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
@@ -223,6 +231,7 @@ exports.TOOL_META = {
         extensions: [],
         wasmModule: 'sdldz80',
         version: '03.00',
+        linkSymbolFlag: '-g', linkSymbolInline: false,
     },
     sccz80: {
         id: 'sccz80', name: 'sccz80', kind: 'compiler', arch: 'z80',
@@ -273,6 +282,7 @@ exports.TOOL_META = {
         helpURL: 'http://perso.b2b2c.ca/~sarrazip/dev/cmoc.html',
         wasmModule: 'cmoc',
         version: '0.1.67',
+        defineFlag: '-D', defineInline: false,
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
     },
@@ -297,6 +307,7 @@ exports.TOOL_META = {
         editorStyle: 'vasm',
         wasmModule: 'vasmarm_std',
         version: '1.8k',
+        defineFlag: '-D', defineInline: false,
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
     },
@@ -316,6 +327,7 @@ exports.TOOL_META = {
         wasiFSZip: 'arm32-fs.zip',
         editorStyle: 'text/x-csrc',
         wasmModule: 'arm-tcc',
+        defineFlag: '-D', defineInline: false,
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
     },
@@ -331,6 +343,7 @@ exports.TOOL_META = {
         // NOTE: no bundled filesystem and no -I arg -- no headers to link in the UI
         editorStyle: 'text/x-csrc',
         wasmModule: 'smlrc',
+        defineFlag: '-D', defineInline: false,
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
     },
@@ -340,6 +353,7 @@ exports.TOOL_META = {
         editorStyle: 'gas',
         wasmModule: 'yasm',
         version: '1.3.0',
+        defineFlag: '-D', defineInline: false,
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
     },
@@ -527,6 +541,25 @@ function getToolMetaForFilename(fn) {
     return matches.sort((a, b) => b.len - a.len).map(m => m.meta);
 }
 /**
+ * The per-platform ToolMeta config for a tool, resolving suffixed platform ids
+ * to their root base and falling back to 'default'. Used by the Builder to
+ * layer platform-level defines/buildArgs under source directives.
+ */
+function getPlatformToolConfig(tool, platform) {
+    let meta = tool && getToolMeta(tool);
+    if (!meta || !meta.platforms)
+        return undefined;
+    if (platform) {
+        let p = meta.platforms[platform];
+        if (p)
+            return p;
+        let base = (0, util_1.getRootBasePlatform)(platform);
+        if (base && base !== platform && meta.platforms[base])
+            return meta.platforms[base];
+    }
+    return meta.platforms['default'];
+}
+/**
  * Resolve the preload filesystem name for a tool on a platform
  * (was TOOL_PRELOADFS, including compound 'tool-platform' keys).
  */
@@ -574,6 +607,55 @@ function getIncludePatterns(tool, platform) {
     if (platform && platform.startsWith('verilog'))
         return exports.VERILOG_INCLUDE_PATTERNS;
     return exports.SHARED_INCLUDE_PATTERNS;
+}
+/**
+ * Format a list of preprocessor/assembler defines as argv for a tool, using
+ * the flag and joining style declared in its ToolMeta. Returns [] when the
+ * tool has no command-line define mechanism (e.g. sdasz80).
+ */
+function defineArgs(tool, defines) {
+    let meta = tool && getToolMeta(tool);
+    if (!meta || !meta.defineFlag || !defines || !defines.length)
+        return [];
+    let out = [];
+    for (let d of defines) {
+        if (meta.defineInline)
+            out.push(meta.defineFlag + d);
+        else
+            out.push(meta.defineFlag, d);
+    }
+    return out;
+}
+/**
+ * Format link-time global symbols as argv for a linker tool, using the flag
+ * declared in its ToolMeta ('-D' for ld65, '-g' for sdldz80). Returns [] when
+ * the tool cannot define symbols on the command line.
+ */
+function linkSymbolArgs(tool, symbols) {
+    let meta = tool && getToolMeta(tool);
+    if (!meta || !meta.linkSymbolFlag || !symbols || !symbols.length)
+        return [];
+    let out = [];
+    for (let s of symbols) {
+        if (meta.linkSymbolInline)
+            out.push(meta.linkSymbolFlag + s);
+        else
+            out.push(meta.linkSymbolFlag, s);
+    }
+    return out;
+}
+/**
+ * Extra raw args from params.buildArgs for the phase matching the tool's kind
+ * (compiler/assembler/linker). Interpreter/hdl/remote tools get nothing.
+ */
+function extraArgsFor(tool, buildArgs) {
+    let meta = tool && getToolMeta(tool);
+    if (!meta || !buildArgs)
+        return [];
+    let kind = meta.kind;
+    if (kind === 'compiler' || kind === 'assembler' || kind === 'linker')
+        return buildArgs[kind] || [];
+    return [];
 }
 /** Link patterns ("//#link") to use when scanning a source file. */
 function getLinkPatterns(tool, platform) {

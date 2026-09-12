@@ -87,7 +87,8 @@ class ProjectWindows {
         }
         else {
             var viewName = id.startsWith('#headerview/') ? id.substring('#headerview/'.length)
-                : id.startsWith('#') ? id : (0, util_1.getFilenameForPath)(id);
+                : id.startsWith('#help/') ? id.substring('#help/'.length)
+                    : id.startsWith('#') ? id : (0, util_1.getFilenameForPath)(id);
             document.title = this.titlePrefix + mainName + ' | ' + viewName;
         }
     }

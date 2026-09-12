@@ -15,8 +15,11 @@ exports.populateExtraFiles = populateExtraFiles;
 exports.staleFiles = staleFiles;
 exports.anyTargetChanged = anyTargetChanged;
 exports.applyAsmProjectParams = applyAsmProjectParams;
+exports.parseBuildDirectives = parseBuildDirectives;
+exports.applyBuildDirectives = applyBuildDirectives;
 exports.fixParamsWithDefines = fixParamsWithDefines;
 exports.processEmbedDirective = processEmbedDirective;
+const toolmeta_1 = require("../common/toolmeta");
 const util_1 = require("../common/util");
 const platforms_1 = require("./platforms");
 const workertools_1 = require("./workertools");
@@ -98,21 +101,18 @@ class Builder {
     }
     /**
      * The platform params for this build. Tools rewrite them in place --
-     * fixParamsWithDefines() applies //#define CFGFILE=, LIBARGS=, NES_MAPPER=,
-     * and ecs picks its own cfgfile -- and later steps read the result, which is
-     * how the linker learns which config file to use. So the copy is per build,
-     * not per step: shared by every step of one build, thrown away afterwards so
-     * one source file's directives can't follow the next build around.
+     * fixParamsWithDefines() applies the source build directives (//#symbol,
+     * //#flag, //#tooldef, plus the legacy #define CFGFILE/LIBARGS/NES_MAPPER
+     * forms), and ecs picks its own cfgfile -- and later steps read the result,
+     * which is how the linker learns which config file to use. So the copy is
+     * per build, not per step: shared by every step of one build, thrown away
+     * afterwards so one source file's directives can't follow the next build
+     * around.
      */
     paramsForBuild(platform) {
         if (!this.buildParams[platform]) {
             const params = platforms_1.PLATFORM_PARAMS[platform] || platforms_1.PLATFORM_PARAMS[(0, util_1.getBasePlatform)(platform)];
-            const copy = {};
-            // values are strings, numbers, and arrays of those
-            for (const key in params) {
-                copy[key] = Array.isArray(params[key]) ? params[key].slice() : params[key];
-            }
-            this.buildParams[platform] = copy;
+            this.buildParams[platform] = cloneParams(params);
         }
         return this.buildParams[platform];
     }
@@ -133,6 +133,7 @@ class Builder {
             }
             step.params = this.paramsForBuild(platform);
             try {
+                applyPlatformAndStepParams(step);
                 step.result = await toolfn(step);
             }
             catch (e) {
@@ -381,7 +382,8 @@ function anyTargetChanged(step, targets) {
  * params -- asm_cfgfile, asm_libargs, asm_extra_link_files -- which the
  * assembler applies when the project's main file is its own source, and which
  * nothing else looks at. Runs before fixParamsWithDefines() so that a source
- * file's own //#define CFGFILE still has the last word.
+ * file's own directive (//#tooldef ... cfgfile=, or a legacy CFGFILE define)
+ * still has the last word.
  */
 function applyAsmProjectParams(params) {
     for (const key of Object.keys(params)) {
@@ -389,50 +391,307 @@ function applyAsmProjectParams(params) {
             params[key.substring(4)] = params[key];
     }
 }
-function fixParamsWithDefines(path, params) {
-    var libargs = params.libargs;
-    if (path && libargs) {
-        var code = getWorkFileAsString(path);
-        if (code) {
-            var oldcfgfile = params.cfgfile;
-            var ident2index = {};
-            // find all lib args "IDENT=VALUE"
-            for (var i = 0; i < libargs.length; i++) {
-                var toks = libargs[i].split('=');
-                if (toks.length == 2) {
-                    ident2index[toks[0]] = i;
-                }
-            }
-            // find #defines and replace them
-            var re = /^[;/]?#define\s+(\w+)\s+(\S+)/gmi; // TODO: empty string?
-            var m;
-            while (m = re.exec(code)) {
-                var ident = m[1];
-                var value = m[2];
-                var index = ident2index[ident];
-                if (index >= 0) {
-                    libargs[index] = ident + "=" + value;
-                    console.log('Using libargs', index, libargs[index]);
-                    // TODO: MMC3 mapper switch
-                    if (ident == 'NES_MAPPER' && value == '4') {
-                        params.cfgfile = 'nesbanked.cfg';
-                        console.log("using config file", params.cfgfile);
-                    }
-                }
-                else if (ident == 'CFGFILE' && value) {
-                    params.cfgfile = value;
-                }
-                else if (ident == 'LIBARGS' && value) {
-                    params.libargs = value.split(',').filter((s) => { return s != ''; });
-                    console.log('Using libargs', params.libargs);
-                }
-                else if (ident == 'CC65_FLAGS' && value) {
-                    params.extra_compiler_args = value.split(',').filter((s) => { return s != ''; });
-                    console.log('Using compiler flags', params.extra_compiler_args);
-                }
+const PHASE_ALIASES = {
+    c: 'compiler', cc: 'compiler', compiler: 'compiler',
+    as: 'assembler', asm: 'assembler', assembler: 'assembler',
+    ld: 'linker', link: 'linker', linker: 'linker',
+};
+const PHASES = ['compiler', 'assembler', 'linker'];
+/** Deep-copy platform params so a build can't mutate PLATFORM_PARAMS. */
+function cloneParams(params) {
+    if (!params || typeof params !== 'object')
+        return params;
+    if (Array.isArray(params))
+        return params.slice();
+    let copy = {};
+    for (const key in params)
+        copy[key] = cloneParams(params[key]);
+    return copy;
+}
+function emptyDirectives() {
+    return {
+        symbols: { compiler: [], assembler: [], linker: [] },
+        flags: { compiler: [], assembler: [], linker: [] },
+        tooldefs: [],
+        errors: [],
+    };
+}
+/** Fold b's lists (and errors) into a, so several sources share one apply. */
+function mergeDirectives(a, b) {
+    for (let phase of PHASES) {
+        a.symbols[phase].push.apply(a.symbols[phase], b.symbols[phase]);
+        a.flags[phase].push.apply(a.flags[phase], b.flags[phase]);
+    }
+    a.tooldefs.push.apply(a.tooldefs, b.tooldefs);
+    a.errors.push.apply(a.errors, b.errors);
+}
+/** Platform/tool-default defines+args, routed to a phase by the tool's kind. */
+function directivesFromConfig(tool, cfg) {
+    let dir = emptyDirectives();
+    let meta = (0, toolmeta_1.getToolMeta)(tool);
+    let symphase = (meta && meta.kind === 'assembler') ? 'assembler' : 'compiler';
+    if (cfg.defines)
+        dir.symbols[symphase].push.apply(dir.symbols[symphase], cfg.defines);
+    if (cfg.buildArgs) {
+        for (let phase of PHASES) {
+            if (cfg.buildArgs[phase])
+                dir.flags[phase].push.apply(dir.flags[phase], cfg.buildArgs[phase]);
+        }
+    }
+    return dir;
+}
+/** CLI/project overrides carried on the step (symbols + raw args per phase). */
+function directivesFromOverrides(symbols, buildArgs) {
+    let dir = emptyDirectives();
+    if (symbols) {
+        for (let phase of PHASES)
+            if (symbols[phase])
+                dir.symbols[phase].push.apply(dir.symbols[phase], symbols[phase]);
+    }
+    if (buildArgs) {
+        for (let phase of PHASES)
+            if (buildArgs[phase])
+                dir.flags[phase].push.apply(dir.flags[phase], buildArgs[phase]);
+    }
+    return dir;
+}
+/**
+ * Layer build config onto a step's params: platform/tool defaults first (once
+ * per tool+platform), then CLI/project overrides carried on the step. Source
+ * directives are applied later and have the last word.
+ */
+function applyPlatformAndStepParams(step) {
+    let params = step.params;
+    // tools whose platform has no params (e.g. inform6) have nothing to layer onto
+    if (!params || typeof params !== 'object')
+        return;
+    let cfgKey = step.tool + '|' + step.platform;
+    params.appliedPlatformCfg = params.appliedPlatformCfg || {};
+    let dir = emptyDirectives();
+    if (!params.appliedPlatformCfg[cfgKey]) {
+        let cfg = (0, toolmeta_1.getPlatformToolConfig)(step.tool, step.platform);
+        if (cfg && (cfg.defines || cfg.buildArgs)) {
+            params.appliedPlatformCfg[cfgKey] = true;
+            mergeDirectives(dir, directivesFromConfig(step.tool, cfg));
+        }
+    }
+    let symbols = step.symbols, buildArgs = step.buildArgs;
+    if (symbols || buildArgs)
+        mergeDirectives(dir, directivesFromOverrides(symbols, buildArgs));
+    applyBuildDirectives(dir, params);
+    if (dir.errors.length)
+        throw new Error('build config error: ' + dir.errors.join('; '));
+}
+/** Split a directive body into argv, honoring single/double quotes. */
+function splitDirectiveArgs(s) {
+    let out = [];
+    let re = /"([^"]*)"|'([^']*)'|(\S+)/g;
+    let m;
+    while ((m = re.exec(s)))
+        out.push(m[1] != null ? m[1] : m[2] != null ? m[2] : m[3]);
+    return out;
+}
+/**
+ * A linker symbol value must be an integer expression. Rejecting text here is
+ * what keeps a string define (`#symbol FOO=bar`) out of `ld65 -D FOO=bar`,
+ * which would fail with "Constant expression expected".
+ */
+function isIntegerExpression(v) {
+    return v.length > 0 && /^[\s0-9a-fA-F$xX+\-*/%()&|^~<>]+$/.test(v);
+}
+/** Merge NAME=VALUE into a list, replacing any entry with the same NAME. */
+function mergeByName(list, entry) {
+    let name = entry.split('=')[0];
+    return list.filter((e) => e.split('=')[0] !== name).concat(entry);
+}
+/**
+ * A platform may map a link symbol value to a linker config (NES_MAPPER=4 ->
+ * nesbanked.cfg). Kept data-driven so the parser has no platform special cases.
+ */
+function applySymbolConfigs(params, entries) {
+    let configs = params && params.symbolConfigs;
+    if (!configs)
+        return;
+    for (let e of entries) {
+        let eq = e.indexOf('=');
+        if (eq < 0)
+            continue;
+        let name = e.substring(0, eq), value = e.substring(eq + 1);
+        let cfg = configs[name] && configs[name][value];
+        if (cfg) {
+            params.cfgfile = cfg;
+            console.log('using config file', cfg);
+        }
+    }
+}
+/**
+ * Record a linker symbol. If the platform already passes `NAME=...` in
+ * libargs, the entry is replaced in place -- appending instead would define the
+ * symbol twice ("Redefinition of symbol", "Definition of public symbol ...").
+ */
+function setLinkSymbol(params, symbols, entry) {
+    let name = entry.split('=')[0];
+    let la = params.libargs;
+    if (la) {
+        for (let i = 0; i < la.length; i++) {
+            if (la[i].split('=')[0] === name) {
+                la[i] = entry;
+                applySymbolConfigs(params, [entry]);
+                return;
             }
         }
     }
+    symbols.linker = mergeByName(symbols.linker, entry);
+    applySymbolConfigs(params, [entry]);
+}
+/** Parse the explicit `//#` build directives out of source text. */
+function parseBuildDirectives(code) {
+    let out = emptyDirectives();
+    if (!code)
+        return out;
+    let re = /^[ \t]*(?:\/\/|;)#(symbol|flag|tooldef)\b([^\n]*)/gmi;
+    let m;
+    while ((m = re.exec(code))) {
+        let kw = m[1].toLowerCase();
+        let raw = m[2].trim();
+        let parts = raw.split(/\s+/);
+        let phase = 'compiler';
+        let rest = raw;
+        if (parts.length > 1 && PHASE_ALIASES[parts[0].toLowerCase()]) {
+            phase = PHASE_ALIASES[parts[0].toLowerCase()];
+            rest = raw.substring(parts[0].length).trim();
+        }
+        if (kw === 'flag') {
+            let argv = splitDirectiveArgs(rest);
+            if (!argv.length) {
+                out.errors.push(`#flag: expected '<phase> args...'`);
+                continue;
+            }
+            out.flags[phase].push.apply(out.flags[phase], argv);
+        }
+        else if (kw === 'symbol') {
+            let sm = /^(\w+)(?:\s*=\s*(.+))?$/.exec(rest);
+            if (!sm) {
+                out.errors.push(`#symbol: expected 'NAME[=VALUE]': '${raw}'`);
+                continue;
+            }
+            let value = sm[2] != null ? sm[2].trim() : null;
+            let entry = value != null ? sm[1] + '=' + value : sm[1];
+            if (phase === 'linker' && !isIntegerExpression(value || '')) {
+                out.errors.push(`#symbol linker: value must be an integer expression: '${entry}'`);
+                continue;
+            }
+            out.symbols[phase].push(entry);
+        }
+        else { // tooldef
+            let tm = /^(\w+)\s*=\s*(.+)$/.exec(rest);
+            if (!tm) {
+                out.errors.push(`#tooldef: expected 'NAME=VALUE': '${raw}'`);
+                continue;
+            }
+            out.tooldefs.push({ phase, name: tm[1], value: tm[2].trim() });
+        }
+    }
+    return out;
+}
+/** Apply parsed directives onto the shared per-build params object. */
+function applyBuildDirectives(dir, params) {
+    if (!params)
+        return;
+    let S = params.symbols;
+    if (!S)
+        S = params.symbols = { compiler: [], assembler: [], linker: [] };
+    for (let phase of PHASES)
+        if (!S[phase])
+            S[phase] = [];
+    let B = params.buildArgs;
+    if (!B)
+        B = params.buildArgs = { compiler: [], assembler: [], linker: [] };
+    for (let phase of PHASES) {
+        for (let s of dir.symbols[phase]) {
+            if (phase === 'linker') {
+                // enforced here too, so CLI/project overrides can't smuggle text into ld65 -D
+                let eq = s.indexOf('=');
+                if (eq < 0 || !isIntegerExpression(s.substring(eq + 1))) {
+                    dir.errors.push(`link symbol must be NAME=INTEXPR: '${s}'`);
+                    continue;
+                }
+                setLinkSymbol(params, S, s);
+            }
+            else {
+                S[phase] = mergeByName(S[phase], s);
+            }
+        }
+        B[phase].push.apply(B[phase], dir.flags[phase]);
+    }
+    for (let td of dir.tooldefs) {
+        if (td.phase === 'linker' && td.name === 'cfgfile') {
+            params.cfgfile = td.value;
+        }
+        else if (td.phase === 'linker' && td.name === 'libargs') {
+            params.libargs = td.value.split(',').filter((s) => s !== '');
+        }
+        else {
+            dir.errors.push(`#tooldef: unknown ${td.phase} param '${td.name}'`);
+        }
+    }
+}
+/**
+ * Legacy `#define` scan plus the explicit `//#` directives. Kept in one place
+ * so every tool that used to call the old scanner keeps working; the legacy
+ * forms can be retired once presets migrate.
+ */
+function fixParamsWithDefines(path, params) {
+    if (!path)
+        return;
+    var code = getWorkFileAsString(path);
+    if (!code)
+        return;
+    // directives are per source file; a build can scan the same file from more
+    // than one step, so apply each file once (raw #flag pushes are not idempotent)
+    params.directivePaths = params.directivePaths || {};
+    if (params.directivePaths[path])
+        return;
+    params.directivePaths[path] = true;
+    // 1. legacy `#define` scan -- semantics preserved exactly for compatibility
+    var libargs = params.libargs;
+    if (libargs) {
+        var ident2index = {};
+        for (var i = 0; i < libargs.length; i++) {
+            var toks = libargs[i].split('=');
+            if (toks.length == 2)
+                ident2index[toks[0]] = i;
+        }
+        var re = /^[;/]?#define\s+(\w+)\s+(\S+)/gmi; // TODO: empty string?
+        var m;
+        while (m = re.exec(code)) {
+            var ident = m[1];
+            var value = m[2];
+            var index = ident2index[ident];
+            if (index >= 0) {
+                libargs[index] = ident + "=" + value;
+                console.log('Using libargs', index, libargs[index]);
+                applySymbolConfigs(params, [libargs[index]]);
+            }
+            else if (ident == 'CFGFILE' && value) {
+                params.cfgfile = value;
+            }
+            else if (ident == 'LIBARGS' && value) {
+                params.libargs = value.split(',').filter((s) => { return s != ''; });
+                console.log('Using libargs', params.libargs);
+            }
+            else if (ident == 'CC65_FLAGS' && value) {
+                params.extra_compiler_args = value.split(',').filter((s) => { return s != ''; });
+                console.log('Using compiler flags', params.extra_compiler_args);
+            }
+        }
+    }
+    // 2. explicit //# directives
+    var dir = parseBuildDirectives(code);
+    applyBuildDirectives(dir, params);
+    // malformed directives are a build-config error, not a silent no-op
+    if (dir.errors.length)
+        throw new Error('build directive error: ' + dir.errors.join('; '));
 }
 function processEmbedDirective(code) {
     let re3 = /^\s*#embed\s+"(.+?)"/gm;

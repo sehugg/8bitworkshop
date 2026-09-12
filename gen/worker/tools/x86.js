@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.compileSmallerC = compileSmallerC;
 exports.assembleYASM = assembleYASM;
+const toolmeta_1 = require("../../common/toolmeta");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const wasmutils_1 = require("../wasmutils");
@@ -60,6 +61,9 @@ function compileSmallerC(step) {
         if (params.extra_compile_args) {
             args.unshift.apply(args, params.extra_compile_args);
         }
+        // //#symbol c / //#flag c
+        args.unshift.apply(args, (0, toolmeta_1.defineArgs)('smlrc', params.symbols && params.symbols.compiler)
+            .concat((0, toolmeta_1.extraArgsFor)('smlrc', params.buildArgs)));
         (0, wasmutils_1.execMain)(step, smlrc, args);
         if (errors.length)
             return { errors: errors };
@@ -75,6 +79,7 @@ function compileSmallerC(step) {
 }
 function assembleYASM(step) {
     (0, wasmutils_1.loadNative)("yasm");
+    var params = step.params;
     var errors = [];
     (0, builder_1.gatherFiles)(step, { mainFilePath: "main.asm" });
     var objpath = step.prefix + ".exe";
@@ -99,7 +104,9 @@ function assembleYASM(step) {
         var FS = YASM.FS;
         //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
         (0, builder_1.populateFiles)(step, FS);
-        //fixParamsWithDefines(step.path, step.params);
+        (0, builder_1.fixParamsWithDefines)(step.path, step.params);
+        // //#symbol as / //#flag as (insert before the source filename)
+        args.splice(args.length - 1, 0, ...(0, toolmeta_1.defineArgs)('yasm', params.symbols && params.symbols.assembler), ...(0, toolmeta_1.extraArgsFor)('yasm', params.buildArgs));
         (0, wasmutils_1.execMain)(step, YASM, args);
         if (errors.length)
             return { errors: errors };

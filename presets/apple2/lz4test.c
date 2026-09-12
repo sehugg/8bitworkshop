@@ -5,7 +5,7 @@ with a hires graphics image.
 */
 
 // CC65 config, reserves space for the HGR1 screen buffer
-#define CFGFILE apple2-hgr.cfg
+//#tooldef ld cfgfile=apple2-hgr.cfg
 
 #pragma data-name(push,"HGR")
 // this segment is required, but we leave it empty

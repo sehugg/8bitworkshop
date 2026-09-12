@@ -2,10 +2,9 @@
   font-size: 0.8em;
 }
 .help th {
-  padding-top: 8px;
+  padding: 0 6px;
 }
 .help td {
-  vertical-align: top;
   padding: 0 6px;
 }
 .help td:first-child {
@@ -478,6 +477,84 @@ div.markdown td {
 }
 div.markdown th {
  padding:0.2em;
+}
+/* help window (#help/<topic>): Markdown docs shipped with the IDE */
+.help-view {
+ background-color:#333;
+ color:#ddd;
+ padding:1.25em 1.5em;
+ font-size:1em;
+ line-height:1.5;
+ min-height:100%;
+ box-sizing:border-box;
+ font-family:'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+}
+.help-view h1 {
+ color:#fff;
+ font-size:1.5em;
+ margin:0 0 0.6em 0;
+}
+.help-view h2 {
+ color:#7ec7ff;
+ font-size:1.25em;
+ margin:1.4em 0 0.5em 0;
+ padding-bottom:0.2em;
+ border-bottom:1px solid #444;
+}
+.help-view h3 {
+ color:#9fd0ff;
+ font-size:1.05em;
+ margin:1.1em 0 0.4em 0;
+}
+.help-view a {
+ color:#7ea6ff;
+}
+.help-view a:hover {
+ color:#a9c6ff;
+}
+.help-view code {
+ background:#1d1d1d;
+ color:#ffd479;
+ padding:0.1em 0.3em;
+ border-radius:3px;
+ font-size:0.9em;
+}
+.help-view pre {
+ background:#1d1d1d;
+ padding:0.75em 1em;
+ border-radius:4px;
+ overflow-x:auto;
+}
+.help-view pre code {
+ background:none;
+ padding:0;
+ color:#e8e8e8;
+}
+.help-view table {
+ border-collapse:collapse;
+ margin:1em 0;
+}
+.help-view th, .help-view td {
+ border:1px solid #444;
+ padding:0.3em 0.6em;
+ text-align:left;
+}
+.help-view th {
+ background:#383838;
+}
+.help-view blockquote {
+ border-left:3px solid #555;
+ margin:1em 0;
+ padding:0.2em 1em;
+ color:#bbb;
+}
+.help-view hr {
+ border:none;
+ border-top:1px solid #444;
+ margin:1.5em 0;
+}
+.help-view img {
+ max-width:100%;
 }
 #sidebar {
   overflow:auto;
@@ -1057,6 +1134,11 @@ div.scripting-cell button.scripting-enabled {
 }
 .dialog-help {
   color: #6666ff;
+}
+/* scrollable body for long info dialogs (e.g. Toolchain Info) */
+.dialog-scroll {
+  max-height: 65vh;
+  overflow-y: auto;
 }
 /* breakpoints window */
 .bp-view {

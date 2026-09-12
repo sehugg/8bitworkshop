@@ -105,8 +105,12 @@ async function compile(options) {
             platform: options.platform,
             tool: options.tool,
             path: options.path || ('src.' + options.tool),
-            mainfile: options.mainfile !== false
+            mainfile: options.mainfile !== false,
         };
+        if (options.symbols)
+            msg.symbols = options.symbols;
+        if (options.buildArgs)
+            msg.buildArgs = options.buildArgs;
         result = await (0, workerlib_1.handleMessage)(msg);
     }
     return workerResultToCompileResult(result);
@@ -290,7 +294,7 @@ function getToolForFilename(fn, platform) {
  * `buildAs` renames the file for the build, for sources whose name on disk
  * isn't one the tool accepts (the IDE's skeleton.<tool> templates).
  */
-async function compileSourceFile(tool, platform, filePath, buildAs) {
+async function compileSourceFile(tool, platform, filePath, buildAs, opts) {
     await initialize();
     var code = fs.readFileSync(filePath, 'utf-8');
     var basename = buildAs || filePath.split('/').pop();
@@ -303,12 +307,17 @@ async function compileSourceFile(tool, platform, filePath, buildAs) {
     var deps = resolveAllDependencies(code, basename, platform, sourceDir);
     if (deps.length === 0) {
         // No dependencies found, use simple single-file path
-        return compile({
+        var single = {
             tool: tool,
             platform: platform,
             code: code,
             path: basename,
-        });
+        };
+        if (opts && opts.symbols)
+            single.symbols = opts.symbols;
+        if (opts && opts.buildArgs)
+            single.buildArgs = opts.buildArgs;
+        return compile(single);
     }
     // Build multi-file message with updates and buildsteps
     var files = [];
@@ -324,13 +333,18 @@ async function compileSourceFile(tool, platform, filePath, buildAs) {
     }
     // Build steps: main file first
     var buildsteps = [];
-    buildsteps.push({
+    var mainstep = {
         path: basename,
         files: [basename].concat(depFilenames),
         platform: platform,
         tool: tool,
         mainfile: true,
-    });
+    };
+    if (opts && opts.symbols)
+        mainstep.symbols = opts.symbols;
+    if (opts && opts.buildArgs)
+        mainstep.buildArgs = opts.buildArgs;
+    buildsteps.push(mainstep);
     // Link dependencies get their own build steps, with tool selected by extension
     for (var dep of deps) {
         if (dep.link && dep.data) {

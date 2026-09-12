@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.assembleCA65 = assembleCA65;
 exports.linkLD65 = linkLD65;
 exports.compileCC65 = compileCC65;
+const toolmeta_1 = require("../../common/toolmeta");
 const util_1 = require("../../common/util");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
@@ -139,6 +140,10 @@ function assembleCA65(step) {
         if (step.mainfile) {
             args.unshift.apply(args, ["-D", "__MAIN__=1"]);
         }
+        // //#symbol as / //#flag as (insert before the source filename)
+        var extra = (0, toolmeta_1.defineArgs)('ca65', step.params.symbols && step.params.symbols.assembler)
+            .concat((0, toolmeta_1.extraArgsFor)('ca65', step.params.buildArgs));
+        args.splice(args.length - 1, 0, ...extra);
         (0, wasmutils_1.execMain)(step, CA65, args);
         if (errors.length) {
             let listings = {};
@@ -189,6 +194,9 @@ function linkLD65(step) {
             //'--dbgfile', 'main.dbg', // TODO: get proper line numbers
             '-o', 'main',
             '-m', 'main.map'].concat(step.args, libargs);
+        // //#symbol ld (symbols not already merged into libargs) and //#flag ld
+        args.push.apply(args, (0, toolmeta_1.linkSymbolArgs)('ld65', params.symbols && params.symbols.linker));
+        args.push.apply(args, (0, toolmeta_1.extraArgsFor)('ld65', params.buildArgs));
         (0, wasmutils_1.execMain)(step, LD65, args);
         if (errors.length)
             return { errors: errors };
@@ -334,6 +342,9 @@ function compileCC65(step) {
         if (step.mainfile) {
             args.unshift.apply(args, ["-D", "__MAIN__"]);
         }
+        // //#symbol c / //#flag c
+        args.push.apply(args, (0, toolmeta_1.defineArgs)('cc65', params.symbols && params.symbols.compiler));
+        args.push.apply(args, (0, toolmeta_1.extraArgsFor)('cc65', params.buildArgs));
         var customArgs = params.extra_compiler_args || ['-T', '-g', '-Oirs', '-Cl', '-W', '-pointer-sign,-no-effect'];
         args = args.concat(customArgs, args);
         args.push(step.path);

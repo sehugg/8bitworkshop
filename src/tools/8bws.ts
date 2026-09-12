@@ -20,8 +20,13 @@ import { RUN_SCRIPT_HELP, RunScript, parseNum, parseSymbolFile } from './runscri
 import type { CompileResult } from './testlib';
 
 interface Args {
-  [key: string]: string | true;
+  [key: string]: string | true | string[];
 }
+
+/** Options that may be repeated; each occurrence adds to a list. */
+const REPEATABLE_FLAGS = new Set([
+  'define', 'as-define', 'ld-define', 'cflag', 'asflag', 'ldflag',
+]);
 
 /** ROM extensions that name exactly one platform. */
 const ROM_PLATFORMS: { [ext: string]: string } = {
@@ -63,8 +68,15 @@ function parseArgs(argv: string[]): { command: string; args: Args; positional: s
     if (!arg.startsWith('-') || arg === '-') { positional.push(arg); continue; }
     const key = arg.startsWith('--') ? arg.substring(2) : (SHORT_FLAGS[arg.substring(1)] || arg.substring(1));
     const next = argv[i + 1];
-    if (!booleans.has(key) && next != null && !next.startsWith('--')) args[key] = argv[++i];
-    else args[key] = true;
+    if (!booleans.has(key) && next != null && !next.startsWith('--')) {
+      const val = argv[++i];
+      if (REPEATABLE_FLAGS.has(key)) {
+        const cur = args[key];
+        if (cur == null) args[key] = [val];
+        else if (Array.isArray(cur)) cur.push(val);
+        else args[key] = [cur as string, val];
+      } else args[key] = val;
+    } else args[key] = true;
   }
   return { command: resolved, args, positional };
 }
@@ -72,6 +84,29 @@ function parseArgs(argv: string[]): { command: string; args: Args; positional: s
 function str(args: Args, key: string): string | undefined {
   const v = args[key];
   return typeof v === 'string' ? v : undefined;
+}
+
+/** All values for a repeatable option (empty if absent). */
+function list(args: Args, key: string): string[] {
+  const v = args[key];
+  if (v == null) return [];
+  return Array.isArray(v) ? v : [v as string];
+}
+
+/** Build-symbol / build-arg overrides from the command line. */
+function buildOverrides(args: Args) {
+  return {
+    symbols: {
+      compiler: list(args, 'define'),
+      assembler: list(args, 'as-define'),
+      linker: list(args, 'ld-define'),
+    },
+    buildArgs: {
+      compiler: list(args, 'cflag'),
+      assembler: list(args, 'asflag'),
+      linker: list(args, 'ldflag'),
+    },
+  };
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -94,7 +129,7 @@ async function compileSource(args: Args, source: string, platform: string): Prom
     fail('build', `Unknown tool: ${tool}. Use list-tools to see available tools.`);
   }
   await preload(tool, platform);
-  const result = await compileSourceFile(tool, platform, source);
+  const result = await compileSourceFile(tool, platform, source, undefined, buildOverrides(args));
   if (!result.success) {
     fail('build', `${tool} failed on ${source}`, { errors: result.errors });
   }
@@ -284,6 +319,12 @@ function usage(error?: string): never {
           '--check': 'compile without writing anything',
           '--symbols': 'dump the symbol table and segments',
           '--save': 'save all intermediate build files to a temp dir',
+          '--define <N[=V]>': 'preprocessor define for the compiler (repeatable)',
+          '--as-define <N[=V]>': 'symbol for the assembler (repeatable)',
+          '--ld-define <N=INT>': 'linker symbol, integer expression (repeatable)',
+          '--cflag <arg>': 'extra compiler argument (repeatable)',
+          '--asflag <arg>': 'extra assembler argument (repeatable)',
+          '--ldflag <arg>': 'extra linker argument (repeatable)',
         },
         'run options': {
           '-p, --platform <id>': 'platform emulator (Platform interface)',

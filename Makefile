@@ -36,6 +36,7 @@ submodules:
 buildtsc: submodules buildgrammars
 	npm run esbuild-clean
 	npm run tsbuild
+	npm run doctools
 	npm run esbuild
 
 prepare: buildtsc
@@ -46,15 +47,12 @@ prepare: buildtsc
 	cp gif.js/dist/* ./lib/
 	cd jsnes && npm i
 
-mkdoc:
-	npm run mkdoc
-
 distro: buildtsc
 	rm -fr $(TMP) && mkdir -p $(TMP)
 	git archive HEAD | tar x -C $(TMP)
 	cp -rp gen $(TMP)
 	cp -rp tss $(TMP)
-	rm -r $(TMP)/doc $(TMP)/scripts $(TMP)/test* $(TMP)/tools $(TMP)/.[a-z]* $(TMP)/ts*.json # $(TMP)/meta
+	rm -fr $(TMP)/doc $(TMP)/scripts $(TMP)/test* $(TMP)/tools $(TMP)/.[a-z]* $(TMP)/ts*.json # $(TMP)/meta
 	rm -f $(TMP)/javatari && mkdir -p $(TMP)/javatari && cp -p javatari.js/release/javatari/* $(TMP)/javatari/
 
 getip:
@@ -72,8 +70,8 @@ tsweb: submodules node_modules getip
 	make buildgrammars; \
 	$(TSC) -w --preserveWatchOutput & \
 	make watchgrammars & \
-	npm run esbuild-worker -- --watch & \
-	npm run esbuild-ui -- --watch & \
+	npm run esbuild -- worker --watch & \
+	npm run esbuild -- ui --watch & \
 	python3 scripts/serveit.py 2>> /dev/null & \
 	wait
 
