@@ -82,6 +82,7 @@ void draw_playfield() {
   cputsxy(20, 0, "Plyr2:");
   cputcxy( 7, 0, players[0].score+'0');
   cputcxy(27, 0, players[1].score+'0');
+  cputsxy( 6, ROWS-1, "I/J/K/L - UP/LEFT/DOWN/RIGHT");
 }
 
 typedef enum { D_RIGHT, D_DOWN, D_LEFT, D_UP } dir_t;
@@ -129,8 +130,8 @@ void human_control(Player* p) {
   switch (key) {
     case 'I': dir = D_UP; break;
     case 'J': dir = D_LEFT; break;
-    case 'K': dir = D_RIGHT; break;
-    case 'M': dir = D_DOWN; break;
+    case 'L': dir = D_RIGHT; break;
+    case 'K': dir = D_DOWN; break;
   }
   // don't let the player reverse direction
   if (dir < 0x80 && dir != (p->dir ^ 2)) {

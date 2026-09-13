@@ -92,6 +92,15 @@ exports.textMapFunctions = {
 function setUppercaseOnly(uppercaseOnly) {
     exports.textMapFunctions.input = uppercaseOnly ? (s) => s.toUpperCase() : null;
 }
+/** Return the current selection text from a CodeMirror view ('' if none). */
+function getEditorSelectionText(view) {
+    if (!view)
+        return '';
+    const range = view.state.selection.main;
+    if (range.empty)
+        return '';
+    return view.state.sliceDoc(range.from, range.to);
+}
 class SourceEditor {
     constructor(path, mode) {
         this.updateTimer = null;
@@ -428,6 +437,9 @@ class SourceEditor {
     getValue() {
         return this.editor.state.doc.toString();
     }
+    getSelectionText() {
+        return getEditorSelectionText(this.editor);
+    }
     getPath() { return this.path; }
     markErrors(errors) {
         // TODO: move cursor to error line if offscreen?
@@ -670,6 +682,9 @@ SourceEditor.tracingEnabled = false;
 ///
 const disasmWindow = 1024; // disassemble this many bytes around cursor
 class DisassemblerView {
+    getSelectionText() {
+        return getEditorSelectionText(this.disasmview);
+    }
     createDiv(parent) {
         var div = document.createElement('div');
         div.setAttribute("class", "editor");
@@ -941,6 +956,9 @@ function lookupSharedFileText(fn) {
 // Project files are linked to their own editor windows instead.
 // Each opened header gets its own window, id '#headerview/<filename>'.
 class HeaderView {
+    getSelectionText() {
+        return getEditorSelectionText(this.view);
+    }
     constructor(fn) {
         this.fn = fn;
         this.languageCompartment = new state_1.Compartment();

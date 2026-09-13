@@ -10,6 +10,7 @@ export interface ProjectView {
     tick?(): void;
     getPath?(): string;
     getValue?(): string;
+    getSelectionText?(): string;
     setText?(text: string): void;
     setData?(data: any): void;
     insertLinesBefore?(text: string): void;

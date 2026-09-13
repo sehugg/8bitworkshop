@@ -170,7 +170,6 @@ function atari8_showHelp() {
 }
 ///
 emu_1.PLATFORMS['atari8-800.xlmame'] = Atari800MAMEPlatform;
-emu_1.PLATFORMS['atari8-800xl.mame'] = Atari800MAMEPlatform; // for dithertron
 emu_1.PLATFORMS['atari8-5200.mame'] = Atari5200MAMEPlatform;
 emu_1.PLATFORMS['atari8-800'] = Atari800Platform;
 emu_1.PLATFORMS['atari8-5200'] = Atari5200Platform;

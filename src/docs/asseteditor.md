@@ -1,6 +1,6 @@
 # Asset Editor
 
-The Asset Editor finds [Asset Headers](asset-headers.md) in your source — small JSON
+The Asset Editor finds [asset headers](asset-headers.md) in your source — small JSON
 descriptors inside comments — and turns the data block that follows into
 an editable bitmap, tilemap, or palette. Edits are written straight back
 into the source text, preserving the original number base and formatting

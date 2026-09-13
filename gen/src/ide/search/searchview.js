@@ -27,6 +27,19 @@ const MAX_RESULTS = 30;
 function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
+/**
+ * Get the currently selected text from the active view, but only when it
+ * is a single-line selection (searching across lines makes no sense here).
+ */
+function getActiveSelectionText() {
+    const wnd = ui_1.projectWindows && ui_1.projectWindows.getActive && ui_1.projectWindows.getActive();
+    if (wnd && wnd.getSelectionText) {
+        const sel = wnd.getSelectionText();
+        if (sel && sel.indexOf('\n') < 0 && sel.indexOf('\r') < 0)
+            return sel.trim();
+    }
+    return '';
+}
 /** Open the file/header/doc associated with a search hit. */
 function openSearchHit(hit) {
     var _a;
@@ -234,5 +247,12 @@ function openSearchDialog() {
             selectRow(currentHits.length - 1);
         }
     });
+    // Prefill with the active editor's selection (single-line only) so the
+    // highlighted text can be searched immediately.
+    const initialSelection = getActiveSelectionText();
+    if (initialSelection) {
+        input.val(initialSelection);
+        doSearch();
+    }
 }
 //# sourceMappingURL=searchview.js.map
