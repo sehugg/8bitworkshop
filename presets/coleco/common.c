@@ -19,21 +19,22 @@ byte text_attr = 0;
 // default mode-4 palette: entries 0-15 are the background (tile) palette,
 // entries 16-31 are the sprite palette. CHR_GENERIC glyphs use colors 0-3.
 #if defined(__PLATFORM_SMS_GG_LIBCV__)
-#define PALCOL(r,g,b) ((unsigned short)(((b)*5)<<8 | ((g)*5)<<4 | ((r)*5)))
+/*{pal:444,n:32}*/
 const unsigned short DEFAULT_PALETTE[32] = {
-#else
-#define PALCOL(r,g,b) ((unsigned char)(((b)<<4) | ((g)<<2) | (r)))
-const unsigned char DEFAULT_PALETTE[32] = {
-#endif
-  PALCOL(0,0,0), PALCOL(3,3,3), PALCOL(3,3,0), PALCOL(1,3,1),
-  PALCOL(0,0,3), PALCOL(3,0,0), PALCOL(3,0,3), PALCOL(0,3,3),
-  PALCOL(2,2,2), PALCOL(1,1,1), PALCOL(3,1,1), PALCOL(3,3,1),
-  PALCOL(1,1,3), PALCOL(2,0,0), PALCOL(0,2,0), PALCOL(0,0,2),
-  PALCOL(0,0,0), PALCOL(3,3,3), PALCOL(3,3,0), PALCOL(3,0,0),
-  PALCOL(0,3,0), PALCOL(0,0,3), PALCOL(3,0,3), PALCOL(0,3,3),
-  PALCOL(2,2,2), PALCOL(3,1,1), PALCOL(1,3,1), PALCOL(1,1,3),
-  PALCOL(2,0,0), PALCOL(0,2,0), PALCOL(0,0,2), PALCOL(1,1,1),
+  0x000, 0x00F, 0x0F0, 0x0FF, 0xF00, 0xF0F, 0xFF0, 0xFFF,
+  0x555, 0x55F, 0xFA5, 0x5AF, 0xAA0, 0xAFA, 0xFAF, 0xAFF,
+  0x000, 0x00F, 0x0F0, 0x0FF, 0xF00, 0xF0F, 0xFF0, 0xFFF,
+  0x555, 0x55F, 0xFA5, 0x5AF, 0xAA0, 0xAFA, 0xFAF, 0xAFF
 };
+#else
+/*{pal:222,n:32}*/
+const unsigned char DEFAULT_PALETTE[32] = {
+  0x00, 0x03, 0x0C, 0x0F, 0x30, 0x33, 0x3C, 0x3F,
+  0x15, 0x17, 0x39, 0x1B, 0x28, 0x2E, 0x3B, 0x2F,
+  0x00, 0x03, 0x0C, 0x0F, 0x30, 0x33, 0x3C, 0x3F,
+  0x15, 0x17, 0x39, 0x1B, 0x28, 0x2E, 0x3B, 0x2F,
+};
+#endif
 
 void set_default_palette() {
   cvu_memtocmemcpy(0xc000, DEFAULT_PALETTE, sizeof(DEFAULT_PALETTE));
@@ -169,11 +170,11 @@ void vdp_setup() {
   // SG-1000 leave VRAM zeroed -- without this, putstringxy() output is
   // invisible (blank pattern table) and the color table is transparent.
   copy_default_character_set();
-  cvu_vmemset(COLOR, 0xf1, 32);
 #endif
-  cvu_vmemset(SPRITES, 0xff, 0x400);
+  cvu_vmemset(SPRITES, 0xf0, 0x400); // set sprites offscreen
   cv_set_sprite_attribute_table(SPRITES);
   cv_set_sprite_big(true);
+  cv_set_colors(15, 1); // set fg/bg (mode 4: set border color)
 }
 
 void set_shifted_pattern(const byte* src, word dest, byte shift) {

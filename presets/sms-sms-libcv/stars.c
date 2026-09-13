@@ -23,10 +23,7 @@ determine the new position of the star pixel when we animate.
 #include <cvu.h>
 
 //#link "common.c"
-//#link "chr_generic.c"
 #include "common.h"
-
-extern const unsigned char CHR_GENERIC[8192];
 
 // the starting character index in the pattern table
 #define STAR_BASE_CHAR 0xf0
@@ -78,10 +75,11 @@ void starfield_update() {
 }
 
 void setup_graphics() {
-  cvu_memtovmemcpy(PATTERN, CHR_GENERIC, sizeof(CHR_GENERIC));
   set_default_palette();
-  cv_set_colors(CV_COLOR_BLACK, CV_COLOR_BLACK);
+  cv_set_colors(0, 0); // black border
 }
+
+#ifdef __MAIN__
 
 void main() {
   vdp_setup();
@@ -95,3 +93,5 @@ void main() {
     starfield_update();
   }
 }
+
+#endif
