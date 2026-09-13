@@ -21,7 +21,7 @@ export var SG1000_PRESETS = [
   {id:'climber.c', name:'Climber Game'},
 ];
 
-export var SMS_PRESETS = [
+const LIB_CV_SMS_PRESETS = [
   { id: 'mode4test.c', name: 'Mode 4 Test' },
   { id: 'text.c', name: 'Text Mode' },
   { id: 'hello.c', name: 'Scrolling Text' },
@@ -32,6 +32,16 @@ export var SMS_PRESETS = [
   { id: 'musicplayer.c', name: 'Multivoice Music' },
   { id: 'siegegame.c', name: 'Siege Game' },
   { id: 'climber.c', name: 'Climber Game' },
+  { id: 'solarian.c', name: 'Solarian Game' },
+];
+
+// Solarian hardcodes an SMS mode-4 CRAM palette, so it is not offered on Game Gear.
+export var SMS_PRESETS = [
+  ...LIB_CV_SMS_PRESETS,
+];
+
+export var GG_PRESETS = [
+  ...LIB_CV_SMS_PRESETS
 ];
 
 ///
@@ -57,7 +67,7 @@ class SMSPlatform extends BaseZ80MachinePlatform<SMS> implements Platform {
 class GameGearPlatform extends BaseZ80MachinePlatform<GameGear> implements Platform {
 
   newMachine()          { return new GameGear(); }
-  getPresets()          { return SMS_PRESETS; }
+  getPresets()          { return GG_PRESETS; }
 
   readAddress(a)        { return this.machine.read(a); }
   readVRAMAddress(a)    { return this.machine.readVRAMAddress(a); }
