@@ -81,6 +81,22 @@ directory of the file containing the header (`sub/main.c` + `data.bin` →
 `sub/data.bin`). The file's byte length is validated against the format
 the same way inline data is.
 
+### Overlapping arrays
+
+The scanner decides where a data block ends from how the header starts,
+not from the language of the file. A `/*{…}*/` header always ends at the
+next `;`. A `;;{…};;` header always ends at the next `;;`.
+
+So in an assembly file you can't stack two `;;` headers — the second one
+looks like the end of the first. But you *can* drop a `/*{…}*/` header in
+the middle of a byte block; it will read up to the next `;`.
+
+`presets/nes/chr_generic.s` does this. One `;;` header describes all 256
+CHR tiles, and a `/*{…}*/` header near the end describes 15 of those same
+bytes as 16×16 sprites. The ranges overlap on purpose, so the editor
+shows the same data two ways. Just remember that any `;` inside the block
+will cut it short.
+
 ## Field reference
 
 ### Image fields
@@ -114,8 +130,7 @@ everything else falls back to a sensible default.
 
 ### Palette fields
 
-Give a block a `pal` and no `w`/`h`, and it becomes a palette editor
-instead of an image editor.
+A block with `pal` and no `w`/`h` describes a palette instead of an image.
 
 | Field | Default | Description |
 | --- | --- | --- |
@@ -133,15 +148,14 @@ instead of an image editor.
   `pal:444` is a 4096-color chooser regardless of how many entries the
   block holds.
 - **A name**: `"nes"`, `"vcs"`, `"c64"`, `"gb"`, `"ap2lores"`,
-  `"astrocade"`, or `"pacman"` (Namco color-PROM bytes, decoded with
-  MAME's resistor weights). These are the only recognized names — an
+  `"astrocade"`, or `"pacman"`.
+  These are the only recognized names — an
   unknown one reports `No palette named X`.
 
 Bitmaps pick up their colors from palette blocks **anywhere in the open
 project**, matched by entry count — a 4-color bitmap offers every 4-entry
-palette (and every 4-entry slice named by a `layout`) in a dropdown. Game
-Boy projects fall back to the DMG green scale when no palette block
-matches.
+palette (and every 4-entry slice named by a `layout`) in a dropdown.
+Projects fall back to a default palette when no palette block matches.
 
 ```c
 /*{pal:"nes",layout:"nes"}*/
@@ -174,7 +188,7 @@ plane 1 in bytes 8–15.
 ## The address model
 
 Everything except the special modes below is described by one addressing
-formula. Read it through once and the rest of the fields will make sense.
+formula:
 
 ```
 bpw        = bpw   ?? 8                      // bits per word
@@ -199,11 +213,11 @@ for each image n, for each row y:
             shift = 0
 ```
 
-Four consequences worth internalizing:
+A few things to note:
 
 1. **`remap` is applied to `ofs0` inside the `x` loop**, after the
    byte-advance. It therefore sees the byte index *within* a row as well
-   as the row and image index — which is exactly what lets you describe
+   as the row and image index — which lets you describe
    multi-tile-wide sprites.
 2. **`skip` is added last**, after `remap` and after the plane offset. It
    offsets the whole block, not each image.
@@ -232,10 +246,6 @@ remap(ofs)  =  OR over i of:  bit i of ofs  →  bit remap[i] of result
 A **negative** entry `-n` maps source bit `i` to destination bit `n-1`
 **and inverts it** — use it when the hardware stores the halves in the
 opposite order.
-
-This exists because the natural row-major offset (`n*wpimg + y*sl +
-xbyte`) rarely matches how hardware stores multi-tile sprites. Writing
-the two offsets side by side in binary tells you the array.
 
 ### Worked example: NES 16×16 metasprite
 
@@ -266,12 +276,26 @@ From `presets/gb/pakupaku.c`:
 /*{w:16,h:16,bpp:1,count:19,brev:1,np:2,pofs:1,sl:2,wpimg:64,remap:[5,1,2,3,4,0,6,7,8,9,10,11,12]}*/
 ```
 
-Game Boy interleaves its planes (`pofs:1`), so `sl:2` is already consumed
-by the two planes of a single 8-pixel row, and the natural offset `64n +
-2y + xb` puts `xb` in bit 0 and `y` in bits 1–4. Bit 5 is never set. The
-remap sends bit 0 (the 8×16 column) up to bit 5 and folds the unused bit
-5 down to 0, producing `64n + 32·xb + 16·y3 + 2·(y&7)` — the L-top,
-L-bot, R-top, R-bot tile order the game's OAM code uses.
+Game Boy interleaves its two planes, so `pofs:1`: each plane gets one
+byte per 8-pixel row, and `sl:2` covers both planes of that row. The
+natural offset is therefore `64n + 2y + xb`, with `xb` in bit 0 and `y`
+in bits 1–4.
+
+The remap rearranges those bits as follows:
+
+| Source bit | Meaning | → | Dest bit | Contributes |
+| --- | --- | --- | --- | --- |
+| 0 | `xb` (left/right 8×8 tile) | → | 5 | 32 |
+| 1,2,3 | `y0,y1,y2` | → | 1,2,3 | `y & 7` |
+| 4 | `y3` (top/bottom half) | → | 4 | 16 |
+| 5 | unused | → | 0 | — |
+| 6+ | image index `n` | → | 6+ | 64·n |
+
+So the physical offset becomes `64n + 32·xb + 16·y3 + 2·(y&7)`, plus `p`
+for the plane. That is upper-left, lower-left, upper-right, lower-right —
+the tile order pakupaku's OAM code expects. Bit 5 is unused only because
+`y` never exceeds 15 here; mapping it to bit 0 keeps the remap a proper
+permutation of the range.
 
 ### `remap` must be a bijection
 
@@ -378,7 +402,7 @@ Editor tab. When that happens, check things in this order:
 
 ## Cookbook
 
-Real formats to copy from the preset tree:
+Some recipes you can copy and paste:
 
 | Platform | Header |
 | --- | --- |
