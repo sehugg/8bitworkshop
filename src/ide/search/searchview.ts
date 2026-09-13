@@ -33,6 +33,19 @@ function escapeHtml(s: string): string {
   );
 }
 
+/**
+ * Get the currently selected text from the active view, but only when it
+ * is a single-line selection (searching across lines makes no sense here).
+ */
+function getActiveSelectionText(): string {
+  const wnd = projectWindows && projectWindows.getActive && projectWindows.getActive();
+  if (wnd && wnd.getSelectionText) {
+    const sel = wnd.getSelectionText();
+    if (sel && sel.indexOf('\n') < 0 && sel.indexOf('\r') < 0) return sel.trim();
+  }
+  return '';
+}
+
 /** Open the file/header/doc associated with a search hit. */
 export function openSearchHit(hit: SearchHit) {
   const rec = hit.record;
@@ -234,4 +247,12 @@ export function openSearchDialog() {
       selectRow(currentHits.length - 1);
     }
   });
+
+  // Prefill with the active editor's selection (single-line only) so the
+  // highlighted text can be searched immediately.
+  const initialSelection = getActiveSelectionText();
+  if (initialSelection) {
+    input.val(initialSelection);
+    doSearch();
+  }
 }

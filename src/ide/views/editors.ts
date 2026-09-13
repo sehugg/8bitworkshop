@@ -97,6 +97,14 @@ export function setUppercaseOnly(uppercaseOnly: boolean) {
   textMapFunctions.input = uppercaseOnly ? (s) => s.toUpperCase() : null;
 }
 
+/** Return the current selection text from a CodeMirror view ('' if none). */
+function getEditorSelectionText(view: EditorView): string {
+  if (!view) return '';
+  const range = view.state.selection.main;
+  if (range.empty) return '';
+  return view.state.sliceDoc(range.from, range.to);
+}
+
 export class SourceEditor implements ProjectView {
   // Whether to highlight recently-executed lines from live trace data.
   // Off by default (probing has a runtime cost); toggled via toolbar button.
@@ -489,6 +497,10 @@ export class SourceEditor implements ProjectView {
     return this.editor.state.doc.toString();
   }
 
+  getSelectionText(): string {
+    return getEditorSelectionText(this.editor);
+  }
+
   getPath(): string { return this.path; }
 
   markErrors(errors: WorkerError[]) {
@@ -747,6 +759,10 @@ const disasmWindow = 1024; // disassemble this many bytes around cursor
 
 export class DisassemblerView implements ProjectView {
   disasmview: EditorView;
+
+  getSelectionText(): string {
+    return getEditorSelectionText(this.disasmview);
+  }
 
   createDiv(parent: HTMLElement) {
     var div = document.createElement('div');
@@ -1027,6 +1043,10 @@ export function lookupSharedFileText(fn: string): Promise<string | null> {
 // Each opened header gets its own window, id '#headerview/<filename>'.
 export class HeaderView implements ProjectView {
   view: EditorView;
+
+  getSelectionText(): string {
+    return getEditorSelectionText(this.view);
+  }
   currentPath: string;
   languageCompartment = new Compartment();
 
