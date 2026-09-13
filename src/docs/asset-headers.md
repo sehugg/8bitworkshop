@@ -9,10 +9,10 @@ a comment, sitting right above the bytes:
 const byte tiles[] = { ... };
 ```
 
-From that short comment the editor knows the data is two 8×8, 1-bit
-images, most significant bit on the left. You write the header by hand
-once, and from then on the Asset Editor can draw and edit the data for
-you.
+The Asset Editor scans that comment and reads the JSON inside.
+It then knows how to convert the bytes inside the array to and from an image.
+
+For example, the above comment represents two images, 8x8 pixels, 1 bit per pixel, most significant bit on the left.
 
 ## Header syntax
 
@@ -26,14 +26,14 @@ which depends on the language:
 | Assembly | `;;{w:8,h:8};;` | next `;;` |
 | Verilog | `/*{w:8,h:8}*/` | next `end` |
 
-**Each number needs a radix prefix so the editor can read it.** It
-recognizes `0xNN`, `$NN`, `#$NN`, `%0101`, `0b0101`, `8'hNN`, `8'b0101`,
-and assembler `hex 1f20…` statements. It also remembers the notation you
-used and writes edits back the same way, so a file of `$`-prefixed bytes
-stays `$`-prefixed. The one thing it will *not* read is **plain
-decimal** — a block of `{24,60,126,…}` parses as zero values and reports
-*"Expected 8 value(s), found 0"*.
+**Each number needs a radix prefix.**
+It recognizes `0xNN`, `$NN`, `#$NN`, `%0101`, `0b0101`, `8'hNN`, `8'b0101`,
+and assembler `hex aabbcc…` statements.
+It remembers the notation you used and writes each number back the same way.
+It does *not* recognize **plain decimal** numbers
+— a block of `{24,60,126,…}` parses as zero values and reports an error.
 
+Examples:
 ```c
 /*{w:8,h:8,bpp:1,count:2,brev:1}*/
 const byte tiles[] = {
@@ -45,15 +45,14 @@ const byte tiles[] = {
 ```asm
 ;;{w:8,h:8,count:1,brev:1,flip:1};;
 PlayerGfx:
-        .byte $18,$3c,$7e,$ff,$ff,$7e,$3c,$18
+       .byte $18,$3c,$7e,$ff
+       hex ff7e3c18
 ;;
 ```
 
-### Writing JSON loosely
-
-You don't have to quote the keys. The scanner rewrites `([A-Za-z]+):` to
-`"$1":` before parsing, so `w:8` and `"w":8` mean the same thing. String
-*values* still need their quotes, though: `pal:"nes"`, `comp:"rletag"`.
+The JSON parser isn't strict, so you don't have to "quote" keys --
+`w:8` and `"w":8` mean the same thing.
+String *values* still need their quotes, though: `pal:"nes"`, `comp:"rletag"`.
 
 ### Things to watch out for
 
@@ -75,11 +74,6 @@ const char sprite[] = {
 #embed "sprite.bin"
 };
 ```
-
-The path is resolved first exactly as written, then relative to the
-directory of the file containing the header (`sub/main.c` + `data.bin` →
-`sub/data.bin`). The file's byte length is validated against the format
-the same way inline data is.
 
 ### Overlapping arrays
 
@@ -110,10 +104,10 @@ everything else falls back to a sensible default.
 | `h` | *required* | Height in pixels |
 | `count` | `1` | Number of images |
 | `bpp` | `1` | Bits per pixel |
-| `np` | `1` | Number of bitplanes (colors = 2<sup>bpp&times;np</sup>) |
+| `np` | `1` | Number of bitplanes (colors = 2<sup>bpp&dot;np</sup>) |
 | `bpw` | `8` | Bits per word (8, 16, 32) |
 | `sl` | `ceil(w*bpp/bpw)` | Words per scanline (stride) |
-| `wpimg` | `sl*h` | Words per image — use when hardware pads images |
+| `wpimg` | `sl*h` | Words per image (for padding) |
 | `pofs` | `sl*h*count` | Distance between bitplanes, in words |
 | `skip` | `0` | Words to skip at the start of the whole block |
 | `brev` | `false` | MSB is the leftmost pixel |
@@ -149,10 +143,9 @@ A block with `pal` and no `w`/`h` describes a palette instead of an image.
   block holds.
 - **A name**: `"nes"`, `"vcs"`, `"c64"`, `"gb"`, `"ap2lores"`,
   `"astrocade"`, or `"pacman"`.
-  These are the only recognized names — an
-  unknown one reports `No palette named X`.
+  An unknown name reports an error.
 
-Bitmaps pick up their colors from palette blocks **anywhere in the open
+Bitmaps pick up their colors from palette blocks **anywhere in the current
 project**, matched by entry count — a 4-color bitmap offers every 4-entry
 palette (and every 4-entry slice named by a `layout`) in a dropdown.
 Projects fall back to a default palette when no palette block matches.
