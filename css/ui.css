@@ -57,33 +57,97 @@
     white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
     pointer-events: none;
 }
+/* body is a column: top bar, notebook, status bar. controls_top is allowed
+   to grow (its inline controls wrap on narrow screens) and the notebook
+   takes whatever is left, so no height math is needed. */
+body {
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+  height:100dvh;
+}
 #controls_top {
-  position:absolute;
+  flex:0 0 auto;
+  min-height:3em;
   padding:0.5em;
-  height:3em;
   width:100%;
   background-color:#999;
 }
+/* contain the floated logo/menus so wrapped content counts toward the height */
+#controls_top::after {
+  content:"";
+  display:table;
+  clear:both;
+}
 #notebook {
-  position:absolute;
-  top:3em;
-  bottom:1.8em;
-  left:0;
-  right:0;
+  position:relative;
+  flex:1 1 auto;
+  min-height:0;
   background-color:#666;
   overflow:hidden;
   display:flex;
   flex-direction:row;
+}
+/* small screens: the three panes become tabs, one visible at a time */
+#mobiletabs {
+  display:none;
+  flex:0 0 auto;
+  background-color:#444;
+  border-bottom:1px solid #555;
+}
+body.tab-layout #notebook {
+  flex-direction:column;
+}
+body.tab-layout #mobiletabs {
+  display:flex;
+}
+/* save horizontal room for the wrapped controls */
+body.tab-layout .logo-gradient {
+  display:none;
+}
+#mobiletabs .mobiletab {
+  flex:1 1 0;
+  background:none;
+  border:none;
+  border-right:1px solid #555;
+  color:#ccc;
+  padding:0.6em 0.5em;
+  font-size:1em;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#mobiletabs .mobiletab:last-child {
+  border-right:none;
+}
+#mobiletabs .mobiletab.active {
+  background-color:#666;
+  color:#fff;
+  font-weight:bold;
+}
+body.tab-layout #notebook > #sidebar:not(.active),
+body.tab-layout #notebook > #workspace:not(.active),
+body.tab-layout #notebook > #emulator:not(.active) {
+  display:none;
+}
+body.tab-layout #notebook > #sidebar.active,
+body.tab-layout #notebook > #workspace.active,
+body.tab-layout #notebook > #emulator.active {
+  /* fill the notebook: flex-grow takes the height, width overrides the
+     calc(% - gutter) width that Split.js sets inline */
+  flex:1 1 auto;
+  width:100% !important;
+}
+body.tab-layout #notebook > .gutter {
+  display:none;
 }
 #workspace {
   background-color:#333;
   overflow:hidden;
 }
 #shortcuts_bar {
-  position:absolute;
-  bottom:0;
-  left:0;
-  right:0;
+  position:relative;
+  flex:0 0 auto;
   height:2em;
   line-height:2em;
   font-size:0.9em;
@@ -143,15 +207,9 @@
   #shortcuts_bar {
     display:none;
   }
-  #notebook {
-    bottom:0;
-  }
 }
 body.statusbar-hidden #shortcuts_bar {
   display:none;
-}
-body.statusbar-hidden #notebook {
-  bottom:0;
 }
 div.editor {
   font-size: 1.25rem;
