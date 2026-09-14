@@ -141,6 +141,10 @@ body.tab-layout #notebook > #emulator.active {
 body.tab-layout #notebook > .gutter {
   display:none;
 }
+/* no button-group background on mobile tab layout */
+body.tab-layout .btn_group {
+  background-color:transparent;
+}
 #workspace {
   background-color:#333;
   overflow:hidden;
