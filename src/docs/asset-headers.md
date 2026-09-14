@@ -22,16 +22,15 @@ which depends on the language:
 
 | Language | Header | Data block ends at |
 | --- | --- | --- |
-| C / C++ | `/*{w:8,h:8}*/` | next `;` |
-| Assembly | `;;{w:8,h:8};;` | next `;;` |
-| Verilog | `/*{w:8,h:8}*/` | next `end` |
+| C / C++ | `/*{w:8,h:8}*/` | `;` |
+| Assembly | `;;{w:8,h:8};;` | `;;` |
+| Verilog | `/*{w:8,h:8}*/` | `end` |
 
 **Each number needs a radix prefix.**
 It recognizes `0xNN`, `$NN`, `#$NN`, `%0101`, `0b0101`, `8'hNN`, `8'b0101`,
 and assembler `hex aabbcc…` statements.
 It remembers the notation you used and writes each number back the same way.
-It does *not* recognize **plain decimal** numbers
-— a block of `{24,60,126,…}` parses as zero values and reports an error.
+It does *not* recognize **plain decimal** numbers, so for example `{24,60,126,…}` will be skipped.
 
 Examples:
 ```c
@@ -54,7 +53,7 @@ The JSON parser isn't strict, so you don't have to "quote" keys --
 `w:8` and `"w":8` mean the same thing.
 String *values* still need their quotes, though: `pal:"nes"`, `comp:"rletag"`.
 
-### Things to watch out for
+### Gotchas
 
 - **The first `;` wins.** In C the block ends at the very next semicolon,
   so the array declaration must be the only statement between the header
@@ -63,7 +62,7 @@ String *values* still need their quotes, though: `pal:"nes"`, `comp:"rletag"`.
 - A malformed header is reported inline in the Asset Editor tab, rather
   than being silently ignored.
 
-### Reading data from another file with `#embed`
+### Read binary files with `#embed`
 
 If the data block contains an `#embed` directive, the bytes are read
 from that file instead of from the source text:

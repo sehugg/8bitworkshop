@@ -2,7 +2,8 @@
 import assert from "assert";
 import { describe, it } from "mocha";
 import {
-  scanTextForAssetFragments, resolveEmbedPath, validateAssetByteLength
+  scanTextForAssetFragments, resolveEmbedPath, validateAssetByteLength,
+  parseHexWords, validateAssetData
 } from "../../src/ide/pixeleditor";
 
 describe('Asset scanner', function () {
@@ -80,6 +81,29 @@ describe('#embed path resolution', function () {
     var exists = (p: string) => !!files[p];
     assert.equal(resolveEmbedPath('main.c', 'missing.bin', exists), null);
   });
+});
+
+describe('Asset data literal radix prefixes', function () {
+
+  it('should recognize every documented radix-prefixed form', function () {
+    assert.deepEqual(
+      parseHexWords("0x18, $3c, #$7e, %0101, 0b0101, 8'hff, 8'b1010"),
+      [0x18, 0x3c, 0x7e, 5, 5, 0xff, 0x0a]);
+  });
+
+  it('should treat plain decimal literals as unmatched (no radix prefix)', function () {
+    assert.deepEqual(parseHexWords('{24,60,126,255}'), []);
+  });
+
+  it('should report "found 0" for a decimal-only asset data block', function () {
+    var src = '/*{w:8,h:8,bpp:1,count:1,brev:1}*/\nbyte tiles[] = {24,60,126,255,24,60,126,255};\n';
+    var frags = scanTextForAssetFragments(src, false);
+    assert.equal(frags.length, 1);
+    assert.equal(frags[0].error, undefined);
+    var err = validateAssetData(src.substring(frags[0].start, frags[0].end), frags[0].fmt);
+    assert.equal(err, 'Expected 8 value(s), found 0');
+  });
+
 });
 
 describe('validateAssetByteLength (for #embed binary files)', function () {
