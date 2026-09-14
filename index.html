@@ -217,8 +217,10 @@ body {
   <select id="preset_select" name="" title="Project Select" style="max-width:20em;visibility:hidden;height:2.3em">
   </select>
 
-  <img id="compile_spinner" src="images/spinner.gif" style="visibility:hidden;margin-left:8px;margin-right:8px;height:2em">
+  <img id="compile_spinner" src="images/spinner.gif">
+
   <span id="toolbar"></span>
+
   <span class="btn_group view_group hidden-sm hidden-xs" id="speed_bar" style="display:none">
     <button id="dbg_slowest" class="btn" title="Slowest"><span class="glyphicon glyphicon-fast-backward" aria-hidden="true"></span></button>
     <button id="dbg_slower" class="btn" title="Slower"><span class="glyphicon glyphicon-backward" aria-hidden="true"></span></button>
@@ -226,13 +228,19 @@ body {
     <button id="dbg_faster" class="btn" title="Faster"><span class="glyphicon glyphicon-forward" aria-hidden="true"></span></button>
     <button id="dbg_fastest" class="btn" title="Faster"><span class="glyphicon glyphicon-fast-forward" aria-hidden="true"></span></button>
   </span>
+
   <span id="verilog_bar" style="display:none">
     <span class="label"><span id="settle_label"></span> evals/clk</span>
   </span>
 
+  <span style="margin:auto"></span>
+
+  <!-- 8bitworkshop logo -->
+  <span class="logo-gradient hidden-sm" onclick="window.open('https://8bitworkshop.com/','_8bitws');">8bitworkshop</span>
+
   <!-- BOOKS menu -->
-  <span class="dropdown pull-right">
-    <a class="btn dropdown-toggle hidden-xs hiddem-sm toolbarMenuButton" id="booksMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+  <span class="dropdown hidden-xs" id="books-menu">
+    <a class="btn dropdown-toggle toolbarMenuButton" id="booksMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
       <span class="glyphicon glyphicon-book" aria-hidden="true"></span>
       Books <span class="caret"></span>
     </a>
@@ -269,8 +277,6 @@ body {
       </li>
     </ul>
   </span>
-  <!-- 8bitworkshop logo -->
-  <span class="logo-gradient pull-right" style="margin-left:auto" onclick="window.open('https://8bitworkshop.com/','_8bitws');">8bitworkshop</span>
  </div><!-- controls_dynamic -->
 </div><!-- controls_top -->
 

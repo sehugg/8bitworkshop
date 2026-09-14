@@ -13,6 +13,12 @@
   padding-bottom: 2px;
   min-width: 160px;
 }
+#compile_spinner {
+  visibility: hidden;
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+  height: 1.5em;
+}
 .tooltipbox {
     position: relative;
     display: inline-block;
@@ -69,15 +75,26 @@ body {
 #controls_top {
   flex:0 0 auto;
   min-height:3em;
-  padding:0.5em;
+  padding:0.25em;
   width:100%;
   background-color:#999;
 }
-/* contain the floated logo/menus so wrapped content counts toward the height */
-#controls_top::after {
-  content:"";
-  display:table;
-  clear:both;
+/* the inline controls are a wrapping flex row so they squish and flow onto
+   extra rows on narrow screens instead of overflowing the viewport */
+#controls_dynamic {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  row-gap:0.2em;
+}
+/* push the Books menu (and the logo after it) to the right edge */
+#controls_dynamic > .dropdown.pull-right {
+  margin-left:auto;
+}
+/* let the project picker shrink with the row instead of forcing overflow */
+#controls_dynamic > #preset_select {
+  flex:0 1 auto;
+  min-width:0;
 }
 #notebook {
   position:relative;
@@ -144,6 +161,30 @@ body.tab-layout #notebook > .gutter {
 /* no button-group background on mobile tab layout */
 body.tab-layout .btn_group {
   background-color:transparent;
+  padding:1px;
+  margin-left:2px;
+}
+body.tab-layout #controls_top {
+  padding:0.25em;
+}
+body.tab-layout .btn_toolbar {
+  margin:2px;
+}
+/* on mobile the toolbar drops to its own row(s), leaving the menu,
+   platform picker and project picker sharing the first row */
+body.tab-layout #controls_dynamic > #toolbar {
+  flex-basis:100%;
+}
+body.tab-layout #platformsMenuButton {
+  min-width:0 !important;
+  max-width:9em;
+}
+body.tab-layout #platformsMenuButton .platform_name {
+  display:inline-block;
+  max-width:6.5em;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  vertical-align:bottom;
 }
 #workspace {
   background-color:#333;
@@ -263,8 +304,10 @@ div.mem_info button {
  text-align:right;
 }
 .btn_group {
+  display:flex;
+  align-items:center;
   border-radius:8px;
-  padding:8px;
+  padding:4px;
   margin-left:8px;
   background-color: #666;
 }
@@ -290,7 +333,10 @@ div.mem_info button {
   color: #ff6666 !important;
 }
 .btn_toolbar {
- margin:4px;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  margin:2px;
 }
 span.hilite {
   color: #ff66ff;
