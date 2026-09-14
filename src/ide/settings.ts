@@ -7,7 +7,7 @@ import { setBarVisible } from "./shortcutbar";
 import { debugHighlightTagsTooltip } from "./views/debug";
 import { insertTabKeymap, smartIndentKeymap } from "./views/tabs";
 
-declare var bootbox;
+declare var bootbox: BootboxStatic;
 declare var $: JQueryStatic;
 
 export const highlightSpecialCharsCompartment = new Compartment();

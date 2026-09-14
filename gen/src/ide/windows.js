@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProjectWindows = void 0;
-const $ = require("jquery");
 const util_1 = require("../common/util");
 const shortcutbar_1 = require("./shortcutbar");
 class ProjectWindows {

@@ -10,7 +10,6 @@ exports.setBarVisible = setBarVisible;
 exports.refreshShortcutBar = refreshShortcutBar;
 exports.registerElementShortcuts = registerElementShortcuts;
 exports.unregisterElementShortcuts = unregisterElementShortcuts;
-const $ = require("jquery");
 const keys_1 = require("./keys");
 // display a mousetrap-style key spec for the current platform:
 //   mac:       'mod+shift+r' -> '⇧⌘R',  'ctrl+alt+r' -> '⌃⌥R'

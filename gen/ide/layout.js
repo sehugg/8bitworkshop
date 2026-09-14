@@ -23,7 +23,7 @@ var hooks = null;
 var notebookSplit = null;
 // true when the panes are shown as tabs (one at a time) instead of side by side
 var tabMode = false;
-var activeTab = 'emulator';
+var activeTab = 'workspace';
 // the side-by-side sizes to restore when we leave tab mode
 var desktopSizes = null;
 var splitStorageName = null;
