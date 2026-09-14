@@ -51,6 +51,7 @@
     "esbuild": "^0.28.2",
     "express": "^4.18.2",
     "fast-png": "^5.0.4",
+    "jquery": "^3.7.1",
     "jsdom": "^25.0.1",
     "lzg": "^1.0.x",
     "markdown-it": "^15.0.2",
