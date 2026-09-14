@@ -8,6 +8,11 @@
 //   registers  PC, A, X, Y, SP ... (numeric fields of the CPU state)
 //   symbols    resolved from the debug symbol map (baked in at compile time)
 //   memory     [expr] reads a byte at expr
+//   spaces     #mem[expr] / #ram[expr] and #vram[expr] read a byte from the
+//              main or VRAM space; #mem16[expr], #vram16[expr], ... read a
+//              little-endian 16-bit word
+//   hardware   #name reads a platform accessor (e.g. #scanline), namespaced
+//              behind '#' so it can never collide with a program symbol
 // Operators (C-like precedence): ! ~ - + (unary), * / %, + -, << >>,
 //   < <= > >=, == !=, &, ^, |, &&, ||, and parentheses.
 // The whole expression is true when it evaluates to non-zero.
@@ -17,6 +22,9 @@ export interface CondContext {
     cpuFields: Set<string>;                        // valid register names (from getCPUState())
     symbol: (name: string) => number | undefined;  // debug symbol lookup
     readMem?: (addr: number) => number | undefined;
+    readVRAM?: (addr: number) => number | undefined;
+    // platform accessors reachable with the '#' sigil (e.g. #scanline)
+    hw?: { [name: string]: () => number | undefined };
 }
 
 export type CondFn = (c: any) => boolean;
@@ -29,7 +37,7 @@ interface Token {
 }
 
 const OPERATORS2 = ['<<', '>>', '<=', '>=', '==', '!=', '&&', '||'];
-const OPERATORS1 = '+-*/%<>!~&|^()[]';
+const OPERATORS1 = '+-*/%<>!~&|^()[]#';
 
 function tokenize(src: string): Token[] {
     let toks: Token[] = [];
@@ -86,6 +94,8 @@ type Node =
     { t: 'num', v: number } |
     { t: 'id', name: string } |
     { t: 'mem', a: Node } |
+    { t: 'read', space: 'mem' | 'vram', width: 1 | 2, a: Node } |
+    { t: 'hw', name: string } |
     { t: 'un', op: string, a: Node } |
     { t: 'bin', op: string, a: Node, b: Node };
 
@@ -185,6 +195,21 @@ class Parser {
             this.expect(']');
             return { t: 'mem', a: n };
         }
+        if (t.t == 'op' && t.v == '#') {
+            let id = this.next();
+            if (!id || id.t != 'id') throw new Error("expected a name after '#'");
+            if (this.atOp('[')) {
+                this.next();
+                let n = this.parseOr();
+                this.expect(']');
+                // #mem/#ram and #vram, optionally with a 16-bit width suffix
+                let m = /^(mem|ram|vram)(16)?$/i.exec(id.v);
+                if (!m) throw new Error("unknown memory space '#" + id.v + "'");
+                let space: 'mem' | 'vram' = m[1].toLowerCase() == 'vram' ? 'vram' : 'mem';
+                return { t: 'read', space: space, width: m[2] ? 2 : 1, a: n };
+            }
+            return { t: 'hw', name: id.v };
+        }
         throw new Error("unexpected '" + t.v + "'");
     }
 }
@@ -217,6 +242,33 @@ function compileNode(n: Node, ctx: CondContext): NumFn {
                 const v = ctx.readMem(a(c) & 0xffff);
                 if (typeof v !== 'number') throw new Error("cannot read memory");
                 return v;
+            };
+        }
+        case 'read': {
+            const a = compileNode(n.a, ctx);
+            const space = n.space;
+            const width = n.width;
+            return (c) => {
+                const rd = space == 'vram' ? ctx.readVRAM : ctx.readMem;
+                if (!rd) throw new Error(space == 'vram' ? "VRAM reads not supported" : "memory reads not supported");
+                const addr = a(c) & 0xffff;
+                let v = rd(addr);
+                if (typeof v !== 'number') throw new Error("cannot read memory");
+                if (width == 2) {
+                    let hi = rd((addr + 1) & 0xffff);
+                    if (typeof hi !== 'number') throw new Error("cannot read memory");
+                    v = (v | (hi << 8)) & 0xffff;
+                }
+                return v;
+            };
+        }
+        case 'hw': {
+            const name = n.name;
+            const acc = ctx.hw && ctx.hw[name];
+            if (!acc) throw new Error("unknown '#" + name + "'");
+            return () => {
+                const v = acc();
+                return typeof v === 'number' ? v : 0;
             };
         }
         case 'un': {

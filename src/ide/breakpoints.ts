@@ -161,10 +161,25 @@ function makeCondContext(): CondContext {
         if (c) cpuFields = new Set(Object.keys(c));
     } catch (e) {
     }
+    // platform accessors reachable with the '#' sigil; the value is read live
+    // at eval time so it reflects the current raster position, etc.
+    let hw: { [name: string]: () => number | undefined } = null;
+    if (platform) {
+        if (platform.getRasterScanline) {
+            hw = hw || {};
+            hw['scanline'] = () => platform.getRasterScanline();
+        }
+        if (platform.getRasterLineClock) {
+            hw = hw || {};
+            hw['lineclock'] = () => platform.getRasterLineClock();
+        }
+    }
     return {
         cpuFields,
         symbol: makeSymbolLookup(),
         readMem: platform && platform.readAddress ? (a) => platform.readAddress(a) : undefined,
+        readVRAM: platform && platform.readVRAMAddress ? (a) => platform.readVRAMAddress(a) : undefined,
+        hw,
     };
 }
 

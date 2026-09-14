@@ -6,6 +6,11 @@ const ctx = {
     cpuFields: new Set(['PC', 'A', 'X', 'Y', 'SP']),
     symbol: (name: string) => ({ mainloop: 0x800, foo: 0x20 } as { [k: string]: number })[name],
     readMem: (a: number) => (a == 0x10 ? 0x2a : 0),
+    readVRAM: (a: number) => (a == 0x2000 ? 0x80 : 0),
+    hw: {
+        scanline: () => 150,
+        lineclock: () => 40,
+    },
 };
 
 function evalc(src: string, c: any): boolean {
@@ -47,6 +52,38 @@ describe('Breakpoints', () => {
         assert.equal(evalc('A == [$10]', c), true);
         assert.equal(evalc('[foo] == 0', c), true); // foo is at $20, memory there reads 0
         assert.equal(evalc('[0x99] == 0', c), true);
+        // explicit main-memory space is a synonym for plain [expr]
+        assert.equal(evalc('#mem[0x10] == $2a', c), true);
+        assert.equal(evalc('#ram[0x10] == $2a', c), true);
+    });
+
+    it('should support VRAM reads', () => {
+        let c = { PC: 0 };
+        assert.equal(evalc('#vram[0x2000] == $80', c), true);
+        assert.equal(evalc('#vram[0x2000] != $80', c), false);
+        assert.equal(evalc('#vram[0x9999] == 0', c), true);
+    });
+
+    it('should support 16-bit reads', () => {
+        // little-endian: $10 holds $2a, $11 holds $01 -> $012a
+        let ctx16 = { ...ctx, readMem: (a: number) => (a == 0x10 ? 0x2a : a == 0x11 ? 0x01 : 0) };
+        let c = { PC: 0 };
+        assert.equal(compileCondition('#mem16[0x10] == $012a', ctx16)(c), true);
+        assert.equal(compileCondition('#ram16[0x10] == $012a', ctx16)(c), true);
+        assert.equal(evalc('#mem16[0x99] == $0000', c), true); // both bytes read 0
+        assert.equal(evalc('#vram16[0x2000] == $0080', c), true);
+    });
+
+    it('should support hardware accessors', () => {
+        let c = { PC: 0 };
+        assert.equal(evalc('#scanline == 150', c), true);
+        assert.equal(evalc('#scanline > 100 && #lineclock < 50', c), true);
+    });
+
+    it('should reject unknown hardware accessors and spaces', () => {
+        assert.throws(() => compileCondition('#foo == 1', ctx));
+        assert.throws(() => compileCondition('#bogus[0] == 1', ctx));
+        assert.throws(() => compileCondition('# == 1', ctx));
     });
 
     it('should support arithmetic and bitwise ops', () => {
