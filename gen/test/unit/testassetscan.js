@@ -71,6 +71,22 @@ const pixeleditor_1 = require("../../src/ide/pixeleditor");
         assert_1.default.equal((0, pixeleditor_1.resolveEmbedPath)('main.c', 'missing.bin', exists), null);
     });
 });
+(0, mocha_1.describe)('Asset data literal radix prefixes', function () {
+    (0, mocha_1.it)('should recognize every documented radix-prefixed form', function () {
+        assert_1.default.deepEqual((0, pixeleditor_1.parseHexWords)("0x18, $3c, #$7e, %0101, 0b0101, 8'hff, 8'b1010"), [0x18, 0x3c, 0x7e, 5, 5, 0xff, 0x0a]);
+    });
+    (0, mocha_1.it)('should treat plain decimal literals as unmatched (no radix prefix)', function () {
+        assert_1.default.deepEqual((0, pixeleditor_1.parseHexWords)('{24,60,126,255}'), []);
+    });
+    (0, mocha_1.it)('should report "found 0" for a decimal-only asset data block', function () {
+        var src = '/*{w:8,h:8,bpp:1,count:1,brev:1}*/\nbyte tiles[] = {24,60,126,255,24,60,126,255};\n';
+        var frags = (0, pixeleditor_1.scanTextForAssetFragments)(src, false);
+        assert_1.default.equal(frags.length, 1);
+        assert_1.default.equal(frags[0].error, undefined);
+        var err = (0, pixeleditor_1.validateAssetData)(src.substring(frags[0].start, frags[0].end), frags[0].fmt);
+        assert_1.default.equal(err, 'Expected 8 value(s), found 0');
+    });
+});
 (0, mocha_1.describe)('validateAssetByteLength (for #embed binary files)', function () {
     (0, mocha_1.it)('should accept a C64 hires sprite (24x21 1bpp, 64-byte hw stride)', function () {
         var fmt = { w: 24, h: 21, bpp: 1, brev: 1, wpimg: 64, count: 1 };

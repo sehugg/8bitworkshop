@@ -9,6 +9,11 @@
 //   registers  PC, A, X, Y, SP ... (numeric fields of the CPU state)
 //   symbols    resolved from the debug symbol map (baked in at compile time)
 //   memory     [expr] reads a byte at expr
+//   spaces     #mem[expr] / #ram[expr] and #vram[expr] read a byte from the
+//              main or VRAM space; #mem16[expr], #vram16[expr], ... read a
+//              little-endian 16-bit word
+//   hardware   #name reads a platform accessor (e.g. #scanline), namespaced
+//              behind '#' so it can never collide with a program symbol
 // Operators (C-like precedence): ! ~ - + (unary), * / %, + -, << >>,
 //   < <= > >=, == !=, &, ^, |, &&, ||, and parentheses.
 // The whole expression is true when it evaluates to non-zero.
@@ -16,7 +21,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.compileCondition = compileCondition;
 exports.parseTarget = parseTarget;
 const OPERATORS2 = ['<<', '>>', '<=', '>=', '==', '!=', '&&', '||'];
-const OPERATORS1 = '+-*/%<>!~&|^()[]';
+const OPERATORS1 = '+-*/%<>!~&|^()[]#';
 function tokenize(src) {
     let toks = [];
     let i = 0;
@@ -209,6 +214,23 @@ class Parser {
             this.expect(']');
             return { t: 'mem', a: n };
         }
+        if (t.t == 'op' && t.v == '#') {
+            let id = this.next();
+            if (!id || id.t != 'id')
+                throw new Error("expected a name after '#'");
+            if (this.atOp('[')) {
+                this.next();
+                let n = this.parseOr();
+                this.expect(']');
+                // #mem/#ram and #vram, optionally with a 16-bit width suffix
+                let m = /^(mem|ram|vram)(16)?$/i.exec(id.v);
+                if (!m)
+                    throw new Error("unknown memory space '#" + id.v + "'");
+                let space = m[1].toLowerCase() == 'vram' ? 'vram' : 'mem';
+                return { t: 'read', space: space, width: m[2] ? 2 : 1, a: n };
+            }
+            return { t: 'hw', name: id.v };
+        }
         throw new Error("unexpected '" + t.v + "'");
     }
 }
@@ -242,6 +264,37 @@ function compileNode(n, ctx) {
                 if (typeof v !== 'number')
                     throw new Error("cannot read memory");
                 return v;
+            };
+        }
+        case 'read': {
+            const a = compileNode(n.a, ctx);
+            const space = n.space;
+            const width = n.width;
+            return (c) => {
+                const rd = space == 'vram' ? ctx.readVRAM : ctx.readMem;
+                if (!rd)
+                    throw new Error(space == 'vram' ? "VRAM reads not supported" : "memory reads not supported");
+                const addr = a(c) & 0xffff;
+                let v = rd(addr);
+                if (typeof v !== 'number')
+                    throw new Error("cannot read memory");
+                if (width == 2) {
+                    let hi = rd((addr + 1) & 0xffff);
+                    if (typeof hi !== 'number')
+                        throw new Error("cannot read memory");
+                    v = (v | (hi << 8)) & 0xffff;
+                }
+                return v;
+            };
+        }
+        case 'hw': {
+            const name = n.name;
+            const acc = ctx.hw && ctx.hw[name];
+            if (!acc)
+                throw new Error("unknown '#" + name + "'");
+            return () => {
+                const v = acc();
+                return typeof v === 'number' ? v : 0;
             };
         }
         case 'un': {

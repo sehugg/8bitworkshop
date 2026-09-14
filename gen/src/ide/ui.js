@@ -1578,50 +1578,6 @@ function resetAndDebug() {
     if (wasRecording)
         _enableRecording();
 }
-function _breakExpression() {
-    var modal = $("#debugExprModal");
-    var btn = $("#debugExprSubmit");
-    var input = $("#debugExprInput");
-    input.val(lastBreakExpr);
-    $("#debugExprExamples").text(getDebugExprExamples());
-    modal.modal('show');
-    var submit = () => {
-        var exprs = input.val() + "";
-        modal.modal('hide');
-        breakExpression(exprs);
-    };
-    btn.off('click').on('click', submit);
-    input.off('keydown').on('keydown', (e) => {
-        if (e.key == 'Enter')
-            submit();
-    });
-    modal.one('shown.bs.modal', () => input.trigger('focus'));
-}
-function getDebugExprExamples() {
-    var state = exports.platform.saveState && exports.platform.saveState();
-    var cpu = state.c;
-    console.log(cpu, state);
-    var s = '';
-    if (cpu.PC)
-        s += "c.PC == 0x" + (0, util_1.hex)(cpu.PC) + "\n";
-    if (cpu.SP)
-        s += "c.SP < 0x" + (0, util_1.hex)(cpu.SP) + "\n";
-    if (cpu['HL'])
-        s += "c.HL == 0x4000\n";
-    if (exports.platform.readAddress)
-        s += "this.readAddress(0x1234) == 0x0\n";
-    if (exports.platform.readVRAMAddress)
-        s += "this.readVRAMAddress(0x1234) != 0x80\n";
-    if (exports.platform['getRasterScanline'])
-        s += "this.getRasterScanline() > 222\n";
-    return s;
-}
-function breakExpression(exprs) {
-    var fn = new Function('c', 'return (' + exprs + ');').bind(exports.platform);
-    setupBreakpoint();
-    exports.platform.runEval(fn);
-    lastBreakExpr = exprs;
-}
 function updateDebugWindows() {
     if (exports.platform.isRunning()) {
         exports.projectWindows.tick();
@@ -1836,10 +1792,6 @@ function setupDebugControls() {
     $("#item_reset_file").click(_revertFile);
     $("#item_rename_file").click(_renameFile);
     $("#item_delete_file").click(_deleteFile);
-    if (exports.platform.runEval)
-        $("#item_debug_expr").click(_breakExpression).show();
-    else
-        $("#item_debug_expr").hide();
     $("#item_download_rom").click(shareexport_1._downloadROMImage);
     $("#item_download_file").click(shareexport_1._downloadSourceFile);
     $("#item_download_zip").click(shareexport_1._downloadProjectZipFile);

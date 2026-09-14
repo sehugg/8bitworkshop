@@ -10,6 +10,11 @@ const ctx = {
     cpuFields: new Set(['PC', 'A', 'X', 'Y', 'SP']),
     symbol: (name) => ({ mainloop: 0x800, foo: 0x20 }[name]),
     readMem: (a) => (a == 0x10 ? 0x2a : 0),
+    readVRAM: (a) => (a == 0x2000 ? 0x80 : 0),
+    hw: {
+        scanline: () => 150,
+        lineclock: () => 40,
+    },
 };
 function evalc(src, c) {
     return (0, breakcond_1.compileCondition)(src, ctx)(c);
@@ -45,6 +50,34 @@ function evalc(src, c) {
         assert_1.default.equal(evalc('A == [$10]', c), true);
         assert_1.default.equal(evalc('[foo] == 0', c), true); // foo is at $20, memory there reads 0
         assert_1.default.equal(evalc('[0x99] == 0', c), true);
+        // explicit main-memory space is a synonym for plain [expr]
+        assert_1.default.equal(evalc('#mem[0x10] == $2a', c), true);
+        assert_1.default.equal(evalc('#ram[0x10] == $2a', c), true);
+    });
+    it('should support VRAM reads', () => {
+        let c = { PC: 0 };
+        assert_1.default.equal(evalc('#vram[0x2000] == $80', c), true);
+        assert_1.default.equal(evalc('#vram[0x2000] != $80', c), false);
+        assert_1.default.equal(evalc('#vram[0x9999] == 0', c), true);
+    });
+    it('should support 16-bit reads', () => {
+        // little-endian: $10 holds $2a, $11 holds $01 -> $012a
+        let ctx16 = Object.assign(Object.assign({}, ctx), { readMem: (a) => (a == 0x10 ? 0x2a : a == 0x11 ? 0x01 : 0) });
+        let c = { PC: 0 };
+        assert_1.default.equal((0, breakcond_1.compileCondition)('#mem16[0x10] == $012a', ctx16)(c), true);
+        assert_1.default.equal((0, breakcond_1.compileCondition)('#ram16[0x10] == $012a', ctx16)(c), true);
+        assert_1.default.equal(evalc('#mem16[0x99] == $0000', c), true); // both bytes read 0
+        assert_1.default.equal(evalc('#vram16[0x2000] == $0080', c), true);
+    });
+    it('should support hardware accessors', () => {
+        let c = { PC: 0 };
+        assert_1.default.equal(evalc('#scanline == 150', c), true);
+        assert_1.default.equal(evalc('#scanline > 100 && #lineclock < 50', c), true);
+    });
+    it('should reject unknown hardware accessors and spaces', () => {
+        assert_1.default.throws(() => (0, breakcond_1.compileCondition)('#foo == 1', ctx));
+        assert_1.default.throws(() => (0, breakcond_1.compileCondition)('#bogus[0] == 1', ctx));
+        assert_1.default.throws(() => (0, breakcond_1.compileCondition)('# == 1', ctx));
     });
     it('should support arithmetic and bitwise ops', () => {
         let c = { PC: 0, A: 0x0f, X: 2 };

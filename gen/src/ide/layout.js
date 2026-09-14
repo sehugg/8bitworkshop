@@ -143,6 +143,11 @@ function setupSplits(h) {
         $("#mobiletabs").on("click", ".mobiletab", function () {
             showTab($(this).attr("data-tab"));
         });
+        // picking a window from the sidebar should reveal the workspace pane
+        // (every sidebar entry opens a window there); no-op outside tab mode
+        $("#sidebar").on("click", "a", function () {
+            showTab("editor");
+        });
         if (mobileMediaQuery) {
             if (mobileMediaQuery.addEventListener)
                 mobileMediaQuery.addEventListener("change", updateSplitLayout);

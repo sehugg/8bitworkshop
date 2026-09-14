@@ -141,10 +141,25 @@ function makeCondContext() {
     }
     catch (e) {
     }
+    // platform accessors reachable with the '#' sigil; the value is read live
+    // at eval time so it reflects the current raster position, etc.
+    let hw = null;
+    if (ui_1.platform) {
+        if (ui_1.platform.getRasterScanline) {
+            hw = hw || {};
+            hw['scanline'] = () => ui_1.platform.getRasterScanline();
+        }
+        if (ui_1.platform.getRasterLineClock) {
+            hw = hw || {};
+            hw['lineclock'] = () => ui_1.platform.getRasterLineClock();
+        }
+    }
     return {
         cpuFields,
         symbol: makeSymbolLookup(),
         readMem: ui_1.platform && ui_1.platform.readAddress ? (a) => ui_1.platform.readAddress(a) : undefined,
+        readVRAM: ui_1.platform && ui_1.platform.readVRAMAddress ? (a) => ui_1.platform.readVRAMAddress(a) : undefined,
+        hw,
     };
 }
 function resolveBreakpoint(bp) {
