@@ -110,6 +110,17 @@ tools appear:
 | [Breakpoints](breakpoints.md) | Add and edit breakpoints |
 | [Asset Editor](asseteditor.md) | Edit bitmaps, tilemaps, and palettes embedded in source |
 
+## Small screens
+
+On narrow screens (phones, or any window under 760px wide) the three
+panes — **Files**, **Editor**, and **Emulator** — are shown one at a
+time with a tab bar at the top instead of side by side, starting on the
+**Emulator** tab. Tap a tab to switch panes; the emulator keeps running
+while you edit. The top control bar wraps onto multiple lines as needed,
+and the 8bitworkshop logo is hidden to make room. Rotating the device or
+resizing the window back above the breakpoint restores the side-by-side
+layout and your previous pane sizes.
+
 ## Keyboard Shortcuts
 
 `mod` below is **Ctrl** on Windows/Linux and **Cmd** on macOS.

@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.lastDebugState = exports.projectWindows = exports.current_project = exports.platform = exports.repo_id = exports.store_id = exports.platform_id = exports.qs = void 0;
+exports.lastDebugState = exports.projectWindows = exports.current_project = exports.platform = exports.repo_id = exports.store_id = exports.platform_id = exports.qs = exports.showTab = exports.setupSplits = void 0;
 exports.getPlatformStore = getPlatformStore;
 exports.getCurrentProject = getCurrentProject;
 exports.getCurrentOutput = getCurrentOutput;
@@ -51,7 +51,6 @@ exports.clearBreakpoint = clearBreakpoint;
 exports.setFrameRateUI = setFrameRateUI;
 exports.haltEmulation = haltEmulation;
 exports.gotoNewLocation = gotoNewLocation;
-exports.setupSplits = setupSplits;
 exports.getPlatformAndRepo = getPlatformAndRepo;
 exports.startUI = startUI;
 exports.setTestInput = setTestInput;
@@ -87,9 +86,11 @@ const editors_1 = require("./views/editors");
 const helpview_1 = require("./views/helpview");
 const treeviews_1 = require("./views/treeviews");
 const windows_1 = require("./windows");
+const layout_1 = require("./layout");
+Object.defineProperty(exports, "setupSplits", { enumerable: true, get: function () { return layout_1.setupSplits; } });
+Object.defineProperty(exports, "showTab", { enumerable: true, get: function () { return layout_1.showTab; } });
 const breakpoints_1 = require("./breakpoints");
 const listinglocation_1 = require("./search/listinglocation");
-const Split = require("split.js");
 const DOMPurify = require("dompurify");
 /// EXPORTED GLOBALS (TODO: remove)
 exports.qs = (0, util_1.decodeQueryString)(window.location.search || '?');
@@ -2074,31 +2075,6 @@ function setupReplaySlider() {
     $("#replay_bar").show();
     uitoolbar.add('mod+shift+e', 'Start/Stop Replay Recording', 'glyphicon-record', _toggleRecording).prop('id', 'dbg_record');
 }
-function isLandscape() {
-    try {
-        var object = window.screen['orientation'] || window.screen['msOrientation'] || window.screen['mozOrientation'] || null;
-        if (object) {
-            if (object.type.indexOf('landscape') !== -1) {
-                return true;
-            }
-            if (object.type.indexOf('portrait') !== -1) {
-                return false;
-            }
-        }
-        if ('orientation' in window) {
-            var value = window.orientation;
-            if (value === 0 || value === 180) {
-                return false;
-            }
-            else if (value === 90 || value === 270) {
-                return true;
-            }
-        }
-    }
-    catch (e) { }
-    // fallback to comparing width to height
-    return window.innerWidth > window.innerHeight;
-}
 async function showWelcomeMessage() {
     if (userPrefs.shouldCompleteTour()) {
         await (0, util_1.loadScript)('lib/bootstrap-tourist.js');
@@ -2144,20 +2120,12 @@ async function showWelcomeMessage() {
                 content: "Pull right to expose the sidebar. It lets you switch between source files, view assembly listings, and use other tools like Disassembler, Memory Browser, and Asset Editor."
             }
         ];
-        if (!isLandscape()) {
-            steps.unshift({
-                element: "#controls_top",
-                placement: 'bottom',
-                title: "Portrait mode detected",
-                content: "This site works best on desktop browsers. For best results, rotate your device to landscape orientation."
-            });
-        }
         if ((0, util_1.isProductionHost)()) {
             steps.unshift({
                 element: "#dropdownMenuButton",
                 placement: 'right',
                 title: "Cookie Consent",
-                content: 'Before we start, we should tell you that this website stores cookies and other data in your browser. You can review our <a href="/privacy.html" target="_new">privacy policy</a>.'
+                content: 'Before we start, we should tell you that this website stores persistent data in your browser. Review our <a href="/privacy.html" target="_new">privacy policy</a>.'
             });
             steps.push({
                 element: "#booksMenuButton",
@@ -2430,41 +2398,6 @@ function updateBooksMenu() {
 function revealTopBar() {
     setTimeout(() => { $("#controls_dynamic").css('visibility', 'inherit'); }, 250);
 }
-function setupSplits() {
-    var splitName = 'workspace-split3-' + exports.platform_id;
-    if (isEmbed)
-        splitName = 'embed-' + splitName;
-    var sizes;
-    if (exports.platform_id.startsWith('vcs'))
-        sizes = [0, 50, 50];
-    else if (isEmbed || baseviews_1.isMobileDevice)
-        sizes = [0, 55, 45];
-    else
-        sizes = [12, 44, 44];
-    var sizesStr = hasLocalStorage && localStorage.getItem(splitName);
-    if (sizesStr) {
-        try {
-            sizes = JSON.parse(sizesStr);
-        }
-        catch (e) {
-            console.log(e);
-        }
-    }
-    var split = Split(['#sidebar', '#workspace', '#emulator'], {
-        sizes: sizes,
-        minSize: [0, 250, 250],
-        onDrag: () => {
-            if (exports.platform && exports.platform.resize)
-                exports.platform.resize();
-        },
-        onDragEnd: () => {
-            if (hasLocalStorage)
-                localStorage.setItem(splitName, JSON.stringify(split.getSizes()));
-            if (exports.projectWindows)
-                exports.projectWindows.resize();
-        },
-    });
-}
 function loadImportedURL(url) {
     // TODO: zip file?
     const ignore = (0, util_1.parseBool)(exports.qs.ignore) || isEmbed;
@@ -2592,7 +2525,15 @@ async function startUI() {
         delete exports.qs.repo; // continue without repo
     }
     getPlatformAndRepo();
-    setupSplits();
+    (0, layout_1.setupSplits)({
+        getPlatformId: () => exports.platform_id,
+        isEmbed: isEmbed,
+        hasLocalStorage: hasLocalStorage,
+        resizePlatform: () => { if (exports.platform && exports.platform.resize)
+            exports.platform.resize(); },
+        resizeWindows: () => { if (exports.projectWindows)
+            exports.projectWindows.resize(); },
+    });
     // get store ID, repo id or platform id
     exports.store_id = exports.repo_id || (0, util_1.getBasePlatform)(exports.platform_id);
     // are we embedded?

@@ -33,10 +33,11 @@ import { DisassemblerView, HeaderView, ListingView, PC_LINE_LOOKAHEAD, SourceEdi
 import { HELP_TOPICS, HelpView, helpTopicForView } from "./views/helpview";
 import { CallStackView, DebugBrowserView } from "./views/treeviews";
 import { ProjectWindows } from "./windows";
+import { setupSplits, showTab } from "./layout";
+export { setupSplits, showTab };
 import { bpStore, resolveBreakpoints } from "./breakpoints";
 import { CondFn } from "./breakcond";
 import { findListingLocation as findListingLocationPure } from "./search/listinglocation";
-import Split = require('split.js');
 import DOMPurify = require("dompurify");
 
 // external libs (TODO)
@@ -2068,27 +2069,6 @@ function setupReplaySlider() {
   uitoolbar.add('mod+shift+e', 'Start/Stop Replay Recording', 'glyphicon-record', _toggleRecording).prop('id', 'dbg_record');
 }
 
-
-function isLandscape() {
-  try {
-    var object = window.screen['orientation'] || window.screen['msOrientation'] || window.screen['mozOrientation'] || null;
-    if (object) {
-      if (object.type.indexOf('landscape') !== -1) { return true; }
-      if (object.type.indexOf('portrait') !== -1) { return false; }
-    }
-    if ('orientation' in window) {
-      var value = window.orientation;
-      if (value === 0 || value === 180) {
-        return false;
-      } else if (value === 90 || value === 270) {
-        return true;
-      }
-    }
-  } catch (e) { }
-  // fallback to comparing width to height
-  return window.innerWidth > window.innerHeight;
-}
-
 async function showWelcomeMessage() {
   if (userPrefs.shouldCompleteTour()) {
     await loadScript('lib/bootstrap-tourist.js');
@@ -2134,20 +2114,12 @@ async function showWelcomeMessage() {
         content: "Pull right to expose the sidebar. It lets you switch between source files, view assembly listings, and use other tools like Disassembler, Memory Browser, and Asset Editor."
       }
     ];
-    if (!isLandscape()) {
-      steps.unshift({
-        element: "#controls_top",
-        placement: 'bottom',
-        title: "Portrait mode detected",
-        content: "This site works best on desktop browsers. For best results, rotate your device to landscape orientation."
-      });
-    }
     if (isProductionHost()) {
       steps.unshift({
         element: "#dropdownMenuButton",
         placement: 'right',
         title: "Cookie Consent",
-        content: 'Before we start, we should tell you that this website stores cookies and other data in your browser. You can review our <a href="/privacy.html" target="_new">privacy policy</a>.'
+        content: 'Before we start, we should tell you that this website stores persistent data in your browser. Review our <a href="/privacy.html" target="_new">privacy policy</a>.'
       });
       steps.push({
         element: "#booksMenuButton",
@@ -2419,35 +2391,6 @@ function revealTopBar() {
   setTimeout(() => { $("#controls_dynamic").css('visibility', 'inherit'); }, 250);
 }
 
-export function setupSplits() {
-  var splitName = 'workspace-split3-' + platform_id;
-  if (isEmbed) splitName = 'embed-' + splitName;
-  var sizes;
-  if (platform_id.startsWith('vcs'))
-    sizes = [0, 50, 50];
-  else if (isEmbed || isMobileDevice)
-    sizes = [0, 55, 45];
-  else
-    sizes = [12, 44, 44];
-  var sizesStr = hasLocalStorage && localStorage.getItem(splitName);
-  if (sizesStr) {
-    try {
-      sizes = JSON.parse(sizesStr);
-    } catch (e) { console.log(e); }
-  }
-  var split = Split(['#sidebar', '#workspace', '#emulator'], {
-    sizes: sizes,
-    minSize: [0, 250, 250],
-    onDrag: () => {
-      if (platform && platform.resize) platform.resize();
-    },
-    onDragEnd: () => {
-      if (hasLocalStorage) localStorage.setItem(splitName, JSON.stringify(split.getSizes()))
-      if (projectWindows) projectWindows.resize();
-    },
-  });
-}
-
 function loadImportedURL(url: string) {
   // TODO: zip file?
   const ignore = parseBool(qs.ignore) || isEmbed;
@@ -2570,7 +2513,13 @@ export async function startUI() {
     delete qs.repo; // continue without repo
   }
   getPlatformAndRepo();
-  setupSplits();
+  setupSplits({
+    getPlatformId: () => platform_id,
+    isEmbed: isEmbed,
+    hasLocalStorage: hasLocalStorage,
+    resizePlatform: () => { if (platform && platform.resize) platform.resize(); },
+    resizeWindows: () => { if (projectWindows) projectWindows.resize(); },
+  });
   // get store ID, repo id or platform id
   store_id = repo_id || getBasePlatform(platform_id);
   // are we embedded?

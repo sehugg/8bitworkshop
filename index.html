@@ -274,9 +274,13 @@ body {
  </div><!-- controls_dynamic -->
 </div><!-- controls_top -->
 
-<div id="shortcuts_bar" class="disable-select"></div>
-
 <div id="notebook">
+  <!-- shown only on small screens (see ide/layout.ts); switches the panes below -->
+  <div id="mobiletabs" class="disable-select">
+    <button type="button" class="mobiletab" data-tab="sidebar">Files</button>
+    <button type="button" class="mobiletab" data-tab="editor">Editor</button>
+    <button type="button" class="mobiletab active" data-tab="emulator">Emulator</button>
+  </div>
   <div id="sidebar">
     <ul id="windowMenuList">
     </ul>
@@ -405,6 +409,7 @@ body {
     <div id="error_alert_msg"></div>
   </div>
 </div>
+<div id="shortcuts_bar" class="disable-select"></div>
 <!--
 <div class="twitbtn">
   <a target="_new" href="https://twitter.com/8bitworkshop" class="twitter-follow-button" data-show-count="false">Follow @8bitworkshop</a>-->
