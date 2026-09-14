@@ -76,6 +76,11 @@ body {
   flex:0 0 auto;
   min-height:3em;
   padding:0.25em;
+  /* the bar background reaches the screen edges (viewport-fit=cover) so it
+     covers the notch/island, but its controls stay inside the safe area */
+  padding-top:calc(0.25em + env(safe-area-inset-top));
+  padding-left:calc(0.25em + env(safe-area-inset-left));
+  padding-right:calc(0.25em + env(safe-area-inset-right));
   width:100%;
   background-color:#999;
 }
@@ -166,6 +171,9 @@ body.tab-layout .btn_group {
 }
 body.tab-layout #controls_top {
   padding:0.25em;
+  padding-top:calc(0.25em + env(safe-area-inset-top));
+  padding-left:calc(0.25em + env(safe-area-inset-left));
+  padding-right:calc(0.25em + env(safe-area-inset-right));
 }
 body.tab-layout .btn_toolbar {
   margin:2px;
@@ -193,7 +201,8 @@ body.tab-layout #platformsMenuButton .platform_name {
 #shortcuts_bar {
   position:relative;
   flex:0 0 auto;
-  height:2em;
+  box-sizing:border-box;
+  height:calc(2em + env(safe-area-inset-bottom));
   line-height:2em;
   font-size:0.9em;
   background-color:#999;
@@ -201,6 +210,9 @@ body.tab-layout #platformsMenuButton .platform_name {
   display:flex;
   align-items:center;
   padding:0 0.5em;
+  padding-bottom:env(safe-area-inset-bottom);
+  padding-left:calc(0.5em + env(safe-area-inset-left));
+  padding-right:calc(0.5em + env(safe-area-inset-right));
   z-index:10;
   overflow:hidden;
   white-space:nowrap;
@@ -270,19 +282,24 @@ div.memdump {
 }
 div.mem_info {
   position: fixed;
-  right: 1em;
-  bottom: 2em;
+  /* keep the panel clear of the notch/island and the home indicator */
+  right: calc(1em + env(safe-area-inset-right));
+  bottom: calc(2em + env(safe-area-inset-bottom));
   background-color: #333;
   color: #66ff66;
   z-index: 12;
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
   font-size: 12pt;
+  max-height: calc(80vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  max-height: calc(80dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
   box-shadow: 0px 0px 8px rgba(0,0,0,.5);
 }
 div.mem_info_msg {
   white-space: pre;
   padding: 20px;
-  max-height: 80vh;
+  min-height: 0;
   overflow-y: auto;
 }
 div.mem_info a {
