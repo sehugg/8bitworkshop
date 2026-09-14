@@ -1,5 +1,5 @@
 
-import $ = require("jquery");
+declare var $: JQueryStatic; // use browser jquery
 import { getFilenameForPath, getFilenamePrefix } from "../common/util";
 import { FileData, WorkerError } from "../common/workertypes";
 import { CodeProject } from "./project";

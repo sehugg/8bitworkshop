@@ -1,4 +1,4 @@
-import $ = require("jquery");
+declare var $: JQueryStatic; // use browser jquery
 import { isMacOS } from "./keys";
 
 // KEYBOARD SHORTCUTS / STATUS BAR
