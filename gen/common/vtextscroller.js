@@ -54,6 +54,6 @@ exports.VirtualTextScroller = VirtualTextScroller;
 ///
 // TODO: https://stackoverflow.com/questions/10463518/converting-em-to-px-in-javascript-and-getting-default-font-size
 function getVisibleEditorLineHeight() {
-    return $("#booksMenuButton").first().height();
+    return $("#dropdownMenuButton").first().height();
 }
 //# sourceMappingURL=vtextscroller.js.map

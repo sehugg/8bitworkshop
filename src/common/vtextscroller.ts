@@ -61,6 +61,6 @@ export interface VirtualTextLine {
 // TODO: https://stackoverflow.com/questions/10463518/converting-em-to-px-in-javascript-and-getting-default-font-size
 
 export function getVisibleEditorLineHeight(): number {
-  return $("#booksMenuButton").first().height();
+  return $("#dropdownMenuButton").first().height();
 }
 
