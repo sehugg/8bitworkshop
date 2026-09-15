@@ -2,7 +2,8 @@ import assert from "assert";
 import { describe, it } from "mocha";
 import {
   getDirectColorChannels, encodeDirectColorWord, decodeDirectColorWord,
-  convertPaletteFormat, getPaletteLength
+  convertPaletteFormat, getPaletteLength, Palettizer, SelectablePalette,
+  disambiguatePaletteNames
 } from "../../src/ide/pixeleditor";
 
 describe('Direct-color palette formats', function () {
@@ -49,4 +50,70 @@ describe('Direct-color palette formats', function () {
     assert.deepEqual(c, { r: 5, g: 3, b: 2 });
   });
 
+});
+
+describe('Palettizer preferred palette', function () {
+  var palettes: SelectablePalette[] = [
+    { node: null, name: "Background", palette: new Uint32Array([1, 2, 3, 4]) },
+    { node: null, name: "Sprite", palette: new Uint32Array([5, 6, 7, 8]) },
+  ];
+  var context = {
+    setCurrentEditor: () => {},
+    getTilemaps: () => [],
+    getPalettes: () => palettes,
+  } as any;
+
+  it('should default to the first palette when no name is given', function () {
+    var p = new Palettizer(context, { w: 8, h: 8, bpp: 2 });
+    p.updateRefs();
+    assert.equal(p.palindex, 0);
+    assert.deepEqual(Array.from(p.palette), [1, 2, 3, 4]);
+  });
+
+  it('should select the palette named by fmt.palname', function () {
+    var p = new Palettizer(context, { w: 8, h: 8, bpp: 2, palname: "Sprite" });
+    p.updateRefs();
+    assert.equal(p.palindex, 1);
+    assert.deepEqual(Array.from(p.palette), [5, 6, 7, 8]);
+  });
+
+  it('should fall back to the first palette when the name does not match', function () {
+    var p = new Palettizer(context, { w: 8, h: 8, bpp: 2, palname: "Missing" });
+    p.updateRefs();
+    assert.equal(p.palindex, 0);
+  });
+});
+
+describe('Palette name disambiguation', function () {
+  function entry(name: string, group?: string): SelectablePalette {
+    return { node: null, name, group, palette: new Uint32Array([0, 1, 2, 3]) };
+  }
+
+  it('should leave unique names alone', function () {
+    var pals = [entry("Background"), entry("Sprite")];
+    disambiguatePaletteNames(pals);
+    assert.deepEqual(pals.map((p) => p.name), ["Background", "Sprite"]);
+  });
+
+  it('should prefix only the duplicated slice names with their owner', function () {
+    var pals = [
+      entry("Background 0", "Palette 1"),
+      entry("Sprite 0", "Palette 1"),
+      entry("Background 0", "Palette 2"),
+      entry("Sprite 0", "Palette 2"),
+    ];
+    disambiguatePaletteNames(pals);
+    assert.deepEqual(pals.map((p) => p.name), [
+      "Palette 1: Background 0",
+      "Palette 1: Sprite 0",
+      "Palette 2: Background 0",
+      "Palette 2: Sprite 0",
+    ]);
+  });
+
+  it('should not prefix a unique name even if its owner is set', function () {
+    var pals = [entry("Background 0", "Palette 1"), entry("Screen Color", "Palette 1")];
+    disambiguatePaletteNames(pals);
+    assert.deepEqual(pals.map((p) => p.name), ["Background 0", "Screen Color"]);
+  });
 });

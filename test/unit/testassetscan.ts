@@ -39,6 +39,16 @@ describe('Asset scanner', function () {
     assert.equal(frags[1].embedFile, 'outline.bin');
   });
 
+  it('should parse palette display names and bitmap palette references', function () {
+    var src =
+      '/*{pal:555,n:16,name:"Background"}*/\npalette_color_t bkg[1][4] = { 0x2062, 0x318E, 0x6A28, 0x7714 };\n' +
+      '/*{w:8,h:8,bpp:1,np:2,pofs:1,sl:2,palname:"Background"}*/\nbyte tiles[] = { 0xff };\n';
+    var frags = scanTextForAssetFragments(src, false);
+    assert.equal(frags.length, 2);
+    assert.deepEqual(frags[0].fmt, { pal: 555, n: 16, name: "Background" });
+    assert.deepEqual(frags[1].fmt, { w: 8, h: 8, bpp: 1, np: 2, pofs: 1, sl: 2, palname: "Background" });
+  });
+
   it('should report an error when no closing delimiter is found', function () {
     var src = '/*{w:8,h:8}*/\nbyte tiles[] = {1,2,3}\n'; // no trailing ;
     var frags = scanTextForAssetFragments(src, false);

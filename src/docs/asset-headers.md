@@ -116,6 +116,7 @@ everything else falls back to a sensible default.
 | `reindex` | — | Per-column word/bit table |
 | `aspect` | `1` | Pixel aspect ratio for display only |
 | `art` | `false` | Apple II HGR artifact-color mode |
+| `palname` | — | Preferred palette name for preview |
 | `comp` | — | `"rletag"` = RLE-compressed block |
 | `map` | — | `"nesnt"` = NES nametable, not a bitmap |
 | `pacstrip` | — | Pac-Man/Namco vertical-strip layout |
@@ -130,6 +131,7 @@ A block with `pal` and no `w`/`h` describes a palette instead of an image.
 | `pal` | — | Palette decoding, see below |
 | `n` | — | Advisory entry count — the real count comes from the data |
 | `layout` | — | Grouped editor layout: `nes`, `astrocade`, `pacman` |
+| `name` | `"Palette N"` | Display name in the bitmap editor's palette dropdown |
 
 `pal` is either:
 
@@ -156,6 +158,27 @@ const char PALETTE[8] = { 0x0F, 0x11,0x24,0x3C, 0x00, 0x01,0x15,0x25 };
 
 `bpw` applies to palette blocks too — PC Engine palettes are 16-bit
 words, so their blocks carry `bpw:16` for correct parsing and write-back.
+
+In Apple II artifact-color mode (`art:1`), the artifact column (high bit) is edited
+separately and is left alone by the transforms.
+
+### Palette names
+
+Give a palette a `name` in its header to label it in that dropdown, and
+name a bitmap's preferred entry with `palname` so it opens with the matching
+palette:
+
+```c
+/*{pal:"nes",layout:"nes",name:"Background"}*/
+const char BG_PALETTE[8] = { ... };
+/*{pal:"nes",layout:"nes",name:"Sprite"}*/
+const char SPR_PALETTE[8] = { ... };
+/*{w:16,h:16,bpp:1,np:2,pofs:8,brev:1,palname:"Sprite"}*/
+const char sprites[] = { ... };
+```
+
+Unnamed palettes are numbered in source order (`Palette 1`, `Palette 2`, …)
+and get a prefix when there are sub-palettes like on NES (`Palette 3: Background 0`).
 
 ## Bit order and planes
 
