@@ -660,7 +660,16 @@ const PREDEF_PALETTES = {
   'c64': [0x000000, 0xffffff, 0x2b3768, 0xb2a470, 0x863d6f, 0x438d58, 0x792835, 0x6fc7b8, 0x254f6f, 0x003943, 0x59679a, 0x444444, 0x6c6c6c, 0x84d29a, 0xb55e6c, 0x959595],
 };
 
-var PREDEF_LAYOUTS: { [id: string]: PixelEditorPaletteLayout } = {
+// SMS and Game Gear share the same mode-4 CRAM layout: 32 colors where the
+// tilemap's bit 11 selects palette 0 (background, colors 0-15) or palette 1
+// (sprites, colors 16-31). Game Gear packs 12-bit color, SMS 6-bit, but the
+// index layout is identical, so one layout serves both.
+var SMS_GG_LAYOUT: PixelEditorPaletteLayout = [
+  ['Background', 0x00, 16],
+  ['Sprite',     0x10, 16],
+];
+
+export var PREDEF_LAYOUTS: { [id: string]: PixelEditorPaletteLayout } = {
   'nes': [
     ['Screen Color', 0x00, 1],
     ['Background 0', 0x01, 3],
@@ -689,7 +698,35 @@ var PREDEF_LAYOUTS: { [id: string]: PixelEditorPaletteLayout } = {
     ['Pal 14', 0x1c, 4],
     ['Pal 19', 0x20, 4],
   ],
+  'sms': SMS_GG_LAYOUT,
+  'gg': SMS_GG_LAYOUT,
 };
+
+// Slice a converted RGBA palette into the named sub-palettes described by a
+// layout, keeping only slices whose color count matches `matchlen` (the pen
+// count of the image being colored, i.e. 2^bpp). Negative lengths produce a
+// reversed slice; a slice one color shorter than matchlen gets the shared
+// color 0 prepended (the NES backdrop convention).
+export function computePaletteSlices(palette: Uint32Array, layout: PixelEditorPaletteLayout, matchlen: number, node: PixNode | null, group?: string): SelectablePalette[] {
+  var result: SelectablePalette[] = [];
+  if (!layout) return result;
+  layout.forEach(([name, start, len]) => {
+    if (start >= palette.length) return;
+    if (len == matchlen) {
+      result.push({ node, name, group, palette: palette.slice(start, start + len) });
+    } else if (-len == matchlen) { // reverse order
+      var reversed = palette.slice(start, start - len);
+      reversed.reverse();
+      result.push({ node, name, group, palette: reversed });
+    } else if (len + 1 == matchlen) {
+      var shared = new Uint32Array(matchlen);
+      shared[0] = palette[0];
+      shared.set(palette.slice(start, start + len), 1);
+      result.push({ node, name, group, palette: shared });
+    }
+  });
+  return result;
+}
 
 /////
 

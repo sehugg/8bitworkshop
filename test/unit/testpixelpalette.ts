@@ -3,7 +3,7 @@ import { describe, it } from "mocha";
 import {
   getDirectColorChannels, encodeDirectColorWord, decodeDirectColorWord,
   convertPaletteFormat, getPaletteLength, Palettizer, SelectablePalette,
-  disambiguatePaletteNames
+  disambiguatePaletteNames, computePaletteSlices, PREDEF_LAYOUTS
 } from "../../src/ide/pixeleditor";
 
 describe('Direct-color palette formats', function () {
@@ -115,5 +115,54 @@ describe('Palette name disambiguation', function () {
     var pals = [entry("Background 0", "Palette 1"), entry("Screen Color", "Palette 1")];
     disambiguatePaletteNames(pals);
     assert.deepEqual(pals.map((p) => p.name), ["Background 0", "Screen Color"]);
+  });
+});
+
+describe('Palette layouts', function () {
+  // 32 distinct colors so slice membership is easy to check.
+  function ramp(n: number): Uint32Array {
+    var a = new Uint32Array(n);
+    for (var i = 0; i < n; i++) a[i] = 0xff000000 | i;
+    return a;
+  }
+
+  it('should register sms and gg with the 16+16 mode-4 split', function () {
+    assert.deepEqual(PREDEF_LAYOUTS['sms'], [['Background', 0, 16], ['Sprite', 16, 16]]);
+    assert.deepEqual(PREDEF_LAYOUTS['gg'], PREDEF_LAYOUTS['sms']);
+  });
+
+  it('should slice an sms palette into background and sprite', function () {
+    var pal = ramp(32);
+    var slices = computePaletteSlices(pal, PREDEF_LAYOUTS['sms'], 16, null, 'Palette 1');
+    assert.deepEqual(slices.map((s) => s.name), ['Background', 'Sprite']);
+    assert.deepEqual(slices.map((s) => s.group), ['Palette 1', 'Palette 1']);
+    assert.deepEqual(Array.from(slices[0].palette), Array.from(pal.slice(0, 16)));
+    assert.deepEqual(Array.from(slices[1].palette), Array.from(pal.slice(16, 32)));
+  });
+
+  it('should drop slices whose size does not match the image pen count', function () {
+    // 4bpp images match the 16-color slices; 2bpp images (4 pens) do not.
+    assert.equal(computePaletteSlices(ramp(32), PREDEF_LAYOUTS['sms'], 4, null).length, 0);
+  });
+
+  it('should reverse slices with negative length', function () {
+    var pal = ramp(8);
+    var slices = computePaletteSlices(pal, PREDEF_LAYOUTS['astrocade'], 4, null);
+    assert.deepEqual(slices.map((s) => s.name), ['Left', 'Right']);
+    assert.deepEqual(Array.from(slices[0].palette), [0xff000003, 0xff000002, 0xff000001, 0xff000000]);
+    assert.deepEqual(Array.from(slices[1].palette), [0xff000007, 0xff000006, 0xff000005, 0xff000004]);
+  });
+
+  it('should prepend the shared color for nes backdrop palettes', function () {
+    var pal = ramp(64);
+    var slices = computePaletteSlices(pal, PREDEF_LAYOUTS['nes'], 4, null);
+    var bg0 = slices.find((s) => s.name === 'Background 0');
+    assert.deepEqual(Array.from(bg0.palette), [0xff000000, 0xff000001, 0xff000002, 0xff000003]); // shared color 0 + 3 entries
+  });
+
+  it('should ignore slices that start past the end of the palette', function () {
+    // 16-entry palette: Background (0-16) is in range, Sprite (16-32) is not.
+    var slices = computePaletteSlices(ramp(16), PREDEF_LAYOUTS['sms'], 16, null);
+    assert.deepEqual(slices.map((s) => s.name), ['Background']);
   });
 });

@@ -73,23 +73,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
           }
           // look at palette slices
           if (node.layout) {
-            node.layout.forEach(([name, start, len]) => {
-              if (start < palette.length) {
-                if (len == matchlen) {
-                  var rgbs = palette.slice(start, start + len);
-                  result.push({ node: node, name: name, group: palname, palette: rgbs });
-                } else if (-len == matchlen) { // reverse order
-                  var rgbs = palette.slice(start, start - len);
-                  rgbs.reverse();
-                  result.push({ node: node, name: name, group: palname, palette: rgbs });
-                } else if (len + 1 == matchlen) {
-                  var rgbs = new Uint32Array(matchlen);
-                  rgbs[0] = palette[0];
-                  rgbs.set(palette.slice(start, start + len), 1);
-                  result.push({ node: node, name: name, group: palname, palette: rgbs });
-                }
-              }
-            });
+            result.push(...pixed.computePaletteSlices(palette, node.layout, matchlen, node, palname));
           }
           break;
         }
@@ -232,7 +216,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     var layout = pal2rgb.layout;
     if (!layout) {
       var len = pal2rgb.palette.length;
-      var imgsperline = len > 32 ? 8 : 4; // TODO: use 'n'?
+      var imgsperline = 8;
       layout = [];
       for (var i = 0; i < len; i += imgsperline) {
         layout.push(["", i, Math.min(len - i, imgsperline)]);
@@ -259,7 +243,12 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
           inds.push(k);
         if (len < 0)
           inds.reverse();
-        inds.forEach((i) => {
+        inds.forEach((i,index) => {
+          // handle long slices when layout != null
+          if (index > 0 && (i % 8) == 0) {
+            arow = $('<tr/>').appendTo(atable);
+            $('<td/>').text('').appendTo(arow);
+          }
           var cell = $('<td/>').addClass('asset_cell asset_editable').appendTo(arow);
           cells.push({ cell, index: i });
           updateCell(cell, i);
