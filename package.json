@@ -55,7 +55,7 @@
     "jsdom": "^25.0.1",
     "lzg": "^1.0.x",
     "markdown-it": "^15.0.2",
-    "mocha": "^10.7.3",
+    "mocha": "^12.0.1",
     "mocha-simple-html-reporter": "^2.0.0",
     "mocha-suppress-logs": "^0.6.0",
     "supports-terminal-graphics": "^0.1.0",
