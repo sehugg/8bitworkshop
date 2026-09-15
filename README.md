@@ -37,8 +37,6 @@ Bleeding edge (built from HEAD):
 * Export ROMs, save screenshots/videos, share playable links, and sync
   projects to GitHub
 
-Read the [IDE documentation](src/docs/index.md) for a guided tour.
-
 ## Install Locally
 
 Requirements:
@@ -67,6 +65,14 @@ TypeScript and lezer grammars, and runs esbuild.
 
 To use GitHub integration locally, download the Firebase config file,
 e.g. https://8bitworkshop.com/v[version]/config.js
+
+### Develop with VSCode
+
+To fix TypeScript errors in VSCode:
+* Open any TypeScript file
+* Open the command palette (Cmd+Shift+P)
+* Select "TypeScript: Select TypeScript Version"
+* Select "Use Workspace Version"
 
 ### Start Local Web Server
 
@@ -241,21 +247,18 @@ distributable replacement images are included — see
 licenses.
 
 To use your own firmware, add it to the project as a binary file named
-`<platform-id>.rom` (for example `c64.rom`); the IDE loads it as the
+`<platform-id>.rom` (for example `apple2.rom`); the IDE loads it as the
 BIOS at startup. Only freely distributable firmware should be shared.
 
-* http://www.virtualdub.org/altirra.html
+* http://www.virtualdub.org/altirra.html (GPL-2)
 * https://github.com/MEGA65/open-roms (LGPL-3.0)
-* https://sourceforge.net/projects/cbios/
-* https://www.pledgebank.com/opense
+* https://sourceforge.net/projects/cbios/ (BSD)
 
 ### Related Projects
 
-* https://github.com/sehugg/8bitworkshop-compilers
 * https://github.com/sehugg/8bit-tools (CC0-1.0)
 * https://github.com/sehugg/awesome-8bitgamedev (Public Domain)
-* https://github.com/sehugg?tab=repositories (CC0-1.0)
-
+* https://github.com/sehugg/8bitworkshop-compilers
 
 ## Tool Server (experimental)
 
