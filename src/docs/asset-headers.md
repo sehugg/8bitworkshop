@@ -116,6 +116,7 @@ everything else falls back to a sensible default.
 | `reindex` | — | Per-column word/bit table |
 | `aspect` | `1` | Pixel aspect ratio for display only |
 | `art` | `false` | Apple II HGR artifact-color mode |
+| `palname` | — | Preferred palette name for preview |
 | `comp` | — | `"rletag"` = RLE-compressed block |
 | `map` | — | `"nesnt"` = NES nametable, not a bitmap |
 | `pacstrip` | — | Pac-Man/Namco vertical-strip layout |
@@ -129,7 +130,8 @@ A block with `pal` and no `w`/`h` describes a palette instead of an image.
 | --- | --- | --- |
 | `pal` | — | Palette decoding, see below |
 | `n` | — | Advisory entry count — the real count comes from the data |
-| `layout` | — | Grouped editor layout: `nes`, `astrocade`, `pacman` |
+| `layout` | — | Grouped editor layout: `nes`, `astrocade`, `pacman`, `sms`, `gg` |
+| `name` | `"Palette N"` | Display name in the bitmap editor's palette dropdown |
 
 `pal` is either:
 
@@ -154,8 +156,38 @@ Projects fall back to a default palette when no palette block matches.
 const char PALETTE[8] = { 0x0F, 0x11,0x24,0x3C, 0x00, 0x01,0x15,0x25 };
 ```
 
+SMS and Game Gear mode-4 palettes use `layout:"sms"` (or `"gg"`, the same
+split): the first 16 entries are the background palette and the next 16 are
+the sprite palette, matching the VDP's palette-select bit.
+
+```c
+/*{pal:222,n:32,layout:"sms"}*/
+const unsigned char PALETTE[32] = { ... };
+```
+
 `bpw` applies to palette blocks too — PC Engine palettes are 16-bit
 words, so their blocks carry `bpw:16` for correct parsing and write-back.
+
+In Apple II artifact-color mode (`art:1`), the artifact column (high bit) is edited
+separately and is left alone by the transforms.
+
+### Palette names
+
+Give a palette a `name` in its header to label it in that dropdown, and
+name a bitmap's preferred entry with `palname` so it opens with the matching
+palette:
+
+```c
+/*{pal:"nes",layout:"nes",name:"Background"}*/
+const char BG_PALETTE[8] = { ... };
+/*{pal:"nes",layout:"nes",name:"Sprite"}*/
+const char SPR_PALETTE[8] = { ... };
+/*{w:16,h:16,bpp:1,np:2,pofs:8,brev:1,palname:"Sprite"}*/
+const char sprites[] = { ... };
+```
+
+Unnamed palettes are numbered in source order (`Palette 1`, `Palette 2`, …)
+and get a prefix when there are sub-palettes like on NES (`Palette 3: Background 0`).
 
 ## Bit order and planes
 
@@ -413,6 +445,7 @@ Some recipes you can copy and paste:
 | Galaxian/Scramble tile ROM | `/*{w:16,h:16,remap:[3,0,1,2,4,5,6,7,8,9,10],brev:1,np:2,pofs:2048,count:64}*/` |
 | Pac-Man tiles / sprites | `/*{w:8,h:8,count:256,bpp:2,pacstrip:1}*/` · `/*{w:16,h:16,count:64,bpp:2,pacstrip:1}*/` |
 | Pac-Man color PROM | `/*{pal:"pacman",n:32}*/` |
+| SMS / Game Gear mode-4 palette | `/*{pal:222,n:32,layout:"sms"}*/` (GG: `pal:444`) |
 | Astrocade | `/*{w:16,h:16,bpp:2,brev:1}*/` · `/*{pal:"astrocade",layout:"astrocade"}*/` |
 | Williams | `/*{w:16,h:16,bpp:4,brev:1}*/` |
 | PC Engine 16×16 sprite | `/*{w:16,h:16,bpp:1,count:3,brev:1,np:4,pofs:16,sl:1,bpw:16,wpimg:64}*/` |

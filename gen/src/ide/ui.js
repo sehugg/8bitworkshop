@@ -101,6 +101,7 @@ var toolbar = $("#controls_top");
 var uitoolbar;
 var stateRecorder;
 var userPaused; // did user explicitly pause?
+var tabPausedEmulator = false; // did a tab switch (mobile tab mode) pause the emulator?
 var debugSessionActive; // has the user entered a debug session? (drives debug shortcut chips)
 var current_output; // current ROM (or other object)
 var current_preset; // current preset object (if selected)
@@ -2485,6 +2486,23 @@ async function startUI() {
             exports.platform.resize(); },
         resizeWindows: () => { if (exports.projectWindows)
             exports.projectWindows.resize(); },
+        // in tab mode only one pane is visible; pause the emulator when the
+        // emulator tab isn't on screen, and resume it when it comes back
+        onTabChanged: (tab) => {
+            if (!isPlatformReady())
+                return;
+            if (tab !== 'emulator') {
+                if (exports.platform.isRunning()) {
+                    _pause();
+                    tabPausedEmulator = true; // remember it was us, not the user
+                }
+            }
+            else if (tabPausedEmulator) {
+                tabPausedEmulator = false;
+                if (!exports.platform.isRunning())
+                    _resume();
+            }
+        },
     });
     // get store ID, repo id or platform id
     exports.store_id = exports.repo_id || (0, util_1.getBasePlatform)(exports.platform_id);

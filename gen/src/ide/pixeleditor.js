@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TwoWayMapper = exports.Viewer = exports.MapEditor = exports.CharmapEditor = exports.PaletteColorPicker = exports.ImageChooser = exports.NESNametableConverter = exports.MetaspriteCompositor = exports.Compositor = exports.PaletteEditorView = exports.PaletteFormatToRGB = exports.Palettizer = exports.Mapper = exports.Compressor = exports.TextDataNode = exports.FileDataNode = exports.PixNode = void 0;
+exports.TwoWayMapper = exports.Viewer = exports.MapEditor = exports.CharmapEditor = exports.PaletteColorPicker = exports.ImageChooser = exports.NESNametableConverter = exports.MetaspriteCompositor = exports.Compositor = exports.PaletteEditorView = exports.PaletteFormatToRGB = exports.Palettizer = exports.Mapper = exports.Compressor = exports.TextDataNode = exports.FileDataNode = exports.PixNode = exports.PREDEF_LAYOUTS = void 0;
+exports.disambiguatePaletteNames = disambiguatePaletteNames;
 exports.parseHexWords = parseHexWords;
 exports.replaceHexWords = replaceHexWords;
 exports.convertWordsToImages = convertWordsToImages;
@@ -16,6 +17,7 @@ exports.convertPaletteFormat = convertPaletteFormat;
 exports.getDirectColorChannels = getDirectColorChannels;
 exports.encodeDirectColorWord = encodeDirectColorWord;
 exports.decodeDirectColorWord = decodeDirectColorWord;
+exports.computePaletteSlices = computePaletteSlices;
 exports.getPixelClipboard = getPixelClipboard;
 exports.setPixelClipboard = setPixelClipboard;
 exports.pasteClipboardPixels = pasteClipboardPixels;
@@ -24,6 +26,18 @@ const toolbar_1 = require("./toolbar");
 const MAX_SIZE_X = 800;
 const MAX_SIZE_Y = 1000;
 const MAX_SCALE = 16;
+// Layout slice names repeat when a project has several palettes (e.g. many NES
+// palettes all produce "Background 0"). Prefix just the duplicate names with
+// their owning palette's `group` so the dropdown stays unambiguous.
+function disambiguatePaletteNames(palettes) {
+    var counts = {};
+    palettes.forEach((p) => { counts[p.name] = (counts[p.name] || 0) + 1; });
+    palettes.forEach((p) => {
+        if (counts[p.name] > 1 && p.group)
+            p.name = p.group + ": " + p.name;
+    });
+    return palettes;
+}
 function getArtBit(fmt) {
     return fmt.art ? (fmt.brev ? 0 : 7) : null;
 }
@@ -586,7 +600,15 @@ const PREDEF_PALETTES = {
     'astrocade': [0, 2368548, 4737096, 7171437, 9539985, 11974326, 14342874, 16777215, 12255269, 14680137, 16716142, 16725394, 16734903, 16744155, 16753663, 16762879, 11534409, 13959277, 16318866, 16721334, 16730842, 16740095, 16749311, 16758783, 10420330, 12779662, 15138995, 16718039, 16727291, 16736767, 16745983, 16755199, 8847495, 11206827, 13631696, 15994612, 16724735, 16733951, 16743423, 16752639, 6946975, 9306307, 11731175, 14092287, 16461055, 16732415, 16741631, 16751103, 4784304, 7143637, 9568505, 11929087, 14297599, 16731647, 16741119, 16750335, 2425019, 4784352, 7209215, 9570047, 12004095, 14372863, 16741375, 16750847, 191, 2359523, 4718847, 7146495, 9515263, 11949311, 14318079, 16752127, 187, 224, 2294015, 4658431, 7092735, 9461247, 11895551, 14264063, 176, 213, 249, 2367999, 4736511, 7105279, 9539327, 11908095, 159, 195, 3303, 209151, 2577919, 4946431, 7380735, 9749247, 135, 171, 7888, 17140, 681983, 3050495, 5484543, 7853311, 106, 3470, 12723, 22231, 31483, 1548031, 3916799, 6285311, 73, 8557, 17810, 27318, 36570, 373759, 2742271, 5176575, 4389, 13641, 23150, 32402, 41911, 51163, 2026495, 4456447, 9472, 18724, 27976, 37485, 46737, 56246, 1834970, 4194303, 14080, 23296, 32803, 42055, 51564, 60816, 2031541, 4456409, 18176, 27648, 36864, 46116, 55624, 392556, 2752401, 5177269, 21760, 30976, 40192, 49667, 58919, 1572683, 3932016, 6291348, 24320, 33536, 43008, 52224, 716810, 3079982, 5504851, 7864183, 25856, 35328, 44544, 250368, 2619136, 4980503, 7405371, 9764703, 26624, 35840, 45312, 2413824, 4782336, 7143173, 9568041, 11927374, 26112, 35584, 2338560, 4707328, 7141376, 9502464, 11927326, 14286659, 24832, 2393344, 4762112, 7196160, 9564928, 11992832, 14352155, 16711487, 2447360, 4815872, 7250176, 9618688, 12052992, 14417664, 16776990, 16777027, 4803328, 7172096, 9606144, 11974912, 14343424, 16776965, 16777001, 16777038, 6962176, 9330688, 11764992, 14133504, 16502272, 16773655, 16777019, 16777055, 8858112, 11226880, 13660928, 16029440, 16759818, 16769070, 16777043, 16777079, 10426112, 12794624, 15163392, 16745475, 16754727, 16764235, 16773488, 16777108, 11534848, 13969152, 16337664, 16740388, 16749640, 16759148, 16768401, 16777141, 12255232, 14684928, 16725795, 16735047, 16744556, 16753808, 16763317, 16772569],
     'c64': [0x000000, 0xffffff, 0x2b3768, 0xb2a470, 0x863d6f, 0x438d58, 0x792835, 0x6fc7b8, 0x254f6f, 0x003943, 0x59679a, 0x444444, 0x6c6c6c, 0x84d29a, 0xb55e6c, 0x959595],
 };
-var PREDEF_LAYOUTS = {
+// SMS and Game Gear share the same mode-4 CRAM layout: 32 colors where the
+// tilemap's bit 11 selects palette 0 (background, colors 0-15) or palette 1
+// (sprites, colors 16-31). Game Gear packs 12-bit color, SMS 6-bit, but the
+// index layout is identical, so one layout serves both.
+var SMS_GG_LAYOUT = [
+    ['Background', 0x00, 16],
+    ['Sprite', 0x10, 16],
+];
+exports.PREDEF_LAYOUTS = {
     'nes': [
         ['Screen Color', 0x00, 1],
         ['Background 0', 0x01, 3],
@@ -615,7 +637,38 @@ var PREDEF_LAYOUTS = {
         ['Pal 14', 0x1c, 4],
         ['Pal 19', 0x20, 4],
     ],
+    'sms': SMS_GG_LAYOUT,
+    'gg': SMS_GG_LAYOUT,
 };
+// Slice a converted RGBA palette into the named sub-palettes described by a
+// layout, keeping only slices whose color count matches `matchlen` (the pen
+// count of the image being colored, i.e. 2^bpp). Negative lengths produce a
+// reversed slice; a slice one color shorter than matchlen gets the shared
+// color 0 prepended (the NES backdrop convention).
+function computePaletteSlices(palette, layout, matchlen, node, group) {
+    var result = [];
+    if (!layout)
+        return result;
+    layout.forEach(([name, start, len]) => {
+        if (start >= palette.length)
+            return;
+        if (len == matchlen) {
+            result.push({ node, name, group, palette: palette.slice(start, start + len) });
+        }
+        else if (-len == matchlen) { // reverse order
+            var reversed = palette.slice(start, start - len);
+            reversed.reverse();
+            result.push({ node, name, group, palette: reversed });
+        }
+        else if (len + 1 == matchlen) {
+            var shared = new Uint32Array(matchlen);
+            shared[0] = palette[0];
+            shared.set(palette.slice(start, start + len), 1);
+            result.push({ node, name, group, palette: shared });
+        }
+    });
+    return result;
+}
 /////
 function equalArrays(a, b) {
     if (a == null || b == null)
@@ -774,12 +827,14 @@ class Palettizer extends PixNode {
     constructor(context, fmt) {
         super();
         this.palindex = 0;
+        this.palselected = false; // true once the user chooses from the dropdown
         this.context = context;
         // Pac-Man strip bitmaps are always 2bpp (4 pens), even if bpp is omitted.
         if (fmt.pacstrip)
             this.ncolors = 4;
         else
             this.ncolors = 1 << ((fmt.bpp || 1) * (fmt.np || 1));
+        this.palname = fmt.palname;
     }
     updateLeft() {
         if (this.right) {
@@ -818,6 +873,12 @@ class Palettizer extends PixNode {
         if (this.context != null) {
             this.paloptions = this.context.getPalettes(this.ncolors);
             if (this.paloptions && this.paloptions.length > 0) {
+                // Pick the palette named by fmt.palname until the user chooses one.
+                if (this.palname && !this.palselected) {
+                    var pi = this.paloptions.findIndex((p) => p.name === this.palname);
+                    if (pi >= 0)
+                        this.palindex = pi;
+                }
                 newpalette = this.paloptions[this.palindex].palette;
             }
         }
@@ -866,7 +927,7 @@ class PaletteFormatToRGB extends PixNode {
         // for flat palette grids where identical swatches need unique edit identities.
         this.palette = (this.palfmt.layout || this.palfmt.pal === 'pacman')
             ? new Uint32Array(cols) : dedupPalette(cols);
-        this.layout = PREDEF_LAYOUTS[this.palfmt.layout];
+        this.layout = exports.PREDEF_LAYOUTS[this.palfmt.layout];
         this.rgbimgs = [];
         this.palette.forEach((rgba) => {
             this.rgbimgs.push(new Uint32Array([rgba]));
@@ -1261,6 +1322,7 @@ class CharmapEditor extends PixNode {
             palselect.appendTo(agrid).change((e) => {
                 var index = $(e.target).val();
                 palizer.palindex = index;
+                palizer.palselected = true;
                 palizer.refreshRight();
             });
         }

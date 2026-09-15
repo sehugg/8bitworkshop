@@ -3,7 +3,7 @@
 
 import { StreamLanguage, StreamParser } from "@codemirror/language";
 import { LanguageSupport } from "@codemirror/language";
-import { cpp } from "@codemirror/lang-cpp";
+import * as lang_c from "@fazelstudio/codemirror-lang-c";
 import { asm6502 } from "./lang-6502";
 import { asmZ80 } from "./lang-z80";
 import { wiz, wizStreamParser } from "./lang-wiz";
@@ -46,7 +46,7 @@ export interface ParserRegistryEntry {
 
 export const parserRegistry: Record<string, ParserRegistryEntry> = {
   'text/x-csrc': {
-    language: cpp(),
+    language: lang_c.c(),
     parser: null // Lezer-based, extracted via lrextract.ts
   },
   '6502': {
@@ -116,4 +116,8 @@ export function getParserForStyle(editorStyle: string): StreamParser<any> | null
 export function getLanguageSupportForStyle(editorStyle: string): LanguageSupport | null {
   const entry = parserRegistry[editorStyle];
   return entry?.language ?? null;
+}
+
+export function getDefaultLanguageParser() {
+  return lang_c.c();
 }

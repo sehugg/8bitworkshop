@@ -1,6 +1,4 @@
 import { defaultKeymap, deleteLine, history, historyKeymap, isolateHistory, redo, undo, toggleComment } from "@codemirror/commands";
-import { cpp } from "@codemirror/lang-cpp";
-import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, foldGutter, indentOnInput, indentService, indentUnit } from "@codemirror/language";
 import { highlightSelectionMatches, search, searchKeymap, openSearchPanel, findNext, selectNextOccurrence } from "@codemirror/search";
 import { Compartment, EditorState, Extension, StateEffect, StateField } from "@codemirror/state";
@@ -11,7 +9,7 @@ import { getFilenameForPath, getFolderForPath, hex, rpad } from "../../common/ut
 import { getIncludeDirs, getIncludePatterns, getLinkPatterns, getSharedFileSystemName, getSystemIncludePatterns, getToolMetaForFilename } from "../../common/toolmeta";
 import { WorkerMessage } from "../../common/workertypes";
 import { SourceFile, SourceLocation, WorkerError } from "../../common/workertypes";
-import { parserRegistry, getLanguageSupportForStyle } from "../../parser/registry";
+import { parserRegistry, getLanguageSupportForStyle, getDefaultLanguageParser } from "../../parser/registry";
 import { cobalt } from "../../themes/cobalt";
 import { disassemblyTheme } from "../../themes/disassemblyTheme";
 import { editorTheme } from "../../themes/editorTheme";
@@ -1058,7 +1056,7 @@ export class HeaderView implements ProjectView {
     div.setAttribute("class", "editor");
     parent.appendChild(div);
     // language based on filename when known; reconfigured in setHeaderText
-    var lang = getLanguageForFilename(this.fn || this.currentPath || '') || cpp();
+    var lang = getLanguageForFilename(this.fn || this.currentPath || '') || getDefaultLanguageParser();
     this.view = new EditorView({
       parent: div,
       extensions: [
@@ -1086,7 +1084,7 @@ export class HeaderView implements ProjectView {
 
   setHeaderText(text: string) {
     // (re)configure highlighting now that we know the actual path
-    var lang = getLanguageForFilename(this.currentPath || this.fn || '') || cpp();
+    var lang = getLanguageForFilename(this.currentPath || this.fn || '') || getDefaultLanguageParser();
     this.view.dispatch({
       effects: this.languageCompartment.reconfigure(lang),
       changes: { from: 0, to: this.view.state.doc.length, insert: text }

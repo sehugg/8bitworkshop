@@ -64,6 +64,9 @@ function setActiveTabClass(tab) {
     $("#sidebar,#workspace,#emulator").removeClass("active");
     var sel = activeTab === 'sidebar' ? '#sidebar' : activeTab === 'emulator' ? '#emulator' : '#workspace';
     $(sel).addClass("active");
+    // only meaningful in tab mode; on desktop all panes stay visible
+    if (tabMode && hooks && hooks.onTabChanged)
+        hooks.onTabChanged(activeTab);
 }
 function setTabMode(on) {
     tabMode = on;
@@ -100,6 +103,9 @@ function updateSplitLayout() {
         // leaving tab mode: restore the side-by-side panes and their sizes
         setTabMode(false);
         $("#sidebar,#workspace,#emulator").removeClass("active");
+        // all panes are visible again; let the emulator resume if a tab hid it
+        if (hooks && hooks.onTabChanged)
+            hooks.onTabChanged('emulator');
         createSplit(desktopSizes || [12, 44, 44]);
         hooks.resizePlatform();
         hooks.resizeWindows();

@@ -41,13 +41,6 @@ and **copy/paste** it. Copy and paste work between any two images in the
 session, and they keep the palette indices intact, so a tile copied from
 one asset still looks right in another even if the colors differ.
 
-If more than one palette in your project matches the image's color count,
-a dropdown appears under the thumbnails so you can try them out — the
-previews update instantly.
-
-In Apple II artifact-color mode (`art:1`), the artifact column is edited
-separately and is left alone by the transforms.
-
 ### Editing palettes
 
 Palettes are edited one color at a time. The palette appears as a small
@@ -55,6 +48,10 @@ table; click any cell to open a color picker. Small, indexed palettes show
 a grid of swatches to choose from — hover over one to see its value and
 hex color. Larger, direct-color palettes get color sliders instead. As you
 change a color, the source code is updated right away.
+
+If more than one palette in your project matches the image's color count,
+a dropdown appears under the thumbnails.
+Select a palette to preview it with your image.
 
 ### Viewing tilemaps
 

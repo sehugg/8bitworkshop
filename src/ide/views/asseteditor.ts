@@ -57,40 +57,32 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
 
   getPalettes(matchlen: number): pixed.SelectablePalette[] {
     var result = [];
+    var palnum = 0;
     this.rootnodes.forEach((node) => {
       while (node != null) {
         if (node instanceof pixed.PaletteFormatToRGB) {
           // TODO: move to node class?
           var palette = node.palette;
+          // Auto-name by position so several unnamed palettes stay distinct;
+          // an explicit header `name` wins.
+          palnum++;
+          var palname = node.palfmt.name || ("Palette " + palnum);
           // match full palette length?
           if (matchlen == palette.length) {
-            result.push({ node: node, name: "Palette", palette: palette });
+            result.push({ node: node, name: palname, palette: palette });
           }
           // look at palette slices
           if (node.layout) {
-            node.layout.forEach(([name, start, len]) => {
-              if (start < palette.length) {
-                if (len == matchlen) {
-                  var rgbs = palette.slice(start, start + len);
-                  result.push({ node: node, name: name, palette: rgbs });
-                } else if (-len == matchlen) { // reverse order
-                  var rgbs = palette.slice(start, start - len);
-                  rgbs.reverse();
-                  result.push({ node: node, name: name, palette: rgbs });
-                } else if (len + 1 == matchlen) {
-                  var rgbs = new Uint32Array(matchlen);
-                  rgbs[0] = palette[0];
-                  rgbs.set(palette.slice(start, start + len), 1);
-                  result.push({ node: node, name: name, palette: rgbs });
-                }
-              }
-            });
+            result.push(...pixed.computePaletteSlices(palette, node.layout, matchlen, node, palname));
           }
           break;
         }
         node = node.right;
       }
     });
+    // Several palettes can share layout slice names ("Background 0" etc.);
+    // prefix just those duplicates with their owning palette's name.
+    pixed.disambiguatePaletteNames(result);
     // Game Boy: default to LCD green scale (0=light … 3=dark) when no project palette
     if (result.length == 0 && platform_id && platform_id.startsWith('gb')) {
       if (matchlen == 4) {
@@ -224,7 +216,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     var layout = pal2rgb.layout;
     if (!layout) {
       var len = pal2rgb.palette.length;
-      var imgsperline = len > 32 ? 8 : 4; // TODO: use 'n'?
+      var imgsperline = 8;
       layout = [];
       for (var i = 0; i < len; i += imgsperline) {
         layout.push(["", i, Math.min(len - i, imgsperline)]);
@@ -251,7 +243,12 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
           inds.push(k);
         if (len < 0)
           inds.reverse();
-        inds.forEach((i) => {
+        inds.forEach((i,index) => {
+          // handle long slices when layout != null
+          if (index > 0 && (i % 8) == 0) {
+            arow = $('<tr/>').appendTo(atable);
+            $('<td/>').text('').appendTo(arow);
+          }
           var cell = $('<td/>').addClass('asset_cell asset_editable').appendTo(arow);
           cells.push({ cell, index: i });
           updateCell(cell, i);

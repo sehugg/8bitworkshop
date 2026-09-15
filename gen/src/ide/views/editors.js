@@ -6,7 +6,6 @@ exports.resolveIncludeFile = resolveIncludeFile;
 exports.getLanguageForFilename = getLanguageForFilename;
 exports.lookupSharedFileText = lookupSharedFileText;
 const commands_1 = require("@codemirror/commands");
-const lang_cpp_1 = require("@codemirror/lang-cpp");
 const language_1 = require("@codemirror/language");
 const search_1 = require("@codemirror/search");
 const state_1 = require("@codemirror/state");
@@ -968,7 +967,7 @@ class HeaderView {
         div.setAttribute("class", "editor");
         parent.appendChild(div);
         // language based on filename when known; reconfigured in setHeaderText
-        var lang = getLanguageForFilename(this.fn || this.currentPath || '') || (0, lang_cpp_1.cpp)();
+        var lang = getLanguageForFilename(this.fn || this.currentPath || '') || (0, registry_1.getDefaultLanguageParser)();
         this.view = new view_1.EditorView({
             parent: div,
             extensions: [
@@ -995,7 +994,7 @@ class HeaderView {
     }
     setHeaderText(text) {
         // (re)configure highlighting now that we know the actual path
-        var lang = getLanguageForFilename(this.currentPath || this.fn || '') || (0, lang_cpp_1.cpp)();
+        var lang = getLanguageForFilename(this.currentPath || this.fn || '') || (0, registry_1.getDefaultLanguageParser)();
         this.view.dispatch({
             effects: this.languageCompartment.reconfigure(lang),
             changes: { from: 0, to: this.view.state.doc.length, insert: text }

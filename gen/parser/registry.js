@@ -1,11 +1,45 @@
 "use strict";
 // Parser registry - central place to map editorStyle -> parser for both editor and extractor.
 // This keeps editors.ts and the indexer in sync.
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parserRegistry = void 0;
 exports.getParserForStyle = getParserForStyle;
 exports.getLanguageSupportForStyle = getLanguageSupportForStyle;
-const lang_cpp_1 = require("@codemirror/lang-cpp");
+exports.getDefaultLanguageParser = getDefaultLanguageParser;
+const lang_c = __importStar(require("@fazelstudio/codemirror-lang-c"));
 const lang_6502_1 = require("./lang-6502");
 const lang_z80_1 = require("./lang-z80");
 const lang_wiz_1 = require("./lang-wiz");
@@ -18,7 +52,7 @@ const lang_bataribasic_1 = require("./lang-bataribasic");
 const lang_markdown_1 = require("@codemirror/lang-markdown");
 exports.parserRegistry = {
     'text/x-csrc': {
-        language: (0, lang_cpp_1.cpp)(),
+        language: lang_c.c(),
         parser: null // Lezer-based, extracted via lrextract.ts
     },
     '6502': {
@@ -88,5 +122,8 @@ function getLanguageSupportForStyle(editorStyle) {
     var _a;
     const entry = exports.parserRegistry[editorStyle];
     return (_a = entry === null || entry === void 0 ? void 0 : entry.language) !== null && _a !== void 0 ? _a : null;
+}
+function getDefaultLanguageParser() {
+    return lang_c.c();
 }
 //# sourceMappingURL=registry.js.map

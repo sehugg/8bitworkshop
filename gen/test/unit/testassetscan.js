@@ -34,6 +34,14 @@ const pixeleditor_1 = require("../../src/ide/pixeleditor");
         assert_1.default.deepEqual(frags[1].fmt, { w: 24, h: 21, bpp: 1, brev: 1, wpimg: 64, count: 1 });
         assert_1.default.equal(frags[1].embedFile, 'outline.bin');
     });
+    (0, mocha_1.it)('should parse palette display names and bitmap palette references', function () {
+        var src = '/*{pal:555,n:16,name:"Background"}*/\npalette_color_t bkg[1][4] = { 0x2062, 0x318E, 0x6A28, 0x7714 };\n' +
+            '/*{w:8,h:8,bpp:1,np:2,pofs:1,sl:2,palname:"Background"}*/\nbyte tiles[] = { 0xff };\n';
+        var frags = (0, pixeleditor_1.scanTextForAssetFragments)(src, false);
+        assert_1.default.equal(frags.length, 2);
+        assert_1.default.deepEqual(frags[0].fmt, { pal: 555, n: 16, name: "Background" });
+        assert_1.default.deepEqual(frags[1].fmt, { w: 8, h: 8, bpp: 1, np: 2, pofs: 1, sl: 2, palname: "Background" });
+    });
     (0, mocha_1.it)('should report an error when no closing delimiter is found', function () {
         var src = '/*{w:8,h:8}*/\nbyte tiles[] = {1,2,3}\n'; // no trailing ;
         var frags = (0, pixeleditor_1.scanTextForAssetFragments)(src, false);

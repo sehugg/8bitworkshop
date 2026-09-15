@@ -20,6 +20,7 @@ export type SelectablePalette = {
   node: PixNode | null
   name: string
   palette: Uint32Array
+  group?: string	// owning palette's name, used to disambiguate duplicate names
 }
 
 export type SelectableTilemap = {
@@ -27,6 +28,18 @@ export type SelectableTilemap = {
   name: string
   images: Uint8Array[]
   rgbimgs: Uint32Array[] // TODO: different palettes?
+}
+
+// Layout slice names repeat when a project has several palettes (e.g. many NES
+// palettes all produce "Background 0"). Prefix just the duplicate names with
+// their owning palette's `group` so the dropdown stays unambiguous.
+export function disambiguatePaletteNames(palettes: SelectablePalette[]): SelectablePalette[] {
+  var counts: { [name: string]: number } = {};
+  palettes.forEach((p) => { counts[p.name] = (counts[p.name] || 0) + 1; });
+  palettes.forEach((p) => {
+    if (counts[p.name] > 1 && p.group) p.name = p.group + ": " + p.name;
+  });
+  return palettes;
 }
 
 export type PixelEditorImageFormat = {
@@ -48,6 +61,7 @@ export type PixelEditorImageFormat = {
   aspect?: number	// aspect ratio
   xform?: string		// CSS transform
   art?: number		// artifact color, Apple II
+  palname?: string	// preferred palette name (matches a palette header's `name`)
   destfmt?: PixelEditorImageFormat
   // Pac-Man / Namco arcade: 8-byte vertical strips (4 rows × 8 cols),
   // 2bpp packed as bit y + bit (y+4), X/Y mirrored within each strip.
@@ -63,6 +77,7 @@ export type PixelEditorPaletteFormat = {
   pal?: number | string
   n?: number
   layout?: string
+  name?: string		// display name shown in the pixel editor's palette picker
 };
 
 export type PixelEditorPaletteLayout = [string, number, number][];
@@ -645,7 +660,16 @@ const PREDEF_PALETTES = {
   'c64': [0x000000, 0xffffff, 0x2b3768, 0xb2a470, 0x863d6f, 0x438d58, 0x792835, 0x6fc7b8, 0x254f6f, 0x003943, 0x59679a, 0x444444, 0x6c6c6c, 0x84d29a, 0xb55e6c, 0x959595],
 };
 
-var PREDEF_LAYOUTS: { [id: string]: PixelEditorPaletteLayout } = {
+// SMS and Game Gear share the same mode-4 CRAM layout: 32 colors where the
+// tilemap's bit 11 selects palette 0 (background, colors 0-15) or palette 1
+// (sprites, colors 16-31). Game Gear packs 12-bit color, SMS 6-bit, but the
+// index layout is identical, so one layout serves both.
+var SMS_GG_LAYOUT: PixelEditorPaletteLayout = [
+  ['Background', 0x00, 16],
+  ['Sprite',     0x10, 16],
+];
+
+export var PREDEF_LAYOUTS: { [id: string]: PixelEditorPaletteLayout } = {
   'nes': [
     ['Screen Color', 0x00, 1],
     ['Background 0', 0x01, 3],
@@ -674,7 +698,35 @@ var PREDEF_LAYOUTS: { [id: string]: PixelEditorPaletteLayout } = {
     ['Pal 14', 0x1c, 4],
     ['Pal 19', 0x20, 4],
   ],
+  'sms': SMS_GG_LAYOUT,
+  'gg': SMS_GG_LAYOUT,
 };
+
+// Slice a converted RGBA palette into the named sub-palettes described by a
+// layout, keeping only slices whose color count matches `matchlen` (the pen
+// count of the image being colored, i.e. 2^bpp). Negative lengths produce a
+// reversed slice; a slice one color shorter than matchlen gets the shared
+// color 0 prepended (the NES backdrop convention).
+export function computePaletteSlices(palette: Uint32Array, layout: PixelEditorPaletteLayout, matchlen: number, node: PixNode | null, group?: string): SelectablePalette[] {
+  var result: SelectablePalette[] = [];
+  if (!layout) return result;
+  layout.forEach(([name, start, len]) => {
+    if (start >= palette.length) return;
+    if (len == matchlen) {
+      result.push({ node, name, group, palette: palette.slice(start, start + len) });
+    } else if (-len == matchlen) { // reverse order
+      var reversed = palette.slice(start, start - len);
+      reversed.reverse();
+      result.push({ node, name, group, palette: reversed });
+    } else if (len + 1 == matchlen) {
+      var shared = new Uint32Array(matchlen);
+      shared[0] = palette[0];
+      shared.set(palette.slice(start, start + len), 1);
+      result.push({ node, name, group, palette: shared });
+    }
+  });
+  return result;
+}
 
 /////
 
@@ -874,6 +926,8 @@ export class Palettizer extends PixNode {
   context: EditorContext;
   paloptions: SelectablePalette[];
   palindex: number = 0;
+  palname?: string;    // fmt.palname: preferred palette, chosen until the user picks one
+  palselected: boolean = false; // true once the user chooses from the dropdown
 
   // TODO: control to select palette for bitmaps
 
@@ -885,6 +939,7 @@ export class Palettizer extends PixNode {
       this.ncolors = 4;
     else
       this.ncolors = 1 << ((fmt.bpp||1) * (fmt.np||1));
+    this.palname = fmt.palname;
   }
   updateLeft() {
     if (this.right) { this.rgbimgs = this.right.rgbimgs; } // TODO: check is for unit test, remove?
@@ -920,6 +975,11 @@ export class Palettizer extends PixNode {
     if (this.context != null) {
       this.paloptions = this.context.getPalettes(this.ncolors);
       if (this.paloptions && this.paloptions.length > 0) {
+        // Pick the palette named by fmt.palname until the user chooses one.
+        if (this.palname && !this.palselected) {
+          var pi = this.paloptions.findIndex((p: SelectablePalette) => p.name === this.palname);
+          if (pi >= 0) this.palindex = pi;
+        }
         newpalette = this.paloptions[this.palindex].palette;
       }
     }
@@ -1413,6 +1473,7 @@ export class CharmapEditor extends PixNode {
       palselect.appendTo(agrid).change((e) => {
         var index = ($(e.target).val() as any) as number;
         (palizer as Palettizer).palindex = index;
+        (palizer as Palettizer).palselected = true;
         palizer.refreshRight();
       });
     }
