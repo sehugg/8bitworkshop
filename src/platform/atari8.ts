@@ -12,6 +12,7 @@ var Atari8_PRESETS : Preset[] = [
   {id:'helloconio.c', name:'Text Mode', category:'C'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'hellodlist.c', name:'Display List'},
+  {id:'libdemo.c', name:'Common Library'},
 ];
 
 var Atari800_PRESETS = Atari8_PRESETS.concat([
