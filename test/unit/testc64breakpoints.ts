@@ -34,7 +34,7 @@ describe('C64 breakpoints', function () {
     before(async function () {
         target = await loadPlatform('c64');
         platform = target.platform;
-        await platform.start();
+        await target.start();
         rom = new Uint8Array(fs.readFileSync(ROM_PATH));
         platform.loadROM('ROM', rom);
         // find program code that runs during startup but not in the main loop
