@@ -1,9 +1,9 @@
 import { defineArgs, extraArgsFor } from "../../common/toolmeta";
 import { WorkerError, CodeListingMap } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, staleFiles, getWorkFileAsString, populateFiles, fixParamsWithDefines, putWorkFile, anyTargetChanged } from "../builder";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, fixParamsWithDefines, putWorkFile, anyTargetChanged } from "../builder";
 import { msvcErrorMatcher, parseListing } from "../listingutils";
-import { EmscriptenModule, emglobal, execMain, loadNative, moduleInstFn, print_fn } from "../wasmutils";
-import { preprocessMCPP } from "./mcpp";
+import { EmscriptenModule, emglobal, execMain, execToFile, loadNative, moduleInstFn, print_fn } from "../wasmutils";
+import { prepareCompilerInput } from "./mcpp";
 
 // http://www.techhelpmanual.com/829-program_startup___exit.html
 export function compileSmallerC(step: BuildStep): BuildStepResult {
@@ -41,30 +41,13 @@ export function compileSmallerC(step: BuildStep): BuildStepResult {
       print: match_fn,
       printErr: match_fn,
     });
-    // load source file and preprocess
-    var code = getWorkFileAsString(step.path);
-    var preproc = preprocessMCPP(step, null);
-    if (preproc.errors) {
-      return { errors: preproc.errors };
-    }
-    else code = preproc.code;
-    // set up filesystem
+    // set up filesystem with the preprocessed source
     var FS = smlrc.FS;
     //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
-    populateFiles(step, FS);
-    FS.writeFile(step.path, code);
-    fixParamsWithDefines(step.path, params);
-    if (params.extra_compile_args) {
-      args.unshift.apply(args, params.extra_compile_args);
-    }
-    // //#symbol c / //#flag c
-    args.unshift.apply(args, defineArgs('smlrc', params.symbols && params.symbols.compiler)
-      .concat(extraArgsFor('smlrc', params.buildArgs)));
-    execMain(step, smlrc, args);
-    if (errors.length)
-      return { errors: errors };
-    var asmout = FS.readFile(destpath, { encoding: 'utf8' });
-    putWorkFile(destpath, asmout);
+    const err = prepareCompilerInput(step, 'smlrc', FS, params, args);
+    if (err) return err;
+    const runerr = execToFile(step, smlrc, args, FS, destpath, errors);
+    if (runerr) return runerr;
   }
   return {
     nexttool: "yasm",

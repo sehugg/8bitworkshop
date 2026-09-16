@@ -85,8 +85,8 @@ function errorMatcherSDASZ80(path: string, errors: WorkerError[]) {
     return match_asm_fn;
 }
 
-export function assembleSDASZ80(step: BuildStep): BuildStepResult {
-    loadNative('sdasz80');
+async function assembleSDAS(step: BuildStep, tool: 'sdasz80' | 'sdasgb'): Promise<BuildStepResult> {
+    loadNative(tool);
     var objout, lstout, symout;
     var errors = [];
     gatherFiles(step, { mainFilePath: "main.asm" });
@@ -94,16 +94,19 @@ export function assembleSDASZ80(step: BuildStep): BuildStepResult {
     var lstpath = step.prefix + ".lst";
     if (staleFiles(step, [objpath, lstpath])) {
         const match_asm_fn = errorMatcherSDASZ80(step.path, errors);
-        var ASZ80: EmscriptenModule = emglobal.sdasz80({
-            instantiateWasm: moduleInstFn('sdasz80'),
+        var AS: EmscriptenModule = emglobal[tool]({
+            instantiateWasm: moduleInstFn(tool),
             noInitialRun: true,
             //logReadFiles:true,
             print: match_asm_fn,
             printErr: match_asm_fn,
         });
-        var FS = ASZ80.FS;
+        // old-style Emscripten modules return the Module object, whose .then()
+        // only resolves after main() runs; newer MODULARIZE factories return a Promise
+        if (AS instanceof Promise) AS = await AS;
+        var FS = AS.FS;
         populateFiles(step, FS);
-        execMain(step, ASZ80, ['-plosgffwy', step.path]);
+        execMain(step, AS, ['-plosgffwy', step.path]);
         if (errors.length) {
             return { errors: errors };
         }
@@ -120,39 +123,12 @@ export function assembleSDASZ80(step: BuildStep): BuildStepResult {
     //symout = FS.readFile("main.sym", {encoding:'utf8'});
 }
 
-export async function assembleSDASGB(step: BuildStep): Promise<BuildStepResult> {
-    loadNative('sdasgb');
-    var objout, lstout, symout;
-    var errors = [];
-    gatherFiles(step, { mainFilePath: "main.asm" });
-    var objpath = step.prefix + ".rel";
-    var lstpath = step.prefix + ".lst";
-    if (staleFiles(step, [objpath, lstpath])) {
-        const match_asm_fn = errorMatcherSDASZ80(step.path, errors);
-        var ASZ80: EmscriptenModule = await emglobal.sdasgb({
-            instantiateWasm: moduleInstFn('sdasgb'),
-            noInitialRun: true,
-            //logReadFiles:true,
-            print: match_asm_fn,
-            printErr: match_asm_fn,
-        });
-        var FS = ASZ80.FS;
-        populateFiles(step, FS);
-        execMain(step, ASZ80, ['-plosgffwy', step.path]);
-        if (errors.length) {
-            return { errors: errors };
-        }
-        objout = FS.readFile(objpath, { encoding: 'utf8' });
-        lstout = FS.readFile(lstpath, { encoding: 'utf8' });
-        putWorkFile(objpath, objout);
-        putWorkFile(lstpath, lstout);
-    }
-    return {
-        linktool: "sdldz80",
-        files: [objpath, lstpath],
-        args: [objpath]
-    };
-    //symout = FS.readFile("main.sym", {encoding:'utf8'});
+export function assembleSDASZ80(step: BuildStep): Promise<BuildStepResult> {
+    return assembleSDAS(step, 'sdasz80');
+}
+
+export function assembleSDASGB(step: BuildStep): Promise<BuildStepResult> {
+    return assembleSDAS(step, 'sdasgb');
 }
 
 export function linkSDLDZ80(step: BuildStep) {

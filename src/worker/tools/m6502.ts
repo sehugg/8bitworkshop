@@ -2,7 +2,7 @@
 import { WorkerError, CodeListingMap } from "../../common/workertypes";
 import { BuildStep, BuildStepResult, populateFiles, putWorkFile, anyTargetChanged, gatherFiles, staleFiles } from "../builder";
 import { parseListing, makeErrorMatcher } from "../listingutils";
-import { loadNative, emglobal, moduleInstFn, execMain, print_fn } from "../wasmutils";
+import { loadNative, emglobal, moduleInstFn, execMain, execToFile, print_fn } from "../wasmutils";
 import { EmscriptenModule } from "../wasmutils";
 
 // http://www.nespowerpak.com/nesasm/
@@ -225,11 +225,8 @@ export function compileFastBasic(step: BuildStep): BuildStepResult {
         params.extra_link_files = [libfile, params.cfgfile];
         //fixParamsWithDefines(step.path, params);
         var args = [step.path, destpath];
-        execMain(step, fastbasic, args);
-        if (errors.length)
-            return { errors: errors };
-        var asmout = FS.readFile(destpath, { encoding: 'utf8' });
-        putWorkFile(destpath, asmout);
+        const runerr = execToFile(step, fastbasic, args, FS, destpath, errors);
+        if (runerr) return runerr;
     }
     return {
         nexttool: "ca65",

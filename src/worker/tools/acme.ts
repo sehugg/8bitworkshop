@@ -1,8 +1,9 @@
 import { CodeListing, CodeListingMap, WorkerError } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, staleFiles, putWorkFile, store } from "../builder";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, putWorkFile } from "../builder";
 import { msvcErrorMatcher, re_crlf } from "../listingutils";
 import { WASIRunner } from "../../common/wasi/wasishim";
 import { loadWASMBinary } from "../wasmutils";
+import { populateWASIFiles, runWASI } from "../wasiutils";
 
 function parseACMESymbolTable(text: string) {
     var symbolmap = {};
@@ -62,10 +63,7 @@ export function assembleACME(step: BuildStep): BuildStepResult {
         }
         const wasi = new WASIRunner();
         wasi.initSync(wasiModule);
-        for (let file of step.files) {
-            wasi.fs.putFile("./" + file, store.getFileData(file));
-        }
-        wasi.addPreopenDirectory(".");
+        populateWASIFiles(wasi, step);
         var args = ['--msvc', '--initmem', '0', '-o', binpath, '-r', lstpath, '-l', sympath, step.path];
         if (step.params?.acmeargs) {
             args.unshift.apply(args, step.params.acmeargs);
@@ -77,11 +75,7 @@ export function assembleACME(step: BuildStep): BuildStepResult {
             args.unshift.apply(args, ["-D__MAIN__=1"]);
         }
         wasi.setArgs(['acme', ...args]);
-        try {
-            wasi.run();
-        } catch (e) {
-            errors.push({ line: 0, msg: "" + e });
-        }
+        runWASI(wasi, errors);
         const stdout = wasi.fds[1].getBytesAsString();
         const stderr = wasi.fds[2].getBytesAsString();
         if (stdout) console.log(stdout);

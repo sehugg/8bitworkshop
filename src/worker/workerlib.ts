@@ -5,16 +5,11 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { WorkerResult, WorkerMessage } from "../common/workertypes";
-import { getPreloadFSName } from "../common/toolmeta";
 import { store, builder } from "./builder";
-import { emglobal, fsMeta, loadFilesystem, listSharedFiles, readSharedFile, ensureFilesystem, readWasiSharedFile, listWasiSharedFiles, ensureWasiFilesystem } from "./wasmutils";
+import { emglobal } from "./wasmutils";
+import { setupRequireFunction, handleMessage } from "./workermain";
 
-// shared FS names starting with 'wasi:' refer to a WASI filesystem zip
-function splitWasiFSName(fsName: string): { wasi: boolean, name: string } {
-  return fsName.startsWith('wasi:') ? { wasi: true, name: fsName.substring(5) } : { wasi: false, name: fsName };
-}
-import { setupRequireFunction } from "./workermain";
+export { handleMessage };
 
 export { store, builder };
 export { PLATFORM_PARAMS } from "./platforms";
@@ -126,45 +121,4 @@ export function setupNodeEnvironment() {
 
   // Set up the require function for WASM modules
   setupRequireFunction();
-}
-
-/**
- * Handle a worker message (preload, reset, or build).
- * Same logic as workermain.ts handleMessage but exported for direct use.
- */
-export async function handleMessage(data: WorkerMessage): Promise<WorkerResult> {
-  // preload file system
-  if (data.preload) {
-    var fsName = getPreloadFSName(data.preload, data.platform);
-    if (fsName && !fsMeta[fsName])
-      loadFilesystem(fsName);
-    return;
-  }
-  // read a file from a filesystem package (shared code)
-  if (data.readshared) {
-    var fs1 = splitWasiFSName(data.preload_fs);
-    var contents = fs1.wasi ? await readWasiSharedFile(fs1.name, data.readshared)
-      : (ensureFilesystem(fs1.name), await readSharedFile(fs1.name, data.readshared));
-    return { output: contents, qid: data.qid } as WorkerResult;
-  }
-  // list files in a filesystem package directory (shared code)
-  if (data.listshared != null) {
-    var fs2 = splitWasiFSName(data.preload_fs);
-    var files = fs2.wasi ? await listWasiSharedFiles(fs2.name, data.listshared)
-      : (ensureFilesystem(fs2.name), listSharedFiles(fs2.name, data.listshared));
-    return { output: files, qid: data.qid } as WorkerResult;
-  }
-  // preload a filesystem package directly by name
-  if (data.preload_fs) {
-    var fs3 = splitWasiFSName(data.preload_fs);
-    if (fs3.wasi) await ensureWasiFilesystem(fs3.name);
-    else ensureFilesystem(fs3.name);
-    return;
-  }
-  // clear filesystem?
-  if (data.reset) {
-    store.reset();
-    return;
-  }
-  return builder.handleMessage(data);
 }

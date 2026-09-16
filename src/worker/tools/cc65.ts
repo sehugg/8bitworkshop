@@ -4,7 +4,7 @@ import { getRootBasePlatform } from "../../common/util";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
 import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, fixParamsWithDefines, applyAsmProjectParams, putWorkFile, populateExtraFiles, store, populateEntry, anyTargetChanged, processEmbedDirective } from "../builder";
 import { re_crlf, makeErrorMatcher } from "../listingutils";
-import { loadNative, moduleInstFn, print_fn, setupFS, execMain, emglobal, EmscriptenModule } from "../wasmutils";
+import { loadNative, moduleInstFn, print_fn, setupFS, execMain, execToFile, emglobal, EmscriptenModule } from "../wasmutils";
 
 
 /*
@@ -340,11 +340,8 @@ export function compileCC65(step: BuildStep): BuildStepResult {
         var customArgs = params.extra_compiler_args || ['-T', '-g', '-Oirs', '-Cl', '-W', '-pointer-sign,-no-effect'];
         args = args.concat(customArgs, args);
         args.push(step.path);
-        execMain(step, CC65, args);
-        if (errors.length)
-            return { errors: errors };
-        var asmout = FS.readFile(destpath, { encoding: 'utf8' });
-        putWorkFile(destpath, asmout);
+        const runerr = execToFile(step, CC65, args, FS, destpath, errors);
+        if (runerr) return runerr;
     }
     return {
         nexttool: "ca65",

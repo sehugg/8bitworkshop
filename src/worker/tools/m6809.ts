@@ -1,9 +1,9 @@
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
 import { defineArgs, extraArgsFor, linkSymbolArgs } from "../../common/toolmeta";
-import { BuildStep, BuildStepResult, populateFiles, putWorkFile, gatherFiles, staleFiles, getWorkFileAsString, fixParamsWithDefines, populateExtraFiles, anyTargetChanged } from "../builder";
+import { BuildStep, BuildStepResult, populateFiles, putWorkFile, gatherFiles, staleFiles, fixParamsWithDefines, populateExtraFiles, anyTargetChanged } from "../builder";
 import { parseListing, msvcErrorMatcher, parseSourceLines } from "../listingutils";
-import { EmscriptenModule, emglobal, execMain, load, loadNative, moduleInstFn, print_fn } from "../wasmutils";
-import { preprocessMCPP } from "./mcpp";
+import { EmscriptenModule, emglobal, execMain, execToFile, load, loadNative, moduleInstFn, print_fn } from "../wasmutils";
+import { prepareCompilerInput } from "./mcpp";
 
 // http://datapipe-blackbeltsystems.com/windows/flex/asm09.html
 export function assembleXASM6809(step: BuildStep): BuildStepResult {
@@ -98,32 +98,14 @@ export function compileCMOC(step: BuildStep): BuildStepResult {
             print: match_fn,
             printErr: match_fn,
         });
-        // load source file and preprocess
-        var code = getWorkFileAsString(step.path);
-        var preproc = preprocessMCPP(step, null);
-        if (preproc.errors) {
-            return { errors: preproc.errors }
-        }
-        else code = preproc.code;
-        // set up filesystem
+        // set up filesystem with the preprocessed source
         var FS = CMOC.FS;
         //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
-        populateFiles(step, FS);
-        FS.writeFile(step.path, code);
-        fixParamsWithDefines(step.path, params);
-        if (params.extra_compile_args) {
-            args.unshift.apply(args, params.extra_compile_args);
-        }
-        // //#symbol c / //#flag c
-        args.unshift.apply(args, defineArgs('cmoc', params.symbols && params.symbols.compiler)
-            .concat(extraArgsFor('cmoc', params.buildArgs)));
-        execMain(step, CMOC, args);
-        if (errors.length)
-            return { errors: errors };
-        var asmout = FS.readFile(destpath, { encoding: 'utf8' });
-        if (step.params.set_stack_end)
-            asmout = asmout.replace('stack space in bytes', `\n lds #${step.params.set_stack_end}\n`)
-        putWorkFile(destpath, asmout);
+        const err = prepareCompilerInput(step, 'cmoc', FS, params, args);
+        if (err) return err;
+        const runerr = execToFile(step, CMOC, args, FS, destpath, errors,
+            (out) => step.params.set_stack_end ? out.replace('stack space in bytes', `\n lds #${step.params.set_stack_end}\n`) : out);
+        if (runerr) return runerr;
     }
     return {
         nexttool: "lwasm",
