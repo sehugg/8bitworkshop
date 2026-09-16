@@ -1361,3 +1361,42 @@ div.scripting-cell button.scripting-enabled {
   margin-top: 0.8em;
   line-height: 1.4;
 }
+/* CodeMirror gutter markers */
+.gutter-offset-marker {
+  cursor: pointer;
+}
+.gutter-offset-marker:hover {
+  text-decoration: underline;
+}
+.gutter-breakpoint,
+.gutter-breakpoint-placeholder {
+  cursor: pointer;
+}
+.gutter-breakpoint-enabled {
+  color: rgba(255, 0, 0, 1.0);
+}
+.gutter-breakpoint-disabled {
+  color: rgba(255, 255, 255, 0.35);
+}
+.gutter-breakpoint-placeholder {
+  color: transparent;
+}
+.gutter-breakpoint-placeholder:hover {
+  color: rgba(255, 0, 0, 0.5);
+}
+.gutter-error {
+  color: #ff6666;
+  font-weight: bold;
+  cursor: pointer;
+}
+.gutter-currentpc {
+  color: #ff66ee;
+  cursor: pointer;
+}
+.gutter-currentpc-placeholder {
+  color: transparent;
+  cursor: pointer;
+}
+.gutter-currentpc-placeholder:hover {
+  color: #ffee66;
+}
