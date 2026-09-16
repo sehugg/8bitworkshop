@@ -80,6 +80,21 @@ static byte* const vidmem[VHEIGHT] = {
 // attribute table
 byte __at(0x5800) vidattrs[24][32];
 
+// per-row screen colors, like the colored overlay on a Space Invaders
+// cabinet: static horizontal bands of ink on a black paper, so sprites
+// change color as they march through them.
+// (bit 6 = bright, bits 5-3 = paper, bits 2-0 = ink)
+static const byte row_colors[24] = {
+  0x47, 0x47,             // white
+  0x44, 0x44, 0x44, 0x44, // green
+  0x45, 0x45, 0x45, 0x45, // cyan
+  0x46, 0x46, 0x46, 0x46, // yellow
+  0x43, 0x43,             // magenta
+  0x42, 0x42,             // red
+  0x44, 0x44, 0x44, 0x44, // green -- bunkers and player
+  0x44, 0x44
+};
+
 // bitmask table
 const byte BIT8[8] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
 
@@ -109,8 +124,12 @@ void xor_vline(byte x, byte y1, byte y2) {
 
 // clear screen and set graphics mode
 void clrscr() {
+  byte i,j;
   memset(vidmem[0], 0, 0x1800); // clear page 1
-  memset(vidattrs, 0x4, 0x300); // set attributes
+  // set a color for each row
+  for (i=0; i<24; i++)
+    for (j=0; j<32; j++)
+      vidattrs[i][j] = row_colors[i];
 }
 
 // draw (xor) a pixel
