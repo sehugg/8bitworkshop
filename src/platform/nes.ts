@@ -37,7 +37,7 @@ const JSNES_PRESETS : Preset[] = [
   {id:'climber.c', name:'Climber Game'},
   {id:'bankswitch.c', name:'Bank Switching'},
   {id:'irq.c', name:'IRQ Scanline Counter'},
-  {id:'ex0.dasm', name:'Initialization', category:'Assembly Language (ASM)'},
+  {id:'ex0.dasm', name:'Initialization', category:'Assembly'},
   {id:'ex1.dasm', name:'Hello World'},
   {id:'ex2.dasm', name:'Scrolling Demo'},
   {id:'ex3.dasm', name:'Sprite Demo'},

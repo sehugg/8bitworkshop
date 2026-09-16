@@ -39,7 +39,7 @@ const C64_PRESETS = [
     { id: '23matches.c', name: '23 Matches' },
     { id: 'tgidemo.c', name: 'TGI Graphics Demo' },
     { id: 'upandaway.c', name: 'Up, Up and Away' },
-    { id: 'hello.dasm', name: 'Hello World (DASM)', category: 'Assembly Language' },
+    { id: 'hello.dasm', name: 'Hello World (DASM)', category: 'Assembly' },
     { id: 'hello.acme', name: 'Hello World (ACME)' },
     { id: 'hello.wiz', name: 'Hello Wiz (Wiz)' },
     // {id:'kitchensink.dasm', name:'Kitchensink (DASM)'},

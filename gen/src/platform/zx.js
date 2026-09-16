@@ -8,7 +8,7 @@ const ZX_PRESETS = [
     { id: 'hello.c', name: 'Hello World', category: 'C' },
     { id: 'siegegame.c', name: 'Siege Game' },
     { id: 'cosmic.c', name: 'Cosmic Impalas' },
-    { id: 'hello.asm', name: 'Hello World (ASM)', category: 'assembler' },
+    { id: 'hello.asm', name: 'Hello World (ASM)', category: 'Assembly' },
     // {id:'kitchensink.zmac', name:'Kitchensink (ZMAC)'},
 ];
 const ZX_MEMORY_MAP = { main: [

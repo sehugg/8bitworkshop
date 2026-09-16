@@ -7,19 +7,19 @@ import { Atari5200, Atari800 } from "../machine/atari8";
 declare var jt; // for 6502
 
 var Atari8_PRESETS : Preset[] = [
-  {id:'hello.dasm', name:'Hello World (ASM)'},
-  {id:'hellopm.dasm', name:'Hello Sprites (ASM)'},
-  {id:'helloconio.c', name:'Text Mode (C)'},
-  {id:'siegegame.c', name:'Siege Game (C)'},
-  {id:'hellodlist.c', name:'Display List (C)'},
+  {id:'hello.dasm', name:'Hello World', category:'Assembly'},
+  {id:'hellopm.dasm', name:'Hello Sprites'},
+  {id:'helloconio.c', name:'Text Mode', category:'C'},
+  {id:'siegegame.c', name:'Siege Game'},
+  {id:'hellodlist.c', name:'Display List'},
 ];
 
 var Atari800_PRESETS = Atari8_PRESETS.concat([
-  {id:'testmusic.c', name:'POKEY Music (C)'},
-  {id:'sieve.bas', name:'Benchmark (FastBasic)', category:'FastBasic'},
-  {id:'pmtest.bas', name:'Sprites Test (FastBasic)'},
-  {id:'dli.bas', name:'DLI Test (FastBasic)'},
-  {id:'joyas.bas', name:'Match-3 Game (FastBasic)'},
+  {id:'testmusic.c', name:'POKEY Music'},
+  {id:'sieve.bas', name:'Benchmark', category:'FastBasic'},
+  {id:'pmtest.bas', name:'Sprites Test'},
+  {id:'dli.bas', name:'DLI Test'},
+  {id:'joyas.bas', name:'Match-3 Game'},
 ]);
 
 const Atari800_MemoryMap = { main:[

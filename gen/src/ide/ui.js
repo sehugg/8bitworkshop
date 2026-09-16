@@ -1019,8 +1019,13 @@ async function setCompileOutput(data) {
                     _resetRecording();
                     await exports.platform.loadROM(getCurrentPresetTitle(), rom, data.origin);
                     current_output = rom;
-                    if (!userPaused)
-                        _resume();
+                    // re-arm breakpoints before the new ROM gets to run: clearBreakpoint()
+                    // above disarmed them, and code that only runs at startup (main() on the
+                    // C64, say) would race past them before anything else re-armed
+                    if (!userPaused) {
+                        if (breakpoints_1.bpStore.getEnabled().length == 0 || !armBreakpoints())
+                            _resume();
+                    }
                     writeOutputROMFile();
                 }
                 catch (e) {

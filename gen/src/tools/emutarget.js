@@ -96,6 +96,16 @@ const MAX_CYCLES_PER_INSN = 64;
  * modules pick these up because Platform.start() reads them off the emu module.
  */
 function installHeadlessVideo() {
+    // Platform.start() builds its video/timer by reading these classes off the
+    // emu module, so we swap in headless stand-ins for the duration of start()
+    // and put the real ones back afterwards. Leaving the stubs installed would
+    // leak into every other module sharing the (cached) emu import -- which is
+    // exactly what happens when mocha reuses a worker across test files.
+    const original = {
+        RasterVideo: emu.RasterVideo,
+        VectorVideo: emu.VectorVideo,
+        AnimationTimer: emu.AnimationTimer,
+    };
     let pixels = null;
     let params = null;
     emu.RasterVideo = function (_el, width, height) {
@@ -133,6 +143,11 @@ function installHeadlessVideo() {
     return {
         get() {
             return pixels && params ? { pixels, width: params.width, height: params.height } : null;
+        },
+        restore() {
+            emu.RasterVideo = original.RasterVideo;
+            emu.VectorVideo = original.VectorVideo;
+            emu.AnimationTimer = original.AnimationTimer;
         }
     };
 }
@@ -141,7 +156,7 @@ class EmuTarget {
         this.id = id;
         this.platform = platform;
         this.frameCount = 0;
-        this.video = installHeadlessVideo();
+        this.video = null;
     }
     /**
      * The underlying Machine, if there is one. Platforms built on
@@ -152,7 +167,18 @@ class EmuTarget {
     get machine() {
         return this.platform.machine || null;
     }
-    async start() { await this.platform.start(); }
+    async start() {
+        // start() is where platforms construct their video and timer, so install
+        // the headless stand-ins just for that call, then restore the real classes.
+        const headless = installHeadlessVideo();
+        this.video = headless;
+        try {
+            await this.platform.start();
+        }
+        finally {
+            headless.restore();
+        }
+    }
     reset() { this.platform.reset(); }
     loadROM(data, title = 'ROM') { this.platform.loadROM(title, data); }
     loadBIOS(data, title = 'BIOS') {
@@ -215,7 +241,7 @@ class EmuTarget {
         m.connectProbe(probe);
         return true;
     }
-    getVideo() { return this.video.get(); }
+    getVideo() { return this.video ? this.video.get() : null; }
     saveState() { return this.platform.saveState ? this.platform.saveState() : null; }
     getDebugInfo() {
         const state = this.saveState();

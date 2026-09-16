@@ -4,7 +4,7 @@ const atari7800_1 = require("../machine/atari7800");
 const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
 var Atari7800_PRESETS = [
-    { id: 'sprites.dasm', name: 'Sprites (ASM)', category: 'Assembler' },
+    { id: 'sprites.dasm', name: 'Sprites (ASM)', category: 'Assembly' },
     { id: 'wsync.c', name: 'WSYNC', category: 'CC65' },
     { id: 'sprites.c', name: 'Double Buffering' },
     { id: 'scroll.c', name: 'Scrolling' },

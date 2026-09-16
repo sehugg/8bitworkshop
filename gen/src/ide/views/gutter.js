@@ -143,15 +143,9 @@ class OffsetMarker extends view_1.GutterMarker {
     }
     toDOM() {
         const span = document.createElement("span");
+        span.className = "gutter-offset-marker";
         span.textContent = this.hex;
-        span.style.cursor = "pointer";
         span.title = "Click to run to here";
-        span.addEventListener("mouseenter", () => {
-            span.style.textDecoration = "underline";
-        });
-        span.addEventListener("mouseleave", () => {
-            span.style.textDecoration = "none";
-        });
         return span;
     }
     eq(other) { return this.hex == other.hex; }
@@ -175,15 +169,8 @@ class ClockMarker extends view_1.GutterMarker {
 const BREAKPOINT_PLACEHOLDER_MARKER = new class extends view_1.GutterMarker {
     toDOM() {
         const span = document.createElement("span");
+        span.className = "gutter-breakpoint-placeholder";
         span.textContent = "●";
-        span.style.color = "transparent";
-        span.style.cursor = "pointer";
-        span.addEventListener("mouseenter", () => {
-            span.style.color = "rgba(255, 0, 0, 0.5)";
-        });
-        span.addEventListener("mouseleave", () => {
-            span.style.color = "transparent";
-        });
         return span;
     }
 };
@@ -194,9 +181,8 @@ class BreakpointMarker extends view_1.GutterMarker {
     }
     toDOM() {
         const span = document.createElement("span");
+        span.className = "gutter-breakpoint " + (this.enabled ? "gutter-breakpoint-enabled" : "gutter-breakpoint-disabled");
         span.innerHTML = "●";
-        span.style.color = this.enabled ? "rgba(255, 0, 0, 1.0)" : "rgba(255, 255, 255, 0.35)";
-        span.style.cursor = "pointer";
         span.title = this.enabled ? "Breakpoint (click to remove; manage in Breakpoints window)" : "Disabled breakpoint (click to remove)";
         return span;
     }
@@ -212,9 +198,8 @@ class ErrorMarker extends view_1.GutterMarker {
     }
     toDOM() {
         const span = document.createElement("span");
+        span.className = "gutter-error";
         span.innerHTML = "ⓧ";
-        span.style.color = "red";
-        span.style.cursor = "pointer";
         span.title = this.msg;
         return span;
     }
@@ -223,25 +208,17 @@ class ErrorMarker extends view_1.GutterMarker {
 const CURRENT_PC_PLACEHOLDER_MARKER = new class extends view_1.GutterMarker {
     toDOM() {
         const span = document.createElement("span");
+        span.className = "gutter-currentpc-placeholder";
         span.textContent = "▶";
-        span.style.color = "transparent";
-        span.style.cursor = "pointer";
         span.title = "Click to run to here";
-        span.addEventListener("mouseenter", () => {
-            span.style.color = "#ffee66";
-        });
-        span.addEventListener("mouseleave", () => {
-            span.style.color = "transparent";
-        });
         return span;
     }
 };
 const CURRENT_PC_MARKER = new class extends view_1.GutterMarker {
     toDOM() {
         const span = document.createElement("span");
+        span.className = "gutter-currentpc";
         span.innerHTML = "▶";
-        span.style.color = "#ff66ee";
-        span.style.cursor = "pointer";
         span.title = "Current PC";
         return span;
     }
