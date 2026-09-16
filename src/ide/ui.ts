@@ -9,7 +9,7 @@ import {
   arrayCompare, byteArrayToUTF8, decodeQueryString, getBasePlatform, getCookie, getFilenameForPath, getFilenamePrefix,
   getRootBasePlatform, getWithBinary, hex, highlightDifferences, isProbablyBinary, isProductionHost, loadScript, parseBool, stringToByteArray
 } from "../common/util";
-import { getSkeletonName, getToolMeta, TOOL_META } from "../common/toolmeta";
+import { getSkeletonName, getPlatformToolHelpURL, getToolMeta, TOOL_META } from "../common/toolmeta";
 import { PLATFORM_PARAMS } from "../worker/platforms";
 import { CodeListingMap, FileData, WorkerError, WorkerResult } from "../common/workertypes";
 import { reportErrorToServer } from "./errorreport";
@@ -1836,24 +1836,13 @@ function setupDebugControls() {
   }
   // help menu items
   if (platform.showHelp) {
-    let { li, a } = newDropdownListItem('help__' + platform_id, platform_name + ' Help');
+    let { li, a } = newDropdownListItem('help__' + platform_id, platform_name + ' Info');
     $("#help_menu").append(li);
     // opens an external page; don't let the placeholder href change our URL hash
     $(a).click((e) => { e.preventDefault(); window.open(platform.showHelp(), '_8bws_help'); });
   }
-  // tool help
-  let tool = platform.getToolForFilename(getCurrentMainFilename());
-  let toolmeta = tool && getToolMeta(tool);
-  let toolhelpurl = toolmeta?.helpURL;
-  if (toolhelpurl) {
-    // include the vendored wasm version when we know it (TOOL_META.version)
-    let label = tool + ' Help';
-    if (toolmeta!.version) label += ' (' + toolmeta!.version + ')';
-    let { li, a } = newDropdownListItem('help__' + tool, label);
-    $("#help_menu").append(li);
-    // opens an external page; don't let the placeholder href change our URL hash
-    $(a).click((e) => { e.preventDefault(); window.open(toolhelpurl!, '_8bws_help'); });
-  }
+  // tool help (one entry per tool this platform can build with)
+  showToolHelp();
   // internal IDE help (markdown docs shipped with the IDE)
   {
     let { li } = newDropdownListItem('#help', 'IDE Help');
@@ -1965,6 +1954,35 @@ function openToolVersions() {
       </table>
     </div>`,
   });
+}
+
+// Add Help entries for each tool that publishes a page specific to this
+// platform (e.g. cc65's atari.html on atari8): the tool's main docs plus a
+// "<tool> Help for <platform>" entry for the override. Tools with only
+// generic docs are not listed here. Mirrors the extension sweep in
+// openToolVersions().
+function showToolHelp() {
+  let tool = platform.getToolForFilename(getCurrentMainFilename());
+  if (!tool) return;
+  const meta = getToolMeta(tool);
+  if (!meta) return;
+  // include the vendored wasm version when we know it (TOOL_META.version)
+  const version = meta.version ? ' (' + meta.version + ')' : '';
+  const addEntry = (id: string, label: string, url: string) => {
+    let { li, a } = newDropdownListItem(id, label);
+    $("#help_menu").append(li);
+    // opens an external page; don't let the placeholder href change our URL hash
+    $(a).click((e) => { e.preventDefault(); window.open(url, '_8bws_help'); });
+  };
+  // the tool's main documentation page
+  if (meta.helpURL) addEntry('help__' + tool, meta.name + ' Help' + version, meta.helpURL);
+  // ...and the platform-specific page, if it has one
+  const platformUrl = getPlatformToolHelpURL(tool, platform_id);
+  if (platformUrl) {
+    addEntry('help__' + tool + '__' + platform_id,
+      meta.name + ' Help for ' + platform_name,
+      platformUrl);
+  }
 }
 
 function setupReplaySlider() {

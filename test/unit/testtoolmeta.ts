@@ -3,7 +3,8 @@ import { describe, it } from "mocha";
 import {
   TOOL_META, getToolMeta, getToolMetaForFilename, getPreloadFSName, getSkeletonName,
   getIncludePatterns, getLinkPatterns, matchDependencyPatterns,
-  getSystemIncludePatterns, SYSTEM_INCLUDE_PATTERNS, getSharedFileSystemName
+  getSystemIncludePatterns, SYSTEM_INCLUDE_PATTERNS, getSharedFileSystemName, getToolHelpURL,
+  getPlatformToolHelpURL
 } from "../../src/common/toolmeta";
 // Node-friendly worker entry point (re-exports TOOLS without Worker wiring)
 import { TOOLS } from "../../src/worker/workerlib";
@@ -171,6 +172,29 @@ describe('Tool metadata registry', function () {
       ['foo.h']);
     // an explicit empty list means "this tool has no such directives"
     assert.deepStrictEqual(getLinkPatterns('jsasm', 'verilog'), []);
+  });
+
+  it('resolves platform-specific tool help pages', function () {
+    // cc65 publishes per-platform manuals; those win over the generic page
+    assert.strictEqual(getToolHelpURL('cc65', 'atari8'), 'https://cc65.github.io/doc/atari.html');
+    assert.strictEqual(getToolHelpURL('cc65', 'c64'), 'https://cc65.github.io/doc/c64.html');
+    // suffixed platform ids resolve through their root base
+    assert.strictEqual(getToolHelpURL('cc65', 'atari8-800.xlmame'), 'https://cc65.github.io/doc/atari.html');
+    // no platform-specific page -> the tool's generic helpURL
+    assert.strictEqual(getToolHelpURL('cc65', 'vector'), TOOL_META['cc65'].helpURL);
+    assert.strictEqual(getToolHelpURL('dasm', 'atari8'), TOOL_META['dasm'].helpURL);
+    // tools with no docs at all, or unknown tools
+    assert.strictEqual(getToolHelpURL('ld65', 'atari8'), undefined);
+    assert.strictEqual(getToolHelpURL('bogus', 'atari8'), undefined);
+  });
+
+  it('getPlatformToolHelpURL only returns platform-specific pages', function () {
+    assert.strictEqual(getPlatformToolHelpURL('cc65', 'atari8'), 'https://cc65.github.io/doc/atari.html');
+    assert.strictEqual(getPlatformToolHelpURL('cc65', 'atari8-800.xlmame'), 'https://cc65.github.io/doc/atari.html');
+    // generic-only tools have no platform-specific page
+    assert.strictEqual(getPlatformToolHelpURL('dasm', 'atari8'), undefined);
+    assert.strictEqual(getPlatformToolHelpURL('cc65', 'vector'), undefined);
+    assert.strictEqual(getPlatformToolHelpURL('bogus', 'atari8'), undefined);
   });
 
   it('rewinds shared global patterns between files', function () {
