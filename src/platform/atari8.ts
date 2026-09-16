@@ -4,8 +4,6 @@ import { PLATFORMS } from "../common/emu";
 import { BaseMAME6502Platform } from "../common/mameplatform";
 import { Atari5200, Atari800 } from "../machine/atari8";
 
-declare var jt; // for 6502
-
 var Atari8_PRESETS : Preset[] = [
   {id:'hello.dasm', name:'Hello World', category:'Assembly'},
   {id:'hellopm.dasm', name:'Hello Sprites'},
@@ -16,7 +14,7 @@ var Atari8_PRESETS : Preset[] = [
 ];
 
 var Atari800_PRESETS = Atari8_PRESETS.concat([
-  {id:'testmusic.c', name:'POKEY Music'},
+  //{id:'testmusic.c', name:'POKEY Music'},
   {id:'sieve.bas', name:'Benchmark', category:'FastBasic'},
   {id:'pmtest.bas', name:'Sprites Test'},
   {id:'dli.bas', name:'DLI Test'},

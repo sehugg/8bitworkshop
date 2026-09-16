@@ -8,6 +8,7 @@
  */
 
 #include <6502.h>
+#include <string.h>
 #include "common.h"
 
 /* Target-specific display-list / NMI vector locations.  The 5200 BIOS
@@ -46,9 +47,15 @@
 /* Display list builder                                                     */
 /*==========================================================================*/
 
-/* Extra room lets us page-align the list at runtime (cc65 has no
-   aligned attribute).  ANTIC lists are happiest on a page boundary. */
-static byte a8_dlist_store[A8_DLIST_MAX + 0x100 + 4];
+/* Make sure this array doesn't cross a 1K boundary */
+/* we really should use a custom .cfg file with the align attribute */
+/* but let's just put it here and maybe no one will notice */
+#if defined(__ATARI5200__)
+static byte* a8_dlist_store = (byte*)0x1700;
+#else
+static byte* a8_dlist_store = (byte*)0x9700;
+#endif
+
 byte* a8_dlist;
 byte  a8_dlist_len;
 byte  a8_dli_count;
@@ -62,7 +69,7 @@ static void a8_set_dmactl(byte v) {
 }
 
 void a8_dlist_reset(void) {
-  a8_dlist = (byte*)(((word)a8_dlist_store + 0xff) & 0xff00);
+  a8_dlist = a8_dlist_store;
   a8_dlist_len = 0;
   a8_dli_count = 0;
   a8_dli_lines = 1;
@@ -70,8 +77,7 @@ void a8_dlist_reset(void) {
 }
 
 void a8_dlist_byte(byte b) {
-  if (a8_dlist_len < A8_DLIST_MAX)
-    a8_dlist[a8_dlist_len++] = b;
+  a8_dlist[a8_dlist_len++] = b;
 }
 
 void a8_dlist_blank(byte n) {
@@ -156,20 +162,18 @@ static volatile byte* const a8_dli_regs[A8_REG_COUNT] = {
 };
 
 void a8_dli_clear(void) {
-  byte i, j;
-  for (i = 0; i < A8_DLI_LINES; i++)
-    for (j = 0; j < A8_DLI_WRITES; j++)
-      a8_dli_tab[i][j * 2] = 0xff;
+  memset(a8_dli_tab, 0xff, sizeof(a8_dli_tab));
   a8_dli_line = 0;
 }
 
 void a8_dli_set(byte line, byte reg, byte val) {
   byte j;
+  byte* dli_line = a8_dli_tab[line];
   if (line >= A8_DLI_LINES || reg >= A8_REG_COUNT) return;
   for (j = 0; j < A8_DLI_WRITES; j++) {
-    if (a8_dli_tab[line][j * 2] == 0xff) {
-      a8_dli_tab[line][j * 2] = reg;
-      a8_dli_tab[line][j * 2 + 1] = val;
+    if (dli_line[j * 2] == 0xff) {
+      dli_line[j * 2] = reg;
+      dli_line[j * 2 + 1] = val;
       return;
     }
   }
@@ -192,6 +196,8 @@ void a8_dli_dispatch(void) {
     w += 2;
   }
   if (++a8_dli_line >= a8_dli_lines) a8_dli_line = 0;
+  // the more often we call this, the more accurate the notes
+  music_duty();
 }
 
 void a8_dli_install(void) {
@@ -210,7 +216,11 @@ void a8_dli_remove(void) {
 /*==========================================================================*/
 
 /* Need 2K for a single-line P/M area, plus up to 2K of alignment slack. */
-static byte a8_pmg_store[0x800 + 0x7ff];
+#if defined(__ATARI5200__)
+static byte* a8_pmg_store = (byte*)0x1800;
+#else
+static byte* a8_pmg_store = (byte*)0x9800;
+#endif
 static byte* a8_pmg_base;
 static byte  a8_pmg_mode;
 
@@ -234,13 +244,14 @@ void a8_pmg_clear(void) {
 void a8_pmg_init(byte mode) {
   word i;
   a8_pmg_mode = mode;
-  a8_pmg_base = (byte*)(((word)a8_pmg_store + 0x7ff) & 0xf800);
+  a8_pmg_base = a8_pmg_store;
   a8_pmg_clear();
   GTIA_WRITE.gractl = 0;                       /* disable while we set up */
   ANTIC.pmbase = (byte)((word)a8_pmg_base >> 8);
   a8_dmactl_val = (a8_dmactl_val & ~0x1c) | 0x0c | (mode & 0x10);
   a8_set_dmactl(a8_dmactl_val);
   GTIA_WRITE.gractl = GRACTL_PLAYERS | GRACTL_MISSLES;
+  GTIA_WRITE.prior = PRIOR_P03_PF03;
   for (i = 0; i < 4; i++)
     a8_pmg_set_color(i, (byte)(0x10 + i * 0x20));
 }
@@ -297,23 +308,6 @@ void a8_pmg_clear_collisions(void) {
 /* POKEY                                                                    */
 /*==========================================================================*/
 
-/* AUDF values for the 15 kHz clock, notes C1 (0) .. C6 (60+) .. up.
-   MIDI 24 + index; index 45 = A4. */
-const byte a8_pokey_notes[64] = {
-  239, 226, 213, 201, 190, 179, 169, 159,
-  150, 142, 134, 126, 119, 112, 106, 100,
-   94,  89,  84,  79,  75,  70,  66,  63,
-   59,  56,  52,  49,  47,  44,  41,  39,
-   37,  35,  33,  31,  29,  27,  26,  24,
-   23,  21,  20,  19,  18,  17,  16,  15,
-   14,  13,  12,  12,  11,  10,  10,   9,
-    8,   8,   7,   7,   7,   6,   6,   5
-};
-
-static const A8_Note* a8_seq_song[4];
-static byte a8_seq_ticks[4];
-static byte a8_seq_ctrl[4];
-static byte a8_seq_vol[4];
 static byte a8_irq_stack[128];
 
 void a8_pokey_init(void) {
@@ -328,10 +322,6 @@ void a8_pokey_sound(byte chan, byte freq, byte ctrl, byte vol) {
   p[1] = (byte)(ctrl | (vol & 0x0f));
 }
 
-void a8_pokey_note(byte chan, byte note, byte ctrl, byte vol) {
-  a8_pokey_sound(chan, a8_pokey_notes[note & 0x3f], ctrl, vol);
-}
-
 void a8_pokey_stop(byte chan) {
   ((byte*)&POKEY_WRITE.audc1)[chan << 1] = 0;
 }
@@ -341,56 +331,20 @@ void a8_pokey_stop_all(void) {
   for (i = 0; i < 4; i++) a8_pokey_stop(i);
 }
 
-void a8_pokey_play(byte chan, const A8_Note* song, byte ctrl, byte vol) {
-  a8_seq_song[chan] = song;
-  a8_seq_ticks[chan] = 1;
-  a8_seq_ctrl[chan] = ctrl;
-  a8_seq_vol[chan] = vol;
-}
-
-void a8_pokey_tick(void) {
-  byte i;
-  for (i = 0; i < 4; i++) {
-    const A8_Note* s = a8_seq_song[i];
-    if (!s) continue;
-    if (a8_seq_ticks[i] == 0) {
-      byte note = s->note;
-      if (note == 0xff) {
-        a8_seq_song[i] = 0;
-        a8_pokey_stop(i);
-        continue;
-      }
-      a8_pokey_note(i, note, a8_seq_ctrl[i], a8_seq_vol[i]);
-      a8_seq_ticks[i] = s->ticks;
-      a8_seq_song[i] = s + 1;
-    }
-    a8_seq_ticks[i]--;
-  }
-}
-
-/* POKEY timer 1 IRQ handler.  Timer 1 shares channel 1, so leave that
-   channel silent (and unused) when the IRQ tick is running. */
-static byte a8_pokey_irq(void) {
-  if (!(POKEY_READ.irqst & IRQEN_TIMER_1)) {
-    a8_pokey_tick();
-    return IRQ_HANDLED;
-  }
+/* called from set_irq() */
+unsigned char a8_pokey_music_update() {
+  music_tick();
+  music_duty();
   return IRQ_NOT_HANDLED;
 }
 
-void a8_pokey_start_irq(byte rate) {
-  set_irq(a8_pokey_irq, a8_irq_stack, sizeof(a8_irq_stack));
-  POKEY_WRITE.audf1 = rate;
-  POKEY_WRITE.audc1 = 0;
-  POKEY_WRITE.irqen = IRQEN_TIMER_1;
-  POKEY_WRITE.stimer = 0x01;
+void a8_pokey_music_init(void) {
+  set_irq(a8_pokey_music_update, a8_irq_stack, sizeof(a8_irq_stack));
 }
 
-void a8_pokey_stop_irq(void) {
-  POKEY_WRITE.irqen = 0;
+void a8_pokey_music_done(void) {
   reset_irq();
 }
-
 
 /*==========================================================================*/
 /* Colors                                                                   */

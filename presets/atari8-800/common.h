@@ -52,7 +52,6 @@ typedef unsigned int  word;
 /*==========================================================================*/
 
 /* Buffer is a runtime-aligned array; use a8_dlist_reset() before building. */
-#define A8_DLIST_MAX 100
 extern byte* a8_dlist;          /* pointer to the aligned display list */
 extern byte  a8_dlist_len;      /* current length in bytes */
 extern byte  a8_dli_count;     /* number of DLI bits emitted so far */
@@ -167,34 +166,24 @@ void a8_pmg_clear_collisions(void);
 /* POKEY sound                                                              */
 /*==========================================================================*/
 
-/* Notes are indexes into a 64-entry table, 0 = C1 ... 45 = A4 ... 63. */
-#define A8_NOTE_A4 45
-extern const byte a8_pokey_notes[64];
-
 void a8_pokey_init(void);
 /* chan 0..3; freq 0..255 (AUDF); ctrl A8_AUDC_xxx; vol 0..15 */
 void a8_pokey_sound(byte chan, byte freq, byte ctrl, byte vol);
-void a8_pokey_note(byte chan, byte note, byte ctrl, byte vol);
 void a8_pokey_stop(byte chan);
 void a8_pokey_stop_all(void);
 
-/* A tiny frame-tick sequencer.  A song is a list of {note,ticks}
-   pairs; note 0xFF ends it.  Call a8_pokey_tick() once per frame
-   (from your main loop or an IRQ).  Tick speed is up to you. */
-typedef struct {
-  byte note;
-  byte ticks;
-} A8_Note;
 
-void a8_pokey_play(byte chan, const A8_Note* song, byte ctrl, byte vol);
-void a8_pokey_tick(void);
+/* Music routines */
+/* requires //#link pokeymusic.ca65 */
+void a8_pokey_music_init(void);
+void a8_pokey_music_done(void);
 
-/* Start POKEY timer 1 and call a8_pokey_tick() from an IRQ.
-   rate ~= 1 + (clock / (2 * ticks_per_second)); 0 uses a default.
-   Requires <6502.h> and the cc65 set_irq() runtime. */
-void a8_pokey_start_irq(byte rate);
-void a8_pokey_stop_irq(void);
-
+void music_tick(void);
+void music_duty(void);
+void music_start(const char*);
+char* music_get_ptr(void);
+char music_is_done(void);
+unsigned char music_update(void);
 
 /*==========================================================================*/
 /* Colors                                                                   */
