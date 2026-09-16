@@ -136,8 +136,11 @@ export function assembleCA65(step: BuildStep): BuildStepResult {
         if (step.mainfile) {
             args.unshift.apply(args, ["-D", "__MAIN__=1"]);
         }
-        // //#symbol as / //#flag as (insert before the source filename)
-        var extra = defineArgs('ca65', step.params.symbols && step.params.symbols.assembler)
+        // //#symbol as / //#flag as (insert before the source filename).
+        // platform defines (params.define) only reach the compiler step otherwise,
+        // so a hand-written .ca65/.s project would never see e.g. __ATARI5200__
+        var extra = defineArgs('ca65', step.params.define)
+            .concat(defineArgs('ca65', step.params.symbols && step.params.symbols.assembler))
             .concat(extraArgsFor('ca65', step.params.buildArgs));
         args.splice(args.length - 1, 0, ...extra);
         execMain(step, CA65, args);

@@ -1,7 +1,12 @@
-
+.ifdef __ATARI5200__
+AUDF0 =	$e800
+AUDC0 = $e801
+AUDCTL = $e808
+.else
 AUDF0 =	$d200
 AUDC0 = $d201
 AUDCTL = $d208
+.endif
 
 .data
 
