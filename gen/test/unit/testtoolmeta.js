@@ -151,6 +151,27 @@ const workerlib_1 = require("../../src/worker/workerlib");
         // an explicit empty list means "this tool has no such directives"
         assert_1.default.deepStrictEqual((0, toolmeta_1.getLinkPatterns)('jsasm', 'verilog'), []);
     });
+    (0, mocha_1.it)('resolves platform-specific tool help pages', function () {
+        // cc65 publishes per-platform manuals; those win over the generic page
+        assert_1.default.strictEqual((0, toolmeta_1.getToolHelpURL)('cc65', 'atari8'), 'https://cc65.github.io/doc/atari.html');
+        assert_1.default.strictEqual((0, toolmeta_1.getToolHelpURL)('cc65', 'c64'), 'https://cc65.github.io/doc/c64.html');
+        // suffixed platform ids resolve through their root base
+        assert_1.default.strictEqual((0, toolmeta_1.getToolHelpURL)('cc65', 'atari8-800.xlmame'), 'https://cc65.github.io/doc/atari.html');
+        // no platform-specific page -> the tool's generic helpURL
+        assert_1.default.strictEqual((0, toolmeta_1.getToolHelpURL)('cc65', 'vector'), toolmeta_1.TOOL_META['cc65'].helpURL);
+        assert_1.default.strictEqual((0, toolmeta_1.getToolHelpURL)('dasm', 'atari8'), toolmeta_1.TOOL_META['dasm'].helpURL);
+        // tools with no docs at all, or unknown tools
+        assert_1.default.strictEqual((0, toolmeta_1.getToolHelpURL)('ld65', 'atari8'), undefined);
+        assert_1.default.strictEqual((0, toolmeta_1.getToolHelpURL)('bogus', 'atari8'), undefined);
+    });
+    (0, mocha_1.it)('getPlatformToolHelpURL only returns platform-specific pages', function () {
+        assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolHelpURL)('cc65', 'atari8'), 'https://cc65.github.io/doc/atari.html');
+        assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolHelpURL)('cc65', 'atari8-800.xlmame'), 'https://cc65.github.io/doc/atari.html');
+        // generic-only tools have no platform-specific page
+        assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolHelpURL)('dasm', 'atari8'), undefined);
+        assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolHelpURL)('cc65', 'vector'), undefined);
+        assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolHelpURL)('bogus', 'atari8'), undefined);
+    });
     (0, mocha_1.it)('rewinds shared global patterns between files', function () {
         // patterns are shared between tools and have the /g flag, so a stale
         // lastIndex would make the second scan miss the directive

@@ -26,6 +26,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TOOL_META = exports.DIALOG_INCLUDE_PATTERNS = exports.ECS_INCLUDE_PATTERNS = exports.WIZ_INCLUDE_PATTERNS = exports.ACME_INCLUDE_PATTERNS = exports.USE_ASM_INCLUDE_PATTERNS = exports.SYSTEM_INCLUDE_PATTERNS = exports.VERILOG_INCLUDE_PATTERNS = exports.SHARED_LINK_PATTERNS = exports.SHARED_INCLUDE_PATTERNS = void 0;
 exports.getSystemIncludePatterns = getSystemIncludePatterns;
 exports.getToolMeta = getToolMeta;
+exports.getPlatformToolHelpURL = getPlatformToolHelpURL;
+exports.getToolHelpURL = getToolHelpURL;
 exports.getToolMetaForFilename = getToolMetaForFilename;
 exports.getPlatformToolConfig = getPlatformToolConfig;
 exports.getPreloadFSName = getPreloadFSName;
@@ -93,6 +95,24 @@ exports.DIALOG_INCLUDE_PATTERNS = [
     /^\s*%%\s*#include\s+"(.+?)"/gm,
 ];
 //// preload filesystem names per tool/platform (was TOOL_PRELOADFS)
+/**
+ * Platform-specific documentation pages, keyed by tool id then platform id.
+ * These override the tool's generic `helpURL` on that platform -- e.g. cc65
+ * publishes an Atari-specific manual page at /doc/atari.html. Only tools with
+ * a platform-specific page need an entry here; everything else falls back to
+ * ToolMeta.helpURL.
+ */
+const TOOL_PLATFORM_HELPURL = {
+    cc65: {
+        apple2: 'https://cc65.github.io/doc/apple2.html',
+        atari8: 'https://cc65.github.io/doc/atari.html',
+        c64: 'https://cc65.github.io/doc/c64.html',
+        nes: 'https://cc65.github.io/doc/nes.html',
+        pce: 'https://cc65.github.io/doc/pce.html',
+        vic20: 'https://cc65.github.io/doc/vic20.html',
+        lynx: 'https://cc65.github.io/doc/lynx.html',
+    },
+};
 const CC65_PRELOADFS = {
     'apple2': { preloadFS: '65-apple2' },
     'c64': { preloadFS: '65-c64' },
@@ -529,6 +549,37 @@ exports.TOOL_META = {
  */
 function getToolMeta(id) {
     return exports.TOOL_META[id.replace(/^remote:/, '')];
+}
+/**
+ * Platform-specific documentation page for a tool, or undefined if the tool
+ * only has a generic page. Suffixed platform ids resolve through their root
+ * base (e.g. 'atari8-800' -> 'atari8').
+ */
+function getPlatformToolHelpURL(tool, platform) {
+    let meta = getToolMeta(tool);
+    if (!meta || !platform)
+        return undefined;
+    let overrides = TOOL_PLATFORM_HELPURL[meta.id];
+    if (!overrides)
+        return undefined;
+    let url = overrides[platform];
+    if (!url) {
+        let base = (0, util_1.getRootBasePlatform)(platform);
+        if (base && base !== platform)
+            url = overrides[base];
+    }
+    return url;
+}
+/**
+ * Documentation URL for a tool on a platform. A platform-specific page (e.g.
+ * cc65's atari.html on atari8) wins over the tool's generic helpURL. Undefined
+ * if the tool has no docs at all.
+ */
+function getToolHelpURL(tool, platform) {
+    let meta = getToolMeta(tool);
+    if (!meta)
+        return undefined;
+    return (platform && getPlatformToolHelpURL(tool, platform)) || meta.helpURL;
 }
 /**
  * Return all tools that consume the given filename (longest extension match

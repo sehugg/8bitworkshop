@@ -4,9 +4,11 @@ const zx_1 = require("../machine/zx");
 const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
 const ZX_PRESETS = [
-    { id: 'hello.asm', name: 'Hello World (ASM)' },
-    { id: 'bios.c', name: 'BIOS Routines (C)' },
-    { id: 'cosmic.c', name: 'Cosmic Impalas (C)' },
+    { id: 'bios.c', name: 'BIOS Routines', category: 'C' },
+    { id: 'hello.c', name: 'Hello World', category: 'C' },
+    { id: 'siegegame.c', name: 'Siege Game' },
+    { id: 'cosmic.c', name: 'Cosmic Impalas' },
+    { id: 'hello.asm', name: 'Hello World (ASM)', category: 'assembler' },
     // {id:'kitchensink.zmac', name:'Kitchensink (ZMAC)'},
 ];
 const ZX_MEMORY_MAP = { main: [

@@ -163,7 +163,6 @@ class BaseWASMMachine {
             }
         }
     }
-    // TODO: tick might advance 1 instruction
     advanceFrameClock(trap, cpf) {
         var i;
         if (trap) {
@@ -171,6 +170,7 @@ class BaseWASMMachine {
                 if (trap()) {
                     break;
                 }
+                // TODO: tick might advance 1 instruction, not 1 clock (affects ZX, CPC)
                 this.exports.machine_tick(this.sys);
             }
         }
