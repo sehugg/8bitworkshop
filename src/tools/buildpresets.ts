@@ -19,6 +19,9 @@
 // Tool output is hidden unless the build it belongs to fails, and a tool that
 // exits, aborts, or wedges fails just its own preset (see --timeout, ms).
 //
+// It also warns when a platform's examples are built with a tool but it has
+// no skeleton for it, which drops that tool from the IDE's new-file menu.
+//
 // With --baseline it exits nonzero when a preset that used to build stops
 // building (or a known-broken one starts building), so it can gate a commit.
 
@@ -162,6 +165,9 @@ export async function listPresets(
     const skelTools = toolsBySkeletonName();
     // a platform whose preset folder isn't in this tree; reported in one line
     const missing: { [platform: string]: number } = {};
+    // platform variants share a preset folder, so their skeleton gaps are the
+    // same; report each dir+tool pair once
+    const noSkeleton = new Set<string>();
     const keep = (e: PresetEntry) => {
         if (seen.has(e.preset)) return;
         seen.add(e.preset);
@@ -187,6 +193,7 @@ export async function listPresets(
         // presets are served from presets/<base platform>/, as the IDE's
         // WebPresetsFileSystem does it
         const dir = getBasePlatform(id);
+        const presetTools = new Set<string>();
         for (const preset of presets || []) {
             if (!preset || !preset.id) continue;
             const relpath = dir + '/' + preset.id;
@@ -198,9 +205,22 @@ export async function listPresets(
             }
             const tool = toolForPreset(relpath, id, plat);
             if (!tool) continue;
+            presetTools.add(tool);
             keep({ preset: relpath, platform: id, tool });
         }
-        for (const skel of listSkeletons(dir, id, skelTools)) keep(skel);
+        const skeletons = listSkeletons(dir, id, skelTools);
+        for (const skel of skeletons) keep(skel);
+        // a platform whose examples are built with a tool but that ships no
+        // skeleton.<tool> can't offer that tool in the IDE's new-file menu
+        const have = new Set(skeletons.map((s) => s.tool));
+        for (const tool of presetTools) {
+            if (have.has(tool)) continue;
+            const key = dir + '/' + tool;
+            if (noSkeleton.has(key)) continue;
+            noSkeleton.add(key);
+            warn(`platform ${id}: no skeleton for tool ${tool} ` +
+                `(${PRESETS_DIR}/${dir}/skeleton.${getSkeletonName(tool)})`);
+        }
     }
     for (const id of Object.keys(missing).sort()) {
         err(`platform ${id}: ${missing[id]} preset(s) not in presets/${getBasePlatform(id)}/`);
