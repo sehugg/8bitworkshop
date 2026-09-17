@@ -37,7 +37,8 @@ export function parseOscar64Map(mapout: string) {
             continue;
         }
         // "0880 - 0889 : DATA, code"  or  "0801 - 0853 : startup, NATIVE_CODE:startup"
-        let m = /^([0-9a-f]+) - ([0-9a-f]+) : ([^,]+), (.+)$/.exec(line);
+        // banked targets (NES) prefix the start address with the bank: "00:8000 - 8085 : main, NATIVE_CODE:code"
+        let m = /^(?:[0-9a-f]{2}:)?([0-9a-f]+) - (?:[0-9a-f]{2}:)?([0-9a-f]+) : ([^,]+), (.+)$/.exec(line);
         if (m) {
             const start = parseInt(m[1], 16);
             const end = parseInt(m[2], 16);
@@ -101,8 +102,9 @@ export function parseOscar64Listing(asmout: string, asmfn: string) {
     let asm_lineno = 0;
     // ;   2, "/test.c"
     let re_src = /^;\s*(\d+), "(.+?)"/;
-    // 0801 : 0b __ __ INV
-    let re_insn = /^([0-9a-f]+) : ([0-9a-f _]{8}) (.*)/;
+    // "0801 : 0b __ __ INV" (single bank)
+    // or banked (NES): "00:8000 : a9 00 __ LDA #$00"
+    let re_insn = /^(?:([0-9a-f]{2}):)?([0-9a-f]{4}) : ([0-9a-f_]{2} [0-9a-f_]{2} [0-9a-f_]{2}) (.*)/;
     for (let line of asmout.split('\n')) {
         asm_lineno++;
         let m2 = re_src.exec(line);
@@ -113,9 +115,11 @@ export function parseOscar64Listing(asmout: string, asmfn: string) {
         }
         let m = re_insn.exec(line);
         if (m) {
-            let offset = parseInt(m[1], 16);
-            let hex = m[2];
-            let asm = m[3];
+            let asm = m[4];
+            // BSS declarations have no bytes; they are not instructions
+            if (/^BSS\b/.test(asm)) continue;
+            let offset = parseInt(m[2], 16);
+            let hex = m[3];
             let insns = (hex + ' ' + asm).trim();
             asmlines.push({
                 line: asm_lineno,

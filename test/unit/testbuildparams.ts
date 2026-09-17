@@ -293,6 +293,15 @@ describe("platform tool config resolution", function () {
     assert.strictEqual(getPlatformToolConfig('dasm', 'nes'), undefined);
   });
 
+  it("routes oscar64 to the target machine for each platform", function () {
+    // oscar64 defaults to the C64; atari8 needs -tm=atari (and emits a XEX)
+    assert.deepStrictEqual(extraArgsFor('oscar64', getPlatformToolConfig('oscar64', 'atari8-800').buildArgs), ['-tm=atari']);
+    assert.deepStrictEqual(extraArgsFor('oscar64', getPlatformToolConfig('oscar64', 'atari8').buildArgs), ['-tm=atari']);
+    assert.deepStrictEqual(extraArgsFor('oscar64', getPlatformToolConfig('oscar64', 'nes').buildArgs), ['-tm=nes']);
+    assert.deepStrictEqual(extraArgsFor('oscar64', getPlatformToolConfig('oscar64', 'c64').buildArgs), []);
+    assert.deepStrictEqual(defineArgs('oscar64', ['FOO=1']), ['-dFOO=1']);
+  });
+
 });
 
 describe("tool define/symbol formatting", function () {

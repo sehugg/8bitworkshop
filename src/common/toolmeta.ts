@@ -558,10 +558,17 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     wasiFSZip: 'oscar64-fs.zip',
     editorStyle: 'text/x-csrc',
     helpURL: 'https://github.com/drmortalwombat/oscar64/blob/v1.32.266/oscar64.md',
+    defineFlag: '-d', defineInline: true,
     wasmModule: 'oscar64',
     version: '1.32.266',
     includePatterns: SHARED_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
+    platforms: {
+      // oscar64 defaults to the C64 target machine
+      c64: {},
+      atari8: { buildArgs: { compiler: ['-tm=atari'] } },
+      nes: { buildArgs: { compiler: ['-tm=nes'] } },
+    },
   },
 
   bataribasic: {

@@ -194,6 +194,69 @@ describe('Worker', function() {
     assert.ok(result.segments && result.segments.length > 0, 'no segments');
   });
 
+  it('should compile oscar64 for atari8 into an XEX image', async function() {
+    var msgs = [{code:'#include <stdio.h>\n#include <conio.h>\nint main() { clrscr(); printf("FOO"); return 0; }', platform:'atari8-800', tool:'oscar64', path:'main.c', mainfile:true}];
+    var result = await new Promise(function(resolve, reject) {
+      global.postMessage = function(msg) {
+        if (!msg.unchanged) {
+          assert.ok(!msg.errors || msg.errors.length === 0, JSON.stringify(msg.errors));
+          resolve(msg);
+        }
+      };
+      (async function() {
+        await global.onmessage({data:{reset:true}});
+        await global.onmessage({data:msgs[0]});
+      })().catch(reject);
+    });
+    // the atari target writes a binary-load file: 0xFFFF header, then a segment at 0x2000
+    var out = result.output;
+    assert.ok(out.length > 6, 'output too small: ' + out.length);
+    assert.equal(out[0], 0xff, 'missing XEX header');
+    assert.equal(out[1], 0xff, 'missing XEX header');
+    assert.equal(out[2], 0x00, 'unexpected XEX load address lo');
+    assert.equal(out[3], 0x20, 'unexpected XEX load address hi');
+  });
+
+  it('should compile oscar64 for nes into an iNES image', async function() {
+    var src = '#include <nes/neslib.h>\n' +
+      '#pragma section( tiles, 0 )\n' +
+      '#pragma region( tbank, 0x0000, 0x2000, , 0, { tiles } )\n' +
+      '#pragma data(tiles)\n' +
+      '__export char tiles[16] = { 0 };\n' +
+      '#pragma data(data)\n' +
+      'void nes_game(void) { ppu_on_all(); while (1) ; }\n';
+    var msgs = [{code:src, platform:'nes', tool:'oscar64', path:'main.c', mainfile:true}];
+    var result = await new Promise(function(resolve, reject) {
+      global.postMessage = function(msg) {
+        if (!msg.unchanged) {
+          assert.ok(!msg.errors || msg.errors.length === 0, JSON.stringify(msg.errors));
+          resolve(msg);
+        }
+      };
+      (async function() {
+        await global.onmessage({data:{reset:true}});
+        await global.onmessage({data:msgs[0]});
+      })().catch(reject);
+    });
+    // iNES header: 'N', 'E', 'S', 0x1a, then 2 PRG banks and 1 CHR bank
+    var out = result.output;
+    assert.ok(out.length === 16 + 0x8000 + 0x2000, 'unexpected size: ' + out.length);
+    assert.equal(out[0], 0x4e, 'missing iNES header');
+    assert.equal(out[1], 0x45, 'missing iNES header');
+    assert.equal(out[2], 0x53, 'missing iNES header');
+    assert.equal(out[3], 0x1a, 'missing iNES header');
+    assert.equal(out[4], 0x02, 'unexpected PRG bank count');
+    assert.equal(out[5], 0x01, 'unexpected CHR bank count');
+    // NES listings are banked ("00:8000 : ..."); the parser must still map
+    // C source lines to their 16-bit offsets so the editor shows hex addresses
+    var keys = Object.keys(result.listings || {});
+    assert.ok(keys.length > 0, 'no listings');
+    var lst = result.listings[keys[0]];
+    assert.ok(lst.lines.length > 0, 'no source lines');
+    assert.ok(lst.lines[0].offset >= 0x8000, 'source line missing NES offset: ' + lst.lines[0].offset);
+    assert.ok(result.symbolmap && result.symbolmap['nes_game'] >= 0x8000, 'no nes_game symbol');
+  });
+
   it('should compile mw8080 skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/mw8080bw/skeleton.sdcc'));
     compile('sdcc', csource, 'mw8080bw', done, 8192, 84, 0);

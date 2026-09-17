@@ -99,6 +99,16 @@ const OSCAR64_TOOL: ServerBuildTool = {
         },
         c64: {
             outfile: 'a.prg',
+        },
+        atari8: {
+            // the atari target emits a binary-load XEX image
+            args: ['-Os', '-g', '-d__8BITWORKSHOP__', '-tm=atari', '-o=$OUTFILE', '$INFILES'],
+            outfile: 'a.xex',
+        },
+        nes: {
+            // the nes target emits an iNES image with 32K PRG + 8K CHR
+            args: ['-Os', '-g', '-d__8BITWORKSHOP__', '-tm=nes', '-o=$OUTFILE', '$INFILES'],
+            outfile: 'a.nes',
         }
     }
 }
