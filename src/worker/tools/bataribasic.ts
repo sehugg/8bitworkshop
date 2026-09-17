@@ -105,7 +105,7 @@ export async function compileBatariBasic(step: BuildStep): Promise<BuildStepResu
     const post = makeRunner("postprocess");
     post.fs.putFile("./bB.asm", bbasm);
     for (const f of basic.fs.getFiles()) {
-        if (!f.name.startsWith('./includes/')) post.fs.putFile(f.name, f.getBytes());
+        if (!f.name.startsWith('includes/')) post.fs.putFile(f.name, f.getBytes());
     }
     runRunner(post, "postprocess", ["-i", "."], errors);
     checkExit(post, "Postprocess failed.");
@@ -117,7 +117,7 @@ export async function compileBatariBasic(step: BuildStep): Promise<BuildStepResu
     const dasm = makeRunner("dasm");
     dasm.fs.putFile("./" + destpath, asmout);
     for (const f of basic.fs.getFiles()) {
-        if (!f.name.startsWith('./includes/')) dasm.fs.putFile(f.name, f.getBytes());
+        if (!f.name.startsWith('includes/')) dasm.fs.putFile(f.name, f.getBytes());
     }
     runRunner(dasm, "dasm", [destpath, "-I./includes", "-f3", "-p20",
         "-l" + lstpath, "-s" + sympath, "-o" + binpath], errors);

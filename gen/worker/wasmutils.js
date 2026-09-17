@@ -262,10 +262,9 @@ async function ensureWasiFilesystem(zipname) {
         return null;
     }
 }
-// zip entries are stored under '<path>' (rootPath './' adds a './' prefix);
-// strip it plus any leading '/' so '/headers/vcs.h' matches 'headers/vcs.h'
+// Stored file names are relative to the fs root; strip a leading '/'
+// so '/headers/vcs.h' matches 'headers/vcs.h'
 function normalizeWasiPath(path) {
-    path = path.startsWith('./') ? path.substring(2) : path;
     return path.startsWith('/') ? path.substring(1) : path;
 }
 /** Read a file from a WASI filesystem zip. Returns null if not found. */
@@ -274,8 +273,7 @@ async function readWasiSharedFile(zipname, path) {
     if (!fs)
         return null;
     let norm = normalizeWasiPath(path);
-    // zip entries are stored under './<path>', so try both key forms
-    let fd = fs.getFile(norm) || fs.getFile('./' + norm);
+    let fd = fs.getFile(norm);
     if (!fd || !fd.size)
         return null;
     let data = new Uint8Array(fd.size);

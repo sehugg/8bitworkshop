@@ -45,6 +45,7 @@ const JSNES_PRESETS = [
     { id: 'xyscroll.dasm', name: 'XY Split Scrolling' },
     //  {id:'scrollrt.dasm', name:'Line-by-line Scrolling'},
     { id: 'road.dasm', name: '3-D Road Demo' },
+    { id: 'hello.cpp', name: 'Hello Oscar64', category: 'Oscar64' },
     { id: 'chase/game.c', name: 'Shiru\'s Chase Game', category: 'Other' },
     { id: 'hello.wiz', name: 'Hello (Wiz)' },
 ];

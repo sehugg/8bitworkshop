@@ -32,6 +32,32 @@ const use_debug = false;
 const debug = use_debug ? console.log : () => { };
 const warning = console.log;
 
+/**
+ * Canonicalize a WASI path so joins like `dir.name + '/' + filename` and
+ * tool-specified paths (`./name`, `dir/./name`, `a//b`) all map to the same key.
+ * Lexical only: collapses '.' and '..', drops empty segments and preserves a
+ * leading '/'. A bare relative path normalizes to '.'.
+ */
+export function normalizeWASIPath(path: string): string {
+    const absolute = path.startsWith('/');
+    const segments: string[] = [];
+    for (const part of path.split('/')) {
+        if (part === '' || part === '.') continue;
+        if (part === '..') {
+            if (segments.length > 0 && segments[segments.length - 1] !== '..') {
+                segments.pop();
+            } else if (!absolute) {
+                segments.push('..');
+            }
+            continue;
+        }
+        segments.push(part);
+    }
+    const joined = segments.join('/');
+    if (absolute) return '/' + joined;
+    return joined === '' ? '.' : joined;
+}
+
 export enum FDType {
     UNKNOWN = 0,
     BLOCK_DEVICE = 1,
@@ -245,6 +271,8 @@ export interface WASIFilesystem {
     getFile(name: string) : WASIFileDescriptor;
     getFiles() : WASIFileDescriptor[];
     getDirectories() : WASIFileDescriptor[];
+    removeFile(name: string) : number;
+    removeDirectory(name: string) : number;
 }
 
 export class WASIMemoryFilesystem implements WASIFilesystem {
@@ -260,7 +288,7 @@ export class WASIMemoryFilesystem implements WASIFilesystem {
     }
     putDirectory(name: string, rights?: number) {
         if (!rights) rights = FDRights.PATH_OPEN | FDRights.PATH_CREATE_DIRECTORY | FDRights.PATH_CREATE_FILE;
-        if (name != '/' && name.endsWith('/')) name = name.substring(0, name.length - 1);
+        name = normalizeWASIPath(name);
         // add parent directory(s)
         const parent = name.substring(0, name.lastIndexOf('/'));
         if (parent && parent != name) {
@@ -272,6 +300,7 @@ export class WASIMemoryFilesystem implements WASIFilesystem {
         return dir;
     }
     putFile(name: string, data: string | Uint8Array, rights?: number) {
+        name = normalizeWASIPath(name);
         if (typeof data === 'string') {
             data = new TextEncoder().encode(data);
         }
@@ -284,6 +313,7 @@ export class WASIMemoryFilesystem implements WASIFilesystem {
     }
     putSymbolicLink(name: string, target: string, rights?: number) {
         if (!rights) rights = FDRights.PATH_SYMLINK;
+        name = normalizeWASIPath(name);
         const file = new WASIFileDescriptor(name, FDType.SYMBOLIC_LINK, rights);
         file.write(new TextEncoder().encode(target));
         file.offset = 0;
@@ -291,23 +321,36 @@ export class WASIMemoryFilesystem implements WASIFilesystem {
         return file;
     }
     getFile(name: string) {
-        let file = this.files.get(name);
-        // fallback: normalize leading './' so 'dir.name + "/" + path' joins still match
-        if (!file && name.startsWith('./')) {
-            const stripped = name.substring(2);
-            file = this.files.get(stripped)
-                ?? this.parent?.getFile(stripped);
-        }
-        if (!file) {
-            file = this.parent?.getFile(name);
-        }
-        return file;
+        name = normalizeWASIPath(name);
+        return this.files.get(name) ?? this.parent?.getFile(name);
     }
     getDirectories() {
         return [...this.dirs.values()];
     }
     getFiles() {
         return [...this.files.values()];
+    }
+    // Remove from this (writable) layer only; never the shared parent layer.
+    removeFile(name: string) {
+        name = normalizeWASIPath(name);
+        if (this.dirs.has(name)) return WASIErrors.ISDIR;
+        return this.files.delete(name) ? WASIErrors.SUCCESS : WASIErrors.NOENT;
+    }
+    removeDirectory(name: string) {
+        name = normalizeWASIPath(name);
+        if (name === '/') return WASIErrors.BUSY; // can't remove the root
+        if (this.files.has(name)) return WASIErrors.NOTDIR;
+        if (!this.dirs.has(name)) return WASIErrors.NOENT;
+        // refuse to remove a directory that still has entries
+        const prefix = name + '/';
+        for (const key of this.files.keys()) {
+            if (key.startsWith(prefix)) return WASIErrors.NOTEMPTY;
+        }
+        for (const key of this.dirs.keys()) {
+            if (key !== name && key.startsWith(prefix)) return WASIErrors.NOTEMPTY;
+        }
+        this.dirs.delete(name);
+        return WASIErrors.SUCCESS;
     }
 }
 
@@ -686,11 +729,17 @@ export class WASIRunner {
         if (dir.type !== FDType.DIRECTORY) return WASIErrors.NOTDIR;
         const filename = this.peekUTF8(path_ptr, path_len);
         const path = dir.name + '/' + filename;
-        const fd = this.fs.getFile(path);
-        debug("path_unlink_file", dir+"", path, fd+"");
-        if (!fd) return WASIErrors.NOENT;
-        this.fs.getFile(path);
-        return WASIErrors.SUCCESS;
+        debug("path_unlink_file", dir+"", path);
+        return this.fs.removeFile(path);
+    }
+    path_remove_directory(dirfd: number, path_ptr: number, path_len: number) {
+        const dir = this.fds[dirfd];
+        if (dir == null) return WASIErrors.BADF;
+        if (dir.type !== FDType.DIRECTORY) return WASIErrors.NOTDIR;
+        const filename = this.peekUTF8(path_ptr, path_len);
+        const path = dir.name + '/' + filename;
+        debug("path_remove_directory", dir+"", path);
+        return this.fs.removeDirectory(path);
     }
     clock_time_get(clock_id: number, precision: number, time_ptr: number) {
         const time = Date.now();
@@ -728,12 +777,12 @@ export class WASIRunner {
             random_get: this.random_get.bind(this),
             path_readlink: this.path_readlink.bind(this),
             path_unlink_file: this.path_unlink_file.bind(this),
+            path_remove_directory: this.path_remove_directory.bind(this),
             path_create_directory: this.path_create_directory.bind(this),
             clock_time_get: this.clock_time_get.bind(this),
             fd_fdstat_set_flags() { warning("TODO: fd_fdstat_set_flags"); return WASIErrors.NOTSUP; },
             fd_readdir() { warning("TODO: fd_readdir"); return WASIErrors.NOTSUP; },
             fd_tell() { warning("TODO: fd_tell"); return WASIErrors.NOTSUP; },
-            path_remove_directory() { warning("TODO: path_remove_directory"); return 0; },
         }
     }
     getEnv() {

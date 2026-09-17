@@ -170,25 +170,68 @@ describe('test WASI oscar64', function () {
         assert_1.default.strictEqual(errno, 0, stdout + '\n' + stderr);
         assert_1.default.ok(stdout.indexOf('Starting oscar64') >= 0, stdout);
         // oscar64 should have written a .map, .lbl and .asm file
-        assert_1.default.ok(shim.fs.getFile("././foo.prg"), "foo.prg not written");
-        assert_1.default.ok(shim.fs.getFile("././foo.map"), "foo.map not written");
-        assert_1.default.ok(shim.fs.getFile("././foo.lbl"), "foo.lbl not written");
-        assert_1.default.ok(shim.fs.getFile("././foo.asm"), "foo.asm not written");
+        assert_1.default.ok(shim.fs.getFile("./foo.prg"), "foo.prg not written");
+        assert_1.default.ok(shim.fs.getFile("./foo.map"), "foo.map not written");
+        assert_1.default.ok(shim.fs.getFile("./foo.lbl"), "foo.lbl not written");
+        assert_1.default.ok(shim.fs.getFile("./foo.asm"), "foo.asm not written");
         // parse the map file for segments and symbols
-        let mapout = shim.fs.getFile("././foo.map").getBytesAsString();
+        let mapout = shim.fs.getFile("./foo.map").getBytesAsString();
         let parsed = (0, oscar64parse_1.parseOscar64Map)(mapout);
         assert_1.default.ok(parsed.segments.length > 0);
         assert_1.default.ok(parsed.symbolmap['main'] > 0);
         // parse the lbl file
-        let lblout = shim.fs.getFile("././foo.lbl").getBytesAsString();
+        let lblout = shim.fs.getFile("./foo.lbl").getBytesAsString();
         let lbl = (0, oscar64parse_1.parseOscar64Lbl)(lblout);
         assert_1.default.ok(lbl['main'] === parsed.symbolmap['main']);
         // parse the asm listing
-        let asmout = shim.fs.getFile("././foo.asm").getBytesAsString();
+        let asmout = shim.fs.getFile("./foo.asm").getBytesAsString();
         let listing = (0, oscar64parse_1.parseOscar64Listing)(asmout, 'main.c');
         assert_1.default.ok(listing.asmlines.length > 0);
         assert_1.default.ok(listing.srclines.length > 0);
         assert_1.default.ok(listing.srclines[0].offset > 0);
+    });
+});
+describe('WASIMemoryFilesystem path handling', function () {
+    it('normalizes paths', function () {
+        assert_1.default.strictEqual((0, wasishim_1.normalizeWASIPath)('././foo.prg'), 'foo.prg');
+        assert_1.default.strictEqual((0, wasishim_1.normalizeWASIPath)('dir/./sub//file'), 'dir/sub/file');
+        assert_1.default.strictEqual((0, wasishim_1.normalizeWASIPath)('/root/../root/a.asm'), '/root/a.asm');
+        assert_1.default.strictEqual((0, wasishim_1.normalizeWASIPath)('.'), '.');
+        assert_1.default.strictEqual((0, wasishim_1.normalizeWASIPath)('/'), '/');
+    });
+    it('finds files written with a different leading ./ depth', function () {
+        const fsys = new wasishim_1.WASIMemoryFilesystem();
+        fsys.putFile('././main.map', 'map');
+        assert_1.default.strictEqual(fsys.getFile('./main.map').getBytesAsString(), 'map');
+        assert_1.default.strictEqual(fsys.getFile('main.map').getBytesAsString(), 'map');
+    });
+    it('removes files but not directories', function () {
+        const fsys = new wasishim_1.WASIMemoryFilesystem();
+        fsys.putFile('./a.bin', 'x');
+        fsys.putDirectory('./sub');
+        assert_1.default.strictEqual(fsys.removeFile('./sub'), wasishim_1.WASIErrors.ISDIR);
+        assert_1.default.strictEqual(fsys.removeDirectory('./a.bin'), wasishim_1.WASIErrors.NOTDIR);
+        assert_1.default.strictEqual(fsys.removeFile('./a.bin'), wasishim_1.WASIErrors.SUCCESS);
+        assert_1.default.strictEqual(fsys.removeFile('./a.bin'), wasishim_1.WASIErrors.NOENT);
+    });
+    it('removes only empty directories', function () {
+        const fsys = new wasishim_1.WASIMemoryFilesystem();
+        fsys.putDirectory('./sub');
+        fsys.putFile('./sub/a.bin', 'x');
+        assert_1.default.strictEqual(fsys.removeDirectory('./sub'), wasishim_1.WASIErrors.NOTEMPTY);
+        assert_1.default.strictEqual(fsys.removeFile('./sub/a.bin'), wasishim_1.WASIErrors.SUCCESS);
+        assert_1.default.strictEqual(fsys.removeDirectory('./sub'), wasishim_1.WASIErrors.SUCCESS);
+        assert_1.default.strictEqual(fsys.removeDirectory('/'), wasishim_1.WASIErrors.BUSY);
+    });
+    it('deletes only from the writable layer, not the parent', function () {
+        const parent = new wasishim_1.WASIMemoryFilesystem();
+        parent.putFile('./shared.h', 'shared');
+        const child = new wasishim_1.WASIMemoryFilesystem();
+        child.setParent(parent);
+        // a parent file is visible but not deletable from the child layer
+        assert_1.default.ok(child.getFile('./shared.h'));
+        assert_1.default.strictEqual(child.removeFile('./shared.h'), wasishim_1.WASIErrors.NOENT);
+        assert_1.default.ok(parent.getFile('./shared.h'));
     });
 });
 //# sourceMappingURL=testwasishim.js.map

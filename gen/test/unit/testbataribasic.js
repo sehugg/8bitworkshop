@@ -85,7 +85,7 @@ describe('test batariBasic WASI pipeline', function () {
         // copy compiler-generated files (includes.bB, variable redefs) to next stage
         function copyGeneratedFiles(dest) {
             for (const f of basic.fs.getFiles()) {
-                if (!f.name.startsWith('./includes/')) {
+                if (!f.name.startsWith('includes/')) {
                     dest.fs.putFile(f.name, f.getBytes());
                 }
             }

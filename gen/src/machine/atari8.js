@@ -320,7 +320,7 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         this.probe.logInterrupt(1);
     }
     loadROM(rom, title) {
-        if ((rom[0] == 0xff && rom[1] == 0xff) && !(title === null || title === void 0 ? void 0 : title.endsWith('.rom'))) {
+        if ((rom[0] == 0xff && rom[1] == 0xff) && !title.endsWith('.rom')) {
             // XEX file, chill out and wait for BIOS hook
             this.xexdata = rom;
         }

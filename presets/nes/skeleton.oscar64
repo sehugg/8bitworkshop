@@ -1,0 +1,35 @@
+/*
+NES Oscar64 skeleton.
+
+Sets up an ASCII font in CHR ROM and the PPU, then draws a message.
+Oscar64's neslib calls nes_game() after console reset.
+*/
+
+#include <nes/neslib.h>
+
+// place the pattern table into CHR ROM (region 0 -> NROM CHR bank)
+#pragma section( tiles, 0 )
+#pragma region( tbank, 0x0000, 0x2000, , 0, { tiles } )
+#pragma data(tiles)
+__export char tiles[] = {
+#embed "jroatch.chr"
+};
+#pragma data(data)
+
+void nes_game(void) {
+  // set palette colors
+  pal_col(0, 0x02);   // screen color (dark blue)
+  pal_col(1, 0x20);   // grey
+  pal_col(2, 0x30);   // white
+  pal_col(3, 0x14);   // fuchsia
+
+  // draw a message
+  vram_adr(NTADR_A(2, 2));
+  vram_write("HELLO, WORLD!", 13);
+
+  // enable rendering
+  ppu_on_all();
+
+  // main loop
+  while (1) ;
+}

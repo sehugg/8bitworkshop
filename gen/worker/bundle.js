@@ -2932,10 +2932,18 @@
       wasiFSZip: "oscar64-fs.zip",
       editorStyle: "text/x-csrc",
       helpURL: "https://github.com/drmortalwombat/oscar64/blob/v1.32.266/oscar64.md",
+      defineFlag: "-d",
+      defineInline: true,
       wasmModule: "oscar64",
       version: "1.32.266",
       includePatterns: SHARED_INCLUDE_PATTERNS,
-      linkPatterns: SHARED_LINK_PATTERNS
+      linkPatterns: SHARED_LINK_PATTERNS,
+      platforms: {
+        // oscar64 defaults to the C64 target machine
+        c64: {},
+        atari8: { buildArgs: { compiler: ["-tm=atari"] } },
+        nes: { buildArgs: { compiler: ["-tm=nes"] } }
+      }
     },
     bataribasic: {
       id: "bataribasic",
@@ -5945,6 +5953,25 @@
   var debug = use_debug ? console.log : () => {
   };
   var warning = console.log;
+  function normalizeWASIPath(path) {
+    const absolute = path.startsWith("/");
+    const segments = [];
+    for (const part of path.split("/")) {
+      if (part === "" || part === ".") continue;
+      if (part === "..") {
+        if (segments.length > 0 && segments[segments.length - 1] !== "..") {
+          segments.pop();
+        } else if (!absolute) {
+          segments.push("..");
+        }
+        continue;
+      }
+      segments.push(part);
+    }
+    const joined = segments.join("/");
+    if (absolute) return "/" + joined;
+    return joined === "" ? "." : joined;
+  }
   var WASIFileDescriptor = class {
     constructor(name, type, rights) {
       this.name = name;
@@ -6027,7 +6054,7 @@
     }
     putDirectory(name, rights) {
       if (!rights) rights = 8192 /* PATH_OPEN */ | 512 /* PATH_CREATE_DIRECTORY */ | 1024 /* PATH_CREATE_FILE */;
-      if (name != "/" && name.endsWith("/")) name = name.substring(0, name.length - 1);
+      name = normalizeWASIPath(name);
       const parent = name.substring(0, name.lastIndexOf("/"));
       if (parent && parent != name) {
         this.putDirectory(parent, rights);
@@ -6037,6 +6064,7 @@
       return dir;
     }
     putFile(name, data, rights) {
+      name = normalizeWASIPath(name);
       if (typeof data === "string") {
         data = new TextEncoder().encode(data);
       }
@@ -6049,6 +6077,7 @@
     }
     putSymbolicLink(name, target, rights) {
       if (!rights) rights = 16777216 /* PATH_SYMLINK */;
+      name = normalizeWASIPath(name);
       const file = new WASIFileDescriptor(name, 7 /* SYMBOLIC_LINK */, rights);
       file.write(new TextEncoder().encode(target));
       file.offset = 0;
@@ -6056,22 +6085,36 @@
       return file;
     }
     getFile(name) {
-      var _a, _b, _c;
-      let file = this.files.get(name);
-      if (!file && name.startsWith("./")) {
-        const stripped = name.substring(2);
-        file = (_b = this.files.get(stripped)) != null ? _b : (_a = this.parent) == null ? void 0 : _a.getFile(stripped);
-      }
-      if (!file) {
-        file = (_c = this.parent) == null ? void 0 : _c.getFile(name);
-      }
-      return file;
+      var _a, _b;
+      name = normalizeWASIPath(name);
+      return (_b = this.files.get(name)) != null ? _b : (_a = this.parent) == null ? void 0 : _a.getFile(name);
     }
     getDirectories() {
       return [...this.dirs.values()];
     }
     getFiles() {
       return [...this.files.values()];
+    }
+    // Remove from this (writable) layer only; never the shared parent layer.
+    removeFile(name) {
+      name = normalizeWASIPath(name);
+      if (this.dirs.has(name)) return 31 /* ISDIR */;
+      return this.files.delete(name) ? 0 /* SUCCESS */ : 44 /* NOENT */;
+    }
+    removeDirectory(name) {
+      name = normalizeWASIPath(name);
+      if (name === "/") return 10 /* BUSY */;
+      if (this.files.has(name)) return 54 /* NOTDIR */;
+      if (!this.dirs.has(name)) return 44 /* NOENT */;
+      const prefix = name + "/";
+      for (const key of this.files.keys()) {
+        if (key.startsWith(prefix)) return 55 /* NOTEMPTY */;
+      }
+      for (const key of this.dirs.keys()) {
+        if (key !== name && key.startsWith(prefix)) return 55 /* NOTEMPTY */;
+      }
+      this.dirs.delete(name);
+      return 0 /* SUCCESS */;
     }
   };
   var _instance, _memarr8, _memarr32, _args, _envvars;
@@ -6450,11 +6493,17 @@
       if (dir.type !== 3 /* DIRECTORY */) return 54 /* NOTDIR */;
       const filename = this.peekUTF8(path_ptr, path_len);
       const path = dir.name + "/" + filename;
-      const fd = this.fs.getFile(path);
-      debug("path_unlink_file", dir + "", path, fd + "");
-      if (!fd) return 44 /* NOENT */;
-      this.fs.getFile(path);
-      return 0 /* SUCCESS */;
+      debug("path_unlink_file", dir + "", path);
+      return this.fs.removeFile(path);
+    }
+    path_remove_directory(dirfd, path_ptr, path_len) {
+      const dir = this.fds[dirfd];
+      if (dir == null) return 8 /* BADF */;
+      if (dir.type !== 3 /* DIRECTORY */) return 54 /* NOTDIR */;
+      const filename = this.peekUTF8(path_ptr, path_len);
+      const path = dir.name + "/" + filename;
+      debug("path_remove_directory", dir + "", path);
+      return this.fs.removeDirectory(path);
     }
     clock_time_get(clock_id, precision, time_ptr) {
       const time = Date.now();
@@ -6492,6 +6541,7 @@
         random_get: this.random_get.bind(this),
         path_readlink: this.path_readlink.bind(this),
         path_unlink_file: this.path_unlink_file.bind(this),
+        path_remove_directory: this.path_remove_directory.bind(this),
         path_create_directory: this.path_create_directory.bind(this),
         clock_time_get: this.clock_time_get.bind(this),
         fd_fdstat_set_flags() {
@@ -6505,10 +6555,6 @@
         fd_tell() {
           warning("TODO: fd_tell");
           return 58 /* NOTSUP */;
-        },
-        path_remove_directory() {
-          warning("TODO: path_remove_directory");
-          return 0;
         }
       };
     }
@@ -6799,14 +6845,13 @@
     }
   }
   function normalizeWasiPath(path) {
-    path = path.startsWith("./") ? path.substring(2) : path;
     return path.startsWith("/") ? path.substring(1) : path;
   }
   async function readWasiSharedFile(zipname, path) {
     let fs = await ensureWasiFilesystem(zipname);
     if (!fs) return null;
     let norm = normalizeWasiPath(path);
-    let fd = fs.getFile(norm) || fs.getFile("./" + norm);
+    let fd = fs.getFile(norm);
     if (!fd || !fd.size) return null;
     let data = new Uint8Array(fd.size);
     fd.offset = 0;
@@ -14603,7 +14648,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     const post = makeRunner("postprocess");
     post.fs.putFile("./bB.asm", bbasm);
     for (const f of basic.fs.getFiles()) {
-      if (!f.name.startsWith("./includes/")) post.fs.putFile(f.name, f.getBytes());
+      if (!f.name.startsWith("includes/")) post.fs.putFile(f.name, f.getBytes());
     }
     runRunner(post, "postprocess", ["-i", "."], errors);
     checkExit(post, "Postprocess failed.");
@@ -14613,7 +14658,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     const dasm = makeRunner("dasm");
     dasm.fs.putFile("./" + destpath, asmout);
     for (const f of basic.fs.getFiles()) {
-      if (!f.name.startsWith("./includes/")) dasm.fs.putFile(f.name, f.getBytes());
+      if (!f.name.startsWith("includes/")) dasm.fs.putFile(f.name, f.getBytes());
     }
     runRunner(dasm, "dasm", [
       destpath,
@@ -14699,7 +14744,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
         section = line;
         continue;
       }
-      let m = /^([0-9a-f]+) - ([0-9a-f]+) : ([^,]+), (.+)$/.exec(line);
+      let m = /^(?:[0-9a-f]{2}:)?([0-9a-f]+) - (?:[0-9a-f]{2}:)?([0-9a-f]+) : ([^,]+), (.+)$/.exec(line);
       if (m) {
         const start = parseInt(m[1], 16);
         const end = parseInt(m[2], 16);
@@ -14737,7 +14782,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     let c_path = "";
     let asm_lineno = 0;
     let re_src = /^;\s*(\d+), "(.+?)"/;
-    let re_insn = /^([0-9a-f]+) : ([0-9a-f _]{8}) (.*)/;
+    let re_insn = /^(?:([0-9a-f]{2}):)?([0-9a-f]{4}) : ([0-9a-f_]{2} [0-9a-f_]{2} [0-9a-f_]{2}) (.*)/;
     for (let line of asmout.split("\n")) {
       asm_lineno++;
       let m2 = re_src.exec(line);
@@ -14747,9 +14792,10 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       }
       let m = re_insn.exec(line);
       if (m) {
-        let offset = parseInt(m[1], 16);
-        let hex3 = m[2];
-        let asm = m[3];
+        let asm = m[4];
+        if (/^BSS\b/.test(asm)) continue;
+        let offset = parseInt(m[2], 16);
+        let hex3 = m[3];
         let insns = (hex3 + " " + asm).trim();
         asmlines.push({
           line: asm_lineno,
@@ -14776,6 +14822,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   var oscar64_fs = null;
   var wasiModule4 = null;
   function getWasiFileAsString(wasi, suffix) {
+    const exact = wasi.fs.getFile(suffix);
+    if (exact) return exact.getBytesAsString();
     for (const fd of wasi.fs.getFiles()) {
       if (fd.name.endsWith(suffix)) {
         return fd.getBytesAsString();
@@ -14802,7 +14850,12 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       }
       wasi.addPreopenDirectory("include");
       wasi.addPreopenDirectory(".");
-      wasi.setArgs(["oscar64", "-v", "-g", "-ii=include", "-o=" + destpath, step.path]);
+      let args = ["oscar64", "-O1", "-Oz", "-Op", "-Ox", "-g", "-ii=include", "-o=" + destpath];
+      args.push.apply(args, defineArgs("oscar64", step.params && step.params.define));
+      args.push.apply(args, defineArgs("oscar64", step.params && step.params.symbols && step.params.symbols.compiler));
+      args.push.apply(args, extraArgsFor("oscar64", step.params && step.params.buildArgs));
+      args.push(step.path);
+      wasi.setArgs(args);
       try {
         wasi.run();
       } catch (e) {
@@ -14821,11 +14874,19 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       if (errors.length) {
         return { errors };
       }
-      const output = wasi.fs.getFile("./" + destpath).getBytes();
+      const prefix = destpath.replace(/\.[^.]+$/, "");
+      let outpath = destpath;
+      for (const ext of [".xex", ".prg", ".crt", ".bin", ".nes"]) {
+        if (wasi.fs.getFile(prefix + ext)) {
+          outpath = prefix + ext;
+          break;
+        }
+      }
+      const output = wasi.fs.getFile(outpath).getBytes();
       putWorkFile(destpath, output);
-      const prefix = destpath.replace(/\.prg$/, "");
       let mapout = getWasiFileAsString(wasi, prefix + ".map") || getWasiFileAsString(wasi, ".map");
       let lblout = getWasiFileAsString(wasi, prefix + ".lbl") || getWasiFileAsString(wasi, ".lbl");
+      let mlbout = getWasiFileAsString(wasi, prefix + ".mlb") || getWasiFileAsString(wasi, ".mlb");
       let asmout = getWasiFileAsString(wasi, prefix + ".asm") || getWasiFileAsString(wasi, ".asm");
       let segments = [];
       let symbolmap = {};
@@ -14838,6 +14899,9 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       if (lblout) {
         symbolmap = Object.assign(parseOscar64Lbl(lblout), symbolmap);
         putWorkFile(prefix + ".lbl", lblout);
+      }
+      if (mlbout) {
+        putWorkFile(prefix + ".mlb", mlbout);
       }
       let listings = {};
       if (asmout) {

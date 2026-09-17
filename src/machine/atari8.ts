@@ -324,7 +324,7 @@ export class Atari800 extends BasicScanlineMachine implements AcceptsPaddleInput
   }
 
   loadROM(rom: Uint8Array, title: string) {
-    if ((rom[0] == 0xff && rom[1] == 0xff) && !title?.endsWith('.rom')) {
+    if ((rom[0] == 0xff && rom[1] == 0xff) && !title.endsWith('.rom')) {
       // XEX file, chill out and wait for BIOS hook
       this.xexdata = rom;
     } else {

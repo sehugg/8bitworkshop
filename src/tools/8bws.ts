@@ -230,10 +230,11 @@ async function doRun(args: Args, positional: string[]): Promise<void> {
   // A source file is built first; a ROM is loaded as-is.
   let romFile = input;
   let symbols: { [name: string]: number } = {};
+  let built: Awaited<ReturnType<typeof compileSource>> | undefined;
   let platformId = str(args, 'platform') || ROM_PLATFORMS[path.extname(input).toLowerCase()];
   if (!looksLikeROM(input)) {
     if (!platformId) fail('run', `Building ${input} requires --platform`);
-    const built = await compileSource(args, input, platformId);
+    built = await compileSource(args, input, platformId);
     romFile = path.join(os.tmpdir(), '8bws-' + path.basename(input).replace(/\.\w+$/, '') + '.rom');
     fs.writeFileSync(romFile, Buffer.from(built.rom));
     symbols = built.symbolmap;
@@ -243,7 +244,13 @@ async function doRun(args: Args, positional: string[]): Promise<void> {
   }
 
   const target = await openTarget(args, platformId);
-  target.loadROM(new Uint8Array(fs.readFileSync(romFile)), path.basename(romFile));
+  // The temp file is always written as .rom, but some platforms use the title
+  // to pick a load format -- an Atari XEX named .rom would load as a cartridge.
+  let romTitle = path.basename(romFile);
+  if (built && target.platform.getROMExtension) {
+    romTitle = path.basename(romFile, '.rom') + target.platform.getROMExtension(new Uint8Array(built.rom));
+  }
+  target.loadROM(new Uint8Array(fs.readFileSync(romFile)), romTitle);
 
   const script = new RunScript(target);
   script.addSymbols(symbols);

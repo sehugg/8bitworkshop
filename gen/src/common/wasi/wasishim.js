@@ -34,6 +34,7 @@ var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (
 var _WASIRunner_instance, _WASIRunner_memarr8, _WASIRunner_memarr32, _WASIRunner_args, _WASIRunner_envvars;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WASIRunner = exports.WASIMemoryFilesystem = exports.WASIFileDescriptor = exports.WASIErrors = exports.FDOpenFlags = exports.FDFlags = exports.FDRights = exports.FDType = void 0;
+exports.normalizeWASIPath = normalizeWASIPath;
 // https://dev.to/ndesmic/building-a-minimal-wasi-polyfill-for-browsers-4nel
 // http://www.wasmtutor.com/webassembly-barebones-wasi
 // https://github.com/emscripten-core/emscripten/blob/c017fc2d6961962ee87ae387462a099242dfbbd2/src/library_wasi.js#L451
@@ -44,6 +45,34 @@ exports.WASIRunner = exports.WASIMemoryFilesystem = exports.WASIFileDescriptor =
 const use_debug = false;
 const debug = use_debug ? console.log : () => { };
 const warning = console.log;
+/**
+ * Canonicalize a WASI path so joins like `dir.name + '/' + filename` and
+ * tool-specified paths (`./name`, `dir/./name`, `a//b`) all map to the same key.
+ * Lexical only: collapses '.' and '..', drops empty segments and preserves a
+ * leading '/'. A bare relative path normalizes to '.'.
+ */
+function normalizeWASIPath(path) {
+    const absolute = path.startsWith('/');
+    const segments = [];
+    for (const part of path.split('/')) {
+        if (part === '' || part === '.')
+            continue;
+        if (part === '..') {
+            if (segments.length > 0 && segments[segments.length - 1] !== '..') {
+                segments.pop();
+            }
+            else if (!absolute) {
+                segments.push('..');
+            }
+            continue;
+        }
+        segments.push(part);
+    }
+    const joined = segments.join('/');
+    if (absolute)
+        return '/' + joined;
+    return joined === '' ? '.' : joined;
+}
 var FDType;
 (function (FDType) {
     FDType[FDType["UNKNOWN"] = 0] = "UNKNOWN";
@@ -269,8 +298,7 @@ class WASIMemoryFilesystem {
     putDirectory(name, rights) {
         if (!rights)
             rights = FDRights.PATH_OPEN | FDRights.PATH_CREATE_DIRECTORY | FDRights.PATH_CREATE_FILE;
-        if (name != '/' && name.endsWith('/'))
-            name = name.substring(0, name.length - 1);
+        name = normalizeWASIPath(name);
         // add parent directory(s)
         const parent = name.substring(0, name.lastIndexOf('/'));
         if (parent && parent != name) {
@@ -282,6 +310,7 @@ class WASIMemoryFilesystem {
         return dir;
     }
     putFile(name, data, rights) {
+        name = normalizeWASIPath(name);
         if (typeof data === 'string') {
             data = new TextEncoder().encode(data);
         }
@@ -296,6 +325,7 @@ class WASIMemoryFilesystem {
     putSymbolicLink(name, target, rights) {
         if (!rights)
             rights = FDRights.PATH_SYMLINK;
+        name = normalizeWASIPath(name);
         const file = new WASIFileDescriptor(name, FDType.SYMBOLIC_LINK, rights);
         file.write(new TextEncoder().encode(target));
         file.offset = 0;
@@ -303,23 +333,43 @@ class WASIMemoryFilesystem {
         return file;
     }
     getFile(name) {
-        var _a, _b, _c;
-        let file = this.files.get(name);
-        // fallback: normalize leading './' so 'dir.name + "/" + path' joins still match
-        if (!file && name.startsWith('./')) {
-            const stripped = name.substring(2);
-            file = (_a = this.files.get(stripped)) !== null && _a !== void 0 ? _a : (_b = this.parent) === null || _b === void 0 ? void 0 : _b.getFile(stripped);
-        }
-        if (!file) {
-            file = (_c = this.parent) === null || _c === void 0 ? void 0 : _c.getFile(name);
-        }
-        return file;
+        var _a, _b;
+        name = normalizeWASIPath(name);
+        return (_a = this.files.get(name)) !== null && _a !== void 0 ? _a : (_b = this.parent) === null || _b === void 0 ? void 0 : _b.getFile(name);
     }
     getDirectories() {
         return [...this.dirs.values()];
     }
     getFiles() {
         return [...this.files.values()];
+    }
+    // Remove from this (writable) layer only; never the shared parent layer.
+    removeFile(name) {
+        name = normalizeWASIPath(name);
+        if (this.dirs.has(name))
+            return WASIErrors.ISDIR;
+        return this.files.delete(name) ? WASIErrors.SUCCESS : WASIErrors.NOENT;
+    }
+    removeDirectory(name) {
+        name = normalizeWASIPath(name);
+        if (name === '/')
+            return WASIErrors.BUSY; // can't remove the root
+        if (this.files.has(name))
+            return WASIErrors.NOTDIR;
+        if (!this.dirs.has(name))
+            return WASIErrors.NOENT;
+        // refuse to remove a directory that still has entries
+        const prefix = name + '/';
+        for (const key of this.files.keys()) {
+            if (key.startsWith(prefix))
+                return WASIErrors.NOTEMPTY;
+        }
+        for (const key of this.dirs.keys()) {
+            if (key !== name && key.startsWith(prefix))
+                return WASIErrors.NOTEMPTY;
+        }
+        this.dirs.delete(name);
+        return WASIErrors.SUCCESS;
     }
 }
 exports.WASIMemoryFilesystem = WASIMemoryFilesystem;
@@ -718,12 +768,19 @@ class WASIRunner {
             return WASIErrors.NOTDIR;
         const filename = this.peekUTF8(path_ptr, path_len);
         const path = dir.name + '/' + filename;
-        const fd = this.fs.getFile(path);
-        debug("path_unlink_file", dir + "", path, fd + "");
-        if (!fd)
-            return WASIErrors.NOENT;
-        this.fs.getFile(path);
-        return WASIErrors.SUCCESS;
+        debug("path_unlink_file", dir + "", path);
+        return this.fs.removeFile(path);
+    }
+    path_remove_directory(dirfd, path_ptr, path_len) {
+        const dir = this.fds[dirfd];
+        if (dir == null)
+            return WASIErrors.BADF;
+        if (dir.type !== FDType.DIRECTORY)
+            return WASIErrors.NOTDIR;
+        const filename = this.peekUTF8(path_ptr, path_len);
+        const path = dir.name + '/' + filename;
+        debug("path_remove_directory", dir + "", path);
+        return this.fs.removeDirectory(path);
     }
     clock_time_get(clock_id, precision, time_ptr) {
         const time = Date.now();
@@ -763,12 +820,12 @@ class WASIRunner {
             random_get: this.random_get.bind(this),
             path_readlink: this.path_readlink.bind(this),
             path_unlink_file: this.path_unlink_file.bind(this),
+            path_remove_directory: this.path_remove_directory.bind(this),
             path_create_directory: this.path_create_directory.bind(this),
             clock_time_get: this.clock_time_get.bind(this),
             fd_fdstat_set_flags() { warning("TODO: fd_fdstat_set_flags"); return WASIErrors.NOTSUP; },
             fd_readdir() { warning("TODO: fd_readdir"); return WASIErrors.NOTSUP; },
             fd_tell() { warning("TODO: fd_tell"); return WASIErrors.NOTSUP; },
-            path_remove_directory() { warning("TODO: path_remove_directory"); return 0; },
         };
     }
     getEnv() {

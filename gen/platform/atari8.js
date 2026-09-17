@@ -15,6 +15,7 @@ var Atari8_PRESETS = [
 var Atari800_PRESETS = Atari8_PRESETS.concat([
     //{id:'testmusic.c', name:'POKEY Music'},
     { id: 'scrolldemo.c', name: 'Scrolling' },
+    { id: 'hello.cpp', name: 'Hello Oscar64', category: 'C++ (Oscar64)' },
     { id: 'sieve.bas', name: 'Benchmark', category: 'FastBasic' },
     { id: 'pmtest.bas', name: 'Sprites Test' },
     { id: 'dli.bas', name: 'DLI Test' },
@@ -105,7 +106,9 @@ class Atari800MAMEPlatform extends Atari8MAMEPlatform {
         super(...arguments);
         this.getMemoryMap = function () { return Atari800_MemoryMap; };
     }
-    getPresets() { return Atari800_PRESETS; }
+    // MAME loads cartridge ROMs; oscar64's atari target emits an XEX image, so it
+    // only works on the native platform.
+    getPresets() { return Atari800_PRESETS.filter(p => !p.id.endsWith('.cpp')); }
     loadROM(title, data) {
         if (!this.started) {
             this.startModule(this.mainElement, {

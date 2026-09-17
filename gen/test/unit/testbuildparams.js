@@ -257,6 +257,14 @@ function c64Params() {
         assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolConfig)('sdcc').preloadFS, 'sdcc');
         assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolConfig)('dasm', 'nes'), undefined);
     });
+    (0, mocha_1.it)("routes oscar64 to the target machine for each platform", function () {
+        // oscar64 defaults to the C64; atari8 needs -tm=atari (and emits a XEX)
+        assert_1.default.deepStrictEqual((0, toolmeta_1.extraArgsFor)('oscar64', (0, toolmeta_1.getPlatformToolConfig)('oscar64', 'atari8-800').buildArgs), ['-tm=atari']);
+        assert_1.default.deepStrictEqual((0, toolmeta_1.extraArgsFor)('oscar64', (0, toolmeta_1.getPlatformToolConfig)('oscar64', 'atari8').buildArgs), ['-tm=atari']);
+        assert_1.default.deepStrictEqual((0, toolmeta_1.extraArgsFor)('oscar64', (0, toolmeta_1.getPlatformToolConfig)('oscar64', 'nes').buildArgs), ['-tm=nes']);
+        assert_1.default.deepStrictEqual((0, toolmeta_1.extraArgsFor)('oscar64', (0, toolmeta_1.getPlatformToolConfig)('oscar64', 'c64').buildArgs), []);
+        assert_1.default.deepStrictEqual((0, toolmeta_1.defineArgs)('oscar64', ['FOO=1']), ['-dFOO=1']);
+    });
 });
 (0, mocha_1.describe)("tool define/symbol formatting", function () {
     (0, mocha_1.it)("formats preprocessor defines per tool", function () {

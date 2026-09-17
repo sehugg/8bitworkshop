@@ -23062,7 +23062,7 @@ function parseOscar64Map(mapout) {
       section = line;
       continue;
     }
-    let m = /^([0-9a-f]+) - ([0-9a-f]+) : ([^,]+), (.+)$/.exec(line);
+    let m = /^(?:[0-9a-f]{2}:)?([0-9a-f]+) - (?:[0-9a-f]{2}:)?([0-9a-f]+) : ([^,]+), (.+)$/.exec(line);
     if (m) {
       const start = parseInt(m[1], 16);
       const end = parseInt(m[2], 16);
@@ -23100,7 +23100,7 @@ function parseOscar64Listing(asmout, asmfn) {
   let c_path = "";
   let asm_lineno = 0;
   let re_src = /^;\s*(\d+), "(.+?)"/;
-  let re_insn = /^([0-9a-f]+) : ([0-9a-f _]{8}) (.*)/;
+  let re_insn = /^(?:([0-9a-f]{2}):)?([0-9a-f]{4}) : ([0-9a-f_]{2} [0-9a-f_]{2} [0-9a-f_]{2}) (.*)/;
   for (let line of asmout.split("\n")) {
     asm_lineno++;
     let m2 = re_src.exec(line);
@@ -23110,9 +23110,10 @@ function parseOscar64Listing(asmout, asmfn) {
     }
     let m = re_insn.exec(line);
     if (m) {
-      let offset = parseInt(m[1], 16);
-      let hex = m[2];
-      let asm = m[3];
+      let asm = m[4];
+      if (/^BSS\b/.test(asm)) continue;
+      let offset = parseInt(m[2], 16);
+      let hex = m[3];
       let insns = (hex + " " + asm).trim();
       asmlines.push({
         line: asm_lineno,
@@ -23222,6 +23223,16 @@ var OSCAR64_TOOL = {
     },
     c64: {
       outfile: "a.prg"
+    },
+    atari8: {
+      // the atari target emits a binary-load XEX image
+      args: ["-Os", "-g", "-d__8BITWORKSHOP__", "-tm=atari", "-o=$OUTFILE", "$INFILES"],
+      outfile: "a.xex"
+    },
+    nes: {
+      // the nes target emits an iNES image with 32K PRG + 8K CHR
+      args: ["-Os", "-g", "-d__8BITWORKSHOP__", "-tm=nes", "-o=$OUTFILE", "$INFILES"],
+      outfile: "a.nes"
     }
   }
 };
