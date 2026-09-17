@@ -15,6 +15,7 @@ var Atari8_PRESETS : Preset[] = [
 
 var Atari800_PRESETS = Atari8_PRESETS.concat([
   //{id:'testmusic.c', name:'POKEY Music'},
+  {id:'scrolldemo.c', name:'Scrolling'},
   {id:'sieve.bas', name:'Benchmark', category:'FastBasic'},
   {id:'pmtest.bas', name:'Sprites Test'},
   {id:'dli.bas', name:'DLI Test'},

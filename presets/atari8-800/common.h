@@ -71,6 +71,9 @@ void a8_dlist_finish(void);
 void a8_dlist_install(void);
 /* Turn off ANTIC DMA (blank screen). */
 void a8_dlist_off(void);
+/* Select the playfield width: 0=none, 1=narrow, 2=normal, 3=wide.
+   Use wide (3) to have fetch slack for horizontal scrolling. */
+void a8_set_playfield_width(byte w);
 
 
 /*==========================================================================*/
@@ -101,9 +104,7 @@ enum {
 #ifndef A8_DLI_LINES
 #define A8_DLI_LINES 16
 #endif
-#ifndef A8_DLI_WRITES
 #define A8_DLI_WRITES 4
-#endif
 
 /* The Nth DLI (as returned by a8_dlist_line(...,1)) writes these.
    Entries cycle in step with the frame: the dispatcher wraps at the
@@ -125,6 +126,71 @@ void a8_dli_remove(void);
 extern void a8_dli_stub(void);
 /* C dispatcher called by the trampoline. */
 void a8_dli_dispatch(void);
+
+
+/*==========================================================================*/
+/* Scrolling                                                                */
+/*==========================================================================*/
+
+/* A scroll region is a set of display-list LMS operands that all move
+   together.  Register each line with a8_scroll_line() (or a8_scroll_add()
+   for a hand-built list), then move the region once per frame.
+
+   The cheapest layout is one tall buffer with a single LMS on the first
+   playfield line and a stride equal to ANTIC's fetch width on a DL_HSCROL()
+   line (the wide fetch: 48, 24 or 12 bytes -- see a8_scroll_mode()).
+   ANTIC keeps reading through memory from line to line, in both bitmap
+   and character modes, so moving the LMS by whole strides scrolls whole
+   mode lines.  VSCROL and HSCROL supply the fine offsets.
+
+   Some rules of thumb:
+   - Keep DMACTL at normal width; the HSCROL fetch has slack at each edge.
+     Horizontal travel is then limited to about 16 color clocks, because
+     the next mode line's data follows directly.
+   - Put DL_VSCROL() on the scrolling lines and end the region with one
+     more line of the same mode *without* it; ANTIC shows VSCROL+1
+     scanlines of that last line.
+   - ANTIC only increments the low 12 bits of its data address, so one LMS
+     can't read across a 4K boundary ($x000).  Split tall bitmaps into
+     bands, each with its own LMS and its own buffer inside one 4K page.
+     scrolldemo.c shows how. */
+
+#ifndef A8_SCROLL_MAX
+#define A8_SCROLL_MAX 16    /* max display-list lines per scroll region */
+#endif
+
+/* Forget all registered lines (also called by a8_dlist_reset()). */
+void a8_scroll_reset(void);
+/* Emit a scrolling mode line and register its LMS.  mode may already include
+   DL_HSCROL()/DL_VSCROL(); base must be non-NULL.  Returns the DLI index,
+   exactly like a8_dlist_line(). */
+byte a8_scroll_line(byte mode, const void* base, byte dli);
+/* Register an LMS operand that was written by other means.  lms points at
+   the two operand bytes in a8_dlist[]. */
+void a8_scroll_add(const void* base, byte* lms);
+/* Move every registered line's LMS to base+byteoff and set HSCROL for a
+   fine offset of xfine color clocks (0..a8_scroll_x_mask).
+   Call once per frame, after a8_waitvsync(). */
+void a8_scroll_move(word byteoff, byte xfine);
+/* Convenience wrapper: x = horizontal offset in color clocks, y = vertical
+   offset in scanlines, stride = bytes per mode line.  Call a8_scroll_mode()
+   first so the fine/coarse split matches the mode. */
+void a8_scroll_set(byte x, byte y, byte stride);
+
+/* Scanlines per mode line, indexed by ANTIC mode (2..15). */
+extern const byte a8_mode_height[16];
+/* Configure a8_scroll_set() for ANTIC mode (2..15, DL_xxx flags ignored)
+   and return its stride: the bytes ANTIC fetches per mode line when
+   DL_HSCROL() is set.  Mode 3 is 10 scanlines tall, so a8_scroll_set()
+   can't split its y offset; drive it with a8_scroll_move() instead. */
+byte a8_scroll_mode(byte mode);
+
+/* Fine scrolling parameters, set by a8_scroll_mode().  x_shift is log2 of
+   color clocks per byte, y_shift is log2 of scanlines per mode line. */
+extern byte a8_scroll_x_shift;
+extern byte a8_scroll_x_mask;
+extern byte a8_scroll_y_shift;
+extern byte a8_scroll_y_mask;
 
 
 /*==========================================================================*/

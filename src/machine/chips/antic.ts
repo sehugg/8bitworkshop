@@ -44,7 +44,7 @@ const LAST_DMA_H = 105; // last DMA cycle
 
 export const MODE_LINES = [0, 0, 8, 10, 8, 16, 8, 16, 8, 4, 4, 2, 1, 2, 1, 1];
 // how many bits before DMA clock repeats?
-const MODE_PERIOD = [0, 0, 2, 2, 2, 2, 4, 4, 8, 4, 4, 4, 4, 2, 2, 2];
+const MODE_PERIOD = [0, 0, 2, 2, 2, 2, 4, 4, 8, 8, 4, 4, 4, 2, 2, 2];
 const MODE_YPERIOD = [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 1, 0, 0, 0, 0];
 //const MODE_BPP = [0, 0, 1, 1, 2, 2, 1, 1, 2, 1, 2, 1, 1, 2, 2, 1];
 // how many color clocks / pixel * 2

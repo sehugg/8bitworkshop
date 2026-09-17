@@ -78,9 +78,8 @@ void main(void) {
   a8_pmg_set_size(0, A8_PMG_NORMAL);
   a8_pmg_set_shape(0, ball, sizeof(ball), 0x38);
 
+  // set interrupt and start music
   a8_pokey_init();
-
-  // start music and set interrupt
   a8_pokey_music_init();
   music_start(music1);
   

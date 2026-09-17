@@ -13,6 +13,18 @@
         .import         _a8_dli_dispatch
         .import         __ZP_START__
 
+        .import         _a8_dli_line
+        .import         _a8_dli_lines
+        .import         _a8_dli_tab
+        .import         _a8_dli_regs
+        .import         _a8_dli_hook
+        .import         _music_duty
+
+        .zeropage
+jsrtmp: .byte 0
+tmp:    .word 0
+count:  .byte 0
+
 ; cc65's interrupt.s says zpsavespace = zpspace - regbanksize = 26 - 6.
 ; Kept as a constant so this file does not depend on the asminc version.
 A8_ZPSAVE = 20
@@ -29,6 +41,52 @@ _a8_dli_stub:
         tya
         pha
 
+        ;  if (a8_dli_line >= a8_dli_lines) a8_dli_line = 0;
+        lda     _a8_dli_line
+        cmp     _a8_dli_lines
+        bcc     @nowrap
+        lda     #0
+        sta     _a8_dli_line
+@nowrap:
+        ;  w = &a8_dli_tab[a8_dli_line][0];
+        asl
+        asl
+        asl
+        tay
+        ;  for (i = 0; i < A8_DLI_WRITES; i++) {
+        lda     #4      ; A8_DLI_WRITES
+        sta     count
+@dliloop:
+        ;    byte r = w[0];
+        lda     _a8_dli_tab,y
+        ;    if (r == 0xff) break;
+        bmi     @doneline
+        ;    *a8_dli_regs[r] = w[1];
+        asl
+        tax
+        lda     _a8_dli_regs,x
+        sta     tmp
+        lda     _a8_dli_regs+1,x
+        sta     tmp+1
+        iny
+        lda     _a8_dli_tab,y
+        ldx     #0
+        sta     (tmp,x)
+        iny
+        ;    w += 2;
+        dec     count
+        bne     @dliloop
+        ;  }
+@doneline:
+        ;  if (++a8_dli_line >= a8_dli_lines) a8_dli_line = 0;
+        inc     _a8_dli_line
+        ; call music_duty() to improve accuracy of music notes
+        jsr     _music_duty
+        ; is the hook installed?
+        lda     _a8_dli_hook
+        ora     _a8_dli_hook+1
+        beq     @nohook
+
         ; save cc65's zero page
         ldx     #A8_ZPSAVE-1
 @save:  lda     <__ZP_START__,x
@@ -36,7 +94,14 @@ _a8_dli_stub:
         dex
         bpl     @save
 
-        jsr     _a8_dli_dispatch
+        ; call the hook
+        lda     #$4c
+        sta     jsrtmp
+        lda     _a8_dli_hook
+        sta     tmp
+        lda     _a8_dli_hook+1
+        sta     tmp+1
+        jsr     jsrtmp
 
         ; restore cc65's zero page
         ldx     #A8_ZPSAVE-1
@@ -45,6 +110,7 @@ _a8_dli_stub:
         dex
         bpl     @rest
 
+@nohook:
         pla
         tay
         pla

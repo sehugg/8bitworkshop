@@ -1,5 +1,5 @@
 .ifdef __ATARI5200__
-AUDF0 =	$e800
+AUDF0 = $e800
 AUDC0 = $e801
 AUDCTL = $e808
 .else
