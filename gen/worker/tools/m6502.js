@@ -225,11 +225,9 @@ function compileFastBasic(step) {
         params.extra_link_files = [libfile, params.cfgfile];
         //fixParamsWithDefines(step.path, params);
         var args = [step.path, destpath];
-        (0, wasmutils_1.execMain)(step, fastbasic, args);
-        if (errors.length)
-            return { errors: errors };
-        var asmout = FS.readFile(destpath, { encoding: 'utf8' });
-        (0, builder_1.putWorkFile)(destpath, asmout);
+        const runerr = (0, wasmutils_1.execToFile)(step, fastbasic, args, FS, destpath, errors);
+        if (runerr)
+            return runerr;
     }
     return {
         nexttool: "ca65",

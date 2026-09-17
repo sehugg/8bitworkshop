@@ -1,8 +1,9 @@
 import { WASIRunner } from "../../common/wasi/wasishim";
 import { CodeListing, CodeListingMap } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, putWorkFile, staleFiles, store } from "../builder";
+import { BuildStep, BuildStepResult, gatherFiles, putWorkFile, staleFiles } from "../builder";
 import { re_crlf } from "../listingutils";
 import { loadWASMBinary } from "../wasmutils";
+import { populateWASIFiles, runWASI } from "../wasiutils";
 
 // xa listing lines look like this:
 //     5 A:c000  a9 05                    start     lda #$05      ; comment
@@ -93,10 +94,7 @@ export function assembleXA(step: BuildStep): BuildStepResult {
         }
         const wasi = new WASIRunner();
         wasi.initSync(wasiModule);
-        for (const file of step.files) {
-            wasi.fs.putFile("./" + file, store.getFileData(file));
-        }
-        wasi.addPreopenDirectory(".");
+        populateWASIFiles(wasi, step);
         const args = ['xa', '-E', '-o', binpath, '-l', sympath, '-P', lstpath];
         if (step.params?.xaargs) {
             args.push.apply(args, step.params.xaargs);
@@ -107,11 +105,7 @@ export function assembleXA(step: BuildStep): BuildStepResult {
         }
         args.push(step.path);
         wasi.setArgs(args);
-        try {
-            wasi.run();
-        } catch (e) {
-            errors.push({ line: 0, msg: e + "" });
-        }
+        runWASI(wasi, errors);
         const stderr = wasi.fds[2].getBytesAsString();
         for (const line of stderr.split(re_crlf)) {
             const m = re_error.exec(line);

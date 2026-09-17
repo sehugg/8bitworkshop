@@ -5,6 +5,7 @@ const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const wasishim_1 = require("../../common/wasi/wasishim");
 const wasmutils_1 = require("../wasmutils");
+const wasiutils_1 = require("../wasiutils");
 function parseACMESymbolTable(text) {
     var symbolmap = {};
     var lines = text.split("\n");
@@ -61,10 +62,7 @@ function assembleACME(step) {
         }
         const wasi = new wasishim_1.WASIRunner();
         wasi.initSync(wasiModule);
-        for (let file of step.files) {
-            wasi.fs.putFile("./" + file, builder_1.store.getFileData(file));
-        }
-        wasi.addPreopenDirectory(".");
+        (0, wasiutils_1.populateWASIFiles)(wasi, step);
         var args = ['--msvc', '--initmem', '0', '-o', binpath, '-r', lstpath, '-l', sympath, step.path];
         if ((_a = step.params) === null || _a === void 0 ? void 0 : _a.acmeargs) {
             args.unshift.apply(args, step.params.acmeargs);
@@ -77,12 +75,7 @@ function assembleACME(step) {
             args.unshift.apply(args, ["-D__MAIN__=1"]);
         }
         wasi.setArgs(['acme', ...args]);
-        try {
-            wasi.run();
-        }
-        catch (e) {
-            errors.push({ line: 0, msg: "" + e });
-        }
+        (0, wasiutils_1.runWASI)(wasi, errors);
         const stdout = wasi.fds[1].getBytesAsString();
         const stderr = wasi.fds[2].getBytesAsString();
         if (stdout)

@@ -27,22 +27,14 @@ async function compileDialog(step) {
         const wasi = new wasishim_1.WASIRunner();
         wasi.initSync(wasiModule);
         wasi.fs.setParent(dialog_fs);
-        for (let file of step.files) {
-            wasi.fs.putFile("./" + file, builder_1.store.getFileData(file));
-        }
-        wasi.addPreopenDirectory(".");
+        (0, wasiutils_1.populateWASIFiles)(wasi, step);
         // sources are matched in command-line order, so the story comes first
         // and the library last -- a project's own stdlib.dg shadows the
         // preloaded one, since putFile() writes to the child filesystem
         const sources = step.files.filter(fn => fn.endsWith(".dg") && fn != STDLIB);
         sources.push(STDLIB);
         wasi.setArgs(["dialogc", "-t", "z8", "-o", destpath, ...sources]);
-        try {
-            wasi.run();
-        }
-        catch (e) {
-            errors.push({ line: 0, msg: e + "" });
-        }
+        (0, wasiutils_1.runWASI)(wasi, errors);
         const stderr = wasi.fds[2].getBytesAsString();
         for (let line of stderr.split("\n")) {
             const matches = re_error.exec(line);

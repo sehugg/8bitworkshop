@@ -12,6 +12,7 @@ const wasishim_1 = require("../../common/wasi/wasishim");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const wasmutils_1 = require("../wasmutils");
+const wasiutils_1 = require("../wasiutils");
 // DASM writes its listing (-l) in a fixed-column layout, with tabs padding out
 // the columns. Once the tabs are expanded to 8-column stops the fields are:
 //
@@ -349,10 +350,7 @@ function assembleDASM(step) {
     const sympath = step.prefix + '.sym';
     const wasi = new wasishim_1.WASIRunner();
     wasi.initSync(wasiModule);
-    for (let file of step.files) {
-        wasi.fs.putFile("./" + file, builder_1.store.getFileData(file));
-    }
-    wasi.addPreopenDirectory(".");
+    (0, wasiutils_1.populateWASIFiles)(wasi, step);
     wasi.setArgs(['dasm', step.path, '-f3',
         "-l" + lstpath,
         "-o" + binpath,

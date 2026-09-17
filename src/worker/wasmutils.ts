@@ -2,7 +2,7 @@
 // WebAssembly module cache
 // for Emscripten-compiled functions
 
-import { BuildStep, PWORKER, endtime, starttime } from "./builder";
+import { BuildStep, PWORKER, endtime, starttime, putWorkFile, anyTargetChanged } from "./builder";
 
 /// <reference types="emscripten" />
 export interface EmscriptenModule {
@@ -82,6 +82,28 @@ export function execMain(step: BuildStep, mod, args: string[]) {
   run(args);
   endtime(step.tool);
   console.log('exec', step.tool, args.join(' '));
+}
+
+/**
+ * Run main(), then store the named output file, optionally transforming it.
+ * Returns an error result when the tool reported errors, or null on success.
+ */
+export function execToFile(step: BuildStep, mod, args: string[], FS, destpath: string, errors,
+    processFn?: (s: string) => string) {
+  execMain(step, mod, args);
+  if (errors.length) return { errors: errors };
+  var out = FS.readFile(destpath, { encoding: 'utf8' });
+  if (processFn) out = processFn(out);
+  putWorkFile(destpath, out);
+  return null;
+}
+
+/** Read and store a binary output file; returns null if it did not change. */
+export function readBinaryOutput(step: BuildStep, FS, objpath: string): Uint8Array | null {
+  var objout = FS.readFile(objpath, { encoding: 'binary' }) as Uint8Array;
+  putWorkFile(objpath, objout);
+  if (!anyTargetChanged(step, [objpath])) return null;
+  return objout;
 }
 
 /// asm.js / WASM / filesystem loading

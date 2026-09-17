@@ -1,7 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.preprocessMCPP = preprocessMCPP;
+exports.prepareCompilerInput = prepareCompilerInput;
 const util_1 = require("../../common/util");
+const toolmeta_1 = require("../../common/toolmeta");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const platforms_1 = require("../platforms");
@@ -75,5 +77,25 @@ function preprocessMCPP(step, filesys) {
         //
     }
     return { code: iout };
+}
+/**
+ * Preprocess the step's main source with mcpp, load the result into the
+ * compiler's own filesystem, and prepend the tool's extra args and defines.
+ * Returns an error result, or null on success.
+ */
+function prepareCompilerInput(step, tool, FS, params, args) {
+    var preproc = preprocessMCPP(step, null);
+    if (preproc.errors)
+        return { errors: preproc.errors };
+    (0, builder_1.populateFiles)(step, FS);
+    FS.writeFile(step.path, preproc.code);
+    (0, builder_1.fixParamsWithDefines)(step.path, params);
+    if (params.extra_compile_args) {
+        args.unshift.apply(args, params.extra_compile_args);
+    }
+    // //#symbol c / //#flag c
+    args.unshift.apply(args, (0, toolmeta_1.defineArgs)(tool, params.symbols && params.symbols.compiler)
+        .concat((0, toolmeta_1.extraArgsFor)(tool, params.buildArgs)));
+    return null;
 }
 //# sourceMappingURL=mcpp.js.map

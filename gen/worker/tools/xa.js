@@ -5,6 +5,7 @@ const wasishim_1 = require("../../common/wasi/wasishim");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const wasmutils_1 = require("../wasmutils");
+const wasiutils_1 = require("../wasiutils");
 // xa listing lines look like this:
 //     5 A:c000  a9 05                    start     lda #$05      ; comment
 // (line number, segment:address, then fixed-width byte / label / source columns)
@@ -91,10 +92,7 @@ function assembleXA(step) {
         }
         const wasi = new wasishim_1.WASIRunner();
         wasi.initSync(wasiModule);
-        for (const file of step.files) {
-            wasi.fs.putFile("./" + file, builder_1.store.getFileData(file));
-        }
-        wasi.addPreopenDirectory(".");
+        (0, wasiutils_1.populateWASIFiles)(wasi, step);
         const args = ['xa', '-E', '-o', binpath, '-l', sympath, '-P', lstpath];
         if ((_a = step.params) === null || _a === void 0 ? void 0 : _a.xaargs) {
             args.push.apply(args, step.params.xaargs);
@@ -105,12 +103,7 @@ function assembleXA(step) {
         }
         args.push(step.path);
         wasi.setArgs(args);
-        try {
-            wasi.run();
-        }
-        catch (e) {
-            errors.push({ line: 0, msg: e + "" });
-        }
+        (0, wasiutils_1.runWASI)(wasi, errors);
         const stderr = wasi.fds[2].getBytesAsString();
         for (const line of stderr.split(listingutils_1.re_crlf)) {
             const m = re_error.exec(line);

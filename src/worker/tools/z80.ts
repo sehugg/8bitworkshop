@@ -1,9 +1,10 @@
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, staleFiles, putWorkFile, anyTargetChanged, store } from "../builder";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, putWorkFile, anyTargetChanged } from "../builder";
 import { makeErrorMatcher, parseListing } from "../listingutils";
 import { re_crlf } from "../listingutils";
 import { WASIRunner } from "../../common/wasi/wasishim";
 import { loadWASMBinary } from "../wasmutils";
+import { populateWASIFiles, runWASI } from "../wasiutils";
 
 let wasiModule: WebAssembly.Module | null = null;
 
@@ -19,10 +20,7 @@ export function assembleZMAC(step: BuildStep): BuildStepResult {
     }
     const wasi = new WASIRunner();
     wasi.initSync(wasiModule);
-    for (let file of step.files) {
-      wasi.fs.putFile("./" + file, store.getFileData(file));
-    }
-    wasi.addPreopenDirectory(".");
+    populateWASIFiles(wasi, step);
     /*
   error1.asm(4) : 'l18d4' Undeclared
          JP      L18D4
@@ -34,11 +32,7 @@ export function assembleZMAC(step: BuildStep): BuildStepResult {
     const matcher = makeErrorMatcher(errors, /([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+)/, 2, 3, step.path);
     // TODO: don't know why CIM (hexary) doesn't work
     wasi.setArgs(['zmac', '-z', '-c', '--oo', 'lst,cim', step.path]);
-    try {
-      wasi.run();
-    } catch (e) {
-      errors.push({ line: 0, msg: "" + e });
-    }
+    runWASI(wasi, errors);
     const stderr = wasi.fds[2].getBytesAsString();
     for (let line of stderr.split(re_crlf)) {
       matcher(line);

@@ -5,7 +5,7 @@ import { store, builder, errorResult, getWorkFileAsString } from "./builder";
 import { emglobal, fsMeta, loadFilesystem, listSharedFiles, readSharedFile, ensureFilesystem, readWasiSharedFile, listWasiSharedFiles, ensureWasiFilesystem } from "./wasmutils";
 
 // shared FS names starting with 'wasi:' refer to a WASI filesystem zip
-function splitWasiFSName(fsName: string): { wasi: boolean, name: string } {
+export function splitWasiFSName(fsName: string): { wasi: boolean, name: string } {
   return fsName.startsWith('wasi:') ? { wasi: true, name: fsName.substring(5) } : { wasi: false, name: fsName };
 }
 
@@ -33,7 +33,7 @@ export function setupRequireFunction() {
 
 //const waitFor = delay => new Promise(resolve => setTimeout(resolve, delay)); // for testing
 
-async function handleMessage(data: WorkerMessage): Promise<WorkerResult> {
+export async function handleMessage(data: WorkerMessage): Promise<WorkerResult> {
   // preload file system
   if (data.preload) {
     var fs = getPreloadFSName(data.preload, data.platform);

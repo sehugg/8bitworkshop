@@ -381,28 +381,26 @@ export function populateExtraFiles(step: BuildStep, fs, extrafiles) {
   }
 }
 
-export function staleFiles(step: BuildStep, targets: string[]) {
+// see if any target file compares to the inputs in the given direction
+function targetCompare(step: BuildStep, targets: string[], isNewer: (inputts: number, targetts: number) => boolean) {
   if (!step.maxts) throw Error("call populateFiles() first");
-  // see if any target files are more recent than inputs
   for (var i = 0; i < targets.length; i++) {
     var entry = store.workfs[targets[i]];
-    if (!entry || step.maxts > entry.ts)
+    if (!entry || isNewer(step.maxts, entry.ts))
       return true;
   }
   console.log("unchanged", step.maxts, targets);
   return false;
 }
 
+/** True if any target is missing or older than the inputs (i.e. needs a rebuild). */
+export function staleFiles(step: BuildStep, targets: string[]) {
+  return targetCompare(step, targets, (inputts, targetts) => inputts > targetts);
+}
+
+/** True if any target is newer than the inputs (i.e. was just rebuilt). */
 export function anyTargetChanged(step: BuildStep, targets: string[]) {
-  if (!step.maxts) throw Error("call populateFiles() first");
-  // see if any target files are more recent than inputs
-  for (var i = 0; i < targets.length; i++) {
-    var entry = store.workfs[targets[i]];
-    if (!entry || entry.ts > step.maxts)
-      return true;
-  }
-  console.log("unchanged", step.maxts, targets);
-  return false;
+  return targetCompare(step, targets, (inputts, targetts) => targetts > inputts);
 }
 
 /**
@@ -709,9 +707,14 @@ export function fixParamsWithDefines(path: string, params) {
       var toks = libargs[i].split('=');
       if (toks.length == 2) ident2index[toks[0]] = i;
     }
-    var re = /^[;/]?#define\s+(\w+)\s+(\S+)/gmi; // TODO: empty string?
-    var m;
-    while (m = re.exec(code)) {
+    // per-line match, not a global/multiline scan over the whole file --
+    // the latter makes SpiderMonkey's backtracking matcher recurse on the
+    // native stack at every line start, which overflows the small stack
+    // given to worker threads ("too much recursion") on large source files
+    var re = /^[;/]?#define\s+(\w+)\s+(\S+)/i; // TODO: empty string?
+    for (var line of code.split('\n')) {
+      var m = re.exec(line);
+      if (!m) continue;
       var ident = m[1];
       var value = m[2];
       var index = ident2index[ident];

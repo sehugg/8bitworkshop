@@ -28,7 +28,7 @@ import { CodeListingMap, SourceLine, WorkerError, WorkerResult } from "../../com
 import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, anyTargetChanged, getPrefix, getWorkFileAsString, populateExtraFiles, processEmbedDirective, fixParamsWithDefines } from "../builder";
 import { makeErrorMatcher, re_crlf } from "../listingutils";
 import { loadWASIFilesystemZip } from "../wasiutils";
-import { loadNative, moduleInstFn, execMain, emglobal, EmscriptenModule } from "../wasmutils";
+import { loadNative, moduleInstFn, execMain, readBinaryOutput, emglobal, EmscriptenModule } from "../wasmutils";
 
 export function assembleARMIPS(step: BuildStep): WorkerResult {
     loadNative("armips");
@@ -64,9 +64,8 @@ export function assembleARMIPS(step: BuildStep): WorkerResult {
         if (errors.length)
             return { errors: errors };
 
-        var objout = FS.readFile(objpath, { encoding: 'binary' }) as Uint8Array;
-        putWorkFile(objpath, objout);
-        if (!anyTargetChanged(step, [objpath]))
+        var objout = readBinaryOutput(step, FS, objpath);
+        if (!objout)
             return;
 
         var symbolmap = {};
@@ -198,9 +197,8 @@ export function assembleVASMARM(step: BuildStep): BuildStepResult {
         }
 
         if (undefsyms.length == 0) {
-            var objout = FS.readFile(objpath, { encoding: 'binary' });
-            putWorkFile(objpath, objout);
-            if (!anyTargetChanged(step, [objpath]))
+            var objout = readBinaryOutput(step, FS, objpath);
+            if (!objout)
                 return;
         }
 

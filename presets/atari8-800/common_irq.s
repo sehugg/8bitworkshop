@@ -1,0 +1,119 @@
+;
+; common_irq.s - interrupt trampoline for presets/atari8-800/common.c
+;
+; The Atari DLI is delivered as an NMI: the OS (or the 5200 BIOS) jumps
+; through the VDSLST vector, and the handler has to finish with RTI.
+; cc65 has no way to express that in C, so this tiny stub saves the C
+; runtime zero page, calls the C dispatcher, and returns with RTI.
+;
+; It also restores A/X/Y, so the interrupted program sees no side effects.
+;
+
+        .export         _a8_dli_stub
+        .import         _a8_dli_dispatch
+        .import         __ZP_START__
+
+        .import         _a8_dli_line
+        .import         _a8_dli_lines
+        .import         _a8_dli_tab
+        .import         _a8_dli_regs
+        .import         _a8_dli_hook
+        .import         _music_duty
+
+        .zeropage
+jsrtmp: .byte 0
+tmp:    .word 0
+count:  .byte 0
+
+; cc65's interrupt.s says zpsavespace = zpspace - regbanksize = 26 - 6.
+; Kept as a constant so this file does not depend on the asminc version.
+A8_ZPSAVE = 20
+
+        .bss
+a8_zpsave:      .res    A8_ZPSAVE
+
+        .code
+
+_a8_dli_stub:
+        pha
+        txa
+        pha
+        tya
+        pha
+
+        ;  if (a8_dli_line >= a8_dli_lines) a8_dli_line = 0;
+        lda     _a8_dli_line
+        cmp     _a8_dli_lines
+        bcc     @nowrap
+        lda     #0
+        sta     _a8_dli_line
+@nowrap:
+        ;  w = &a8_dli_tab[a8_dli_line][0];
+        asl
+        asl
+        asl
+        tay
+        ;  for (i = 0; i < A8_DLI_WRITES; i++) {
+        lda     #4      ; A8_DLI_WRITES
+        sta     count
+@dliloop:
+        ;    byte r = w[0];
+        lda     _a8_dli_tab,y
+        ;    if (r == 0xff) break;
+        bmi     @doneline
+        ;    *a8_dli_regs[r] = w[1];
+        asl
+        tax
+        lda     _a8_dli_regs,x
+        sta     tmp
+        lda     _a8_dli_regs+1,x
+        sta     tmp+1
+        iny
+        lda     _a8_dli_tab,y
+        ldx     #0
+        sta     (tmp,x)
+        iny
+        ;    w += 2;
+        dec     count
+        bne     @dliloop
+        ;  }
+@doneline:
+        ;  if (++a8_dli_line >= a8_dli_lines) a8_dli_line = 0;
+        inc     _a8_dli_line
+        ; call music_duty() to improve accuracy of music notes
+        jsr     _music_duty
+        ; is the hook installed?
+        lda     _a8_dli_hook
+        ora     _a8_dli_hook+1
+        beq     @nohook
+
+        ; save cc65's zero page
+        ldx     #A8_ZPSAVE-1
+@save:  lda     <__ZP_START__,x
+        sta     a8_zpsave,x
+        dex
+        bpl     @save
+
+        ; call the hook
+        lda     #$4c
+        sta     jsrtmp
+        lda     _a8_dli_hook
+        sta     tmp
+        lda     _a8_dli_hook+1
+        sta     tmp+1
+        jsr     jsrtmp
+
+        ; restore cc65's zero page
+        ldx     #A8_ZPSAVE-1
+@rest:  lda     a8_zpsave,x
+        sta     <__ZP_START__,x
+        dex
+        bpl     @rest
+
+@nohook:
+        pla
+        tay
+        pla
+        tax
+        pla
+        rti

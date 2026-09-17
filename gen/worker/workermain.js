@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.splitWasiFSName = splitWasiFSName;
 exports.setupRequireFunction = setupRequireFunction;
+exports.handleMessage = handleMessage;
 const toolmeta_1 = require("../common/toolmeta");
 const builder_1 = require("./builder");
 const wasmutils_1 = require("./wasmutils");

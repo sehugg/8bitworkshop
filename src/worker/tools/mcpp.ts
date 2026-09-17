@@ -1,5 +1,6 @@
 import { getBasePlatform } from "../../common/util";
-import { BuildStep, populateFiles, populateExtraFiles, errorResult, processEmbedDirective } from "../builder";
+import { defineArgs, extraArgsFor } from "../../common/toolmeta";
+import { BuildStep, populateFiles, populateExtraFiles, errorResult, processEmbedDirective, fixParamsWithDefines } from "../builder";
 import { makeErrorMatcher, extractErrors } from "../listingutils";
 import { PLATFORM_PARAMS } from "../platforms";
 import { load, print_fn, setupFS, execMain, emglobal, EmscriptenModule } from "../wasmutils";
@@ -70,4 +71,24 @@ export function preprocessMCPP(step: BuildStep, filesys: string) {
         //
     }
     return { code: iout };
+}
+
+/**
+ * Preprocess the step's main source with mcpp, load the result into the
+ * compiler's own filesystem, and prepend the tool's extra args and defines.
+ * Returns an error result, or null on success.
+ */
+export function prepareCompilerInput(step: BuildStep, tool: string, FS, params, args: string[]) {
+    var preproc = preprocessMCPP(step, null);
+    if (preproc.errors) return { errors: preproc.errors };
+    populateFiles(step, FS);
+    FS.writeFile(step.path, preproc.code);
+    fixParamsWithDefines(step.path, params);
+    if (params.extra_compile_args) {
+        args.unshift.apply(args, params.extra_compile_args);
+    }
+    // //#symbol c / //#flag c
+    args.unshift.apply(args, defineArgs(tool, params.symbols && params.symbols.compiler)
+        .concat(extraArgsFor(tool, params.buildArgs)));
+    return null;
 }

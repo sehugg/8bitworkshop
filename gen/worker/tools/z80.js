@@ -6,6 +6,7 @@ const listingutils_1 = require("../listingutils");
 const listingutils_2 = require("../listingutils");
 const wasishim_1 = require("../../common/wasi/wasishim");
 const wasmutils_1 = require("../wasmutils");
+const wasiutils_1 = require("../wasiutils");
 let wasiModule = null;
 function assembleZMAC(step) {
     let errors = [];
@@ -19,10 +20,7 @@ function assembleZMAC(step) {
         }
         const wasi = new wasishim_1.WASIRunner();
         wasi.initSync(wasiModule);
-        for (let file of step.files) {
-            wasi.fs.putFile("./" + file, builder_1.store.getFileData(file));
-        }
-        wasi.addPreopenDirectory(".");
+        (0, wasiutils_1.populateWASIFiles)(wasi, step);
         /*
       error1.asm(4) : 'l18d4' Undeclared
              JP      L18D4
@@ -34,12 +32,7 @@ function assembleZMAC(step) {
         const matcher = (0, listingutils_1.makeErrorMatcher)(errors, /([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+)/, 2, 3, step.path);
         // TODO: don't know why CIM (hexary) doesn't work
         wasi.setArgs(['zmac', '-z', '-c', '--oo', 'lst,cim', step.path]);
-        try {
-            wasi.run();
-        }
-        catch (e) {
-            errors.push({ line: 0, msg: "" + e });
-        }
+        (0, wasiutils_1.runWASI)(wasi, errors);
         const stderr = wasi.fds[2].getBytesAsString();
         for (let line of stderr.split(listingutils_2.re_crlf)) {
             matcher(line);

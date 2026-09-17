@@ -6588,6 +6588,21 @@
     const zipdata = loadBlobSync(path);
     return unzipWASIFilesystem(zipdata, rootPath);
   }
+  function populateWASIFiles(wasi, step, dirs = ["."]) {
+    for (let file of step.files) {
+      wasi.fs.putFile("./" + file, store.getFileData(file));
+    }
+    for (let dir of dirs) {
+      wasi.addPreopenDirectory(dir);
+    }
+  }
+  function runWASI(wasi, errors) {
+    try {
+      wasi.run();
+    } catch (e) {
+      errors.push({ line: 0, msg: "" + e });
+    }
+  }
 
   // src/worker/wasmutils.ts
   var ENVIRONMENT_IS_WEB = typeof window === "object";
@@ -6650,6 +6665,20 @@
     run(args);
     endtime(step.tool);
     console.log("exec", step.tool, args.join(" "));
+  }
+  function execToFile(step, mod, args, FS, destpath, errors, processFn) {
+    execMain(step, mod, args);
+    if (errors.length) return { errors };
+    var out = FS.readFile(destpath, { encoding: "utf8" });
+    if (processFn) out = processFn(out);
+    putWorkFile(destpath, out);
+    return null;
+  }
+  function readBinaryOutput(step, FS, objpath) {
+    var objout = FS.readFile(objpath, { encoding: "binary" });
+    putWorkFile(objpath, objout);
+    if (!anyTargetChanged(step, [objpath])) return null;
+    return objout;
   }
   var fsMeta = {};
   var fsBlob = {};
@@ -6860,22 +6889,23 @@
   }
   var re_crlf = /\r?\n/;
   var re_lineoffset = /\s*(\d+)\s+[%]line\s+(\d+)\+(\d+)\s+(.+)/;
+  function parseSegFunc(line, segMatch, funcMatch, state) {
+    let segm = segMatch && segMatch.exec(line);
+    if (segm) {
+      state.segment = segm[1];
+    }
+    let funcm = funcMatch && funcMatch.exec(line);
+    if (funcm) {
+      state.funcbase = parseInt(funcm[1], 16);
+      state.func = funcm[2];
+    }
+  }
   function parseListing(code, lineMatch, iline, ioffset, iinsns, icycles, funcMatch, segMatch) {
     var lines = [];
     var lineofs = 0;
-    var segment = "";
-    var func = "";
-    var funcbase = 0;
+    var state = { segment: "", func: "", funcbase: 0 };
     code.split(re_crlf).forEach((line, lineindex) => {
-      let segm = segMatch && segMatch.exec(line);
-      if (segm) {
-        segment = segm[1];
-      }
-      let funcm = funcMatch && funcMatch.exec(line);
-      if (funcm) {
-        funcbase = parseInt(funcm[1], 16);
-        func = funcm[2];
-      }
+      parseSegFunc(line, segMatch, funcMatch, state);
       var linem = lineMatch.exec(line);
       if (linem && linem[1]) {
         var linenum = iline < 0 ? lineindex : parseInt(linem[iline]);
@@ -6886,12 +6916,12 @@
         if (insns) {
           lines.push({
             line: linenum + lineofs,
-            offset: offset - funcbase,
+            offset: offset - state.funcbase,
             insns,
             cycles,
             iscode,
-            segment,
-            func
+            segment: state.segment,
+            func: state.func
           });
         }
       } else {
@@ -6906,19 +6936,9 @@
   function parseSourceLines(code, lineMatch, offsetMatch, funcMatch, segMatch) {
     var lines = [];
     var lastlinenum = 0;
-    var segment = "";
-    var func = "";
-    var funcbase = 0;
+    var state = { segment: "", func: "", funcbase: 0 };
     for (var line of code.split(re_crlf)) {
-      let segm = segMatch && segMatch.exec(line);
-      if (segm) {
-        segment = segm[1];
-      }
-      let funcm = funcMatch && funcMatch.exec(line);
-      if (funcm) {
-        funcbase = parseInt(funcm[1], 16);
-        func = funcm[2];
-      }
+      parseSegFunc(line, segMatch, funcMatch, state);
       var linem = lineMatch.exec(line);
       if (linem && linem[1]) {
         lastlinenum = parseInt(linem[1]);
@@ -6928,9 +6948,9 @@
           var offset = parseInt(linem[1], 16);
           lines.push({
             line: lastlinenum,
-            offset: offset - funcbase,
-            segment,
-            func
+            offset: offset - state.funcbase,
+            segment: state.segment,
+            func: state.func
           });
           lastlinenum = 0;
         }
@@ -7217,7 +7237,7 @@
       if (step.mainfile) {
         args.unshift.apply(args, ["-D", "__MAIN__=1"]);
       }
-      var extra = defineArgs("ca65", step.params.symbols && step.params.symbols.assembler).concat(extraArgsFor("ca65", step.params.buildArgs));
+      var extra = defineArgs("ca65", step.params.define).concat(defineArgs("ca65", step.params.symbols && step.params.symbols.assembler)).concat(extraArgsFor("ca65", step.params.buildArgs));
       args.splice(args.length - 1, 0, ...extra);
       execMain(step, CA65, args);
       if (errors.length) {
@@ -7417,11 +7437,8 @@
       var customArgs = params.extra_compiler_args || ["-T", "-g", "-Oirs", "-Cl", "-W", "-pointer-sign,-no-effect"];
       args = args.concat(customArgs, args);
       args.push(step.path);
-      execMain(step, CC65, args);
-      if (errors.length)
-        return { errors };
-      var asmout = FS.readFile(destpath, { encoding: "utf8" });
-      putWorkFile(destpath, asmout);
+      const runerr = execToFile(step, CC65, args, FS, destpath, errors);
+      if (runerr) return runerr;
     }
     return {
       nexttool: "ca65",
@@ -7698,10 +7715,7 @@
     const sympath = step.prefix + ".sym";
     const wasi = new WASIRunner();
     wasi.initSync(wasiModule);
-    for (let file of step.files) {
-      wasi.fs.putFile("./" + file, store.getFileData(file));
-    }
-    wasi.addPreopenDirectory(".");
+    populateWASIFiles(wasi, step);
     wasi.setArgs([
       "dasm",
       step.path,
@@ -7850,6 +7864,18 @@
     }
     return { code: iout };
   }
+  function prepareCompilerInput(step, tool, FS, params, args) {
+    var preproc = preprocessMCPP(step, null);
+    if (preproc.errors) return { errors: preproc.errors };
+    populateFiles(step, FS);
+    FS.writeFile(step.path, preproc.code);
+    fixParamsWithDefines(step.path, params);
+    if (params.extra_compile_args) {
+      args.unshift.apply(args, params.extra_compile_args);
+    }
+    args.unshift.apply(args, defineArgs(tool, params.symbols && params.symbols.compiler).concat(extraArgsFor(tool, params.buildArgs)));
+    return null;
+  }
 
   // src/worker/tools/sdcc.ts
   function hexToArray(s, ofs) {
@@ -7916,8 +7942,8 @@
     };
     return match_asm_fn;
   }
-  function assembleSDASZ80(step) {
-    loadNative("sdasz80");
+  async function assembleSDAS(step, tool) {
+    loadNative(tool);
     var objout, lstout, symout;
     var errors = [];
     gatherFiles(step, { mainFilePath: "main.asm" });
@@ -7925,16 +7951,17 @@
     var lstpath = step.prefix + ".lst";
     if (staleFiles(step, [objpath, lstpath])) {
       const match_asm_fn = errorMatcherSDASZ80(step.path, errors);
-      var ASZ80 = emglobal.sdasz80({
-        instantiateWasm: moduleInstFn("sdasz80"),
+      var AS = emglobal[tool]({
+        instantiateWasm: moduleInstFn(tool),
         noInitialRun: true,
         //logReadFiles:true,
         print: match_asm_fn,
         printErr: match_asm_fn
       });
-      var FS = ASZ80.FS;
+      if (AS instanceof Promise) AS = await AS;
+      var FS = AS.FS;
       populateFiles(step, FS);
-      execMain(step, ASZ80, ["-plosgffwy", step.path]);
+      execMain(step, AS, ["-plosgffwy", step.path]);
       if (errors.length) {
         return { errors };
       }
@@ -7949,38 +7976,11 @@
       args: [objpath]
     };
   }
-  async function assembleSDASGB(step) {
-    loadNative("sdasgb");
-    var objout, lstout, symout;
-    var errors = [];
-    gatherFiles(step, { mainFilePath: "main.asm" });
-    var objpath = step.prefix + ".rel";
-    var lstpath = step.prefix + ".lst";
-    if (staleFiles(step, [objpath, lstpath])) {
-      const match_asm_fn = errorMatcherSDASZ80(step.path, errors);
-      var ASZ80 = await emglobal.sdasgb({
-        instantiateWasm: moduleInstFn("sdasgb"),
-        noInitialRun: true,
-        //logReadFiles:true,
-        print: match_asm_fn,
-        printErr: match_asm_fn
-      });
-      var FS = ASZ80.FS;
-      populateFiles(step, FS);
-      execMain(step, ASZ80, ["-plosgffwy", step.path]);
-      if (errors.length) {
-        return { errors };
-      }
-      objout = FS.readFile(objpath, { encoding: "utf8" });
-      lstout = FS.readFile(lstpath, { encoding: "utf8" });
-      putWorkFile(objpath, objout);
-      putWorkFile(lstpath, lstout);
-    }
-    return {
-      linktool: "sdldz80",
-      files: [objpath, lstpath],
-      args: [objpath]
-    };
+  function assembleSDASZ80(step) {
+    return assembleSDAS(step, "sdasz80");
+  }
+  function assembleSDASGB(step) {
+    return assembleSDAS(step, "sdasgb");
   }
   function linkSDLDZ80(step) {
     loadNative("sdldz80");
@@ -9641,28 +9641,21 @@
         print: match_fn,
         printErr: match_fn
       });
-      var code = getWorkFileAsString(step.path);
-      var preproc = preprocessMCPP(step, null);
-      if (preproc.errors) {
-        return { errors: preproc.errors };
-      } else code = preproc.code;
       var FS = CMOC.FS;
-      populateFiles(step, FS);
-      FS.writeFile(step.path, code);
-      fixParamsWithDefines(step.path, params);
-      if (params.extra_compile_args) {
-        args.unshift.apply(args, params.extra_compile_args);
-      }
-      args.unshift.apply(args, defineArgs("cmoc", params.symbols && params.symbols.compiler).concat(extraArgsFor("cmoc", params.buildArgs)));
-      execMain(step, CMOC, args);
-      if (errors.length)
-        return { errors };
-      var asmout = FS.readFile(destpath, { encoding: "utf8" });
-      if (step.params.set_stack_end)
-        asmout = asmout.replace("stack space in bytes", `
+      const err = prepareCompilerInput(step, "cmoc", FS, params, args);
+      if (err) return err;
+      const runerr = execToFile(
+        step,
+        CMOC,
+        args,
+        FS,
+        destpath,
+        errors,
+        (out) => step.params.set_stack_end ? out.replace("stack space in bytes", `
  lds #${step.params.set_stack_end}
-`);
-      putWorkFile(destpath, asmout);
+`) : out
+      );
+      if (runerr) return runerr;
     }
     return {
       nexttool: "lwasm",
@@ -9998,11 +9991,8 @@
       params.cfgfile = params.fastbasic_cfgfile;
       params.extra_link_files = [libfile, params.cfgfile];
       var args = [step.path, destpath];
-      execMain(step, fastbasic, args);
-      if (errors.length)
-        return { errors };
-      var asmout = FS.readFile(destpath, { encoding: "utf8" });
-      putWorkFile(destpath, asmout);
+      const runerr = execToFile(step, fastbasic, args, FS, destpath, errors);
+      if (runerr) return runerr;
     }
     return {
       nexttool: "ca65",
@@ -10026,17 +10016,10 @@
       }
       const wasi = new WASIRunner();
       wasi.initSync(wasiModule2);
-      for (let file of step.files) {
-        wasi.fs.putFile("./" + file, store.getFileData(file));
-      }
-      wasi.addPreopenDirectory(".");
+      populateWASIFiles(wasi, step);
       const matcher = makeErrorMatcher(errors, /([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+)/, 2, 3, step.path);
       wasi.setArgs(["zmac", "-z", "-c", "--oo", "lst,cim", step.path]);
-      try {
-        wasi.run();
-      } catch (e) {
-        errors.push({ line: 0, msg: "" + e });
-      }
+      runWASI(wasi, errors);
       const stderr = wasi.fds[2].getBytesAsString();
       for (let line of stderr.split(re_crlf)) {
         matcher(line);
@@ -10117,24 +10100,11 @@
         print: match_fn,
         printErr: match_fn
       });
-      var code = getWorkFileAsString(step.path);
-      var preproc = preprocessMCPP(step, null);
-      if (preproc.errors) {
-        return { errors: preproc.errors };
-      } else code = preproc.code;
       var FS = smlrc.FS;
-      populateFiles(step, FS);
-      FS.writeFile(step.path, code);
-      fixParamsWithDefines(step.path, params);
-      if (params.extra_compile_args) {
-        args.unshift.apply(args, params.extra_compile_args);
-      }
-      args.unshift.apply(args, defineArgs("smlrc", params.symbols && params.symbols.compiler).concat(extraArgsFor("smlrc", params.buildArgs)));
-      execMain(step, smlrc, args);
-      if (errors.length)
-        return { errors };
-      var asmout = FS.readFile(destpath, { encoding: "utf8" });
-      putWorkFile(destpath, asmout);
+      const err = prepareCompilerInput(step, "smlrc", FS, params, args);
+      if (err) return err;
+      const runerr = execToFile(step, smlrc, args, FS, destpath, errors);
+      if (runerr) return runerr;
     }
     return {
       nexttool: "yasm",
@@ -11014,9 +10984,8 @@
       execMain(step, armips, args);
       if (errors.length)
         return { errors };
-      var objout = FS.readFile(objpath, { encoding: "binary" });
-      putWorkFile(objpath, objout);
-      if (!anyTargetChanged(step, [objpath]))
+      var objout = readBinaryOutput(step, FS, objpath);
+      if (!objout)
         return;
       var symbolmap = {};
       var segments = [];
@@ -11135,9 +11104,8 @@
         return { errors };
       }
       if (undefsyms.length == 0) {
-        var objout = FS.readFile(objpath, { encoding: "binary" });
-        putWorkFile(objpath, objout);
-        if (!anyTargetChanged(step, [objpath]))
+        var objout = readBinaryOutput(step, FS, objpath);
+        if (!objout)
           return;
       }
       var lstout = FS.readFile(lstpath, { encoding: "utf8" });
@@ -14456,10 +14424,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       }
       const wasi = new WASIRunner();
       wasi.initSync(wasiModule3);
-      for (let file of step.files) {
-        wasi.fs.putFile("./" + file, store.getFileData(file));
-      }
-      wasi.addPreopenDirectory(".");
+      populateWASIFiles(wasi, step);
       var args = ["--msvc", "--initmem", "0", "-o", binpath, "-r", lstpath, "-l", sympath, step.path];
       if ((_a = step.params) == null ? void 0 : _a.acmeargs) {
         args.unshift.apply(args, step.params.acmeargs);
@@ -14471,11 +14436,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
         args.unshift.apply(args, ["-D__MAIN__=1"]);
       }
       wasi.setArgs(["acme", ...args]);
-      try {
-        wasi.run();
-      } catch (e) {
-        errors.push({ line: 0, msg: "" + e });
-      }
+      runWASI(wasi, errors);
       const stdout = wasi.fds[1].getBytesAsString();
       const stderr = wasi.fds[2].getBytesAsString();
       if (stdout) console.log(stdout);
@@ -14508,34 +14469,26 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     }
   }
 
-  // src/worker/tools/cc7800.ts
-  var cc7800_fs = null;
-  var wasiModule4 = null;
-  async function compileCC7800(step) {
+  // src/worker/tools/cc6502.ts
+  var wasiModules = {};
+  var wasiFilesystems2 = {};
+  async function compileCC6502(step, cfg) {
     const errors = [];
     gatherFiles(step, { mainFilePath: "main.c" });
     const destpath = "./a.out";
     if (staleFiles(step, [destpath])) {
-      if (!cc7800_fs) {
-        cc7800_fs = await loadWASIFilesystemZip("cc7800-fs.zip");
+      if (!wasiFilesystems2[cfg.tool]) {
+        wasiFilesystems2[cfg.tool] = await loadWASIFilesystemZip(cfg.fsZip);
       }
-      if (!wasiModule4) {
-        wasiModule4 = new WebAssembly.Module(loadWASMBinary("cc7800"));
+      if (!wasiModules[cfg.tool]) {
+        wasiModules[cfg.tool] = new WebAssembly.Module(loadWASMBinary(cfg.tool));
       }
       const wasi = new WASIRunner();
-      wasi.initSync(wasiModule4);
-      wasi.fs.setParent(cc7800_fs);
-      for (let file of step.files) {
-        wasi.fs.putFile("./" + file, store.getFileData(file));
-      }
-      wasi.addPreopenDirectory("headers");
-      wasi.addPreopenDirectory(".");
-      wasi.setArgs(["cc7800", "-v", "-g", "-S", "-I", "headers", step.path]);
-      try {
-        wasi.run();
-      } catch (e) {
-        errors.push(e);
-      }
+      wasi.initSync(wasiModules[cfg.tool]);
+      wasi.fs.setParent(wasiFilesystems2[cfg.tool]);
+      populateWASIFiles(wasi, step, ["headers", "."]);
+      wasi.setArgs([cfg.tool, "-v", "-g", "-S", "-I", "headers", step.path]);
+      runWASI(wasi, errors);
       let stdout = wasi.fds[1].getBytesAsString();
       let stderr = wasi.fds[2].getBytesAsString();
       console.log("stdout", stdout);
@@ -14561,57 +14514,14 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     };
   }
 
+  // src/worker/tools/cc7800.ts
+  function compileCC7800(step) {
+    return compileCC6502(step, { tool: "cc7800", fsZip: "cc7800-fs.zip" });
+  }
+
   // src/worker/tools/cc2600.ts
-  var cc2600_fs = null;
-  var wasiModule5 = null;
-  async function compilecc2600(step) {
-    const errors = [];
-    gatherFiles(step, { mainFilePath: "main.c" });
-    const destpath = "./a.out";
-    if (staleFiles(step, [destpath])) {
-      if (!cc2600_fs) {
-        cc2600_fs = await loadWASIFilesystemZip("cc2600-fs.zip");
-      }
-      if (!wasiModule5) {
-        wasiModule5 = new WebAssembly.Module(loadWASMBinary("cc2600"));
-      }
-      const wasi = new WASIRunner();
-      wasi.initSync(wasiModule5);
-      wasi.fs.setParent(cc2600_fs);
-      for (let file of step.files) {
-        wasi.fs.putFile("./" + file, store.getFileData(file));
-      }
-      wasi.addPreopenDirectory("headers");
-      wasi.addPreopenDirectory(".");
-      wasi.setArgs(["cc2600", "-v", "-g", "-S", "-I", "headers", step.path]);
-      try {
-        wasi.run();
-      } catch (e) {
-        errors.push(e);
-      }
-      let stdout = wasi.fds[1].getBytesAsString();
-      let stderr = wasi.fds[2].getBytesAsString();
-      console.log("stdout", stdout);
-      console.log("stderr", stderr);
-      if (stderr.indexOf("Syntax error:") >= 0) {
-        const matcher = makeErrorMatcher(errors, /^Syntax error: (.+?) on line (\d+) of (.+)/, 2, 1, step.path, 3);
-        for (let line of stderr.split("\n")) {
-          matcher(line);
-        }
-      }
-      if (errors.length) {
-        return { errors };
-      }
-      console.log(wasi.fs);
-      const combinedasm = wasi.fs.getFile(destpath).getBytesAsString();
-      putWorkFile(destpath, combinedasm);
-    }
-    return {
-      nexttool: "dasm",
-      path: destpath,
-      args: [destpath],
-      files: [destpath]
-    };
+  function compilecc2600(step) {
+    return compileCC6502(step, { tool: "cc2600", fsZip: "cc2600-fs.zip" });
   }
 
   // src/worker/tools/bataribasic.ts
@@ -14864,7 +14774,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
 
   // src/worker/tools/oscar64.ts
   var oscar64_fs = null;
-  var wasiModule6 = null;
+  var wasiModule4 = null;
   function getWasiFileAsString(wasi, suffix) {
     for (const fd of wasi.fs.getFiles()) {
       if (fd.name.endsWith(suffix)) {
@@ -14881,11 +14791,11 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       if (!oscar64_fs) {
         oscar64_fs = await loadWASIFilesystemZip("oscar64-fs.zip");
       }
-      if (!wasiModule6) {
-        wasiModule6 = new WebAssembly.Module(loadWASMBinary("oscar64"));
+      if (!wasiModule4) {
+        wasiModule4 = new WebAssembly.Module(loadWASMBinary("oscar64"));
       }
       const wasi = new WASIRunner();
-      wasi.initSync(wasiModule6);
+      wasi.initSync(wasiModule4);
       wasi.fs.setParent(oscar64_fs);
       for (let file of step.files) {
         wasi.fs.putFile("./" + file, store.getFileData(file));
@@ -15008,7 +14918,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     }
     return origin;
   }
-  var wasiModule7 = null;
+  var wasiModule5 = null;
   function assembleXA(step) {
     var _a, _b, _c, _d;
     const errors = [];
@@ -15017,15 +14927,12 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     const lstpath = step.prefix + ".lst";
     const sympath = step.prefix + ".lbl";
     if (staleFiles(step, [binpath])) {
-      if (!wasiModule7) {
-        wasiModule7 = new WebAssembly.Module(loadWASMBinary("xa"));
+      if (!wasiModule5) {
+        wasiModule5 = new WebAssembly.Module(loadWASMBinary("xa"));
       }
       const wasi = new WASIRunner();
-      wasi.initSync(wasiModule7);
-      for (const file of step.files) {
-        wasi.fs.putFile("./" + file, store.getFileData(file));
-      }
-      wasi.addPreopenDirectory(".");
+      wasi.initSync(wasiModule5);
+      populateWASIFiles(wasi, step);
       const args = ["xa", "-E", "-o", binpath, "-l", sympath, "-P", lstpath];
       if ((_a = step.params) == null ? void 0 : _a.xaargs) {
         args.push.apply(args, step.params.xaargs);
@@ -15036,11 +14943,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       }
       args.push(step.path);
       wasi.setArgs(args);
-      try {
-        wasi.run();
-      } catch (e) {
-        errors.push({ line: 0, msg: e + "" });
-      }
+      runWASI(wasi, errors);
       const stderr = wasi.fds[2].getBytesAsString();
       for (const line of stderr.split(re_crlf)) {
         const m = re_error.exec(line);
@@ -15078,7 +14981,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   // src/worker/tools/dialog.ts
   var STDLIB = "stdlib.dg";
   var dialog_fs = null;
-  var wasiModule8 = null;
+  var wasiModule6 = null;
   var re_error2 = /^Error:\s+(?:(\S+?), line (\d+):\s+)?(.+)/;
   async function compileDialog(step) {
     const errors = [];
@@ -15088,24 +14991,17 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       if (!dialog_fs) {
         dialog_fs = await loadWASIFilesystemZip("dialog-fs.zip");
       }
-      if (!wasiModule8) {
-        wasiModule8 = new WebAssembly.Module(loadWASMBinary("dialogc"));
+      if (!wasiModule6) {
+        wasiModule6 = new WebAssembly.Module(loadWASMBinary("dialogc"));
       }
       const wasi = new WASIRunner();
-      wasi.initSync(wasiModule8);
+      wasi.initSync(wasiModule6);
       wasi.fs.setParent(dialog_fs);
-      for (let file of step.files) {
-        wasi.fs.putFile("./" + file, store.getFileData(file));
-      }
-      wasi.addPreopenDirectory(".");
+      populateWASIFiles(wasi, step);
       const sources = step.files.filter((fn) => fn.endsWith(".dg") && fn != STDLIB);
       sources.push(STDLIB);
       wasi.setArgs(["dialogc", "-t", "z8", "-o", destpath, ...sources]);
-      try {
-        wasi.run();
-      } catch (e) {
-        errors.push({ line: 0, msg: e + "" });
-      }
+      runWASI(wasi, errors);
       const stderr = wasi.fds[2].getBytesAsString();
       for (let line of stderr.split("\n")) {
         const matches = re_error2.exec(line);
@@ -15471,25 +15367,21 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       }
     }
   }
-  function staleFiles(step, targets) {
+  function targetCompare(step, targets, isNewer) {
     if (!step.maxts) throw Error("call populateFiles() first");
     for (var i = 0; i < targets.length; i++) {
       var entry = store.workfs[targets[i]];
-      if (!entry || step.maxts > entry.ts)
+      if (!entry || isNewer(step.maxts, entry.ts))
         return true;
     }
     console.log("unchanged", step.maxts, targets);
     return false;
   }
+  function staleFiles(step, targets) {
+    return targetCompare(step, targets, (inputts, targetts) => inputts > targetts);
+  }
   function anyTargetChanged(step, targets) {
-    if (!step.maxts) throw Error("call populateFiles() first");
-    for (var i = 0; i < targets.length; i++) {
-      var entry = store.workfs[targets[i]];
-      if (!entry || entry.ts > step.maxts)
-        return true;
-    }
-    console.log("unchanged", step.maxts, targets);
-    return false;
+    return targetCompare(step, targets, (inputts, targetts) => targetts > inputts);
   }
   function applyAsmProjectParams(params) {
     for (const key of Object.keys(params)) {
@@ -15709,9 +15601,10 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
         var toks = libargs[i].split("=");
         if (toks.length == 2) ident2index[toks[0]] = i;
       }
-      var re = /^[;/]?#define\s+(\w+)\s+(\S+)/gmi;
-      var m;
-      while (m = re.exec(code)) {
+      var re = /^[;/]?#define\s+(\w+)\s+(\S+)/i;
+      for (var line of code.split("\n")) {
+        var m = re.exec(line);
+        if (!m) continue;
         var ident = m[1];
         var value = m[2];
         var index = ident2index[ident];

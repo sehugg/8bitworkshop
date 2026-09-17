@@ -4,18 +4,18 @@ import { PLATFORMS } from "../common/emu";
 import { BaseMAME6502Platform } from "../common/mameplatform";
 import { Atari5200, Atari800 } from "../machine/atari8";
 
-declare var jt; // for 6502
-
 var Atari8_PRESETS : Preset[] = [
   {id:'hello.dasm', name:'Hello World', category:'Assembly'},
   {id:'hellopm.dasm', name:'Hello Sprites'},
   {id:'helloconio.c', name:'Text Mode', category:'C'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'hellodlist.c', name:'Display List'},
+  {id:'libdemo.c', name:'Common Library'},
 ];
 
 var Atari800_PRESETS = Atari8_PRESETS.concat([
-  {id:'testmusic.c', name:'POKEY Music'},
+  //{id:'testmusic.c', name:'POKEY Music'},
+  {id:'scrolldemo.c', name:'Scrolling'},
   {id:'sieve.bas', name:'Benchmark', category:'FastBasic'},
   {id:'pmtest.bas', name:'Sprites Test'},
   {id:'dli.bas', name:'DLI Test'},
@@ -33,6 +33,16 @@ const Atari800_MemoryMap = { main:[
   {name:'ROM',start:0xd800,size:0x800,type:'rom'},
   {name:'Character Set',start:0xe000,size:0x400,type:'rom'},
   {name:'ROM',start:0xe400,size:0x1c00,type:'rom'},
+] }
+
+const Atari5200_MemoryMap = { main:[
+  {name:'RAM',start:0x0,size:0x4000,type:'ram'},
+  {name:'Cartridge ROM',start:0x4000,size:0x8000,type:'rom'},
+  {name:'GTIA',start:0xc000,size:0x20,type:'io'},
+  {name:'ANTIC',start:0xd400,size:0x10,type:'io'},
+  {name:'POKEY',start:0xe800,size:0x10,type:'io'},
+  {name:'ATARI Character Set',start:0xf800,size:0x400,type:'rom'},
+  {name:'ROM',start:0xfc00,size:0x400,type:'rom'},
 ] }
 
 function getToolForFilename_Atari8(fn:string) {
@@ -73,6 +83,7 @@ class Atari800Platform extends Base6502MachinePlatform<Atari800> {
 class Atari5200Platform extends Atari800Platform {
   getPresets() { return Atari8_PRESETS; }
   newMachine() { return new Atari5200(); }
+  getMemoryMap() { return Atari5200_MemoryMap; }
   biosPath = 'res/altirra/superkernel.rom';
 }
 
@@ -137,15 +148,7 @@ class Atari5200MAMEPlatform extends Atari8MAMEPlatform implements Platform {
   }
   start() {
   }
-  getMemoryMap = function() { return { main:[
-    {name:'RAM',start:0x0,size:0x4000,type:'ram'},
-    {name:'Cartridge ROM',start:0x4000,size:0x8000,type:'rom'},
-    {name:'GTIA',start:0xc000,size:0x20,type:'io'},
-    {name:'ANTIC',start:0xd400,size:0x10,type:'io'},
-    {name:'POKEY',start:0xe800,size:0x10,type:'io'},
-    {name:'ATARI Character Set',start:0xf800,size:0x400,type:'rom'},
-    {name:'ROM',start:0xfc00,size:0x400,type:'rom'},
-  ] } };
+  getMemoryMap() { return Atari5200_MemoryMap; }
 }
 
 function atari8_getROMExtension(rom: Uint8Array) {

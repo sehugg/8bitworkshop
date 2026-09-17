@@ -6,8 +6,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.loadBlobSync = loadBlobSync;
 exports.unzipWASIFilesystem = unzipWASIFilesystem;
 exports.loadWASIFilesystemZip = loadWASIFilesystemZip;
+exports.populateWASIFiles = populateWASIFiles;
+exports.runWASI = runWASI;
 const jszip_1 = __importDefault(require("jszip"));
 const wasishim_1 = require("../common/wasi/wasishim");
+const builder_1 = require("./builder");
 function loadBlobSync(path) {
     var xhr = new XMLHttpRequest();
     xhr.responseType = 'blob';
@@ -45,5 +48,23 @@ async function loadWASIFilesystemZip(zippath, rootPath = "./") {
     const path = '../../src/worker/fs/' + zippath;
     const zipdata = loadBlobSync(path);
     return unzipWASIFilesystem(zipdata, rootPath);
+}
+/** Copy a build step's source files into a WASI runner and preopen directories. */
+function populateWASIFiles(wasi, step, dirs = ["."]) {
+    for (let file of step.files) {
+        wasi.fs.putFile("./" + file, builder_1.store.getFileData(file));
+    }
+    for (let dir of dirs) {
+        wasi.addPreopenDirectory(dir);
+    }
+}
+/** Run a WASI command, recording any thrown error into the given list. */
+function runWASI(wasi, errors) {
+    try {
+        wasi.run();
+    }
+    catch (e) {
+        errors.push({ line: 0, msg: "" + e });
+    }
 }
 //# sourceMappingURL=wasiutils.js.map

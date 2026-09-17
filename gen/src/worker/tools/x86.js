@@ -44,31 +44,15 @@ function compileSmallerC(step) {
             print: match_fn,
             printErr: match_fn,
         });
-        // load source file and preprocess
-        var code = (0, builder_1.getWorkFileAsString)(step.path);
-        var preproc = (0, mcpp_1.preprocessMCPP)(step, null);
-        if (preproc.errors) {
-            return { errors: preproc.errors };
-        }
-        else
-            code = preproc.code;
-        // set up filesystem
+        // set up filesystem with the preprocessed source
         var FS = smlrc.FS;
         //setupFS(FS, '65-'+getRootBasePlatform(step.platform));
-        (0, builder_1.populateFiles)(step, FS);
-        FS.writeFile(step.path, code);
-        (0, builder_1.fixParamsWithDefines)(step.path, params);
-        if (params.extra_compile_args) {
-            args.unshift.apply(args, params.extra_compile_args);
-        }
-        // //#symbol c / //#flag c
-        args.unshift.apply(args, (0, toolmeta_1.defineArgs)('smlrc', params.symbols && params.symbols.compiler)
-            .concat((0, toolmeta_1.extraArgsFor)('smlrc', params.buildArgs)));
-        (0, wasmutils_1.execMain)(step, smlrc, args);
-        if (errors.length)
-            return { errors: errors };
-        var asmout = FS.readFile(destpath, { encoding: 'utf8' });
-        (0, builder_1.putWorkFile)(destpath, asmout);
+        const err = (0, mcpp_1.prepareCompilerInput)(step, 'smlrc', FS, params, args);
+        if (err)
+            return err;
+        const runerr = (0, wasmutils_1.execToFile)(step, smlrc, args, FS, destpath, errors);
+        if (runerr)
+            return runerr;
     }
     return {
         nexttool: "yasm",

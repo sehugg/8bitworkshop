@@ -140,8 +140,11 @@ function assembleCA65(step) {
         if (step.mainfile) {
             args.unshift.apply(args, ["-D", "__MAIN__=1"]);
         }
-        // //#symbol as / //#flag as (insert before the source filename)
-        var extra = (0, toolmeta_1.defineArgs)('ca65', step.params.symbols && step.params.symbols.assembler)
+        // //#symbol as / //#flag as (insert before the source filename).
+        // platform defines (params.define) only reach the compiler step otherwise,
+        // so a hand-written .ca65/.s project would never see e.g. __ATARI5200__
+        var extra = (0, toolmeta_1.defineArgs)('ca65', step.params.define)
+            .concat((0, toolmeta_1.defineArgs)('ca65', step.params.symbols && step.params.symbols.assembler))
             .concat((0, toolmeta_1.extraArgsFor)('ca65', step.params.buildArgs));
         args.splice(args.length - 1, 0, ...extra);
         (0, wasmutils_1.execMain)(step, CA65, args);
@@ -348,11 +351,9 @@ function compileCC65(step) {
         var customArgs = params.extra_compiler_args || ['-T', '-g', '-Oirs', '-Cl', '-W', '-pointer-sign,-no-effect'];
         args = args.concat(customArgs, args);
         args.push(step.path);
-        (0, wasmutils_1.execMain)(step, CC65, args);
-        if (errors.length)
-            return { errors: errors };
-        var asmout = FS.readFile(destpath, { encoding: 'utf8' });
-        (0, builder_1.putWorkFile)(destpath, asmout);
+        const runerr = (0, wasmutils_1.execToFile)(step, CC65, args, FS, destpath, errors);
+        if (runerr)
+            return runerr;
     }
     return {
         nexttool: "ca65",

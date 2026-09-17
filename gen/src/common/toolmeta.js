@@ -755,14 +755,20 @@ function getSharedFileSystemName(tool, platform) {
  */
 function matchDependencyPatterns(text, patterns) {
     let files = [];
+    let lines = text.split('\n');
     for (let pat of patterns || []) {
         let p = pat instanceof RegExp ? { re: pat } : pat;
-        let m;
-        p.re.lastIndex = 0; // patterns are shared and global, so rewind first
-        while (m = p.re.exec(text)) {
-            let fn = m[p.group != null ? p.group : m.length - 1];
-            if (fn)
-                files.push(p.suffix ? fn + p.suffix : fn);
+        for (let line of lines) {
+            let m;
+            p.re.lastIndex = 0; // patterns are shared and global, so rewind first
+            // matched per line, not over the whole file, so the `^`+`m`+`g`
+            // anchored patterns don't make the regex engine recurse (on its
+            // native call stack) at every line of a large source file
+            while (m = p.re.exec(line)) {
+                let fn = m[p.group != null ? p.group : m.length - 1];
+                if (fn)
+                    files.push(p.suffix ? fn + p.suffix : fn);
+            }
         }
     }
     return files;

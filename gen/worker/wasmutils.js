@@ -7,6 +7,8 @@ exports.getWASMMemory = getWASMMemory;
 exports.getWASMBinary = getWASMBinary;
 exports.moduleInstFn = moduleInstFn;
 exports.execMain = execMain;
+exports.execToFile = execToFile;
+exports.readBinaryOutput = readBinaryOutput;
 exports.loadFilesystem = loadFilesystem;
 exports.load = load;
 exports.loadWASMBinary = loadWASMBinary;
@@ -89,6 +91,28 @@ function execMain(step, mod, args) {
     run(args);
     (0, builder_1.endtime)(step.tool);
     console.log('exec', step.tool, args.join(' '));
+}
+/**
+ * Run main(), then store the named output file, optionally transforming it.
+ * Returns an error result when the tool reported errors, or null on success.
+ */
+function execToFile(step, mod, args, FS, destpath, errors, processFn) {
+    execMain(step, mod, args);
+    if (errors.length)
+        return { errors: errors };
+    var out = FS.readFile(destpath, { encoding: 'utf8' });
+    if (processFn)
+        out = processFn(out);
+    (0, builder_1.putWorkFile)(destpath, out);
+    return null;
+}
+/** Read and store a binary output file; returns null if it did not change. */
+function readBinaryOutput(step, FS, objpath) {
+    var objout = FS.readFile(objpath, { encoding: 'binary' });
+    (0, builder_1.putWorkFile)(objpath, objout);
+    if (!(0, builder_1.anyTargetChanged)(step, [objpath]))
+        return null;
+    return objout;
 }
 /// asm.js / WASM / filesystem loading
 exports.fsMeta = {};

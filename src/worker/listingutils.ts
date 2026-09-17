@@ -53,19 +53,22 @@ export const re_crlf = /\r?\n/;
 //    1   %line 16+1 hello.asm
 export const re_lineoffset = /\s*(\d+)\s+[%]line\s+(\d+)\+(\d+)\s+(.+)/;
 
+// update the segment/function context from a listing line
+function parseSegFunc(line: string, segMatch, funcMatch, state: { segment: string, func: string, funcbase: number }) {
+    let segm = segMatch && segMatch.exec(line);
+    if (segm) { state.segment = segm[1]; }
+    let funcm = funcMatch && funcMatch.exec(line);
+    if (funcm) { state.funcbase = parseInt(funcm[1], 16); state.func = funcm[2]; }
+}
+
 export function parseListing(code: string,
     lineMatch, iline: number, ioffset: number, iinsns: number, icycles?: number,
     funcMatch?, segMatch?): SourceLine[] {
     var lines: SourceLine[] = [];
     var lineofs = 0;
-    var segment = '';
-    var func = '';
-    var funcbase = 0;
+    var state = { segment: '', func: '', funcbase: 0 };
     code.split(re_crlf).forEach((line, lineindex) => {
-        let segm = segMatch && segMatch.exec(line);
-        if (segm) { segment = segm[1]; }
-        let funcm = funcMatch && funcMatch.exec(line);
-        if (funcm) { funcbase = parseInt(funcm[1], 16); func = funcm[2]; }
+        parseSegFunc(line, segMatch, funcMatch, state);
 
         var linem = lineMatch.exec(line);
         if (linem && linem[1]) {
@@ -77,12 +80,12 @@ export function parseListing(code: string,
             if (insns) {
                 lines.push({
                     line: linenum + lineofs,
-                    offset: offset - funcbase,
+                    offset: offset - state.funcbase,
                     insns,
                     cycles,
                     iscode,
-                    segment,
-                    func
+                    segment: state.segment,
+                    func: state.func
                 });
             }
         } else {
@@ -99,14 +102,9 @@ export function parseListing(code: string,
 export function parseSourceLines(code: string, lineMatch, offsetMatch, funcMatch?, segMatch?) {
     var lines = [];
     var lastlinenum = 0;
-    var segment = '';
-    var func = '';
-    var funcbase = 0;
+    var state = { segment: '', func: '', funcbase: 0 };
     for (var line of code.split(re_crlf)) {
-        let segm = segMatch && segMatch.exec(line);
-        if (segm) { segment = segm[1]; }
-        let funcm = funcMatch && funcMatch.exec(line);
-        if (funcm) { funcbase = parseInt(funcm[1], 16); func = funcm[2]; }
+        parseSegFunc(line, segMatch, funcMatch, state);
 
         var linem = lineMatch.exec(line);
         if (linem && linem[1]) {
@@ -117,9 +115,9 @@ export function parseSourceLines(code: string, lineMatch, offsetMatch, funcMatch
                 var offset = parseInt(linem[1], 16);
                 lines.push({
                     line: lastlinenum,
-                    offset: offset - funcbase,
-                    segment,
-                    func
+                    offset: offset - state.funcbase,
+                    segment: state.segment,
+                    func: state.func
                 });
                 lastlinenum = 0;
             }

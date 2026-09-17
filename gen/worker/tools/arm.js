@@ -61,9 +61,8 @@ function assembleARMIPS(step) {
         (0, wasmutils_1.execMain)(step, armips, args);
         if (errors.length)
             return { errors: errors };
-        var objout = FS.readFile(objpath, { encoding: 'binary' });
-        (0, builder_1.putWorkFile)(objpath, objout);
-        if (!(0, builder_1.anyTargetChanged)(step, [objpath]))
+        var objout = (0, wasmutils_1.readBinaryOutput)(step, FS, objpath);
+        if (!objout)
             return;
         var symbolmap = {};
         var segments = [];
@@ -193,9 +192,8 @@ function assembleVASMARM(step) {
             return { errors: errors };
         }
         if (undefsyms.length == 0) {
-            var objout = FS.readFile(objpath, { encoding: 'binary' });
-            (0, builder_1.putWorkFile)(objpath, objout);
-            if (!(0, builder_1.anyTargetChanged)(step, [objpath]))
+            var objout = (0, wasmutils_1.readBinaryOutput)(step, FS, objpath);
+            if (!objout)
                 return;
         }
         var lstout = FS.readFile(lstpath, { encoding: 'utf8' });

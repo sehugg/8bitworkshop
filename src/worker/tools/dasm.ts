@@ -1,8 +1,9 @@
 import { WASIRunner } from "../../common/wasi/wasishim";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, putWorkFile, anyTargetChanged, store } from "../builder";
+import { BuildStep, BuildStepResult, gatherFiles, putWorkFile, anyTargetChanged } from "../builder";
 import { msvcErrorMatcher, re_crlf, re_msvc } from "../listingutils";
 import { loadWASMBinary } from "../wasmutils";
+import { populateWASIFiles } from "../wasiutils";
 
 // DASM writes its listing (-l) in a fixed-column layout, with tabs padding out
 // the columns. Once the tabs are expanded to 8-column stops the fields are:
@@ -344,10 +345,7 @@ export function assembleDASM(step: BuildStep): BuildStepResult {
     const sympath = step.prefix + '.sym';
     const wasi = new WASIRunner();
     wasi.initSync(wasiModule);
-    for (let file of step.files) {
-        wasi.fs.putFile("./" + file, store.getFileData(file));
-    }
-    wasi.addPreopenDirectory(".");
+    populateWASIFiles(wasi, step);
     wasi.setArgs(['dasm', step.path, '-f3',
         "-l" + lstpath,
         "-o" + binpath,
