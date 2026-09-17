@@ -260,10 +260,9 @@ export async function ensureWasiFilesystem(zipname: string): Promise<WASIMemoryF
   }
 }
 
-// zip entries are stored under '<path>' (rootPath './' adds a './' prefix);
-// strip it plus any leading '/' so '/headers/vcs.h' matches 'headers/vcs.h'
+// Stored file names are relative to the fs root; strip a leading '/'
+// so '/headers/vcs.h' matches 'headers/vcs.h'
 function normalizeWasiPath(path: string): string {
-  path = path.startsWith('./') ? path.substring(2) : path;
   return path.startsWith('/') ? path.substring(1) : path;
 }
 
@@ -272,8 +271,7 @@ export async function readWasiSharedFile(zipname: string, path: string): Promise
   let fs = await ensureWasiFilesystem(zipname);
   if (!fs) return null;
   let norm = normalizeWasiPath(path);
-  // zip entries are stored under './<path>', so try both key forms
-  let fd = fs.getFile(norm) || fs.getFile('./' + norm);
+  let fd = fs.getFile(norm);
   if (!fd || !fd.size) return null;
   let data = new Uint8Array(fd.size);
   fd.offset = 0;

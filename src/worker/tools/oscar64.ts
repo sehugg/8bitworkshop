@@ -9,10 +9,11 @@ import { loadWASMBinary } from "../wasmutils";
 let oscar64_fs: WASIFilesystem | null = null;
 let wasiModule: WebAssembly.Module | null = null;
 
-// find a file in the WASI fs whose name ends with the given suffix.
-// oscar64 writes files as "./path/name.ext" (or "././name.ext" when the
-// output was specified with a "./" prefix), so match on suffix only.
+// read a file from the WASI fs by name, falling back to matching on the given
+// suffix (oscar64 may pick a different output extension than the one requested).
 function getWasiFileAsString(wasi: WASIRunner, suffix: string): string | null {
+    const exact = wasi.fs.getFile(suffix);
+    if (exact) return exact.getBytesAsString();
     for (const fd of wasi.fs.getFiles()) {
         if (fd.name.endsWith(suffix)) {
             return fd.getBytesAsString();
@@ -70,16 +71,11 @@ export async function compileOscar64(step: BuildStep): Promise<BuildStepResult> 
             return { errors };
         }
         // oscar64 picks the output extension from the target machine/format
-        // (e.g. .xex for the atari target), ignoring the one we asked for, and
-        // writes it as '././name.ext'. Match on the basename + known output
-        // extensions since the leading './' depth varies.
+        // (e.g. .xex for the atari target), ignoring the one we asked for.
         const prefix = destpath.replace(/\.[^.]+$/, '');
-        const basename = prefix.replace(/^.*\//, '');
         let outpath = destpath;
         for (const ext of [".xex", ".prg", ".crt", ".bin", ".nes"]) {
             if (wasi.fs.getFile(prefix + ext)) { outpath = prefix + ext; break; }
-            let found = wasi.fs.getFiles().find((f) => f.name.endsWith("/" + basename + ext));
-            if (found) { outpath = found.name; break; }
         }
         const output = wasi.fs.getFile(outpath).getBytes();
         putWorkFile(destpath, output);
