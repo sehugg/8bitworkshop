@@ -1,6 +1,7 @@
 
 import { Toolbar } from "./toolbar";
 import { registerElementShortcuts, Shortcut } from "./shortcutbar";
+import { registerElementHelpTopic } from "./views/helpview";
 import { VirtualList } from "../common/vlist";
 import DOMPurify from "dompurify";
 
@@ -54,6 +55,7 @@ export class WaveformView {
     // bar's focus tracking (see shortcutbar.ts)
     this.parent.addEventListener('mousedown', (e) => { e.preventDefault(); this.parent.focus(); });
     registerElementShortcuts(this.parent, () => this.getShortcuts());
+    registerElementHelpTopic(this.parent, 'verilog-waveform');
     this.recreate();
   }
 

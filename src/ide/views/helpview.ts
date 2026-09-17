@@ -25,6 +25,7 @@ import buildDirectivesMd from "../../docs/build-directives.md";
 import toolchainsMd from "../../docs/toolchains.md";
 import assetHeadersMD from "../../docs/asset-headers.md";
 import embeddingIdeMd from "../../docs/embedding-ide.md";
+import verilogWaveformMd from "../../docs/verilog-waveform.md";
 
 // Help is a normal ProjectView so it reuses ProjectWindows (tabs, hash
 // routing, the window list). The registry and renderHelpBody() below are
@@ -59,6 +60,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   { id: "toolchains", title: "Toolchains & Platforms", html: toolchainsMd },
   { id: "asset-headers", title: "Asset Headers", html: assetHeadersMD },
   { id: "embedding-ide", title: "Embedding the IDE", html: embeddingIdeMd },
+  { id: "verilog-waveform", title: "Waveform Viewer", html: verilogWaveformMd },
 ];
 
 const HELP_BY_ID: { [id: string]: HelpTopic } = {};
@@ -104,6 +106,29 @@ const VIEW_HELP: { [viewId: string]: string } = {
 export function helpTopicForView(viewId: string, isEditor: boolean): string {
   if (isEditor) return "editor";
   return (viewId && VIEW_HELP[viewId]) || "index";
+}
+
+// Widgets embedded directly in a platform's UI (not a ProjectWindows tab,
+// e.g. the Verilog waveform viewer alongside the emulator screen) register
+// their container + topic id here so F1 can find them while focused.
+let elementHelpTopics: { div: HTMLElement; id: string }[] = [];
+
+export function registerElementHelpTopic(div: HTMLElement, id: string) {
+  elementHelpTopics.push({ div, id });
+}
+
+export function unregisterElementHelpTopic(div: HTMLElement) {
+  elementHelpTopics = elementHelpTopics.filter((eh) => eh.div !== div);
+}
+
+// topic id for the currently focused element-scoped widget, if any
+export function elementHelpTopicForFocus(): string | null {
+  const ae = document.activeElement;
+  if (!ae) return null;
+  for (const eh of elementHelpTopics) {
+    if (eh.div.contains(ae)) return eh.id;
+  }
+  return null;
 }
 
 // Turn relative Markdown links ("foo.md") into internal help routes
