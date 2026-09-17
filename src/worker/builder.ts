@@ -707,9 +707,14 @@ export function fixParamsWithDefines(path: string, params) {
       var toks = libargs[i].split('=');
       if (toks.length == 2) ident2index[toks[0]] = i;
     }
-    var re = /^[;/]?#define\s+(\w+)\s+(\S+)/gmi; // TODO: empty string?
-    var m;
-    while (m = re.exec(code)) {
+    // per-line match, not a global/multiline scan over the whole file --
+    // the latter makes SpiderMonkey's backtracking matcher recurse on the
+    // native stack at every line start, which overflows the small stack
+    // given to worker threads ("too much recursion") on large source files
+    var re = /^[;/]?#define\s+(\w+)\s+(\S+)/i; // TODO: empty string?
+    for (var line of code.split('\n')) {
+      var m = re.exec(line);
+      if (!m) continue;
       var ident = m[1];
       var value = m[2];
       var index = ident2index[ident];
