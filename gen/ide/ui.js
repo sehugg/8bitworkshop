@@ -1705,7 +1705,7 @@ function _addIncludeFile() {
     var fn = getCurrentMainFilename();
     var tool = exports.platform.getToolForFilename(fn);
     // TODO: more tools? make this a function of the platform / tool provider
-    if (fn.endsWith(".c") || tool == 'sdcc' || tool == 'cc65' || tool == 'cmoc' || tool == 'smlrc')
+    if (fn.endsWith(".c") || tool == 'sdcc' || tool == 'cc65' || tool == 'cmoc' || tool == 'smlrc' || tool == 'oscar64')
         addFileToProject("Header", ".h", (s) => { return '#include "' + s + '"'; });
     else if (tool == 'dasm' || tool == 'zmac')
         addFileToProject("Include", ".inc", (s) => { return '\tinclude "' + s + '"'; });

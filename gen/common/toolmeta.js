@@ -23,7 +23,7 @@
  * (unless noWorkerBuild) and vice versa.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TOOL_META = exports.DIALOG_INCLUDE_PATTERNS = exports.ECS_INCLUDE_PATTERNS = exports.WIZ_INCLUDE_PATTERNS = exports.ACME_INCLUDE_PATTERNS = exports.USE_ASM_INCLUDE_PATTERNS = exports.SYSTEM_INCLUDE_PATTERNS = exports.VERILOG_INCLUDE_PATTERNS = exports.SHARED_LINK_PATTERNS = exports.SHARED_INCLUDE_PATTERNS = void 0;
+exports.TOOL_META = exports.DIALOG_INCLUDE_PATTERNS = exports.ECS_INCLUDE_PATTERNS = exports.WIZ_INCLUDE_PATTERNS = exports.ACME_INCLUDE_PATTERNS = exports.USE_ASM_INCLUDE_PATTERNS = exports.SYSTEM_INCLUDE_PATTERNS = exports.VERILOG_INCLUDE_PATTERNS = exports.SHARED_LINK_PATTERNS = exports.OSCAR64_INCLUDE_PATTERNS = exports.SHARED_INCLUDE_PATTERNS = void 0;
 exports.getSystemIncludePatterns = getSystemIncludePatterns;
 exports.getToolMeta = getToolMeta;
 exports.getPlatformToolHelpURL = getPlatformToolHelpURL;
@@ -37,6 +37,7 @@ exports.defineArgs = defineArgs;
 exports.linkSymbolArgs = linkSymbolArgs;
 exports.extraArgsFor = extraArgsFor;
 exports.getLinkPatterns = getLinkPatterns;
+exports.getCompileLinkedSources = getCompileLinkedSources;
 exports.getIncludeDirs = getIncludeDirs;
 exports.getSharedFileSystemName = getSharedFileSystemName;
 exports.matchDependencyPatterns = matchDependencyPatterns;
@@ -46,6 +47,13 @@ const util_1 = require("./util");
 exports.SHARED_INCLUDE_PATTERNS = [
     /^\s*[.#%]?(include|incbin|embed)\s+"(.+?)"/gmi,
     /^\s*([;']|[/][/])#(resource)\s+"(.+?)"/gm,
+];
+// oscar64: #pragma compile("file.c") pulls another source file into the build
+// (the compiler's equivalent of a link). The compiler handles it itself, so the
+// file just has to be a build dependency copied into the tool filesystem.
+exports.OSCAR64_INCLUDE_PATTERNS = [
+    ...exports.SHARED_INCLUDE_PATTERNS,
+    /^\s*#pragma\s+compile\s*\(\s*"([^"]+)"\s*\)/gmi,
 ];
 // C / most assemblers: //#link "file" (or ;link)
 exports.SHARED_LINK_PATTERNS = [
@@ -393,8 +401,9 @@ exports.TOOL_META = {
         defineFlag: '-d', defineInline: true,
         wasmModule: 'oscar64',
         version: '1.32.266',
-        includePatterns: exports.SHARED_INCLUDE_PATTERNS,
+        includePatterns: exports.OSCAR64_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
+        compileLinkedSources: true,
         platforms: {
             // oscar64 defaults to the C64 target machine
             c64: {},
@@ -730,6 +739,16 @@ function getLinkPatterns(tool, platform) {
     if (platform && platform.startsWith('verilog'))
         return [];
     return exports.SHARED_LINK_PATTERNS;
+}
+/**
+ * True if "//#link" dependencies are compiled together with the main source in
+ * one tool invocation (single-pass compilers like oscar64) rather than built
+ * separately and linked. The build message then carries them as `linkfiles`
+ * on the main step so the tool can pass them all to one invocation.
+ */
+function getCompileLinkedSources(tool) {
+    let meta = tool && getToolMeta(tool);
+    return !!(meta && meta.compileLinkedSources);
 }
 /**
  * Directories containing shared code (headers etc.) for this tool's shared

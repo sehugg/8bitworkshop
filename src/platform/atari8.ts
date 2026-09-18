@@ -10,13 +10,14 @@ var Atari8_PRESETS : Preset[] = [
   {id:'helloconio.c', name:'Text Mode', category:'C'},
   {id:'siegegame.c', name:'Siege Game'},
   {id:'hellodlist.c', name:'Display List'},
-  {id:'libdemo.c', name:'Common Library'},
+  {id:'libdemo.c', name:'Library Demo'},
 ];
 
 var Atari800_PRESETS = Atari8_PRESETS.concat([
   //{id:'testmusic.c', name:'POKEY Music'},
   {id:'scrolldemo.c', name:'Scrolling'},
-  {id:'hello.cpp', name:'Hello Oscar64', category:'C++ (Oscar64)'},
+  {id:'hello.cpp', name:'Hello Oscar64', category:'Oscar64'},
+  {id:'libdemo.cpp', name:'Library Demo Oscar64'},
   {id:'sieve.bas', name:'Benchmark', category:'FastBasic'},
   {id:'pmtest.bas', name:'Sprites Test'},
   {id:'dli.bas', name:'DLI Test'},
@@ -156,6 +157,7 @@ class Atari5200MAMEPlatform extends Atari8MAMEPlatform implements Platform {
 
 function atari8_getROMExtension(rom: Uint8Array) {
   if (rom == null) return ".bin";
+  if (rom[0] == 0x96 && rom[1] == 0x02) return ".atr";
   if (rom[0] == 0xff && rom[1] == 0xff) return ".xex";
   else return ".rom";
 }

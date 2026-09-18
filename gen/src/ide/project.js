@@ -248,11 +248,18 @@ class CodeProject {
         this.filename2path[mainfilename] = this.mainPath;
         const tool = this.getToolForFilename(this.mainPath);
         let usesRemoteTool = tool.startsWith('remote:');
+        // Single-pass tools (oscar64) compile their linked sources in the same
+        // invocation as the main file, so those files travel in the main step.
+        let compileLinkedSources = (0, toolmeta_1.getCompileLinkedSources)(tool);
+        let linkfiles = [];
         for (var dep of depends) {
             // remote tools send both includes and linked files in one build step
-            if (!dep.link || usesRemoteTool) {
+            if (!dep.link || usesRemoteTool || compileLinkedSources) {
                 msg.updates.push({ path: dep.filename, data: dep.data });
                 depfiles.push(dep.filename);
+                if (dep.link && compileLinkedSources && linkfiles.indexOf(dep.filename) < 0) {
+                    linkfiles.push(dep.filename);
+                }
             }
             this.filename2path[dep.filename] = dep.path;
         }
@@ -263,13 +270,15 @@ class CodeProject {
             tool: this.getToolForFilename(this.mainPath),
             mainfile: true,
         };
+        if (linkfiles.length)
+            mainstep.linkfiles = linkfiles;
         if (this.buildSymbols)
             mainstep.symbols = this.buildSymbols;
         if (this.buildArgs)
             mainstep.buildArgs = this.buildArgs;
         msg.buildsteps.push(mainstep);
         for (var dep of depends) {
-            if (dep.data && dep.link) {
+            if (dep.data && dep.link && !compileLinkedSources) {
                 this.preloadWorker(dep.filename);
                 msg.updates.push({ path: dep.filename, data: dep.data });
                 msg.buildsteps.push({
@@ -376,8 +385,24 @@ class CodeProject {
             this.listings = data.listings;
             for (var lstname in this.listings) {
                 var lst = this.listings[lstname];
-                if (lst.lines)
+                if (lst.lines) {
                     lst.sourcefile = new workertypes_1.SourceFile(lst.lines, lst.text);
+                    // A single-pass tool (oscar64) emits one listing that mixes source
+                    // lines from the main file and every linked library, each tagged
+                    // with its own path. Split them so each editor can find the lines
+                    // for its own file (see getListingForFile).
+                    var bypath = {};
+                    for (var info of lst.lines) {
+                        var p = info.path || '';
+                        (bypath[p] || (bypath[p] = [])).push(info);
+                    }
+                    var paths = Object.keys(bypath);
+                    if (paths.length > 1 || (paths.length == 1 && paths[0] != '')) {
+                        lst.sourcefiles = {};
+                        for (var p of paths)
+                            lst.sourcefiles[p] = new workertypes_1.SourceFile(bypath[p], lst.text);
+                    }
+                }
                 if (lst.asmlines)
                     lst.assemblyfile = new workertypes_1.SourceFile(lst.asmlines, lst.text);
             }
@@ -408,18 +433,43 @@ class CodeProject {
         // ignore include files (TODO)
         //if (path.toLowerCase().endsWith('.h') || path.toLowerCase().endsWith('.inc'))
         //return;
-        var fnprefix = (0, util_1.getFilenamePrefix)(this.stripLocalPath(path));
+        var stripped = this.stripLocalPath(path);
+        var fnprefix = (0, util_1.getFilenamePrefix)(stripped);
         // find listing with matching prefix
         var listings = this.getListings();
         for (var lstfn in listings) {
-            if (lstfn == path)
-                return listings[lstfn];
+            if (lstfn == path || lstfn == stripped)
+                return this.withSourceFileForPath(listings[lstfn], stripped);
         }
         for (var lstfn in listings) {
             if ((0, util_1.getFilenamePrefix)(lstfn) == fnprefix) {
-                return listings[lstfn];
+                return this.withSourceFileForPath(listings[lstfn], stripped);
             }
         }
+        // no listing named after this file; it may be one source among many in a
+        // single mixed listing (e.g. an oscar64 "//#link"ed source)
+        for (var lstfn in listings) {
+            var sf = this.findSourceFileForPath(listings[lstfn], stripped);
+            if (sf)
+                return Object.assign({}, listings[lstfn], { sourcefile: sf });
+        }
+    }
+    // return a copy of `lst` whose sourcefile holds only the lines for `path`,
+    // or `lst` unchanged if it has no per-source-file views
+    withSourceFileForPath(lst, path) {
+        var sf = this.findSourceFileForPath(lst, path);
+        return sf ? Object.assign({}, lst, { sourcefile: sf }) : lst;
+    }
+    // look up the per-source-file view (see processBuildListings) for `path`
+    findSourceFileForPath(lst, path) {
+        if (!lst || !lst.sourcefiles)
+            return null;
+        var want = (0, util_1.getFilenameForPath)((0, util_1.getFilenamePrefix)(path));
+        for (var p in lst.sourcefiles) {
+            if ((0, util_1.getFilenameForPath)((0, util_1.getFilenamePrefix)(p)) == want)
+                return lst.sourcefiles[p];
+        }
+        return null;
     }
     stripLocalPath(path) {
         if (this.mainPath) {

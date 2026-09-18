@@ -2542,6 +2542,10 @@
     /^\s*[.#%]?(include|incbin|embed)\s+"(.+?)"/gmi,
     /^\s*([;']|[/][/])#(resource)\s+"(.+?)"/gm
   ];
+  var OSCAR64_INCLUDE_PATTERNS = [
+    ...SHARED_INCLUDE_PATTERNS,
+    /^\s*#pragma\s+compile\s*\(\s*"([^"]+)"\s*\)/gmi
+  ];
   var SHARED_LINK_PATTERNS = [
     /^\s*([;]|[/][/])#link\s+"(.+?)"/gm
   ];
@@ -2936,8 +2940,9 @@
       defineInline: true,
       wasmModule: "oscar64",
       version: "1.32.266",
-      includePatterns: SHARED_INCLUDE_PATTERNS,
+      includePatterns: OSCAR64_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS,
+      compileLinkedSources: true,
       platforms: {
         // oscar64 defaults to the C64 target machine
         c64: {},
@@ -14855,6 +14860,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       args.push.apply(args, defineArgs("oscar64", step.params && step.params.symbols && step.params.symbols.compiler));
       args.push.apply(args, extraArgsFor("oscar64", step.params && step.params.buildArgs));
       args.push(step.path);
+      if (step.linkfiles) args.push.apply(args, step.linkfiles);
       wasi.setArgs(args);
       try {
         wasi.run();
@@ -14865,11 +14871,14 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       let stderr = wasi.fds[2].getBytesAsString();
       console.log("stdout", stdout);
       console.log("stderr", stderr);
-      const matcher = makeErrorMatcher(errors, /\((\d+),\s+(\d+)\)\s+: error (\d+): (.+)/, 1, 4, step.path);
+      const matcher = makeErrorMatcher(errors, /^\s*(.*?)\((\d+),\s+(\d+)\)\s+: error (\d+): (.+)/, 2, 5, step.path, 1);
       const matcher2 = makeErrorMatcher(errors, /oscar64: error (\d+): (.+)/, 0, 2, step.path);
       for (let line of stderr.split("\n")) {
         matcher(line);
         matcher2(line);
+      }
+      for (let err of errors) {
+        if (err.path && err.path.startsWith("/")) err.path = err.path.substring(1);
       }
       if (errors.length) {
         return { errors };

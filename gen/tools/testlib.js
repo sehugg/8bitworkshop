@@ -331,30 +331,46 @@ async function compileSourceFile(tool, platform, filePath, buildAs, opts) {
             depFilenames.push(dep.filename);
         }
     }
+    // Single-pass tools (oscar64) compile linked sources in the same invocation
+    // as the main file instead of building them separately.
+    var compileLinkedSources = (0, toolmeta_1.getCompileLinkedSources)(tool);
+    var linkfiles = [];
+    if (compileLinkedSources) {
+        for (var dep of deps) {
+            if (dep.link && dep.data) {
+                files.push({ path: dep.filename, data: dep.data });
+                linkfiles.push(dep.filename);
+            }
+        }
+    }
     // Build steps: main file first
     var buildsteps = [];
     var mainstep = {
         path: basename,
-        files: [basename].concat(depFilenames),
+        files: [basename].concat(depFilenames, linkfiles),
         platform: platform,
         tool: tool,
         mainfile: true,
     };
+    if (linkfiles.length)
+        mainstep.linkfiles = linkfiles;
     if (opts && opts.symbols)
         mainstep.symbols = opts.symbols;
     if (opts && opts.buildArgs)
         mainstep.buildArgs = opts.buildArgs;
     buildsteps.push(mainstep);
-    // Link dependencies get their own build steps, with tool selected by extension
-    for (var dep of deps) {
-        if (dep.link && dep.data) {
-            files.push({ path: dep.filename, data: dep.data });
-            buildsteps.push({
-                path: dep.filename,
-                files: [dep.filename].concat(depFilenames),
-                platform: platform,
-                tool: getToolForFilename(dep.filename, platform),
-            });
+    // Other link dependencies get their own build steps, with tool selected by extension
+    if (!compileLinkedSources) {
+        for (var dep of deps) {
+            if (dep.link && dep.data) {
+                files.push({ path: dep.filename, data: dep.data });
+                buildsteps.push({
+                    path: dep.filename,
+                    files: [dep.filename].concat(depFilenames),
+                    platform: platform,
+                    tool: getToolForFilename(dep.filename, platform),
+                });
+            }
         }
     }
     return compile({
