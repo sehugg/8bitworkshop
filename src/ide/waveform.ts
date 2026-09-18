@@ -1,6 +1,7 @@
 
 import { Toolbar } from "./toolbar";
 import { registerElementShortcuts, Shortcut } from "./shortcutbar";
+import { registerElementHelpTopic } from "./views/helpview";
 import { VirtualList } from "../common/vlist";
 import DOMPurify from "dompurify";
 
@@ -48,8 +49,13 @@ export class WaveformView {
     // focusable container + chip registration so the shortcut bar can show
     // this widget's keys while it has focus (the canvas itself can't take focus)
     this.parent.setAttribute('tabindex', '-1');
-    this.parent.addEventListener('mousedown', () => { this.parent.focus(); });
+    // preventDefault: stop the browser's own click-to-focus from re-targeting
+    // focus onto a nested focusable child (e.g. the wavelist container) right
+    // after we focus the outer container -- that flicker confuses the shortcut
+    // bar's focus tracking (see shortcutbar.ts)
+    this.parent.addEventListener('mousedown', (e) => { e.preventDefault(); this.parent.focus(); });
     registerElementShortcuts(this.parent, () => this.getShortcuts());
+    registerElementHelpTopic(this.parent, 'verilog-waveform');
     this.recreate();
   }
 

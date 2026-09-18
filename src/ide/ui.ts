@@ -30,7 +30,7 @@ import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
 import { AddressHeatMapView, BinaryFileView, BreakpointsView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterStackMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
 import { DisassemblerView, HeaderView, ListingView, PC_LINE_LOOKAHEAD, SourceEditor, setUppercaseOnly } from "./views/editors";
-import { HELP_TOPICS, HelpView, helpTopicForView } from "./views/helpview";
+import { HELP_TOPICS, HelpView, elementHelpTopicForFocus, helpTopicForView } from "./views/helpview";
 import { CallStackView, DebugBrowserView } from "./views/treeviews";
 import { ProjectWindows } from "./windows";
 import { setupSplits, showTab } from "./layout";
@@ -1861,8 +1861,11 @@ function setupDebugControls() {
 // Going through the hash means Back returns to the previous view.
 function showContextHelp() {
   if (!projectWindows) return;
+  // widgets embedded outside ProjectWindows (e.g. the Verilog waveform
+  // viewer) register their own topic; prefer that when it has focus
+  var elId = elementHelpTopicForFocus();
   var isEditor = projectWindows.getActive() instanceof SourceEditor;
-  var id = helpTopicForView(projectWindows.getActiveID(), isEditor);
+  var id = elId || helpTopicForView(projectWindows.getActiveID(), isEditor);
   var hash = '#help/' + id;
   if (window.location.hash === hash) {
     projectWindows.createOrShow(hash);

@@ -7895,7 +7895,7 @@
     if (errors.length)
       return { errors };
     var iout = FS.readFile("main.i", { encoding: "utf8" });
-    iout = iout.replace(/^#line /gm, "\n# ");
+    iout = iout.split("\n").map((line) => line.startsWith("#line ") ? "\n# " + line.substring(6) : line).join("\n");
     try {
       var errout = FS.readFile("mcpp.err", { encoding: "utf8" });
       if (errout.length) {
@@ -15576,9 +15576,10 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   function parseBuildDirectives(code) {
     let out = emptyDirectives();
     if (!code) return out;
-    let re = /^[ \t]*(?:\/\/|;)#(symbol|flag|tooldef)\b([^\n]*)/gmi;
-    let m;
-    while (m = re.exec(code)) {
+    let re = /^[ \t]*(?:\/\/|;)#(symbol|flag|tooldef)\b([^\n]*)/i;
+    for (let line of code.split("\n")) {
+      let m = re.exec(line);
+      if (!m) continue;
       let kw = m[1].toLowerCase();
       let raw = m[2].trim();
       let parts = raw.split(/\s+/);
@@ -15697,9 +15698,12 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       throw new Error("build directive error: " + dir.errors.join("; "));
   }
   function processEmbedDirective(code) {
-    let re3 = /^\s*#embed\s+"(.+?)"/gm;
-    return code.replace(re3, (m, m1) => {
-      let filename = m1;
+    if (!code.includes("#embed")) return code;
+    let re3 = /^\s*#embed\s+"(.+?)"/;
+    return code.split("\n").map((line) => {
+      let m = re3.exec(line);
+      if (!m) return line;
+      let filename = m[1];
       let filedata = store.getFileData(filename);
       let bytes = convertDataToUint8Array(filedata);
       if (!bytes) throw new Error('#embed: file not found: "' + filename + '"');
@@ -15707,8 +15711,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       for (let i = 0; i < bytes.length; i++) {
         out += bytes[i].toString() + ",";
       }
-      return out.substring(0, out.length - 1);
-    });
+      return line.replace(re3, out.substring(0, out.length - 1));
+    }).join("\n");
   }
 
   // src/worker/workermain.ts

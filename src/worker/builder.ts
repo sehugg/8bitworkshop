@@ -614,9 +614,13 @@ function setLinkSymbol(params, symbols: PhaseLists, entry: string) {
 export function parseBuildDirectives(code: string): SourceDirectives {
   let out: SourceDirectives = emptyDirectives();
   if (!code) return out;
-  let re = /^[ \t]*(?:\/\/|;)#(symbol|flag|tooldef)\b([^\n]*)/gmi;
-  let m;
-  while ((m = re.exec(code))) {
+  let re = /^[ \t]*(?:\/\/|;)#(symbol|flag|tooldef)\b([^\n]*)/i;
+  // per-line scan, not a global/multiline regex over the whole file -- see
+  // fixParamsWithDefines; the global matcher overflows the small worker stack
+  // ("too much recursion") on large source files
+  for (let line of code.split('\n')) {
+    let m = re.exec(line);
+    if (!m) continue;
     let kw = m[1].toLowerCase();
     let raw = m[2].trim();
     let parts = raw.split(/\s+/);
@@ -743,10 +747,16 @@ export function fixParamsWithDefines(path: string, params) {
 }
 
 export function processEmbedDirective(code: string) {
-  let re3 = /^\s*#embed\s+"(.+?)"/gm;
+  if (!code.includes('#embed')) return code;
+  let re3 = /^\s*#embed\s+"(.+?)"/;
   // find #embed "filename.bin" and replace with C array data
-  return code.replace(re3, (m, m1) => {
-      let filename = m1;
+  // per-line match, not a global/multiline scan over the whole file -- see
+  // fixParamsWithDefines above; the global matcher overflows the small worker
+  // stack ("too much recursion") on large source files
+  return code.split('\n').map((line) => {
+      let m = re3.exec(line);
+      if (!m) return line;
+      let filename = m[1];
       let filedata = store.getFileData(filename);
       let bytes = convertDataToUint8Array(filedata);
       if (!bytes) throw new Error('#embed: file not found: "' + filename + '"');
@@ -754,7 +764,7 @@ export function processEmbedDirective(code: string) {
       for (let i = 0; i < bytes.length; i++) {
           out += bytes[i].toString() + ',';
       }
-      return out.substring(0, out.length-1);
-  });
+      return line.replace(re3, out.substring(0, out.length-1));
+  }).join('\n');
 }
 

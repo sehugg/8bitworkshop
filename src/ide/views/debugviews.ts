@@ -985,7 +985,7 @@ export class BreakpointsView implements ProjectView {
       .attr('placeholder', 'address or symbol (e.g. $8000, mainloop)')
       .val(editing && editing.bp.type == 'address' ? editing.bp.target : '');
     const condInput = $('<input type="text" class="bp-input" spellcheck="false"/>')
-      .attr('placeholder', 'condition (e.g. A == $20, #scanline > 222)')
+      .attr('placeholder', 'condition (e.g. A>=$20, #scanline==222)')
       .val(editing ? editing.bp.condition || '' : '');
     const submit = $('<button class="btn btn-default btn-xs bp-submit"/>').text(editing ? 'Save' : 'Add');
     const cancel = $('<button class="btn btn-default btn-xs bp-submit"/>').text('Cancel');

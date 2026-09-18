@@ -1857,8 +1857,11 @@ function setupDebugControls() {
 function showContextHelp() {
     if (!exports.projectWindows)
         return;
+    // widgets embedded outside ProjectWindows (e.g. the Verilog waveform
+    // viewer) register their own topic; prefer that when it has focus
+    var elId = (0, helpview_1.elementHelpTopicForFocus)();
     var isEditor = exports.projectWindows.getActive() instanceof editors_1.SourceEditor;
-    var id = (0, helpview_1.helpTopicForView)(exports.projectWindows.getActiveID(), isEditor);
+    var id = elId || (0, helpview_1.helpTopicForView)(exports.projectWindows.getActiveID(), isEditor);
     var hash = '#help/' + id;
     if (window.location.hash === hash) {
         exports.projectWindows.createOrShow(hash);

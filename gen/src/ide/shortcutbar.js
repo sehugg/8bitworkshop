@@ -38,7 +38,10 @@ class ShortcutBar {
         this.status = {};
         this.visible = true;
         // re-renders deferred while a mouse button is down (see trackMousePress)
-        this.pendingShortcuts = null;
+        // -- flags only; the flush recomputes from current state rather than
+        // replaying a cached value, which could be stale (e.g. captured mid-flicker
+        // during the browser's own focus changes)
+        this.pendingShortcuts = false;
         this.pendingStatus = false;
         this.div = div;
         this.shortcutsZone = $(document.createElement("span")).addClass("shortcuts_zone");
@@ -53,7 +56,7 @@ class ShortcutBar {
         if (sig === this.shortcutsSig)
             return;
         if (mouseDown) {
-            this.pendingShortcuts = shortcuts;
+            this.pendingShortcuts = true;
             return;
         }
         this.shortcutsSig = sig;
@@ -115,9 +118,8 @@ function flushPendingRenders() {
     if (!exports.shortcutBar)
         return;
     if (exports.shortcutBar.pendingShortcuts) {
-        var shortcuts = exports.shortcutBar.pendingShortcuts;
-        exports.shortcutBar.pendingShortcuts = null;
-        exports.shortcutBar.setShortcuts(shortcuts);
+        exports.shortcutBar.pendingShortcuts = false;
+        refreshShortcutBar();
     }
     if (exports.shortcutBar.pendingStatus) {
         exports.shortcutBar.pendingStatus = false;

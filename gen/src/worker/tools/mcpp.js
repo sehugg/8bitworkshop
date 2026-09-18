@@ -61,7 +61,9 @@ function preprocessMCPP(step, filesys) {
     if (errors.length)
         return { errors: errors };
     var iout = FS.readFile("main.i", { encoding: 'utf8' });
-    iout = iout.replace(/^#line /gm, '\n# ');
+    // per-line, not `replace(/^#line /gm, ...)` -- the multiline global matcher
+    // overflows the small worker stack ("too much recursion") on large output
+    iout = iout.split('\n').map((line) => line.startsWith('#line ') ? '\n# ' + line.substring(6) : line).join('\n');
     try {
         var errout = FS.readFile("mcpp.err", { encoding: 'utf8' });
         if (errout.length) {
