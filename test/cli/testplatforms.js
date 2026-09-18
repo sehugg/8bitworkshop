@@ -227,6 +227,25 @@ async function testPlatform(platid, romname, maxframes, callback) {
     return platform;
 }
 
+// Builds a minimal bootable ATR: the boot sector loads a short program at
+// $2000 that writes $42 to $0600 and loops forever.
+function makeTestATR() {
+  const NUM_SECTORS = 128, SECTOR_SIZE = 128;
+  const paragraphs = (16 + NUM_SECTORS * SECTOR_SIZE) / 16;
+  const data = new Uint8Array(paragraphs * 16);
+  data[0] = 0x96; data[1] = 0x02;
+  data[2] = paragraphs & 0xff; data[3] = (paragraphs >> 8) & 0xff;
+  data[4] = SECTOR_SIZE; data[5] = 0;
+  const s = 16;
+  data[s + 0] = 0x00; // boot flags
+  data[s + 1] = 0x01; // boot sector count
+  data[s + 2] = 0x00; data[s + 3] = 0x20; // load address $2000
+  data[s + 4] = 0x00; data[s + 5] = 0x00; // init address
+  // $2006: lda #$42; sta $0600; jmp $2006
+  data.set([0xa9, 0x42, 0x8d, 0x00, 0x06, 0x4c, 0x06, 0x20], s + 6);
+  return data;
+}
+
 describe('Platform Replay', () => {
 
   it('Should run apple2', async () => {
@@ -386,6 +405,19 @@ describe('Platform Replay', () => {
       }
     });
   });
+  it('Should boot an ATR disk image on atari800', async () => {
+    var platform = new emu.PLATFORMS['atari8-800'](document.getElementById('emulator'));
+    await platform.start();
+    platform.loadROM('test.atr', makeTestATR());
+    platform.resume();
+    var booted = false;
+    for (var i = 0; i < 60 && !booted; i++) {
+      platform.nextFrame();
+      booted = platform.readAddress(0x0600) == 0x42;
+    }
+    assert.ok(booted, "ATR boot code did not run");
+  });
+
   it('Should run atari5200', async () => {
     await testPlatform('atari8-5200', 'acid5200.rom', 1200, (platform, frameno) => {
       if (frameno == 1199) {

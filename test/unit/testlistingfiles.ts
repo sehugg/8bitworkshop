@@ -1,0 +1,55 @@
+import assert from "assert";
+import { describe, it } from "mocha";
+import { CodeProject } from "../../src/ide/project";
+
+// oscar64 compiles the main file and its "//#link" sources in one invocation,
+// so it emits a single .asm listing that mixes source lines from every file,
+// each tagged with its own path. The editor and source breakpoints look up
+// the listing for a given file, so each file must get a SourceFile holding
+// only its own lines -- otherwise the linked files get no line info at all.
+function makeProject(mainPath: string): CodeProject {
+    const proj = new CodeProject({} as any, 'c64', {} as any, { onFileSystemUpdate: () => {} } as any);
+    proj.mainPath = mainPath;
+    return proj;
+}
+
+function mixedListing() {
+    return {
+        'main.lst': {
+            lines: [
+                { line: 1, path: 'main.cpp', offset: 0x100, iscode: true },
+                { line: 2, path: 'main.cpp', offset: 0x102, iscode: true },
+                { line: 5, path: 'lib.c', offset: 0x200, iscode: true },
+                { line: 6, path: 'lib.c', offset: 0x205, iscode: true },
+            ],
+            asmlines: [
+                { line: 1, path: 'main.cpp', offset: 0x100, insns: 'a9 00 LDA #$00', iscode: true },
+            ],
+            text: 'main.lst text',
+        },
+    };
+}
+
+describe('CodeProject.getListingForFile', function () {
+
+    it('returns only the main file lines for the main file', function () {
+        const proj = makeProject('presets/c64/main.cpp');
+        proj.processBuildListings({ listings: mixedListing() } as any);
+        const lst = proj.getListingForFile('presets/c64/main.cpp');
+        assert.ok(lst, 'expected a listing for the main file');
+        assert.ok(lst.sourcefile, 'expected a sourcefile for the main file');
+        assert.deepStrictEqual(lst.sourcefile.lines.map(l => l.line), [1, 2]);
+        assert.strictEqual(lst.sourcefile.line2offset.get(2), 0x102);
+    });
+
+    it('returns the linked file lines for a linked file', function () {
+        const proj = makeProject('presets/c64/main.cpp');
+        proj.processBuildListings({ listings: mixedListing() } as any);
+        const lst = proj.getListingForFile('presets/c64/lib.c');
+        assert.ok(lst, 'expected a listing for the linked file');
+        assert.ok(lst.sourcefile, 'expected a sourcefile for the linked file');
+        assert.deepStrictEqual(lst.sourcefile.lines.map(l => l.line), [5, 6]);
+        assert.strictEqual(lst.sourcefile.line2offset.get(5), 0x200);
+    });
+
+});

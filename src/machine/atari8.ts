@@ -6,6 +6,22 @@ import { hex } from "../common/util";
 import { ANTIC, MODE_LINES, MODE_SHIFT } from "./chips/antic";
 import { CONSOL, GTIA, TRIG0 } from "./chips/gtia";
 import { POKEY } from "./chips/pokey";
+import { DiskImage } from "./atari8disk";
+
+// High-level SIO patch: redirect the OS SIOV vector to a stub in the $D5xx
+// mapper area. The stub traps disk-device calls back into JS (via a magic
+// write) and falls through to the real SIO routine for everything else.
+// We stash the stub at $D5A0 so the XEX loader's stub (which starts at $D500)
+// doesn't clobber it.
+const SIO_STUB_OFFSET = 0xa0; // $D5A0
+const SIO_HOOK_OFFSET = 0xf0; // $D5F0 - write here to call JS
+const SIO_STATUS_OFFSET = 0xf1; // $D5F1 - JS puts the SIO status here
+// lda $0300; cmp #$31; bcc notdisk; cmp #$40; bcs notdisk;
+// sta $D5F0; lda $D5F1; tay; rts; notdisk: jmp $E950
+const SIO_STUB = [
+  0xad, 0x00, 0x03, 0xc9, 0x31, 0x90, 0x0c, 0xc9, 0x40, 0xb0, 0x08,
+  0x8d, 0xf0, 0xd5, 0xad, 0xf1, 0xd5, 0xa8, 0x60, 0x4c, 0x50, 0xe9,
+];
 
 const ATARI8_KEYMATRIX_INTL_NOSHIFT = [
   Keys.VK_L, Keys.VK_J, Keys.VK_SEMICOLON, Keys.VK_F4, Keys.VK_F5, Keys.VK_K, Keys.VK_BACK_SLASH, Keys.VK_TILDE,
@@ -71,6 +87,7 @@ export class Atari800 extends BasicScanlineMachine implements AcceptsPaddleInput
   cart_80 = false;
   cart_a0 = false;
   xexdata = null;
+  disk: DiskImage = null;
   keyboard_active = true;
   d500 = new Uint8Array(0x100);
   // TODO: save/load vars
@@ -117,6 +134,16 @@ export class Atari800 extends BasicScanlineMachine implements AcceptsPaddleInput
 
   loadBIOS(bios: Uint8Array) {
     this.bios.set(bios);
+    this.installSIOStub();
+  }
+
+  installSIOStub() {
+    // patch the SIOV jump table entry ($E459: JMP $E950) to enter our stub
+    const o = 0xe459 - 0xd800;
+    this.bios[o] = 0x4c; // JMP
+    this.bios[o + 1] = 0xd500 + SIO_STUB_OFFSET & 0xff;
+    this.bios[o + 2] = (0xd500 + SIO_STUB_OFFSET) >> 8;
+    this.d500.set(SIO_STUB, SIO_STUB_OFFSET);
   }
 
   reset() {
@@ -324,10 +351,17 @@ export class Atari800 extends BasicScanlineMachine implements AcceptsPaddleInput
   }
 
   loadROM(rom: Uint8Array, title: string) {
-    if ((rom[0] == 0xff && rom[1] == 0xff) && !title.endsWith('.rom')) {
+    if (rom[0] == 0x96 && rom[1] == 0x02) {
+      // ATR disk image, boot it as drive 1
+      this.disk = new DiskImage(rom);
+      this.xexdata = null;
+      console.log(`ATR disk: ${this.disk.numsectors} sectors x ${this.disk.sectorsize} bytes`);
+    } else if ((rom[0] == 0xff && rom[1] == 0xff) && !title.endsWith('.rom')) {
       // XEX file, chill out and wait for BIOS hook
+      this.disk = null;
       this.xexdata = rom;
     } else {
+      this.disk = null;
       this.loadCartridge(rom);
     }
   }
@@ -357,7 +391,56 @@ export class Atari800 extends BasicScanlineMachine implements AcceptsPaddleInput
     if (addr == 0xff) {
       if (value == 0x80) this.cart_80 = false;
       if (value == 0xa0) this.cart_a0 = false;
+    } else if (addr == SIO_HOOK_OFFSET) {
+      this.handleSIO();
     }
+  }
+
+  // Called from the patched SIO stub with the SIO parameter block in page 3.
+  handleSIO() {
+    const dunit = this.read(0x301);
+    const dcomnd = this.read(0x302);
+    const dbuf = this.read(0x304) | (this.read(0x305) << 8);
+    let dbyt = this.read(0x308) | (this.read(0x309) << 8);
+    const sector = this.read(0x30a) | (this.read(0x30b) << 8);
+    const disk = dunit == 1 ? this.disk : null;
+    let status = 0x01; // SIOSuccess
+    if (disk == null) {
+      status = 0x8a; // SIOErrorTimeout (no drive in that unit)
+    } else {
+      switch (dcomnd) {
+        case 0x53: { // STATUS
+          const dvstat = [0x00, 0xff, 0xe0, 0x00];
+          const n = Math.min(dbyt || 4, dvstat.length);
+          for (let i = 0; i < n; i++) this.write(dbuf + i, dvstat[i]);
+          break;
+        }
+        case 0x52: { // READ
+          if (dbyt == 0) dbyt = disk.sectorsize;
+          const bytes = disk.readSector(sector, dbyt);
+          if (bytes == null) {
+            status = 0x90; // SIOErrorDeviceError
+          } else {
+            for (let i = 0; i < dbyt; i++)
+              this.write(dbuf + i, i < bytes.length ? bytes[i] : 0);
+          }
+          break;
+        }
+        case 0x57: // WRITE
+        case 0x50: { // PUT
+          if (dbyt == 0) dbyt = disk.sectorsize;
+          const buf = new Uint8Array(dbyt);
+          for (let i = 0; i < dbyt; i++) buf[i] = this.read(dbuf + i);
+          if (!disk.writeSector(sector, buf, dbyt)) status = 0x90;
+          break;
+        }
+        default:
+          status = 0x8b; // SIOErrorNAK (unsupported command)
+      }
+    }
+    // mirror the OS SIO exit: status goes to DSTATS and the stub reads it back
+    this.write(0x303, status);
+    this.d500[SIO_STATUS_OFFSET] = status;
   }
 
   loadXEX(rom: Uint8Array) {

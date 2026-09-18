@@ -157,6 +157,7 @@ class Atari5200MAMEPlatform extends Atari8MAMEPlatform implements Platform {
 
 function atari8_getROMExtension(rom: Uint8Array) {
   if (rom == null) return ".bin";
+  if (rom[0] == 0x96 && rom[1] == 0x02) return ".atr";
   if (rom[0] == 0xff && rom[1] == 0xff) return ".xex";
   else return ".rom";
 }
