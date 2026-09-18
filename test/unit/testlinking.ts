@@ -92,4 +92,19 @@ describe('oscar64 linked sources', () => {
         assert.strictEqual(result.errors[0].path, 'addnums.c');
         assert.strictEqual(result.errors[0].line, 2);
     });
+    // The linked file is compiled into the same listing as the main file; it
+    // has to carry its own line markers (tagged with its path) so the editor
+    // and source breakpoints can map addresses back to the linked source.
+    it('should emit source lines for a linked file', async () => {
+        const result = await compileOscar64With('//#link "addnums.c"',
+            'int addnums(int a, int b) {\n' +
+            '  if (a <= 0) return b;\n' +
+            '  return addnums(a-1, b+a) + addnums(a-2, b-a) + 1;\n' +
+            '}\n');
+        assert.deepStrictEqual(result.errors || [], []);
+        const lines = result.listings['main.lst'].lines;
+        const liblines = lines.filter(l => l.path === 'addnums.c');
+        assert.ok(liblines.length > 0, 'expected source lines for the linked file');
+        assert.ok(liblines.some(l => l.line === 3), 'expected line 3 of the linked file');
+    });
 });

@@ -7,7 +7,9 @@
  *   //#link "common_irq.s"
  */
 
+#ifdef __CC65__
 #include <6502.h>
+#endif
 #include <string.h>
 #include "common.h"
 
@@ -48,15 +50,19 @@
 /*==========================================================================*/
 
 /* Make sure this array doesn't cross a 1K boundary */
+#ifdef __CC65__
 /* we really should use a custom .cfg file with the align attribute */
 /* but let's just put it here and maybe no one will notice */
 #if defined(__ATARI5200__)
-static byte* a8_dlist_store = (byte*)0x1700;
+static byte* a8_dlist = (byte*)0x1700;
 #else
-static byte* a8_dlist_store = (byte*)0x9700;
+static byte* a8_dlist = (byte*)0x9700;
+#endif
+#else
+byte a8_dlist[256];
+#pragma align(a8_dlist, 0x100)
 #endif
 
-byte* a8_dlist;
 byte  a8_dlist_len;
 byte  a8_dli_count;
 byte a8_dli_lines = 1;    /* DLI bits in the installed list */
@@ -69,7 +75,6 @@ static void a8_set_dmactl(byte v) {
 }
 
 void a8_dlist_reset(void) {
-  a8_dlist = a8_dlist_store;
   a8_dlist_len = 0;
   a8_dli_count = 0;
   a8_dli_lines = 1;
@@ -123,8 +128,13 @@ void a8_dlist_install(void) {
   *(byte*)A8_SDLSTL_ADDR = (byte)(a & 0xff);
   *(byte*)A8_SDLSTH_ADDR = (byte)(a >> 8);
 #else
+#ifdef __CC65__
   OS.sdlstl = (byte)(a & 0xff);
   OS.sdlsth = (byte)(a >> 8);
+#else
+  OS._sdl._st.stl = (byte)(a & 0xff);
+  OS._sdl._st.sth = (byte)(a >> 8);
+#endif
 #endif
   ANTIC.dlistl = (byte)(a & 0xff);
   ANTIC.dlisth = (byte)(a >> 8);
@@ -195,6 +205,20 @@ void a8_dli_remove(void) {
   ANTIC.nmien = NMIEN_VBI;
 }
 
+#ifdef __OSCAR64C__
+__hwinterrupt void a8_dli_stub() {
+  if (a8_dli_line >= a8_dli_lines) a8_dli_line = 0;
+  byte* w = &a8_dli_tab[a8_dli_line][0];
+  for (byte i = 0; i < A8_DLI_WRITES; i++) {
+    byte r = w[0];
+    if (r == 0xff) break;
+    *a8_dli_regs[r] = w[1];
+    w += 2;
+  }
+  music_duty();
+  a8_dli_line++;
+}
+#endif
 
 /*==========================================================================*/
 /* Scrolling                                                                */
@@ -266,12 +290,16 @@ void a8_scroll_set(byte x, byte y, byte stride) {
 /*==========================================================================*/
 
 /* Need 2K for a single-line P/M area, plus up to 2K of alignment slack. */
+#ifdef __CC65__
 #if defined(__ATARI5200__)
-static byte* a8_pmg_store = (byte*)0x1800;
+static byte* a8_pmg_base = (byte*)0x1800;
 #else
-static byte* a8_pmg_store = (byte*)0x9800;
+static byte* a8_pmg_base = (byte*)0x9800;
 #endif
-static byte* a8_pmg_base;
+#else
+byte a8_pmg_base[0x800];
+#pragma align(a8_pmg_base, 0x800)
+#endif
 static byte  a8_pmg_mode;
 
 byte* a8_pmg_player(byte i) {
@@ -286,15 +314,12 @@ byte* a8_pmg_missile(byte i) {
 }
 
 void a8_pmg_clear(void) {
-  byte* p = a8_pmg_base;
-  word n;
-  for (n = 0; n < 0x800; n++) p[n] = 0;
+  memset(a8_pmg_base, 0, 0x800);
 }
 
 void a8_pmg_init(byte mode) {
   word i;
   a8_pmg_mode = mode;
-  a8_pmg_base = a8_pmg_store;
   a8_pmg_clear();
   GTIA_WRITE.gractl = 0;                       /* disable while we set up */
   ANTIC.pmbase = (byte)((word)a8_pmg_base >> 8);
@@ -381,6 +406,7 @@ void a8_pokey_stop_all(void) {
   for (i = 0; i < 4; i++) a8_pokey_stop(i);
 }
 
+#ifdef __CC65__
 /* called from set_irq() */
 unsigned char a8_pokey_music_update() {
   music_tick();
@@ -395,6 +421,24 @@ void a8_pokey_music_init(void) {
 void a8_pokey_music_done(void) {
   reset_irq();
 }
+#endif
+
+#ifdef __OSCAR64C__
+void a8_pokey_music_update() {
+  __asm { pha; txa; pha; tya; pha; } // save regs
+  music_tick();
+  music_duty();
+  __asm { pla; tay; pla; tax; pla; } // restore regs
+}
+
+void a8_pokey_music_init(void) {
+  OS.vvblki = a8_pokey_music_update;
+}
+
+void a8_pokey_music_done(void) {
+  //reset_irq();
+}
+#endif
 
 /*==========================================================================*/
 /* Colors                                                                   */

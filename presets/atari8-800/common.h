@@ -52,7 +52,7 @@ typedef unsigned int  word;
 /*==========================================================================*/
 
 /* Buffer is a runtime-aligned array; use a8_dlist_reset() before building. */
-extern byte* a8_dlist;          /* pointer to the aligned display list */
+//extern byte* a8_dlist;          /* pointer to the aligned display list */
 extern byte  a8_dlist_len;      /* current length in bytes */
 extern byte  a8_dli_count;     /* number of DLI bits emitted so far */
 
@@ -122,8 +122,13 @@ extern void (*a8_dli_hook)(void);
 void a8_dli_install(void);
 void a8_dli_remove(void);
 
+#ifdef __CC65__
 /* The assembler trampoline from common_irq.s. */
 extern void a8_dli_stub(void);
+#else
+extern __hwinterrupt void a8_dli_stub(void);
+#endif
+
 /* C dispatcher called by the trampoline. */
 void a8_dli_dispatch(void);
 
