@@ -1,4 +1,7 @@
 import assert from "assert";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import { describe, it } from "mocha";
 import { compileSourceFile, preload } from "../../src/tools/testlib";
 
@@ -32,5 +35,61 @@ describe('sdcc IHX output', () => {
         const result: any = await compileSourceFile('sdcc', 'vector-z80color', 'presets/vector-z80color/game.c');
         assert.deepStrictEqual(result.errors || [], []);
         assert.strictEqual(result.output.length, 32768);
+    });
+});
+
+// oscar64 compiles and links a whole program in one invocation. A linked
+// source ("//#link") must be handed to that same invocation -- a .c file would
+// otherwise be routed to cc65, which never runs because oscar64 emits the
+// final binary first, leaving the symbol undefined. oscar64's own
+// "#pragma compile("file.c")" is handled by the compiler, so that file only
+// has to be a build dependency.
+async function compileOscar64With(directive: string, libSource: string): Promise<any> {
+    await preload('oscar64', 'c64');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'oscar64-'));
+    try {
+        const main = path.join(dir, 'main.cpp');
+        fs.writeFileSync(main,
+            '#include <stdio.h>\n' +
+            'extern int addnums(int a, int b);\n' +
+            directive + '\n' +
+            'int main(void) { printf("%d", addnums(2, 3)); return 0; }\n');
+        fs.writeFileSync(path.join(dir, 'addnums.c'), libSource);
+        return await compileSourceFile('oscar64', 'c64', main);
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
+}
+
+describe('oscar64 linked sources', () => {
+    it('should compile a //#link .c file as oscar64', async () => {
+        const result = await compileOscar64With('//#link "addnums.c"',
+            'int addnums(int a, int b) { return a + b; }\n');
+        assert.deepStrictEqual(result.errors || [], []);
+        assert.strictEqual(result.success, true);
+        assert.ok(result.output.length > 0);
+    });
+    it('should compile a #pragma compile .c file as oscar64', async () => {
+        const result = await compileOscar64With('#pragma compile("addnums.c")',
+            'int addnums(int a, int b) { return a + b; }\n');
+        assert.deepStrictEqual(result.errors || [], []);
+        assert.strictEqual(result.success, true);
+        assert.ok(result.output.length > 0);
+    });
+    it('should report errors in the linked file, not the main file', async () => {
+        const result = await compileOscar64With('//#link "addnums.c"',
+            'int addnums(int a, int b) {\n  return a + undefined_symbol;\n}\n');
+        assert.strictEqual(result.success, false);
+        assert.strictEqual(result.errors.length, 1);
+        assert.strictEqual(result.errors[0].path, 'addnums.c');
+        assert.strictEqual(result.errors[0].line, 2);
+    });
+    it('should report errors in a #pragma compile file, not the main file', async () => {
+        const result = await compileOscar64With('#pragma compile("addnums.c")',
+            'int addnums(int a, int b) {\n  return a + undefined_symbol;\n}\n');
+        assert.strictEqual(result.success, false);
+        assert.strictEqual(result.errors.length, 1);
+        assert.strictEqual(result.errors[0].path, 'addnums.c');
+        assert.strictEqual(result.errors[0].line, 2);
     });
 });

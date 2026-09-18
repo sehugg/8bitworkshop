@@ -132,6 +132,10 @@ export interface ToolMeta {
   includePatterns?: (RegExp | ToolIncludePattern)[];
   /** regexes matching link directives, used for dependency parsing */
   linkPatterns?: (RegExp | ToolIncludePattern)[];
+  /** true if "//#link" dependencies are compiled together with the main
+   *  source in one tool invocation (single-pass compilers like oscar64)
+   *  rather than built separately and linked. */
+  compileLinkedSources?: boolean;
   /** directories inside the shared filesystem containing searchable shared code
    *  (headers, asm includes). Paths are relative to the FS root as they appear
    *  in the filesystem metadata, e.g. ['/include', '/asminc', '/headers'].
@@ -165,6 +169,14 @@ export interface ToolMeta {
 export const SHARED_INCLUDE_PATTERNS: RegExp[] = [
   /^\s*[.#%]?(include|incbin|embed)\s+"(.+?)"/gmi,
   /^\s*([;']|[/][/])#(resource)\s+"(.+?)"/gm,
+];
+
+// oscar64: #pragma compile("file.c") pulls another source file into the build
+// (the compiler's equivalent of a link). The compiler handles it itself, so the
+// file just has to be a build dependency copied into the tool filesystem.
+export const OSCAR64_INCLUDE_PATTERNS: (RegExp | ToolIncludePattern)[] = [
+  ...SHARED_INCLUDE_PATTERNS,
+  /^\s*#pragma\s+compile\s*\(\s*"([^"]+)"\s*\)/gmi,
 ];
 
 // C / most assemblers: //#link "file" (or ;link)
@@ -561,8 +573,9 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     defineFlag: '-d', defineInline: true,
     wasmModule: 'oscar64',
     version: '1.32.266',
-    includePatterns: SHARED_INCLUDE_PATTERNS,
+    includePatterns: OSCAR64_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
+    compileLinkedSources: true,
     platforms: {
       // oscar64 defaults to the C64 target machine
       c64: {},
@@ -906,6 +919,17 @@ export function getLinkPatterns(tool: string, platform?: string): (RegExp | Tool
   if (meta && meta.linkPatterns) return meta.linkPatterns;
   if (platform && platform.startsWith('verilog')) return [];
   return SHARED_LINK_PATTERNS;
+}
+
+/**
+ * True if "//#link" dependencies are compiled together with the main source in
+ * one tool invocation (single-pass compilers like oscar64) rather than built
+ * separately and linked. The build message then carries them as `linkfiles`
+ * on the main step so the tool can pass them all to one invocation.
+ */
+export function getCompileLinkedSources(tool: string): boolean {
+  let meta = tool && getToolMeta(tool);
+  return !!(meta && meta.compileLinkedSources);
 }
 
 /**

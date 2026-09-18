@@ -104,6 +104,9 @@ export interface BuildSymbolLists {
 export interface WorkerBuildStep {
   path?:string
   files?:string[]
+  /** linked source files ("//#link") to compile in the same invocation as
+   *  the main file, for single-pass tools -- see ToolMeta.compileLinkedSources */
+  linkfiles?:string[]
   platform:string
   tool:string
   mainfile?:boolean
@@ -149,6 +152,10 @@ export interface CodeListing {
   text?:string
   sourcefile?:SourceFile   // not returned by worker
   assemblyfile?:SourceFile  // not returned by worker
+  /** per-source-file views of `lines`, for tools (e.g. oscar64) whose single
+   *  listing mixes lines from many sources tagged with a path; not returned
+   *  by worker */
+  sourcefiles?:{[path:string]:SourceFile}
 }
 
 export type CodeListingMap = {[path:string]:CodeListing};

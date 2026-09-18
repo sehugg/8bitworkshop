@@ -50,6 +50,8 @@ export async function compileOscar64(step: BuildStep): Promise<BuildStepResult> 
         args.push.apply(args, defineArgs('oscar64', step.params && step.params.symbols && step.params.symbols.compiler));
         args.push.apply(args, extraArgsFor('oscar64', step.params && step.params.buildArgs));
         args.push(step.path);
+        // linked sources are compiled and linked in this same invocation
+        if (step.linkfiles) args.push.apply(args, step.linkfiles);
         wasi.setArgs(args);
         try {
             wasi.run();
@@ -60,12 +62,19 @@ export async function compileOscar64(step: BuildStep): Promise<BuildStepResult> 
         let stderr = wasi.fds[2].getBytesAsString();
         console.log('stdout', stdout);
         console.log('stderr', stderr);
-        // (58, 17) : error 3001: Could not open source file. 'stdlib.c'
-        const matcher = makeErrorMatcher(errors, /\((\d+),\s+(\d+)\)\s+: error (\d+): (.+)/, 1, 4, step.path);
+        // oscar64 reports the source filename when a build has more than one
+        // source: "/lib.c(2, 14) : error 3005: ...". Global errors omit it:
+        // "(58, 17) : error 3001: Could not open source file. 'stdlib.c'".
+        const matcher = makeErrorMatcher(errors, /^\s*(.*?)\((\d+),\s+(\d+)\)\s+: error (\d+): (.+)/, 2, 5, step.path, 1);
         const matcher2 = makeErrorMatcher(errors, /oscar64: error (\d+): (.+)/, 0, 2, step.path);
         for (let line of stderr.split('\n')) {
             matcher(line);
             matcher2(line);
+        }
+        // strip the leading '/' oscar64 puts on paths so they match the
+        // project's filenames (editor error markers match by suffix)
+        for (let err of errors) {
+            if (err.path && err.path.startsWith('/')) err.path = err.path.substring(1);
         }
         if (errors.length) {
             return { errors };
