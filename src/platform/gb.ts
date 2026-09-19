@@ -12,6 +12,7 @@ const GB_PRESETS: Preset[] = [
   { id: 'scroll.c', name: 'Scrolling' },
   { id: 'music.c', name: 'Music Player' },
   { id: 'siegegame.c', name: 'Siege Game' },
+  { id: 'climber.c', name: 'Climber Game' },
   { id: 'chase.c', name: "Shiru's Chase Game" },
   { id: 'pakupaku.c', name: 'Paku Paku' },
   { id: 'hello.sgb', name: 'Hello World (ASM)', category: 'assembler' },

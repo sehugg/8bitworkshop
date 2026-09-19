@@ -153,6 +153,9 @@ byte a8_get_stick(byte n) {
 #endif
 
 void a8_waitvsync(void) {
+#if __CC65__
+  waitvsync();
+#else
 #if defined(__ATARI5200__)
   volatile byte* rtc = (volatile byte*)0x0002;  /* RTCLOK+1 */
 #else
@@ -160,4 +163,5 @@ void a8_waitvsync(void) {
 #endif
   byte t = *rtc;
   while (*rtc == t) ;
+#endif
 }
