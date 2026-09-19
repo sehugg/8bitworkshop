@@ -10,15 +10,15 @@ import { WorkerMessage } from "../../common/workertypes";
  * HeaderView uses via readshared/listshared messages).
  *
  * Instead of a prebuilt symbol index (gen/symidx/*.json never shipped), we
- * lazily list files under the tool's include dirs and read their text from
- * the worker in small batches as the user types. Results are low-priority
- * text hits, ranked below project symbols in the unified service.
+ * list files under the tool's include dirs and read their text from the worker
+ * once, up front, so the first query searches the whole corpus. Results are
+ * low-priority text hits, ranked below project symbols in the unified service.
  */
 
 // File extensions that plausibly contain text to search.
 const SEARCHABLE_EXT = new Set(['h', 'hh', 'hpp', 'inc', 'asm', 'a65', 's', 'mac', 'defs', 'def', 'equ', 'i', 'm', 'c', 'bas', 'txt']);
 
-// How many unread header files to fetch from the worker per query.
+// How many header files to fetch from the worker per round.
 const BATCH_SIZE = 20;
 
 export class ToolchainSource implements SearchSource {
@@ -28,14 +28,15 @@ export class ToolchainSource implements SearchSource {
   private fsName: string | null = null;
   private files: string[] = [];              // all searchable files (sorted)
   private loaded: Map<string, string> = new Map(); // path -> decoded text
-  private readyDone: boolean = false;
-  private loadIdx: number = 0;               // next unread file index
-  batchSize: number = BATCH_SIZE;            // files fetched per query (overridable in tests)
+  private readyPromise: Promise<void> | null = null;
+  batchSize: number = BATCH_SIZE;            // files fetched per worker round (overridable in tests)
 
   async ready() {
-    if (this.readyDone) return;
-    this.readyDone = true;
+    if (!this.readyPromise) this.readyPromise = this.load();
+    return this.readyPromise;
+  }
 
+  private async load() {
     const project = getProject();
     if (!project) return;
 
@@ -63,6 +64,20 @@ export class ToolchainSource implements SearchSource {
       }
     }
     this.files.sort();
+
+    // Read every searchable file now. Keystrokes must not change what is
+    // searchable, or a header late in the sorted list only shows up after
+    // the user has typed the same query several times.
+    for (let i = 0; i < this.files.length; i += this.batchSize) {
+      const batch = this.files.slice(i, i + this.batchSize);
+      const entries = await Promise.all(batch.map(async (path) => {
+        const text = await this.readFile(path);
+        return [path, text] as const;
+      }));
+      for (const [path, text] of entries) {
+        if (text != null) this.loaded.set(path, text);
+      }
+    }
   }
 
   isValid(): boolean {
@@ -109,34 +124,9 @@ export class ToolchainSource implements SearchSource {
     return SEARCHABLE_EXT.has(base.substring(dot + 1).toLowerCase());
   }
 
-  /**
-   * Load the next batch of unread files (or finish a partially-loaded one).
-   * Called per query so keystrokes incrementally widen the searchable corpus.
-   */
-  private async ensureBatch() {
-    const project = getProject();
-    if (!project || !project.queryWorker) return;
-    while (this.loadIdx < this.files.length) {
-      const batch = this.files.slice(this.loadIdx, this.loadIdx + this.batchSize);
-      this.loadIdx += batch.length;
-      const entries = await Promise.all(batch.map(async (path) => {
-        const text = await this.readFile(path);
-        return [path, text] as const;
-      }));
-      for (const [path, text] of entries) {
-        if (text != null) this.loaded.set(path, text);
-      }
-      // Keep loading until we have at least one text file in the batch
-      // (binary/skipped files shouldn't stall the palette), but never more
-      // than once per query -- the next query pulls the next batch.
-      if (this.loaded.size > 0 || this.loadIdx >= this.files.length) break;
-    }
-  }
-
   async query(needle: string, limit: number): Promise<SearchHit[]> {
     await this.ready();
     if (!this.isValid() || needle.length < 2) return [];
-    await this.ensureBatch();
     return this.textQuery(needle, limit);
   }
 
@@ -185,7 +175,6 @@ export class ToolchainSource implements SearchSource {
     this.fsName = null;
     this.files = [];
     this.loaded.clear();
-    this.readyDone = false;
-    this.loadIdx = 0;
+    this.readyPromise = null;
   }
 }
