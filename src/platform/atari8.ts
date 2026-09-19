@@ -9,6 +9,7 @@ var Atari8_PRESETS : Preset[] = [
   {id:'hellopm.dasm', name:'Hello Sprites'},
   {id:'helloconio.c', name:'Text Mode', category:'C'},
   {id:'siegegame.c', name:'Siege Game'},
+  {id:'tgidemo.c', name:'TGI Demo'},
   {id:'hellodlist.c', name:'Display List'},
   {id:'libdemo.c', name:'Library Demo'},
 ];

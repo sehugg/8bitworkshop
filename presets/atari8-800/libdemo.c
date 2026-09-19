@@ -58,6 +58,7 @@ static void build_display(void) {
 void main(void) {
   byte x = 128;
   byte dx = 2;
+  byte i;
 
   fill_screen();
   build_display();
@@ -73,10 +74,18 @@ void main(void) {
   a8_dli_install();
 
   a8_pmg_init(A8_PMG_DOUBLE);
-  a8_pmg_set_x(0, x);
-  a8_pmg_set_color(0, A8_COLOR(HUE_GREY, 0x0f));
-  a8_pmg_set_size(0, A8_PMG_NORMAL);
-  a8_pmg_set_shape(0, ball, sizeof(ball), 0x38);
+  // set up all 4 sprites
+  for (i=0; i<4; i++) {
+    a8_pmg_set_x(i, x);
+    a8_pmg_set_color(i, A8_COLOR(HUE_GREY, 0x0f-i));
+    a8_pmg_set_size(i, A8_PMG_NORMAL);
+    a8_pmg_set_shape(i, ball, sizeof(ball), i*16 + 8);
+  }
+  // combine missiles into 5th sprite
+  // colors are taken from the 4 sprites
+  a8_pmg_5th_enable(1);
+  a8_pmg_5th_x(100);
+  a8_pmg_5th_shape(ball, sizeof(ball), 0x48);
 
   // set interrupt and start music
   a8_pokey_init();
@@ -89,12 +98,25 @@ void main(void) {
     x += dx;
     if (x < 48) { x = 48; dx = 2; }
     if (x > 208) { x = 208; dx = (byte)-2; }
-    a8_pmg_set_x(0, x);
-
-    if (a8_trigger(0)) {
-      a8_pmg_set_size(0, A8_PMG_QUADW);
+    // set sprite sizes if joystick moved or trigger pushed
+    if (a8_get_trigger(0)) {
+      a8_pmg_5th_size(A8_PMG_QUADW);
+    } else {
+      a8_pmg_5th_size(A8_PMG_NORMAL);
+    }
+    if (a8_get_stick(0)) {
+      a8_pmg_set_size(a8_get_stick(0) & 3, A8_PMG_QUADW);
     } else {
       a8_pmg_set_size(0, A8_PMG_NORMAL);
+      a8_pmg_set_size(1, A8_PMG_NORMAL);
+      a8_pmg_set_size(2, A8_PMG_NORMAL);
+      a8_pmg_set_size(3, A8_PMG_NORMAL);
     }
+    // set X positions
+    a8_pmg_set_x(0, x);
+    a8_pmg_set_x(1, x);
+    a8_pmg_set_x(2, x);
+    a8_pmg_set_x(3, x);
+    a8_pmg_5th_x(255-x);
   }
 }

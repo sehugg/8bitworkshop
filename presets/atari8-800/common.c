@@ -378,6 +378,60 @@ void a8_pmg_clear_collisions(void) {
   GTIA_WRITE.hitclr = 0;
 }
 
+static byte pmg_sizem;
+
+void a8_pmg_5th_enable(byte on) {
+  if (on) {
+    GTIA_WRITE.prior |= PRIOR_5TH_PLAYER;
+    GTIA_WRITE.gractl |= GRACTL_MISSLES;
+    GTIA_WRITE.sizem = 0;   /* every missile 2 px wide, so they tile */
+  } else {
+    GTIA_WRITE.prior &= (byte)~PRIOR_5TH_PLAYER;
+  }
+  pmg_sizem = 0;
+}
+
+/*
+    0: 8 color clocks (1 per pixel)
+    1: 16 color clocks (2 per pixel)
+    3: 32 color clocks (4 per pixel)
+*/
+void a8_pmg_5th_size(byte size) {
+  size &= 3;
+  pmg_sizem = size;
+  size |= size << 2;
+  size |= size << 4;
+  GTIA_WRITE.sizem = size;
+}
+
+static const byte pmg_size_tab[4] = { 2, 4, 2, 8 };
+
+void a8_pmg_5th_x(byte x) {
+  byte* m = (byte*)&GTIA_WRITE.hposm0;
+  byte inc = pmg_size_tab[pmg_sizem];
+  m[0] = x;
+  x += inc;
+  m[1] = x;
+  x += inc;
+  m[2] = x;
+  x += inc;
+  m[3] = x;
+}
+
+void a8_pmg_5th_shape(const byte* shape, byte len, byte y) {
+  byte* p = a8_pmg_missile(0) + y;
+  while (len--) {
+    /* GRAFM packs two bits per missile, M0 in bits 1:0, and each missile
+       shifts its pair out MSB first, so the leftmost pixel is bit 1.  Swap
+       the bit pairs to accept the usual player order (bit 7 = leftmost). */
+    byte s = *shape++;
+    *p++ = (byte)(((s >> 6) & 0x03)
+                | ((s >> 2) & 0x0c)
+                | ((s << 2) & 0x30)
+                | ((s << 6) & 0xc0));
+  }
+}
+
 
 /*==========================================================================*/
 /* POKEY                                                                    */
@@ -466,16 +520,16 @@ void a8_set_colpm(byte i, byte c) {
 /* Input and utility                                                        */
 /*==========================================================================*/
 
-byte a8_console(void) {
+byte a8_get_console(void) {
   return GTIA_READ.consol;
 }
 
-byte a8_trigger(byte n) {
+byte a8_get_trigger(byte n) {
   return (byte)(((byte*)&GTIA_READ.trig0)[n] & 1 ? 0 : 1);
 }
 
 #if !defined(__ATARI5200__)
-byte a8_stick(byte n) {
+byte a8_get_stick(byte n) {
   byte v = n ? PIA.portb : PIA.porta;
   return (byte)((~v) & 0x1f);
 }

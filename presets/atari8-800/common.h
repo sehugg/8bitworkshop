@@ -232,6 +232,23 @@ byte a8_pmg_hit_pf(byte i);      /* player i hit playfield? */
 byte a8_pmg_hit_pl(void);        /* any player-player hit mask */
 void a8_pmg_clear_collisions(void);
 
+/* The four missiles can be combined into one extra, 8-pixel-wide "5th
+   player", colored with COLPF3 (PRIOR bit 4).  It shares the missile
+   hardware, so the per-missile helpers above don't work while it is on.
+   The four missiles sit two pixels apart, M0 leftmost.  Like players,
+   the shape lives in the P/M area (ANTIC reloads GRAFM from memory every
+   scanline), so write it with a8_pmg_5th_shape() rather than GRAFM. */
+#ifndef PRIOR_5TH_PLAYER
+#define PRIOR_5TH_PLAYER 0x10
+#endif
+void a8_pmg_5th_enable(byte on);
+/* x is the left edge of the 8-pixel player. */
+void a8_pmg_5th_x(byte x);
+/* Copy a shape into the missile area at vertical byte offset y.  len and
+   orientation are just like a8_pmg_set_shape(): bit 7 is the left pixel. */
+void a8_pmg_5th_shape(const byte* shape, byte len, byte y);
+void a8_pmg_5th_size(byte size);
+
 
 /*==========================================================================*/
 /* POKEY sound                                                              */
@@ -272,13 +289,13 @@ void a8_set_colpm(byte i, byte c);
 /*==========================================================================*/
 
 /* Console keys: bit0 start, bit1 select, bit2 option (0 = pressed). */
-byte a8_console(void);
+byte a8_get_console(void);
 /* Trigger n (0..3): nonzero when pressed. */
-byte a8_trigger(byte n);
+byte a8_get_trigger(byte n);
 
 #if !defined(__ATARI5200__)
 /* Joystick 0/1 direction+fire bits (JOY_xxx_MASK order).  0 if none. */
-byte a8_stick(byte n);
+byte a8_get_stick(byte n);
 #endif
 
 /* Wait for the start of the next frame.  (cc65 provides waitvsync(),
