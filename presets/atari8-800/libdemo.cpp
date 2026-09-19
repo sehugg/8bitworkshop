@@ -5,8 +5,11 @@
 #include <conio.h>
 
 #include "atari.h"
-#include "common.h"
-//#link "common.c"
+#include "a8lib.h"
+//#link "a8lib.c"
+//#link "a8lib_dli.c"
+//#link "a8lib_pmg.c"
+//#link "a8lib_pokey.c"
 //#link "pokeymusic.cpp"
 
 /* 24 rows x 40 columns of text screen codes. */
@@ -33,6 +36,7 @@ static void fill_screen(void) {
 
 static void build_display(void) {
   byte i, d;
+  a8_dli_clear();
   a8_dlist_reset();
   a8_dlist_blank(24);
   /* First text line carries the LMS pointer and the first DLI band. */
@@ -52,9 +56,10 @@ static void build_display(void) {
   a8_dlist_finish();
 }
 
-int main() {
+int main(void) {
   static byte x = 128;
-  static char dx = 2;
+  static byte dx = 2;
+  byte i;
 
   fill_screen();
   build_display();
@@ -70,29 +75,49 @@ int main() {
   a8_dli_install();
 
   a8_pmg_init(A8_PMG_DOUBLE);
-  a8_pmg_set_x(0, x);
-  a8_pmg_set_color(0, A8_COLOR(HUE_GREY, 0x0f));
-  a8_pmg_set_size(0, A8_PMG_NORMAL);
-  a8_pmg_set_shape(0, ball, sizeof(ball), 0x38);
+  // set up all 4 sprites
+  for (i=0; i<4; i++) {
+    a8_pmg_set_x(i, x);
+    a8_pmg_set_color(i, A8_COLOR(HUE_GREY, 0x0f-i));
+    a8_pmg_set_size(i, A8_PMG_NORMAL);
+    a8_pmg_set_shape(i, ball, sizeof(ball), i*16 + 8);
+  }
+  // combine missiles into 5th sprite
+  // colors are taken from the 4 sprites
+  a8_pmg_5th_enable(1);
+  a8_pmg_5th_x(100);
+  a8_pmg_5th_shape(ball, sizeof(ball), 0x48);
 
   // set interrupt and start music
   a8_pokey_init();
   a8_pokey_music_init();
   music_start(music1);
-  
+
   while (1) {
     a8_waitvsync();
 
     x += dx;
     if (x < 48) { x = 48; dx = 2; }
-    if (x > 208) { x = 208; dx = -2; }
-    a8_pmg_set_x(0, x);
-
-    if (a8_trigger(0)) {
-      a8_pmg_set_size(0, A8_PMG_QUADW);
+    if (x > 208) { x = 208; dx = (byte)-2; }
+    // set sprite sizes if joystick moved or trigger pushed
+    if (a8_get_trigger(0)) {
+      a8_pmg_5th_size(A8_PMG_QUADW);
+    } else {
+      a8_pmg_5th_size(A8_PMG_NORMAL);
+    }
+    if (a8_get_stick(0)) {
+      a8_pmg_set_size(a8_get_stick(0) & 3, A8_PMG_QUADW);
     } else {
       a8_pmg_set_size(0, A8_PMG_NORMAL);
+      a8_pmg_set_size(1, A8_PMG_NORMAL);
+      a8_pmg_set_size(2, A8_PMG_NORMAL);
+      a8_pmg_set_size(3, A8_PMG_NORMAL);
     }
+    // set X positions
+    a8_pmg_set_x(0, x);
+    a8_pmg_set_x(1, x);
+    a8_pmg_set_x(2, x);
+    a8_pmg_set_x(3, x);
+    a8_pmg_5th_x(255-x);
   }
-  return 0;
 }

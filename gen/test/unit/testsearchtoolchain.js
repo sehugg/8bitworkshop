@@ -92,7 +92,7 @@ describe('ToolchainSource', function () {
     it('should list and lazily search bundled header files', async function () {
         (0, projectsource_1.setProjectProvider)(() => makeFs({ '/include/nes.h': NES_H, '/include/apple.h': APPLE_H }));
         const ts = new toolchainsource_1.ToolchainSource();
-        // First query triggers ready() (lists files) + ensureBatch() (reads them)
+        // First query triggers ready(), which lists and reads every header file
         const hits = await ts.query('VBLANK', 10);
         assert.ok(hits.length >= 1, 'should find VBLANK in nes.h');
         const rec = hits[0].record;
@@ -115,23 +115,22 @@ describe('ToolchainSource', function () {
         const hits = await ts.query('x', 10);
         assert.strictEqual(hits.length, 0);
     });
-    it('should load files in batches across queries', async function () {
-        const fs = makeFs({ '/include/nes.h': NES_H, '/include/apple.h': APPLE_H });
+    it('should read every header before answering the first query', async function () {
+        const fs = makeFs({
+            '/include/a.h': '#define AAA 1\n',
+            '/include/b.h': '#define BBB 2\n',
+            '/include/tgi.h': '#define TGI_OK 1\n',
+        });
         (0, projectsource_1.setProjectProvider)(() => fs);
         const ts = new toolchainsource_1.ToolchainSource();
-        // Shrink batch so a query only loads a subset
-        ts.files = ['/include/nes.h', '/include/apple.h'];
-        ts.loadIdx = 0;
-        ts.fsName = '65-nes';
-        ts.readyDone = true;
+        // Force a tiny read batch so the last file sorts past the first batch
         ts.batchSize = 1;
-        // First query: only nes.h loaded
-        let hits = await ts.query('VBLANK', 10);
-        assert.ok(hits.length >= 1, 'nes.h loaded in first batch');
-        assert.strictEqual(ts['loaded'].size, 1);
-        // Second query: apple.h loaded too
-        hits = await ts.query('VBLANK', 10);
-        assert.strictEqual(ts['loaded'].size, 2);
+        // The first query must find a match in a header that sorts last;
+        // otherwise results depend on how many times the user types.
+        const hits = await ts.query('TGI', 10);
+        assert.ok(hits.length >= 1, 'should index all headers on the first query');
+        assert.strictEqual(hits[0].record.file, '/include/tgi.h');
+        assert.strictEqual(ts['loaded'].size, 3);
     });
     it('should rank matches near the start of the line higher', async function () {
         (0, projectsource_1.setProjectProvider)(() => makeFs({ '/include/nes.h': NES_H }));

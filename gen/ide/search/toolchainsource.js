@@ -9,13 +9,13 @@ const toolmeta_1 = require("../../common/toolmeta");
  * HeaderView uses via readshared/listshared messages).
  *
  * Instead of a prebuilt symbol index (gen/symidx/*.json never shipped), we
- * lazily list files under the tool's include dirs and read their text from
- * the worker in small batches as the user types. Results are low-priority
- * text hits, ranked below project symbols in the unified service.
+ * list files under the tool's include dirs and read their text from the worker
+ * once, up front, so the first query searches the whole corpus. Results are
+ * low-priority text hits, ranked below project symbols in the unified service.
  */
 // File extensions that plausibly contain text to search.
 const SEARCHABLE_EXT = new Set(['h', 'hh', 'hpp', 'inc', 'asm', 'a65', 's', 'mac', 'defs', 'def', 'equ', 'i', 'm', 'c', 'bas', 'txt']);
-// How many unread header files to fetch from the worker per query.
+// How many header files to fetch from the worker per round.
 const BATCH_SIZE = 20;
 class ToolchainSource {
     constructor() {
@@ -24,14 +24,15 @@ class ToolchainSource {
         this.fsName = null;
         this.files = []; // all searchable files (sorted)
         this.loaded = new Map(); // path -> decoded text
-        this.readyDone = false;
-        this.loadIdx = 0; // next unread file index
-        this.batchSize = BATCH_SIZE; // files fetched per query (overridable in tests)
+        this.readyPromise = null;
+        this.batchSize = BATCH_SIZE; // files fetched per worker round (overridable in tests)
     }
     async ready() {
-        if (this.readyDone)
-            return;
-        this.readyDone = true;
+        if (!this.readyPromise)
+            this.readyPromise = this.load();
+        return this.readyPromise;
+    }
+    async load() {
         const project = (0, projectsource_1.getProject)();
         if (!project)
             return;
@@ -59,6 +60,20 @@ class ToolchainSource {
             }
         }
         this.files.sort();
+        // Read every searchable file now. Keystrokes must not change what is
+        // searchable, or a header late in the sorted list only shows up after
+        // the user has typed the same query several times.
+        for (let i = 0; i < this.files.length; i += this.batchSize) {
+            const batch = this.files.slice(i, i + this.batchSize);
+            const entries = await Promise.all(batch.map(async (path) => {
+                const text = await this.readFile(path);
+                return [path, text];
+            }));
+            for (const [path, text] of entries) {
+                if (text != null)
+                    this.loaded.set(path, text);
+            }
+        }
     }
     isValid() {
         return this.fsName != null && this.files.length > 0;
@@ -105,37 +120,10 @@ class ToolchainSource {
             return true; // no extension: assume text
         return SEARCHABLE_EXT.has(base.substring(dot + 1).toLowerCase());
     }
-    /**
-     * Load the next batch of unread files (or finish a partially-loaded one).
-     * Called per query so keystrokes incrementally widen the searchable corpus.
-     */
-    async ensureBatch() {
-        const project = (0, projectsource_1.getProject)();
-        if (!project || !project.queryWorker)
-            return;
-        while (this.loadIdx < this.files.length) {
-            const batch = this.files.slice(this.loadIdx, this.loadIdx + this.batchSize);
-            this.loadIdx += batch.length;
-            const entries = await Promise.all(batch.map(async (path) => {
-                const text = await this.readFile(path);
-                return [path, text];
-            }));
-            for (const [path, text] of entries) {
-                if (text != null)
-                    this.loaded.set(path, text);
-            }
-            // Keep loading until we have at least one text file in the batch
-            // (binary/skipped files shouldn't stall the palette), but never more
-            // than once per query -- the next query pulls the next batch.
-            if (this.loaded.size > 0 || this.loadIdx >= this.files.length)
-                break;
-        }
-    }
     async query(needle, limit) {
         await this.ready();
         if (!this.isValid() || needle.length < 2)
             return [];
-        await this.ensureBatch();
         return this.textQuery(needle, limit);
     }
     /** Low-priority dumb text search over the loaded header files. */
@@ -182,8 +170,7 @@ class ToolchainSource {
         this.fsName = null;
         this.files = [];
         this.loaded.clear();
-        this.readyDone = false;
-        this.loadIdx = 0;
+        this.readyPromise = null;
     }
 }
 exports.ToolchainSource = ToolchainSource;

@@ -18,8 +18,8 @@ typedef signed char sbyte;
 typedef unsigned short word;
 
 // pointer to screen memory
-// TODO: use OS.savmsc
-static byte** SAVMSC = (byte**) 0x58;
+// pointer to screen memory
+static byte** SAVMSC = &OS.savmsc;
 
 byte getchar(byte x, byte y) {
   return (*SAVMSC)[x+y*COLS]; // lookup value @ cursor address
