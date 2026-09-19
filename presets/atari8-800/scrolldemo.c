@@ -16,12 +16,11 @@
  * PAD scanlines of overlap below, so it can scroll without leaving the page.
  */
 
-//#link "common.c"
-//#link "common_irq.s"
-//#link "pokeymusic.ca65"
+//#link "a8lib.c"
+//#link "a8lib_scroll.c"
 
 #include <string.h>
-#include "common.h"
+#include "a8lib.h"
 
 #define MODE     DL_MAP160x2x4   /* try DL_CHR40x8x4, DL_MAP320x1x1, ... */
 #define SCANLINES 192            /* visible scanlines */
@@ -78,6 +77,7 @@ static void build_display(void) {
   /* too many bands?  shrink the window */
   if (lines > band_lines * MAX_BANDS) lines = band_lines * MAX_BANDS;
 
+  a8_scroll_reset();
   a8_dlist_reset();
   top = 24 + (SCANLINES - lines * h) / 2;
   a8_dlist_blank(top);

@@ -1,5 +1,5 @@
-#ifndef _ATARI8_COMMON_H
-#define _ATARI8_COMMON_H
+#ifndef _ATARI8_A8LIB_H
+#define _ATARI8_A8LIB_H
 
 /*
  * common.h - small helper library for cc65 Atari 8-bit programming.
@@ -46,6 +46,36 @@ typedef unsigned int  word;
 #define A8_AUDC_POLYS_NONE  0xA0   /* pure square wave */
 #define A8_AUDC_POLYS_4     0xC0   /* rumble */
 
+/* Target-specific display-list / NMI vector locations.  The 5200 BIOS
+   keeps its page-2 vectors in a more compact layout than the 800 OS. */
+#if defined(__ATARI5200__)
+#define A8_VDSLST_ADDR 0x0206
+#define A8_SDLSTL_ADDR 0x0005
+#define A8_SDLSTH_ADDR 0x0006
+#define A8_SDMCTL_ADDR 0x0007
+#define A8_CHBASE_VAL  0xf8
+#else
+#define A8_VDSLST_ADDR 0x0200
+#define A8_CHBASE_VAL  0xe0
+#endif
+
+#define A8_VDSLST (*(void(**)(void))A8_VDSLST_ADDR)
+
+/* OS shadow registers.  The 800's vertical-blank routine copies these to
+   the hardware every frame, so anything we change mid-frame has to be
+   written here too or it gets stomped.  The 5200's BIOS uses the same
+   zero-page slots (cc65's 5200 conio uses them as well). */
+#if defined(__ATARI5200__)
+#define A8_SHDW_PM ((byte*)0x0008)
+#define A8_SHDW_PF ((byte*)0x000c)
+#define A8_SHDW_BK (*(byte*)0x0010)
+#define A8_SDMCTL  (*(byte*)0x0007)
+#else
+#define A8_SHDW_PM (&OS.pcolr0)
+#define A8_SHDW_PF (&OS.color0)
+#define A8_SHDW_BK (OS.color4)
+#define A8_SDMCTL  (OS.sdmctl)
+#endif
 
 /*==========================================================================*/
 /* Display list builder (ANTIC)                                             */
@@ -56,7 +86,9 @@ typedef unsigned int  word;
 extern byte  a8_dlist_len;      /* current length in bytes */
 extern byte  a8_dli_count;     /* number of DLI bits emitted so far */
 
+/* reset: call a8_dli_clear() and a8_scroll_reset() first, if linked */
 void a8_dlist_reset(void);
+/* add a byte to the dlist */
 void a8_dlist_byte(byte b);
 /* Emit n blank scanlines (any count; splits into DL_BLK8 chunks). */
 void a8_dlist_blank(byte n);
@@ -83,20 +115,25 @@ void a8_set_playfield_width(byte w);
 /* Registers that a8_dli_set() understands.  Anything else can be written
    from a user callback with a8_dli_hook. */
 enum {
-  A8_REG_COLBK = 0,
-  A8_REG_COLPF0, A8_REG_COLPF1, A8_REG_COLPF2, A8_REG_COLPF3,
-  A8_REG_COLPM0, A8_REG_COLPM1, A8_REG_COLPM2, A8_REG_COLPM3,
-  A8_REG_PRIOR,
-  A8_REG_HPOSP0, A8_REG_HPOSP1, A8_REG_HPOSP2, A8_REG_HPOSP3,
+  A8_REG_HPOSP0 = 0, A8_REG_HPOSP1, A8_REG_HPOSP2, A8_REG_HPOSP3,
   A8_REG_HPOSM0, A8_REG_HPOSM1, A8_REG_HPOSM2, A8_REG_HPOSM3,
   A8_REG_SIZEP0, A8_REG_SIZEP1, A8_REG_SIZEP2, A8_REG_SIZEP3,
   A8_REG_SIZEM,
   A8_REG_GRAFP0, A8_REG_GRAFP1, A8_REG_GRAFP2, A8_REG_GRAFP3,
   A8_REG_GRAFM,
-  A8_REG_VDELAY, A8_REG_GRACTL, A8_REG_HITCLR,
-  A8_REG_CHBASE, A8_REG_CHACTL,
-  A8_REG_HSCROL, A8_REG_VSCROL, A8_REG_DMACTL,
-  A8_REG_COUNT
+  A8_REG_COLPM0, A8_REG_COLPM1, A8_REG_COLPM2, A8_REG_COLPM3,
+  A8_REG_COLPF0, A8_REG_COLPF1, A8_REG_COLPF2, A8_REG_COLPF3,
+  A8_REG_COLBK,
+  A8_REG_PRIOR,
+  A8_REG_VDELAY,
+  A8_REG_GRACTL,
+  A8_REG_HITCLR,
+  /* If high bit set, ANTIC, otherwise GTIA. */
+  A8_REG_DMACTL = 0x80,
+  A8_REG_CHACTL = 0x81,
+  A8_REG_HSCROL = 0x84,
+  A8_REG_VSCROL = 0x85,
+  A8_REG_CHBASE = 0x89, 
 };
 
 /* How many display-list DLIs we can service, and how many register

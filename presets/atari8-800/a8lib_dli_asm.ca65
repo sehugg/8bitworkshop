@@ -1,13 +1,7 @@
-;
-; common_irq.s - interrupt trampoline for presets/atari8-800/common.c
-;
+
+; _a8_dli_stub
 ; The Atari DLI is delivered as an NMI: the OS (or the 5200 BIOS) jumps
 ; through the VDSLST vector, and the handler has to finish with RTI.
-; cc65 has no way to express that in C, so this tiny stub saves the C
-; runtime zero page, calls the C dispatcher, and returns with RTI.
-;
-; It also restores A/X/Y, so the interrupted program sees no side effects.
-;
 
         .export         _a8_dli_stub
         .import         _a8_dli_dispatch
@@ -61,12 +55,18 @@ _a8_dli_stub:
         lda     _a8_dli_tab,y
         ;    if (r == 0xff) break;
         bmi     @doneline
-        ;    *a8_dli_regs[r] = w[1];
-        asl
-        tax
-        lda     _a8_dli_regs,x
+        ;    lo byte 
+        pha
+        and     #$1f
         sta     tmp
-        lda     _a8_dli_regs+1,x
+        pla
+        ;    hi byte calculated ($d4 or $d0)
+        ;    TODO: Atari 5200
+        asl
+        lda     #$d0
+        bcc     @gtia
+        lda     #$d4
+@gtia:
         sta     tmp+1
         iny
         lda     _a8_dli_tab,y

@@ -9,13 +9,13 @@ var Atari8_PRESETS : Preset[] = [
   {id:'hellopm.dasm', name:'Hello Sprites'},
   {id:'helloconio.c', name:'Text Mode', category:'C'},
   {id:'siegegame.c', name:'Siege Game'},
-  {id:'tgidemo.c', name:'TGI Demo'},
   {id:'hellodlist.c', name:'Display List'},
-  {id:'libdemo.c', name:'Library Demo'},
 ];
 
 var Atari800_PRESETS = Atari8_PRESETS.concat([
   //{id:'testmusic.c', name:'POKEY Music'},
+  {id:'tgidemo.c', name:'TGI Demo'},
+  {id:'libdemo.c', name:'Library Demo'},
   {id:'scrolldemo.c', name:'Scrolling'},
   {id:'hello.cpp', name:'Hello Oscar64', category:'Oscar64'},
   {id:'libdemo.cpp', name:'Library Demo Oscar64'},

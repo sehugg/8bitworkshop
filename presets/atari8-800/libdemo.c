@@ -7,12 +7,15 @@
  *   - a POKEY melody driven from the vblank interrupt
  */
 
-//#link "common.c"
-//#link "common_irq.s"
+//#link "a8lib.c"
+//#link "a8lib_dli.c"
+//#link "a8lib_pmg.c"
+//#link "a8lib_pokey.c"
+//#link "a8lib_dli_asm.ca65"
 //#link "pokeymusic.ca65"
 
 #include <6502.h>
-#include "common.h"
+#include "a8lib.h"
 
 /* 24 rows x 40 columns of text screen codes. */
 static byte screen[24][40];
@@ -36,6 +39,7 @@ static void fill_screen(void) {
 
 static void build_display(void) {
   byte i, d;
+  a8_dli_clear();
   a8_dlist_reset();
   a8_dlist_blank(24);
   /* First text line carries the LMS pointer and the first DLI band. */
