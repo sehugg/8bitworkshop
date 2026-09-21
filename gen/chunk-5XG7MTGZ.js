@@ -250,11 +250,11 @@ filesystem in a read-only viewer.</li>
 <tbody>
 <tr>
 <td><code>Tab</code></td>
-<td>Insert a tab or indent the selected line(s)</td>
+<td>Insert spaces or a tab character (per settings) or indent selection</td>
 </tr>
 <tr>
 <td><code>Shift+Tab</code></td>
-<td>Outdent the line(s) or selected range(s)</td>
+<td>Unindent the current line or selection</td>
 </tr>
 <tr>
 <td><code>mod+Z</code></td>
@@ -3515,4 +3515,4 @@ dompurify/dist/purify.es.mjs:
 split.js/dist/split.js:
   (*! Split.js - v1.6.5 *)
 */
-//# sourceMappingURL=chunk-VLOGW7AJ.js.map
+//# sourceMappingURL=chunk-5XG7MTGZ.js.map

@@ -51,7 +51,7 @@ function saveSettings(settings) {
 }
 const compartmentValues = [
     [exports.tabSizeCompartment, s => [state_1.EditorState.tabSize.of(s.tabSize), language_1.indentUnit.of(" ".repeat(s.tabSize))]],
-    [exports.tabsToSpacesCompartment, s => view_1.keymap.of(s.tabsToSpaces ? tabs_1.smartIndentKeymap : tabs_1.insertTabKeymap)],
+    [exports.tabsToSpacesCompartment, s => view_1.keymap.of(s.tabsToSpaces ? tabs_1.insertSpacesKeymap : tabs_1.insertTabKeymap)],
     [exports.highlightSpecialCharsCompartment, s => s.highlightSpecialChars ? (0, view_1.highlightSpecialChars)() : []],
     [exports.highlightWhitespaceCompartment, s => s.highlightWhitespace ? (0, view_1.highlightWhitespace)() : []],
     [exports.highlightTrailingWhitespaceCompartment, s => s.highlightTrailingWhitespace ? (0, view_1.highlightTrailingWhitespace)() : []],

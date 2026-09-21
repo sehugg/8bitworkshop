@@ -16,6 +16,9 @@
  * PAD scanlines of overlap below, so it can scroll without leaving the page.
  */
 
+//#tooldef ld cfgfile=atari.cfg
+//#symbol ld __RESERVED_MEMORY__=0x900
+
 //#link "a8lib.c"
 //#link "a8lib_scroll.c"
 

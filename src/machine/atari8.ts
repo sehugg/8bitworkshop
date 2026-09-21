@@ -504,10 +504,12 @@ export class Atari800 extends BasicScanlineMachine implements AcceptsPaddleInput
       pc = ((pc + 1) & 0x3ff) | (pc & ~0x3ff);
       return b;
     }
+    let visited = new Set();
     let dlist = [];
     let y = 0;
     for (let i=0; i<256 && y<240; i++) {
       let pc0 = pc;
+      visited.add(pc);
       let op = nextInsn(); // get mode
       let mode = op & 0xf;
       let debugmsg = "" // "op=" + hex(op);
@@ -532,10 +534,11 @@ export class Atari800 extends BasicScanlineMachine implements AcceptsPaddleInput
           let dlarg_lo = nextInsn();
           let dlarg_hi = nextInsn();
           debugmsg += " $" + hex(dlarg_hi) + "" + hex(dlarg_lo);
+          if (jmp) pc = dlarg_lo + dlarg_hi*256;
         }
       }
       dlist.push("$"+hex(pc0) + " y=" + y + " " + debugmsg);
-      if (jmp) break;
+      if (jmp && visited.has(pc)) break;
       y += lines;
     }
     return dlist;

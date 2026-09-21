@@ -504,10 +504,12 @@ class Atari800 extends devices_1.BasicScanlineMachine {
             pc = ((pc + 1) & 0x3ff) | (pc & ~0x3ff);
             return b;
         };
+        let visited = new Set();
         let dlist = [];
         let y = 0;
         for (let i = 0; i < 256 && y < 240; i++) {
             let pc0 = pc;
+            visited.add(pc);
             let op = nextInsn(); // get mode
             let mode = op & 0xf;
             let debugmsg = ""; // "op=" + hex(op);
@@ -543,10 +545,12 @@ class Atari800 extends devices_1.BasicScanlineMachine {
                     let dlarg_lo = nextInsn();
                     let dlarg_hi = nextInsn();
                     debugmsg += " $" + (0, util_1.hex)(dlarg_hi) + "" + (0, util_1.hex)(dlarg_lo);
+                    if (jmp)
+                        pc = dlarg_lo + dlarg_hi * 256;
                 }
             }
             dlist.push("$" + (0, util_1.hex)(pc0) + " y=" + y + " " + debugmsg);
-            if (jmp)
+            if (jmp && visited.has(pc))
                 break;
             y += lines;
         }

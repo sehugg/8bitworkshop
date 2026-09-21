@@ -82,7 +82,7 @@ const MODEDEFS = {
     dialog: { theme: cobalt_1.cobalt, lineWrap: true },
     markdown: { lineWrap: true },
     fastbasic: { noGutters: true },
-    basic: { noGutters: true },
+    basic: { noGutters: true, lineBased: true },
     ecs: { theme: mbo_1.mbo }, // TODO: is actually mixed-mode, as is verilog
 };
 exports.textMapFunctions = {
@@ -216,6 +216,8 @@ class SourceEditor {
                 // "insert spaces when pressing tab" is enabled. Placed before the
                 // settings keymap so it takes precedence over indentMore/insertTab.
                 ...(isAsm ? [view_1.keymap.of((0, tabs_1.asmSpacesKeymap)(() => (0, settings_1.loadSettings)().tabsToSpaces))] : []),
+                // Line-numbered BASIC: Enter doesn't auto-indent. Must precede the default keymap.
+                modedef.lineBased ? view_1.keymap.of(tabs_1.lineBasedEnterKeymap) : [],
                 // Keybindings from settings must appear before default keymap.
                 ...(0, settings_1.settingsExtensions)((0, settings_1.loadSettings)()),
                 // https://codemirror.net/docs/ref/#commands.defaultKeymap includes

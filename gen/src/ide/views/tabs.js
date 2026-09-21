@@ -1,14 +1,56 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.insertTabKeymap = exports.smartIndentKeymap = void 0;
+exports.insertTabKeymap = exports.insertSpacesKeymap = exports.lineBasedEnterKeymap = void 0;
+exports.spacesToTabStop = spacesToTabStop;
+exports.hasLineNumbers = hasLineNumbers;
 exports.inferAsmTabStops = inferAsmTabStops;
 exports.asmTabChange = asmTabChange;
 exports.asmBackspaceRange = asmBackspaceRange;
 exports.asmSpacesKeymap = asmSpacesKeymap;
 const commands_1 = require("@codemirror/commands");
+const language_1 = require("@codemirror/language");
 const state_1 = require("@codemirror/state");
-exports.smartIndentKeymap = [
-    { key: "Tab", run: commands_1.indentMore },
+// Spaces to insert when pressing Tab at document position 'head': up to the
+// next multiple of the indent unit in leading whitespace, otherwise up to the
+// next multiple of the tab size.
+function spacesToTabStop(state, head) {
+    const line = state.doc.lineAt(head);
+    const before = line.text.slice(0, head - line.from);
+    const col = (0, state_1.countColumn)(before, state.tabSize);
+    const stop = /^\s*$/.test(before) ? (0, language_1.getIndentUnit)(state) : state.tabSize;
+    return " ".repeat(stop - (col % stop));
+}
+// Insert spaces from the cursor up to the next tab stop.
+// A non-empty selection indents the selected lines instead.
+function insertSpacesToTabStop(view) {
+    const state = view.state;
+    if (state.selection.ranges.some(r => !r.empty))
+        return (0, commands_1.indentMore)(view);
+    view.dispatch(state.changeByRange(range => {
+        const insert = spacesToTabStop(state, range.head);
+        return {
+            changes: { from: range.head, insert },
+            range: state_1.EditorSelection.cursor(range.head + insert.length),
+        };
+    }), { scrollIntoView: true, userEvent: "input" });
+    return true;
+}
+// True if any line starts with a line number (i.e. the file is line-based BASIC).
+function hasLineNumbers(state) {
+    for (let n = 1; n <= state.doc.lines; n++) {
+        if (/^\d\d/.test(state.doc.line(n).text))
+            return true;
+    }
+    return false;
+}
+// Enter for line-numbered BASIC: insert a newline with no auto-indent, so the
+// next line number can be typed at column 0. Defers to smart indent when the
+// file has no line numbers (structured BASIC).
+exports.lineBasedEnterKeymap = [
+    { key: "Enter", run: view => hasLineNumbers(view.state) && (0, commands_1.insertNewline)(view) },
+];
+exports.insertSpacesKeymap = [
+    { key: "Tab", run: insertSpacesToTabStop },
     { key: "Shift-Tab", run: commands_1.indentLess },
 ];
 exports.insertTabKeymap = [

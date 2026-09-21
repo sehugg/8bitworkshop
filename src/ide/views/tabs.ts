@@ -1,9 +1,51 @@
-import { indentLess, indentMore, insertTab } from "@codemirror/commands";
-import { EditorSelection, EditorState } from "@codemirror/state";
+import { indentLess, indentMore, insertNewline, insertTab } from "@codemirror/commands";
+import { getIndentUnit } from "@codemirror/language";
+import { countColumn, EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView, KeyBinding } from "@codemirror/view";
 
-export const smartIndentKeymap: KeyBinding[] = [
-  { key: "Tab", run: indentMore },
+// Spaces to insert when pressing Tab at document position 'head': up to the
+// next multiple of the indent unit in leading whitespace, otherwise up to the
+// next multiple of the tab size.
+export function spacesToTabStop(state: EditorState, head: number): string {
+  const line = state.doc.lineAt(head);
+  const before = line.text.slice(0, head - line.from);
+  const col = countColumn(before, state.tabSize);
+  const stop = /^\s*$/.test(before) ? getIndentUnit(state) : state.tabSize;
+  return " ".repeat(stop - (col % stop));
+}
+
+// Insert spaces from the cursor up to the next tab stop.
+// A non-empty selection indents the selected lines instead.
+function insertSpacesToTabStop(view: EditorView): boolean {
+  const state = view.state;
+  if (state.selection.ranges.some(r => !r.empty)) return indentMore(view);
+  view.dispatch(state.changeByRange(range => {
+    const insert = spacesToTabStop(state, range.head);
+    return {
+      changes: { from: range.head, insert },
+      range: EditorSelection.cursor(range.head + insert.length),
+    };
+  }), { scrollIntoView: true, userEvent: "input" });
+  return true;
+}
+
+// True if any line starts with a line number (i.e. the file is line-based BASIC).
+export function hasLineNumbers(state: EditorState): boolean {
+  for (let n = 1; n <= state.doc.lines; n++) {
+    if (/^\d\d/.test(state.doc.line(n).text)) return true;
+  }
+  return false;
+}
+
+// Enter for line-numbered BASIC: insert a newline with no auto-indent, so the
+// next line number can be typed at column 0. Defers to smart indent when the
+// file has no line numbers (structured BASIC).
+export const lineBasedEnterKeymap: KeyBinding[] = [
+  { key: "Enter", run: view => hasLineNumbers(view.state) && insertNewline(view) },
+];
+
+export const insertSpacesKeymap: KeyBinding[] = [
+  { key: "Tab", run: insertSpacesToTabStop },
   { key: "Shift-Tab", run: indentLess },
 ];
 

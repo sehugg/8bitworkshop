@@ -7,6 +7,9 @@
  *   - a POKEY melody driven from the vblank interrupt
  */
 
+//#tooldef ld cfgfile=atari.cfg
+//#symbol ld __RESERVED_MEMORY__=0x900
+
 //#link "a8lib.c"
 //#link "a8lib_dli.c"
 //#link "a8lib_pmg.c"

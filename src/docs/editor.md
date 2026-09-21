@@ -38,8 +38,8 @@ For some platforms, the gutter shows additional information next to source lines
 
 | Shortcut | Action |
 | --- | --- |
-| `Tab` | Insert a tab or indent the selected line(s) |
-| `Shift+Tab` | Outdent the line(s) or selected range(s) |
+| `Tab` | Insert spaces or a tab character (per settings) or indent selection |
+| `Shift+Tab` | Unindent the current line or selection |
 | `mod+Z` | Undo |
 | `mod+Shift+Z` | Redo |
 | `mod+F` | Find |
