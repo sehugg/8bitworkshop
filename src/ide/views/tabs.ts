@@ -1,9 +1,36 @@
 import { indentLess, indentMore, insertTab } from "@codemirror/commands";
-import { EditorSelection, EditorState } from "@codemirror/state";
+import { getIndentUnit } from "@codemirror/language";
+import { countColumn, EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView, KeyBinding } from "@codemirror/view";
 
-export const smartIndentKeymap: KeyBinding[] = [
-  { key: "Tab", run: indentMore },
+// Spaces to insert when pressing Tab at document position 'head': up to the
+// next multiple of the indent unit in leading whitespace, otherwise up to the
+// next multiple of the tab size.
+export function spacesToTabStop(state: EditorState, head: number): string {
+  const line = state.doc.lineAt(head);
+  const before = line.text.slice(0, head - line.from);
+  const col = countColumn(before, state.tabSize);
+  const stop = /^\s*$/.test(before) ? getIndentUnit(state) : state.tabSize;
+  return " ".repeat(stop - (col % stop));
+}
+
+// Insert spaces from the cursor up to the next tab stop.
+// A non-empty selection indents the selected lines instead.
+function insertSpacesToTabStop(view: EditorView): boolean {
+  const state = view.state;
+  if (state.selection.ranges.some(r => !r.empty)) return indentMore(view);
+  view.dispatch(state.changeByRange(range => {
+    const insert = spacesToTabStop(state, range.head);
+    return {
+      changes: { from: range.head, insert },
+      range: EditorSelection.cursor(range.head + insert.length),
+    };
+  }), { scrollIntoView: true, userEvent: "input" });
+  return true;
+}
+
+export const insertSpacesKeymap: KeyBinding[] = [
+  { key: "Tab", run: insertSpacesToTabStop },
   { key: "Shift-Tab", run: indentLess },
 ];
 

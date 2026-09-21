@@ -5,7 +5,7 @@ import { EditorView, highlightSpecialChars, highlightTrailingWhitespace, highlig
 import { isProductionHost } from "../common/util";
 import { setBarVisible } from "./shortcutbar";
 import { debugHighlightTagsTooltip } from "./views/debug";
-import { insertTabKeymap, smartIndentKeymap } from "./views/tabs";
+import { insertSpacesKeymap, insertTabKeymap } from "./views/tabs";
 
 declare var bootbox: BootboxStatic;
 declare var $: JQueryStatic;
@@ -61,7 +61,7 @@ export function saveSettings(settings: EditorSettings) {
 
 const compartmentValues: [Compartment, (s: EditorSettings) => Extension][] = [
   [tabSizeCompartment, s => [EditorState.tabSize.of(s.tabSize), indentUnit.of(" ".repeat(s.tabSize))]],
-  [tabsToSpacesCompartment, s => keymap.of(s.tabsToSpaces ? smartIndentKeymap : insertTabKeymap)],
+  [tabsToSpacesCompartment, s => keymap.of(s.tabsToSpaces ? insertSpacesKeymap : insertTabKeymap)],
   [highlightSpecialCharsCompartment, s => s.highlightSpecialChars ? highlightSpecialChars() : []],
   [highlightWhitespaceCompartment, s => s.highlightWhitespace ? highlightWhitespace() : []],
   [highlightTrailingWhitespaceCompartment, s => s.highlightTrailingWhitespace ? highlightTrailingWhitespace() : []],
