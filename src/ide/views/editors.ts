@@ -15,7 +15,7 @@ import { disassemblyTheme } from "../../themes/disassemblyTheme";
 import { editorTheme } from "../../themes/editorTheme";
 import { mbo } from "../../themes/mbo";
 import { loadSettings, registerEditor, settingsExtensions } from "../settings";
-import { asmSpacesKeymap } from "./tabs";
+import { asmSpacesKeymap, lineBasedEnterKeymap } from "./tabs";
 import { current_project, lastDebugState, openHeaderFile, platform, qs, runToPC } from "../ui";
 import { bpStore } from "../breakpoints";
 import { IDE_RESERVED_KEYS, stripCMKeymap } from "../keys";
@@ -83,7 +83,7 @@ const MODEDEFS = {
   dialog: { theme: cobalt, lineWrap: true },
   markdown: { lineWrap: true },
   fastbasic: { noGutters: true },
-  basic: { noGutters: true },
+  basic: { noGutters: true, lineBased: true },
   ecs: { theme: mbo }, // TODO: is actually mixed-mode, as is verilog
 }
 
@@ -232,6 +232,8 @@ export class SourceEditor implements ProjectView {
         // "insert spaces when pressing tab" is enabled. Placed before the
         // settings keymap so it takes precedence over indentMore/insertTab.
         ...(isAsm ? [keymap.of(asmSpacesKeymap(() => loadSettings().tabsToSpaces))] : []),
+        // Line-numbered BASIC: Enter doesn't auto-indent. Must precede the default keymap.
+        modedef.lineBased ? keymap.of(lineBasedEnterKeymap) : [],
         // Keybindings from settings must appear before default keymap.
         ...settingsExtensions(loadSettings()),
         // https://codemirror.net/docs/ref/#commands.defaultKeymap includes

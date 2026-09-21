@@ -1,4 +1,4 @@
-import { indentLess, indentMore, insertTab } from "@codemirror/commands";
+import { indentLess, indentMore, insertNewline, insertTab } from "@codemirror/commands";
 import { getIndentUnit } from "@codemirror/language";
 import { countColumn, EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView, KeyBinding } from "@codemirror/view";
@@ -28,6 +28,21 @@ function insertSpacesToTabStop(view: EditorView): boolean {
   }), { scrollIntoView: true, userEvent: "input" });
   return true;
 }
+
+// True if any line starts with a line number (i.e. the file is line-based BASIC).
+export function hasLineNumbers(state: EditorState): boolean {
+  for (let n = 1; n <= state.doc.lines; n++) {
+    if (/^\d\d/.test(state.doc.line(n).text)) return true;
+  }
+  return false;
+}
+
+// Enter for line-numbered BASIC: insert a newline with no auto-indent, so the
+// next line number can be typed at column 0. Defers to smart indent when the
+// file has no line numbers (structured BASIC).
+export const lineBasedEnterKeymap: KeyBinding[] = [
+  { key: "Enter", run: view => hasLineNumbers(view.state) && insertNewline(view) },
+];
 
 export const insertSpacesKeymap: KeyBinding[] = [
   { key: "Tab", run: insertSpacesToTabStop },

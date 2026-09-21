@@ -2,7 +2,7 @@ import assert from "assert";
 import { describe } from "mocha";
 import { indentUnit } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
-import { spacesToTabStop } from "../../src/ide/views/tabs";
+import { hasLineNumbers, spacesToTabStop } from "../../src/ide/views/tabs";
 
 // Build a state from text with '|' marking the cursor; returns the spaces Tab would insert.
 function tabAt(textWithCursor: string, tabSize: number, unit: number): string {
@@ -40,5 +40,20 @@ describe('spacesToTabStop', () => {
     });
     it('should insert spaces only', () => {
         assert.strictEqual(tabAt('a|', 4, 2), '   ');
+    });
+});
+
+describe('hasLineNumbers', () => {
+    const has = (doc: string) => hasLineNumbers(EditorState.create({ doc }));
+    it('should detect line-numbered BASIC', () => {
+        assert.strictEqual(has('10 PRINT "HI"\n20 GOTO 10'), true);
+        assert.strictEqual(has('REM start\n30 END'), true);
+        assert.strictEqual(has('REM start\n3 END'), false);
+        assert.strictEqual(has('REM start\n  30 END'), false);
+    });
+    it('should treat unnumbered source as structured', () => {
+        assert.strictEqual(has(''), false);
+        assert.strictEqual(has('for i = 1 to 10\n  print i\nnext'), false);
+        assert.strictEqual(has('x1 = 5'), false);
     });
 });
