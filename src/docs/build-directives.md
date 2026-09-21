@@ -221,17 +221,15 @@ cases:
 
 | Extension | File type | Tool (platform) |
 | --- | --- | --- |
-| `.c` | C source file | cc65 (6502), sdcc (Z80), cmoc (6809), smlrc (x86), TCC (ARM) |
+| `.c` | C source file | cc65 (6502), sdcc (Z80), cmoc (6809) |
+| `.cpp` | C source file | Oscar64 (6502) |
 | `.s` `.ca65` | Assembler file | ca65 (6502) |
-| `.s` | Assembler file | sdasz80 (Z80), TCC (ARM) |
-| `.dasm` `.a` | Assembler file | dasm |
+| `.s` | Assembler file | sdasz80 (Z80) |
+| `.sgb` | Assembler file | sdasgb (Game Boy) |
+| `.dasm` `.a` | Assembler file | dasm (6502) |
 | `.z` | Assembler file | zmac (Z80) |
-| `.nesasm` | Assembler file | NESASM (nes) |
-| `.lnk` | Assembler file | Merlin 32 (apple2) |
-| `.bb` `.bas` | batariBASIC file | batariBASIC (vcs) |
-| `.fb` `.bas` | FastBasic file | FastBasic (atari8) |
-| `.cc2600` | C source file | CC2600 (vcs) |
-| `.cc7800` `.c78` | C source file | CC7800 (atari7800) |
+| `.bas` | BASIC file | BASIC, batariBASIC (vcs), FastBASIC (atari8) |
+| `.bb` | batariBASIC file | batariBASIC (vcs) |
 | `.v` | Verilog file | Verilator |
 
 See [Toolchains & Platforms](toolchains.md) for the full
