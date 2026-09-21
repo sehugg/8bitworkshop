@@ -23,12 +23,11 @@ fit on screen (the NES fits 16).
 ///// METASPRITES
 
 // a 2x2 metasprite made from four font tiles
-#define TILE 0x21
 const metasprite_t metasprite[] = {
-  METASPR_ITEM(0, 0, TILE+0, 0),
-  METASPR_ITEM(0, 8, TILE+1, 0),
-  METASPR_ITEM(8, 0, TILE+2, 0),
-  METASPR_ITEM(8, 8, TILE+3, 0),
+  METASPR_ITEM(0, 0, 0, 0),
+  METASPR_ITEM(0, 8, 1, 0),
+  METASPR_ITEM(8, -8, 2, 0),
+  METASPR_ITEM(0, 8, 3, 0),
   METASPR_TERM
 };
 
@@ -64,8 +63,8 @@ void main(void) {
   for (i=0; i<NUM_ACTORS; i++) {
     actor_x[i] = rand();
     actor_y[i] = rand();
-    actor_dx[i] = (rand() & 7) - 3;
-    actor_dy[i] = (rand() & 7) - 3;
+    actor_dx[i] = (rand() & 3) - 1;
+    actor_dy[i] = (rand() & 3) - 1;
   }
 
   // loop forever
@@ -73,7 +72,7 @@ void main(void) {
     uint8_t base = 0;	// first free sprite ID
     // draw and move all actors
     for (i=0; i<NUM_ACTORS; i++) {
-      base += move_metasprite(metasprite, FONT_TILE_BASE, base,
+      base += move_metasprite(metasprite, 0x41, base,
                               actor_x[i], actor_y[i]);
       actor_x[i] += actor_dx[i];
       actor_y[i] += actor_dy[i];
