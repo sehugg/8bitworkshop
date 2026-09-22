@@ -17,7 +17,7 @@ import { mbo } from "../../themes/mbo";
 import { loadSettings, registerEditor, settingsExtensions } from "../settings";
 import { asmSpacesKeymap, lineBasedEnterKeymap } from "./tabs";
 import { current_project, lastDebugState, openHeaderFile, platform, qs, runToPC } from "../ui";
-import { bpStore } from "../breakpoints";
+import { bpStore, canUseBreakpoints } from "../breakpoints";
 import { IDE_RESERVED_KEYS, stripCMKeymap } from "../keys";
 
 // Free the mod+shift+<letter> keys the IDE binds (see IDE_RESERVED_KEYS) so its
@@ -293,6 +293,7 @@ export class SourceEditor implements ProjectView {
 
         breakpointMarkers.field,
         statusMarkers.gutter,
+
         EditorView.updateListener.of(update => {
           for (let effect of update.transactions.flatMap(tr => tr.effects)) {
             if (effect.is(breakpointMarkers.requestToggle)) {

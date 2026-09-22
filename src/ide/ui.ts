@@ -35,7 +35,7 @@ import { CallStackView, DebugBrowserView } from "./views/treeviews";
 import { ProjectWindows } from "./windows";
 import { setupSplits, showTab } from "./layout";
 export { setupSplits, showTab };
-import { bpStore, resolveBreakpoints } from "./breakpoints";
+import { bpStore, canUseBreakpoints, resolveBreakpoints } from "./breakpoints";
 import { CondFn } from "./breakcond";
 import { findListingLocation as findListingLocationPure } from "./search/listinglocation";
 import DOMPurify = require("dompurify");
@@ -444,7 +444,7 @@ function refreshWindowList() {
       return new DebugBrowserView();
     });
   }
-  if (platform.runEval || platform.runToPC) {
+  if (canUseBreakpoints()) {
     addWindowItem("#breakpoints", "Breakpoints", () => {
       return new BreakpointsView();
     });

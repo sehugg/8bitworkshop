@@ -440,7 +440,7 @@ function refreshWindowList() {
             return new treeviews_1.DebugBrowserView();
         });
     }
-    if (exports.platform.runEval || exports.platform.runToPC) {
+    if ((0, breakpoints_1.canUseBreakpoints)()) {
         addWindowItem("#breakpoints", "Breakpoints", () => {
             return new debugviews_1.BreakpointsView();
         });

@@ -8,6 +8,7 @@
 // The store persists to localStorage, scoped by platform + main file.
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.bpStore = void 0;
+exports.canUseBreakpoints = canUseBreakpoints;
 exports.resolveBreakpoint = resolveBreakpoint;
 exports.resolveBreakpoints = resolveBreakpoints;
 const ui_1 = require("./ui");
@@ -161,6 +162,10 @@ function makeCondContext() {
         readVRAM: ui_1.platform && ui_1.platform.readVRAMAddress ? (a) => ui_1.platform.readVRAMAddress(a) : undefined,
         hw,
     };
+}
+// Can this platform actually stop at a breakpoint?
+function canUseBreakpoints() {
+    return !!(ui_1.platform && (ui_1.platform.runEval || ui_1.platform.runToPC || ui_1.platform.runEvalAtPC));
 }
 function resolveBreakpoint(bp) {
     try {

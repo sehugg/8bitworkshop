@@ -183,6 +183,11 @@ function makeCondContext(): CondContext {
     };
 }
 
+// Can this platform actually stop at a breakpoint?
+export function canUseBreakpoints(): boolean {
+    return !!(platform && (platform.runEval || platform.runToPC || platform.runEvalAtPC));
+}
+
 export function resolveBreakpoint(bp: Breakpoint): ResolvedBreakpoint {
     try {
         let pc: number;

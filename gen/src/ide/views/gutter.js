@@ -4,6 +4,7 @@ exports.currentPcMarker = exports.statusMarkers = exports.errorMarkers = exports
 const state_1 = require("@codemirror/state");
 const view_1 = require("@codemirror/view");
 const util_1 = require("../../common/util");
+const breakpoints_1 = require("../breakpoints");
 const setOffset = state_1.StateEffect.define();
 const setBytes = state_1.StateEffect.define();
 const setClock = state_1.StateEffect.define();
@@ -277,7 +278,7 @@ const statusGutter = (0, view_1.gutter)({
                     });
                 }
             }
-            else {
+            else if ((0, breakpoints_1.canUseBreakpoints)()) {
                 const lineNum = view.state.doc.lineAt(line.from).number;
                 view.dispatch({
                     effects: requestToggleBreakpoint.of(lineNum)
