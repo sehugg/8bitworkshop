@@ -1,6 +1,7 @@
 import { RangeSet, StateEffect, StateField } from "@codemirror/state";
 import { gutter, GutterMarker } from "@codemirror/view";
 import { hex } from "../../common/util";
+import { canUseBreakpoints } from "../breakpoints";
 
 const setOffset = StateEffect.define<Map<number, number>>();
 const setBytes = StateEffect.define<Map<number, string>>();
@@ -278,7 +279,7 @@ const statusGutter = gutter({
                         effects: showErrorMessage.of({ line: lineNum, msg, toggle: true })
                     });
                 }
-            } else {
+            } else if (canUseBreakpoints()) {
                 const lineNum = view.state.doc.lineAt(line.from).number;
                 view.dispatch({
                     effects: requestToggleBreakpoint.of(lineNum)
