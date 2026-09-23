@@ -209,6 +209,8 @@ exports.PLATFORM_PARAMS = {
         extra_link_files: ['crt0.o', 'neslib2.lib', 'neslib2.cfg', 'nesbanked.cfg'],
         // source link symbol -> linker config (was hardcoded in fixParamsWithDefines)
         symbolConfigs: { NES_MAPPER: { '4': 'nesbanked.cfg' } },
+        // iNES header and CHR data are not in CPU address space
+        ignore_segments: ['HEADER', 'CHARS'],
         wiz_rom_ext: '.nes',
     },
     'apple2': {
@@ -233,6 +235,8 @@ exports.PLATFORM_PARAMS = {
         cfgfile: 'atari.cfg',
         libargs: ['atari.lib'],
         fastbasic_cfgfile: 'fastbasic-cart.cfg',
+        // XEX file headers and trailer are not in CPU address space
+        ignore_segments: ['EXEHDR', 'SYSCHKHDR', 'SYSCHKTRL', 'MAINHDR', 'AUTOSTRT'],
     },
     'atari8-800xl': {
         arch: '6502',

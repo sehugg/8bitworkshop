@@ -189,6 +189,7 @@ export interface WorkerOutputResult<T> {
   output: T
   listings?: CodeListingMap
   symbolmap?: {[sym:string]:number}
+  symbolsizes?: {[sym:string]:number} // object sizes in bytes, if the toolchain reports them
   params?: {}
   segments?: Segment[]
   debuginfo?: {} // optional info

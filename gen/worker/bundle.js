@@ -3402,6 +3402,8 @@
       extra_link_files: ["crt0.o", "neslib2.lib", "neslib2.cfg", "nesbanked.cfg"],
       // source link symbol -> linker config (was hardcoded in fixParamsWithDefines)
       symbolConfigs: { NES_MAPPER: { "4": "nesbanked.cfg" } },
+      // iNES header and CHR data are not in CPU address space
+      ignore_segments: ["HEADER", "CHARS"],
       wiz_rom_ext: ".nes"
     },
     "apple2": {
@@ -3425,7 +3427,9 @@
       define: ["__ATARI__"],
       cfgfile: "atari.cfg",
       libargs: ["atari.lib"],
-      fastbasic_cfgfile: "fastbasic-cart.cfg"
+      fastbasic_cfgfile: "fastbasic-cart.cfg",
+      // XEX file headers and trailer are not in CPU address space
+      ignore_segments: ["EXEHDR", "SYSCHKHDR", "SYSCHKTRL", "MAINHDR", "AUTOSTRT"]
     },
     "atari8-800xl": {
       arch: "6502",
@@ -7178,6 +7182,91 @@
     }
   }
 
+  // src/worker/tools/cc65dbg.ts
+  function parseRecord(text) {
+    const rec = {};
+    const re = /(\w+)=("[^"]*"|[^,]*)/g;
+    let m;
+    while (m = re.exec(text)) {
+      rec[m[1]] = m[2].startsWith('"') ? m[2].slice(1, -1) : m[2];
+    }
+    return rec;
+  }
+  function num(s) {
+    return s == null ? NaN : Number(s);
+  }
+  function parseCC65DbgSizes(dbg, ignoreSegments) {
+    const segstart = /* @__PURE__ */ new Map();
+    const ignoredsegs = /* @__PURE__ */ new Set();
+    const ignored = [];
+    const spans = /* @__PURE__ */ new Map();
+    const linespans = /* @__PURE__ */ new Set();
+    const syms = [];
+    for (const line of dbg.split("\n")) {
+      const tab = line.indexOf("	");
+      if (tab < 0) continue;
+      const type = line.substring(0, tab);
+      if (type != "seg" && type != "span" && type != "line" && type != "sym") continue;
+      const rec = parseRecord(line.substring(tab + 1));
+      switch (type) {
+        case "seg":
+          segstart.set(rec.id, num(rec.start));
+          if (ignoreSegments == null ? void 0 : ignoreSegments.includes(rec.name)) ignoredsegs.add(rec.id);
+          break;
+        case "span":
+          spans.set(rec.id, { seg: rec.seg, start: num(rec.start), size: num(rec.size) });
+          break;
+        case "line":
+          if (rec.span) rec.span.split("+").forEach((id) => linespans.add(id));
+          break;
+        case "sym":
+          if (rec.type != "lab" || rec.seg == null || rec.val == null) break;
+          if (ignoredsegs.has(rec.seg)) ignored.push(rec.name);
+          else syms.push(rec);
+          break;
+      }
+    }
+    const spanat = /* @__PURE__ */ new Map();
+    for (const [id, span] of spans) {
+      if (!linespans.has(id) || !(span.size > 0)) continue;
+      let segmap = spanat.get(span.seg);
+      if (!segmap) spanat.set(span.seg, segmap = /* @__PURE__ */ new Map());
+      segmap.set(span.start, Math.max(span.size, segmap.get(span.start) || 0));
+    }
+    const labelat = /* @__PURE__ */ new Map();
+    for (const sym of syms) {
+      const ofs = num(sym.val) - segstart.get(sym.seg);
+      let set = labelat.get(sym.seg);
+      if (!set) labelat.set(sym.seg, set = /* @__PURE__ */ new Set());
+      set.add(ofs);
+    }
+    const sizes = {};
+    const dups = /* @__PURE__ */ new Set();
+    for (const sym of syms) {
+      if (sym.name in sizes) {
+        dups.add(sym.name);
+        continue;
+      }
+      let size = num(sym.size);
+      if (isNaN(size)) {
+        const segmap = spanat.get(sym.seg);
+        const labels = labelat.get(sym.seg);
+        const ofs = num(sym.val) - segstart.get(sym.seg);
+        let cur = ofs;
+        let n;
+        while (segmap && (n = segmap.get(cur)) > 0) {
+          cur += n;
+          if (labels.has(cur)) break;
+        }
+        size = cur - ofs;
+      }
+      sizes[sym.name] = size;
+    }
+    for (const name of dups) delete sizes[name];
+    for (const name in sizes) if (!(sizes[name] > 0)) delete sizes[name];
+    return { sizes, ignored };
+  }
+
   // src/worker/tools/cc65.ts
   function parseCA65Listing(asmfn, code, symbols, segments, params, dbg, listings) {
     var _a;
@@ -7306,7 +7395,7 @@
     };
   }
   function linkLD65(step) {
-    var _a, _b;
+    var _a, _b, _c;
     loadNative("ld65");
     var params = step.params;
     gatherFiles(step);
@@ -7340,7 +7429,8 @@
         cfgfile,
         "-Ln",
         "main.vice",
-        //'--dbgfile', 'main.dbg', // TODO: get proper line numbers
+        "--dbgfile",
+        "main.dbg",
         "-o",
         "main",
         "-m",
@@ -7376,6 +7466,14 @@
           }
         }
       }
+      var symbolsizes = {};
+      try {
+        let dbgsyms = parseCC65DbgSizes(FS.readFile("main.dbg", { encoding: "utf8" }), params.ignore_segments);
+        symbolsizes = dbgsyms.sizes;
+        for (let name of dbgsyms.ignored) delete symbolmap[name];
+      } catch (e) {
+        console.log("could not parse main.dbg", e);
+      }
       var segments = [];
       let re_seglist = /(\w+)\s+([0-9A-F]+)\s+([0-9A-F]+)\s+([0-9A-F]+)\s+([0-9A-F]+)/;
       let parseseglist = false;
@@ -7383,6 +7481,7 @@
       for (let s2 of mapout.split("\n")) {
         if (parseseglist && (m = re_seglist.exec(s2))) {
           let seg = m[1];
+          if ((_a = params.ignore_segments) == null ? void 0 : _a.includes(seg)) continue;
           let start = parseInt(m[2], 16);
           let size = parseInt(m[4], 16);
           let type = "";
@@ -7399,7 +7498,7 @@
           var lstout = FS.readFile(fn, { encoding: "utf8" });
           lstout = lstout.split("\n\n")[1] || lstout;
           putWorkFile(fn, lstout);
-          let isECS = ((_b = (_a = step.debuginfo) == null ? void 0 : _a.systems) == null ? void 0 : _b.Init) != null;
+          let isECS = ((_c = (_b = step.debuginfo) == null ? void 0 : _b.systems) == null ? void 0 : _c.Init) != null;
           if (isECS) {
             var asmlines = [];
             var srclines = parseCA65Listing(fn, lstout, symbolmap, segments, params, true, listings);
@@ -7424,6 +7523,7 @@
         listings,
         errors,
         symbolmap,
+        symbolsizes,
         segments
       };
     }
@@ -14742,6 +14842,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   function parseOscar64Map(mapout) {
     let segments = [];
     let symbolmap = {};
+    let symbolsizes = {};
     let section = "";
     for (let line of mapout.split("\n")) {
       line = line.trim();
@@ -14761,11 +14862,14 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
           }
           segments.push({ name: m[4], start, size: end - start, type });
         } else if (section === "objects") {
-          if (m[3] !== "*") symbolmap[m[3]] = start;
+          if (m[3] !== "*") {
+            symbolmap[m[3]] = start;
+            symbolsizes[m[3]] = end - start;
+          }
         }
       }
     }
-    return { segments, symbolmap };
+    return { segments, symbolmap, symbolsizes };
   }
   function parseOscar64Lbl(lblout) {
     let symbolmap = {};
@@ -14899,10 +15003,12 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       let asmout = getWasiFileAsString(wasi, prefix + ".asm") || getWasiFileAsString(wasi, ".asm");
       let segments = [];
       let symbolmap = {};
+      let symbolsizes = {};
       if (mapout) {
         let parsed = parseOscar64Map(mapout);
         segments = parsed.segments;
         symbolmap = parsed.symbolmap;
+        symbolsizes = parsed.symbolsizes;
         putWorkFile(prefix + ".map", mapout);
       }
       if (lblout) {
@@ -14928,6 +15034,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
         errors,
         listings,
         symbolmap,
+        symbolsizes,
         segments
       };
     }

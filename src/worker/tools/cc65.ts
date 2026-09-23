@@ -4,6 +4,7 @@ import { getRootBasePlatform } from "../../common/util";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
 import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, fixParamsWithDefines, applyAsmProjectParams, putWorkFile, populateExtraFiles, store, populateEntry, anyTargetChanged, processEmbedDirective } from "../builder";
 import { re_crlf, makeErrorMatcher } from "../listingutils";
+import { parseCC65DbgSizes } from "./cc65dbg";
 import { loadNative, moduleInstFn, print_fn, setupFS, execMain, execToFile, emglobal, EmscriptenModule } from "../wasmutils";
 
 
@@ -190,7 +191,7 @@ export function linkLD65(step: BuildStep): BuildStepResult {
             '--lib-path', '/share/lib',
             '-C', cfgfile,
             '-Ln', 'main.vice',
-            //'--dbgfile', 'main.dbg', // TODO: get proper line numbers
+            '--dbgfile', 'main.dbg',
             '-o', 'main',
             '-m', 'main.map'].concat(step.args, libargs);
         // //#symbol ld (symbols not already merged into libargs) and //#flag ld
@@ -210,7 +211,6 @@ export function linkLD65(step: BuildStep): BuildStepResult {
             newrom.set(aout.slice(0, aout.length - 0x2000), 0x2000);
             aout = newrom;
         }
-        //var dbgout = FS.readFile("main.dbg", {encoding:'utf8'});
         putWorkFile("main", aout);
         putWorkFile("main.map", mapout);
         putWorkFile("main.vice", viceout);
@@ -229,6 +229,16 @@ export function linkLD65(step: BuildStep): BuildStepResult {
                 }
             }
         }
+        // symbol sizes from the linker debug file
+        var symbolsizes = {};
+        try {
+            let dbgsyms = parseCC65DbgSizes(FS.readFile("main.dbg", { encoding: 'utf8' }), params.ignore_segments);
+            symbolsizes = dbgsyms.sizes;
+            // labels outside CPU address space (e.g. NES CHR) would alias real addresses
+            for (let name of dbgsyms.ignored) delete symbolmap[name];
+        } catch (e) {
+            console.log("could not parse main.dbg", e);
+        }
         var segments = [];
         // TODO: CHR, banks, etc
         let re_seglist = /(\w+)\s+([0-9A-F]+)\s+([0-9A-F]+)\s+([0-9A-F]+)\s+([0-9A-F]+)/;
@@ -237,6 +247,7 @@ export function linkLD65(step: BuildStep): BuildStepResult {
         for (let s of mapout.split('\n')) {
             if (parseseglist && (m = re_seglist.exec(s))) {
                 let seg = m[1];
+                if (params.ignore_segments?.includes(seg)) continue;
                 let start = parseInt(m[2], 16);
                 let size = parseInt(m[4], 16);
                 let type = '';
@@ -280,6 +291,7 @@ export function linkLD65(step: BuildStep): BuildStepResult {
             listings: listings,
             errors: errors,
             symbolmap: symbolmap,
+            symbolsizes: symbolsizes,
             segments: segments
         };
     }

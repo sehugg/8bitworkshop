@@ -7,6 +7,7 @@ const toolmeta_1 = require("../../common/toolmeta");
 const util_1 = require("../../common/util");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
+const cc65dbg_1 = require("./cc65dbg");
 const wasmutils_1 = require("../wasmutils");
 /*
 000000r 1               .segment        "CODE"
@@ -166,7 +167,7 @@ function assembleCA65(step) {
     };
 }
 function linkLD65(step) {
-    var _a, _b;
+    var _a, _b, _c;
     (0, wasmutils_1.loadNative)("ld65");
     var params = step.params;
     (0, builder_1.gatherFiles)(step);
@@ -194,7 +195,7 @@ function linkLD65(step) {
             '--lib-path', '/share/lib',
             '-C', cfgfile,
             '-Ln', 'main.vice',
-            //'--dbgfile', 'main.dbg', // TODO: get proper line numbers
+            '--dbgfile', 'main.dbg',
             '-o', 'main',
             '-m', 'main.map'].concat(step.args, libargs);
         // //#symbol ld (symbols not already merged into libargs) and //#flag ld
@@ -214,7 +215,6 @@ function linkLD65(step) {
             newrom.set(aout.slice(0, aout.length - 0x2000), 0x2000);
             aout = newrom;
         }
-        //var dbgout = FS.readFile("main.dbg", {encoding:'utf8'});
         (0, builder_1.putWorkFile)("main", aout);
         (0, builder_1.putWorkFile)("main.map", mapout);
         (0, builder_1.putWorkFile)("main.vice", viceout);
@@ -233,6 +233,18 @@ function linkLD65(step) {
                 }
             }
         }
+        // symbol sizes from the linker debug file
+        var symbolsizes = {};
+        try {
+            let dbgsyms = (0, cc65dbg_1.parseCC65DbgSizes)(FS.readFile("main.dbg", { encoding: 'utf8' }), params.ignore_segments);
+            symbolsizes = dbgsyms.sizes;
+            // labels outside CPU address space (e.g. NES CHR) would alias real addresses
+            for (let name of dbgsyms.ignored)
+                delete symbolmap[name];
+        }
+        catch (e) {
+            console.log("could not parse main.dbg", e);
+        }
         var segments = [];
         // TODO: CHR, banks, etc
         let re_seglist = /(\w+)\s+([0-9A-F]+)\s+([0-9A-F]+)\s+([0-9A-F]+)\s+([0-9A-F]+)/;
@@ -241,6 +253,8 @@ function linkLD65(step) {
         for (let s of mapout.split('\n')) {
             if (parseseglist && (m = re_seglist.exec(s))) {
                 let seg = m[1];
+                if ((_a = params.ignore_segments) === null || _a === void 0 ? void 0 : _a.includes(seg))
+                    continue;
                 let start = parseInt(m[2], 16);
                 let size = parseInt(m[4], 16);
                 let type = '';
@@ -264,7 +278,7 @@ function linkLD65(step) {
                 lstout = lstout.split('\n\n')[1] || lstout; // remove header
                 (0, builder_1.putWorkFile)(fn, lstout);
                 //const asmpath = fn.replace(/\.lst$/, '.ca65'); // TODO! could be .s
-                let isECS = ((_b = (_a = step.debuginfo) === null || _a === void 0 ? void 0 : _a.systems) === null || _b === void 0 ? void 0 : _b.Init) != null; // TODO
+                let isECS = ((_c = (_b = step.debuginfo) === null || _b === void 0 ? void 0 : _b.systems) === null || _c === void 0 ? void 0 : _c.Init) != null; // TODO
                 if (isECS) {
                     var asmlines = [];
                     var srclines = parseCA65Listing(fn, lstout, symbolmap, segments, params, true, listings);
@@ -289,6 +303,7 @@ function linkLD65(step) {
             listings: listings,
             errors: errors,
             symbolmap: symbolmap,
+            symbolsizes: symbolsizes,
             segments: segments
         };
     }

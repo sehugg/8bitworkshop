@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const assert_1 = __importDefault(require("assert"));
 const fs_1 = __importDefault(require("fs"));
+const os_1 = __importDefault(require("os"));
 const path_1 = __importDefault(require("path"));
 const mocha_1 = require("mocha");
 const builder_1 = require("../../src/worker/builder");
@@ -324,8 +325,9 @@ function c64Params() {
 });
 (0, mocha_1.describe)("build directive wiring (integration)", function () {
     this.timeout(120000);
-    const tmpdir = "/tmp/pi-agent/buildparams";
-    (0, mocha_1.before)(function () { fs_1.default.mkdirSync(tmpdir, { recursive: true }); });
+    let tmpdir;
+    (0, mocha_1.before)(function () { tmpdir = fs_1.default.mkdtempSync(path_1.default.join(os_1.default.tmpdir(), "buildparams-")); });
+    (0, mocha_1.after)(function () { fs_1.default.rmSync(tmpdir, { recursive: true, force: true }); });
     function writeSource(name, code) {
         const p = path_1.default.join(tmpdir, name);
         fs_1.default.writeFileSync(p, code);

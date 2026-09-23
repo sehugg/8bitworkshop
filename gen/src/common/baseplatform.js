@@ -36,9 +36,10 @@ const wasmplatform_1 = require("./wasmplatform");
 ;
 ;
 class DebugSymbols {
-    constructor(symbolmap, debuginfo) {
+    constructor(symbolmap, debuginfo, symbolsizes) {
         this.symbolmap = symbolmap;
         this.debuginfo = debuginfo;
+        this.symbolsizes = symbolsizes;
         this.addr2symbol = (0, util_1.invertMap)(symbolmap);
         //// TODO: shouldn't be necc.
         if (!this.addr2symbol[0x0])

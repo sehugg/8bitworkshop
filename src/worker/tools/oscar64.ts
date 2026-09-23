@@ -96,10 +96,12 @@ export async function compileOscar64(step: BuildStep): Promise<BuildStepResult> 
         let asmout = getWasiFileAsString(wasi, prefix + ".asm") || getWasiFileAsString(wasi, ".asm");
         let segments = [];
         let symbolmap = {};
+        let symbolsizes = {};
         if (mapout) {
             let parsed = parseOscar64Map(mapout);
             segments = parsed.segments;
             symbolmap = parsed.symbolmap;
+            symbolsizes = parsed.symbolsizes;
             putWorkFile(prefix + ".map", mapout);
         }
         if (lblout) {
@@ -126,6 +128,7 @@ export async function compileOscar64(step: BuildStep): Promise<BuildStepResult> 
             errors,
             listings,
             symbolmap,
+            symbolsizes,
             segments,
         };
     }

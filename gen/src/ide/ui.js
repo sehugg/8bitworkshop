@@ -1005,7 +1005,7 @@ async function setCompileOutput(data) {
         if (!('output' in data))
             return;
         // process symbol map
-        exports.platform.debugSymbols = new baseplatform_1.DebugSymbols(data.symbolmap, data.debuginfo);
+        exports.platform.debugSymbols = new baseplatform_1.DebugSymbols(data.symbolmap, data.debuginfo, data.symbolsizes);
         compparams = data.params;
         // load ROM
         var rom = data.output;

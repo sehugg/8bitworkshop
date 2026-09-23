@@ -10,8 +10,8 @@ exports.parseOscar64Lbl = parseOscar64Lbl;
 exports.parseOscar64Listing = parseOscar64Listing;
 /**
  * Parse an oscar64 .map file.
- * Returns segments (from the 'sections' section) and a symbol map
- * (from the 'objects' section).
+ * Returns segments (from the 'sections' section), and a symbol map
+ * and symbol sizes (from the 'objects' section).
  *
  * Sample:
  *   sections
@@ -25,6 +25,7 @@ exports.parseOscar64Listing = parseOscar64Listing;
 function parseOscar64Map(mapout) {
     let segments = [];
     let symbolmap = {};
+    let symbolsizes = {};
     let section = '';
     for (let line of mapout.split('\n')) {
         line = line.trim();
@@ -48,12 +49,14 @@ function parseOscar64Map(mapout) {
                 segments.push({ name: m[4], start, size: end - start, type });
             }
             else if (section === 'objects') {
-                if (m[3] !== '*')
+                if (m[3] !== '*') {
                     symbolmap[m[3]] = start;
+                    symbolsizes[m[3]] = end - start;
+                }
             }
         }
     }
-    return { segments, symbolmap };
+    return { segments, symbolmap, symbolsizes };
 }
 /**
  * Parse an oscar64 .lbl file (VICE label format), e.g. "al 0880 .main".

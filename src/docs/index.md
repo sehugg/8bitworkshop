@@ -98,7 +98,7 @@ tools appear:
 | [Editor](editor.md) | Edit source files; read-only listings, headers, and binary views |
 | [Disassembly](disasm.md) | Disassemble the program around the program counter |
 | [Memory Browser](memory.md) | Hex dump of CPU memory |
-| [Memory Map](memmap.md) | Map of linker segments and memory areas |
+| [Memory Map](memmap.md) | Map of memory areas, linker segments and large variables |
 | [VRAM Browser](vram.md) | Hex dump of video memory (systems with a separate VDP) |
 | [Memory Probe](memprobe.md) | Heat map of memory read/write activity |
 | [CRT Probe](crtprobe.md) | Memory activity laid out by raster position |

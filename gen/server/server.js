@@ -23055,6 +23055,7 @@ function parseObjDump(lst) {
 function parseOscar64Map(mapout) {
   let segments = [];
   let symbolmap = {};
+  let symbolsizes = {};
   let section = "";
   for (let line of mapout.split("\n")) {
     line = line.trim();
@@ -23074,11 +23075,14 @@ function parseOscar64Map(mapout) {
         }
         segments.push({ name: m[4], start, size: end - start, type });
       } else if (section === "objects") {
-        if (m[3] !== "*") symbolmap[m[3]] = start;
+        if (m[3] !== "*") {
+          symbolmap[m[3]] = start;
+          symbolsizes[m[3]] = end - start;
+        }
       }
     }
   }
-  return { segments, symbolmap };
+  return { segments, symbolmap, symbolsizes };
 }
 function parseOscar64Lbl(lblout) {
   let symbolmap = {};
@@ -23249,6 +23253,7 @@ async function oscar64ProcessOutput(step, outpath) {
   let output = await import_fs.default.promises.readFile(outpath, { encoding: "base64" });
   let listings = {};
   let symbolmap = {};
+  let symbolsizes = {};
   let debuginfo = {};
   let segments = [];
   {
@@ -23256,6 +23261,7 @@ async function oscar64ProcessOutput(step, outpath) {
     let parsed = parseOscar64Map(txt);
     segments = parsed.segments;
     symbolmap = parsed.symbolmap;
+    symbolsizes = parsed.symbolsizes;
   }
   {
     try {
@@ -23274,7 +23280,7 @@ async function oscar64ProcessOutput(step, outpath) {
       text: txt
     };
   }
-  return { output, listings, symbolmap, segments, debuginfo };
+  return { output, listings, symbolmap, symbolsizes, segments, debuginfo };
 }
 function findBestTool(step) {
   if (!step?.tool) throw new Error("No tool specified");

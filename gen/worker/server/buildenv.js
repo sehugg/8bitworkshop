@@ -107,6 +107,7 @@ async function oscar64ProcessOutput(step, outpath) {
     let output = await fs_1.default.promises.readFile(outpath, { encoding: 'base64' });
     let listings = {};
     let symbolmap = {};
+    let symbolsizes = {};
     let debuginfo = {};
     let segments = [];
     // parse .map file for segments and symbols
@@ -115,6 +116,7 @@ async function oscar64ProcessOutput(step, outpath) {
         let parsed = (0, oscar64parse_1.parseOscar64Map)(txt);
         segments = parsed.segments;
         symbolmap = parsed.symbolmap;
+        symbolsizes = parsed.symbolsizes;
     }
     // parse .lbl file for any extra symbols
     {
@@ -135,7 +137,7 @@ async function oscar64ProcessOutput(step, outpath) {
             text: txt,
         };
     }
-    return { output, listings, symbolmap, segments, debuginfo };
+    return { output, listings, symbolmap, symbolsizes, segments, debuginfo };
 }
 function findBestTool(step) {
     if (!(step === null || step === void 0 ? void 0 : step.tool))
