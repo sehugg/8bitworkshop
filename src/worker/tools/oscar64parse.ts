@@ -9,13 +9,14 @@ import { CodeListingMap, Segment, SourceLine } from "../../common/workertypes";
 export interface Oscar64ParseResult {
     segments: Segment[];
     symbolmap: { [sym: string]: number };
+    symbolsizes?: { [sym: string]: number };
     listings: CodeListingMap;
 }
 
 /**
  * Parse an oscar64 .map file.
- * Returns segments (from the 'sections' section) and a symbol map
- * (from the 'objects' section).
+ * Returns segments (from the 'sections' section), and a symbol map
+ * and symbol sizes (from the 'objects' section).
  *
  * Sample:
  *   sections
@@ -29,6 +30,7 @@ export interface Oscar64ParseResult {
 export function parseOscar64Map(mapout: string) {
     let segments: Segment[] = [];
     let symbolmap: { [sym: string]: number } = {};
+    let symbolsizes: { [sym: string]: number } = {};
     let section = '';
     for (let line of mapout.split('\n')) {
         line = line.trim();
@@ -51,11 +53,14 @@ export function parseOscar64Map(mapout: string) {
                 }
                 segments.push({ name: m[4], start, size: end - start, type });
             } else if (section === 'objects') {
-                if (m[3] !== '*') symbolmap[m[3]] = start;
+                if (m[3] !== '*') {
+                    symbolmap[m[3]] = start;
+                    symbolsizes[m[3]] = end - start;
+                }
             }
         }
     }
-    return { segments, symbolmap };
+    return { segments, symbolmap, symbolsizes };
 }
 
 /**

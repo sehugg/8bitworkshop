@@ -7,7 +7,7 @@ import { VirtualTextScroller } from "../../common/vtextscroller";
 import { ProbeFlags, ProbeRecorder } from "../../common/probe";
 import { hex, lpad, rpad, getFilenameForPath } from "../../common/util";
 import { VirtualList } from "../../common/vlist";
-import { Segment } from "../../common/workertypes";
+import { computeMemoryMapLayout, MemMapBlock, MemMapColumn } from "./memmaplayout";
 import { current_project, getWorkerParams, lastDebugState, openLocationForPC, platform, projectWindows, runToPC, setupBreakpoint } from "../ui";
 import { bpStore, resolveBreakpoints, ResolvedBreakpoint } from "../breakpoints";
 import { newDiv, ProjectView } from "./baseviews";
@@ -289,61 +289,67 @@ export class MemoryMapView implements ProjectView {
   maindiv: JQuery;
 
   createDiv(parent: HTMLElement) {
-    this.maindiv = newDiv(parent, 'vertical-scroll');
-    this.maindiv.css('display', 'grid');
-    this.maindiv.css('grid-template-columns', '5em 40% 40%');
-    //this.maindiv.css('grid-template-rows', '2em auto auto');
-    this.maindiv.css('align-content', 'start');
+    this.maindiv = newDiv(parent, 'vertical-scroll memmap');
     return this.maindiv[0];
   }
 
-  // TODO: overlapping segments (e.g. ROM + LC)
-  addSegment(seg: Segment, newrow: boolean) {
-    if (newrow) {
-      var offset = $('<div class="segment-offset" style="grid-column-start:1"/>');
-      offset.text('$' + hex(seg.start, 4));
-      this.maindiv.append(offset);
+  addBlock(block: MemMapBlock, col: MemMapColumn, colstart: number, bounds: number[]) {
+    var div = $('<div class="segment"/>');
+    var describe = (b: MemMapBlock) =>
+      `${b.name ? b.name + ': ' : ''}$${hex(b.start, 4)} - $${hex(b.end - 1, 4)} (${b.approx ? '~' : ''}${b.end - b.start} bytes)`;
+    var hidden = block.hidden || [];
+    div.text(block.name + (hidden.length ? ` +${hidden.length}` : ''));
+    div.attr('title', [block].concat(hidden).map(describe).join('\n'));
+    if (block.type) div.addClass('segment-' + block.type);
+    // widen into lanes to the right that are free over this range
+    var span = col.lanes - block.lane;
+    for (var other of col.blocks) {
+      if (other.lane > block.lane && other.start < block.end && other.end > block.start)
+        span = Math.min(span, other.lane - block.lane);
     }
-    var segdiv = $('<div class="segment"/>');
-    segdiv.text(seg.name);
-    let alttext = `$${hex(seg.start)} - $${hex(seg.last || seg.start + seg.size - 1)}`
-    alttext += ` (${seg.size} bytes)`;
-    // set alttext of div
-    segdiv.attr('title', alttext);
-    if (!newrow || seg.source == 'linker')
-      segdiv.css('grid-column-start', 3); // make sure it's on right side
-    var pad = Math.max(3.0, Math.log(seg.size + 1)) * 0.5;
-    segdiv.css('height', pad + 'em');
-    if (seg.type) {
-      segdiv.addClass('segment-' + seg.type);
-    }
-    this.maindiv.append(segdiv);
-    //var row = $('<div class="row"/>').append(offset, segdiv);
-    //var container = $('<div class="container"/>').append(row);
-    //this.maindiv.append(container);
-    segdiv.click(() => {
+    div.css('grid-row', `${bounds.indexOf(block.start) + 2} / ${bounds.indexOf(block.end) + 2}`);
+    div.css('grid-column', `${colstart + block.lane} / span ${span}`);
+    div.click(() => {
       // TODO: what if memory browser does not exist?
       var memview = projectWindows.createOrShow('#memory') as MemoryView;
-      memview.scrollToAddress(seg.start);
+      memview.scrollToAddress(block.start);
     });
+    this.maindiv.append(div);
   }
 
   refresh() {
     this.maindiv.empty();
-    var segments = current_project.segments;
-    if (segments) {
-      var curofs = 0;
-      var laststart = -1;
-      for (var seg of segments) {
-        // add free space
-        if (seg.start > curofs) {
-          this.addSegment({ name: '', start: curofs, size: seg.start - curofs }, true);
-        }
-        this.addSegment(seg, laststart != seg.start);
-        laststart = seg.start;
-        curofs = seg.start + seg.size;
-      }
+    var layout = computeMemoryMapLayout(current_project.segments, platform.debugSymbols?.symbolmap, null, platform.debugSymbols?.symbolsizes);
+    var bounds = layout.bounds;
+    if (!bounds.length) return;
+    // columns: address, then one grid column per lane
+    var cols = ['5em'];
+    var colstart = 2;
+    var header = $('<div class="memmap-header" style="grid-row:1;grid-column:1"/>').text('Address');
+    this.maindiv.append(header);
+    for (var col of layout.columns) {
+      for (var i = 0; i < col.lanes; i++) cols.push('minmax(0,1fr)');
+      $('<div class="memmap-header"/>')
+        .text(col.title)
+        .css('grid-row', '1')
+        .css('grid-column', `${colstart} / span ${col.lanes}`)
+        .appendTo(this.maindiv);
+      for (var block of col.blocks) this.addBlock(block, col, colstart, bounds);
+      colstart += col.lanes;
     }
+    // rows: header, then one row per address range
+    var rows = ['auto'];
+    for (var i = 0; i + 1 < bounds.length; i++) {
+      var size = bounds[i + 1] - bounds[i];
+      rows.push(Math.max(3.0, Math.log(size + 1)) * 0.5 + 'em');
+      $('<div class="segment-offset"/>')
+        .text('$' + hex(bounds[i], 4))
+        .css('grid-row', `${i + 2}`)
+        .css('grid-column', '1')
+        .appendTo(this.maindiv);
+    }
+    this.maindiv.css('grid-template-columns', cols.join(' '));
+    this.maindiv.css('grid-template-rows', rows.join(' '));
   }
 
 }

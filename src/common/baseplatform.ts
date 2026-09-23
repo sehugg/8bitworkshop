@@ -54,10 +54,12 @@ export class DebugSymbols {
   symbolmap: SymbolMap;	// symbol -> address
   addr2symbol: AddrSymbolMap;	// address -> symbol
   debuginfo: {}; // extra platform-specific debug info
+  symbolsizes?: SymbolMap; // symbol -> size in bytes, if known
 
-  constructor(symbolmap: SymbolMap, debuginfo: {}) {
+  constructor(symbolmap: SymbolMap, debuginfo: {}, symbolsizes?: SymbolMap) {
     this.symbolmap = symbolmap;
     this.debuginfo = debuginfo;
+    this.symbolsizes = symbolsizes;
     this.addr2symbol = invertMap(symbolmap);
     //// TODO: shouldn't be necc.
     if (!this.addr2symbol[0x0]) this.addr2symbol[0x0] = '$00'; // needed for ...

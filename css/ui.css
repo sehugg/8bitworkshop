@@ -740,6 +740,41 @@ div.markdown th {
 .segment.segment-io {
   background-color:#ffcccc;
 }
+.memmap {
+  display: grid;
+  align-content: start;
+  column-gap: 2px;
+}
+.memmap .segment {
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.1;
+  font-size: 10pt;
+  min-width: 0;
+}
+.segment.segment-unmapped {
+  background-color: transparent;
+  border-style: dashed;
+  border-color: rgba(128,128,128,0.3);
+}
+.segment.segment-free {
+  background-color: transparent;
+  border-color: rgba(128,128,128,0.4);
+}
+.segment.segment-var {
+  background-color: #eedd99;
+}
+.memmap-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: #333;
+  color: #ccc;
+  text-align: center;
+  font-weight: bold;
+  padding: 2px 0;
+}
 .segment-offset {
   font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
   font-size: 12pt;
