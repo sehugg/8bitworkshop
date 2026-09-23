@@ -70,7 +70,7 @@ describe('Memory map layout', function () {
       _small: 0x300, _buffer: 0x302, _last: 0x380,
       __BSS_RUN__: 0x300, _code: 0x8000, _zp: 0x10,
     };
-    const vars = findLargeVariables(symbols, native.concat(linker));
+    const vars = findLargeVariables(symbols, native.concat(linker), {minVarSize:16});
     assert.deepEqual(vars.map(v => [v.name, v.start, v.end]), [
       ['_last', 0x380, 0x400],
       ['_buffer', 0x302, 0x380],
@@ -79,14 +79,14 @@ describe('Memory map layout', function () {
   });
 
   it('skips the last symbol of a native-only RAM segment', function () {
-    const vars = findLargeVariables({ _a: 0x100, _b: 0x200 }, native);
+    const vars = findLargeVariables({ _a: 0x100, _b: 0x200 }, native, {minVarSize:16});
     assert.deepEqual(vars.map(v => v.name), ['_a']);
   });
 
   it('uses reported symbol sizes over gap estimates', function () {
     const symbols = { _a: 0x300, _b: 0x340, ZeroStart: 0x380, _c: 0x380 };
     const sizes = { _a: 20, _b: 8, ZeroStart: 0, _c: 0x40 };
-    const vars = findLargeVariables(symbols, native.concat(linker), {}, sizes);
+    const vars = findLargeVariables(symbols, native.concat(linker), {minVarSize:16}, sizes);
     assert.deepEqual(vars.map(v => [v.name, v.start, v.end, !!v.approx]), [
       ['_c', 0x380, 0x3c0, false],
       ['_a', 0x300, 0x314, false],

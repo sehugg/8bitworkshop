@@ -1,7 +1,8 @@
 import assert from "assert";
 import fs from "fs";
+import os from "os";
 import path from "path";
-import { before, describe, it } from "mocha";
+import { after, before, describe, it } from "mocha";
 import { store, fixParamsWithDefines, applyAsmProjectParams, parseBuildDirectives, applyBuildDirectives } from "../../src/worker/builder";
 import { defineArgs, linkSymbolArgs, extraArgsFor, getPlatformToolConfig, TOOL_META } from "../../src/common/toolmeta";
 import { compileSourceFile, preload } from "../../src/tools/testlib";
@@ -372,8 +373,9 @@ describe("applyAsmProjectParams (backwards compatibility)", function () {
 
 describe("build directive wiring (integration)", function () {
   this.timeout(120000);
-  const tmpdir = "/tmp/pi-agent/buildparams";
-  before(function () { fs.mkdirSync(tmpdir, { recursive: true }); });
+  let tmpdir: string;
+  before(function () { tmpdir = fs.mkdtempSync(path.join(os.tmpdir(), "buildparams-")); });
+  after(function () { fs.rmSync(tmpdir, { recursive: true, force: true }); });
 
   function writeSource(name: string, code: string): string {
     const p = path.join(tmpdir, name);

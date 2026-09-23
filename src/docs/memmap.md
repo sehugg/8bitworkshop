@@ -9,13 +9,13 @@ which most linker-based toolchains provide.
 
 ## Columns
 
-- **Memory** shows the platform's native memory map (RAM, ROM, I/O).
+- **System** shows the platform's native memory map (RAM, ROM, I/O).
   Gaps between areas appear as dashed "unmapped" bars, so the column
   covers the whole address space.
 - **Segments** shows the segments the linker produced. Free space
   between segments appears as an empty bar.
-- **Variables** shows large variables and arrays (16 bytes or more) in
-  RAM. Sizes come from the compiler when it reports them (oscar64);
+- **Objects** shows large variables and arrays (16 bytes or more) in
+  RAM. Sizes come from the toolchain when it reports them (cc65, oscar64);
   otherwise they are estimated from the distance to the next symbol.
 
 A column is hidden when it has nothing to show. Overlapping areas (for

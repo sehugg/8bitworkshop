@@ -415,6 +415,7 @@ describe('Platform Replay', () => {
       platform.nextFrame();
       booted = platform.readAddress(0x0600) == 0x42;
     }
+    platform.pause();
     assert.ok(booted, "ATR boot code did not run");
   });
 

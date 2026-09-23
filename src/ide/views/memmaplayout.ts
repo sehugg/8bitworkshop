@@ -94,7 +94,7 @@ function isHiddenSymbol(name: string) {
 // since its extent is unknown.
 export function findLargeVariables(symbolmap: { [sym: string]: number }, segments: Segment[], opts?: MemMapOptions,
   symbolsizes?: { [sym: string]: number }): MemMapBlock[] {
-  const minSize = opts?.minVarSize ?? 16;
+  const minSize = opts?.minVarSize ?? 128;
   const maxVars = opts?.maxVars ?? 64;
   const ramsegs = segments.filter(s => s.type == 'ram' && s.size > 0);
   if (!symbolmap || !ramsegs.length) return [];
@@ -150,7 +150,7 @@ export function computeMemoryMapLayout(segments: Segment[], symbolmap?: { [sym: 
   }
   const vars = findLargeVariables(symbolmap, segments, opts, symbolsizes);
   if (vars.length) {
-    columns.push(makeColumn('vars', 'Variables', vars, maxLanes));
+    columns.push(makeColumn('vars', 'Objects', vars, maxLanes));
   }
   const bset = new Set<number>();
   for (const col of columns)

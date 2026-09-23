@@ -618,6 +618,7 @@ export class ControllerPoller {
   poll() {
     if (!this.active) return;
     var gamepads = navigator.getGamepads && navigator.getGamepads();
+    if (!gamepads) return;
     for (var gpi = 0; gpi < gamepads.length; gpi++) {
       let state = this.state[gpi];
       let lastState = this.lastState[gpi];
