@@ -782,7 +782,7 @@ void pickup_object(Actor* actor) {
   if (objtype && actor->state <= WALKING) {
     byte objx = floor->objpos * 16;
     // is the actor close to the object?
-    if (actor->x >= objx && actor->x < objx+16) {
+    if (actor->x >= objx-8 && actor->x < objx+16) {
       // clear the item from the floor and redraw
       floor->objtype = 0;
       refresh_floor(actor->floor);

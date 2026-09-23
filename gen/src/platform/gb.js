@@ -6,11 +6,16 @@ const emu_1 = require("../common/emu");
 const disasmSM83_1 = require("../common/cpu/disasmSM83");
 const GB_PRESETS = [
     { id: 'hello.c', name: 'Hello World', category: 'C' },
+    { id: 'typewriter.c', name: 'Typewriter Text' },
     { id: 'testdrawing.c', name: 'Drawing Routines' },
     { id: 'testphys.c', name: 'Joypad Sprite' },
     { id: 'sprites.c', name: 'Multiple Sprites' },
     { id: 'metasprites.c', name: 'Metasprites' },
+    { id: 'paint.c', name: 'Paint Program' },
     { id: 'scroll.c', name: 'Scrolling' },
+    { id: 'large_map.c', name: 'Large Scrolling Map' },
+    { id: 'galaxy.c', name: 'Window + Sprites' },
+    { id: 'gbdecompress.c', name: 'Decompression' },
     { id: 'music.c', name: 'Music Player' },
     { id: 'siegegame.c', name: 'Siege Game' },
     { id: 'climber.c', name: 'Climber Game' },
