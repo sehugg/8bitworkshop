@@ -62,6 +62,13 @@ const uint8_t wave_pattern[16] = {
   0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xa8,0x88,0x44,0x88,0x98,0x76,0x54,0x32,0x10
 };
 
+/* 8x8 music note sprite (2bpp: low plane, high plane per row).
+ * Colour index 1 (low plane only), so index 0 stays transparent. */
+const uint8_t note_tile[16] = {
+  0x1e,0x00, 0x1c,0x00, 0x10,0x00, 0x10,0x00,
+  0x10,0x00, 0x78,0x00, 0xf8,0x00, 0x70,0x00
+};
+
 byte default_pulse_duty = 0x20;
 byte default_pulse_vol = 8;
 
@@ -81,7 +88,6 @@ byte next_music_byte(void) {
     // we are in a backreference, count down
     if (--music_runlen == 0) {
       music_ptr = music_rts;
-      music_rts = 0;
     }
   } else if (ch == 0xfe) {
     // back-reference: 0xfe <offset> <length>
@@ -177,7 +183,12 @@ void main(void) {
   font_init();
   put_str(0, 7, "Ty zh mene pidmanula");
   put_str(0, 9, "(Pidmanula, Pidvela)");
+  /* one music note tile, shown by two sprites */
+  set_sprite_data(0, 1, note_tile);
+  set_sprite_tile(0, 0);
+  set_sprite_tile(1, 0);
   SHOW_BKG;
+  SHOW_SPRITES;
   DISPLAY_ON;
 
   psg_init();
@@ -186,6 +197,9 @@ void main(void) {
     if (!music_ptr) start_music(music1);
     wait_vbl_done();
     play_music();
+    /* sprite X follows the low byte of each music pointer (folded on screen) */
+    move_sprite(0, (uint8_t)(((uint8_t)music_ptr & 0x7f) + 16), 120);
+    move_sprite(1, (uint8_t)(((uint8_t)music_rts & 0x7f) + 16), 130);
   }
 }
 
