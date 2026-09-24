@@ -393,7 +393,8 @@ exports.PLATFORM_PARAMS = {
         arch: 'gbz80',
         code_start: 0x0, // ROM starts @ 0x0, header @ 0x100, etc.
         codeseg_start: 0x200, // _CODE area starts here
-        rom_size: 0x8000,
+        rom_size: 0x8000, // grows to fit the highest bank
+        rom_banking: { size: 0x4000, window: 0x4000 }, // #pragma bank N -> _CODE_N @ 0xN4000
         data_start: 0xc0a0,
         data_size: 0x1f60,
         stack_end: 0xe000,

@@ -3590,6 +3590,9 @@
       codeseg_start: 512,
       // _CODE area starts here
       rom_size: 32768,
+      // grows to fit the highest bank
+      rom_banking: { size: 16384, window: 16384 },
+      // #pragma bank N -> _CODE_N @ 0xN4000
       data_start: 49312,
       data_size: 8032,
       stack_end: 57344,
@@ -8036,36 +8039,65 @@
     }
     return arr;
   }
-  function parseIHX(ihx, rom_start, rom_size, errors) {
+  function bankedAreaArgs(rels, banking) {
+    let banks = /* @__PURE__ */ new Set();
+    for (let rel of rels) {
+      let re = /^A _CODE_(\d+) /gm, m;
+      while (m = re.exec(rel)) {
+        let n = parseInt(m[1]);
+        if (n > 0) banks.add(n);
+      }
+    }
+    let args = [];
+    for (let n of Array.from(banks).sort((a, b) => a - b))
+      args.push("-b", `_CODE_${n}=0x${(n << 16 | banking.window).toString(16)}`);
+    return args;
+  }
+  function parseIHX(ihx, rom_start, rom_size, errors, banking) {
     var output = new Uint8Array(new ArrayBuffer(rom_size));
-    var high_size = 0;
+    var upper = 0;
     for (var s of ihx.split("\n")) {
       if (s[0] == ":") {
         var arr = hexToArray(s, 1);
         var count = arr[0];
-        var offset = (arr[1] << 8) + arr[2] - rom_start;
+        var address = upper + (arr[1] << 8) + arr[2];
+        var offset = address - rom_start;
         var rectype = arr[3];
         if (rectype == 0) {
-          if (offset < 0 || offset + count > rom_size) {
-            console.log(`skipping IHX record outside ROM: 0x${offset.toString(16)} +${count}`);
+          if (banking && address >= 65536) {
+            let bank = address >>> 16;
+            let low = address & 65535;
+            if (low < banking.window || low + count > banking.window + banking.size) {
+              errors.push({ line: 0, msg: `Bank ${bank} overflows its 0x${banking.size.toString(16)}-byte window at 0x${low.toString(16)}` });
+              continue;
+            }
+            offset = bank * banking.size + low - banking.window;
+            if (offset + count > output.length) {
+              let newsize = output.length;
+              while (newsize < offset + count) newsize *= 2;
+              let grown = new Uint8Array(newsize);
+              grown.set(output);
+              output = grown;
+            }
+          }
+          if (offset < 0 || offset + count > output.length) {
+            console.log(`skipping IHX record outside ROM: 0x${address.toString(16)} +${count}`);
             continue;
           }
           if (output[offset] !== 0) {
             errors.push({ line: 0, msg: `IHX overlap offset 0x${offset.toString(16)}` });
           }
           for (var i = 0; i < count; i++) {
-            var b = arr[4 + i];
-            output[i + offset] = b;
+            output[i + offset] = arr[4 + i];
           }
-          if (i + offset > high_size) high_size = i + offset;
         } else if (rectype == 1) {
           break;
+        } else if (rectype == 4) {
+          upper = (arr[4] << 8 | arr[5]) << 16;
         } else {
           console.log(s);
         }
       }
-    }
-    if (high_size > rom_size) {
     }
     return output;
   }
@@ -8183,7 +8215,20 @@
         args.push.apply(args, params.extra_link_args);
       args.push.apply(args, linkSymbolArgs("sdldz80", params.symbols && params.symbols.linker));
       args.push.apply(args, extraArgsFor("sdldz80", params.buildArgs));
-      args.push.apply(args, step.args);
+      var objargs = step.args;
+      if (params.rom_banking) {
+        let banked = objargs.filter((fn2) => fn2.endsWith(".rel") && bankedAreaArgs([getWorkFileAsString(fn2)], params.rom_banking).length);
+        let bargs = bankedAreaArgs(banked.map(getWorkFileAsString), params.rom_banking);
+        for (let i = 0; i < bargs.length; i += 2) {
+          let area = bargs[i + 1].split("=")[0] + "=";
+          if (!args.some((a) => a.startsWith(area)))
+            args.push(bargs[i], bargs[i + 1]);
+        }
+        let rest = objargs.filter((fn2) => !banked.includes(fn2));
+        if (banked.length && rest.length)
+          objargs = rest.slice(0, -1).concat(banked, rest.slice(-1));
+      }
+      args.push.apply(args, objargs);
       execMain(step, LDZ80, args);
       if (errors.length) {
         return { errors };
@@ -8194,7 +8239,7 @@
       putWorkFile("main.noi", noiout);
       if (!anyTargetChanged(step, ["main.ihx", "main.noi"]))
         return;
-      var binout = parseIHX(hexout, params.rom_start !== void 0 ? params.rom_start : params.code_start, params.rom_size, errors);
+      var binout = parseIHX(hexout, params.rom_start !== void 0 ? params.rom_start : params.code_start, params.rom_size, errors, params.rom_banking);
       if (errors.length) {
         return { errors };
       }
@@ -8238,6 +8283,10 @@
         }
       }
       if (step.params.arch === "gbz80") {
+        if (binout.length > 32768) {
+          binout[328] = Math.log2(binout.length / 32768);
+          if (binout[327] === 0) binout[327] = 25;
+        }
         var checksum = 0;
         for (var address = 308; address <= 332; address++) {
           checksum = checksum - binout[address] - 1;
@@ -8253,6 +8302,22 @@
       };
     }
   }
+  function fixBankedCalls(asm) {
+    asm = asm.replace(
+      /^(\s*\.dw\s+(_\w+)\s*\n\s*\.dw\s+)0\s*; PENDING: bank support/gm,
+      (_m, head, fn) => head + "b" + fn
+    );
+    let m = /^\s*\.area\s+_CODE_(\d+)\b/m.exec(asm);
+    if (m && parseInt(m[1]) > 0) {
+      let defs = [];
+      let re = /^(_\w+)::/gm, f;
+      while (f = re.exec(asm))
+        defs.push(`	.globl b${f[1]}
+b${f[1]} == ${m[1]}`);
+      if (defs.length) asm += "\n" + defs.join("\n") + "\n";
+    }
+    return asm;
+  }
   function compileSDCC(step) {
     gatherFiles(step, {
       mainFilePath: "main.c"
@@ -8261,6 +8326,7 @@
     var params = step.params;
     var isGBZ80 = params.arch === "gbz80";
     var outpath = step.prefix + ".asm";
+    fixParamsWithDefines(step.path, params);
     if (staleFiles(step, [outpath])) {
       var errors = [];
       loadNative("sdcc");
@@ -8325,6 +8391,7 @@
       }
       var asmout = FS.readFile(outpath, { encoding: "utf8" });
       asmout = " .area _HOME\n .area _CODE\n .area _INITIALIZER\n .area _DATA\n .area _INITIALIZED\n .area _BSEG\n .area _BSS\n .area _HEAP\n" + asmout;
+      if (isGBZ80) asmout = fixBankedCalls(asmout);
       putWorkFile(outpath, asmout);
     }
     return {
@@ -15681,6 +15748,16 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       for (let i = 0; i < la.length; i++) {
         if (la[i].split("=")[0] === name) {
           la[i] = entry;
+          applySymbolConfigs(params, [entry]);
+          return;
+        }
+      }
+    }
+    let xa = params.extra_link_args;
+    if (xa) {
+      for (let i = 1; i < xa.length; i++) {
+        if (xa[i - 1] === "-g" && xa[i].split("=")[0] === name) {
+          xa[i] = entry;
           applySymbolConfigs(params, [entry]);
           return;
         }

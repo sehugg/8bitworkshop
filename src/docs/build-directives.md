@@ -212,6 +212,30 @@ the top of the file:
 
 Either pragma slows builds but produces faster and smaller code.
 
+### Game Boy ROM banks
+
+On the Game Boy, `#pragma bank N` at the top of a file puts its code and
+constant data in ROM bank *N*, which the CPU sees at `$4000-$7FFF`. Link
+the file from your main file, and call its functions through `__banked`
+prototypes. Each call switches to the function's bank and back again:
+
+~~~c
+// bank1.c
+#pragma bank 1
+void say_hello(char* buf) __banked { ... }
+
+// main.c
+//#link "bank1.c"
+//#symbol ld GB_MAPPER=0x19
+void say_hello(char* buf) __banked;
+~~~
+
+The ROM grows to fit the highest bank, and the build writes the ROM size
+into the header. If `GB_MAPPER` is still 0 (ROM only), the build selects
+MBC5. A bank holds 16 KB; overflowing it is a build error. Banked data
+can only be read while its bank is mapped, so copy it out from a
+`__banked` function. See the *ROM Bank Switching* preset.
+
 ## File extensions
 
 The extension of your source file determines the tool used to assemble

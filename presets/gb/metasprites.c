@@ -1,7 +1,8 @@
 /*
 Metasprites combine several hardware sprites to make a larger
 sprite. Our demo uses 4 hardware sprites in a 2x2 pattern,
-forming 16x16 pixel sprites.
+forming 16x16 pixel sprites. Actors alternate between the normal
+draw, a horizontal flip and a vertical flip.
 
 Ported from presets/nes/metasprites.c, using GBDK (gb/metasprites.h).
 The Game Boy OAM holds 40 sprites, so 10 actors of 4 sprites each
@@ -41,6 +42,8 @@ uint8_t actor_y[NUM_ACTORS];
 int8_t actor_dx[NUM_ACTORS];
 int8_t actor_dy[NUM_ACTORS];
 
+const int8_t deltas[4] = { -2, -1, 1, 2 };
+
 // setup LCD and tile data
 void setup_graphics(void) {
   DISPLAY_OFF;
@@ -60,20 +63,28 @@ void main(void) {
   setup_graphics();
 
   // initialize actors with random values
+  srand(0);
   for (i=0; i<NUM_ACTORS; i++) {
-    actor_x[i] = rand();
-    actor_y[i] = rand();
-    actor_dx[i] = (rand() & 3) - 1;
-    actor_dy[i] = (rand() & 3) - 1;
+    actor_x[i] = rand() + i * 8;
+    actor_y[i] = rand() + i * 8;
+    actor_dx[i] = deltas[rand() & 3];
+    actor_dy[i] = deltas[rand() & 3];
   }
 
   // loop forever
   while (1) {
     uint8_t base = 0;	// first free sprite ID
-    // draw and move all actors
+    // draw and move all actors, flipping some of them
     for (i=0; i<NUM_ACTORS; i++) {
-      base += move_metasprite(metasprite, 0x41, base,
-                              actor_x[i], actor_y[i]);
+      if (i < 4)
+        base += move_metasprite(metasprite, 0x41, base,
+                                actor_x[i], actor_y[i]);
+      else if (i < 7)
+        base += move_metasprite_hflip(metasprite, 0x41, base,
+                                      actor_x[i], actor_y[i]);
+      else
+        base += move_metasprite_vflip(metasprite, 0x41, base,
+                                      actor_x[i], actor_y[i]);
       actor_x[i] += actor_dx[i];
       actor_y[i] += actor_dy[i];
     }

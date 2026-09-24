@@ -1,8 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.bankedAreaArgs = bankedAreaArgs;
+exports.parseIHX = parseIHX;
 exports.assembleSDASZ80 = assembleSDASZ80;
 exports.assembleSDASGB = assembleSDASGB;
 exports.linkSDLDZ80 = linkSDLDZ80;
+exports.fixBankedCalls = fixBankedCalls;
 exports.compileSDCC = compileSDCC;
 const toolmeta_1 = require("../../common/toolmeta");
 const builder_1 = require("../builder");
@@ -17,47 +20,81 @@ function hexToArray(s, ofs) {
     }
     return arr;
 }
-function parseIHX(ihx, rom_start, rom_size, errors) {
+/** Linker `-b` args for each `_CODE_N` area (N > 0) the object files declare. */
+function bankedAreaArgs(rels, banking) {
+    let banks = new Set();
+    for (let rel of rels) {
+        let re = /^A _CODE_(\d+) /gm, m;
+        while ((m = re.exec(rel))) {
+            let n = parseInt(m[1]);
+            if (n > 0)
+                banks.add(n);
+        }
+    }
+    let args = [];
+    for (let n of Array.from(banks).sort((a, b) => a - b))
+        args.push('-b', `_CODE_${n}=0x${((n << 16) | banking.window).toString(16)}`);
+    return args;
+}
+/**
+ * Convert Intel HEX to a ROM image of rom_size bytes. With banking, records
+ * above 64 KB are placed by bank, and the image grows to the next power of 2
+ * that holds the highest bank.
+ */
+function parseIHX(ihx, rom_start, rom_size, errors, banking) {
     var output = new Uint8Array(new ArrayBuffer(rom_size));
-    var high_size = 0;
+    var upper = 0; // from type 04 (extended linear address) records
     for (var s of ihx.split("\n")) {
         if (s[0] == ':') {
             var arr = hexToArray(s, 1);
             var count = arr[0];
-            var offset = (arr[1] << 8) + arr[2] - rom_start;
+            var address = upper + (arr[1] << 8) + arr[2];
+            var offset = address - rom_start;
             var rectype = arr[3];
-            //console.log(rectype,address.toString(16),count,arr);
             if (rectype == 0) {
+                if (banking && address >= 0x10000) {
+                    let bank = address >>> 16;
+                    let low = address & 0xffff;
+                    if (low < banking.window || low + count > banking.window + banking.size) {
+                        errors.push({ line: 0, msg: `Bank ${bank} overflows its 0x${banking.size.toString(16)}-byte window at 0x${low.toString(16)}` });
+                        continue;
+                    }
+                    offset = bank * banking.size + low - banking.window;
+                    if (offset + count > output.length) {
+                        let newsize = output.length;
+                        while (newsize < offset + count)
+                            newsize *= 2;
+                        let grown = new Uint8Array(newsize);
+                        grown.set(output);
+                        output = grown;
+                    }
+                }
                 // The linker also emits records for whatever it placed outside
                 // the ROM -- initialized data, or a GSINIT area that landed in
                 // the _DATA area's RAM. Those bytes are not part of the ROM
                 // image; reading past the end of output to check them yields
                 // undefined, which used to be reported as an overlap.
-                if (offset < 0 || offset + count > rom_size) {
-                    console.log(`skipping IHX record outside ROM: 0x${offset.toString(16)} +${count}`);
+                if (offset < 0 || offset + count > output.length) {
+                    console.log(`skipping IHX record outside ROM: 0x${address.toString(16)} +${count}`);
                     continue;
                 }
                 if (output[offset] !== 0) {
                     errors.push({ line: 0, msg: `IHX overlap offset 0x${(offset).toString(16)}` });
                 }
                 for (var i = 0; i < count; i++) {
-                    var b = arr[4 + i];
-                    output[i + offset] = b;
+                    output[i + offset] = arr[4 + i];
                 }
-                if (i + offset > high_size)
-                    high_size = i + offset;
             }
             else if (rectype == 1) {
                 break;
+            }
+            else if (rectype == 4) {
+                upper = ((arr[4] << 8) | arr[5]) << 16;
             }
             else {
                 console.log(s); // unknown record type
             }
         }
-    }
-    // TODO: return ROM anyway?
-    if (high_size > rom_size) {
-        //errors.push({line:0, msg:"ROM size too large: 0x" + high_size.toString(16) + " > 0x" + rom_size.toString(16)});
     }
     return output;
 }
@@ -179,7 +216,27 @@ function linkSDLDZ80(step) {
         // //#symbol ld (sdldz80 uses -g sym=expr) and //#flag ld
         args.push.apply(args, (0, toolmeta_1.linkSymbolArgs)('sdldz80', params.symbols && params.symbols.linker));
         args.push.apply(args, (0, toolmeta_1.extraArgsFor)('sdldz80', params.buildArgs));
-        args.push.apply(args, step.args);
+        var objargs = step.args;
+        if (params.rom_banking) {
+            // place each #pragma bank N area, unless a //#flag ld already did
+            let banked = objargs.filter((fn) => fn.endsWith('.rel') && bankedAreaArgs([(0, builder_1.getWorkFileAsString)(fn)], params.rom_banking).length);
+            let bargs = bankedAreaArgs(banked.map(builder_1.getWorkFileAsString), params.rom_banking);
+            for (let i = 0; i < bargs.length; i += 2) {
+                let area = bargs[i + 1].split('=')[0] + '=';
+                if (!args.some((a) => a.startsWith(area)))
+                    args.push(bargs[i], bargs[i + 1]);
+            }
+            // Link banked objects just before the last bank 0 object. The
+            // linker writes an IHX extended address record when it flushes
+            // buffered data, using the address width of the module it is
+            // reading at that moment; the XL2 (16-bit) libraries come last, so
+            // the last object's upper address is lost -- harmless for bank 0.
+            // The first objects stay first: they set the area order crt0 needs.
+            let rest = objargs.filter((fn) => !banked.includes(fn));
+            if (banked.length && rest.length)
+                objargs = rest.slice(0, -1).concat(banked, rest.slice(-1));
+        }
+        args.push.apply(args, objargs);
         //console.log(args);
         (0, wasmutils_1.execMain)(step, LDZ80, args);
         if (errors.length) {
@@ -193,7 +250,7 @@ function linkSDLDZ80(step) {
         if (!(0, builder_1.anyTargetChanged)(step, ["main.ihx", "main.noi"]))
             return;
         // parse binary file
-        var binout = parseIHX(hexout, params.rom_start !== undefined ? params.rom_start : params.code_start, params.rom_size, errors);
+        var binout = parseIHX(hexout, params.rom_start !== undefined ? params.rom_start : params.code_start, params.rom_size, errors, params.rom_banking);
         if (errors.length) {
             return { errors: errors };
         }
@@ -245,8 +302,15 @@ function linkSDLDZ80(step) {
                 }
             }
         }
-        // gameboy: compute checksum
+        // gameboy: fix up header for the final ROM size, compute checksum
         if (step.params.arch === 'gbz80') {
+            if (binout.length > 0x8000) {
+                // ROM size code n means 32 KB << n
+                binout[0x148] = Math.log2(binout.length / 0x8000);
+                // a ROM-only cart can't switch banks; MBC5 accepts MBC1-style bank writes
+                if (binout[0x147] === 0)
+                    binout[0x147] = 0x19;
+            }
             var checksum = 0;
             for (var address = 0x0134; address <= 0x014C; address++) {
                 checksum = checksum - binout[address] - 1;
@@ -262,6 +326,25 @@ function linkSDLDZ80(step) {
         };
     }
 }
+/**
+ * sdcc 3.6.5 compiles a __banked call to `call banked_call; .dw _fn; .dw 0`,
+ * with a "PENDING: bank support" comment where the bank number belongs. Supply
+ * it the way later sdcc versions do: a file with `#pragma bank N` defines
+ * `b_fn == N` for each function, and call sites reference `b_fn`.
+ */
+function fixBankedCalls(asm) {
+    asm = asm.replace(/^(\s*\.dw\s+(_\w+)\s*\n\s*\.dw\s+)0\s*; PENDING: bank support/gm, (_m, head, fn) => head + 'b' + fn);
+    let m = /^\s*\.area\s+_CODE_(\d+)\b/m.exec(asm);
+    if (m && parseInt(m[1]) > 0) {
+        let defs = [];
+        let re = /^(_\w+)::/gm, f;
+        while ((f = re.exec(asm)))
+            defs.push(`\t.globl b${f[1]}\nb${f[1]} == ${m[1]}`);
+        if (defs.length)
+            asm += '\n' + defs.join('\n') + '\n';
+    }
+    return asm;
+}
 function compileSDCC(step) {
     (0, builder_1.gatherFiles)(step, {
         mainFilePath: "main.c" // not used
@@ -269,6 +352,7 @@ function compileSDCC(step) {
     var params = step.params;
     var isGBZ80 = params.arch === 'gbz80';
     var outpath = step.prefix + ".asm";
+    (0, builder_1.fixParamsWithDefines)(step.path, params); // //#symbol, //#flag, //#tooldef
     if ((0, builder_1.staleFiles)(step, [outpath])) {
         var errors = [];
         (0, wasmutils_1.loadNative)('sdcc');
@@ -335,6 +419,8 @@ function compileSDCC(step) {
         // massage the asm output
         var asmout = FS.readFile(outpath, { encoding: 'utf8' });
         asmout = " .area _HOME\n .area _CODE\n .area _INITIALIZER\n .area _DATA\n .area _INITIALIZED\n .area _BSEG\n .area _BSS\n .area _HEAP\n" + asmout;
+        if (isGBZ80)
+            asmout = fixBankedCalls(asmout);
         (0, builder_1.putWorkFile)(outpath, asmout);
     }
     return {

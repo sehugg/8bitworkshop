@@ -736,6 +736,54 @@ class GameBoyAPU {
 }
 class GameBoyMachine extends devices_1.BasicScanlineMachine {
     getKeyboardMap() { return GB_KEYCODE_MAP; }
+    // Host wall clock in ms; override in tests for deterministic time.
+    now() { return Date.now(); }
+    // Advance the live RTC by elapsed host time (unless halted).
+    syncRTC() {
+        if (!this.hasRTC || this.rtcHalt) {
+            this.rtcLastSync = this.now();
+            return;
+        }
+        var elapsed = Math.floor((this.now() - this.rtcLastSync) / 1000);
+        if (elapsed <= 0)
+            return;
+        this.rtcLastSync += elapsed * 1000;
+        var total = this.rtcSec + elapsed;
+        this.rtcSec = total % 60;
+        total = this.rtcMin + Math.floor(total / 60);
+        this.rtcMin = total % 60;
+        total = this.rtcHour + Math.floor(total / 60);
+        this.rtcHour = total % 24;
+        var days = this.rtcDay + Math.floor(total / 24);
+        if (days > 511) {
+            this.rtcCarry = true;
+            days &= 0x1FF;
+        }
+        this.rtcDay = days;
+    }
+    // Copy the live clock into the latched registers (0x6000-0x7FFF: 0 then 1).
+    latchRTC() {
+        this.syncRTC();
+        this.rtcLatched[0] = this.rtcSec;
+        this.rtcLatched[1] = this.rtcMin;
+        this.rtcLatched[2] = this.rtcHour;
+        this.rtcLatched[3] = this.rtcDay & 0xFF;
+        this.rtcLatched[4] = ((this.rtcDay >> 8) & 0x01) | (this.rtcHalt ? 0x40 : 0) | (this.rtcCarry ? 0x80 : 0);
+    }
+    // Power on the RTC at the current wall-clock time.
+    resetRTC() {
+        var d = new Date(this.now());
+        this.rtcSec = d.getSeconds();
+        this.rtcMin = d.getMinutes();
+        this.rtcHour = d.getHours();
+        this.rtcDay = 0;
+        this.rtcHalt = false;
+        this.rtcCarry = false;
+        this.rtcRegisterSelect = -1;
+        this.rtcLatchLast = 0;
+        this.rtcLastSync = this.now();
+        this.latchRTC();
+    }
     constructor() {
         super();
         this.cpuFrequency = 4194304; // 4.19 MHz
@@ -811,6 +859,18 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
         this.ramEnabled = false;
         this.mbcMode = 0; // 0=ROM banking, 1=RAM banking
         this.romBankMask = 0x1F;
+        // MBC3 real-time clock (cart types 0x0F, 0x10)
+        this.hasRTC = false;
+        this.rtcRegisterSelect = -1; // -1 = none, else 0x08..0x0C
+        this.rtcLatchLast = 0; // last value written to 0x6000-0x7FFF
+        this.rtcSec = 0;
+        this.rtcMin = 0;
+        this.rtcHour = 0;
+        this.rtcDay = 0; // 9-bit day counter
+        this.rtcHalt = false;
+        this.rtcCarry = false;
+        this.rtcLatched = new Uint8Array(5); // snapshot returned to the CPU
+        this.rtcLastSync = 0; // host time (ms) at last sync
         this.read = (0, emu_1.newAddressDecoder)([
             [0x0000, 0x3FFF, 0x3FFF, (a) => { return this.rom ? this.rom[a] : 0xFF; }],
             [0x4000, 0x7FFF, 0x3FFF, (a) => { return this.readBankedROM(a); }],
@@ -916,8 +976,14 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
         }
         else if (fullAddr < 0x6000) {
             if (this.mbcType === 3) {
-                // MBC3: RAM bank 0-3 (or RTC register select)
-                this.ramBank = v & 0x0F;
+                // MBC3: RTC register select (0x08-0x0C) or RAM bank (0x00-0x07)
+                if (this.hasRTC && v >= 0x08 && v <= 0x0C) {
+                    this.rtcRegisterSelect = v;
+                }
+                else {
+                    this.rtcRegisterSelect = -1;
+                    this.ramBank = v & 0x03;
+                }
             }
             else {
                 // MBC1: RAM bank / upper ROM bank bits
@@ -931,9 +997,14 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
             }
         }
         else {
-            // MBC1: banking mode select; MBC3: latch clock data (ignored)
-            if (this.mbcType === 1)
+            // MBC1: banking mode select; MBC3: latch clock data on 0x00 then 0x01
+            if (this.mbcType === 1) {
                 this.mbcMode = v & 0x01;
+            }
+            else if (this.mbcType === 3 && this.rtcLatchLast === 0x00 && v === 0x01) {
+                this.latchRTC();
+            }
+            this.rtcLatchLast = v;
         }
     }
     writeMBC5(fullAddr, v) {
@@ -955,12 +1026,18 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
         }
     }
     readExtRAM(a) {
+        if (this.hasRTC && this.rtcRegisterSelect >= 0) {
+            this.syncRTC();
+            return this.rtcLatched[this.rtcRegisterSelect - 0x08];
+        }
         if (!this.ramEnabled && this.mbcType > 0)
             return 0xFF;
         var offset = a + (this.ramBank * 0x2000);
         return offset < this.extram.length ? this.extram[offset] : 0xFF;
     }
     writeExtRAM(a, v) {
+        if (this.hasRTC && this.rtcRegisterSelect >= 0)
+            return; // RTC registers are read-only
         if (!this.ramEnabled && this.mbcType > 0)
             return;
         var offset = a + (this.ramBank * 0x2000);
@@ -1289,15 +1366,22 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
         }
     }
     // CGB speed switch (executed during STOP instruction)
+    //
+    // Double speed runs the CPU at 8 MHz while the PPU/timer/APU stay at
+    // 4 MHz. SM83 returns whole M-cycles per instruction, so an instruction
+    // that takes n M-cycles consumes n*4 CPU T-cycles normally, but only
+    // n*2 hardware T-cycles in double speed. Both are integers, so no
+    // fractional accumulator is required: advanceCPU() returns the hardware
+    // (PPU) T-cycles to the scanline loop while clocking the PPU/timer/APU
+    // with that same hardware count. The frame loop then fits ~2x the
+    // instructions per scanline.
     performSpeedSwitch() {
         if (this.cgbMode && this.speedSwitchArmed) {
             this.doubleSpeed = !this.doubleSpeed;
             this.speedSwitchArmed = false;
-            // In double speed, CPU runs at 8 MHz but PPU stays at normal speed
-            // We handle this by doubling T-cycles returned from advanceCPU
         }
     }
-    // Timer update — called per CPU cycle (M-cycle)
+    // Timer update — hardware T-cycles
     updateTimer(cycles) {
         // DIV increments at 16384 Hz = every 256 T-cycles = 64 M-cycles
         // But we count in M-cycles (4 T-cycles each)
@@ -1350,20 +1434,29 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
         var oldFlags = this.cpu.interruptFlags;
         var c = this.cpu;
         var n = 1;
+        var isStop = false;
         if (this.cpu.isStable()) {
             this.probe.logExecute(this.cpu.getPC(), this.cpu.getSP());
+            // STOP (0x10) toggles speed if the switch was armed via KEY1 (FF4D)
+            if (this.cgbMode && this.speedSwitchArmed && !this.cpu.halted &&
+                this.read(this.cpu.getPC()) === 0x10) {
+                isStop = true;
+            }
         }
-        if (c.advanceInsn) {
-            n = c.advanceInsn(1);
-        }
-        var tCycles = n * 4;
-        this.probe.logClocks(tCycles);
+        n = c.advanceInsn(1);
+        var cpuCycles = n * 4;
+        this.probe.logClocks(cpuCycles);
+        // Hardware T-cycles: half of the CPU count in double speed. n is a
+        // whole M-cycle count, so n*2 stays an integer (no accumulator).
+        var tCycles = this.doubleSpeed ? n * 2 : cpuCycles;
+        if (isStop)
+            this.performSpeedSwitch();
         // Sync back any interrupt handling
         if (this.cpu.interruptFlags !== oldFlags) {
             this.syncInterruptsBack();
         }
         // Update timer
-        this.updateTimerMCycles(n);
+        this.updateTimerCycles(tCycles);
         // Update PPU mode based on dot position within scanline
         this.updatePPUMode(tCycles);
         // Clock APU and generate audio samples
@@ -1377,7 +1470,7 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
                 this.audio.feedSample(this.apu.getSample(), 1);
             }
         }
-        return tCycles; // return T-cycles to match cpuCyclesPerLine
+        return tCycles; // hardware T-cycles to match cpuCyclesPerLine
     }
     // Update PPU mode based on dot position within the current scanline
     updatePPUMode(tCycles) {
@@ -1408,8 +1501,7 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
             }
         }
     }
-    updateTimerMCycles(mCycles) {
-        var tCycles = mCycles * 4;
+    updateTimerCycles(tCycles) {
         this.divCounter = (this.divCounter + tCycles) & 0xFFFF;
         if (!(this.tac & 0x04))
             return;
@@ -1719,6 +1811,7 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
                     this.mbcType = 5;
                     break;
             }
+            this.hasRTC = cartType === 0x0F || cartType === 0x10;
         }
         else
             throw new emu_1.EmuHalt("ROM not long enough for header");
@@ -1814,6 +1907,14 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
         if (this.cgbMode) {
             this.cpu.A = 0x11;
         }
+        // Power on the RTC at the current wall-clock time (RTC carts only)
+        if (this.hasRTC) {
+            this.resetRTC();
+        }
+        else {
+            this.rtcRegisterSelect = -1;
+            this.rtcLatchLast = 0;
+        }
     }
     preFrame() {
         this.windowLine = 0;
@@ -1846,6 +1947,13 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
         };
         state['apu'] = this.apu.saveState();
         state['apuCycleAccum'] = this.apuCycleAccum;
+        state['rtc'] = {
+            hasRTC: this.hasRTC,
+            sec: this.rtcSec, min: this.rtcMin, hour: this.rtcHour, day: this.rtcDay,
+            halt: this.rtcHalt, carry: this.rtcCarry,
+            registerSelect: this.rtcRegisterSelect, latchLast: this.rtcLatchLast,
+            latched: this.rtcLatched.slice(0), lastSync: this.rtcLastSync,
+        };
         // GBC state
         if (this.cgbMode) {
             state['cgb'] = {
@@ -1904,6 +2012,22 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
         if (state.apu)
             this.apu.loadState(state.apu);
         this.apuCycleAccum = state.apuCycleAccum || 0;
+        if (state.rtc) {
+            var rtc = state.rtc;
+            this.hasRTC = rtc.hasRTC;
+            this.rtcSec = rtc.sec;
+            this.rtcMin = rtc.min;
+            this.rtcHour = rtc.hour;
+            this.rtcDay = rtc.day;
+            this.rtcHalt = rtc.halt;
+            this.rtcCarry = rtc.carry;
+            this.rtcRegisterSelect = rtc.registerSelect;
+            this.rtcLatchLast = rtc.latchLast;
+            if (rtc.latched)
+                this.rtcLatched.set(rtc.latched);
+            // keep wall-clock semantics: elapsed time since the save still counts
+            this.rtcLastSync = rtc.lastSync;
+        }
         // GBC state
         if (state.cgb) {
             var cgb = state.cgb;
@@ -1946,6 +2070,12 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
                     s += "--- CGB ---\n"
                         + "VBK  " + this.vramBankSelect + "  SVBK " + this.wramBankSelect + "\n"
                         + "SPD  " + (this.doubleSpeed ? "2x" : "1x") + "\n";
+                }
+                if (this.hasRTC) {
+                    this.syncRTC();
+                    s += "--- RTC ---\n"
+                        + (0, util_1.hex)(this.rtcHour, 2) + ":" + (0, util_1.hex)(this.rtcMin, 2) + ":" + (0, util_1.hex)(this.rtcSec, 2)
+                        + "  day " + this.rtcDay + (this.rtcHalt ? " HALT" : "") + (this.rtcCarry ? " CARRY" : "") + "\n";
                 }
                 return s;
         }
