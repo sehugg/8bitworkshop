@@ -214,6 +214,14 @@ describe("explicit build directives (//#symbol, //#flag, //#tooldef)", function 
     assert.deepStrictEqual(params.symbols.linker, []);
   });
 
+  it("#symbol ld replaces a matching -g entry in extra_link_args (sdldz80)", function () {
+    const params: any = { extra_link_args: ['-l', 'gb', '-g', 'GB_MAPPER=0x0', '-g', 'GB_RAM_SIZE=0x0'] };
+    applyDirectives("//#symbol ld GB_MAPPER=0x03\n//#symbol ld GB_RAM_SIZE=0x02\n", params);
+    assert.deepStrictEqual(params.extra_link_args, ['-l', 'gb', '-g', 'GB_MAPPER=0x03', '-g', 'GB_RAM_SIZE=0x02']);
+    // merged into extra_link_args, not queued again -> no duplicate -g on the link line
+    assert.deepStrictEqual(params.symbols.linker, []);
+  });
+
   it("#symbol ld queues a symbol that is not a platform libarg", function () {
     const params = nesParams();
     applyDirectives("//#symbol ld NEWSYM=0x10\n", params);

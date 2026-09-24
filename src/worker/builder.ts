@@ -591,7 +591,7 @@ function applySymbolConfigs(params, entries: string[]) {
 
 /**
  * Record a linker symbol. If the platform already passes `NAME=...` in
- * libargs, the entry is replaced in place -- appending instead would define the
+ * libargs (or `-g NAME=...` in extra_link_args), the entry is replaced in place -- appending instead would define the
  * symbol twice ("Redefinition of symbol", "Definition of public symbol ...").
  */
 function setLinkSymbol(params, symbols: PhaseLists, entry: string) {
@@ -601,6 +601,17 @@ function setLinkSymbol(params, symbols: PhaseLists, entry: string) {
     for (let i = 0; i < la.length; i++) {
       if (la[i].split('=')[0] === name) {
         la[i] = entry;
+        applySymbolConfigs(params, [entry]);
+        return;
+      }
+    }
+  }
+  // sdldz80 platforms pass `-g NAME=...` pairs in extra_link_args
+  let xa = params.extra_link_args;
+  if (xa) {
+    for (let i = 1; i < xa.length; i++) {
+      if (xa[i - 1] === '-g' && xa[i].split('=')[0] === name) {
+        xa[i] = entry;
         applySymbolConfigs(params, [entry]);
         return;
       }

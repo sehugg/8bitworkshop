@@ -1,7 +1,7 @@
 import { Worker } from "node:worker_threads";
 import { defineArgs, extraArgsFor, linkSymbolArgs } from "../../common/toolmeta";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, populateExtraFiles, anyTargetChanged, getWorkFileAsString } from "../builder";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, populateExtraFiles, anyTargetChanged, getWorkFileAsString, fixParamsWithDefines } from "../builder";
 import { parseListing, parseSourceLines, msvcErrorMatcher } from "../listingutils";
 import { EmscriptenModule, emglobal, execMain, loadNative, moduleInstFn, print_fn, setupFS, setupStdin } from "../wasmutils";
 import { preprocessMCPP } from "./mcpp";
@@ -266,6 +266,7 @@ export function compileSDCC(step: BuildStep): BuildStepResult {
     var params = step.params;
     var isGBZ80 = params.arch === 'gbz80';
     var outpath = step.prefix + ".asm";
+    fixParamsWithDefines(step.path, params); // //#symbol, //#flag, //#tooldef
     if (staleFiles(step, [outpath])) {
         var errors = [];
         loadNative('sdcc');
