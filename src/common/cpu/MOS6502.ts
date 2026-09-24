@@ -1,5 +1,7 @@
 
 import { CPU, Bus, ClockBased, SavesState, Interruptable } from "../devices";
+import { EmuHalt } from "../emu";
+import { hex } from "../util";
 
 // Copyright 2015 by Paulo Augusto Peccin. See license.txt distributed with this file.
 
@@ -274,6 +276,11 @@ export var _MOS6502 = function() {
     var illegalOpcode = function(op) {
         if (self.debug) self.breakpoint("Illegal Opcode: " + op);
     };
+
+    var haltOpcode = function() {
+        illegalOpcode("KIL/HLT/JAM");
+        throw new EmuHalt(`CPU executed halt instruction ($${hex(opcode,2)})`);
+    }
 
 
     // Addressing routines
@@ -1084,7 +1091,7 @@ export var _MOS6502 = function() {
         return [
             fetchOpcodeAndDecodeInstruction,
             function() {
-                illegalOpcode("KIL/HLT/JAM");
+                haltOpcode();
             },
             function() {
                 T--;        // Causes the processor to be stuck in this instruction forever
