@@ -1171,6 +1171,22 @@ export class GameBoyMachine extends BasicScanlineMachine {
   }
 
   // CGB speed switch (executed during STOP instruction)
+  //
+  // TODO: double speed is only partially implemented. performSpeedSwitch()
+  // toggles the flag, but nothing calls it and advanceCPU() does not account
+  // for the faster CPU. Plan for fixing:
+  //   1. Hook STOP: in advanceCPU(), snapshot the PC before advanceInsn() and
+  //      call performSpeedSwitch() when the executed opcode is 0x10.
+  //   2. Decouple CPU from hardware cycles: at double speed one CPU T-cycle is
+  //      half a hardware T-cycle. Accumulate the fractional remainder (the CPU
+  //      clock is 8 MHz vs the 4 MHz PPU/timer/APU) and pass only the hardware
+  //      T-cycles to updatePPUMode(), the timer and the APU, while returning
+  //      those hardware cycles so advanceFrame() fits ~2x instructions per
+  //      scanline. Keep the full tCycles for probe.logClocks().
+  //   3. The timer/APU paths currently take M-cycles; convert them to a
+  //      T-cycle entry point (or pass the halved value) so they stay at 4 MHz.
+  //   4. Once done, presets/gb/gbc.c's WORK counter should roughly double when
+  //      SPEED is DOUBLE, and DIV/timer rates should be unchanged.
   performSpeedSwitch(): void {
     if (this.cgbMode && this.speedSwitchArmed) {
       this.doubleSpeed = !this.doubleSpeed;
