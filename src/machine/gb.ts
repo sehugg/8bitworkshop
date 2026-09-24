@@ -1172,31 +1172,22 @@ export class GameBoyMachine extends BasicScanlineMachine {
 
   // CGB speed switch (executed during STOP instruction)
   //
-  // TODO: double speed is only partially implemented. performSpeedSwitch()
-  // toggles the flag, but nothing calls it and advanceCPU() does not account
-  // for the faster CPU. Plan for fixing:
-  //   1. Hook STOP: in advanceCPU(), snapshot the PC before advanceInsn() and
-  //      call performSpeedSwitch() when the executed opcode is 0x10.
-  //   2. Decouple CPU from hardware cycles: at double speed one CPU T-cycle is
-  //      half a hardware T-cycle. Accumulate the fractional remainder (the CPU
-  //      clock is 8 MHz vs the 4 MHz PPU/timer/APU) and pass only the hardware
-  //      T-cycles to updatePPUMode(), the timer and the APU, while returning
-  //      those hardware cycles so advanceFrame() fits ~2x instructions per
-  //      scanline. Keep the full tCycles for probe.logClocks().
-  //   3. The timer/APU paths currently take M-cycles; convert them to a
-  //      T-cycle entry point (or pass the halved value) so they stay at 4 MHz.
-  //   4. Once done, presets/gb/gbc.c's WORK counter should roughly double when
-  //      SPEED is DOUBLE, and DIV/timer rates should be unchanged.
+  // Double speed runs the CPU at 8 MHz while the PPU/timer/APU stay at
+  // 4 MHz. SM83 returns whole M-cycles per instruction, so an instruction
+  // that takes n M-cycles consumes n*4 CPU T-cycles normally, but only
+  // n*2 hardware T-cycles in double speed. Both are integers, so no
+  // fractional accumulator is required: advanceCPU() returns the hardware
+  // (PPU) T-cycles to the scanline loop while clocking the PPU/timer/APU
+  // with that same hardware count. The frame loop then fits ~2x the
+  // instructions per scanline.
   performSpeedSwitch(): void {
     if (this.cgbMode && this.speedSwitchArmed) {
       this.doubleSpeed = !this.doubleSpeed;
       this.speedSwitchArmed = false;
-      // In double speed, CPU runs at 8 MHz but PPU stays at normal speed
-      // We handle this by doubling T-cycles returned from advanceCPU
     }
   }
 
-  // Timer update — called per CPU cycle (M-cycle)
+  // Timer update — hardware T-cycles
   updateTimer(cycles: number): void {
     // DIV increments at 16384 Hz = every 256 T-cycles = 64 M-cycles
     // But we count in M-cycles (4 T-cycles each)
@@ -1246,16 +1237,28 @@ export class GameBoyMachine extends BasicScanlineMachine {
     var oldFlags = this.cpu.interruptFlags;
     var c = this.cpu as any;
     var n = 1;
-    if (this.cpu.isStable()) { this.probe.logExecute(this.cpu.getPC(), this.cpu.getSP()); }
-    if (c.advanceInsn) { n = c.advanceInsn(1); }
-    var tCycles = n * 4;
-    this.probe.logClocks(tCycles);
+    var isStop = false;
+    if (this.cpu.isStable()) {
+      this.probe.logExecute(this.cpu.getPC(), this.cpu.getSP());
+      // STOP (0x10) toggles speed if the switch was armed via KEY1 (FF4D)
+      if (this.cgbMode && this.speedSwitchArmed && !this.cpu.halted &&
+          this.read(this.cpu.getPC()) === 0x10) {
+        isStop = true;
+      }
+    }
+    n = c.advanceInsn(1);
+    var cpuCycles = n * 4;
+    this.probe.logClocks(cpuCycles);
+    // Hardware T-cycles: half of the CPU count in double speed. n is a
+    // whole M-cycle count, so n*2 stays an integer (no accumulator).
+    var tCycles = this.doubleSpeed ? n * 2 : cpuCycles;
+    if (isStop) this.performSpeedSwitch();
     // Sync back any interrupt handling
     if (this.cpu.interruptFlags !== oldFlags) {
       this.syncInterruptsBack();
     }
     // Update timer
-    this.updateTimerMCycles(n);
+    this.updateTimerCycles(tCycles);
     // Update PPU mode based on dot position within scanline
     this.updatePPUMode(tCycles);
     // Clock APU and generate audio samples
@@ -1269,7 +1272,7 @@ export class GameBoyMachine extends BasicScanlineMachine {
         this.audio.feedSample(this.apu.getSample(), 1);
       }
     }
-    return tCycles; // return T-cycles to match cpuCyclesPerLine
+    return tCycles; // hardware T-cycles to match cpuCyclesPerLine
   }
 
   // Update PPU mode based on dot position within the current scanline
@@ -1300,8 +1303,7 @@ export class GameBoyMachine extends BasicScanlineMachine {
   // Timer tracking with proper sub-cycle accuracy
   private timerSubCycles: number = 0;
 
-  updateTimerMCycles(mCycles: number): void {
-    var tCycles = mCycles * 4;
+  updateTimerCycles(tCycles: number): void {
     this.divCounter = (this.divCounter + tCycles) & 0xFFFF;
 
     if (!(this.tac & 0x04)) return;

@@ -5,8 +5,7 @@ A CGB has 8 background and 8 sprite palettes of 4 colors each, chosen
 from a 15-bit RGB palette, plus a double-speed CPU mode. This demo checks
 _cpu to see which machine it is running on. On a CGB it:
 
-- pulses one background palette entry smoothly with
-  set_bkg_palette_entry(),
+- animates a background palette entry with set_bkg_palette_entry(),
 - toggles between vivid color and the DMG-compatible grayscale palettes
   with cgb_compatibility() (press A),
 - switches the CPU between normal and double speed with cpu_slow() and
@@ -27,7 +26,7 @@ On a monochrome Game Boy it falls back to the four-shade DMG palettes.
 #include "gb/cgb.h"
 #include "gbtext.h"
 
-// 2x2 checkerboard tile (colors 1 and 2)
+// checkerboard tile (colors 1 and 2)
 static const uint8_t checker_tile[] = {
 /*;;{w:8,h:8,bpp:1,count:1,brev:1,np:2,pofs:1,sl:2};;*/
   0xCC,0xCC,0x33,0x33,0xCC,0xCC,0x33,0x33,
@@ -35,21 +34,10 @@ static const uint8_t checker_tile[] = {
 /*;;*/
 };
 
-// background palette. color 1 is replaced each frame by pulse().
+// vivid background palette, used for CGB palette 0
 palette_color_t colors[4] = {
-  RGB_BLACK, RGB_RED, RGB_DARKBLUE, RGB_WHITE
+  RGB_BLACK, RGB_RED, RGB_BLUE, RGB_CYAN
 };
-
-// smooth pastel rainbow: three triangle waves 120 degrees apart
-static uint16_t pulse(uint8_t t) {
-  uint8_t r = (t + 0) & 63;
-  uint8_t g = (t + 21) & 63;
-  uint8_t b = (t + 42) & 63;
-  if (r >= 32) r = 63 - r;
-  if (g >= 32) g = 63 - g;
-  if (b >= 32) b = 63 - b;
-  return RGB(r, g, b);
-}
 
 volatile uint8_t vbl_flag;
 void vbl_handler(void) NONBANKED { vbl_flag++; }
@@ -126,9 +114,9 @@ void main(void) {
     }
     put_str(7, 7, buf);
 
-    // pulse palette entry 1 (CGB only)
-    if (cgb_mode && color_mode)
-      set_bkg_palette_entry(0, 1, pulse(frame));
+    // pulse one palette entry slowly (CGB only)
+    if (cgb_mode && color_mode && (frame & 7) == 0)
+      set_bkg_palette_entry(0, 1, colors[(frame >> 3) & 3]);
 
     frame++;
   }
