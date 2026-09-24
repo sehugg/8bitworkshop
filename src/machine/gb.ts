@@ -754,7 +754,65 @@ export class GameBoyMachine extends BasicScanlineMachine {
   mbcMode: number = 0;        // 0=ROM banking, 1=RAM banking
   romBankMask: number = 0x1F;
 
+  // MBC3 real-time clock (cart types 0x0F, 0x10)
+  hasRTC: boolean = false;
+  rtcRegisterSelect: number = -1; // -1 = none, else 0x08..0x0C
+  rtcLatchLast: number = 0;       // last value written to 0x6000-0x7FFF
+  rtcSec: number = 0;
+  rtcMin: number = 0;
+  rtcHour: number = 0;
+  rtcDay: number = 0;             // 9-bit day counter
+  rtcHalt: boolean = false;
+  rtcCarry: boolean = false;
+  rtcLatched = new Uint8Array(5);  // snapshot returned to the CPU
+  rtcLastSync: number = 0;         // host time (ms) at last sync
+
   getKeyboardMap() { return GB_KEYCODE_MAP; }
+
+  // Host wall clock in ms; override in tests for deterministic time.
+  now(): number { return Date.now(); }
+
+  // Advance the live RTC by elapsed host time (unless halted).
+  syncRTC(): void {
+    if (!this.hasRTC || this.rtcHalt) { this.rtcLastSync = this.now(); return; }
+    var elapsed = Math.floor((this.now() - this.rtcLastSync) / 1000);
+    if (elapsed <= 0) return;
+    this.rtcLastSync += elapsed * 1000;
+    var total = this.rtcSec + elapsed;
+    this.rtcSec = total % 60;
+    total = this.rtcMin + Math.floor(total / 60);
+    this.rtcMin = total % 60;
+    total = this.rtcHour + Math.floor(total / 60);
+    this.rtcHour = total % 24;
+    var days = this.rtcDay + Math.floor(total / 24);
+    if (days > 511) { this.rtcCarry = true; days &= 0x1FF; }
+    this.rtcDay = days;
+  }
+
+  // Copy the live clock into the latched registers (0x6000-0x7FFF: 0 then 1).
+  latchRTC(): void {
+    this.syncRTC();
+    this.rtcLatched[0] = this.rtcSec;
+    this.rtcLatched[1] = this.rtcMin;
+    this.rtcLatched[2] = this.rtcHour;
+    this.rtcLatched[3] = this.rtcDay & 0xFF;
+    this.rtcLatched[4] = ((this.rtcDay >> 8) & 0x01) | (this.rtcHalt ? 0x40 : 0) | (this.rtcCarry ? 0x80 : 0);
+  }
+
+  // Power on the RTC at the current wall-clock time.
+  resetRTC(): void {
+    var d = new Date(this.now());
+    this.rtcSec = d.getSeconds();
+    this.rtcMin = d.getMinutes();
+    this.rtcHour = d.getHours();
+    this.rtcDay = 0;
+    this.rtcHalt = false;
+    this.rtcCarry = false;
+    this.rtcRegisterSelect = -1;
+    this.rtcLatchLast = 0;
+    this.rtcLastSync = this.now();
+    this.latchRTC();
+  }
 
   constructor() {
     super();
@@ -852,8 +910,13 @@ export class GameBoyMachine extends BasicScanlineMachine {
       }
     } else if (fullAddr < 0x6000) {
       if (this.mbcType === 3) {
-        // MBC3: RAM bank 0-3 (or RTC register select)
-        this.ramBank = v & 0x0F;
+        // MBC3: RTC register select (0x08-0x0C) or RAM bank (0x00-0x07)
+        if (this.hasRTC && v >= 0x08 && v <= 0x0C) {
+          this.rtcRegisterSelect = v;
+        } else {
+          this.rtcRegisterSelect = -1;
+          this.ramBank = v & 0x03;
+        }
       } else {
         // MBC1: RAM bank / upper ROM bank bits
         if (this.mbcMode === 0) {
@@ -864,8 +927,13 @@ export class GameBoyMachine extends BasicScanlineMachine {
         }
       }
     } else {
-      // MBC1: banking mode select; MBC3: latch clock data (ignored)
-      if (this.mbcType === 1) this.mbcMode = v & 0x01;
+      // MBC1: banking mode select; MBC3: latch clock data on 0x00 then 0x01
+      if (this.mbcType === 1) {
+        this.mbcMode = v & 0x01;
+      } else if (this.mbcType === 3 && this.rtcLatchLast === 0x00 && v === 0x01) {
+        this.latchRTC();
+      }
+      this.rtcLatchLast = v;
     }
   }
 
@@ -886,12 +954,17 @@ export class GameBoyMachine extends BasicScanlineMachine {
   }
 
   readExtRAM(a: number): number {
+    if (this.hasRTC && this.rtcRegisterSelect >= 0) {
+      this.syncRTC();
+      return this.rtcLatched[this.rtcRegisterSelect - 0x08];
+    }
     if (!this.ramEnabled && this.mbcType > 0) return 0xFF;
     var offset = a + (this.ramBank * 0x2000);
     return offset < this.extram.length ? this.extram[offset] : 0xFF;
   }
 
   writeExtRAM(a: number, v: number): void {
+    if (this.hasRTC && this.rtcRegisterSelect >= 0) return; // RTC registers are read-only
     if (!this.ramEnabled && this.mbcType > 0) return;
     var offset = a + (this.ramBank * 0x2000);
     if (offset < this.extram.length) this.extram[offset] = v;
@@ -1518,6 +1591,7 @@ export class GameBoyMachine extends BasicScanlineMachine {
         case 0x19: case 0x1A: case 0x1B: case 0x1C: case 0x1D: case 0x1E: this.mbcType = 5; break; // MBC5
         default: console.log(`Unhandled cartridge type 0x${cartType.toString(16)} @ 0x147, treating as MBC5`); this.mbcType = 5; break;
       }
+      this.hasRTC = cartType === 0x0F || cartType === 0x10;
     } else throw new EmuHalt("ROM not long enough for header");
 
     // Detect CGB mode from header byte 0x143
@@ -1604,6 +1678,13 @@ export class GameBoyMachine extends BasicScanlineMachine {
     if (this.cgbMode) {
       this.cpu.A = 0x11;
     }
+    // Power on the RTC at the current wall-clock time (RTC carts only)
+    if (this.hasRTC) {
+      this.resetRTC();
+    } else {
+      this.rtcRegisterSelect = -1;
+      this.rtcLatchLast = 0;
+    }
   }
 
   preFrame(): void {
@@ -1638,6 +1719,13 @@ export class GameBoyMachine extends BasicScanlineMachine {
     };
     state['apu'] = this.apu.saveState();
     state['apuCycleAccum'] = this.apuCycleAccum;
+    state['rtc'] = {
+      hasRTC: this.hasRTC,
+      sec: this.rtcSec, min: this.rtcMin, hour: this.rtcHour, day: this.rtcDay,
+      halt: this.rtcHalt, carry: this.rtcCarry,
+      registerSelect: this.rtcRegisterSelect, latchLast: this.rtcLatchLast,
+      latched: this.rtcLatched.slice(0), lastSync: this.rtcLastSync,
+    };
     // GBC state
     if (this.cgbMode) {
       state['cgb'] = {
@@ -1677,6 +1765,16 @@ export class GameBoyMachine extends BasicScanlineMachine {
     this.timerSubCycles = io.timerSubCycles;
     if (state.apu) this.apu.loadState(state.apu);
     this.apuCycleAccum = state.apuCycleAccum || 0;
+    if (state.rtc) {
+      var rtc = state.rtc;
+      this.hasRTC = rtc.hasRTC;
+      this.rtcSec = rtc.sec; this.rtcMin = rtc.min; this.rtcHour = rtc.hour; this.rtcDay = rtc.day;
+      this.rtcHalt = rtc.halt; this.rtcCarry = rtc.carry;
+      this.rtcRegisterSelect = rtc.registerSelect; this.rtcLatchLast = rtc.latchLast;
+      if (rtc.latched) this.rtcLatched.set(rtc.latched);
+      // keep wall-clock semantics: elapsed time since the save still counts
+      this.rtcLastSync = rtc.lastSync;
+    }
     // GBC state
     if (state.cgb) {
       var cgb = state.cgb;
@@ -1715,6 +1813,12 @@ export class GameBoyMachine extends BasicScanlineMachine {
           s += "--- CGB ---\n"
             + "VBK  " + this.vramBankSelect + "  SVBK " + this.wramBankSelect + "\n"
             + "SPD  " + (this.doubleSpeed ? "2x" : "1x") + "\n";
+        }
+        if (this.hasRTC) {
+          this.syncRTC();
+          s += "--- RTC ---\n"
+            + hex(this.rtcHour, 2) + ":" + hex(this.rtcMin, 2) + ":" + hex(this.rtcSec, 2)
+            + "  day " + this.rtcDay + (this.rtcHalt ? " HALT" : "") + (this.rtcCarry ? " CARRY" : "") + "\n";
         }
         return s;
     }
