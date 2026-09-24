@@ -16,6 +16,7 @@ const GB_PRESETS: Preset[] = [
   { id: 'galaxy.c', name: 'Window + Sprites' },
   { id: 'gbdecompress.c', name: 'Decompression' },
   { id: 'music.c', name: 'Music Player' },
+  { id: 'banking.c', name: 'ROM Bank Switching' },
   { id: 'siegegame.c', name: 'Siege Game' },
   { id: 'climber.c', name: 'Climber Game' },
   { id: 'chase.c', name: "Shiru's Chase Game" },
