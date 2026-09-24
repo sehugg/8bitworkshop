@@ -37,6 +37,30 @@ static volatile byte cur_channel;    /* next channel to add a note */
 static volatile byte volume;         /* volume of a new note */
 
 static const byte* volatile song_ptr; /* next byte in the song data */
+static const byte* volatile song_rts; /* return address after a back-reference */
+static volatile byte song_runlen;     /* bytes left in a back-reference */
+
+/* Decode the next song byte, expanding 0xfe back-references.
+   0xfe <offset> <length>: repeat <length> bytes starting
+   <offset> bytes before the 0xfe marker. */
+static byte next_music_byte(void)
+{
+  byte ch = *song_ptr++;
+  if (song_runlen) {
+    /* we are in a back-reference, count down */
+    if (--song_runlen == 0) {
+      song_ptr = song_rts;
+      song_rts = nullptr;
+    }
+  } else if (ch == 0xfe) {
+    byte offset = *song_ptr++;
+    song_runlen = *song_ptr++;
+    song_rts = song_ptr;
+    song_ptr -= offset + 3;
+    return next_music_byte();
+  }
+  return ch;
+}
 
 /* AUDF base value for each note (0-63). */
 static const byte freqz[64] = {
@@ -144,7 +168,7 @@ void music_tick(void)
 
   /* Timer expired: consume note bytes until a duration byte shows up. */
   for (;;) {
-    byte b = song_ptr[0];
+    byte b = next_music_byte();
     if (b & 0x80) {
       if (b == 0xff) {
         duration_timer = b;       /* stays $ff so music_is_done() is true */
@@ -152,12 +176,10 @@ void music_tick(void)
         return;
       }
       duration_timer = (byte)(b & 0x7f);
-      song_ptr++;
       return;
     }
     music_do_note(cur_channel, b);
     cur_channel = (byte)((cur_channel + 1) & 3);
-    song_ptr++;
   }
 }
 
@@ -165,6 +187,8 @@ void music_tick(void)
 void music_start(const char* song)
 {
   song_ptr = (const byte*)song;
+  song_rts = nullptr;
+  song_runlen = 0;
   volume = 24;
   duration_timer = 0;
   cur_channel = 0;
@@ -182,5 +206,5 @@ char* music_get_ptr(void)
 /* Nonzero once the song reaches its $ff terminator. */
 char music_is_done(void)
 {
-  return (song_ptr[0] == 0xff) ? 1 : 0;
+  return (duration_timer & 0x80) ? 1 : 0;
 }
