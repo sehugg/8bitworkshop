@@ -286,6 +286,18 @@ export class EmuHalt extends Error {
   }
 }
 
+// Platforms call haltEmulation() when the program ends or the CPU stops.
+// The host (IDE, extension) installs a handler; headless runs ignore it.
+var haltHandler: (err?: EmuHalt) => void = () => { };
+
+export function setHaltHandler(handler: (err?: EmuHalt) => void) {
+  haltHandler = handler;
+}
+
+export function haltEmulation(err?: EmuHalt) {
+  haltHandler(err);
+}
+
 export var useRequestAnimationFrame: boolean = false;
 
 class AnimationTimerImpl {

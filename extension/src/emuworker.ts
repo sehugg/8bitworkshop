@@ -7,6 +7,7 @@ import { parentPort, workerData } from 'worker_threads';
 import { performance } from 'perf_hooks';
 import { Rpc } from './rpc';
 import { EmuTarget, installNodeMocks, loadPlatform } from '../../src/tools/emutarget';
+import { setHaltHandler } from '../../src/common/emu';
 
 export interface FrameEvent {
   pixels: ArrayBuffer;
@@ -27,6 +28,8 @@ export interface EmuStatus {
 const MAX_CATCHUP_FRAMES = 4;
 
 installNodeMocks(workerData.rootDir);
+// a program that ends (BASIC, devel) halts instead of idling
+setHaltHandler(err => halt(err?.message || 'Program halted'));
 
 let target: EmuTarget | null = null;
 let running = false;
@@ -100,6 +103,15 @@ function stop() {
   target = null;
 }
 
+function halt(message: string) {
+  if (!running || !target) return;
+  running = false;
+  if (timer) clearTimeout(timer);
+  timer = null;
+  sendFrame();
+  rpc.emit('status', { ...status(), state: 'halted', message });
+}
+
 function tick() {
   timer = null;
   if (!running || !target) return;
@@ -107,17 +119,16 @@ function tick() {
   var now = performance.now();
   var frames = 0;
   try {
-    while (nextTime <= now && frames < MAX_CATCHUP_FRAMES) {
+    while (running && nextTime <= now && frames < MAX_CATCHUP_FRAMES) {
       target.advanceFrame();
       nextTime += interval;
       frames++;
     }
   } catch (e) {
-    running = false;
-    sendFrame();
-    rpc.emit('status', { ...status(), state: 'halted', message: String(e && e.message || e) });
+    halt(String(e && e.message || e));
     return;
   }
+  if (!running) return;  // halted during the frame
   if (now - nextTime > interval * MAX_CATCHUP_FRAMES) nextTime = now;  // too far behind
   if (frames) sendFrame();
   timer = setTimeout(tick, Math.max(0, nextTime - performance.now()));

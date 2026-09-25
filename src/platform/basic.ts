@@ -1,13 +1,12 @@
 
 import { Platform, BreakpointCallback, DebugCondition, DebugEvalCondition } from "../common/baseplatform";
 import { getToolForFilename_basic } from "../common/toolselect";
-import { PLATFORMS, AnimationTimer, EmuHalt } from "../common/emu";
+import { PLATFORMS, AnimationTimer, EmuHalt, haltEmulation } from "../common/emu";
 import { BASICRuntime } from "../common/basic/runtime";
 import { BASICProgram } from "../common/basic/compiler";
 import { TeleTypeWithKeyboard } from "../common/teletype";
 import { lpad } from "../common/util";
 import { FileData } from "../common/workertypes";
-import { haltEmulation } from "../ide/ui"; // TODO: make this a callback
 
 const BASIC_PRESETS = [
     { id: 'hello.bas', name: 'Hello' },

@@ -3,7 +3,7 @@
 
 import * as localforage from "localforage";
 import { BaseDebugPlatform, DebugEvalCondition, DebugSymbols, EmuState, isDebuggable, Platform, Preset } from "../common/baseplatform";
-import { EmuHalt, PLATFORMS } from "../common/emu";
+import { EmuHalt, PLATFORMS, setHaltHandler } from "../common/emu";
 import { StateRecorderImpl } from "../common/recorder";
 import {
   arrayCompare, byteArrayToUTF8, decodeQueryString, getBasePlatform, getCookie, getFilenameForPath, getFilenamePrefix,
@@ -2317,6 +2317,7 @@ async function startPlatform() {
   var initialHash = window.location.hash;
   replaceURLState();
   installErrorHandler();
+  setHaltHandler(haltEmulation);
   await platform.start();
   await loadBIOSFromProject();
   await initProject();

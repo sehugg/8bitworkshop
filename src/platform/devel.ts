@@ -1,12 +1,11 @@
 
 import { Platform } from "../common/baseplatform";
-import { EmuHalt, PLATFORMS } from "../common/emu";
+import { EmuHalt, PLATFORMS, haltEmulation } from "../common/emu";
 import { Devel6502 } from "../machine/devel";
 import { Base6502MachinePlatform } from "../common/baseplatform";
 import { SerialIOInterface } from "../common/devices";
 import { byteArrayToString, convertDataToUint8Array } from "../common/util";
 import { TeleType } from "../common/teletype";
-import { haltEmulation } from "../ide/ui";
 
 var DEVEL_6502_PRESETS = [
   {id:'hello.dasm', name:'Hello World (ASM)'},
