@@ -1,0 +1,76 @@
+{
+  "name": "8bitworkshop",
+  "displayName": "8bitworkshop",
+  "description": "Build and run retro 8-bit programs with the 8bitworkshop toolchains and emulators",
+  "version": "0.1.0",
+  "publisher": "8bitworkshop",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sehugg/8bitworkshop.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Debuggers"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "8bitworkshop.build",
+        "title": "Build",
+        "category": "8bitworkshop"
+      },
+      {
+        "command": "8bitworkshop.selectPlatform",
+        "title": "Select Platform",
+        "category": "8bitworkshop"
+      }
+    ],
+    "configuration": {
+      "title": "8bitworkshop",
+      "properties": {
+        "8bitworkshop.platform": {
+          "type": "string",
+          "default": "",
+          "description": "Target platform id (e.g. c64, nes, vcs, gb)."
+        },
+        "8bitworkshop.mainFile": {
+          "type": "string",
+          "default": "",
+          "description": "Main source file, relative to the workspace folder. Defaults to the active editor's file."
+        },
+        "8bitworkshop.tool": {
+          "type": "string",
+          "default": "",
+          "description": "Tool for the main file. Defaults to the platform's tool for the file extension."
+        },
+        "8bitworkshop.buildOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Build when a source file or one of its dependencies is saved."
+        },
+        "8bitworkshop.toolchainPath": {
+          "type": "string",
+          "default": "",
+          "description": "Directory containing src/worker (toolchain assets). Defaults to the extension's own copy."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "typecheck": "tsc --noEmit -p .",
+    "test": "node scripts/build.mjs && mocha --timeout 60000 out/test/*.test.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "~1.90.0"
+  }
+}

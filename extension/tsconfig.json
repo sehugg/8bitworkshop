@@ -1,0 +1,14 @@
+{
+    // Type checking only; scripts/build.mjs bundles with esbuild.
+    "extends": "../tsconfig.json",
+    "include": [
+        "src/**/*.ts",
+        "test/**/*.ts"
+    ],
+    "compilerOptions": {
+        "noEmit": true,
+        "rootDir": "..",
+        "types": ["node", "mocha", "vscode"],
+        "typeRoots": ["./node_modules/@types", "../node_modules/@types"]
+    }
+}
