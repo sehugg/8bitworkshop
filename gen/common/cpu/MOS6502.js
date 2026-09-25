@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MOS6502 = exports.MOS6502Interrupts = exports._MOS6502 = void 0;
+const emu_1 = require("../emu");
+const util_1 = require("../util");
 // Copyright 2015 by Paulo Augusto Peccin. See license.txt distributed with this file.
 var _MOS6502 = function () {
     var self = this;
@@ -223,6 +225,10 @@ var _MOS6502 = function () {
     var illegalOpcode = function (op) {
         if (self.debug)
             self.breakpoint("Illegal Opcode: " + op);
+    };
+    var haltOpcode = function () {
+        illegalOpcode("KIL/HLT/JAM");
+        throw new emu_1.EmuHalt(`CPU executed halt instruction ($${(0, util_1.hex)(opcode, 2)})`);
     };
     // Addressing routines
     var implied = function (operation) {
@@ -1240,7 +1246,7 @@ var _MOS6502 = function () {
         return [
             fetchOpcodeAndDecodeInstruction,
             function () {
-                illegalOpcode("KIL/HLT/JAM");
+                haltOpcode();
             },
             function () {
                 T--; // Causes the processor to be stuck in this instruction forever

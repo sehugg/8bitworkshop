@@ -86,6 +86,8 @@ byte music_release;        /* 1 = decay to silence (rest), 0 = hold sustain */
 volatile byte music_enable;
 volatile byte music_paused;
 static const byte* music_ptr;
+static const byte* music_rts = 0;
+static byte music_runlen = 0;
 static const byte* music_loop;
 byte chord[4];
 byte chord_n;
@@ -176,9 +178,26 @@ const byte sfx_respawn_e[] = {
   0xff
 };
 
+// decode next music byte, handling compression
 byte next_music_byte(void) {
+  byte ch;
   if (!music_ptr) return 0xff;
-  return *music_ptr++;
+  ch = *music_ptr++;
+  if (music_runlen) {
+    // we are in a backreference, count down
+    if (--music_runlen == 0) {
+      music_ptr = music_rts;
+      music_rts = 0;
+    }
+  } else if (ch == 0xfe) {
+    // back-reference: 0xfe <offset> <length>
+    byte offset = *music_ptr++;
+    music_runlen = *music_ptr++;
+    music_rts = music_ptr;
+    music_ptr -= offset + 3;
+    return next_music_byte();
+  }
+  return ch;
 }
 
 void sfx_stop(void) {
@@ -223,6 +242,8 @@ void music_stop(void) {
   byte i;
   music_enable = 0;
   music_ptr = 0;
+  music_rts = 0;
+  music_runlen = 0;
   music_loop = 0;
   chord_n = 0;
   music_release = 0;
@@ -238,6 +259,8 @@ void music_play(const byte* music, byte loop) {
   music_enable = 0;
   music_paused = 0;
   music_ptr = music;
+  music_rts = 0;
+  music_runlen = 0;
   music_loop = loop ? music : 0;
   cur_duration = 0;
   chord_n = 0;

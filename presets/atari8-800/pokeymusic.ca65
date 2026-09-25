@@ -16,6 +16,9 @@ Chan0duty:	.res 4	; current duty bits channel 0
 DurationTimer:	.res 1	; duration until next cmd
 CurChannel:	.res 1	; next channel to add note
 Volume:		.res 1  ; initial volume of note (0-31)
+MusicRTS:	.res 2	; song ptr to restore after back-reference
+MusicRunlen:	.res 1	; bytes left in back-reference
+MusicOffset:	.res 1	; back-reference offset (scratch)
 
 ; set_irq() saves/restores entire zeropage segment
 ; which we don't want!
@@ -79,8 +82,7 @@ _music_tick:
 
 ; Timer ran out, so fetch next note
 @NextData:
-	ldx	#0
-        lda	(SongPtr,x)
+        jsr	next_music_byte
         bmi	@LoadDuration
 ; < $80, play next note
         ldx	CurChannel	; next channel
@@ -90,7 +92,6 @@ _music_tick:
         txa
         and	#3
         sta	CurChannel	; inc next channel
-        jsr	@IncDataPtr
         jmp	@NextData
 ; >= $80, load next duration
 @LoadDuration:
@@ -102,13 +103,68 @@ _music_tick:
         and	#$7f
 ;        asl
         sta	DurationTimer	; store duration * 2
-@IncDataPtr:
-; increment song pointer
-	inc	SongPtr
-        bne	@Done
-	inc	SongPtr+1
 @Done:
 	rts
+
+; Fetch the next song byte, expanding 0xfe back-references.
+; 0xfe <offset> <length>: repeat <length> bytes starting
+; <offset> bytes before the 0xfe marker.
+next_music_byte:
+@again:
+        ldy	#0
+        lda	(SongPtr),y
+; advance SongPtr
+        inc	SongPtr
+        bne	:+
+        inc	SongPtr+1
+:       ldx	MusicRunlen
+        beq	@CheckBackref
+        dex
+        stx	MusicRunlen
+        bne	@Done
+; run finished, restore SongPtr = MusicRTS
+        ldx	MusicRTS
+        stx	SongPtr
+        ldx	MusicRTS+1
+        stx	SongPtr+1
+@Done:
+	rts
+@CheckBackref:
+        cmp	#$fe
+        bne	@Done
+; read offset
+        lda	(SongPtr),y
+        sta	MusicOffset
+        inc	SongPtr
+        bne	:+
+        inc	SongPtr+1
+; read length
+:       lda	(SongPtr),y
+        sta	MusicRunlen
+        inc	SongPtr
+        bne	:+
+        inc	SongPtr+1
+; MusicRTS = SongPtr
+:       lda	SongPtr
+        sta	MusicRTS
+        lda	SongPtr+1
+        sta	MusicRTS+1
+; SongPtr -= offset + 3
+        lda	SongPtr
+        sec
+        sbc	MusicOffset
+        sta	SongPtr
+        lda	SongPtr+1
+        sbc	#0
+        sta	SongPtr+1
+        lda	SongPtr
+        sec
+        sbc	#3
+        sta	SongPtr
+        lda	SongPtr+1
+        sbc	#0
+        sta	SongPtr+1
+        jmp	@again
 
 music_do_note:
 ; Play a note
@@ -134,6 +190,9 @@ _music_start:
         lda #0
         sta DurationTimer
         sta CurChannel
+        sta MusicRunlen
+        sta MusicRTS
+        sta MusicRTS+1
         ldx #3
 :       sta Chan0dur,x
         dex
@@ -150,13 +209,8 @@ _music_get_ptr:
 
 .export _music_is_done
 _music_is_done:
-	ldx #0
-        lda (SongPtr,x)
-        cmp #$ff
-        php
-        pla
-        lsr
-        and #1
+        lda DurationTimer
+        and #$80
 	rts
 
 ; Table of AUDF base values for each note

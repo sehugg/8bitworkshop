@@ -276,6 +276,11 @@ export class AnimationTimer {
   startts; // for FPS calc
   frameRate;
   intervalMsec;
+  // If a frame is this many intervals late, resync the clock instead of running
+  // back-to-back frames to catch up. Catching up floods frame-locked audio (the
+  // producer generates many frames of samples at once), so a real-time emulator
+  // should drop the missed time rather than burst.
+  maxCatchupFrames = 3;
   useReqAnimFrame = useRequestAnimationFrame && typeof window.requestAnimationFrame === 'function'; // need for unit test
 
   constructor(frequencyHz: number, callback: () => void) {
@@ -312,8 +317,8 @@ export class AnimationTimer {
       }
     }
     this.nextts += this.intervalMsec;
-    // frames skipped? catch up
-    if ((ts - this.nextts) > 1000) {
+    // too far behind to catch up smoothly? resync instead of bursting
+    if ((ts - this.nextts) > this.intervalMsec * this.maxCatchupFrames) {
       //console.log(ts - this.nextts, 'msec skipped');
       this.nextts = ts;
     }

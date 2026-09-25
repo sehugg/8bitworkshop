@@ -8,7 +8,9 @@
 /* POKEY                                                                    */
 /*==========================================================================*/
 
-static byte a8_irq_stack[128];
+// TODO: array doesn't set properly and finds a KIL for some reason
+//static byte a8_irq_stack[1024];
+void* a8_irq_stack = (void*) 0x9000;
 
 void a8_pokey_init(void) {
   POKEY_WRITE.skctl = SKCTL_KEYBOARD_DEBOUNCE | SKCTL_KEYBOARD_SCANNING;
@@ -40,7 +42,8 @@ unsigned char a8_pokey_music_update() {
 }
 
 void a8_pokey_music_init(void) {
-  set_irq(a8_pokey_music_update, a8_irq_stack, sizeof(a8_irq_stack));
+  //set_irq(a8_pokey_music_update, a8_irq_stack, sizeof(a8_irq_stack));
+  set_irq(a8_pokey_music_update, a8_irq_stack, 128);
 }
 
 void a8_pokey_music_done(void) {

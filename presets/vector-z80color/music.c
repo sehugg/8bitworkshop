@@ -57,9 +57,27 @@ const byte music1[] = {
 };
 
 static const byte* music_ptr = music1;
+static const byte* music_rts = 0;
+static byte music_runlen = 0;
 
-inline byte next_music_byte() {
-  return *music_ptr++;
+// decode next music byte, handling compression
+byte next_music_byte(void) {
+  byte ch = *music_ptr++;
+  if (music_runlen) {
+    // we are in a backreference, count down
+    if (--music_runlen == 0) {
+      music_ptr = music_rts;
+      music_rts = 0;
+    }
+  } else if (ch == 0xfe) {
+    // back-reference: 0xfe <offset> <length>
+    byte offset = *music_ptr++;
+    music_runlen = *music_ptr++;
+    music_rts = music_ptr;
+    music_ptr -= offset + 3;
+    return next_music_byte();
+  }
+  return ch;
 }
 
 void play_music() {
@@ -96,7 +114,9 @@ void play_music() {
 
 void start_music(const byte* music) {
   music_ptr = music;
-  cur_duration == 0;
+  music_rts = 0;
+  music_runlen = 0;
+  cur_duration = 0;
 }
 
 void main() {

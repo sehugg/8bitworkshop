@@ -2618,8 +2618,11 @@ function emulationHalted(err) {
     var msg = (err && err.message) || msg;
     showExceptionAsError(err, msg);
     exports.projectWindows.refresh(false); // don't mess with cursor
-    if (exports.platform.saveState)
-        showDebugInfo(exports.platform.saveState());
+    if (exports.platform.saveState) {
+        const state = exports.platform.saveState();
+        showDebugInfo(state);
+        openRelevantListing(state);
+    }
 }
 async function reloadWorkspaceFile(path) {
     var oldval = exports.current_project.filedata[path];

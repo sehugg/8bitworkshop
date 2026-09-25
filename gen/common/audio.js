@@ -338,10 +338,13 @@ var SampleAudio = function (clockfreq) {
     var self = this;
     var sfrac, sinc, accum;
     var buffer, bufpos, bufferlist;
-    var idrain, ifill;
-    var nbuffers = 4;
+    var ifill; // physical ring slot the producer is filling
+    var written, read; // monotonic buffer counts (committed / consumed)
+    var skippedBuffers = 0, lastSkipLog = 0;
+    // Ring depth. The ScriptProcessor callback runs on the main thread, so it can
+    // be delayed by rendering/GC; a shallow ring overruns on those stalls. ~370ms here.
+    var nbuffers = 8;
     function mix(ape) {
-        var buflen = ape.outputBuffer.length;
         var lbuf = ape.outputBuffer.getChannelData(0);
         var m = this.module;
         if (!m)
@@ -352,19 +355,25 @@ var SampleAudio = function (clockfreq) {
             m.callback(lbuf);
             return;
         }
-        else {
-            var buf = bufferlist[idrain];
+        else if (written > read) {
+            // copy the oldest committed buffer, then free it
+            var buf = bufferlist[read % nbuffers];
             for (var i = 0; i < lbuf.length; i++) {
-                lbuf[i] = buf[i];
-                //lbuf[i] = (i&128) ? 1.0 : 0.33;
+                lbuf[i] = i < buf.length ? buf[i] : 0;
             }
-            idrain = (idrain + 1) % bufferlist.length;
+            read++;
+        }
+        else {
+            // underrun: nothing produced yet, play silence rather than stale data
+            lbuf.fill(0);
         }
     }
     function clearBuffers() {
-        if (bufferlist)
+        if (bufferlist) {
             for (var buf of bufferlist)
                 buf.fill(0);
+            read = written; // drop any pending audio so we don't replay it on resume
+        }
     }
     function createContext() {
         var AudioContext = window['AudioContext'] || window['webkitAudioContext'] || window['mozAudioContext'];
@@ -413,7 +422,8 @@ var SampleAudio = function (clockfreq) {
         accum = 0;
         bufpos = 0;
         bufferlist = [];
-        idrain = 1;
+        written = 0;
+        read = 0;
         ifill = 0;
         for (var i = 0; i < nbuffers; i++) {
             var arrbuf = new ArrayBuffer(self.bufferlen * 4);
@@ -438,14 +448,21 @@ var SampleAudio = function (clockfreq) {
         if (bufpos >= buffer.length) {
             bufpos = 0;
             bufferlist[ifill] = buffer;
-            var inext = (ifill + 1) % bufferlist.length;
-            if (inext == idrain) {
-                ifill = Math.floor(idrain + nbuffers / 2) % bufferlist.length;
-                //console.log('SampleAudio: skipped buffer', idrain, ifill); // TODO
+            written++;
+            // Ring full? Producer outran the consumer; drop the oldest audio to make room.
+            if (written - read >= nbuffers) {
+                read++;
+                skippedBuffers++;
+                var now = Date.now();
+                if (now - lastSkipLog > 1000) { // throttle so a sustained overrun doesn't flood the console
+                    console.warn('SampleAudio: skipped audio buffer(s), total=' + skippedBuffers +
+                        ', fill=' + (written - read) + '/' + nbuffers +
+                        ', contextRate=' + self.sr + ', requestedBuf=' + self.bufferlen +
+                        ', expectedIntervalMs=' + (self.bufferlen * 1000 / self.sr).toFixed(2));
+                    lastSkipLog = now;
+                }
             }
-            else {
-                ifill = inext;
-            }
+            ifill = (ifill + 1) % nbuffers;
             buffer = bufferlist[ifill];
         }
     };

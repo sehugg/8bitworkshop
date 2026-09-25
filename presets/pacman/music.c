@@ -33,6 +33,8 @@ byte cur_duration;
 byte music_wave;
 volatile byte music_enable;
 static const byte* music_ptr;
+static const byte* music_rts = 0;
+static byte music_runlen = 0;
 
 /* Compact score: note bytes (<0x80) then duration bytes (>=0x80); 0xff = end */
 const byte music1[] = {
@@ -233,8 +235,24 @@ const byte music1[] = {
   0x27,0x1b,0x94,0x22,0x16,0x94,0x3f,0x3a,0x37,0xff,
 };
 
+// decode next music byte, handling compression
 byte next_music_byte(void) {
-  return *music_ptr++;
+  byte ch = *music_ptr++;
+  if (music_runlen) {
+    // we are in a backreference, count down
+    if (--music_runlen == 0) {
+      music_ptr = music_rts;
+      music_rts = 0;
+    }
+  } else if (ch == 0xfe) {
+    // back-reference: 0xfe <offset> <length>
+    byte offset = *music_ptr++;
+    music_runlen = *music_ptr++;
+    music_rts = music_ptr;
+    music_ptr -= offset + 3;
+    return next_music_byte();
+  }
+  return ch;
 }
 
 word voice_freq[3];
@@ -293,6 +311,8 @@ void music_start(const byte* music) {
   byte i;
   music_enable = 0; /* pause IRQ player while resetting */
   music_ptr = music;
+  music_rts = 0;
+  music_runlen = 0;
   cur_duration = 0;
   rr_ch = 2;
   for (i = 0; i < 3; i++) {
