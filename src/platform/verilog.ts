@@ -1,5 +1,6 @@
 
 import { Platform, BasePlatform } from "../common/baseplatform";
+import { getToolForFilename_verilog } from "../common/toolselect";
 import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, getMousePos, KeyFlags } from "../common/emu";
 import { SampleAudio } from "../common/audio";
 import { WaveformView, WaveformProvider, WaveformMeta } from "../ide/waveform";
@@ -722,11 +723,7 @@ var VerilogPlatform = function(mainElement, options) {
     if (!top) return;
     top.tick2(1);
   }
-  getToolForFilename(fn) {
-    if (fn.endsWith(".asm")) return "jsasm";
-    else if (fn.endsWith(".ice")) return "silice";
-    else return "verilator";
-  }
+  getToolForFilename = getToolForFilename_verilog;
   getDefaultExtensions() { return [".v", ".asm", ".ice"]; }
 
   inspect(name:string) : string {

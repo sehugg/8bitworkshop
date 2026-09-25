@@ -43,8 +43,11 @@ class Blob {
  * Set up the Node.js environment to provide XMLHttpRequest, fetch, and other
  * browser globals that the worker build system expects.
  * Call this once before using handleMessage/builder.
+ * `rootDir` is the directory holding src/worker (toolchain assets); it
+ * defaults to the current directory.
  */
-export function setupNodeEnvironment() {
+export function setupNodeEnvironment(rootDir: string = process.cwd()) {
+  var workerDir = path.resolve(rootDir, 'src/worker');
   // Basic globals expected by various parts of the worker system
   // Some Emscripten-generated WASM modules check for __filename/__dirname
   if (typeof globalThis.__filename === 'undefined') {
@@ -68,13 +71,13 @@ export function setupNodeEnvironment() {
   emglobal.XMLHttpRequest = function () {
     this.open = function (method: string, url: string, async?: boolean) {
       if (this.responseType == 'json') {
-        var txt = fs.readFileSync('src/worker/' + url, 'utf-8');
+        var txt = fs.readFileSync(path.resolve(workerDir, url), 'utf-8');
         this.response = JSON.parse(txt);
       } else if (this.responseType == 'blob') {
-        var data = fs.readFileSync('src/worker/' + url, { encoding: 'binary' });
+        var data = fs.readFileSync(path.resolve(workerDir, url), { encoding: 'binary' });
         this.response = new Blob(data);
       } else if (this.responseType == 'arraybuffer') {
-        var data = fs.readFileSync('src/worker/' + url, { encoding: 'binary' });
+        var data = fs.readFileSync(path.resolve(workerDir, url), { encoding: 'binary' });
         this.response = new Blob(data).asArrayBuffer();
       }
       this.status = this.response ? 200 : 404;
@@ -93,7 +96,7 @@ export function setupNodeEnvironment() {
   emglobal.fetch = function (filepath: string) {
     return new Promise((resolve, reject) => {
       try {
-        var bin = fs.readFileSync(filepath, { encoding: 'binary' });
+        var bin = fs.readFileSync(path.resolve(rootDir, filepath), { encoding: 'binary' });
         var response = new Blob(bin);
         resolve(response);
       } catch (e) {
@@ -110,7 +113,7 @@ export function setupNodeEnvironment() {
   emglobal.importScripts = function (scriptPath: string) {
     // Strip the PWORKER prefix and load from src/worker/
     var resolved = scriptPath.replace(/^\.\.\/\.\.\//, '');
-    var fullPath = path.resolve(process.cwd(), resolved);
+    var fullPath = path.resolve(rootDir, resolved);
     var code = fs.readFileSync(fullPath, 'utf-8');
     vm.runInThisContext(code, fullPath);
   };

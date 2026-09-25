@@ -1,5 +1,6 @@
 
 import { Platform, Base6502Platform, getOpcodeMetadata_6502, getToolForFilename_6502, Preset } from "../common/baseplatform";
+import { getToolForFilename_nes } from "../common/toolselect";
 import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, KeyFlags, EmuHalt, ControllerPoller } from "../common/emu";
 import { hex, byteArrayToString, replaceAll } from "../common/util";
 import { CodeAnalyzer_nes } from "../common/analysis";
@@ -480,11 +481,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     s += "\n";
     return s;
   }
-  getToolForFilename = (fn:string) : string => {
-    //if (fn.endsWith(".asm")) return "ca65"; // .asm uses ca65
-    if (fn.endsWith(".nesasm")) return "nesasm";
-    else return getToolForFilename_6502(fn);
-  }
+  getToolForFilename = getToolForFilename_nes;
   
   // probing
   nullProbe = new NullProbe();
@@ -579,7 +576,7 @@ class NESMAMEPlatform extends BaseMAME6502Platform implements Platform {
   }
 
   getPresets() { return JSNES_PRESETS; }
-  getToolForFilename = getToolForFilename_6502;
+  getToolForFilename = getToolForFilename_nes;
   getOpcodeMetadata = getOpcodeMetadata_6502;
   getDefaultExtensions() { return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
 

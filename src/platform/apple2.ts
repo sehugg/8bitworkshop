@@ -1,5 +1,6 @@
 
 import { Platform, Preset, getOpcodeMetadata_6502, getToolForFilename_6502 } from "../common/baseplatform";
+import { getToolForFilename_apple2 } from "../common/toolselect";
 import { PLATFORMS } from "../common/emu";
 import { AppleII } from "../machine/apple2";
 import { Base6502MachinePlatform } from "../common/baseplatform";
@@ -50,7 +51,7 @@ class Apple2MAMEPlatform extends BaseMAME6502Platform implements Platform {
 
   getOpcodeMetadata = getOpcodeMetadata_6502;
   getDefaultExtensions() { return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
-  getToolForFilename = getToolForFilename_6502;
+  getToolForFilename = getToolForFilename_apple2;
 
   getPresets() { return APPLE2_PRESETS; }
 
@@ -90,10 +91,7 @@ class NewApple2Platform extends Base6502MachinePlatform<AppleII> implements Plat
     if (rom && rom.length == 35 * 16 * 256) return ".dsk"; // DSK image
     return ".bin";
   };
-  getToolForFilename = (fn: string): string => {
-    if (fn.endsWith(".lnk")) return "merlin32";
-    else return getToolForFilename_6502(fn);
-  }
+  getToolForFilename = getToolForFilename_apple2;
   /*
   newCodeAnalyzer() {
     return new CodeAnalyzer_apple2(this);

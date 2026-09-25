@@ -6,6 +6,7 @@
 // copyright-holders:Juergen Buchmueller, Frank Palazzolo, Sean Riddle
 
 import { Platform, BaseMachinePlatform, DisasmLine } from "../common/baseplatform";
+import { getToolForFilename_channelf } from "../common/toolselect";
 import { PLATFORMS } from "../common/emu";
 import { ChannelF } from "../machine/channelf";
 import { disassembleF8 } from "../common/cpu/disasmF8";
@@ -32,11 +33,7 @@ class ChannelFPlatform extends BaseMachinePlatform<ChannelF> implements Platform
   newMachine() { return new ChannelF(); }
   getPresets() { return CHANNELF_PRESETS; }
   getDefaultExtensions() { return [".dasm"]; }
-  getToolForFilename(fn: string): string {
-    if (fn.endsWith(".c")) return "cc65";
-    if (fn.endsWith(".s") || fn.endsWith(".ca65")) return "ca65";
-    return "dasm";
-  }
+  getToolForFilename = getToolForFilename_channelf;
   readAddress(a) { return this.machine.readConst(a); }
 
   disassemble(pc: number, read: (addr: number) => number): DisasmLine {

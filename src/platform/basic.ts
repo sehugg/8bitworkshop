@@ -1,5 +1,6 @@
 
 import { Platform, BreakpointCallback, DebugCondition, DebugEvalCondition } from "../common/baseplatform";
+import { getToolForFilename_basic } from "../common/toolselect";
 import { PLATFORMS, AnimationTimer, EmuHalt } from "../common/emu";
 import { BASICRuntime } from "../common/basic/runtime";
 import { BASICProgram } from "../common/basic/compiler";
@@ -161,7 +162,7 @@ class BASICPlatform implements Platform {
     isBlocked() { return this.tty.waitingfor != null || this.runtime.exited; } // is blocked for input?
     isRunning() { return this.timer.isRunning(); }
     getDefaultExtensions() { return [".bas"]; }
-    getToolForFilename() { return "basic"; }
+    getToolForFilename = getToolForFilename_basic;
     getPresets() { return BASIC_PRESETS; }
 
     getPC() {

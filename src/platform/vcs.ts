@@ -1,5 +1,6 @@
 
 import { Platform, BasePlatform, cpuStateToLongString_6502, dumpStackToString, DisasmLine, CpuState, Preset } from "../common/baseplatform";
+import { getToolForFilename_vcs } from "../common/toolselect";
 import { PLATFORMS, dumpRAM, EmuHalt, __createCanvas, drawCrosshair } from "../common/emu";
 import { hex, loadScript, lpad, tobin } from "../common/util";
 import { CodeAnalyzer_vcs } from "../common/analysis";
@@ -58,19 +59,6 @@ const VCS_PRESETS : Preset[] = [
   {id:'helloworld.cc2600', name:'Hello World (cc2600)'},
 ];
 
-function getToolForFilename_vcs(fn: string) {
-  if (fn.endsWith(".cc2600")) return "cc2600";
-  if (fn.endsWith("-llvm.c")) return "remote:llvm-mos";
-  if (fn.endsWith(".wiz")) return "wiz";
-  if (fn.endsWith(".bb") || fn.endsWith(".bas")) return "bataribasic";
-  if (fn.endsWith(".ca65")) return "ca65";
-  if (fn.endsWith(".acme")) return "acme";
-  //if (fn.endsWith(".inc")) return "ca65";
-  if (fn.endsWith(".c")) return "cc65";
-  //if (fn.endsWith(".h")) return "cc65";
-  if (fn.endsWith(".ecs")) return "ecs";
-  return "dasm";
-}
 
 class VCSPlatform extends BasePlatform {
 
