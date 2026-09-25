@@ -3,12 +3,15 @@
     "extends": "../tsconfig.json",
     "include": [
         "src/**/*.ts",
-        "test/**/*.ts"
+        "test/**/*.ts",
+        "../src/md.d.ts"
     ],
     "compilerOptions": {
         "noEmit": true,
         "rootDir": "..",
-        "types": ["node", "mocha", "vscode"],
+        // jquery/bootstrap/bootbox: IDE code that platform modules reach (see
+        // "keep the IDE out of platform modules" in doc/notes/VSCODE.md)
+        "types": ["node", "mocha", "vscode", "jquery", "bootstrap", "bootbox"],
         "typeRoots": ["./node_modules/@types", "../node_modules/@types"]
     }
 }

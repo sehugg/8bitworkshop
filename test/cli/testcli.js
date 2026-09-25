@@ -71,7 +71,9 @@ describe('8bws CLI', function () {
             var r = cliJSON('run', '--platform', 'nes', '--frames', '30', 'test/roms/nes/shoot2.c.rom');
             assert.ok(r.success, r.error);
             assert.equal(r.data.frames, 30);
-            assert.equal(r.data.width, 512);
+            // the screen, not the 512x480 nametable debug view nes also builds
+            assert.equal(r.data.width, 256);
+            assert.equal(r.data.height, 224);
         });
         it('should build and run a source file', function () {
             var r = cliJSON('run', '--platform', 'gb', 'presets/gb/hello.c', '--frames', '10');

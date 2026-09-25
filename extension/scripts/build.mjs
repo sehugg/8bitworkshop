@@ -3,8 +3,10 @@
 //   node scripts/build.mjs           # one build
 //   node scripts/build.mjs --watch   # rebuild on change
 //
-// extension.js stays small; it loads buildcore.js on the first build.
+// extension.js stays small; builds and emulation run in worker threads
+// (buildworker.js, emuworker.js) that start on first use.
 import esbuild from 'esbuild';
+import mdPlugin from '../../scripts/md-loader.mjs';
 import { readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -19,7 +21,8 @@ const ctx = await esbuild.context({
   absWorkingDir: root,
   entryPoints: {
     extension: 'src/extension.ts',
-    buildcore: 'src/buildcore.ts',
+    buildworker: 'src/buildworker.ts',
+    emuworker: 'src/emuworker.ts',
     ...Object.fromEntries(tests),
   },
   outdir: 'out',
@@ -28,7 +31,10 @@ const ctx = await esbuild.context({
   format: 'cjs',
   target: 'node20',
   sourcemap: true,
-  external: ['vscode'],
+  // These resolve from the repo's node_modules at runtime: jsdom (for
+  // installNodeMocks) doesn't bundle, and binaryen (verilog) is 51MB.
+  external: ['vscode', 'jsdom', 'canvas', 'binaryen'],
+  plugins: [mdPlugin],  // some platform modules reach IDE views that import .md
   logLevel: 'warning',
 });
 if (watch) {

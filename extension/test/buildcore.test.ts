@@ -1,7 +1,8 @@
 
 import * as assert from 'assert';
 import * as path from 'path';
-import { Builder, ProjectFileProvider, findRootDir, isSourceFile } from '../src/buildcore';
+import { Builder, ProjectFileProvider } from '../src/buildcore';
+import { findRootDir, isSourceFile } from '../src/projectinfo';
 
 // Mocha runs from extension/, not the repo root, so this also checks that
 // the toolchain assets load from the configured root rather than the cwd.

@@ -7,8 +7,7 @@ import * as path from 'path';
 import type { CodeListingMap, FileData, Segment, WorkerError, WorkerResult } from "../../src/common/workertypes";
 import { getBasePlatform, isProbablyBinary } from "../../src/common/util";
 import { getToolForPlatform } from "../../src/common/toolselect";
-import { TOOL_META } from "../../src/common/toolmeta";
-import { FileProvider, buildWorkerMessage, processListings, resolveDependencies } from "../../src/common/projectcore";
+import { FileProvider, buildWorkerMessage, resolveDependencies } from "../../src/common/projectcore";
 import { setupNodeEnvironment, handleMessage } from "../../src/worker/workerlib";
 import { PLATFORM_PARAMS } from "../../src/worker/platforms";
 
@@ -101,8 +100,9 @@ export class Builder {
       };
     }
     if ('output' in result) {
+      // listings stay raw: SourceFile objects don't survive postMessage, so
+      // the receiver runs projectcore.processListings on them
       var r = result as any;
-      if (r.listings) processListings(r.listings);
       return {
         success: true, tool, paths, diagnostics: [],
         output: r.output, listings: r.listings, symbolmap: r.symbolmap, segments: r.segments,
@@ -139,29 +139,4 @@ export class ProjectFileProvider implements FileProvider {
 
 export function listPlatforms(): string[] {
   return Object.keys(PLATFORM_PARAMS).sort();
-}
-
-var sourceExtensions: Set<string>;
-
-/** True if some tool consumes files with this name's extension. */
-export function isSourceFile(fn: string): boolean {
-  if (!sourceExtensions) {
-    sourceExtensions = new Set(['.asm', '.a', '.inc', '.h', '.s', '.c', '.bas']);
-    for (var id in TOOL_META)
-      for (var ext of TOOL_META[id].extensions || [])
-        sourceExtensions.add(ext.toLowerCase());
-  }
-  return sourceExtensions.has(path.extname(fn).toLowerCase());
-}
-
-/** The asset root: a directory with src/worker, searched upward from `start`. */
-export function findRootDir(start: string): string | null {
-  var dir = path.resolve(start);
-  for (var i = 0; i < 4; i++) {
-    if (fs.existsSync(path.join(dir, 'src', 'worker', 'wasm'))) return dir;
-    var parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return null;
 }

@@ -28,6 +28,36 @@
         "category": "8bitworkshop"
       },
       {
+        "command": "8bitworkshop.run",
+        "title": "Run",
+        "category": "8bitworkshop",
+        "icon": "$(play)"
+      },
+      {
+        "command": "8bitworkshop.reset",
+        "title": "Reset Emulator",
+        "category": "8bitworkshop",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "8bitworkshop.pause",
+        "title": "Pause Emulator",
+        "category": "8bitworkshop",
+        "icon": "$(debug-pause)"
+      },
+      {
+        "command": "8bitworkshop.resume",
+        "title": "Resume Emulator",
+        "category": "8bitworkshop",
+        "icon": "$(debug-continue)"
+      },
+      {
+        "command": "8bitworkshop.stop",
+        "title": "Stop Emulator",
+        "category": "8bitworkshop",
+        "icon": "$(debug-stop)"
+      },
+      {
         "command": "8bitworkshop.selectPlatform",
         "title": "Select Platform",
         "category": "8bitworkshop"
@@ -62,6 +92,35 @@
           "description": "Directory containing src/worker (toolchain assets). Defaults to the extension's own copy."
         }
       }
+    },
+    "menus": {
+      "editor/title": [
+        {
+          "command": "8bitworkshop.run",
+          "when": "config.8bitworkshop.platform && resourceScheme == file && activeWebviewPanelId != '8bitworkshop.emulator'",
+          "group": "navigation"
+        },
+        {
+          "command": "8bitworkshop.pause",
+          "when": "activeWebviewPanelId == '8bitworkshop.emulator' && 8bitworkshop.emuRunning",
+          "group": "navigation@1"
+        },
+        {
+          "command": "8bitworkshop.resume",
+          "when": "activeWebviewPanelId == '8bitworkshop.emulator' && !8bitworkshop.emuRunning",
+          "group": "navigation@1"
+        },
+        {
+          "command": "8bitworkshop.reset",
+          "when": "activeWebviewPanelId == '8bitworkshop.emulator'",
+          "group": "navigation@2"
+        },
+        {
+          "command": "8bitworkshop.stop",
+          "when": "activeWebviewPanelId == '8bitworkshop.emulator'",
+          "group": "navigation@3"
+        }
+      ]
     }
   },
   "scripts": {
