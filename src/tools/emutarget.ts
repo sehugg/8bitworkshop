@@ -24,12 +24,17 @@ import { CPU6809 } from "../common/cpu/6809";
 import { PLATFORMS } from "../common/emu";
 import * as emu from "../common/emu";
 import { getRootBasePlatform } from "../common/util";
+import { importPlatform } from "../platform/_index";
 import { mockAudio, mockDOM, mockFetch, mockGlobals } from "./nodemock";
 
 export interface VideoOutput {
   pixels: Uint32Array;
   width: number;
   height: number;
+  /** display rotation in degrees (RasterVideo's `rotate` option) */
+  rotate?: number;
+  /** display aspect ratio, if not width/height */
+  aspect?: number;
 }
 
 export interface DebugSection {
@@ -81,19 +86,18 @@ function installHeadlessVideo() {
   // and put the real ones back afterwards. Leaving the stubs installed would
   // leak into every other module sharing the (cached) emu import -- which is
   // exactly what happens when mocha reuses a worker across test files.
-  const original = {
-    RasterVideo: (emu as any).RasterVideo,
-    VectorVideo: (emu as any).VectorVideo,
-    AnimationTimer: (emu as any).AnimationTimer,
-  };
   let pixels: Uint32Array | null = null;
-  let params: { width: number, height: number } | null = null;
-  (emu as any).RasterVideo = function (_el: any, width: number, height: number) {
+  let params: { width: number, height: number, rotate?: number, aspect?: number } | null = null;
+  let frameRate = 60;
+  const RasterVideo: any = function (_el: any, width: number, height: number, options?: { rotate?: number, aspect?: number }) {
     const buffer = new ArrayBuffer(width * height * 4);
     const datau8 = new Uint8Array(buffer);
     const datau32 = new Uint32Array(buffer);
-    params = { width, height };
-    pixels = datau32;
+    // the first one is the screen; later ones are debug views (nes nametables)
+    if (!pixels) {
+      params = { width, height, rotate: options?.rotate, aspect: options?.aspect };
+      pixels = datau32;
+    }
     this.create = function () { this.width = width; this.height = height; };
     this.setKeyboardEvents = function () { };
     this.getFrameData = function () { return datau32; };
@@ -108,26 +112,27 @@ function installHeadlessVideo() {
     this.putImageData = function () { };
     this.style = {};
   };
-  (emu as any).VectorVideo = function () {
+  const VectorVideo: any = function () {
     this.create = function () { this.drawops = 0; };
     this.setKeyboardEvents = function () { };
     this.clear = function () { };
     this.drawLine = function () { this.drawops++; };
   };
-  (emu as any).AnimationTimer = function () {
+  const AnimationTimer: any = function (fps: number) {
+    if (fps > 0) frameRate = fps;
     this.running = false;
     this.start = function () { };
     this.stop = function () { };
     this.isRunning = function () { return this.running; };
   };
+  const original = emu.setVideoClasses({ RasterVideo, VectorVideo, AnimationTimer });
   return {
     get(): VideoOutput | null {
-      return pixels && params ? { pixels, width: params.width, height: params.height } : null;
+      return pixels && params ? { pixels, ...params } : null;
     },
+    get frameRate() { return frameRate; },
     restore() {
-      (emu as any).RasterVideo = original.RasterVideo;
-      (emu as any).VectorVideo = original.VectorVideo;
-      (emu as any).AnimationTimer = original.AnimationTimer;
+      emu.setVideoClasses(original);
     }
   };
 }
@@ -214,6 +219,8 @@ export class EmuTarget {
   }
 
   getVideo(): VideoOutput | null { return this.video ? this.video.get() : null; }
+  /** Frames per second the platform's timer asked for (60 if unknown). */
+  get frameRate(): number { return this.video ? this.video.frameRate : 60; }
   saveState(): EmuState | null { return this.platform.saveState ? this.platform.saveState() : null; }
 
   getDebugInfo(): DebugSection[] {
@@ -329,7 +336,8 @@ export class EmuTarget {
 export async function loadPlatform(platformId: string): Promise<EmuTarget> {
   installNodeMocks();
   const baseId = getRootBasePlatform(platformId);
-  await import('../platform/' + baseId);
+  // the explicit import switch, so bundlers can find every platform module
+  await importPlatform(baseId);
   const PlatformClass = PLATFORMS[platformId] || PLATFORMS[baseId];
   if (!PlatformClass) {
     throw new Error(`Platform '${platformId}' not found. Available: ${Object.keys(PLATFORMS).sort().join(', ')}`);
@@ -339,12 +347,16 @@ export async function loadPlatform(platformId: string): Promise<EmuTarget> {
 
 let mocksInstalled = false;
 
-/** Stub out the browser APIs that the platform modules expect. */
-export function installNodeMocks() {
+/**
+ * Stub out the browser APIs that the platform modules expect. fetch() reads
+ * files (BIOS images, wasm cores) relative to `rootDir`. Only the first call
+ * takes effect.
+ */
+export function installNodeMocks(rootDir: string = process.cwd()) {
   if (mocksInstalled) return;
   mocksInstalled = true;
   mockGlobals();
   mockAudio();
-  mockFetch();
+  mockFetch(rootDir);
   mockDOM();
 }

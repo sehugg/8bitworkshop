@@ -69,7 +69,7 @@ export function _setKeyboardEvents(canvas: HTMLElement, callback: KeyboardCallba
 
 type VideoCanvasOptions = { rotate?: number, overscan?: boolean, aspect?: number };
 
-export class RasterVideo {
+class RasterVideoImpl {
 
   mainElement: HTMLElement;
   width: number;
@@ -167,7 +167,7 @@ export class RasterVideo {
   };
 }
 
-export class VectorVideo extends RasterVideo {
+class VectorVideoImpl extends RasterVideoImpl {
 
   persistenceAlpha = 0.5;
   jitter = 1.0;
@@ -247,6 +247,28 @@ export function drawCrosshair(ctx: CanvasRenderingContext2D, x: number, y: numbe
   ctx.stroke();
 }
 
+// Platforms construct video and timers through these bindings, so a headless
+// host can swap in stand-ins with setVideoClasses (see src/tools/emutarget.ts).
+export type RasterVideo = RasterVideoImpl;
+export let RasterVideo = RasterVideoImpl;
+export type VectorVideo = VectorVideoImpl;
+export let VectorVideo = VectorVideoImpl;
+
+export interface VideoClasses {
+  RasterVideo: typeof RasterVideoImpl;
+  VectorVideo: typeof VectorVideoImpl;
+  AnimationTimer: typeof AnimationTimerImpl;
+}
+
+/** Replace the classes platforms construct; returns the previous ones. */
+export function setVideoClasses(classes: Partial<VideoClasses>): VideoClasses {
+  const previous = { RasterVideo, VectorVideo, AnimationTimer };
+  if (classes.RasterVideo) RasterVideo = classes.RasterVideo;
+  if (classes.VectorVideo) VectorVideo = classes.VectorVideo;
+  if (classes.AnimationTimer) AnimationTimer = classes.AnimationTimer;
+  return previous;
+}
+
 export class RAM {
   mem: Uint8Array;
   constructor(size: number) {
@@ -266,7 +288,7 @@ export class EmuHalt extends Error {
 
 export var useRequestAnimationFrame: boolean = false;
 
-export class AnimationTimer {
+class AnimationTimerImpl {
 
   callback;
   running: boolean = false;
@@ -346,6 +368,9 @@ export class AnimationTimer {
     this.running = false;
   }
 }
+
+export type AnimationTimer = AnimationTimerImpl;
+export let AnimationTimer = AnimationTimerImpl;
 
 // TODO: move to util?
 

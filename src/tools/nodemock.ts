@@ -2,6 +2,7 @@
 import { SampledAudioSink } from "../common/devices";
 
 import fs from 'fs';
+import path from 'path';
 
 export function mockGlobals() {
     global.atob = require('atob');
@@ -38,9 +39,10 @@ export function mockAudio() {
     global.PsgDeviceChannel = NullPsgDeviceChannel;
 }
 
-export function mockFetch() {
-    global.fetch = async (path, init) => {
-        let bin = fs.readFileSync(path);
+/** Serve fetch() from the filesystem, relative to `rootDir`. */
+export function mockFetch(rootDir: string = process.cwd()) {
+    global.fetch = async (url, init) => {
+        let bin = fs.readFileSync(path.resolve(rootDir, String(url)));
         let blob = new Blob([bin]);
         return new Response(blob);
     }
