@@ -1,7 +1,7 @@
 
 import { Toolbar } from "./toolbar";
 import { registerElementShortcuts, Shortcut } from "./shortcutbar";
-import { registerElementHelpTopic } from "./views/helpview";
+import { registerElementHelpTopic } from "./helptopics";
 import { VirtualList } from "../common/vlist";
 import DOMPurify from "dompurify";
 

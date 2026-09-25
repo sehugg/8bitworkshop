@@ -3,15 +3,15 @@
     "extends": "../tsconfig.json",
     "include": [
         "src/**/*.ts",
-        "test/**/*.ts",
-        "../src/md.d.ts"
+        "test/**/*.ts"
     ],
     "compilerOptions": {
         "noEmit": true,
         "rootDir": "..",
-        // jquery/bootstrap/bootbox: IDE code that platform modules reach (see
-        // "keep the IDE out of platform modules" in doc/notes/VSCODE.md)
-        "types": ["node", "mocha", "vscode", "jquery", "bootstrap", "bootbox"],
+        // jquery: platform modules build their UI with it
+        // bootbox: ide/waveform.ts, which verilog.ts imports (see "keep the
+        // IDE out of platform modules" in doc/notes/VSCODE.md)
+        "types": ["node", "mocha", "vscode", "jquery", "bootbox"],
         "typeRoots": ["./node_modules/@types", "../node_modules/@types"]
     }
 }

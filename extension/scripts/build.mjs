@@ -6,7 +6,6 @@
 // extension.js stays small; builds and emulation run in worker threads
 // (buildworker.js, emuworker.js) that start on first use.
 import esbuild from 'esbuild';
-import mdPlugin from '../../scripts/md-loader.mjs';
 import { readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -34,7 +33,6 @@ const ctx = await esbuild.context({
   // These resolve from the repo's node_modules at runtime: jsdom (for
   // installNodeMocks) doesn't bundle, and binaryen (verilog) is 51MB.
   external: ['vscode', 'jsdom', 'canvas', 'binaryen'],
-  plugins: [mdPlugin],  // some platform modules reach IDE views that import .md
   logLevel: 'warning',
 });
 if (watch) {
