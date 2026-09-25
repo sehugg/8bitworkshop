@@ -131,6 +131,11 @@ describe('8bws CLI', function () {
             var out = cli('run', '--platform', 'apple2', '-e', 'run 20; hist 5', 'test/roms/apple2/cosmic.c.rom');
             assert.ok(/instructions shown/.test(out), out);
         });
+        it('should send keys to a platform without a Machine', function () {
+            // nes registers its key handler on the video, like it does in the IDE
+            var out = cli('run', '--platform', 'nes', '-e', 'run 5; keydown enter; run 5; keyup enter', 'test/roms/nes/shoot2.c.rom');
+            assert.ok(/keyup enter/.test(out), out);
+        });
         it('should dump memory', function () {
             var out = cli('run', '--platform', 'apple2', '-f', '20', '--memdump', '400,40f', 'test/roms/apple2/cosmic.c.rom');
             assert.ok(/^0400:( [0-9A-F]{2}){8}/m.test(out), out);

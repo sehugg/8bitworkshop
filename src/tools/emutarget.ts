@@ -89,6 +89,10 @@ function installHeadlessVideo() {
   let pixels: Uint32Array | null = null;
   let params: { width: number, height: number, rotate?: number, aspect?: number } | null = null;
   let frameRate = 60;
+  // the handler a platform registers on its canvas; it's how the IDE
+  // delivers keys, whether or not there's a Machine behind the platform
+  let keyHandler: ((key: number, code: number, flags: number) => void) | null = null;
+  const setKeyboardEvents = function (callback) { keyHandler ??= callback; };
   const RasterVideo: any = function (_el: any, width: number, height: number, options?: { rotate?: number, aspect?: number }) {
     const buffer = new ArrayBuffer(width * height * 4);
     const datau8 = new Uint8Array(buffer);
@@ -99,7 +103,7 @@ function installHeadlessVideo() {
       pixels = datau32;
     }
     this.create = function () { this.width = width; this.height = height; };
-    this.setKeyboardEvents = function () { };
+    this.setKeyboardEvents = setKeyboardEvents;
     this.getFrameData = function () { return datau32; };
     this.getImageData = function () { return { data: datau8, width, height }; };
     this.updateFrame = function () { };
@@ -114,7 +118,7 @@ function installHeadlessVideo() {
   };
   const VectorVideo: any = function () {
     this.create = function () { this.drawops = 0; };
-    this.setKeyboardEvents = function () { };
+    this.setKeyboardEvents = setKeyboardEvents;
     this.clear = function () { };
     this.drawLine = function () { this.drawops++; };
   };
@@ -131,6 +135,7 @@ function installHeadlessVideo() {
       return pixels && params ? { pixels, ...params } : null;
     },
     get frameRate() { return frameRate; },
+    get keyHandler() { return keyHandler; },
     restore() {
       emu.setVideoClasses(original);
     }
@@ -204,6 +209,8 @@ export class EmuTarget {
   }
 
   setKeyInput(key: number, code: number, flags: number) {
+    const handler = this.video?.keyHandler;
+    if (handler) return handler(key, code, flags);
     const target: any = this.machine || this.platform;
     if (typeof target.setKeyInput !== 'function') {
       throw new Error(`platform '${this.id}' does not accept key input`);
