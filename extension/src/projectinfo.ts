@@ -1,6 +1,8 @@
 
 // projectinfo - file and path helpers with no side effects, safe to load in
 // the extension host (unlike buildcore, whose worker imports set globals).
+// projectFor() decides which project owns a file; it takes settings as plain
+// data so tests can drive it without VS Code.
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -19,6 +21,20 @@ export function isSourceFile(fn: string): boolean {
   return sourceExtensions.has(path.extname(fn).toLowerCase());
 }
 
+// extensions many other tools and extensions use too
+const SHARED_EXTENSIONS = new Set(['.c', '.h', '.s', '.asm', '.a', '.inc', '.bas', '.v', '.cpp', '.cc', '.i']);
+
+/** True for extensions only 8bitworkshop's tools use (.dasm, .ca65, ...). */
+export function isOwnExtension(fn: string): boolean {
+  var ext = path.extname(fn).toLowerCase();
+  return isSourceFile(fn) && !SHARED_EXTENSIONS.has(ext);
+}
+
+/** Headers and include files: never a main file. */
+export function isHeaderFile(fn: string): boolean {
+  return /\.(h|inc|i)$/i.test(fn);
+}
+
 /** The asset root: a directory with src/worker, searched upward from `start`. */
 export function findRootDir(start: string): string | null {
   var dir = path.resolve(start);
@@ -29,4 +45,129 @@ export function findRootDir(start: string): string | null {
     dir = parent;
   }
   return null;
+}
+
+////// projects
+
+/** One project's settings: top-level, or one entry of 8bitworkshop.folders. */
+export interface ProjectSettings {
+  platform?: string;
+  mainFile?: string;
+  tool?: string;
+}
+
+/** What projectFor needs to know about one workspace folder. */
+export interface FolderInfo {
+  /** the workspace folder's path */
+  path: string;
+  /** 8bitworkshop.platform / mainFile / tool */
+  settings: ProjectSettings;
+  /** 8bitworkshop.folders: directory relative to the folder -> settings */
+  folders?: { [dir: string]: ProjectSettings };
+  /** the README badge, if the folder's README has one */
+  readme?: { platform: string, mainFile?: string };
+}
+
+export type ProjectOrigin = 'folders' | 'settings' | 'readme' | 'window' | 'build';
+
+export interface Project {
+  /** files under this directory belong to the project */
+  scope: string;
+  /** the main file's directory, which include paths resolve from */
+  root: string;
+  platform: string;
+  /** absolute; unset for a directory of programs */
+  mainFile?: string;
+  tool?: string;
+  origin: ProjectOrigin;
+  /** the workspace folder that holds its settings, if any */
+  folder?: string;
+  /** its key in 8bitworkshop.folders, when origin is 'folders' */
+  folderKey?: string;
+}
+
+export interface ProjectContext {
+  folders: FolderInfo[];
+  /** choices made in a window with no folder */
+  window?: Project[];
+  /** the last builds: a file one read belongs to its project */
+  builds?: { project: Project, paths: string[] }[];
+}
+
+/** True if `file` is `dir` or under it. */
+export function isInside(dir: string, file: string): boolean {
+  var rel = path.relative(dir, file);
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
+function makeProject(scope: string, s: ProjectSettings, origin: ProjectOrigin, folder?: string, folderKey?: string): Project {
+  var mainFile = s.mainFile ? path.resolve(scope, s.mainFile) : undefined;
+  return {
+    scope, root: mainFile ? path.dirname(mainFile) : scope,
+    platform: s.platform, mainFile, tool: s.tool || undefined,
+    origin, folder, folderKey,
+  };
+}
+
+/** Every project the settings describe, most specific first. */
+export function listProjects(ctx: ProjectContext): Project[] {
+  var out: Project[] = [];
+  for (var f of ctx.folders) {
+    var keys = Object.keys(f.folders || {}).sort((a, b) => b.length - a.length);
+    for (var key of keys) {
+      var s = f.folders[key];
+      if (s && s.platform) out.push(makeProject(path.resolve(f.path, key), s, 'folders', f.path, key));
+    }
+    if (f.settings.platform) out.push(makeProject(f.path, f.settings, 'settings', f.path));
+    else if (f.readme) out.push(makeProject(f.path, f.readme, 'readme', f.path));
+  }
+  return out;
+}
+
+/**
+ * The project that owns `file`, or undefined if it isn't ours. In order: the
+ * most specific 8bitworkshop.folders entry, the folder's settings, its README
+ * badge, a choice made in a window with no folder, then the last build that
+ * read the file.
+ */
+export function projectFor(file: string, ctx: ProjectContext): Project | undefined {
+  file = path.resolve(file);
+  var best: Project | undefined;
+  for (var p of listProjects(ctx)) {
+    if (!isInside(p.scope, file)) continue;
+    // the deepest scope wins, then the order listProjects gives
+    if (!best || p.scope.length > best.scope.length) best = p;
+  }
+  if (best) return best;
+  for (var w of ctx.window || []) {
+    if (isInside(w.scope, file)) return w;
+  }
+  for (var b of ctx.builds || []) {
+    if (b.paths.some(p => path.resolve(p) === file)) return b.project;
+  }
+  return undefined;
+}
+
+////// run target
+
+/** Stored per user: a file to run, or 'follow' for the active editor. */
+export type RunTargetChoice = string | 'follow' | undefined;
+
+/**
+ * The file Build and Run use. A stored choice wins while its file is in the
+ * project; 'follow', or a project with no main file, uses the active editor
+ * when it could be a program, else the last target.
+ */
+export function resolveRunTarget(project: Project, choice: RunTargetChoice,
+  active: string | undefined, last: string | undefined, isDependency: (file: string) => boolean): string | undefined {
+  if (choice && choice !== 'follow') {
+    var chosen = path.resolve(project.root, choice);
+    if (isInside(project.scope, chosen)) return chosen;
+  }
+  if (choice === 'follow' || !project.mainFile) {
+    if (active && isInside(project.scope, active) && isSourceFile(active) && !isHeaderFile(active) && !isDependency(active))
+      return active;
+    return last || project.mainFile;
+  }
+  return project.mainFile;
 }

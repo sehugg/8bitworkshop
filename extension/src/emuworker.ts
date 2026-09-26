@@ -7,7 +7,9 @@ import { parentPort, workerData } from 'worker_threads';
 import { performance } from 'perf_hooks';
 import { Rpc } from './rpc';
 import { EmuTarget, installNodeMocks, loadPlatform } from '../../src/tools/emutarget';
-import { setHaltHandler } from '../../src/common/emu';
+import { clearLastKeycodeMap, describeControls, getLastKeycodeMap, setHaltHandler } from '../../src/common/emu';
+import { ControlHint, PLATFORM_CONTROLS } from '../../src/common/controls';
+import { getRootBasePlatform } from '../../src/common/util';
 
 export interface FrameEvent {
   pixels: ArrayBuffer;
@@ -22,6 +24,8 @@ export interface EmuStatus {
   platform: string;
   frame: number;
   message?: string;
+  /** the platform's controls, hand-written or from its key map */
+  controls?: ControlHint[];
 }
 
 // frames to run at once when catching up, before giving up and resyncing
@@ -35,12 +39,21 @@ let target: EmuTarget | null = null;
 let running = false;
 let timer: NodeJS.Timeout | null = null;
 let nextTime = 0;
+let controls: ControlHint[] = [];
+let started = false;
 
 const rpc = new Rpc(parentPort, {
   async start(platform: string, rom: any) {
+    // platform modules keep global state (Javatari deletes its own start()),
+    // so a worker runs one emulator; the host starts a new worker per run
+    if (started) throw new Error('This emulator worker already ran a platform; start a new worker.');
+    started = true;
     stop();
+    clearLastKeycodeMap();
     target = await loadPlatform(platform);
     await target.start();
+    // machines build their keyboard handler as they start
+    controls = PLATFORM_CONTROLS[getRootBasePlatform(platform)] || describeControls(getLastKeycodeMap());
     target.loadROM(rom);
     resume();
     return status();
@@ -80,7 +93,7 @@ const rpc = new Rpc(parentPort, {
 
 function status(): EmuStatus | null {
   if (!target) return null;
-  return { state: running ? 'running' : 'paused', platform: target.id, frame: target.frameCount };
+  return { state: running ? 'running' : 'paused', platform: target.id, frame: target.frameCount, controls };
 }
 
 function resume() {

@@ -18,10 +18,37 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "workspaceContains:README.md",
+    "workspaceContains:**/*.dasm",
+    "workspaceContains:**/*.ca65",
+    "workspaceContains:**/*.acme",
+    "workspaceContains:**/*.xa",
+    "workspaceContains:**/*.nesasm",
+    "workspaceContains:**/*.z",
+    "workspaceContains:**/*.xasm",
+    "workspaceContains:**/*.lwasm",
+    "workspaceContains:**/*.vasm",
+    "workspaceContains:**/*.armips"
   ],
   "contributes": {
     "commands": [
+      {
+        "command": "8bitworkshop.newProject",
+        "title": "New Project...",
+        "category": "8bitworkshop"
+      },
+      {
+        "command": "8bitworkshop.openExample",
+        "title": "Open Example",
+        "category": "8bitworkshop"
+      },
+      {
+        "command": "8bitworkshop.copyToWorkspace",
+        "title": "Copy to Workspace",
+        "category": "8bitworkshop",
+        "icon": "$(copy)"
+      },
       {
         "command": "8bitworkshop.build",
         "title": "Build",
@@ -32,6 +59,51 @@
         "title": "Run",
         "category": "8bitworkshop",
         "icon": "$(play)"
+      },
+      {
+        "command": "8bitworkshop.runThisFile",
+        "title": "Run This File",
+        "category": "8bitworkshop"
+      },
+      {
+        "command": "8bitworkshop.runMainFile",
+        "title": "Run Main File",
+        "category": "8bitworkshop"
+      },
+      {
+        "command": "8bitworkshop.followActiveEditor",
+        "title": "Follow Active Editor",
+        "category": "8bitworkshop"
+      },
+      {
+        "command": "8bitworkshop.setMainFile",
+        "title": "Set as Main File",
+        "category": "8bitworkshop"
+      },
+      {
+        "command": "8bitworkshop.changeMainFile",
+        "title": "Change Main File...",
+        "category": "8bitworkshop"
+      },
+      {
+        "command": "8bitworkshop.selectPlatform",
+        "title": "Change Platform...",
+        "category": "8bitworkshop"
+      },
+      {
+        "command": "8bitworkshop.detectProjects",
+        "title": "Detect Projects",
+        "category": "8bitworkshop"
+      },
+      {
+        "command": "8bitworkshop.addLaunchConfiguration",
+        "title": "Add Launch Configuration",
+        "category": "8bitworkshop"
+      },
+      {
+        "command": "8bitworkshop.projectMenu",
+        "title": "Project Options",
+        "category": "8bitworkshop"
       },
       {
         "command": "8bitworkshop.reset",
@@ -56,11 +128,6 @@
         "title": "Stop Emulator",
         "category": "8bitworkshop",
         "icon": "$(debug-stop)"
-      },
-      {
-        "command": "8bitworkshop.selectPlatform",
-        "title": "Select Platform",
-        "category": "8bitworkshop"
       }
     ],
     "configuration": {
@@ -69,27 +136,76 @@
         "8bitworkshop.platform": {
           "type": "string",
           "default": "",
-          "description": "Target platform id (e.g. c64, nes, vcs, gb)."
+          "description": "Target platform id (e.g. c64, nes, vcs, gb).",
+          "markdownDescription": "Target platform id (`nes`, `c64`, `vcs`, ...). Set by New Project, Set as Main File, or detection."
         },
         "8bitworkshop.mainFile": {
           "type": "string",
           "default": "",
-          "description": "Main source file, relative to the workspace folder. Defaults to the active editor's file."
+          "description": "Main source file, relative to the workspace folder. Leave empty to run whichever program is open."
         },
         "8bitworkshop.tool": {
           "type": "string",
           "default": "",
-          "description": "Tool for the main file. Defaults to the platform's tool for the file extension."
+          "description": "Tool for the main file, when it isn't the platform's usual tool for the extension (ca65 for a .asm file, say)."
         },
-        "8bitworkshop.buildOnSave": {
-          "type": "boolean",
-          "default": true,
-          "description": "Build when a source file or one of its dependencies is saved."
+        "8bitworkshop.folders": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "Projects in subdirectories: directory (relative to the workspace folder) \u2192 `{ \"platform\", \"mainFile\", \"tool\" }`. The most specific directory wins.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "platform": {
+                "type": "string"
+              },
+              "mainFile": {
+                "type": "string"
+              },
+              "tool": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "platform"
+            ]
+          }
+        },
+        "8bitworkshop.autoBuild": {
+          "type": "string",
+          "enum": [
+            "onType",
+            "onSave",
+            "off"
+          ],
+          "default": "onType",
+          "enumDescriptions": [
+            "Build as you type, after a short pause.",
+            "Build when you save.",
+            "Build only with the Build command."
+          ],
+          "markdownDescription": "When to build. Tools that build on a server (llvm-mos) always wait for a save."
+        },
+        "8bitworkshop.reloadOnBuild": {
+          "type": "string",
+          "enum": [
+            "always",
+            "onSave",
+            "never"
+          ],
+          "default": "always",
+          "enumDescriptions": [
+            "Restart the game after each successful build.",
+            "Restart it only when you save; typing still updates errors.",
+            "Keep the running game until you Run again."
+          ],
+          "markdownDescription": "When a successful build restarts the running game."
         },
         "8bitworkshop.toolchainPath": {
           "type": "string",
           "default": "",
-          "description": "Directory containing src/worker (toolchain assets). Defaults to the extension's own copy."
+          "description": "Directory containing src/worker (toolchain assets). Defaults to the extension's own copy.",
+          "scope": "machine"
         }
       }
     },
@@ -97,8 +213,13 @@
       "editor/title": [
         {
           "command": "8bitworkshop.run",
-          "when": "config.8bitworkshop.platform && resourceScheme == file && activeWebviewPanelId != '8bitworkshop.emulator'",
+          "when": "8bitworkshop.canRun && activeWebviewPanelId != '8bitworkshop.emulator'",
           "group": "navigation"
+        },
+        {
+          "command": "8bitworkshop.copyToWorkspace",
+          "when": "resourceScheme == 8bws-preset",
+          "group": "navigation@0"
         },
         {
           "command": "8bitworkshop.pause",
@@ -119,17 +240,101 @@
           "command": "8bitworkshop.stop",
           "when": "activeWebviewPanelId == '8bitworkshop.emulator'",
           "group": "navigation@3"
+        },
+        {
+          "command": "8bitworkshop.runThisFile",
+          "when": "8bitworkshop.canRun",
+          "group": "8bitworkshop@1"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "8bitworkshop.setMainFile",
+          "when": "resourceScheme == file",
+          "group": "8bitworkshop@1"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "8bitworkshop.setMainFile",
+          "when": "!explorerResourceIsFolder",
+          "group": "8bitworkshop@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "8bitworkshop.copyToWorkspace",
+          "when": "resourceScheme == 8bws-preset"
+        },
+        {
+          "command": "8bitworkshop.pause",
+          "when": "8bitworkshop.emuRunning"
+        },
+        {
+          "command": "8bitworkshop.resume",
+          "when": "!8bitworkshop.emuRunning"
         }
       ]
-    }
+    },
+    "viewsWelcome": [
+      {
+        "view": "explorer",
+        "contents": "Make a program for a classic console or computer.\n[New 8bitworkshop Project](command:8bitworkshop.newProject)\n[Open 8bitworkshop Example](command:8bitworkshop.openExample)"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "8bitworkshop",
+        "label": "8bitworkshop",
+        "languages": [],
+        "configurationAttributes": {
+          "launch": {
+            "properties": {
+              "platform": {
+                "type": "string",
+                "description": "Platform id (nes, c64, ...). Defaults to the project's."
+              },
+              "mainFile": {
+                "type": "string",
+                "description": "The program to run, relative to the workspace folder."
+              },
+              "tool": {
+                "type": "string",
+                "description": "Tool for the main file, if not the usual one."
+              }
+            }
+          }
+        },
+        "configurationSnippets": [
+          {
+            "label": "8bitworkshop: Run a program",
+            "body": {
+              "type": "8bitworkshop",
+              "request": "launch",
+              "name": "Run ${1:main.c}",
+              "mainFile": "${1:main.c}"
+            }
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
-    "build": "node scripts/build.mjs",
+    "build": "node scripts/build.mjs && node out/presetindex.js",
     "watch": "node scripts/build.mjs --watch",
     "typecheck": "tsc --noEmit -p .",
-    "test": "node scripts/build.mjs && mocha --timeout 60000 out/test/*.test.js"
+    "test": "npm run build && mocha --timeout 60000 out/test/*.test.js"
   },
   "devDependencies": {
     "@types/vscode": "~1.90.0"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Builds and emulation run sandboxed. 8bitworkshop.toolchainPath is ignored, since it loads code.",
+      "restrictedConfigurations": [
+        "8bitworkshop.toolchainPath"
+      ]
+    }
   }
 }

@@ -9,6 +9,8 @@ export const VIEW_TYPE = '8bitworkshop.emulator';
 
 export interface PanelEvents {
   onKey(key: number, code: number, flags: number): void;
+  /** the user showed or hid the controls bar */
+  onControlsVisible(visible: boolean): void;
   onVisible(visible: boolean): void;
   onDispose(): void;
 }
@@ -18,14 +20,15 @@ export class EmulatorPanel {
   // drop frames while the webview is still drawing the last one
   private frameInFlight = false;
 
-  constructor(readonly events: PanelEvents) {
+  constructor(readonly events: PanelEvents, controlsVisible = true) {
     this.panel = vscode.window.createWebviewPanel(VIEW_TYPE, 'Emulator',
       { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
       { enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [] });
-    this.panel.webview.html = getHtml();
+    this.panel.webview.html = getHtml(controlsVisible);
     this.panel.webview.onDidReceiveMessage(msg => {
       if (msg.type === 'key') this.events.onKey(msg.key, msg.code, msg.flags);
       else if (msg.type === 'frameDone') this.frameInFlight = false;
+      else if (msg.type === 'controlsVisible') this.events.onControlsVisible(!!msg.visible);
     });
     this.panel.onDidChangeViewState(e => this.events.onVisible(e.webviewPanel.visible));
     this.panel.onDidDispose(() => this.events.onDispose());
@@ -55,7 +58,7 @@ export class EmulatorPanel {
   }
 }
 
-function getHtml() {
+function getHtml(controlsVisible: boolean) {
   var nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
   return `<!DOCTYPE html>
 <html>
@@ -67,13 +70,32 @@ function getHtml() {
   #wrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
   canvas { image-rendering: pixelated; outline: none; }
   canvas:focus { box-shadow: 0 0 0 1px var(--vscode-focusBorder); }
-  #status { position: absolute; left: 8px; bottom: 6px; font: 12px var(--vscode-font-family); color: #ccc;
+  #status { position: absolute; left: 8px; top: 6px; font: 12px var(--vscode-font-family); color: #ccc;
             text-shadow: 0 0 3px #000; pointer-events: none; }
+  /* keys only reach the emulator while it has focus, so say so */
+  #focus { position: absolute; inset: 0; bottom: var(--bar, 0px); display: none; align-items: center; justify-content: center;
+           font: 14px var(--vscode-font-family); color: #fff; background: rgba(0,0,0,0.45); cursor: pointer; }
+  body.unfocused #focus { display: flex; }
+  #focus span { padding: 6px 12px; border-radius: 4px; background: rgba(0,0,0,0.6); }
+  #bar { position: absolute; left: 0; right: 0; bottom: 0; min-height: 24px; display: none; align-items: center; justify-content: center;
+         flex-wrap: wrap; gap: 4px 14px; padding: 3px 28px; box-sizing: border-box;
+         font: 12px var(--vscode-font-family); color: var(--vscode-foreground); background: var(--vscode-editorWidget-background, #222); }
+  body.controls #bar { display: flex; }
+  .key { display: inline-block; padding: 0 4px; margin-right: 2px; border: 1px solid var(--vscode-widget-border, #666);
+         border-radius: 3px; font-family: var(--vscode-editor-font-family, monospace); white-space: pre; line-height: 1.3; }
+  #hide { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); cursor: pointer; opacity: 0.7; border: 0;
+          background: none; color: inherit; font-size: 14px; }
+  #show { position: absolute; right: 6px; bottom: 4px; display: none; cursor: pointer; font: 11px var(--vscode-font-family);
+          color: #ccc; background: rgba(0,0,0,0.5); border: 0; border-radius: 3px; padding: 2px 6px; }
+  body.hascontrols:not(.controls) #show { display: block; }
 </style>
 </head>
-<body>
+<body class="${controlsVisible ? 'controls' : ''}">
 <div id="wrap"><canvas id="screen" tabindex="0" width="1" height="1"></canvas></div>
 <div id="status"></div>
+<div id="focus"><span>Click to play</span></div>
+<div id="bar"><span id="hints"></span><button id="hide" title="Hide controls">&times;</button></div>
+<button id="show" title="Show controls">Controls</button>
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   const canvas = document.getElementById('screen');
@@ -81,6 +103,7 @@ function getHtml() {
   const statusEl = document.getElementById('status');
   let image = null;
   let layout = { w: 0, h: 0, rotate: 0, aspect: 0 };
+  let lastControls = null;
 
   // KeyFlags in src/common/emu.ts
   const KeyDown = 1, Shift = 2, Ctrl = 4, Alt = 8, Meta = 16, KeyUp = 64;
@@ -99,9 +122,41 @@ function getHtml() {
   canvas.addEventListener('keyup', e => {
     vscode.postMessage({ type: 'key', key: e.which, code: charCode(e), flags: KeyUp | modFlags(e) });
   });
-  document.addEventListener('mousedown', () => canvas.focus());
+  document.addEventListener('mousedown', e => { if (!(e.target instanceof HTMLButtonElement)) canvas.focus(); });
   window.addEventListener('focus', () => canvas.focus());
   window.addEventListener('resize', fit);
+  canvas.addEventListener('focus', () => document.body.classList.remove('unfocused'));
+  canvas.addEventListener('blur', () => document.body.classList.add('unfocused'));
+
+  // the controls bar: hints from the platform, hidden on request
+  const bar = document.getElementById('bar');
+  const hintsEl = document.getElementById('hints');
+  function setControls(visible) {
+    document.body.classList.toggle('controls', visible);
+    vscode.postMessage({ type: 'controlsVisible', visible });
+    fit();
+  }
+  document.getElementById('hide').addEventListener('click', () => setControls(false));
+  document.getElementById('show').addEventListener('click', () => setControls(true));
+  function showControls(hints) {
+    hintsEl.textContent = '';
+    for (const h of hints || []) {
+      const def = document.createElement('span');
+      for (const k of h.keys) {
+        const cap = document.createElement('span');
+        cap.className = 'key';
+        cap.textContent = k;
+        def.appendChild(cap);
+      }
+      def.appendChild(document.createTextNode(' ' + h.action));
+      hintsEl.appendChild(def);
+    }
+    document.body.classList.toggle('hascontrols', !!(hints && hints.length));
+    if (!hints || !hints.length) {
+      hintsEl.textContent = 'Keys go to the emulator while it has focus';
+    }
+    fit();
+  }
 
   // scale the canvas to fill the panel, keeping its aspect ratio
   function fit() {
@@ -110,7 +165,10 @@ function getHtml() {
     const sideways = Math.abs(rotate) % 180 == 90;
     let ratio = aspect || w / h;
     if (sideways) ratio = 1 / ratio;
-    const W = window.innerWidth, H = window.innerHeight;
+    const barH = document.body.classList.contains('controls') ? bar.offsetHeight : 0;
+    document.body.style.setProperty('--bar', barH + 'px');
+    document.getElementById('wrap').style.bottom = barH + 'px';
+    const W = window.innerWidth, H = window.innerHeight - barH;
     let dw = W, dh = W / ratio;
     if (dh > H) { dh = H; dw = H * ratio; }
     // the canvas box is pre-rotation, so swap its sides when sideways
@@ -137,10 +195,15 @@ function getHtml() {
       vscode.postMessage({ type: 'frameDone' });
     } else if (msg.type === 'status') {
       const s = msg.status;
+      if (s && JSON.stringify(s.controls) !== lastControls) {
+        lastControls = JSON.stringify(s.controls);
+        showControls(s.controls);
+      }
       statusEl.textContent = !s ? '' : s.state == 'running' ? '' : s.state == 'halted' ? 'Halted: ' + (s.message || '') : 'Paused';
     }
   });
   canvas.focus();
+  if (!document.hasFocus()) document.body.classList.add('unfocused');
 </script>
 </body>
 </html>`;

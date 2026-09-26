@@ -4,7 +4,8 @@
 //   node scripts/build.mjs --watch   # rebuild on change
 //
 // extension.js stays small; builds and emulation run in worker threads
-// (buildworker.js, emuworker.js) that start on first use.
+// (buildworker.js, emuworker.js) that start on first use. presetindex.js
+// writes out/presets.json (npm run build runs it).
 import esbuild from 'esbuild';
 import { readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -22,6 +23,7 @@ const ctx = await esbuild.context({
     extension: 'src/extension.ts',
     buildworker: 'src/buildworker.ts',
     emuworker: 'src/emuworker.ts',
+    presetindex: 'scripts/presetindex.ts',
     ...Object.fromEntries(tests),
   },
   outdir: 'out',

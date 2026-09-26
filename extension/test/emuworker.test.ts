@@ -70,6 +70,15 @@ describe('extension emuworker', function () {
     await waitForFrames(5);
   });
 
+  // Platforms keep global state (Javatari deletes its own start()), so a
+  // worker runs one emulator; the extension starts a new worker for each run.
+  it('runs the VCS once per worker, and says so on a second start', async function () {
+    var s = await rpc.call<EmuStatus>('start', 'vcs', rom('vcs/brickgame.rom'));
+    assert.equal(s.state, 'running');
+    await waitForFrames(5);
+    await assert.rejects(rpc.call('start', 'vcs', rom('vcs/brickgame.rom')), /new worker/);
+  });
+
   it('loads a BIOS from the asset root', async function () {
     await rpc.call('start', 'atari8-5200', rom('atari8-5200/hello.a.rom'));
     await waitForFrames(10);
