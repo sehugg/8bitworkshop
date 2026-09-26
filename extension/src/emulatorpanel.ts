@@ -72,19 +72,19 @@ function getHtml(controlsVisible: boolean) {
   canvas:focus { box-shadow: 0 0 0 1px var(--vscode-focusBorder); }
   #status { position: absolute; left: 8px; top: 6px; font: 12px var(--vscode-font-family); color: #ccc;
             text-shadow: 0 0 3px #000; pointer-events: none; }
-  /* keys only reach the emulator while it has focus, so say so */
-  #focus { position: absolute; inset: 0; bottom: var(--bar, 0px); display: none; align-items: center; justify-content: center;
-           font: 14px var(--vscode-font-family); color: #fff; background: rgba(0,0,0,0.45); cursor: pointer; }
-  body.unfocused #focus { display: flex; }
-  #focus span { padding: 6px 12px; border-radius: 4px; background: rgba(0,0,0,0.6); }
-  #bar { position: absolute; left: 0; right: 0; bottom: 0; min-height: 24px; display: none; align-items: center; justify-content: center;
-         flex-wrap: wrap; gap: 4px 14px; padding: 3px 28px; box-sizing: border-box;
-         font: 12px var(--vscode-font-family); color: var(--vscode-foreground); background: var(--vscode-editorWidget-background, #222); }
-  body.controls #bar { display: flex; }
-  .key { display: inline-block; padding: 0 4px; margin-right: 2px; border: 1px solid var(--vscode-widget-border, #666);
-         border-radius: 3px; font-family: var(--vscode-editor-font-family, monospace); white-space: pre; line-height: 1.3; }
+  /* the IDE's control hints (css/ui.css): key caps on black, shown while
+     the emulator has focus, since keys only reach it then */
+  #bar { position: absolute; left: 0; right: 0; bottom: 0; display: none; align-items: center; justify-content: center;
+         flex-wrap: wrap; padding: 2px 28px; box-sizing: border-box; background: #000;
+         font: 11px var(--vscode-font-family); opacity: 0; transition: opacity 200ms; }
+  body.controls.hascontrols #bar { display: flex; }
+  body:not(.unfocused) #bar { opacity: 1; }
+  .def { color: #ccc; white-space: nowrap; line-height: 2em; }
+  .key { border: 2px solid rgba(0,0,0,0.2); border-radius: 0.6em; padding: 0.2em 0.5em; margin-left: 1em;
+         background-color: #eee; color: #666; white-space: pre; }
+  .key + .key { margin-left: 0.25em; }
   #hide { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); cursor: pointer; opacity: 0.7; border: 0;
-          background: none; color: inherit; font-size: 14px; }
+          background: none; color: #ccc; font-size: 14px; }
   #show { position: absolute; right: 6px; bottom: 4px; display: none; cursor: pointer; font: 11px var(--vscode-font-family);
           color: #ccc; background: rgba(0,0,0,0.5); border: 0; border-radius: 3px; padding: 2px 6px; }
   body.hascontrols:not(.controls) #show { display: block; }
@@ -93,7 +93,6 @@ function getHtml(controlsVisible: boolean) {
 <body class="${controlsVisible ? 'controls' : ''}">
 <div id="wrap"><canvas id="screen" tabindex="0" width="1" height="1"></canvas></div>
 <div id="status"></div>
-<div id="focus"><span>Click to play</span></div>
 <div id="bar"><span id="hints"></span><button id="hide" title="Hide controls">&times;</button></div>
 <button id="show" title="Show controls">Controls</button>
 <script nonce="${nonce}">
@@ -142,6 +141,7 @@ function getHtml(controlsVisible: boolean) {
     hintsEl.textContent = '';
     for (const h of hints || []) {
       const def = document.createElement('span');
+      def.className = 'def';
       for (const k of h.keys) {
         const cap = document.createElement('span');
         cap.className = 'key';
@@ -152,9 +152,6 @@ function getHtml(controlsVisible: boolean) {
       hintsEl.appendChild(def);
     }
     document.body.classList.toggle('hascontrols', !!(hints && hints.length));
-    if (!hints || !hints.length) {
-      hintsEl.textContent = 'Keys go to the emulator while it has focus';
-    }
     fit();
   }
 
@@ -166,7 +163,6 @@ function getHtml(controlsVisible: boolean) {
     let ratio = aspect || w / h;
     if (sideways) ratio = 1 / ratio;
     const barH = document.body.classList.contains('controls') ? bar.offsetHeight : 0;
-    document.body.style.setProperty('--bar', barH + 'px');
     document.getElementById('wrap').style.bottom = barH + 'px';
     const W = window.innerWidth, H = window.innerHeight - barH;
     let dw = W, dh = W / ratio;

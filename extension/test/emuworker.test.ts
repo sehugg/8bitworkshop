@@ -70,6 +70,25 @@ describe('extension emuworker', function () {
     await waitForFrames(5);
   });
 
+  it('stops while hidden without changing its paused state', async function () {
+    await rpc.call('start', 'nes', rom('nes/shoot2.c.rom'));
+    await waitForFrames(5);
+    await rpc.call('setVisible', false);
+    var n = frames.length;
+    await new Promise(r => setTimeout(r, 100));
+    assert.equal(frames.length, n);
+    assert.equal((await rpc.call<EmuStatus>('status')).state, 'running');
+    await rpc.call('setVisible', true);
+    await waitForFrames(5);
+    // a pause while hidden stays paused when shown
+    await rpc.call('setVisible', false);
+    await rpc.call('pause');
+    await rpc.call('setVisible', true);
+    n = frames.length;
+    await new Promise(r => setTimeout(r, 100));
+    assert.equal(frames.length, n);
+  });
+
   // Platforms keep global state (Javatari deletes its own start()), so a
   // worker runs one emulator; the extension starts a new worker for each run.
   it('runs the VCS once per worker, and says so on a second start', async function () {

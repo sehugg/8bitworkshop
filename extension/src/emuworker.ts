@@ -37,6 +37,8 @@ setHaltHandler(err => halt(err?.message || 'Program halted'));
 
 let target: EmuTarget | null = null;
 let running = false;
+/** the panel is hidden: don't run frames, but keep `running` for when it shows */
+let hidden = false;
 let timer: NodeJS.Timeout | null = null;
 let nextTime = 0;
 let controls: ControlHint[] = [];
@@ -78,6 +80,11 @@ const rpc = new Rpc(parentPort, {
     resume();
     return status();
   },
+  setVisible(visible: boolean) {
+    hidden = !visible;
+    if (hidden) stopTimer();
+    else schedule();
+  },
   key(key: number, code: number, flags: number) {
     try {
       target?.setKeyInput(key, code, flags);
@@ -99,16 +106,26 @@ function status(): EmuStatus | null {
 function resume() {
   if (!target || running) return;
   running = true;
-  nextTime = performance.now();
-  tick();
+  schedule();
   rpc.emit('status', status());
 }
 
 function pause() {
   running = false;
+  stopTimer();
+  rpc.emit('status', status());
+}
+
+/** Start ticking from now, if running, shown, and not already ticking. */
+function schedule() {
+  if (!running || hidden || timer) return;
+  nextTime = performance.now();
+  tick();
+}
+
+function stopTimer() {
   if (timer) clearTimeout(timer);
   timer = null;
-  rpc.emit('status', status());
 }
 
 function stop() {
@@ -119,15 +136,14 @@ function stop() {
 function halt(message: string) {
   if (!running || !target) return;
   running = false;
-  if (timer) clearTimeout(timer);
-  timer = null;
+  stopTimer();
   sendFrame();
   rpc.emit('status', { ...status(), state: 'halted', message });
 }
 
 function tick() {
   timer = null;
-  if (!running || !target) return;
+  if (!running || hidden || !target) return;
   var interval = 1000 / target.frameRate;
   var now = performance.now();
   var frames = 0;

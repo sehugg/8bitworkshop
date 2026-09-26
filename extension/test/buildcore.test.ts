@@ -71,4 +71,19 @@ describe('extension buildcore', function () {
     assert.equal(r.diagnostics[0].path, 'game.a');
     assert.equal(r.diagnostics[0].line, 5);
   });
+
+  // Run builds first, so running the same file twice gets an unchanged build
+  it('returns the previous output when nothing changed', async function () {
+    var src = '#include "neslib.h"\nvoid main(void) { ppu_on_all(); while (1) ; }\n';
+    var req = () => ({
+      platform: 'nes', mainPath: 'same.c', mainText: src,
+      files: new ProjectFileProvider(project({ 'same.c': src }), ROOT, 'nes'),
+    });
+    var first = await builder.build(req());
+    assert.ok(first.output);
+    var second = await builder.build(req());
+    assert.ok(second.unchanged);
+    assert.deepEqual(second.output, first.output);
+    assert.ok(second.listings);
+  });
 });

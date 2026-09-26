@@ -53,6 +53,8 @@ export class Builder {
   private queue: Promise<any> = Promise.resolve();
   private initialized = false;
   private preloaded = new Set<string>();
+  /** the last successful outcome per main file, for unchanged builds */
+  private last = new Map<string, BuildOutcome>();
 
   constructor(readonly rootDir: string) { }
 
@@ -77,6 +79,7 @@ export class Builder {
       getToolForFilename: getTool,
     }, deps);
     var paths = [req.mainPath].concat(deps.map(d => d.path));
+    var key = `${req.platform}/${tool}/${req.mainPath}`;
     var result: WorkerResult;
     try {
       for (var t of preloads) {
@@ -90,8 +93,10 @@ export class Builder {
       return { success: false, tool, paths, diagnostics: [{ path: req.mainPath, line: 0, msg: String(e && e.message || e) }] };
     }
     if (!result || ('unchanged' in result && result.unchanged)) {
-      return { success: true, tool, paths, diagnostics: [], unchanged: true };
+      // the worker skips unchanged builds, but Run still needs the output
+      return { ...this.last.get(key), success: true, tool, paths, diagnostics: [], unchanged: true };
     }
+    this.last.delete(key);
     if ('errors' in result && result.errors && result.errors.length) {
       var toPath = (err: WorkerError) => (err.path && filename2path[err.path]) || err.path || req.mainPath;
       return {
@@ -103,10 +108,12 @@ export class Builder {
       // listings stay raw: SourceFile objects don't survive postMessage, so
       // the receiver runs projectcore.processListings on them
       var r = result as any;
-      return {
+      var outcome: BuildOutcome = {
         success: true, tool, paths, diagnostics: [],
         output: r.output, listings: r.listings, symbolmap: r.symbolmap, segments: r.segments,
       };
+      this.last.set(key, outcome);
+      return outcome;
     }
     return { success: false, tool, paths, diagnostics: [{ path: req.mainPath, line: 0, msg: 'Unknown build result' }] };
   }

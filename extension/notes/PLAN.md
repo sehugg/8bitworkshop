@@ -1383,7 +1383,8 @@ CodeMirror, no jQuery.
 **First-time players.** Writing the quickstart showed two things a new
 user can't guess:
 - *Focus.* Keys go to the emulator only while the panel has focus. When
-  it doesn't, dim the canvas and show "Click to play"; the webview's
+  it does, the controls hint fades in, as in the IDE; it fades out on
+  blur (a "Click to play" overlay was too much). The webview's
   `focus`/`blur` events drive it. Keys never go to the emulator while
   the editor has focus.
 - *Controls.* Show a one-line controls hint under the canvas ("Arrows:
@@ -2190,9 +2191,13 @@ do them when a platform is the priority (VCS needs 3–4).
    - Each Run starts a new emulator worker: platforms keep global state
      (Javatari deletes its own `start()`), so `emuworker` refuses a
      second `start`. A rebuild with an identical ROM doesn't reload.
+   - A hidden panel stops the worker's frames (`setVisible`) without
+     changing its paused/running state, so showing it resumes only what
+     was running. `Builder` keeps each main file's last output, so Run
+     works when the build is unchanged (e.g. running twice).
    - Control hints moved out of `index.html` into `src/common/controls.ts`;
      the IDE renders them from there, and the emulator panel shows them in
-     a bar you can hide, with "Click to play" when it lacks focus.
+     a bar you can hide, styled like the IDE's and shown while it has focus.
      Platforms with no entry get hints generated from their key map
      (`describeControls` in `emu.ts`).
    - Changed from the plan: "Review" is a checklist quick pick, not a
@@ -2232,6 +2237,47 @@ do them when a platform is the priority (VCS needs 3–4).
    memory, disassembly, conditional breakpoints via `breakcond.ts`.
 5. **Packaging.** Asset-root override, lazy platform loading, binaryen
    dynamic import, base + per-family packs, VSIX/CI.
+
+### Plan: fuzzing
+
+Fuzz the parts that don't need VS Code: grammars, the build and emulator
+workers, and the pure helpers. The repo already has `jsfuzz` harnesses
+(`fuzzbasic`, `fuzzhdl` in the root `package.json`).
+
+Each target is a mocha test in `extension/test/` with a fixed seed and a
+small iteration count, so CI runs it. `FUZZ_ITERS=n` runs longer locally and
+writes failing inputs to `out/fuzz/` for replay. If random mutation stops
+finding bugs, drive targets 2 and 3 with `jsfuzz`'s coverage guidance.
+
+In order:
+1. **Grammars.** VS Code tokenizes every line as you type, so a regex that
+   backtracks badly freezes the editor. Feed mutated lines from preset asm
+   files, and random punctuation-heavy strings, through
+   `scripts/tmtokenize.ts`. Check: each line tokenizes in a few ms, and the
+   tokens cover the line with no gaps or overlaps.
+2. **Build worker.** Mutate preset sources (delete lines, swap tokens,
+   truncate, insert junk bytes) and build them with `Builder`
+   (`buildcore.ts`). Check: every build ends with output or errors within a
+   timeout; the worker survives for the next build; every error names a real
+   file and a line inside it. Covers the compilers' wasm, error parsing,
+   listing and symbol parsing, and diagnostics.
+3. **Emulator worker.** Load random or mutated ROMs on each platform, then
+   send random keys, pause/step/reset and visibility changes. Check: frames
+   keep coming, status stays valid, and the worker never dies silently.
+   Reaches the CPU emulators' illegal-opcode and out-of-range memory paths.
+4. **Property tests** (e.g. `fast-check`) for pure functions: detection
+   over random file trees (`src/common/detect.ts`, `projectinfo.ts`), path
+   edge cases in `isInside` (`..`, trailing slashes, letter case), and
+   `patchHeaderForClang` (applying it twice gives the same result, and
+   headers with nothing to patch come through unchanged).
+5. **Random command sequences** (later, nightly). Under
+   `@vscode/test-electron`, open presets, build, run, close the panel and
+   change settings in random order. Catches lifecycle bugs (a disposed
+   panel, the build scheduler running after deactivate), but it's slow and
+   flaky.
+
+Skip the webview messages: there are three types (`key`, `frameDone`,
+`controlsVisible`), and a field check covers them.
 
 ## 10. Risks and open questions
 

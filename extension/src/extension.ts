@@ -28,7 +28,6 @@ let builds: WorkerHandle | undefined;
 let emu: WorkerHandle | undefined;
 let panel: EmulatorPanel | undefined;
 let emuStatus: EmuStatus | null = null;
-let pausedByHide = false;
 let nextBuildId = 1;
 const readers = new Map<number, (rel: string) => Promise<Uint8Array | null>>();
 
@@ -335,16 +334,8 @@ async function startEmulator(target: Target, rom: any) {
     panel = new EmulatorPanel({
       onKey: (key, code, flags) => { emu?.call('key', key, code, flags); },
       onControlsVisible: visible => context.globalState.update('controlsVisible', visible),
-      onVisible: visible => {
-        // don't burn CPU on a hidden screen
-        if (!visible && emuStatus?.state === 'running') {
-          pausedByHide = true;
-          emu?.call('pause');
-        } else if (visible && pausedByHide) {
-          pausedByHide = false;
-          emu?.call('resume');
-        }
-      },
+      // don't burn CPU on a hidden screen
+      onVisible: visible => { emu?.call('setVisible', visible); },
       onDispose: () => {
         panel = undefined;
         emuStatus = null;
