@@ -9,6 +9,8 @@
 import { KeyFlags } from '../common/emu';
 import { ProbeFlags, ProbeRecorder } from '../common/probe';
 import { hex } from '../common/util';
+import type { SymbolMap } from '../common/baseplatform';
+import { lookupSymbol } from '../common/symbols/symbolfile';
 import { hexdump, write } from './cliformat';
 import { DEFAULT_MAX_FRAMES, EmuTarget } from './emutarget';
 
@@ -105,13 +107,13 @@ export function formatRegs(state: any): string {
 const PROBE_BUFFER_SIZE = 0x400000;
 
 export class RunScript {
-  symbols: { [name: string]: number } = {};
+  symbols: SymbolMap = {};
   private addr2symbol: { [addr: number]: string } = {};
   private probe: ProbeRecorder | null = null;
 
   constructor(readonly target: EmuTarget, private out = write) { }
 
-  addSymbols(symbols: { [name: string]: number }) {
+  addSymbols(symbols: SymbolMap) {
     Object.assign(this.symbols, symbols);
     for (const [name, addr] of Object.entries(this.symbols)) this.addr2symbol[addr] = name;
   }
@@ -151,7 +153,7 @@ export class RunScript {
   private addr(tok: string): number {
     try { return parseNum(tok); }
     catch (e) {
-      const v = this.symbols[tok] ?? this.symbols[tok.replace(/^\./, '')];
+      const v = lookupSymbol(this.symbols, tok);
       if (v == null) throw new Error(`unknown address or symbol '${tok}'`);
       return v;
     }
@@ -368,15 +370,3 @@ const COMMANDS: { [name: string]: Command } = {
   'reset': RunScript.prototype.cmdReset,
   'echo': RunScript.prototype.cmdEcho,
 };
-
-/** Parse a cc65/ca65 or VICE label file into a symbol map. */
-export function parseSymbolFile(text: string): { [name: string]: number } {
-  const symbols: { [name: string]: number } = {};
-  for (const line of text.split(/\r?\n/)) {
-    const m1 = line.match(/^\s*([A-Za-z_][\w]*)\s*=\s*\$?([0-9A-Fa-f]+)\s*;/);            // ca65/cc65 list
-    const m2 = line.match(/^\s*(?:al|add_label)\s+([0-9A-Fa-f]+)\s+\.?([A-Za-z_][\w]*)/); // VICE
-    if (m1) symbols[m1[1]] = parseInt(m1[2], 16);
-    else if (m2) symbols[m2[2]] = parseInt(m2[1], 16);
-  }
-  return symbols;
-}

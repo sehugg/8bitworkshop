@@ -85,6 +85,10 @@ describe('8bws CLI', function () {
             assert.ok(/break \$[0-9A-F]+: HIT/.test(out), out);
             assert.ok(/_main:/.test(out), out);
         });
+        it('should find a C symbol without its underscore', function () {
+            var out = cli('run', '--platform', 'gb', 'presets/gb/hello.c', '-e', 'break main 600; pc 1');
+            assert.ok(/break \$[0-9A-F]+: HIT/.test(out), out);
+        });
         it('should write a screenshot', function () {
             var png = path.join(os.tmpdir(), '8bws-test-shot.png');
             if (fs.existsSync(png)) fs.unlinkSync(png);

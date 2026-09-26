@@ -1,5 +1,8 @@
 import { describe } from "mocha";
-import { compileCondition, parseTarget } from "../../src/ide/breakcond";
+import { compileCondition, parseTarget } from "../../src/common/breakcond";
+import { Breakpoint, BreakpointContext, canUseBreakpoints, resolveBreakpoint } from "../../src/common/breakpoints";
+import { lookupSymbol, parseSymbolFile } from "../../src/common/symbols/symbolfile";
+import { SourceFile } from "../../src/common/workertypes";
 import assert from "assert";
 
 const ctx = {
@@ -140,5 +143,61 @@ describe('Breakpoints', () => {
         assert.ok(parseTarget('nosuch', sym).error);
         assert.ok(parseTarget('', sym).error);
         assert.ok(parseTarget('12ab', sym).error); // neither number nor symbol
+    });
+});
+
+describe('Breakpoint resolution (shared by IDE, CLI, debug adapter)', () => {
+
+    const symbols = { _main: 0x1234, mainloop: 0x800, vblank: 0x900 };
+    const sourcefile = new SourceFile([{ line: 10, offset: 0x1234 } as any], '');
+    const ctx: BreakpointContext = {
+        symbols,
+        getListingForFile: (path) => path == 'game.c' ? { lines: [], sourcefile } as any : undefined,
+        platform: {
+            getCPUState: () => ({ PC: 0x1234, A: 7 }),
+            readAddress: (a: number) => (a == 0x10 ? 0x2a : 0),
+        } as any,
+    };
+    const bp = (patch: Partial<Breakpoint>): Breakpoint => ({ id: 1, type: 'address', enabled: true, ...patch });
+
+    it('should resolve a symbol, with or without the C underscore', () => {
+        assert.equal(resolveBreakpoint(bp({ target: 'mainloop' }), ctx).pc, 0x800);
+        assert.equal(resolveBreakpoint(bp({ target: '_main' }), ctx).pc, 0x1234);
+        assert.equal(resolveBreakpoint(bp({ target: 'main' }), ctx).pc, 0x1234);
+        assert.ok(resolveBreakpoint(bp({ target: 'nosuch' }), ctx).error);
+    });
+    it('should resolve a source line through the listing', () => {
+        assert.equal(resolveBreakpoint(bp({ type: 'source', file: 'game.c', line: 10 }), ctx).pc, 0x1234);
+        assert.equal(resolveBreakpoint(bp({ type: 'source', file: 'game.c', line: 11 }), ctx).error, 'line has no code');
+        assert.equal(resolveBreakpoint(bp({ type: 'source', file: 'other.c', line: 10 }), ctx).error, 'no debug info (build first?)');
+    });
+    it('should compile a condition against the host platform', () => {
+        let r = resolveBreakpoint(bp({ target: '$800', condition: 'A == 7 && [$10] == 42' }), ctx);
+        assert.equal(r.pc, 0x800);
+        assert.equal(r.condFn({ A: 7 }), true);
+        assert.equal(r.condFn({ A: 6 }), false);
+    });
+    it('should work without a platform or listings', () => {
+        assert.equal(resolveBreakpoint(bp({ target: '$c000' }), {}).pc, 0xc000);
+        assert.ok(resolveBreakpoint(bp({ type: 'source', file: 'game.c', line: 10 }), {}).error);
+    });
+    it('should report whether a platform can stop at breakpoints', () => {
+        assert.equal(canUseBreakpoints(null), false);
+        assert.equal(canUseBreakpoints({ runEval: () => { } } as any), true);
+    });
+});
+
+describe('Symbol files', () => {
+    it('should parse ca65 and VICE label files', () => {
+        let syms = parseSymbolFile('main = $1234 ;\nal 00C000 .vblank\nadd_label 0800 loop\n');
+        assert.deepEqual(syms, { main: 0x1234, vblank: 0xc000, loop: 0x800 });
+    });
+    it('should look up names as a user types them', () => {
+        let syms = { _main: 1, loop: 2 };
+        assert.equal(lookupSymbol(syms, '_main'), 1);
+        assert.equal(lookupSymbol(syms, 'main'), 1);
+        assert.equal(lookupSymbol(syms, '.loop'), 2);
+        assert.equal(lookupSymbol(syms, 'nope'), undefined);
+        assert.equal(lookupSymbol(null, 'main'), undefined);
     });
 });

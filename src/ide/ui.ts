@@ -38,7 +38,7 @@ import { ProjectWindows } from "./windows";
 import { setupSplits, showTab } from "./layout";
 export { setupSplits, showTab };
 import { bpStore, canUseBreakpoints, resolveBreakpoints } from "./breakpoints";
-import { CondFn } from "./breakcond";
+import { CondFn } from "../common/breakcond";
 import { findListingLocation as findListingLocationPure } from "./search/listinglocation";
 import DOMPurify = require("dompurify");
 
