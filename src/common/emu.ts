@@ -1,4 +1,5 @@
 
+import type { ControlHint } from "./controls";
 import { hex, clamp, lpad } from "./util";
 import { SourceLocation } from "./workertypes";
 
@@ -568,7 +569,57 @@ function _metakeyflags(e) {
 
 type KeyMapFunction = (o: KeyMapEntry, key: number, code: number, flags: number) => void;
 
+// the key map of the most recent keyboard handler, so a host can show the
+// controls (the VS Code emulator panel does)
+var lastKeycodeMap: KeyCodeMap = null;
+
+export function getLastKeycodeMap(): KeyCodeMap {
+  return lastKeycodeMap;
+}
+
+export function clearLastKeycodeMap() {
+  lastKeycodeMap = null;
+}
+
+// what each controller key does, in the order the hint lists them
+const CONTROL_LABELS: [KeyDef[], string, string][] = [
+  [[Keys.UP, Keys.DOWN, Keys.LEFT, Keys.RIGHT], '\u2190\u2191\u2193\u2192', 'Joystick'],
+  [[Keys.A], 'Space', 'Button A'],
+  [[Keys.B], 'Shift', 'Button B'],
+  [[Keys.GP_A, Keys.GP_B, Keys.GP_C, Keys.GP_D], 'X Z V C', 'Buttons'],
+  [[Keys.START], 'Enter', 'Start'],
+  [[Keys.SELECT], '\\', 'Select'],
+  [[Keys.OPTION], 'Backspace', 'Option'],
+  [[Keys.P2_UP, Keys.P2_DOWN, Keys.P2_LEFT, Keys.P2_RIGHT], 'W A S D', 'Player 2'],
+];
+
+/**
+ * Control hints generated from a key map, for platforms with no hand-written
+ * ones in PLATFORM_CONTROLS (src/common/controls.ts).
+ */
+export function describeControls(map: KeyCodeMap): ControlHint[] {
+  if (!map) return [];
+  var defs = new Set<KeyDef>();
+  for (var k of Object.keys(map)) {
+    var o: KeyMapEntry = map[k];
+    if (o && o.def) defs.add(o.def);
+  }
+  var hints: ControlHint[] = [];
+  for (var [keys, label, action] of CONTROL_LABELS) {
+    if (keys.some(key => defs.has(key))) {
+      hints.push({ keys: [label], action });
+      for (var key of keys) defs.delete(key);
+    }
+  }
+  // the rest (coin, number keys) by name; player 2's buttons go unlisted
+  var p2 = new Set(Object.keys(Keys).filter(k => k.startsWith('P2_')).map(k => Keys[k]));
+  var others = [...defs].filter(d => d !== Keys.ANYKEY && !p2.has(d)).map(d => d.n);
+  if (others.length) hints.push({ keys: others.slice(0, 6), action: 'Other' });
+  return hints;
+}
+
 export function newKeyboardHandler(switches: number[] | Uint8Array, map: KeyCodeMap, func?: KeyMapFunction, alwaysfunc?: boolean) {
+  if (map) lastKeycodeMap = map;
   return (key: number, code: number, flags: number) => {
     if (!map) {
       func(null, key, code, flags);

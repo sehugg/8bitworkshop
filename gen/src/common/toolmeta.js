@@ -320,6 +320,7 @@ exports.TOOL_META = {
     lwasm: {
         id: 'lwasm', name: 'LWASM', kind: 'assembler', arch: '6809',
         extensions: ['.lwasm'],
+        editorStyle: '6809',
         wasmModule: 'lwasm',
         version: '4.17',
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,

@@ -51,17 +51,13 @@ const cliformat_1 = require("./cliformat");
 const emutarget_1 = require("./emutarget");
 const runscript_1 = require("./runscript");
 const symbolfile_1 = require("../common/symbols/symbolfile");
+const detect_1 = require("../common/detect");
 /** Options that may be repeated; each occurrence adds to a list. */
 const REPEATABLE_FLAGS = new Set([
     'define', 'as-define', 'ld-define', 'cflag', 'asflag', 'ldflag',
 ]);
-/** ROM extensions that name exactly one platform. */
-const ROM_PLATFORMS = {
-    '.nes': 'nes', '.gb': 'gb', '.gbc': 'gb', '.a26': 'vcs', '.a78': 'atari7800',
-    '.sms': 'sms', '.col': 'coleco', '.vec': 'vector',
-};
 /** Extensions always treated as ROMs, even if the contents look like text. */
-const ROM_EXTS = new Set(['.rom', '.bin', ...Object.keys(ROM_PLATFORMS)]);
+const ROM_EXTS = new Set(['.rom', '.bin', ...Object.keys(detect_1.ROM_PLATFORMS)]);
 const SHORT_FLAGS = {
     p: 'platform', t: 'tool', o: 'output', f: 'frames', e: 'eval',
 };
@@ -156,11 +152,13 @@ async function compileSource(args, source, platform) {
 }
 async function doBuild(args, positional) {
     const source = positional[0];
-    const platform = str(args, 'platform');
     const checkOnly = !!args['check'];
-    if (!platform || !source) {
-        (0, cliformat_1.fail)('build', 'Required: build --platform <platform> <source> [--tool <tool>] [-o <file>]');
+    if (!source) {
+        (0, cliformat_1.fail)('build', 'Required: build [--platform <platform>] <source> [--tool <tool>] [-o <file>]');
     }
+    if (!fs.existsSync(source))
+        (0, cliformat_1.fail)('build', `No such file: ${source}`);
+    const platform = str(args, 'platform') || await inferPlatform('build', source);
     const built = await compileSource(args, source, platform);
     const outputFile = str(args, 'output');
     if (outputFile && !checkOnly)
@@ -253,10 +251,10 @@ async function doRun(args, positional) {
     let romFile = input;
     let symbols = {};
     let built;
-    let platformId = str(args, 'platform') || ROM_PLATFORMS[path.extname(input).toLowerCase()];
+    let platformId = str(args, 'platform') || detect_1.ROM_PLATFORMS[path.extname(input).toLowerCase()];
     if (!looksLikeROM(input)) {
         if (!platformId)
-            (0, cliformat_1.fail)('run', `Building ${input} requires --platform`);
+            platformId = await inferPlatform('run', input);
         built = await compileSource(args, input, platformId);
         romFile = path.join(os.tmpdir(), '8bws-' + path.basename(input).replace(/\.\w+$/, '') + '.rom');
         fs.writeFileSync(romFile, Buffer.from(built.rom));
@@ -315,6 +313,69 @@ async function writeScreenshot(video, pngFile) {
     }
 }
 ////////////////////////////////////////////////////////////////////////
+// platform detection
+function presetsDir() {
+    for (const dir of [path.resolve('presets'), path.resolve(__dirname, '../../presets')]) {
+        if (fs.existsSync(dir))
+            return dir;
+    }
+    return null;
+}
+/** Ranked platform guesses for a source file (and its neighbors) or a directory. */
+async function detectPath(input) {
+    const { detectProject, headersFromPresets } = await Promise.resolve().then(() => __importStar(require('../common/detect')));
+    const { PLATFORM_PARAMS } = await Promise.resolve().then(() => __importStar(require('../worker/platforms')));
+    const isDir = fs.statSync(input).isDirectory();
+    const dir = isDir ? input : path.dirname(input);
+    let files = fs.readdirSync(dir).filter((f) => !f.endsWith('~') && fs.statSync(path.join(dir, f)).isFile());
+    // for a file, only it and the files that could be its libraries or build files
+    if (!isDir) {
+        const main = path.basename(input);
+        files = [main, ...files.filter((f) => f !== main && (/\.(h|inc|i|cfg|mk)$/i.test(f) || /^(makefile|readme(\.md)?)$/i.test(f)))];
+    }
+    const listing = {};
+    const presets = presetsDir();
+    const platforms = Object.keys(PLATFORM_PARAMS).filter((p) => p.indexOf('.') < 0);
+    if (presets) {
+        for (const p of fs.readdirSync(presets)) {
+            if (platforms.includes(p))
+                listing[p] = fs.readdirSync(path.join(presets, p));
+        }
+    }
+    const read = (f) => {
+        const full = path.join(dir, f);
+        if ((0, util_1.isProbablyBinary)(f))
+            return null;
+        try {
+            return fs.readFileSync(full, 'utf8');
+        }
+        catch (e) {
+            return null;
+        }
+    };
+    return detectProject({ files, read, platforms, headers: headersFromPresets(listing), dirName: path.basename(path.resolve(dir)) });
+}
+/** The platform for a source file given without --platform, or fail with the candidates. */
+async function inferPlatform(command, input) {
+    const { isClearWinner } = await Promise.resolve().then(() => __importStar(require('../common/detect')));
+    const found = await detectPath(input);
+    if (!isClearWinner(found)) {
+        const list = found.slice(0, 5).map((d) => `${d.platform} (${d.score})`).join(', ');
+        (0, cliformat_1.fail)(command, `Cannot tell the platform of ${input}${list ? '; candidates: ' + list : ''}. Pass --platform.`);
+    }
+    const ev = found[0].evidence[0];
+    (0, cliformat_1.note)(`platform ${found[0].platform}: ${ev.file}${ev.line ? ':' + ev.line : ''} ${ev.reason}`);
+    return found[0].platform;
+}
+async function doDetect(positional) {
+    const input = positional[0] || '.';
+    if (!fs.existsSync(input))
+        (0, cliformat_1.fail)('detect', `No such file or directory: ${input}`);
+    const { isClearWinner } = await Promise.resolve().then(() => __importStar(require('../common/detect')));
+    const detections = await detectPath(input);
+    (0, cliformat_1.output)({ success: true, command: 'detect', data: { input, clear: isClearWinner(detections), detections: detections.slice(0, 8) } });
+}
+////////////////////////////////////////////////////////////////////////
 // listings & help
 async function doList(command) {
     const { initialize, listPlatforms, listTools, PLATFORM_PARAMS } = await Promise.resolve().then(() => __importStar(require('./testlib')));
@@ -337,12 +398,13 @@ function usage(error) {
             commands: {
                 'build': 'compile a source file to a ROM',
                 'run': 'run a ROM -- or a source file, built first',
+                'detect': 'guess the platform and main file of a source file or directory',
                 'list-platforms': 'platforms available to --platform',
                 'list-tools': 'compilers and assemblers available to --tool',
             },
             options: {
                 'build options': {
-                    '-p, --platform <id>': 'target platform (required)',
+                    '-p, --platform <id>': 'target platform (default: detected from the source)',
                     '-t, --tool <tool>': 'compiler/assembler (default: from file extension)',
                     '-o, --output <file>': 'write the ROM here',
                     '--check': 'compile without writing anything',
@@ -395,6 +457,9 @@ async function main() {
                 break;
             case 'run':
                 await doRun(args, positional);
+                break;
+            case 'detect':
+                await doDetect(positional);
                 break;
             case 'list-tools':
             case 'list-platforms':

@@ -2830,6 +2830,7 @@
       kind: "assembler",
       arch: "6809",
       extensions: [".lwasm"],
+      editorStyle: "6809",
       wasmModule: "lwasm",
       version: "4.17",
       includePatterns: SHARED_INCLUDE_PATTERNS,

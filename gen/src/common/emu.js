@@ -12,6 +12,9 @@ exports.setVideoClasses = setVideoClasses;
 exports.setHaltHandler = setHaltHandler;
 exports.haltEmulation = haltEmulation;
 exports.dumpRAM = dumpRAM;
+exports.getLastKeycodeMap = getLastKeycodeMap;
+exports.clearLastKeycodeMap = clearLastKeycodeMap;
+exports.describeControls = describeControls;
 exports.newKeyboardHandler = newKeyboardHandler;
 exports.setKeyboardFromMap = setKeyboardFromMap;
 exports.makeKeycodeMap = makeKeycodeMap;
@@ -506,7 +509,57 @@ function _metakeyflags(e) {
         (e.altKey ? KeyFlags.Alt : 0) |
         (e.metaKey ? KeyFlags.Meta : 0);
 }
+// the key map of the most recent keyboard handler, so a host can show the
+// controls (the VS Code emulator panel does)
+var lastKeycodeMap = null;
+function getLastKeycodeMap() {
+    return lastKeycodeMap;
+}
+function clearLastKeycodeMap() {
+    lastKeycodeMap = null;
+}
+// what each controller key does, in the order the hint lists them
+const CONTROL_LABELS = [
+    [[exports.Keys.UP, exports.Keys.DOWN, exports.Keys.LEFT, exports.Keys.RIGHT], '\u2190\u2191\u2193\u2192', 'Joystick'],
+    [[exports.Keys.A], 'Space', 'Button A'],
+    [[exports.Keys.B], 'Shift', 'Button B'],
+    [[exports.Keys.GP_A, exports.Keys.GP_B, exports.Keys.GP_C, exports.Keys.GP_D], 'X Z V C', 'Buttons'],
+    [[exports.Keys.START], 'Enter', 'Start'],
+    [[exports.Keys.SELECT], '\\', 'Select'],
+    [[exports.Keys.OPTION], 'Backspace', 'Option'],
+    [[exports.Keys.P2_UP, exports.Keys.P2_DOWN, exports.Keys.P2_LEFT, exports.Keys.P2_RIGHT], 'W A S D', 'Player 2'],
+];
+/**
+ * Control hints generated from a key map, for platforms with no hand-written
+ * ones in PLATFORM_CONTROLS (src/common/controls.ts).
+ */
+function describeControls(map) {
+    if (!map)
+        return [];
+    var defs = new Set();
+    for (var k of Object.keys(map)) {
+        var o = map[k];
+        if (o && o.def)
+            defs.add(o.def);
+    }
+    var hints = [];
+    for (var [keys, label, action] of CONTROL_LABELS) {
+        if (keys.some(key => defs.has(key))) {
+            hints.push({ keys: [label], action });
+            for (var key of keys)
+                defs.delete(key);
+        }
+    }
+    // the rest (coin, number keys) by name; player 2's buttons go unlisted
+    var p2 = new Set(Object.keys(exports.Keys).filter(k => k.startsWith('P2_')).map(k => exports.Keys[k]));
+    var others = [...defs].filter(d => d !== exports.Keys.ANYKEY && !p2.has(d)).map(d => d.n);
+    if (others.length)
+        hints.push({ keys: others.slice(0, 6), action: 'Other' });
+    return hints;
+}
 function newKeyboardHandler(switches, map, func, alwaysfunc) {
+    if (map)
+        lastKeycodeMap = map;
     return (key, code, flags) => {
         if (!map) {
             func(null, key, code, flags);

@@ -19,6 +19,7 @@ import { EmuTarget, loadPlatform } from './emutarget';
 import { RUN_SCRIPT_HELP, RunScript, parseNum } from './runscript';
 import { parseSymbolFile } from '../common/symbols/symbolfile';
 import type { CompileResult } from './testlib';
+import { ROM_PLATFORMS } from '../common/detect';
 
 interface Args {
   [key: string]: string | true | string[];
@@ -29,11 +30,6 @@ const REPEATABLE_FLAGS = new Set([
   'define', 'as-define', 'ld-define', 'cflag', 'asflag', 'ldflag',
 ]);
 
-/** ROM extensions that name exactly one platform. */
-const ROM_PLATFORMS: { [ext: string]: string } = {
-  '.nes': 'nes', '.gb': 'gb', '.gbc': 'gb', '.a26': 'vcs', '.a78': 'atari7800',
-  '.sms': 'sms', '.col': 'coleco', '.vec': 'vector',
-};
 
 /** Extensions always treated as ROMs, even if the contents look like text. */
 const ROM_EXTS = new Set(['.rom', '.bin', ...Object.keys(ROM_PLATFORMS)]);
@@ -139,11 +135,12 @@ async function compileSource(args: Args, source: string, platform: string): Prom
 
 async function doBuild(args: Args, positional: string[]): Promise<void> {
   const source = positional[0];
-  const platform = str(args, 'platform');
   const checkOnly = !!args['check'];
-  if (!platform || !source) {
-    fail('build', 'Required: build --platform <platform> <source> [--tool <tool>] [-o <file>]');
+  if (!source) {
+    fail('build', 'Required: build [--platform <platform>] <source> [--tool <tool>] [-o <file>]');
   }
+  if (!fs.existsSync(source)) fail('build', `No such file: ${source}`);
+  const platform = str(args, 'platform') || await inferPlatform('build', source);
   const built = await compileSource(args, source, platform);
 
   const outputFile = str(args, 'output');
@@ -234,7 +231,7 @@ async function doRun(args: Args, positional: string[]): Promise<void> {
   let built: Awaited<ReturnType<typeof compileSource>> | undefined;
   let platformId = str(args, 'platform') || ROM_PLATFORMS[path.extname(input).toLowerCase()];
   if (!looksLikeROM(input)) {
-    if (!platformId) fail('run', `Building ${input} requires --platform`);
+    if (!platformId) platformId = await inferPlatform('run', input);
     built = await compileSource(args, input, platformId);
     romFile = path.join(os.tmpdir(), '8bws-' + path.basename(input).replace(/\.\w+$/, '') + '.rom');
     fs.writeFileSync(romFile, Buffer.from(built.rom));
@@ -293,6 +290,65 @@ async function writeScreenshot(video: ReturnType<EmuTarget['getVideo']>, pngFile
 }
 
 ////////////////////////////////////////////////////////////////////////
+// platform detection
+
+function presetsDir(): string | null {
+  for (const dir of [path.resolve('presets'), path.resolve(__dirname, '../../presets')]) {
+    if (fs.existsSync(dir)) return dir;
+  }
+  return null;
+}
+
+/** Ranked platform guesses for a source file (and its neighbors) or a directory. */
+async function detectPath(input: string) {
+  const { detectProject, headersFromPresets } = await import('../common/detect');
+  const { PLATFORM_PARAMS } = await import('../worker/platforms');
+  const isDir = fs.statSync(input).isDirectory();
+  const dir = isDir ? input : path.dirname(input);
+  let files = fs.readdirSync(dir).filter((f) => !f.endsWith('~') && fs.statSync(path.join(dir, f)).isFile());
+  // for a file, only it and the files that could be its libraries or build files
+  if (!isDir) {
+    const main = path.basename(input);
+    files = [main, ...files.filter((f) => f !== main && (/\.(h|inc|i|cfg|mk)$/i.test(f) || /^(makefile|readme(\.md)?)$/i.test(f)))];
+  }
+  const listing: { [platform: string]: string[] } = {};
+  const presets = presetsDir();
+  const platforms = Object.keys(PLATFORM_PARAMS).filter((p) => p.indexOf('.') < 0);
+  if (presets) {
+    for (const p of fs.readdirSync(presets)) {
+      if (platforms.includes(p)) listing[p] = fs.readdirSync(path.join(presets, p));
+    }
+  }
+  const read = (f: string) => {
+    const full = path.join(dir, f);
+    if (isProbablyBinary(f)) return null;
+    try { return fs.readFileSync(full, 'utf8'); } catch (e) { return null; }
+  };
+  return detectProject({ files, read, platforms, headers: headersFromPresets(listing), dirName: path.basename(path.resolve(dir)) });
+}
+
+/** The platform for a source file given without --platform, or fail with the candidates. */
+async function inferPlatform(command: string, input: string): Promise<string> {
+  const { isClearWinner } = await import('../common/detect');
+  const found = await detectPath(input);
+  if (!isClearWinner(found)) {
+    const list = found.slice(0, 5).map((d) => `${d.platform} (${d.score})`).join(', ');
+    fail(command, `Cannot tell the platform of ${input}${list ? '; candidates: ' + list : ''}. Pass --platform.`);
+  }
+  const ev = found[0].evidence[0];
+  note(`platform ${found[0].platform}: ${ev.file}${ev.line ? ':' + ev.line : ''} ${ev.reason}`);
+  return found[0].platform;
+}
+
+async function doDetect(positional: string[]): Promise<void> {
+  const input = positional[0] || '.';
+  if (!fs.existsSync(input)) fail('detect', `No such file or directory: ${input}`);
+  const { isClearWinner } = await import('../common/detect');
+  const detections = await detectPath(input);
+  output({ success: true, command: 'detect', data: { input, clear: isClearWinner(detections), detections: detections.slice(0, 8) } });
+}
+
+////////////////////////////////////////////////////////////////////////
 // listings & help
 
 async function doList(command: string): Promise<void> {
@@ -316,12 +372,13 @@ function usage(error?: string): never {
       commands: {
         'build': 'compile a source file to a ROM',
         'run': 'run a ROM -- or a source file, built first',
+        'detect': 'guess the platform and main file of a source file or directory',
         'list-platforms': 'platforms available to --platform',
         'list-tools': 'compilers and assemblers available to --tool',
       },
       options: {
         'build options': {
-          '-p, --platform <id>': 'target platform (required)',
+          '-p, --platform <id>': 'target platform (default: detected from the source)',
           '-t, --tool <tool>': 'compiler/assembler (default: from file extension)',
           '-o, --output <file>': 'write the ROM here',
           '--check': 'compile without writing anything',
@@ -371,6 +428,7 @@ async function main() {
     switch (command) {
       case 'build': await doBuild(args, positional); break;
       case 'run': await doRun(args, positional); break;
+      case 'detect': await doDetect(positional); break;
       case 'list-tools':
       case 'list-platforms': await doList(command); break;
       case 'help': usage(); break;

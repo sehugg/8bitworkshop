@@ -88,6 +88,7 @@ const FORMATTERS: { [command: string]: (data: any) => void } = {
   run: formatRun,
   'list-tools': formatList('tools', 'Available tools'),
   'list-platforms': formatPlatforms,
+  detect: formatDetect,
 };
 
 function formatHelp(data: any): void {
@@ -171,6 +172,22 @@ function formatPlatforms(data: any): void {
     for (const p of platforms.sort()) console.log(`    ${c.green}●${c.reset} ${p}`);
   }
   console.log();
+}
+
+function formatDetect(data: any): void {
+  if (!data.detections.length) {
+    console.log(`  ${c.dim}no platform found${c.reset}`);
+    return;
+  }
+  for (const d of data.detections) {
+    const main = d.mainFile ? `  main: ${d.mainFile}` : d.mainCandidates && d.mainCandidates.length > 1 ? `  ${d.mainCandidates.length} programs` : '';
+    const tool = d.tool ? `  tool: ${d.tool}` : '';
+    console.log(`  ${c.bold}${c.green}${d.platform.padEnd(18)}${c.reset}${String(d.score).padEnd(6)}${main}${tool}`);
+    for (const e of d.evidence) {
+      console.log(`    ${c.dim}${e.file}${e.line ? ':' + e.line : ''}${c.reset} ${e.reason}`);
+    }
+  }
+  if (!data.clear) console.log(`  ${c.yellow}no clear winner; pass --platform${c.reset}`);
 }
 
 function formatGeneric(data: any): void {

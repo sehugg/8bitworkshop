@@ -1,24 +1,7 @@
 import { PseudoOp, Mac, MacEnd, Repeat, ControlOp, Opcode, Register, Condition } from "../../gen/parser/lang-z80.grammar.terms"
+import { zmacPseudoOps, zmacControlOps, opcodesZ80, registersZ80, conditionsZ80 } from "./asmkeywords"
 
-const pseudoOps = new Set([
-    "org", "equ", "defl", "end",
-    "phase", "dephase",
-    "defb", "db", "byte", "ascii", "text", "defm", "dm",
-    "defw", "dw", "word",
-    "defd", "dword", "def3", "d3",
-    "defs", "ds", "block", "rmem",
-    "dc", "incbin", "include", "read", "maclib", "import",
-    "public", "global", "entry", "extern", "ext", "extrn",
-    "assert", "list", "nolist", "title", "name", "eject", "space",
-    "jrpromote", "jperror",
-    "irp", "irpc", "local",
-    "sett", "tstate", "setocf",
-    "rsym", "wsym",
-    "aseg", "cseg", "dseg", "common",
-    "comment", "pragma", "subttl",
-    "z80", "8080", "z180",
-    "min", "max",
-])
+const pseudoOps = new Set(zmacPseudoOps)
 
 const macKeywords: Record<string, number> = {
     "macro": Mac,
@@ -27,42 +10,13 @@ const macKeywords: Record<string, number> = {
     "rept": Repeat,
 }
 
-const controlOps = new Set([
-    "if", "else", "endif",
-    "ifdef", "ifndef",
-    "cond", "endc",
-    "ifeq", "ifne", "iflt", "ifgt",
-])
+const controlOps = new Set(zmacControlOps)
 
-export const opcodes = new Set([
-    // Z80 instructions
-    "ld", "push", "pop", "inc", "dec", "add", "adc", "sub", "sbc", "and", "or", "xor",
-    "cp", "ret", "jp", "jr", "call", "rst", "nop", "halt", "di", "ei",
-    "im", "ex", "exx", "neg", "cpl", "ccf", "scf", "rlca", "rla", "rrca", "rra",
-    "rlc", "rl", "rrc", "rr", "sla", "sra", "srl", "sl1", "bit", "set", "res",
-    "out", "in", "djnz", "rld", "rrd", "ldi", "ldir", "ldd", "lddr", "cpi", "cpir", "cpd", "cpdr",
-    "ini", "inir", "ind", "indr", "outi", "otir", "outd", "otdr",
-    "daa", "reti", "retn", "pfix", "pfiy",
-    // 8080 instructions
-    "mov", "mvi", "lxi", "lda", "sta", "lhld", "shld", "ldax", "stax",
-    "adi", "aci", "sui", "sbi", "sbb", "ana", "ani", "xra", "xri", "ora", "ori", "cmp",
-    "inr", "dcr", "inx", "dcx", "dad",
-    "cma", "stc", "cmc", "ral", "rar",
-    "jmp", "jnz", "jz", "jnc", "jc", "jpo", "jpe", "jm",
-    "cnz", "cz", "cnc", "cc", "cpo", "cpe", "cm",
-    "rnz", "rz", "rnc", "rc", "rpo", "rpe", "rp", "rm",
-    "pchl", "sphl", "xthl", "xchg", "hlt",
-])
+export const opcodes = new Set(opcodesZ80)
 
-const registers = new Set([
-    "a", "b", "c", "d", "e", "h", "l", "i", "r",
-    "af", "bc", "de", "hl", "ix", "iy", "sp", "pc", "psw",
-    "ixh", "ixl", "iyh", "iyl", "xh", "xl", "yh", "yl", "hx", "lx", "hy", "ly",
-])
+const registers = new Set(registersZ80)
 
-const conditions = new Set([
-    "nz", "z", "nc", "c", "po", "pe", "p", "m",
-])
+const conditions = new Set(conditionsZ80)
 
 export function pseudoOpSpecializer(value: string) {
     let normalized = value.startsWith(".") ? value.slice(1) : value

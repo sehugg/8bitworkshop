@@ -83,6 +83,7 @@ const FORMATTERS = {
     run: formatRun,
     'list-tools': formatList('tools', 'Available tools'),
     'list-platforms': formatPlatforms,
+    detect: formatDetect,
 };
 function formatHelp(data) {
     console.log(`\n${exports.c.bold}Usage:${exports.c.reset} 8bws <command> [options] <file>\n`);
@@ -171,6 +172,22 @@ function formatPlatforms(data) {
             console.log(`    ${exports.c.green}●${exports.c.reset} ${p}`);
     }
     console.log();
+}
+function formatDetect(data) {
+    if (!data.detections.length) {
+        console.log(`  ${exports.c.dim}no platform found${exports.c.reset}`);
+        return;
+    }
+    for (const d of data.detections) {
+        const main = d.mainFile ? `  main: ${d.mainFile}` : d.mainCandidates && d.mainCandidates.length > 1 ? `  ${d.mainCandidates.length} programs` : '';
+        const tool = d.tool ? `  tool: ${d.tool}` : '';
+        console.log(`  ${exports.c.bold}${exports.c.green}${d.platform.padEnd(18)}${exports.c.reset}${String(d.score).padEnd(6)}${main}${tool}`);
+        for (const e of d.evidence) {
+            console.log(`    ${exports.c.dim}${e.file}${e.line ? ':' + e.line : ''}${exports.c.reset} ${e.reason}`);
+        }
+    }
+    if (!data.clear)
+        console.log(`  ${exports.c.yellow}no clear winner; pass --platform${exports.c.reset}`);
 }
 function formatGeneric(data) {
     for (const [key, value] of Object.entries(data)) {
