@@ -6664,9 +6664,10 @@
   }
 
   // src/worker/wasmutils.ts
-  var ENVIRONMENT_IS_WEB = typeof window === "object";
+  var ENVIRONMENT_IS_NODE = typeof process === "object" && process != null && typeof process.versions === "object" && process.versions != null && typeof process.versions.node === "string";
   var ENVIRONMENT_IS_WORKER = typeof importScripts === "function";
-  var emglobal = ENVIRONMENT_IS_WORKER ? self : ENVIRONMENT_IS_WEB ? window : global;
+  var ENVIRONMENT_IS_WEB = typeof window === "object";
+  var emglobal = ENVIRONMENT_IS_NODE ? global : ENVIRONMENT_IS_WORKER ? self : ENVIRONMENT_IS_WEB ? window : global;
   if (!emglobal["require"]) {
     emglobal["require"] = (modpath) => {
       if (modpath.endsWith(".js")) modpath = modpath.slice(-3);

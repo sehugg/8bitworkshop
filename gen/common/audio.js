@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TssChannelAdapter = exports.SampledAudio = exports.SampleAudio = exports.WorkerSoundChannel = exports.POKEYDeviceChannel = exports.SN76489_Audio = exports.AY38910_Audio = exports.MasterAudio = void 0;
+exports.TssChannelAdapter = exports.SampledAudio = exports.SampleAudio = exports.AUDIO_CHUNK_SAMPLES = exports.WorkerSoundChannel = exports.POKEYDeviceChannel = exports.SN76489_Audio = exports.AY38910_Audio = exports.MasterAudio = void 0;
 exports.newPOKEYAudio = newPOKEYAudio;
+exports.setAudioStreamFactory = setAudioStreamFactory;
 class MasterAudio {
     constructor() {
         this.master = new MasterChannel();
@@ -333,7 +334,13 @@ var WorkerSoundChannel = function (worker) {
     };
 };
 exports.WorkerSoundChannel = WorkerSoundChannel;
-// SampleAudio
+var audioStreamFactory = null;
+/** Install the streaming output. Pass null to go back to a Web Audio graph. */
+function setAudioStreamFactory(factory) {
+    audioStreamFactory = factory;
+}
+// samples per chunk; the same size the IDE's ScriptProcessor asks for
+exports.AUDIO_CHUNK_SAMPLES = 2048;
 var SampleAudio = function (clockfreq) {
     var self = this;
     var sfrac, sinc, accum;
@@ -407,6 +414,22 @@ var SampleAudio = function (clockfreq) {
         self.compressorNode.connect(self.context.destination);
     }
     this.start = function () {
+        if (self.stream)
+            return; // streaming already; start() is called again on resume
+        if (audioStreamFactory) {
+            // No AudioContext in this host. Point the resampler at the stream's rate
+            // and hand each full buffer to it instead of the ScriptProcessor ring.
+            self.stream = audioStreamFactory(clockfreq);
+            self.sr = self.stream.sampleRate;
+            self.bufferlen = exports.AUDIO_CHUNK_SAMPLES;
+            sinc = self.sr * 1.0 / clockfreq;
+            sfrac = 0;
+            accum = 0;
+            bufpos = 0;
+            buffer = new Float32Array(self.bufferlen);
+            self.stream.start();
+            return;
+        }
         if (this.context) {
             // Chrome autoplay (https://goo.gl/7K7WLu)
             if (this.context.state == 'suspended') {
@@ -432,8 +455,15 @@ var SampleAudio = function (clockfreq) {
         buffer = bufferlist[0];
     };
     this.stop = function () {
+        if (self.stream) {
+            self.stream.stop();
+            return;
+        }
         this.context && this.context.suspend && this.context.suspend();
         clearBuffers(); // just in case it doesn't stop immediately
+    };
+    this.reset = function () {
+        bufpos = 0; // drop any partly-filled chunk so a resume doesn't replay it
     };
     this.close = function () {
         if (this.context) {
@@ -447,6 +477,13 @@ var SampleAudio = function (clockfreq) {
         buffer[bufpos++] = value;
         if (bufpos >= buffer.length) {
             bufpos = 0;
+            if (self.stream) {
+                // hand the buffer off and get a fresh one; the stream may transfer it
+                var out = buffer;
+                buffer = new Float32Array(self.bufferlen);
+                self.stream.push(out);
+                return;
+            }
             bufferlist[ifill] = buffer;
             written++;
             // Ring full? Producer outran the consumer; drop the oldest audio to make room.
@@ -492,6 +529,13 @@ class SampledAudio {
     }
     stop() {
         this.sa.stop();
+    }
+    reset() {
+        this.sa.reset();
+    }
+    /** the rate this sink outputs at, once start() has run (Web Audio or stream) */
+    get sampleRate() {
+        return this.sa.sr || 0;
     }
 }
 exports.SampledAudio = SampledAudio;

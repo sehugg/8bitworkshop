@@ -12,9 +12,15 @@ export interface EmscriptenModule {
 
 declare function importScripts(path: string);
 
-const ENVIRONMENT_IS_WEB = typeof window === 'object';
+const ENVIRONMENT_IS_NODE = typeof process === 'object' && process != null &&
+  typeof process.versions === 'object' && process.versions != null &&
+  typeof process.versions.node === 'string';
 const ENVIRONMENT_IS_WORKER = typeof importScripts === 'function';
-export const emglobal: any = ENVIRONMENT_IS_WORKER ? self : ENVIRONMENT_IS_WEB ? window : global;
+const ENVIRONMENT_IS_WEB = typeof window === 'object';
+// Prefer the real Node global: tests sometimes install a jsdom `window`
+// before this module loads, and picking that would make setupNodeEnvironment
+// try to overwrite the read-only jsdom `window` property.
+export const emglobal: any = ENVIRONMENT_IS_NODE ? global : ENVIRONMENT_IS_WORKER ? self : ENVIRONMENT_IS_WEB ? window : global;
 
 // simple CommonJS module loader
 // TODO: relative paths for dependencies

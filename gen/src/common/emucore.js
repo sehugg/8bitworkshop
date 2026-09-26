@@ -193,6 +193,24 @@ class EmuCore {
         if (!headless.get() && capturesVideo(this.platform)) {
             this.captured = this.platform.captureVideo();
         }
+        // BaseMachinePlatform starts its audio sink in start(), but a few platforms
+        // (nes) only start it in resume(), which the headless driver never calls.
+        // Start it here so sound sources produce samples either way.
+        //
+        // TODO: this is a stand-in for a proper lifecycle. EmuCore should own
+        // resume()/pause() and call platform.resume()/pause(), and the CLI/extension
+        // worker should drive platform state through them. Calling platform.resume()
+        // as-is is not safe headless: x86 starts its own Emscripten loop, pce builds
+        // a Web Audio context, vcs resumes Javatari/Stellerator. Do that refactor
+        // with per-capability guards. Platforms that render through TSS MasterAudio
+        // (vector, vectrex) still have no feedSample sink, so they stay silent here.
+        const audio = this.platform.audio;
+        if (audio && typeof audio.feedSample === 'function' && typeof audio.start === 'function') {
+            try {
+                audio.start();
+            }
+            catch (e) { /* not a SampledAudio sink */ }
+        }
     }
     reset() { this.platform.reset(); }
     loadROM(data, title = 'ROM') { this.platform.loadROM(title, data); }
@@ -263,6 +281,17 @@ class EmuCore {
     getVideo() {
         var _a, _b, _c, _d;
         return (_d = (_b = (_a = this.captured) === null || _a === void 0 ? void 0 : _a.call(this)) !== null && _b !== void 0 ? _b : (_c = this.video) === null || _c === void 0 ? void 0 : _c.get()) !== null && _d !== void 0 ? _d : null;
+    }
+    /** Audio the platform produces, or null if it has none. */
+    getAudioParams() {
+        const a = this.platform.audio;
+        // SampledAudio exposes sampleRate; a few platforms hold a raw SampleAudio
+        // (nes), whose rate is the `sr` it records once start() has run. Platforms
+        // with their own TSS MasterAudio report nothing here.
+        const rate = a && (a.sampleRate || a.sr);
+        if (!rate)
+            return null;
+        return { sampleRate: rate, stereo: false };
     }
     /** Frames per second the platform's timer asked for (60 if unknown). */
     get frameRate() { return this.video ? this.video.frameRate : 60; }

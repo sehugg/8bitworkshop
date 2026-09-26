@@ -100,6 +100,30 @@ function files(map) {
         texts = new Map([['a.c', 'void main() {}\n'], ['b.c', 'void main() {}\n']]);
         assert_1.default.deepStrictEqual((0, detect_1.findMainCandidates)('nes', [...texts.keys()], texts), { candidates: ['a.c', 'b.c'], mainFile: undefined });
     });
+    (0, mocha_1.it)('downweights a fingerprint found in a header', async () => {
+        var _a;
+        // the GBDK calls are library declarations, not a program using the hardware
+        var header = 'void display_off();\nvoid SHOW_BKG();\nvoid set_bkg_data();\n';
+        var d = await (0, detect_1.detectProject)({ files: ['gb.h'], read: () => header, platforms: PLATFORMS, dirName: 'gb' });
+        assert_1.default.ok(d.every(x => x.score < 0.5), JSON.stringify(d));
+        assert_1.default.ok(d[0].score > 0, 'the header still counts for something');
+        assert_1.default.ok((0, detect_1.isHeaderFile)('gb/gb.h'));
+        assert_1.default.ok(!(0, detect_1.isHeaderFile)('gb/gb.sgb'));
+        assert_1.default.strictEqual((_a = (0, detect_1.mainEvidence)(d[0])) === null || _a === void 0 ? void 0 : _a.reason, 'calls GBDK functions');
+    });
+    (0, mocha_1.it)('lists every program in a folder of programs', async () => {
+        var programs = ['chase.c', 'climber.c', 'testphys.c'];
+        var map = {};
+        for (var fn of programs)
+            map[fn] = '#include "gb/gb.h"\nvoid main() {}\n';
+        var d = await (0, detect_1.detectProject)({ files: programs, read: (fn) => { var _a; return (_a = map[fn]) !== null && _a !== void 0 ? _a : null; }, platforms: PLATFORMS, headers: { 'gb/gb.h': ['gb'] }, dirName: 'gb' });
+        assert_1.default.strictEqual(d[0].platform, 'gb');
+        assert_1.default.strictEqual(d[0].mainFile, undefined);
+        assert_1.default.deepStrictEqual(d[0].mainCandidates, programs);
+        assert_1.default.ok((0, detect_1.isFolderOfPrograms)(d[0]));
+        assert_1.default.strictEqual((0, detect_1.detectionSummary)(d[0]), '3 programs');
+        assert_1.default.strictEqual((0, detect_1.describeFinding)(d[0]), '3 programs — chase.c:1 includes "gb/gb.h"');
+    });
     // Every preset's true platform is its directory. Track how often the top
     // guess for a lone preset file is right, and fail if it gets worse.
     (0, mocha_1.it)('guesses the platform of the presets', async function () {

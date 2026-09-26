@@ -13,6 +13,12 @@ exports.isBuildableSource = isBuildableSource;
 exports.detectProject = detectProject;
 exports.isClearWinner = isClearWinner;
 exports.isStrongDetection = isStrongDetection;
+exports.isHeaderFile = isHeaderFile;
+exports.mainEvidence = mainEvidence;
+exports.detectionSummary = detectionSummary;
+exports.isFolderOfPrograms = isFolderOfPrograms;
+exports.describeDetection = describeDetection;
+exports.describeFinding = describeFinding;
 exports.findMainCandidates = findMainCandidates;
 const toolselect_1 = require("./toolselect");
 const toolmeta_1 = require("./toolmeta");
@@ -25,6 +31,7 @@ exports.ROM_PLATFORMS = {
 const SYSTEM_HEADERS = {
     'nes.h': ['nes'],
     'neslib.h': ['nes'],
+    'apu.h': ['nes'],
     'cv.h': ['coleco', 'msx-libcv', 'sms-sg1000-libcv', 'sms-sms-libcv', 'sms-gg-libcv'],
     'cvu.h': ['coleco', 'msx-libcv', 'sms-sg1000-libcv', 'sms-sms-libcv', 'sms-gg-libcv'],
     'c64.h': ['c64'],
@@ -38,6 +45,7 @@ const SYSTEM_HEADERS = {
     'pce.h': ['pce'],
     'gb/gb.h': ['gb'],
     'gb.h': ['gb'],
+    'gbtext.h': ['gb'],
     'vcs.h': ['vcs'],
     'macro.h': ['vcs'],
     'vectrex.h': ['vectrex'],
@@ -60,6 +68,9 @@ const FINGERPRINTS = [
     { re: /\bWait_Recal\b|\bIntensity_[0-9a-z]+\b/, platforms: ['vectrex'], reason: 'calls Vectrex BIOS routines' },
 ];
 const HEADER_EXTS = ['.h', '.inc', '.i'];
+// a register or function name in a header is a declaration, not a use, so
+// it points at the library rather than at a program written for the platform
+const HEADER_FINGERPRINT_WEIGHT = 0.15;
 // extensions so many tools use that they say nothing about the platform
 const GENERIC_EXTS = ['.c', '.h', '.s', '.asm', '.a', '.inc', '.i', '.bas'];
 /** The README badge the IDE writes when it pushes a repo to GitHub. */
@@ -217,7 +228,8 @@ async function detectProject(input) {
             var fm = fp.re.exec(text);
             if (fm) {
                 var fline = text.substring(0, fm.index).split('\n').length;
-                addAll(fp.platforms, 0.5, { file, line: fline, reason: fp.reason });
+                var fweight = HEADER_EXTS.includes(ext) ? HEADER_FINGERPRINT_WEIGHT : 0.5;
+                addAll(fp.platforms, fweight, { file, line: fline, reason: fp.reason });
             }
         }
     }
@@ -267,6 +279,43 @@ function isClearWinner(detections) {
 /** Strong enough to bring up unasked, on opening a folder. */
 function isStrongDetection(d) {
     return d.score >= 0.5;
+}
+/** True for a header or include file: a declaration, not a program. */
+function isHeaderFile(fn) {
+    return HEADER_EXTS.includes(extname(fn));
+}
+/** The clue to show first: a program source's, unless only a header matches. */
+function mainEvidence(d) {
+    return d.evidence.find(e => e.file !== '.' && !isHeaderFile(e.file)) || d.evidence[0];
+}
+/** "game.c", or "26 programs" for a directory of programs. */
+function detectionSummary(d) {
+    var _a;
+    if (d.mainFile)
+        return d.mainFile;
+    var n = ((_a = d.mainCandidates) === null || _a === void 0 ? void 0 : _a.length) || 0;
+    return n > 1 ? `${n} programs` : '';
+}
+/** True for a directory that holds several programs and no single main file. */
+function isFolderOfPrograms(d) {
+    var _a;
+    return !d.mainFile && (((_a = d.mainCandidates) === null || _a === void 0 ? void 0 : _a.length) || 0) > 1;
+}
+/** A one-line description of the clue behind a detection. */
+function describeDetection(d) {
+    var ev = mainEvidence(d);
+    if (!ev)
+        return '';
+    return `${ev.file === '.' ? 'folder' : ev.file}${ev.line ? ':' + ev.line : ''} ${ev.reason}`;
+}
+/** The clue, and for a folder of programs the number of programs it holds. */
+function describeFinding(d) {
+    var text = describeDetection(d);
+    if (isFolderOfPrograms(d)) {
+        var n = d.mainCandidates.length;
+        text = `${n} programs${text ? ' — ' + text : ''}`;
+    }
+    return text;
 }
 /**
  * The files that look like programs: buildable sources no other file
