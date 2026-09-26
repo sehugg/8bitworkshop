@@ -4,6 +4,7 @@
 import * as localforage from "localforage";
 import { BaseDebugPlatform, DebugEvalCondition, DebugSymbols, EmuState, isDebuggable, Platform, Preset } from "../common/baseplatform";
 import { EmuHalt, PLATFORMS, setHaltHandler } from "../common/emu";
+import { PLATFORM_CONTROLS } from "../common/controls";
 import { installHDLHost } from "./hdlhost";
 import { StateRecorderImpl } from "../common/recorder";
 import {
@@ -2273,8 +2274,29 @@ function addPageFocusHandlers() {
 }
 
 // TODO: merge w/ player.html somehow?
+function renderControls(div: JQuery) {
+  div.empty();
+  for (var hint of PLATFORM_CONTROLS[getRootBasePlatform(platform_id)] || []) {
+    var def = $('<span class="control-def"/>').appendTo(div);
+    for (var key of hint.keys) {
+      // words get the small key cap, arrows the full-size one
+      var cap = $('<span class="control-key"/>').toggleClass('small', /[a-z]/i.test(key)).appendTo(def);
+      if (key.indexOf('\n') >= 0) {
+        cap.css({ display: 'inline-block', 'font-family': 'monospace' });
+        key.split('\n').forEach((line, i) => { if (i) cap.append('<br>'); cap.append(document.createTextNode(line)); });
+      } else {
+        cap.text(key);
+      }
+    }
+    def.append(document.createTextNode(' ' + hint.action));
+    div.append(' ');
+  }
+  return div.children().length > 0;
+}
+
 function showInstructions() {
-  var div = $(document).find(".emucontrols-" + getRootBasePlatform(platform_id));
+  var div = $("#emucontrols");
+  if (!renderControls(div)) return;
   if (platform_id.endsWith(".mame")) div.show(); // TODO: MAME seems to eat the focus() event
   var vcanvas = $("#emulator").find("canvas");
   if (vcanvas) {
