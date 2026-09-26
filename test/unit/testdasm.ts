@@ -3,6 +3,7 @@ import * as fs from "fs";
 import { WASIRunner } from "../../src/common/wasi/wasishim";
 import { CodeListingMap, WorkerError } from "../../src/common/workertypes";
 import { dedupeErrors, expandTabs, parseDASMListing, parseDASMListingLine, parseDASMOutput, parseSymbolMap } from "../../src/worker/tools/dasm";
+import { getListingForFile, processListings } from "../../src/common/projectcore";
 
 // Assemble sources with the same DASM build the worker uses, and hand the
 // listing back so the parser is always tested against real DASM output.
@@ -221,13 +222,36 @@ describe('DASM listing parser', function () {
         }
         // the origin the debugger infers from the listing
         assert.strictEqual(mincode, 0xf000);
-        // the main file's own lines run forwards, in step with the addresses
-        const own = listings['fullgame.a'].lines.filter((l) => !l.path);
+        // macro body lines land in their file's listing too, so most of the
+        // main source maps; in particular it must include lines past the
+        // macros defined at 165-187 (see the regression test below)
+        const own = listings['fullgame.a'].lines;
         assert.ok(own.length > 200, `only ${own.length} lines mapped`);
-        for (let i = 1; i < own.length; i++) {
-            assert.ok(own[i].line > own[i - 1].line,
-                `line ${own[i].line} follows ${own[i - 1].line}`);
-        }
+        assert.ok(Math.max(...own.map((l) => l.line)) >= 390,
+            `latest mapped line was ${Math.max(...own.map((l) => l.line))}`);
+    });
+
+    it('keeps a macro file\'s lines with the rest of that file', function () {
+        // A macro defined in the main file puts its body lines in the main
+        // file's listing. Tagging them with a path used to split that listing
+        // so getListingForFile() returned only the macro body, hiding every
+        // line after the macro from the editor (e.g. multisprite3.a).
+        const src =
+            '\tprocessor 6502\n' +      // 1
+            '\torg $f000\n' +           // 2
+            '\tMAC mack\n' +            // 3
+            '\tlda #0\n' +              // 4
+            '\tENDM\n' +                // 5
+            'foo:\tmack\n' +            // 6
+            '\tnop\n';                  // 7
+        const run = runDASM({ 'src.dasm': src }, 'src.dasm');
+        assert.strictEqual(run.errno, 0, run.stdout);
+        const { errors, listings } = parseRun(run, ['src.dasm']);
+        assert.deepStrictEqual(errors, []);
+        processListings(listings);
+        const lst = getListingForFile(listings, 'src.dasm', 'src.dasm');
+        // the invocation (6), the macro body (4) and the line after it (7)
+        assert.deepStrictEqual(lst.sourcefile.lines.map((l) => l.line), [6, 4, 7]);
     });
 
     it('parses the symbol table', function () {

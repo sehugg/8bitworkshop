@@ -197,8 +197,11 @@ export function parseDASMListing(lstpath: string, lsttext: string, listings: Cod
                 }
                 const maclst = mac && listings[mac.file];
                 if (insns && maclst && maclst.lines) {
+                    // no `path`: these lines already live in the macro file's own
+                    // listing, and tagging them would split that file's lines into
+                    // tagged/un-tagged groups (see processListings), hiding the
+                    // file's own lines from its editor.
                     maclst.lines.push({
-                        path: mac.file,
                         line: mac.line + linenum,
                         offset: offset,
                         insns: insns,
