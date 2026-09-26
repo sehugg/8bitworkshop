@@ -86,4 +86,25 @@ describe('extension buildcore', function () {
     assert.deepEqual(second.output, first.output);
     assert.ok(second.listings);
   });
+
+  // A failed build must not drop the last success: fixing the file back to
+  // what built makes the worker say "unchanged", and Run still needs the ROM.
+  it('keeps the last output across a failed build', async function () {
+    var good = '#include "neslib.h"\nvoid main(void) { ppu_on_all(); while (1) ; }\n';
+    var bad = '#include "neslib.h"\nvoid main(void) { ppu_on_all() while (1) ; }\n';
+    var build = (src: string) => builder.build({
+      platform: 'nes', mainPath: 'revert.c', mainText: src,
+      files: new ProjectFileProvider(project({ 'revert.c': src }), ROOT, 'nes'),
+    });
+    var first = await build(good);
+    assert.ok(first.output);
+    var failed = await build(bad);
+    assert.ok(!failed.success);
+    assert.ok(failed.diagnostics.length > 0);
+    var reverted = await build(good);
+    assert.ok(reverted.success);
+    assert.ok(reverted.unchanged);
+    assert.deepEqual(reverted.diagnostics, []);
+    assert.deepEqual(reverted.output, first.output);
+  });
 });

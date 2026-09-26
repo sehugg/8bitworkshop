@@ -433,7 +433,16 @@ async function runBuild(target: Target, reason: BuildReason): Promise<BuildOutco
       paths: result.paths.map(p => toUri(p).fsPath),
     });
   }
-  if (result.unchanged) return result;
+  if (result.unchanged) {
+    // no rebuild: the last successful outcome stands. Clear any errors a later
+    // failed build showed (the IDE does the same in ui.ts setCompileOutput),
+    // and drop a held type-build error that would otherwise reappear.
+    if (result.success) {
+      releaseHeldDiagnostics();
+      showDiagnostics(result, toUri);
+    }
+    return result;
+  }
   var elapsed = Date.now() - t0;
   if (result.success) {
     releaseHeldDiagnostics();

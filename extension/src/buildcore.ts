@@ -93,10 +93,12 @@ export class Builder {
       return { success: false, tool, paths, diagnostics: [{ path: req.mainPath, line: 0, msg: String(e && e.message || e) }] };
     }
     if (!result || ('unchanged' in result && result.unchanged)) {
-      // the worker skips unchanged builds, but Run still needs the output
+      // the worker skips unchanged builds, but Run still needs the output.
+      // Keep the last success even after a failed build: reverting to the
+      // source that built it makes the worker say unchanged again, and that
+      // output is what Run (and the next unchanged build) must use.
       return { ...this.last.get(key), success: true, tool, paths, diagnostics: [], unchanged: true };
     }
-    this.last.delete(key);
     if ('errors' in result && result.errors && result.errors.length) {
       var toPath = (err: WorkerError) => (err.path && filename2path[err.path]) || err.path || req.mainPath;
       return {
