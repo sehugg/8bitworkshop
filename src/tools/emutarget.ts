@@ -6,7 +6,7 @@ import { EmuCore } from "../common/emucore";
 import { PLATFORMS } from "../common/emu";
 import { getRootBasePlatform } from "../common/util";
 import { importPlatform } from "../platform/_index";
-import { mockAudio, mockDOM, mockFetch, mockGlobals } from "./nodemock";
+import { mockAudio, mockDOM, mockFetch, mockGlobals, mockScripts } from "./nodemock";
 
 export { EmuCore as EmuTarget, DISASSEMBLERS, DEFAULT_MAX_FRAMES } from "../common/emucore";
 export type { VideoOutput, DebugSection } from "../common/emucore";
@@ -29,8 +29,8 @@ let mocksInstalled = false;
 
 /**
  * Stub out the browser APIs that the platform modules expect. fetch() reads
- * files (BIOS images, wasm cores) relative to `rootDir`. Only the first call
- * takes effect.
+ * files (BIOS images, wasm cores) and loadScript() evaluates scripts relative
+ * to `rootDir`. Only the first call takes effect.
  */
 export function installNodeMocks(rootDir: string = process.cwd()) {
   if (mocksInstalled) return;
@@ -38,5 +38,6 @@ export function installNodeMocks(rootDir: string = process.cwd()) {
   mockGlobals();
   mockAudio();
   mockFetch(rootDir);
+  mockScripts(rootDir);
   mockDOM();
 }

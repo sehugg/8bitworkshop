@@ -6,8 +6,6 @@ var fastpng = require('fast-png');
 
 const dom = createTestDOM();
 includeInThisContext('gen/common/cpu/6809.js');
-includeInThisContext("javatari.js/release/javatari/javatari.js");
-Javatari.AUTO_START = false;
 includeInThisContext('tss/js/Log.js');
 //global.Log = require('tss/js/Log.js').Log;
 includeInThisContext('tss/js/tss/PsgDeviceChannel.js');
@@ -40,8 +38,8 @@ var _sms = require('gen/platform/sms.js');
 var _c64 = require('gen/platform/c64.js');
 var _vectrex = require('gen/platform/vectrex.js');
 var _zx = require('gen/platform/zx.js');
-var util = require('gen/common/util.js');
-util.loadScript = function(s) { console.log('tried to load',s); } // for vcs
+// loadScript() evaluates scripts (vcs loads javatari/javatari.js) from the repo root
+require('gen/tools/nodemock.js').mockScripts();
 
 //
 

@@ -106,6 +106,33 @@ describe('8bws CLI', function () {
         });
     });
 
+    describe('run --platform vcs (Javatari)', function () {
+        it('should run a ROM and capture frames', function () {
+            var png = path.join(os.tmpdir(), '8bws-test-vcs.png');
+            if (fs.existsSync(png)) fs.unlinkSync(png);
+            var r = cliJSON('run', '--platform', 'vcs', '--frames', '60', '--png', png, 'test/roms/vcs/brickgame.rom');
+            assert.ok(r.success, r.error);
+            assert.equal(r.data.frames, 60);
+            assert.equal(r.data.width, 160);
+            assert.ok(r.data.height > 180, r.data.height);
+            assert.ok(fs.statSync(png).size > 0);
+        });
+        it('should build and run a source file', function () {
+            var r = cliJSON('run', '--platform', 'vcs', 'presets/vcs/examples/hello.a', '--frames', '10');
+            assert.ok(r.success, r.error);
+        });
+        it('should read memory and disassemble', function () {
+            var out = cli('run', '--platform', 'vcs', '-e', 'run 20; pc 2; mem 0x80 16', 'test/roms/vcs/brickgame.rom');
+            assert.ok(/PC=\$[0-9A-F]{4}/.test(out), out);
+            assert.ok(/^0080:( [0-9A-F]{2}){8}/m.test(out), out);
+        });
+        it('should send keys to the joystick', function () {
+            // brickgame keeps the player's X position at $80
+            var out = cli('run', '--platform', 'vcs', '-e', 'run 50; mem 0x80 1; keydown left; run 10; mem 0x80 1', 'test/roms/vcs/brickgame.rom');
+            assert.deepEqual(out.match(/^0080: [0-9A-F]{2}/gm), ['0080: 46', '0080: 3C'], out);
+        });
+    });
+
     describe('run: emulator control', function () {
         // these all reach through the Platform to its Machine (common/devices.ts)
         it('should reject an unknown platform', function () {

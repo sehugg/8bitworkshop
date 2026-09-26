@@ -383,4 +383,8 @@ async function main() {
   }
 }
 
-main();
+// Exit once the result is out: emulator libraries (Javatari's on-screen
+// messages) leave timers behind that would keep node running for seconds.
+main().then(() => {
+  process.stdout.write('', () => process.stderr.write('', () => process.exit()));
+});

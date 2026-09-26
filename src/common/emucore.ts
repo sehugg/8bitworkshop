@@ -38,6 +38,14 @@ export interface VideoOutput {
   aspect?: number;
 }
 
+/** A platform that draws its own screen (vcs) hands EmuCore its frames this way. */
+interface CapturesVideo {
+  captureVideo(): () => VideoOutput | null;
+}
+function capturesVideo(p: any): p is CapturesVideo {
+  return typeof p.captureVideo === 'function';
+}
+
 export interface DebugSection {
   category: string;
   text: string;
@@ -146,6 +154,7 @@ function installHeadlessVideo() {
 export class EmuCore {
   frameCount = 0;
   private video: ReturnType<typeof installHeadlessVideo> | null = null;
+  private captured: (() => VideoOutput | null) | null = null;
 
   constructor(readonly id: string, readonly platform: Platform) {
   }
@@ -157,7 +166,9 @@ export class EmuCore {
    * instead of guessing at cycle counts.
    */
   get machine(): Machine | null {
-    return (this.platform as any).machine || null;
+    // vcs keeps a stand-in `machine` object for the probe views; skip it
+    const m = (this.platform as any).machine;
+    return m && typeof m.advanceFrame === 'function' ? m : null;
   }
 
   async start() {
@@ -169,6 +180,9 @@ export class EmuCore {
       await this.platform.start();
     } finally {
       headless.restore();
+    }
+    if (!headless.get() && capturesVideo(this.platform)) {
+      this.captured = this.platform.captureVideo();
     }
   }
   reset() { this.platform.reset(); }
@@ -226,7 +240,9 @@ export class EmuCore {
     return true;
   }
 
-  getVideo(): VideoOutput | null { return this.video ? this.video.get() : null; }
+  getVideo(): VideoOutput | null {
+    return this.captured?.() ?? this.video?.get() ?? null;
+  }
   /** Frames per second the platform's timer asked for (60 if unknown). */
   get frameRate(): number { return this.video ? this.video.frameRate : 60; }
   saveState(): EmuState | null { return this.platform.saveState ? this.platform.saveState() : null; }
