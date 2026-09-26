@@ -1,4 +1,5 @@
 import { ExternalTokenizer } from "@lezer/lr"
+import { opcodes6502, illegalOpcodes6502, registers6502, dasmPseudoOps, dasmControlOps } from "./asmkeywords"
 import { HexByte, PseudoOp, Mac, MacEnd, Repeat, RepEnd, ControlOp, LocalIdentifier, Opcode, IllegalOpcode, Register, OnOff, HexOp } from "../../gen/parser/lang-6502.grammar.terms"
 
 function isHexDigit(ch: number) {
@@ -7,51 +8,13 @@ function isHexDigit(ch: number) {
         (ch >= 97 && ch <= 102)       // a-f
 }
 
-export const opcodes = new Set([
-    "adc", "and", "asl", "bcc", "bcs", "beq", "bit", "bmi",
-    "bne", "bpl", "brk", "bvc", "bvs", "clc", "cld", "cli",
-    "clv", "cmp", "cpx", "cpy", "dec", "dex", "dey", "eor",
-    "inc", "inx", "iny", "jmp", "jsr", "lda", "ldx", "ldy",
-    "lsr", "nop", "ora", "pha", "php", "pla", "plp", "rol",
-    "ror", "rti", "rts", "sbc", "sec", "sed", "sei", "sta",
-    "stx", "sty", "tax", "tay", "tsx", "txa", "txs", "tya",
-])
+export const opcodes = new Set(opcodes6502)
 
-// Undocumented/illegal opcodes (canonical names plus common dasm/ca65
-// aliases for the same underlying instruction). Highly unstable ones
-// (behavior varies by chip revision) are commented out.
-export const illegalOpcodes = new Set([
-    "slo", "aso", "rla", "sre", "lse", "rra",
-    "sax", "aax", "lax",
-    //"lxa",
-    "dcp", "dcm", "isc", "isb",
-    "anc", "alr", "asr", "arr",
-    //"xaa", "ane",
-    "sbx", "axs",
-    //"sha", "shx", "shy", "tas", "sxa", "xas",
-    //"ahx", "axa", "sya", "shs",
-    "las", "lar",
-    //"jam", "kil", "hlt",
-])
+export const illegalOpcodes = new Set(illegalOpcodes6502)
 
-const registers = new Set(["a", "x", "y"])
+const registers = new Set(registers6502)
 
-const pseudoOps = new Set([
-    "org", "rorg", "rend",
-    "equ", "eqm",
-    "end",
-    "seg", "seg.u",
-    "align",
-    "dc", "dc.b", "dc.w", "dc.l", "dc.s",
-    "ds", "ds.b", "ds.w", "ds.l", "ds.s",
-    "dv", "dv.b", "dv.w", "dv.l", "dv.s",
-    "byte", "word", "long",
-    "subroutine", "processor",
-    "include", "incbin", "incdir",
-    "echo", "set",
-    "list",
-    "err",
-])
+const pseudoOps = new Set(dasmPseudoOps)
 
 const macKeywords: Record<string, number> = {
     "mac": Mac, "macro": Mac,
@@ -61,9 +24,7 @@ const macKeywords: Record<string, number> = {
     "repend": RepEnd,
 }
 
-const controlOps = new Set([
-    "if", "else", "endif", "ifconst", "ifnconst",
-])
+const controlOps = new Set(dasmControlOps)
 
 const onOffValues = new Set(["on", "off"])
 
