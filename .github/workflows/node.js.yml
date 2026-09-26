@@ -32,6 +32,11 @@ jobs:
         TEST8BIT_GITHUB_TOKEN: ${{ secrets.TEST8BIT_GITHUB_TOKEN }}
     - run: npm run buildpresets
     - run: make distro
+    - name: Build and test VS Code extension
+      run: |
+        npm ci --no-audit --legacy-peer-deps --prefix extension
+        npm run typecheck --prefix extension
+        npm test --prefix extension
     - name: Deploy
       if: github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: JamesIves/github-pages-deploy-action@v4.9.0

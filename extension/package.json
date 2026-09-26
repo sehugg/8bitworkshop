@@ -152,7 +152,7 @@
         "8bitworkshop.folders": {
           "type": "object",
           "default": {},
-          "markdownDescription": "Projects in subdirectories: directory (relative to the workspace folder) \u2192 `{ \"platform\", \"mainFile\", \"tool\" }`. The most specific directory wins.",
+          "markdownDescription": "Projects in subdirectories: directory (relative to the workspace folder) → `{ \"platform\", \"mainFile\", \"tool\" }`. The most specific directory wins.",
           "additionalProperties": {
             "type": "object",
             "properties": {
@@ -326,7 +326,9 @@
     "test": "npm run build && mocha --timeout 60000 out/test/*.test.js"
   },
   "devDependencies": {
-    "@types/vscode": "~1.90.0"
+    "@types/vscode": "~1.90.0",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
   },
   "capabilities": {
     "untrustedWorkspaces": {

@@ -52,7 +52,7 @@ distro: buildtsc
 	git archive HEAD | tar x -C $(TMP)
 	cp -rp gen $(TMP)
 	cp -rp tss $(TMP)
-	rm -fr $(TMP)/doc $(TMP)/scripts $(TMP)/test* $(TMP)/tools $(TMP)/.[a-z]* $(TMP)/ts*.json # $(TMP)/meta
+	rm -fr $(TMP)/doc $(TMP)/scripts $(TMP)/test* $(TMP)/tools $(TMP)/extension $(TMP)/.[a-z]* $(TMP)/ts*.json # $(TMP)/meta
 	rm -f $(TMP)/javatari && mkdir -p $(TMP)/javatari && cp -p javatari.js/release/javatari/* $(TMP)/javatari/
 
 getip:
