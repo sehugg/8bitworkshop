@@ -3,7 +3,7 @@
 // It only draws; the emulator runs in emuworker.
 
 import * as vscode from 'vscode';
-import type { FrameEvent, EmuStatus } from './emuworker';
+import type { AudioChunk, FrameEvent, EmuStatus } from './emuworker';
 
 export const VIEW_TYPE = '8bitworkshop.emulator';
 
@@ -51,6 +51,20 @@ export class EmulatorPanel {
 
   showStatus(status: EmuStatus | null) {
     this.panel.webview.postMessage({ type: 'status', status });
+  }
+
+  showAudio(chunk: AudioChunk) {
+    if (!this.panel.visible) return;
+    this.panel.webview.postMessage({ type: 'audio', samples: chunk.samples, sampleRate: chunk.sampleRate });
+  }
+
+  /** drop queued audio, e.g. on pause, reset or a new run */
+  resetAudio() {
+    this.panel.webview.postMessage({ type: 'audioReset' });
+  }
+
+  setMuted(muted: boolean) {
+    this.panel.webview.postMessage({ type: 'mute', muted });
   }
 
   dispose() {
@@ -114,6 +128,7 @@ function getHtml(controlsVisible: boolean) {
     return e.key != null && e.key.length == 1 ? e.key.charCodeAt(0) : e.keyCode;
   }
   canvas.addEventListener('keydown', e => {
+    ensureAudio();
     const flags = modFlags(e);
     vscode.postMessage({ type: 'key', key: e.which, code: charCode(e), flags: KeyDown | flags });
     if (!flags) e.preventDefault();
@@ -121,8 +136,61 @@ function getHtml(controlsVisible: boolean) {
   canvas.addEventListener('keyup', e => {
     vscode.postMessage({ type: 'key', key: e.which, code: charCode(e), flags: KeyUp | modFlags(e) });
   });
-  document.addEventListener('mousedown', e => { if (!(e.target instanceof HTMLButtonElement)) canvas.focus(); });
+  document.addEventListener('mousedown', e => { if (!(e.target instanceof HTMLButtonElement)) { canvas.focus(); ensureAudio(); } });
   window.addEventListener('focus', () => canvas.focus());
+
+  // audio: the worker streams 48 kHz chunks; queue them on the AudioContext
+  // clock with a small lead so rendering/GC jitter doesn't cause dropouts
+  const AUDIO_LEAD = 0.08;        // seconds of lead (~two 2048-sample chunks)
+  const AUDIO_MAX_LATENCY = 0.25; // resync if we ever fall further behind
+  const AUDIO_MAX_PENDING = 16;   // chunks buffered before the context exists
+  let ac = null, gain = null, nextAudioTime = 0, muted = false, pendingAudio = [];
+
+  function ensureAudio() {
+    if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;  // no audio in this webview; video is unaffected
+    try { ac = new AudioCtx(); } catch (e) { ac = null; return; }
+    gain = ac.createGain();
+    gain.gain.value = muted ? 0 : 1;
+    gain.connect(ac.destination);
+    nextAudioTime = ac.currentTime + AUDIO_LEAD;
+    const queued = pendingAudio;
+    pendingAudio = [];
+    for (const c of queued) scheduleAudio(c);
+    if (ac.state === 'suspended') ac.resume();
+  }
+
+  function scheduleAudio(c) {
+    const now = ac.currentTime;
+    // underrun, or a backlog from a stall: start over from here
+    if (nextAudioTime < now || nextAudioTime - now > AUDIO_MAX_LATENCY) nextAudioTime = now + AUDIO_LEAD;
+    const samples = c.samples instanceof Float32Array ? c.samples : new Float32Array(c.samples);
+    const buf = ac.createBuffer(1, samples.length, c.sampleRate || ac.sampleRate);
+    buf.copyToChannel(samples, 0);
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    src.connect(gain);
+    src.start(nextAudioTime);
+    nextAudioTime += buf.duration;
+  }
+
+  function onAudio(c) {
+    if (!ac) {
+      ensureAudio();
+      if (!ac) {
+        pendingAudio.push(c);
+        if (pendingAudio.length > AUDIO_MAX_PENDING) pendingAudio.shift();
+        return;
+      }
+    }
+    scheduleAudio(c);
+  }
+
+  function resetAudio() {
+    pendingAudio = [];
+    if (ac) nextAudioTime = ac.currentTime + AUDIO_LEAD;
+  }
   window.addEventListener('resize', fit);
   canvas.addEventListener('focus', () => document.body.classList.remove('unfocused'));
   canvas.addEventListener('blur', () => document.body.classList.add('unfocused'));
@@ -196,6 +264,13 @@ function getHtml(controlsVisible: boolean) {
         showControls(s.controls);
       }
       statusEl.textContent = !s ? '' : s.state == 'running' ? '' : s.state == 'halted' ? 'Halted: ' + (s.message || '') : 'Paused';
+    } else if (msg.type === 'audio') {
+      onAudio(msg);
+    } else if (msg.type === 'audioReset') {
+      resetAudio();
+    } else if (msg.type === 'mute') {
+      muted = !!msg.muted;
+      if (gain) gain.gain.value = muted ? 0 : 1;
     }
   });
   canvas.focus();

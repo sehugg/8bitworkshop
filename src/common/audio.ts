@@ -365,6 +365,31 @@ export var WorkerSoundChannel = function(worker) {
 
 // SampleAudio
 
+/**
+ * Where SampleAudio sends the samples it produces, when a host wants to move
+ * them somewhere other than a Web Audio graph (the VS Code extension streams
+ * them to its webview). A host installs one factory with setAudioStreamFactory;
+ * the source rate is the platform's nominal sampleRate, which SampleAudio
+ * resamples to the stream's rate.
+ */
+export interface AudioStream {
+  readonly sampleRate: number;
+  start(): void;
+  stop(): void;
+  /** called with mono Float32 samples; the array may be transferred, not reused */
+  push(samples: Float32Array): void;
+}
+
+var audioStreamFactory: ((sourceRate: number) => AudioStream) | null = null;
+
+/** Install the streaming output. Pass null to go back to a Web Audio graph. */
+export function setAudioStreamFactory(factory: ((sourceRate: number) => AudioStream) | null) {
+  audioStreamFactory = factory;
+}
+
+// samples per chunk; the same size the IDE's ScriptProcessor asks for
+export const AUDIO_CHUNK_SAMPLES = 2048;
+
 export var SampleAudio = function(clockfreq) {
   var self = this;
   var sfrac, sinc, accum;
@@ -442,6 +467,21 @@ export var SampleAudio = function(clockfreq) {
   }
 
   this.start = function() {
+    if (self.stream) return;   // streaming already; start() is called again on resume
+    if (audioStreamFactory) {
+      // No AudioContext in this host. Point the resampler at the stream's rate
+      // and hand each full buffer to it instead of the ScriptProcessor ring.
+      self.stream = audioStreamFactory(clockfreq);
+      self.sr = self.stream.sampleRate;
+      self.bufferlen = AUDIO_CHUNK_SAMPLES;
+      sinc = self.sr * 1.0 / clockfreq;
+      sfrac = 0;
+      accum = 0;
+      bufpos = 0;
+      buffer = new Float32Array(self.bufferlen);
+      self.stream.start();
+      return;
+    }
     if (this.context) {
       // Chrome autoplay (https://goo.gl/7K7WLu)
       if (this.context.state == 'suspended') {
@@ -467,8 +507,16 @@ export var SampleAudio = function(clockfreq) {
   }
   
   this.stop = function() {
+    if (self.stream) {
+      self.stream.stop();
+      return;
+    }
     this.context && this.context.suspend && this.context.suspend();
     clearBuffers(); // just in case it doesn't stop immediately
+  }
+
+  this.reset = function() {
+    bufpos = 0; // drop any partly-filled chunk so a resume doesn't replay it
   }
 
   this.close = function() {
@@ -483,6 +531,13 @@ export var SampleAudio = function(clockfreq) {
     buffer[bufpos++] = value;
     if (bufpos >= buffer.length) {
       bufpos = 0;
+      if (self.stream) {
+        // hand the buffer off and get a fresh one; the stream may transfer it
+        var out = buffer;
+        buffer = new Float32Array(self.bufferlen);
+        self.stream.push(out);
+        return;
+      }
       bufferlist[ifill] = buffer;
       written++;
       // Ring full? Producer outran the consumer; drop the oldest audio to make room.
@@ -532,6 +587,13 @@ export class SampledAudio {
   }
   stop() {
     this.sa.stop();
+  }
+  reset() {
+    this.sa.reset();
+  }
+  /** the rate this sink outputs at, once start() has run (Web Audio or stream) */
+  get sampleRate() : number {
+    return this.sa.sr || 0;
   }
 }
 

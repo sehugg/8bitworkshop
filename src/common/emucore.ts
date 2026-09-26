@@ -19,7 +19,7 @@
 import {
   CpuState, DisasmLine, EmuState, Machine, Platform, hasProbe, isDebuggable,
 } from "./baseplatform";
-import { ProbeAll, TrapCondition } from "./devices";
+import { ProbeAll, SampledAudioParams, TrapCondition } from "./devices";
 import { disassemble6502 } from "./cpu/disasm6502";
 import { disassembleZ80 } from "./cpu/disasmz80";
 import { disassembleSM83 } from "./cpu/disasmSM83";
@@ -184,6 +184,21 @@ export class EmuCore {
     if (!headless.get() && capturesVideo(this.platform)) {
       this.captured = this.platform.captureVideo();
     }
+    // BaseMachinePlatform starts its audio sink in start(), but a few platforms
+    // (nes) only start it in resume(), which the headless driver never calls.
+    // Start it here so sound sources produce samples either way.
+    //
+    // TODO: this is a stand-in for a proper lifecycle. EmuCore should own
+    // resume()/pause() and call platform.resume()/pause(), and the CLI/extension
+    // worker should drive platform state through them. Calling platform.resume()
+    // as-is is not safe headless: x86 starts its own Emscripten loop, pce builds
+    // a Web Audio context, vcs resumes Javatari/Stellerator. Do that refactor
+    // with per-capability guards. Platforms that render through TSS MasterAudio
+    // (vector, vectrex) still have no feedSample sink, so they stay silent here.
+    const audio: any = (this.platform as any).audio;
+    if (audio && typeof audio.feedSample === 'function' && typeof audio.start === 'function') {
+      try { audio.start(); } catch (e) { /* not a SampledAudio sink */ }
+    }
   }
   reset() { this.platform.reset(); }
   loadROM(data: Uint8Array, title = 'ROM') { this.platform.loadROM(title, data); }
@@ -242,6 +257,17 @@ export class EmuCore {
 
   getVideo(): VideoOutput | null {
     return this.captured?.() ?? this.video?.get() ?? null;
+  }
+
+  /** Audio the platform produces, or null if it has none. */
+  getAudioParams(): SampledAudioParams | null {
+    const a: any = (this.platform as any).audio;
+    // SampledAudio exposes sampleRate; a few platforms hold a raw SampleAudio
+    // (nes), whose rate is the `sr` it records once start() has run. Platforms
+    // with their own TSS MasterAudio report nothing here.
+    const rate = a && (a.sampleRate || a.sr);
+    if (!rate) return null;
+    return { sampleRate: rate, stereo: false };
   }
   /** Frames per second the platform's timer asked for (60 if unknown). */
   get frameRate(): number { return this.video ? this.video.frameRate : 60; }

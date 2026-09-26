@@ -5,7 +5,7 @@ import * as path from 'path';
 import { Worker } from 'worker_threads';
 import { Rpc } from '../src/rpc';
 import { findRootDir } from '../src/projectinfo';
-import type { EmuStatus, FrameEvent } from '../src/emuworker';
+import type { AudioChunk, EmuStatus, FrameEvent } from '../src/emuworker';
 
 // Drives out/emuworker.js in a worker thread, the way the extension host does.
 // Mocha runs from extension/, so BIOS fetches must resolve against ROOT.
@@ -21,14 +21,17 @@ describe('extension emuworker', function () {
   var rpc: Rpc;
   var frames: FrameEvent[];
   var statuses: EmuStatus[];
+  var audios: AudioChunk[];
 
   beforeEach(function () {
     worker = new Worker(path.join(__dirname, '..', 'emuworker.js'), { workerData: { rootDir: ROOT } });
     rpc = new Rpc(worker);
     frames = [];
     statuses = [];
+    audios = [];
     rpc.on('frame', f => frames.push(f));
     rpc.on('status', s => statuses.push(s));
+    rpc.on('audio', c => audios.push(c));
   });
 
   afterEach(async function () {
@@ -39,6 +42,12 @@ describe('extension emuworker', function () {
     var start = frames.length;
     for (var i = 0; i < 200 && frames.length - start < n; i++) await new Promise(r => setTimeout(r, 20));
     assert.ok(frames.length - start >= n, `only ${frames.length - start} frames`);
+  }
+
+  async function waitForAudio(n: number) {
+    var start = audios.length;
+    for (var i = 0; i < 200 && audios.length - start < n; i++) await new Promise(r => setTimeout(r, 20));
+    assert.ok(audios.length - start >= n, `only ${audios.length - start} audio chunks`);
   }
 
   it('streams NES frames at the screen size', async function () {
@@ -102,5 +111,26 @@ describe('extension emuworker', function () {
     await rpc.call('start', 'atari8-5200', rom('atari8-5200/hello.a.rom'));
     await waitForFrames(10);
     assert.ok(!statuses.some(s => s && s.state === 'halted'), JSON.stringify(statuses));
+  });
+
+  it('streams audio chunks at the resampled rate', async function () {
+    var s = await rpc.call<EmuStatus>('start', 'nes', rom('nes/shoot2.c.rom'));
+    assert.ok(s.audio, 'status reports an audio rate');
+    assert.equal(s.audio.sampleRate, 48000);
+    await waitForAudio(2);
+    var c = audios[audios.length - 1];
+    assert.equal(c.sampleRate, 48000);
+    assert.equal(new Float32Array(c.samples).length, 2048);
+  });
+
+  it('stops sending audio while muted', async function () {
+    await rpc.call('start', 'nes', rom('nes/shoot2.c.rom'));
+    await waitForAudio(1);
+    await rpc.call('setMuted', true);
+    var n = audios.length;
+    await new Promise(r => setTimeout(r, 200));
+    assert.equal(audios.length, n);
+    await rpc.call('setMuted', false);
+    await waitForAudio(1);
   });
 });

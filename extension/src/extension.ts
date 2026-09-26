@@ -7,7 +7,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import type { BuildOutcome } from './buildcore';
 import type { BuildArgs } from './buildworker';
-import type { EmuStatus } from './emuworker';
+import type { AudioChunk, EmuStatus } from './emuworker';
 import { WorkerHandle } from './engine';
 import { EmulatorPanel } from './emulatorpanel';
 import { Project, findRootDir, isHeaderFile, isInside, isOwnExtension, isSourceFile } from './projectinfo';
@@ -47,6 +47,8 @@ let runningRom: Uint8Array | undefined;
 let autoTarget: Target | undefined;
 /** Diagnostics from a failed type-build, shown after a pause in typing. */
 let heldDiagnostics: { timer: NodeJS.Timeout, show: () => void } | undefined;
+/** Sound is muted; remembered across runs and webviews. */
+let muted = false;
 
 export function activate(ctx: vscode.ExtensionContext) {
   context = ctx;
@@ -89,6 +91,10 @@ export function activate(ctx: vscode.ExtensionContext) {
   command('pause', () => emu?.started && emu.call('pause'));
   command('resume', () => emu?.started && emu.call('resume'));
   command('stop', () => panel?.dispose());
+  command('mute', () => setMuted(true));
+  command('unmute', () => setMuted(false));
+  muted = ctx.globalState.get<boolean>('muted', false);
+  vscode.commands.executeCommand('setContext', '8bitworkshop.muted', muted);
 
   // F5 on an 8bitworkshop launch configuration runs it (no debugger yet)
   ctx.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('8bitworkshop', {
@@ -140,6 +146,8 @@ function getEmu(): WorkerHandle {
   if (!emu) {
     emu = new WorkerHandle('emuworker.js', rootDir(), {}, msg => output.appendLine(msg));
     emu.on('frame', frame => panel?.showFrame(frame));
+    emu.on('audio', (chunk: AudioChunk) => panel?.showAudio(chunk));
+    emu.on('audioReset', () => panel?.resetAudio());
     emu.on('status', (s: EmuStatus | null) => {
       emuStatus = s;
       panel?.showStatus(s);
@@ -351,8 +359,10 @@ async function startEmulator(target: Target, rom: any) {
   }
   var title = describeTarget(target);
   panel.setTitle(`${title} (${target.platform})`);
+  panel.setMuted(muted);
   try {
     emuStatus = await worker.call<EmuStatus>('start', target.platform, rom);
+    worker.call('setMuted', muted);
     panel.showStatus(emuStatus);
     running = target;
     runningRom = rom;
@@ -375,6 +385,15 @@ async function reloadEmulator(target: Target, reason: BuildReason, result: Build
     emuStatus = await getEmu().call<EmuStatus>('loadROM', result.output);
     runningRom = result.output;
   }
+}
+
+/** Turn sound on or off everywhere (the webview gain and the worker's push). */
+function setMuted(m: boolean) {
+  muted = m;
+  context.globalState.update('muted', m);
+  panel?.setMuted(m);
+  if (emu?.started) emu.call('setMuted', m);
+  vscode.commands.executeCommand('setContext', '8bitworkshop.muted', m);
 }
 
 function sameBytes(a: Uint8Array | undefined, b: Uint8Array | undefined): boolean {

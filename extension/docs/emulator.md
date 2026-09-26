@@ -43,9 +43,16 @@ A build that fails leaves the last good version running.
 Some programs end, such as a BASIC program. Then the panel says
 **Halted** and the reason. Click **Run** to start again.
 
+## Sound
+
+The emulator plays sound through the panel. Audio starts on your first click
+or keypress, the same as the screen.
+
+The panel title bar has **Mute** and **Unmute** buttons. VS Code remembers
+whether sound is muted across runs.
+
 ## Not yet supported
 
-- Sound.
 - Game controllers. Use the keys the controls bar shows.
 - Vector platforms, such as the Atari Color Vector and Vectrex, which
   don't draw to a regular screen.

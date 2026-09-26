@@ -128,6 +128,18 @@
         "title": "Stop Emulator",
         "category": "8bitworkshop",
         "icon": "$(debug-stop)"
+      },
+      {
+        "command": "8bitworkshop.mute",
+        "title": "Mute Emulator",
+        "category": "8bitworkshop",
+        "icon": "$(mute)"
+      },
+      {
+        "command": "8bitworkshop.unmute",
+        "title": "Unmute Emulator",
+        "category": "8bitworkshop",
+        "icon": "$(unmute)"
       }
     ],
     "configuration": {
@@ -298,6 +310,16 @@
           "command": "8bitworkshop.stop",
           "when": "activeWebviewPanelId == '8bitworkshop.emulator'",
           "group": "navigation@3"
+        },
+        {
+          "command": "8bitworkshop.mute",
+          "when": "activeWebviewPanelId == '8bitworkshop.emulator' && !8bitworkshop.muted",
+          "group": "navigation@0"
+        },
+        {
+          "command": "8bitworkshop.unmute",
+          "when": "activeWebviewPanelId == '8bitworkshop.emulator' && 8bitworkshop.muted",
+          "group": "navigation@0"
         },
         {
           "command": "8bitworkshop.runThisFile",

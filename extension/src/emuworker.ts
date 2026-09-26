@@ -9,7 +9,17 @@ import { Rpc } from './rpc';
 import { EmuTarget, installNodeMocks, loadPlatform } from '../../src/tools/emutarget';
 import { clearLastKeycodeMap, describeControls, getLastKeycodeMap, setHaltHandler } from '../../src/common/emu';
 import { ControlHint, PLATFORM_CONTROLS } from '../../src/common/controls';
+import { AudioStream, setAudioStreamFactory } from '../../src/common/audio';
 import { getRootBasePlatform } from '../../src/common/util';
+
+/** Audio is resampled to this rate in the worker; the webview plays it back. */
+const STREAM_RATE = 48000;
+
+/** A chunk of mono Float32 samples at `sampleRate`, sent to the webview. */
+export interface AudioChunk {
+  samples: ArrayBuffer;
+  sampleRate: number;
+}
 
 export interface FrameEvent {
   pixels: ArrayBuffer;
@@ -26,6 +36,8 @@ export interface EmuStatus {
   message?: string;
   /** the platform's controls, hand-written or from its key map */
   controls?: ControlHint[];
+  /** the platform's audio output rate, if it makes sound */
+  audio?: { sampleRate: number };
 }
 
 // frames to run at once when catching up, before giving up and resyncing
@@ -43,8 +55,27 @@ let timer: NodeJS.Timeout | null = null;
 let nextTime = 0;
 let controls: ControlHint[] = [];
 let started = false;
+let muted = false;
 
-const rpc = new Rpc(parentPort, {
+/**
+ * The headless stand-in for the platform's Web Audio sink: SampleAudio hands
+ * each full buffer here, and we forward it to the extension host as an event.
+ */
+class RpcAudioStream implements AudioStream {
+  readonly sampleRate = STREAM_RATE;
+  constructor(private rpc: Rpc) { }
+  start() { }
+  stop() { }
+  push(samples: Float32Array) {
+    // no frames run while paused/hidden, so the guard mostly saves a little
+    // work when muting mid-chunk; the webview's gain node does the rest
+    if (!running || hidden || muted) return;
+    const buf = samples.buffer as ArrayBuffer;
+    this.rpc.emit('audio', { samples: buf, sampleRate: STREAM_RATE }, [buf]);
+  }
+}
+
+const rpc: Rpc = new Rpc(parentPort, {
   async start(platform: string, rom: any) {
     // platform modules keep global state (Javatari deletes its own start()),
     // so a worker runs one emulator; the host starts a new worker per run
@@ -58,27 +89,35 @@ const rpc = new Rpc(parentPort, {
     controls = PLATFORM_CONTROLS[getRootBasePlatform(platform)] || describeControls(getLastKeycodeMap());
     target.loadROM(rom);
     resume();
+    rpc.emit('audioReset', null);
     return status();
   },
   loadROM(rom: any) {
     if (!target) throw new Error('emulator not started');
     target.loadROM(rom);
     resume();
+    rpc.emit('audioReset', null);
     return status();
   },
   reset() {
     if (!target) return null;
     target.reset();
     sendFrame();
+    rpc.emit('audioReset', null);
     return status();
   },
   pause() {
     pause();
+    rpc.emit('audioReset', null);
     return status();
   },
   resume() {
     resume();
+    rpc.emit('audioReset', null);
     return status();
+  },
+  setMuted(m: boolean) {
+    muted = !!m;
   },
   setVisible(visible: boolean) {
     hidden = !visible;
@@ -98,9 +137,17 @@ const rpc = new Rpc(parentPort, {
   status,
 });
 
+// take over the platform's audio sink: SampleAudio resamples to STREAM_RATE
+// and hands us the buffers, which we forward to the host (see emulatorpanel)
+setAudioStreamFactory(() => new RpcAudioStream(rpc));
+
 function status(): EmuStatus | null {
   if (!target) return null;
-  return { state: running ? 'running' : 'paused', platform: target.id, frame: target.frameCount, controls };
+  const audio = target.getAudioParams();
+  return {
+    state: running ? 'running' : 'paused', platform: target.id, frame: target.frameCount,
+    controls, audio: audio ? { sampleRate: audio.sampleRate } : undefined,
+  };
 }
 
 function resume() {
