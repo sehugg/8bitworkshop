@@ -1,5 +1,6 @@
 
 import { EmuHalt } from "../emu";
+import { getHDLHost } from "./hdlhost";
 import { byteArrayToString, safe_extend } from "../util";
 import { HDLBinop, HDLBlock, HDLConstant, HDLDataType, HDLExpr, HDLExtendop, HDLFuncCall, HDLModuleDef, HDLModuleRunner, HDLSourceLocation, HDLTriop, HDLUnop, HDLValue, HDLVariableDef, HDLVarRef, isArrayItem, isArrayType, isBigConstExpr, isBinop, isBlock, isConstExpr, isFuncCall, isLogicType, isTriop, isUnop, isVarDecl, isVarRef, isWhileop } from "./hdltypes";
 
@@ -632,8 +633,7 @@ abstract class VerilatorBase {
       this.maxVclockLoop = __VclockLoop;
       if (this.maxVclockLoop > 1) {
         console.log("Graph took " + this.maxVclockLoop + " iterations to stabilize");
-        $("#verilog_bar").show();
-        $("#settle_label").text(this.maxVclockLoop+"");
+        getHDLHost()?.showSettleCount(this.maxVclockLoop);
       }
     }
     this.totalTicks++;

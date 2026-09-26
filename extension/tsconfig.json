@@ -9,9 +9,7 @@
         "noEmit": true,
         "rootDir": "..",
         // jquery: platform modules build their UI with it
-        // bootbox: ide/waveform.ts, which verilog.ts imports (see "keep the
-        // IDE out of platform modules" in doc/notes/VSCODE.md)
-        "types": ["node", "mocha", "vscode", "jquery", "bootbox"],
+        "types": ["node", "mocha", "vscode", "jquery"],
         "typeRoots": ["./node_modules/@types", "../node_modules/@types"]
     }
 }

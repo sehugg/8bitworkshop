@@ -4,6 +4,7 @@
 import * as localforage from "localforage";
 import { BaseDebugPlatform, DebugEvalCondition, DebugSymbols, EmuState, isDebuggable, Platform, Preset } from "../common/baseplatform";
 import { EmuHalt, PLATFORMS, setHaltHandler } from "../common/emu";
+import { installHDLHost } from "./hdlhost";
 import { StateRecorderImpl } from "../common/recorder";
 import {
   arrayCompare, byteArrayToUTF8, decodeQueryString, getBasePlatform, getCookie, getFilenameForPath, getFilenamePrefix,
@@ -2319,6 +2320,7 @@ async function startPlatform() {
   replaceURLState();
   installErrorHandler();
   setHaltHandler(haltEmulation);
+  installHDLHost();
   await platform.start();
   await loadBIOSFromProject();
   await initProject();

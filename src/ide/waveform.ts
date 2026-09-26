@@ -3,27 +3,13 @@ import { Toolbar } from "./toolbar";
 import { registerElementShortcuts, Shortcut } from "./shortcutbar";
 import { registerElementHelpTopic } from "./helptopics";
 import { VirtualList } from "../common/vlist";
+import { WaveformMeta, WaveformProvider, WaveformScope } from "../common/waveform";
+import Split = require("split.js");
 import DOMPurify from "dompurify";
 
 const BUILTIN_INPUT_PORTS = [
   'clk', 'reset',
 ];
-
-export interface WaveformMeta {
-  label : string;
-  len : number;
-  //name : string;
-  //ofs : number;
-  //wordlen : number;
-  input : boolean;
-  output : boolean;
-}
-
-export interface WaveformProvider {
-  getSignalMetadata() : WaveformMeta[];
-  getSignalData(index:number, start:number, len:number) : number[];
-  setSignalValue(index:number, value:number);
-}
 
 export class WaveformView {
   parent : HTMLElement;
@@ -401,3 +387,46 @@ export class WaveformView {
   }
 }
 
+// The IDE's scope: splits the emulator overlay into the video on top and a
+// WaveformView below. The view is created the first time the scope is shown.
+export class SplitWaveformScope implements WaveformScope {
+  topdiv : HTMLElement;
+  wavediv : HTMLElement;
+  split;
+  waveview : WaveformView;
+
+  constructor(video:HTMLCanvasElement, readonly provider:WaveformProvider) {
+    var overlay = $("#emuoverlay").show();
+    this.topdiv = $('<div class="emuspacer">').appendTo(overlay)[0];
+    this.topdiv.appendChild(video);
+    this.wavediv = $('<div class="emuscope">').appendTo(overlay)[0];
+    this.split = Split( [this.topdiv, this.wavediv], {
+      minSize: [0,0],
+      sizes: [99,1],
+      direction: 'vertical',
+      gutterSize: 16,
+      onDrag: () => this.resize(),
+    });
+  }
+  isVisible() {
+    return this.split.getSizes()[1] > 2; // TODO?
+  }
+  show() {
+    this.split.setSizes([0,100]);
+  }
+  setCurrentTime(t:number) {
+    if (this.waveview) this.waveview.setCurrentTime(t);
+  }
+  update() {
+    if (this.isVisible()) {
+      if (!this.waveview) {
+        this.waveview = new WaveformView(this.wavediv, this.provider);
+      } else {
+        this.waveview.refresh();
+      }
+    }
+  }
+  resize() {
+    if (this.waveview) this.waveview.recreate();
+  }
+}
