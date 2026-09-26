@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const baseplatform_1 = require("../common/baseplatform");
+const toolselect_1 = require("../common/toolselect");
 const emu_1 = require("../common/emu");
 const mameplatform_1 = require("../common/mameplatform");
 const atari8_1 = require("../machine/atari8");
@@ -44,16 +45,10 @@ const Atari5200_MemoryMap = { main: [
         { name: 'ATARI Character Set', start: 0xf800, size: 0x400, type: 'rom' },
         { name: 'ROM', start: 0xfc00, size: 0x400, type: 'rom' },
     ] };
-function getToolForFilename_Atari8(fn) {
-    if (fn.endsWith(".bas") || fn.endsWith(".fb") || fn.endsWith(".fbi"))
-        return "fastbasic";
-    else
-        return (0, baseplatform_1.getToolForFilename_6502)(fn);
-}
 class Atari800Platform extends baseplatform_1.Base6502MachinePlatform {
     constructor() {
         super(...arguments);
-        this.getToolForFilename = getToolForFilename_Atari8;
+        this.getToolForFilename = toolselect_1.getToolForFilename_atari8;
         this.showHelp = atari8_showHelp;
         this.getROMExtension = atari8_getROMExtension;
         this.biosPath = 'res/altirra/kernel.rom';
@@ -96,7 +91,7 @@ class Atari5200Platform extends Atari800Platform {
 class Atari8MAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
     constructor() {
         super(...arguments);
-        this.getToolForFilename = getToolForFilename_Atari8;
+        this.getToolForFilename = toolselect_1.getToolForFilename_atari8;
         this.getOpcodeMetadata = baseplatform_1.getOpcodeMetadata_6502;
         this.showHelp = atari8_showHelp;
     }

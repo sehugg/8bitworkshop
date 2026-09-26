@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const baseplatform_1 = require("../common/baseplatform");
+const toolselect_1 = require("../common/toolselect");
 const emu_1 = require("../common/emu");
 const apple2_1 = require("../machine/apple2");
 const baseplatform_2 = require("../common/baseplatform");
@@ -31,7 +32,7 @@ class Apple2MAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
     constructor() {
         super(...arguments);
         this.getOpcodeMetadata = baseplatform_1.getOpcodeMetadata_6502;
-        this.getToolForFilename = baseplatform_1.getToolForFilename_6502;
+        this.getToolForFilename = toolselect_1.getToolForFilename_apple2;
     }
     start() {
         this.startModule(this.mainElement, {
@@ -77,12 +78,7 @@ class NewApple2Platform extends baseplatform_2.Base6502MachinePlatform {
                 ]
             };
         };
-        this.getToolForFilename = (fn) => {
-            if (fn.endsWith(".lnk"))
-                return "merlin32";
-            else
-                return (0, baseplatform_1.getToolForFilename_6502)(fn);
-        };
+        this.getToolForFilename = toolselect_1.getToolForFilename_apple2;
         /*
         newCodeAnalyzer() {
           return new CodeAnalyzer_apple2(this);

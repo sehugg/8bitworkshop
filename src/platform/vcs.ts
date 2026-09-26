@@ -1,12 +1,14 @@
 
 import { Platform, BasePlatform, cpuStateToLongString_6502, dumpStackToString, DisasmLine, CpuState, Preset } from "../common/baseplatform";
-import { PLATFORMS, dumpRAM, EmuHalt, __createCanvas, drawCrosshair } from "../common/emu";
+import { getToolForFilename_vcs } from "../common/toolselect";
+import { PLATFORMS, dumpRAM, EmuHalt, KeyFlags, __createCanvas, drawCrosshair } from "../common/emu";
 import { hex, loadScript, lpad, tobin } from "../common/util";
 import { CodeAnalyzer_vcs } from "../common/analysis";
 import { disassemble6502 } from "../common/cpu/disasm6502";
 import { ProbeRecorder } from "../common/probe";
 import { NullProbe, ProbeAll } from "../common/devices";
 import { BaseMAME6502Platform } from "../common/mameplatform";
+import type { VideoOutput } from "../common/emucore";
 
 declare var Javatari : any;
 declare var jt : any; // 6502
@@ -58,24 +60,13 @@ const VCS_PRESETS : Preset[] = [
   {id:'helloworld.cc2600', name:'Hello World (cc2600)'},
 ];
 
-function getToolForFilename_vcs(fn: string) {
-  if (fn.endsWith(".cc2600")) return "cc2600";
-  if (fn.endsWith("-llvm.c")) return "remote:llvm-mos";
-  if (fn.endsWith(".wiz")) return "wiz";
-  if (fn.endsWith(".bb") || fn.endsWith(".bas")) return "bataribasic";
-  if (fn.endsWith(".ca65")) return "ca65";
-  if (fn.endsWith(".acme")) return "acme";
-  //if (fn.endsWith(".inc")) return "ca65";
-  if (fn.endsWith(".c")) return "cc65";
-  //if (fn.endsWith(".h")) return "cc65";
-  if (fn.endsWith(".ecs")) return "ecs";
-  return "dasm";
-}
 
 class VCSPlatform extends BasePlatform {
 
   lastBreakState; // last breakpoint state
   canvas : HTMLCanvasElement;
+  frame : VideoOutput | null = null; // see captureVideo()
+  capturing = false;
 
   // TODO: super hack for ProbeBitmap view
   machine = {
@@ -94,7 +85,8 @@ class VCSPlatform extends BasePlatform {
     Javatari.DEBUG_SCANLINE_OVERFLOW = false; // TODO: integrate into probe API
     Javatari.AUDIO_BUFFER_SIZE = 256;
     // show console div and start
-    $("#javatari-div").show();
+    const jadiv = document.getElementById("javatari-div");
+    if (jadiv) jadiv.style.display = '';
     Javatari.start();
     var jaconsole = Javatari.room.console;
     // intercept clockPulse function
@@ -114,15 +106,51 @@ class VCSPlatform extends BasePlatform {
     videoSignal.oldNextLine = videoSignal.nextLine;
     videoSignal.nextLine = function(pixels, vsync) {
       self.probe.logNewScanline();
+      if (self.capturing && pixels) self.captureLine(this.monitor, pixels);
       return this.oldNextLine(pixels, vsync);
     }
     // resize after added to dom tree
-    var jacanvas = $("#javatari-screen").find("canvas")[0];
-    const resizeObserver = new ResizeObserver(entries => {
-      this.resize();
-    });
-    resizeObserver.observe(jacanvas);
+    var jacanvas = document.querySelector("#javatari-screen canvas") as HTMLCanvasElement;
+    if (jacanvas && typeof ResizeObserver !== 'undefined') {
+      const resizeObserver = new ResizeObserver(entries => {
+        this.resize();
+      });
+      resizeObserver.observe(jacanvas);
+    }
     this.canvas = jacanvas;
+  }
+
+  /**
+   * Javatari draws to its own screen, so hosts with no screen (EmuCore) call
+   * this to get the visible part of each frame instead.
+   */
+  captureVideo() : () => VideoOutput | null {
+    this.capturing = true;
+    return () => this.frame;
+  }
+  captureLine(monitor, pixels : ArrayLike<number>) {
+    const p = monitor.getDisplayParameters();
+    const width = p.displayWidth, height = p.displayHeight;
+    if (this.frame?.width != width || this.frame?.height != height) {
+      this.frame = {
+        pixels: new Uint32Array(width * height), width, height,
+        aspect: (width * p.displayScaleX) / (height * p.displayScaleY),
+      };
+    }
+    const y = monitor.currentLine() - p.displayOriginY;
+    if (y < 0 || y >= height) return;
+    const dest = this.frame.pixels;
+    for (let x = 0, i = y * width; x < width; x++)
+      dest[i++] = pixels[p.displayOriginX + x];
+  }
+
+  /** Keys from hosts that have no Javatari screen to type into. */
+  setKeyInput(key:number, code:number, flags:number) {
+    const press = (flags & KeyFlags.KeyDown) != 0;
+    if (!press && !(flags & KeyFlags.KeyUp)) return;
+    // Javatari's modifier masks
+    const modifiers = (flags & KeyFlags.Ctrl ? 1 : 0) | (flags & KeyFlags.Alt ? 2 : 0) | (flags & KeyFlags.Shift ? 4 : 0);
+    Javatari.room.controls.processKeyEvent(key, press, modifiers);
   }
 
   loadROM(title, data) {
@@ -434,9 +462,12 @@ class VCSPlatform extends BasePlatform {
 
   // resizing
   resize() {
-    var scale = Math.min(1, ($('#emulator').width() - 24) / 640);
+    const emulator = document.getElementById('emulator');
+    const jadiv = document.getElementById('javatari-div');
+    if (!emulator || !jadiv) return;
+    var scale = Math.min(1, (emulator.clientWidth - 24) / 640);
     var xt = (1 - scale) * 50;
-    $('#javatari-div').css('transform', `translateX(-${xt}%) translateY(-${xt}%) scale(${scale})`);
+    jadiv.style.transform = `translateX(-${xt}%) translateY(-${xt}%) scale(${scale})`;
   }
   updateVideoDebugger() {
     const {x,y} = this.getRasterCanvasPosition();

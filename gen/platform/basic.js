@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const toolselect_1 = require("../common/toolselect");
 const emu_1 = require("../common/emu");
 const runtime_1 = require("../common/basic/runtime");
 const teletype_1 = require("../common/teletype");
 const util_1 = require("../common/util");
-const ui_1 = require("../ide/ui"); // TODO: make this a callback
 const BASIC_PRESETS = [
     { id: 'hello.bas', name: 'Hello' },
     { id: 'tutorial.bas', name: 'Tutorial' },
@@ -24,6 +24,7 @@ class BASICPlatform {
         this.hotReload = true;
         this.animcount = 0;
         this.internalFiles = {};
+        this.getToolForFilename = toolselect_1.getToolForFilename_basic;
         //super();
         this.mainElement = mainElement;
         mainElement.style.overflowY = 'auto';
@@ -142,7 +143,6 @@ class BASICPlatform {
     isBlocked() { return this.tty.waitingfor != null || this.runtime.exited; } // is blocked for input?
     isRunning() { return this.timer.isRunning(); }
     getDefaultExtensions() { return [".bas"]; }
-    getToolForFilename() { return "basic"; }
     getPresets() { return BASIC_PRESETS; }
     getPC() {
         return this.runtime.curpc;
@@ -277,7 +277,7 @@ class BASICPlatform {
     }
     didExit() {
         this.internalFiles['stdout.txt'] = this.transcript.join("");
-        (0, ui_1.haltEmulation)();
+        (0, emu_1.haltEmulation)();
     }
 }
 //

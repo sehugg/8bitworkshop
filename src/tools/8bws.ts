@@ -16,7 +16,8 @@ import * as path from 'path';
 import { isProbablyBinary } from '../common/util';
 import { fail, hasOutput, note, output, setJsonMode } from './cliformat';
 import { EmuTarget, loadPlatform } from './emutarget';
-import { RUN_SCRIPT_HELP, RunScript, parseNum, parseSymbolFile } from './runscript';
+import { RUN_SCRIPT_HELP, RunScript, parseNum } from './runscript';
+import { parseSymbolFile } from '../common/symbols/symbolfile';
 import type { CompileResult } from './testlib';
 
 interface Args {
@@ -382,4 +383,8 @@ async function main() {
   }
 }
 
-main();
+// Exit once the result is out: emulator libraries (Javatari's on-screen
+// messages) leave timers behind that would keep node running for seconds.
+main().then(() => {
+  process.stdout.write('', () => process.stderr.write('', () => process.exit()));
+});

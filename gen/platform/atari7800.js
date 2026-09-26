@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const atari7800_1 = require("../machine/atari7800");
+const toolselect_1 = require("../common/toolselect");
 const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
 var Atari7800_PRESETS = [
@@ -28,6 +29,7 @@ class Atari7800Platform extends baseplatform_1.Base6502MachinePlatform {
                     { name: 'CPU Vectors', start: 0xfffa, size: 0x6, type: 'rom' },
                 ] };
         };
+        this.getToolForFilename = toolselect_1.getToolForFilename_atari7800;
     }
     newMachine() { return new atari7800_1.Atari7800(); }
     getPresets() { return Atari7800_PRESETS; }
@@ -38,13 +40,6 @@ class Atari7800Platform extends baseplatform_1.Base6502MachinePlatform {
         let tree = super.getDebugTree();
         tree['display_list'] = this.machine.getDebugDisplayLists();
         return tree;
-    }
-    getToolForFilename(filename) {
-        if (filename.endsWith(".cc7800"))
-            return "cc7800";
-        if (filename.endsWith(".c78"))
-            return "cc7800";
-        return (0, baseplatform_1.getToolForFilename_6502)(filename);
     }
 }
 ///

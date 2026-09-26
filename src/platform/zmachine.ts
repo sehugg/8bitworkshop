@@ -1,5 +1,6 @@
 
 import { Platform, BasePlatform, BaseDebugPlatform, Preset, EmuState, inspectSymbol } from "../common/baseplatform";
+import { getToolForFilename_zmachine } from "../common/toolselect";
 import { EmuHalt, PLATFORMS } from "../common/emu";
 import { TeleType, TeleTypeWithKeyboard } from "../common/teletype";
 import { InputResponse } from "../common/basic/runtime";
@@ -705,9 +706,7 @@ class ZmachinePlatform implements Platform {
         return 0;
     }
 
-    getToolForFilename(s: string): string {
-        return s.endsWith(".dg") ? "dialog" : "inform6";
-    }
+    getToolForFilename = getToolForFilename_zmachine;
     getDefaultExtensions() {
         return [".inf", ".dg"];
     }

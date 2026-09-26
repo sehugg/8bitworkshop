@@ -111,26 +111,10 @@ async function importAllPlatforms(warn) {
         }
     }
 }
-// Which tool builds a preset. The platform object answers this for the IDE,
-// so ask it first; testlib's extension tables are the fallback for the
-// platforms that don't implement it.
-function toolForPreset(relpath, platform, plat) {
-    const basename = path.basename(relpath);
-    let tool = null;
-    if (plat && plat.getToolForFilename) {
-        try {
-            tool = plat.getToolForFilename(basename);
-        }
-        catch (e) { }
-    }
-    if (!tool) {
-        try {
-            tool = (0, testlib_1.getToolForFilename)(basename, platform);
-        }
-        catch (e) {
-            return null;
-        }
-    }
+// Which tool builds a preset: the same table the IDE's platform objects use
+// (src/common/toolselect.ts).
+function toolForPreset(relpath, platform) {
+    const tool = (0, testlib_1.getToolForFilename)(path.basename(relpath), platform);
     // remote: tools need a build server, so they can't be checked offline
     if (!tool || tool.startsWith('remote:') || !testlib_1.TOOLS[tool])
         return null;
@@ -235,7 +219,7 @@ async function listPresets(filter, platform, warn = () => { }, err = () => { }) 
                 warn(`platform ${id}: ${relpath} not found`);
                 continue;
             }
-            const tool = toolForPreset(relpath, id, plat);
+            const tool = toolForPreset(relpath, id);
             if (!tool)
                 continue;
             presetTools.add(tool);

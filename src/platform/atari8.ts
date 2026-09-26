@@ -1,5 +1,6 @@
 
 import { Platform, getOpcodeMetadata_6502, getToolForFilename_6502, Base6502MachinePlatform, Preset } from "../common/baseplatform";
+import { getToolForFilename_atari8 } from "../common/toolselect";
 import { PLATFORMS } from "../common/emu";
 import { BaseMAME6502Platform } from "../common/mameplatform";
 import { Atari5200, Atari800 } from "../machine/atari8";
@@ -48,16 +49,12 @@ const Atari5200_MemoryMap = { main:[
   {name:'ROM',start:0xfc00,size:0x400,type:'rom'},
 ] }
 
-function getToolForFilename_Atari8(fn:string) {
-  if (fn.endsWith(".bas") || fn.endsWith(".fb") || fn.endsWith(".fbi")) return "fastbasic";
-  else return getToolForFilename_6502(fn);
-}
 
 class Atari800Platform extends Base6502MachinePlatform<Atari800> {
   newMachine()          { return new Atari800(); }
   getPresets()          { return Atari800_PRESETS; }
   getDefaultExtensions() { return [...super.getDefaultExtensions(), ".bas"]; }
-  getToolForFilename = getToolForFilename_Atari8;
+  getToolForFilename = getToolForFilename_atari8;
   readAddress(a)        { return this.machine.readConst(a); }
   getMemoryMap()        { return Atari800_MemoryMap; }
   showHelp = atari8_showHelp;
@@ -95,7 +92,7 @@ class Atari5200Platform extends Atari800Platform {
 
 abstract class Atari8MAMEPlatform extends BaseMAME6502Platform {
   getPresets() { return Atari8_PRESETS; }
-  getToolForFilename = getToolForFilename_Atari8;
+  getToolForFilename = getToolForFilename_atari8;
   getOpcodeMetadata = getOpcodeMetadata_6502;
   getDefaultExtensions() { return [".c", ".bas", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
   showHelp = atari8_showHelp;

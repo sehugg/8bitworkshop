@@ -7740,7 +7740,6 @@
           const maclst = mac && listings[mac.file];
           if (insns && maclst && maclst.lines) {
             maclst.lines.push({
-              path: mac.file,
               line: mac.line + linenum,
               offset,
               insns,
@@ -15345,7 +15344,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     newVersion() {
       let ts = (/* @__PURE__ */ new Date()).getTime();
       if (ts <= this.workerseq)
-        ts = ++this.workerseq;
+        ts = this.workerseq + 1;
+      this.workerseq = ts;
       return ts;
     }
     putFile(path, data) {

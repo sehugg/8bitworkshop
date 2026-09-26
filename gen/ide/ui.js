@@ -61,6 +61,7 @@ exports.reloadWorkspaceFile = reloadWorkspaceFile;
 const localforage = __importStar(require("localforage"));
 const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
+const hdlhost_1 = require("./hdlhost");
 const recorder_1 = require("../common/recorder");
 const util_1 = require("../common/util");
 const toolmeta_1 = require("../common/toolmeta");
@@ -84,6 +85,7 @@ const baseviews_1 = require("./views/baseviews");
 const debugviews_1 = require("./views/debugviews");
 const editors_1 = require("./views/editors");
 const helpview_1 = require("./views/helpview");
+const helptopics_1 = require("./helptopics");
 const treeviews_1 = require("./views/treeviews");
 const windows_1 = require("./windows");
 const layout_1 = require("./layout");
@@ -1859,7 +1861,7 @@ function showContextHelp() {
         return;
     // widgets embedded outside ProjectWindows (e.g. the Verilog waveform
     // viewer) register their own topic; prefer that when it has focus
-    var elId = (0, helpview_1.elementHelpTopicForFocus)();
+    var elId = (0, helptopics_1.elementHelpTopicForFocus)();
     var isEditor = exports.projectWindows.getActive() instanceof editors_1.SourceEditor;
     var id = elId || (0, helpview_1.helpTopicForView)(exports.projectWindows.getActiveID(), isEditor);
     var hash = '#help/' + id;
@@ -2317,6 +2319,8 @@ async function startPlatform() {
     var initialHash = window.location.hash;
     replaceURLState();
     installErrorHandler();
+    (0, emu_1.setHaltHandler)(haltEmulation);
+    (0, hdlhost_1.installHDLHost)();
     await exports.platform.start();
     await loadBIOSFromProject();
     await initProject();

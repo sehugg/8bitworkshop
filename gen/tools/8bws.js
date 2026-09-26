@@ -50,6 +50,7 @@ const util_1 = require("../common/util");
 const cliformat_1 = require("./cliformat");
 const emutarget_1 = require("./emutarget");
 const runscript_1 = require("./runscript");
+const symbolfile_1 = require("../common/symbols/symbolfile");
 /** Options that may be repeated; each occurrence adds to a list. */
 const REPEATABLE_FLAGS = new Set([
     'define', 'as-define', 'ld-define', 'cflag', 'asflag', 'ldflag',
@@ -277,7 +278,7 @@ async function doRun(args, positional) {
     script.addSymbols(symbols);
     const symbolFile = str(args, 'symbols');
     if (symbolFile)
-        script.addSymbols((0, runscript_1.parseSymbolFile)(fs.readFileSync(symbolFile, 'utf8')));
+        script.addSymbols((0, symbolfile_1.parseSymbolFile)(fs.readFileSync(symbolFile, 'utf8')));
     script.startTracing();
     script.run(buildScript(args));
     const video = target.getVideo();
@@ -412,5 +413,9 @@ async function main() {
         process.exit(1);
     }
 }
-main();
+// Exit once the result is out: emulator libraries (Javatari's on-screen
+// messages) leave timers behind that would keep node running for seconds.
+main().then(() => {
+    process.stdout.write('', () => process.stderr.write('', () => process.exit()));
+});
 //# sourceMappingURL=8bws.js.map

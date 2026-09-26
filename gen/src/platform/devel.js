@@ -6,7 +6,6 @@ const devel_1 = require("../machine/devel");
 const baseplatform_1 = require("../common/baseplatform");
 const util_1 = require("../common/util");
 const teletype_1 = require("../common/teletype");
-const ui_1 = require("../ide/ui");
 var DEVEL_6502_PRESETS = [
     { id: 'hello.dasm', name: 'Hello World (ASM)' },
 ];
@@ -129,7 +128,7 @@ class Devel6502Platform extends baseplatform_1.Base6502MachinePlatform {
     advance(novideo) {
         if (this.isBlocked()) {
             this.internalFiles['serialout.dat'] = (0, util_1.byteArrayToString)(this.serial.outputBytes);
-            (0, ui_1.haltEmulation)();
+            (0, emu_1.haltEmulation)();
             return 0;
         }
         return super.advance(novideo);

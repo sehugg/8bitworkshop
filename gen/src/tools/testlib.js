@@ -36,13 +36,14 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TOOLS = exports.PLATFORM_PARAMS = exports.store = void 0;
+exports.NodeFileProvider = exports.TOOLS = exports.PLATFORM_PARAMS = exports.store = void 0;
 exports.initialize = initialize;
 exports.preload = preload;
 exports.compile = compile;
 exports.compileFile = compileFile;
 exports.getToolForFilename = getToolForFilename;
 exports.compileSourceFile = compileSourceFile;
+exports.buildSourceFileMessage = buildSourceFileMessage;
 exports.listTools = listTools;
 exports.listPlatforms = listPlatforms;
 exports.ab2str = ab2str;
@@ -50,8 +51,8 @@ exports.createMockLocalStorage = createMockLocalStorage;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const util_1 = require("../common/util");
-const baseplatform_1 = require("../common/baseplatform");
-const toolmeta_1 = require("../common/toolmeta");
+const toolselect_1 = require("../common/toolselect");
+const projectcore_1 = require("../common/projectcore");
 const workerlib_1 = require("../worker/workerlib");
 Object.defineProperty(exports, "store", { enumerable: true, get: function () { return workerlib_1.store; } });
 const platforms_1 = require("../worker/platforms");
@@ -129,164 +130,39 @@ async function compileFile(tool, platform, presetPath) {
     });
 }
 /**
- * Parse include and link dependencies from source text.
- * Patterns come from the tool registry (src/common/toolmeta.ts), the same
- * ones CodeProject uses in the IDE.
+ * Reads files for a build from the source file's directory, then
+ * presets/<base platform>, then the current directory.
  */
-function parseDependencies(text, platformId, mainPath, patterns) {
-    let files = [];
-    var dir = (0, util_1.getFolderForPath)(mainPath);
-    for (let fn of (0, toolmeta_1.matchDependencyPatterns)(text, patterns)) {
-        files.push(fn);
-        if (dir.length > 0 && dir != 'local')
-            files.push(dir + '/' + fn);
+class NodeFileProvider {
+    constructor(sourceDir, platform) {
+        this.sourceDir = sourceDir;
+        this.platform = platform;
     }
-    return files;
-}
-function parseIncludeDependencies(text, platformId, mainPath) {
-    let tool = getToolForFilename(mainPath, platformId);
-    return parseDependencies(text, platformId, mainPath, (0, toolmeta_1.getIncludePatterns)(tool, platformId));
-}
-function parseLinkDependencies(text, platformId, mainPath) {
-    let tool = getToolForFilename(mainPath, platformId);
-    return parseDependencies(text, platformId, mainPath, (0, toolmeta_1.getLinkPatterns)(tool, platformId));
-}
-/**
- * Try to resolve a file path by searching the source directory,
- * the presets directory for the platform, and the current working directory.
- */
-function resolveFileData(filePath, sourceDir, platform) {
-    var searchPaths = [];
-    // Try relative to source file directory
-    if (sourceDir) {
-        searchPaths.push(path.resolve(sourceDir, filePath));
-    }
-    // Try presets directory
-    var basePlatform = (0, util_1.getBasePlatform)(platform);
-    searchPaths.push(path.resolve('presets', basePlatform, filePath));
-    // Try current working directory
-    searchPaths.push(path.resolve(filePath));
-    for (var p of searchPaths) {
-        try {
-            if (fs.existsSync(p)) {
-                if ((0, util_1.isProbablyBinary)(filePath)) {
-                    return new Uint8Array(fs.readFileSync(p));
-                }
-                else {
-                    return fs.readFileSync(p, 'utf-8');
+    async readFile(filePath) {
+        var searchPaths = [];
+        if (this.sourceDir)
+            searchPaths.push(path.resolve(this.sourceDir, filePath));
+        searchPaths.push(path.resolve('presets', (0, util_1.getBasePlatform)(this.platform), filePath));
+        searchPaths.push(path.resolve(filePath));
+        for (var p of searchPaths) {
+            try {
+                if (fs.existsSync(p) && fs.statSync(p).isFile()) {
+                    return (0, util_1.isProbablyBinary)(filePath) ? new Uint8Array(fs.readFileSync(p)) : fs.readFileSync(p, 'utf-8');
                 }
             }
-        }
-        catch (e) {
-            // continue searching
-        }
-    }
-    return null;
-}
-/**
- * Strips the main file's folder prefix from a path (matching CodeProject.stripLocalPath).
- */
-function stripLocalPath(filePath, mainPath) {
-    var folder = (0, util_1.getFolderForPath)(mainPath);
-    if (folder != '' && filePath.startsWith(folder + '/')) {
-        filePath = filePath.substring(folder.length + 1);
-    }
-    return filePath;
-}
-/**
- * Recursively resolve all file dependencies for a source file.
- */
-function resolveAllDependencies(mainText, mainPath, platform, sourceDir) {
-    var resolved = [];
-    var seen = new Set();
-    function resolve(text, currentPath) {
-        var includes = parseIncludeDependencies(text, platform, currentPath);
-        var links = parseLinkDependencies(text, platform, currentPath);
-        var allPaths = includes.concat(links);
-        var linkSet = new Set(links);
-        for (var depPath of allPaths) {
-            var filename = stripLocalPath(depPath, mainPath);
-            if (seen.has(filename))
-                continue;
-            seen.add(filename);
-            var data = resolveFileData(depPath, sourceDir, platform);
-            if (data != null) {
-                resolved.push({
-                    path: depPath,
-                    filename: filename,
-                    data: data,
-                    link: linkSet.has(depPath),
-                });
-                // Recursively parse text files for their own dependencies
-                if (typeof data === 'string') {
-                    resolve(data, depPath);
-                }
+            catch (e) {
+                // continue searching
             }
         }
+        return null;
     }
-    resolve(mainText, mainPath);
-    return resolved;
 }
-// TODO: refactor dependency parsing and tool selection into a common library
-// shared between CodeProject (src/ide/project.ts) and testlib
+exports.NodeFileProvider = NodeFileProvider;
 /**
- * Extension overrides individual platforms apply on top of the per-architecture
- * defaults -- see the getToolForFilename members in src/platform/*.ts, which
- * this mirrors. Without these, e.g. a VCS .bas file is handed to dasm.
- */
-function getToolForFilename_platform(fn, base) {
-    if (base === 'vcs') {
-        if (fn.endsWith('.cc2600'))
-            return 'cc2600';
-        if (fn.endsWith('.bb') || fn.endsWith('.bas'))
-            return 'bataribasic';
-    }
-    if (base.startsWith('atari8')) {
-        if (fn.endsWith('.bas') || fn.endsWith('.fb') || fn.endsWith('.fbi'))
-            return 'fastbasic';
-    }
-    if (base.startsWith('apple2')) {
-        if (fn.endsWith('.lnk'))
-            return 'merlin32';
-    }
-    if (base === 'nes') {
-        if (fn.endsWith('.nesasm'))
-            return 'nesasm';
-    }
-    return null;
-}
-/**
- * Select the appropriate tool for a filename based on platform architecture.
+ * Select the appropriate tool for a filename on a platform.
  */
 function getToolForFilename(fn, platform) {
-    var base = (0, util_1.getBasePlatform)(platform);
-    var override = getToolForFilename_platform(fn, base);
-    if (override)
-        return override;
-    // a specialization like verilog-vga has no params of its own; its root
-    // platform's arch is the one that applies
-    var params = platforms_1.PLATFORM_PARAMS[platform] || platforms_1.PLATFORM_PARAMS[base] || platforms_1.PLATFORM_PARAMS[(0, util_1.getRootBasePlatform)(platform)];
-    var arch = params && params.arch;
-    switch (arch) {
-        case 'z80':
-        case 'gbz80':
-            return (0, baseplatform_1.getToolForFilename_z80)(fn);
-        case '6502':
-        case 'huc6280': // PC Engine: cc65/ca65, like any other 6502
-            return (0, baseplatform_1.getToolForFilename_6502)(fn);
-        case '6809':
-            return (0, baseplatform_1.getToolForFilename_6809)(fn);
-        case 'arm32':
-            return (0, baseplatform_1.getToolForFilename_arm32)(fn);
-        case 'verilog':
-            if (fn.endsWith('.asm'))
-                return 'jsasm';
-            return fn.endsWith('.ice') ? 'silice' : 'verilator';
-        case 'x86':
-            return fn.endsWith('.c') ? 'smlrc' : 'yasm';
-        default:
-            return (0, baseplatform_1.getToolForFilename_z80)(fn); // fallback
-    }
+    return (0, toolselect_1.getToolForPlatform)(platform, fn);
 }
 /**
  * Compile an arbitrary source file path.
@@ -296,89 +172,29 @@ function getToolForFilename(fn, platform) {
  */
 async function compileSourceFile(tool, platform, filePath, buildAs, opts) {
     await initialize();
+    var msg = await buildSourceFileMessage(tool, platform, filePath, buildAs, opts);
+    await (0, workerlib_1.handleMessage)({ reset: true });
+    return workerResultToCompileResult(await (0, workerlib_1.handleMessage)(msg));
+}
+/**
+ * The worker message compileSourceFile sends for a source file -- the same
+ * one the IDE builds (src/common/projectcore.ts). A `tool` overrides the
+ * main file's tool; linked files get the platform's tool for their name.
+ */
+async function buildSourceFileMessage(tool, platform, filePath, buildAs, opts) {
     var code = fs.readFileSync(filePath, 'utf-8');
-    var basename = buildAs || filePath.split('/').pop();
-    var sourceDir = path.dirname(path.resolve(filePath));
-    // Auto-detect tool from filename if not specified
-    if (!tool) {
-        tool = getToolForFilename(basename, platform);
-    }
-    // Parse and resolve all dependencies
-    var deps = resolveAllDependencies(code, basename, platform, sourceDir);
-    if (deps.length === 0) {
-        // No dependencies found, use simple single-file path
-        var single = {
-            tool: tool,
-            platform: platform,
-            code: code,
-            path: basename,
-        };
-        if (opts && opts.symbols)
-            single.symbols = opts.symbols;
-        if (opts && opts.buildArgs)
-            single.buildArgs = opts.buildArgs;
-        return compile(single);
-    }
-    // Build multi-file message with updates and buildsteps
-    var files = [];
-    var depFilenames = [];
-    // Main file first
-    files.push({ path: basename, data: code });
-    // Include files (non-link dependencies)
-    for (var dep of deps) {
-        if (!dep.link) {
-            files.push({ path: dep.filename, data: dep.data });
-            depFilenames.push(dep.filename);
-        }
-    }
-    // Single-pass tools (oscar64) compile linked sources in the same invocation
-    // as the main file instead of building them separately.
-    var compileLinkedSources = (0, toolmeta_1.getCompileLinkedSources)(tool);
-    var linkfiles = [];
-    if (compileLinkedSources) {
-        for (var dep of deps) {
-            if (dep.link && dep.data) {
-                files.push({ path: dep.filename, data: dep.data });
-                linkfiles.push(dep.filename);
-            }
-        }
-    }
-    // Build steps: main file first
-    var buildsteps = [];
-    var mainstep = {
-        path: basename,
-        files: [basename].concat(depFilenames, linkfiles),
-        platform: platform,
-        tool: tool,
-        mainfile: true,
-    };
-    if (linkfiles.length)
-        mainstep.linkfiles = linkfiles;
-    if (opts && opts.symbols)
-        mainstep.symbols = opts.symbols;
-    if (opts && opts.buildArgs)
-        mainstep.buildArgs = opts.buildArgs;
-    buildsteps.push(mainstep);
-    // Other link dependencies get their own build steps, with tool selected by extension
-    if (!compileLinkedSources) {
-        for (var dep of deps) {
-            if (dep.link && dep.data) {
-                files.push({ path: dep.filename, data: dep.data });
-                buildsteps.push({
-                    path: dep.filename,
-                    files: [dep.filename].concat(depFilenames),
-                    platform: platform,
-                    tool: getToolForFilename(dep.filename, platform),
-                });
-            }
-        }
-    }
-    return compile({
-        tool: tool,
-        platform: platform,
-        files: files,
-        buildsteps: buildsteps,
-    });
+    var basename = buildAs || path.basename(filePath);
+    var getTool = (fn) => (tool && fn === basename) ? tool : (0, toolselect_1.getToolForPlatform)(platform, fn);
+    var fp = new NodeFileProvider(path.dirname(path.resolve(filePath)), platform);
+    var deps = await (0, projectcore_1.resolveDependencies)(fp, basename, code, platform, getTool);
+    return (0, projectcore_1.buildWorkerMessage)({
+        mainPath: basename,
+        mainData: code,
+        platformId: platform,
+        getToolForFilename: getTool,
+        symbols: opts && opts.symbols,
+        buildArgs: opts && opts.buildArgs,
+    }, deps).msg;
 }
 function workerResultToCompileResult(result) {
     if (!result) {

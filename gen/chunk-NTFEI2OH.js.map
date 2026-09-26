@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/common/hdl/hdlhost.ts"],
+  "sourcesContent": ["\nimport { WaveformProvider, WaveformScope } from \"../waveform\";\n\n// The UI the verilog platform asks for. The IDE installs a host (a split\n// pane with a waveform, toolbar buttons); headless runs install none, and the\n// platform runs without it.\nexport interface HDLHost {\n  /** the scope shown beside `video` */\n  createScope(video:HTMLCanvasElement, provider:WaveformProvider) : WaveformScope;\n  /** designs with video output get the speed, run and record controls */\n  showVideoControls(show:boolean) : void;\n  /** evaluations per clock to settle the design; null hides it */\n  showSettleCount(evals:number | null) : void;\n}\n\nvar host : HDLHost | null = null;\n\nexport function setHDLHost(h:HDLHost | null) { host = h; }\nexport function getHDLHost() : HDLHost | null { return host; }\n"],
+  "mappings": "AAeA,IAAIA,EAAwB,KAErB,SAASC,EAAWC,EAAkB,CAAEF,EAAOE,CAAG,CAClD,SAASC,GAA8B,CAAE,OAAOH,CAAM",
+  "names": ["host", "setHDLHost", "h", "getHDLHost"]
+}

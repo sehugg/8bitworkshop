@@ -10,10 +10,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.RunScript = exports.RUN_SCRIPT_HELP = void 0;
 exports.parseNum = parseNum;
 exports.formatRegs = formatRegs;
-exports.parseSymbolFile = parseSymbolFile;
 const emu_1 = require("../common/emu");
 const probe_1 = require("../common/probe");
 const util_1 = require("../common/util");
+const symbolfile_1 = require("../common/symbols/symbolfile");
 const cliformat_1 = require("./cliformat");
 const emutarget_1 = require("./emutarget");
 exports.RUN_SCRIPT_HELP = [
@@ -164,12 +164,11 @@ class RunScript {
     //// helpers used by the commands
     log(msg) { this.out(`[frame ${this.target.frameCount}] ${msg}\n`); }
     addr(tok) {
-        var _a;
         try {
             return parseNum(tok);
         }
         catch (e) {
-            const v = (_a = this.symbols[tok]) !== null && _a !== void 0 ? _a : this.symbols[tok.replace(/^\./, '')];
+            const v = (0, symbolfile_1.lookupSymbol)(this.symbols, tok);
             if (v == null)
                 throw new Error(`unknown address or symbol '${tok}'`);
             return v;
@@ -400,17 +399,4 @@ const COMMANDS = {
     'reset': RunScript.prototype.cmdReset,
     'echo': RunScript.prototype.cmdEcho,
 };
-/** Parse a cc65/ca65 or VICE label file into a symbol map. */
-function parseSymbolFile(text) {
-    const symbols = {};
-    for (const line of text.split(/\r?\n/)) {
-        const m1 = line.match(/^\s*([A-Za-z_][\w]*)\s*=\s*\$?([0-9A-Fa-f]+)\s*;/); // ca65/cc65 list
-        const m2 = line.match(/^\s*(?:al|add_label)\s+([0-9A-Fa-f]+)\s+\.?([A-Za-z_][\w]*)/); // VICE
-        if (m1)
-            symbols[m1[1]] = parseInt(m1[2], 16);
-        else if (m2)
-            symbols[m2[2]] = parseInt(m2[1], 16);
-    }
-    return symbols;
-}
 //# sourceMappingURL=runscript.js.map

@@ -36,6 +36,7 @@ exports.convertDataToUint8Array = convertDataToUint8Array;
 exports.convertDataToString = convertDataToString;
 exports.byteToASCII = byteToASCII;
 exports.loadScript = loadScript;
+exports.setScriptLoader = setScriptLoader;
 exports.decodeQueryString = decodeQueryString;
 exports.parseBool = parseBool;
 exports.parseXMLPoorly = parseXMLPoorly;
@@ -529,7 +530,7 @@ function byteToASCII(b) {
     else
         return String.fromCharCode(b);
 }
-function loadScript(scriptfn) {
+function loadScriptTag(scriptfn) {
     return new Promise((resolve, reject) => {
         var script = document.createElement('script');
         script.onload = resolve;
@@ -537,6 +538,17 @@ function loadScript(scriptfn) {
         script.src = scriptfn;
         document.getElementsByTagName('head')[0].appendChild(script);
     });
+}
+let scriptLoader = loadScriptTag;
+/** Load a script into the global scope. Headless hosts replace the loader (see setScriptLoader). */
+function loadScript(scriptfn) {
+    return scriptLoader(scriptfn);
+}
+/** Replace how loadScript() loads scripts; returns the previous loader. */
+function setScriptLoader(loader) {
+    const prev = scriptLoader;
+    scriptLoader = loader;
+    return prev;
 }
 function decodeQueryString(qs) {
     if (qs.startsWith('?'))

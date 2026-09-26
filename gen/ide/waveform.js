@@ -3,11 +3,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.WaveformView = void 0;
+exports.SplitWaveformScope = exports.WaveformView = void 0;
 const toolbar_1 = require("./toolbar");
 const shortcutbar_1 = require("./shortcutbar");
-const helpview_1 = require("./views/helpview");
+const helptopics_1 = require("./helptopics");
 const vlist_1 = require("../common/vlist");
+const Split = require("split.js");
 const dompurify_1 = __importDefault(require("dompurify"));
 const BUILTIN_INPUT_PORTS = [
     'clk', 'reset',
@@ -32,7 +33,7 @@ class WaveformView {
         // bar's focus tracking (see shortcutbar.ts)
         this.parent.addEventListener('mousedown', (e) => { e.preventDefault(); this.parent.focus(); });
         (0, shortcutbar_1.registerElementShortcuts)(this.parent, () => this.getShortcuts());
-        (0, helpview_1.registerElementHelpTopic)(this.parent, 'verilog-waveform');
+        (0, helptopics_1.registerElementHelpTopic)(this.parent, 'verilog-waveform');
         this.recreate();
     }
     // chips for the widget's mousetrap-scoped toolbar bindings
@@ -373,4 +374,47 @@ class WaveformView {
     }
 }
 exports.WaveformView = WaveformView;
+// The IDE's scope: splits the emulator overlay into the video on top and a
+// WaveformView below. The view is created the first time the scope is shown.
+class SplitWaveformScope {
+    constructor(video, provider) {
+        this.provider = provider;
+        var overlay = $("#emuoverlay").show();
+        this.topdiv = $('<div class="emuspacer">').appendTo(overlay)[0];
+        this.topdiv.appendChild(video);
+        this.wavediv = $('<div class="emuscope">').appendTo(overlay)[0];
+        this.split = Split([this.topdiv, this.wavediv], {
+            minSize: [0, 0],
+            sizes: [99, 1],
+            direction: 'vertical',
+            gutterSize: 16,
+            onDrag: () => this.resize(),
+        });
+    }
+    isVisible() {
+        return this.split.getSizes()[1] > 2; // TODO?
+    }
+    show() {
+        this.split.setSizes([0, 100]);
+    }
+    setCurrentTime(t) {
+        if (this.waveview)
+            this.waveview.setCurrentTime(t);
+    }
+    update() {
+        if (this.isVisible()) {
+            if (!this.waveview) {
+                this.waveview = new WaveformView(this.wavediv, this.provider);
+            }
+            else {
+                this.waveview.refresh();
+            }
+        }
+    }
+    resize() {
+        if (this.waveview)
+            this.waveview.recreate();
+    }
+}
+exports.SplitWaveformScope = SplitWaveformScope;
 //# sourceMappingURL=waveform.js.map

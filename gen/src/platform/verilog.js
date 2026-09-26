@@ -1,13 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const baseplatform_1 = require("../common/baseplatform");
+const toolselect_1 = require("../common/toolselect");
 const emu_1 = require("../common/emu");
 const audio_1 = require("../common/audio");
-const waveform_1 = require("../ide/waveform");
+const hdlhost_1 = require("../common/hdl/hdlhost");
 const hdltypes_1 = require("../common/hdl/hdltypes");
 const hdlruntime_1 = require("../common/hdl/hdlruntime");
 const hdlwasm_1 = require("../common/hdl/hdlwasm");
-const Split = require("split.js");
 var VERILOG_PRESETS = [
     { id: 'clock_divider.v', name: 'Clock Divider' },
     { id: 'binary_counter.v', name: 'Binary Counter' },
@@ -151,6 +151,10 @@ var VerilogPlatform = function (mainElement, options) {
     }
     // inner Platform class
     class _VerilogPlatform extends baseplatform_1.BasePlatform {
+        constructor() {
+            super(...arguments);
+            this.getToolForFilename = toolselect_1.getToolForFilename_verilog;
+        }
         getPresets() { return VERILOG_PRESETS; }
         setVideoParams(width, height, clock) {
             videoWidth = width;
@@ -159,6 +163,7 @@ var VerilogPlatform = function (mainElement, options) {
             maxVideoLines = height + 40;
         }
         async start() {
+            var _a, _b;
             //await loadScript('./lib/binaryen.js'); // TODO: remove
             video = new emu_1.RasterVideo(mainElement, videoWidth, videoHeight, { overscan: true });
             video.create();
@@ -167,7 +172,6 @@ var VerilogPlatform = function (mainElement, options) {
                     keycode = asciiKeycode(code) | 0x80;
                 }
             }, true); // true = always send function
-            var vcanvas = $(video.canvas);
             idata = video.getFrameData();
             timerCallback = () => {
                 if (!this.isRunning())
@@ -179,29 +183,14 @@ var VerilogPlatform = function (mainElement, options) {
             this.setFrameRate(60);
             // setup scope
             trace_buffer = new Uint32Array(TRACE_BUFFER_DWORDS);
-            var overlay = $("#emuoverlay").show();
-            this.topdiv = $('<div class="emuspacer">').appendTo(overlay);
-            vcanvas.appendTo(this.topdiv);
-            this.wavediv = $('<div class="emuscope">').appendTo(overlay);
-            this.split = Split([this.topdiv[0], this.wavediv[0]], {
-                minSize: [0, 0],
-                sizes: [99, 1],
-                direction: 'vertical',
-                gutterSize: 16,
-                onDrag: () => {
-                    this.resize();
-                    //if (this.waveview) this.waveview.recreate();
-                    //vcanvas.css('position','relative');
-                    //vcanvas.css('top', -this.wavediv.height()+'px');
-                },
-            });
+            this.scope = (_b = (_a = (0, hdlhost_1.getHDLHost)()) === null || _a === void 0 ? void 0 : _a.createScope(video.canvas, this)) !== null && _b !== void 0 ? _b : null;
             // setup mouse events
             video.setupMouseEvents();
         }
         // TODO: pollControls() { poller.poll(); }
         resize() {
-            if (this.waveview)
-                this.waveview.recreate();
+            if (this.scope)
+                this.scope.resize();
         }
         setGenInputs() {
             useAudio = audio != null && top.state.spkr != null;
@@ -232,12 +221,12 @@ var VerilogPlatform = function (mainElement, options) {
             //this.restartDebugState();
             this.refreshVideoFrame();
             // set scope offset
-            if (trace && this.waveview) {
-                this.waveview.setCurrentTime(Math.floor(trace_index / trace_signals.length));
+            if (trace) {
+                this.scope.setCurrentTime(Math.floor(trace_index / trace_signals.length));
             }
         }
         isScopeVisible() {
-            return this.split.getSizes()[1] > 2; // TODO?
+            return this.scope != null && this.scope.isVisible();
         }
         // TODO: merge with prev func  
         advance(novideo) {
@@ -260,7 +249,8 @@ var VerilogPlatform = function (mainElement, options) {
             // TODO
         }
         updateScopeFrame() {
-            this.split.setSizes([0, 100]); // ensure scope visible
+            if (this.scope)
+                this.scope.show(); // ensure scope visible
             //this.topdiv.hide();// hide crt
             var done = this.fillTraceBuffer(CYCLES_PER_FILL * trace_signals.length);
             if (done)
@@ -268,15 +258,8 @@ var VerilogPlatform = function (mainElement, options) {
             // TODO
         }
         updateScope() {
-            // create scope, if visible
-            if (this.isScopeVisible()) {
-                if (!this.waveview) {
-                    this.waveview = new waveform_1.WaveformView(this.wavediv[0], this);
-                }
-                else {
-                    this.waveview.refresh();
-                }
-            }
+            if (this.scope)
+                this.scope.update();
         }
         updateFrame() {
             if (!top)
@@ -532,6 +515,7 @@ var VerilogPlatform = function (mainElement, options) {
             }
         }
         async loadROM(title, output) {
+            var _a;
             var unit = output;
             var topmod = unit.modules['TOP'];
             if (unit.modules && topmod) {
@@ -572,11 +556,8 @@ var VerilogPlatform = function (mainElement, options) {
                     if (this.hasvideo) {
                         const IGNORE_SIGNALS = ['clk', 'reset'];
                         trace_signals = trace_signals.filter((v) => { return IGNORE_SIGNALS.indexOf(v.name) < 0; }); // remove clk, reset
-                        this.showVideoControls();
                     }
-                    else {
-                        this.hideVideoControls();
-                    }
+                    (_a = (0, hdlhost_1.getHDLHost)()) === null || _a === void 0 ? void 0 : _a.showVideoControls(this.hasvideo);
                 }
             }
             // randomize values
@@ -596,21 +577,11 @@ var VerilogPlatform = function (mainElement, options) {
             }
             // restart audio
             this.restartAudio();
-            if (this.waveview) {
-                this.waveview.recreate();
+            if (this.scope) {
+                this.scope.resize();
             }
             // assert reset pin, wait 100 cycles if using video
             this.reset();
-        }
-        showVideoControls() {
-            $("#speed_bar").show();
-            $("#run_bar").show();
-            $("#dbg_record").show();
-        }
-        hideVideoControls() {
-            $("#speed_bar").hide();
-            $("#run_bar").hide();
-            $("#dbg_record").hide();
         }
         restartAudio() {
             // stop/start audio
@@ -663,6 +634,7 @@ var VerilogPlatform = function (mainElement, options) {
         }
         getFrameRate() { return frameRate; }
         reset() {
+            var _a;
             if (!top)
                 return;
             // TODO: how do we avoid clobbering user-modified signals?
@@ -671,7 +643,7 @@ var VerilogPlatform = function (mainElement, options) {
                 trace_buffer.fill(0);
             if (video)
                 video.setRotate(top.state.rotate ? -90 : 0);
-            $("#verilog_bar").hide();
+            (_a = (0, hdlhost_1.getHDLHost)()) === null || _a === void 0 ? void 0 : _a.showSettleCount(null);
             if (this.hasvideo) {
                 top.state.reset = 1;
                 top.tick2(100);
@@ -686,14 +658,6 @@ var VerilogPlatform = function (mainElement, options) {
             if (!top)
                 return;
             top.tick2(1);
-        }
-        getToolForFilename(fn) {
-            if (fn.endsWith(".asm"))
-                return "jsasm";
-            else if (fn.endsWith(".ice"))
-                return "silice";
-            else
-                return "verilator";
         }
         getDefaultExtensions() { return [".v", ".asm", ".ice"]; }
         inspect(name) {

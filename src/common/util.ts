@@ -518,7 +518,9 @@ export function byteToASCII(b: number) : string {
     return String.fromCharCode(b);
 }
 
-export function loadScript(scriptfn:string) : Promise<Event> {
+export type ScriptLoader = (scriptfn:string) => Promise<unknown>;
+
+function loadScriptTag(scriptfn:string) : Promise<Event> {
   return new Promise( (resolve, reject) => {
     var script = document.createElement('script');
     script.onload = resolve;
@@ -526,6 +528,20 @@ export function loadScript(scriptfn:string) : Promise<Event> {
     script.src = scriptfn;
     document.getElementsByTagName('head')[0].appendChild(script);
   });
+}
+
+let scriptLoader : ScriptLoader = loadScriptTag;
+
+/** Load a script into the global scope. Headless hosts replace the loader (see setScriptLoader). */
+export function loadScript(scriptfn:string) : Promise<unknown> {
+  return scriptLoader(scriptfn);
+}
+
+/** Replace how loadScript() loads scripts; returns the previous loader. */
+export function setScriptLoader(loader:ScriptLoader) : ScriptLoader {
+  const prev = scriptLoader;
+  scriptLoader = loader;
+  return prev;
 }
 
 export function decodeQueryString(qs : string) : {} {

@@ -8,6 +8,9 @@ exports.__createCanvas = __createCanvas;
 exports._charCodeOf = _charCodeOf;
 exports._setKeyboardEvents = _setKeyboardEvents;
 exports.drawCrosshair = drawCrosshair;
+exports.setVideoClasses = setVideoClasses;
+exports.setHaltHandler = setHaltHandler;
+exports.haltEmulation = haltEmulation;
 exports.dumpRAM = dumpRAM;
 exports.newKeyboardHandler = newKeyboardHandler;
 exports.setKeyboardFromMap = setKeyboardFromMap;
@@ -73,7 +76,7 @@ function _setKeyboardEvents(canvas, callback) {
     };
 }
 ;
-class RasterVideo {
+class RasterVideoImpl {
     constructor(mainElement, width, height, options) {
         // Start paddles/joystick centered in [0,255] range.
         this.paddle_x = 128;
@@ -152,8 +155,7 @@ class RasterVideo {
     }
     ;
 }
-exports.RasterVideo = RasterVideo;
-class VectorVideo extends RasterVideo {
+class VectorVideoImpl extends RasterVideoImpl {
     constructor() {
         super(...arguments);
         this.persistenceAlpha = 0.5;
@@ -212,7 +214,6 @@ class VectorVideo extends RasterVideo {
         }
     }
 }
-exports.VectorVideo = VectorVideo;
 function drawCrosshair(ctx, x, y, width) {
     if (!(ctx === null || ctx === void 0 ? void 0 : ctx.setLineDash))
         return; // for unit testing
@@ -229,6 +230,19 @@ function drawCrosshair(ctx, x, y, width) {
     ctx.lineTo(32767, y);
     ctx.stroke();
 }
+exports.RasterVideo = RasterVideoImpl;
+exports.VectorVideo = VectorVideoImpl;
+/** Replace the classes platforms construct; returns the previous ones. */
+function setVideoClasses(classes) {
+    const previous = { RasterVideo: exports.RasterVideo, VectorVideo: exports.VectorVideo, AnimationTimer: exports.AnimationTimer };
+    if (classes.RasterVideo)
+        exports.RasterVideo = classes.RasterVideo;
+    if (classes.VectorVideo)
+        exports.VectorVideo = classes.VectorVideo;
+    if (classes.AnimationTimer)
+        exports.AnimationTimer = classes.AnimationTimer;
+    return previous;
+}
 class RAM {
     constructor(size) {
         this.mem = new Uint8Array(new ArrayBuffer(size));
@@ -244,8 +258,17 @@ class EmuHalt extends Error {
     }
 }
 exports.EmuHalt = EmuHalt;
+// Platforms call haltEmulation() when the program ends or the CPU stops.
+// The host (IDE, extension) installs a handler; headless runs ignore it.
+var haltHandler = () => { };
+function setHaltHandler(handler) {
+    haltHandler = handler;
+}
+function haltEmulation(err) {
+    haltHandler(err);
+}
 exports.useRequestAnimationFrame = false;
-class AnimationTimer {
+class AnimationTimerImpl {
     constructor(frequencyHz, callback) {
         this.running = false;
         this.pulsing = false;
@@ -318,7 +341,7 @@ class AnimationTimer {
         this.running = false;
     }
 }
-exports.AnimationTimer = AnimationTimer;
+exports.AnimationTimer = AnimationTimerImpl;
 // TODO: move to util?
 function dumpRAM(ram, ramofs, ramlen) {
     var s = "";

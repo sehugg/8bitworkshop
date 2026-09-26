@@ -7,7 +7,7 @@ exports.CodeProject = exports.LocalForageFilesystem = exports.OverlayFilesystem 
 exports.createNewPersistentStore = createNewPersistentStore;
 const localforage_1 = __importDefault(require("localforage"));
 const util_1 = require("../common/util");
-const toolmeta_1 = require("../common/toolmeta");
+const projectcore_1 = require("../common/projectcore");
 const workertypes_1 = require("../common/workertypes");
 class WebPresetsFileSystem {
     constructor(platform_id) {
@@ -104,6 +104,10 @@ class CodeProject {
         // pending ad-hoc worker queries (queryWorker), keyed by qid
         this.pendingQueries = {};
         this.queryCounter = 0;
+        /** Files are read through the project cache, then the filesystem. */
+        this.fileProvider = {
+            readFile: async (path) => { var _a, _b; return (_b = (_a = (await this.loadFiles([path]))[0]) === null || _a === void 0 ? void 0 : _a.data) !== null && _b !== void 0 ? _b : null; },
+        };
         this.worker = worker;
         this.platform_id = platform_id;
         this.platform = platform;
@@ -183,52 +187,14 @@ class CodeProject {
             return this.platform.getToolForFilename(path);
         }
     }
-    preloadWorker(path) {
-        var tool = this.getToolForFilename(path);
+    preloadTool(tool) {
         if (tool && !this.tools_preloaded[tool]) {
             this.worker.postMessage({ preload: tool, platform: this.platform_id });
             this.tools_preloaded[tool] = true;
         }
     }
-    pushAllFiles(files, fn) {
-        // look for local and preset files
-        files.push(fn);
-        // look for files in current (main file) folder
-        var dir = (0, util_1.getFolderForPath)(this.mainPath);
-        if (dir.length > 0 && dir != 'local') // TODO
-            files.push(dir + '/' + fn);
-    }
-    /** Patterns come from the tool registry (src/common/toolmeta.ts), keyed by
-     *  the tool that builds the main file; the platform is only a fallback. */
-    parseIncludeDependencies(text) {
-        let tool = this.mainPath && this.getToolForFilename(this.mainPath);
-        let files = [];
-        for (let fn of (0, toolmeta_1.matchDependencyPatterns)(text, (0, toolmeta_1.getIncludePatterns)(tool, this.platform_id))) {
-            this.pushAllFiles(files, fn);
-        }
-        return files;
-    }
-    parseLinkDependencies(text) {
-        let tool = this.mainPath && this.getToolForFilename(this.mainPath);
-        let files = [];
-        for (let fn of (0, toolmeta_1.matchDependencyPatterns)(text, (0, toolmeta_1.getLinkPatterns)(tool, this.platform_id))) {
-            this.pushAllFiles(files, fn);
-        }
-        return files;
-    }
     loadFileDependencies(text) {
-        let includes = this.parseIncludeDependencies(text);
-        let linkfiles = this.parseLinkDependencies(text);
-        let allfiles = includes.concat(linkfiles);
-        return this.loadFiles(allfiles).then((result) => {
-            // set 'link' property on files that are link dependencies (must match filename)
-            if (result) {
-                for (let dep of result) {
-                    dep.link = linkfiles.indexOf(dep.path) >= 0;
-                }
-            }
-            return result;
-        });
+        return (0, projectcore_1.resolveDependencies)(this.fileProvider, this.mainPath, text, this.platform_id, (path) => this.getToolForFilename(path));
     }
     okToSend() {
         return this.pendingWorkerMessages++ == 0 && this.mainPath != null;
@@ -236,61 +202,19 @@ class CodeProject {
     updateFileInStore(path, text) {
         this.filesystem.setFileData(path, text);
     }
-    // TODO: test duplicate files, local paths mixed with presets
     buildWorkerMessage(depends) {
-        this.preloadWorker(this.mainPath);
-        var msg = { updates: [], buildsteps: [] };
-        // TODO: add preproc directive for __MAINFILE__
-        var mainfilename = this.stripLocalPath(this.mainPath);
-        var maintext = this.getFile(this.mainPath);
-        var depfiles = [];
-        msg.updates.push({ path: mainfilename, data: maintext });
-        this.filename2path[mainfilename] = this.mainPath;
-        const tool = this.getToolForFilename(this.mainPath);
-        let usesRemoteTool = tool.startsWith('remote:');
-        // Single-pass tools (oscar64) compile their linked sources in the same
-        // invocation as the main file, so those files travel in the main step.
-        let compileLinkedSources = (0, toolmeta_1.getCompileLinkedSources)(tool);
-        let linkfiles = [];
-        for (var dep of depends) {
-            // remote tools send both includes and linked files in one build step
-            if (!dep.link || usesRemoteTool || compileLinkedSources) {
-                msg.updates.push({ path: dep.filename, data: dep.data });
-                depfiles.push(dep.filename);
-                if (dep.link && compileLinkedSources && linkfiles.indexOf(dep.filename) < 0) {
-                    linkfiles.push(dep.filename);
-                }
-            }
-            this.filename2path[dep.filename] = dep.path;
-        }
-        var mainstep = {
-            path: mainfilename,
-            files: [mainfilename].concat(depfiles),
-            platform: this.platform_id,
-            tool: this.getToolForFilename(this.mainPath),
-            mainfile: true,
-        };
-        if (linkfiles.length)
-            mainstep.linkfiles = linkfiles;
-        if (this.buildSymbols)
-            mainstep.symbols = this.buildSymbols;
-        if (this.buildArgs)
-            mainstep.buildArgs = this.buildArgs;
-        msg.buildsteps.push(mainstep);
-        for (var dep of depends) {
-            if (dep.data && dep.link && !compileLinkedSources) {
-                this.preloadWorker(dep.filename);
-                msg.updates.push({ path: dep.filename, data: dep.data });
-                msg.buildsteps.push({
-                    path: dep.filename,
-                    files: [dep.filename].concat(depfiles),
-                    platform: this.platform_id,
-                    tool: this.getToolForFilename(dep.path)
-                });
-            }
-        }
-        if (this.dataItems)
-            msg.setitems = this.dataItems;
+        var { msg, filename2path, preloads } = (0, projectcore_1.buildWorkerMessage)({
+            mainPath: this.mainPath,
+            mainData: this.getFile(this.mainPath),
+            platformId: this.platform_id,
+            getToolForFilename: (path) => this.getToolForFilename(path),
+            symbols: this.buildSymbols,
+            buildArgs: this.buildArgs,
+            dataItems: this.dataItems,
+        }, depends);
+        Object.assign(this.filename2path, filename2path);
+        for (var tool of preloads)
+            this.preloadTool(tool);
         return msg;
     }
     // TODO: get local file as well as presets?
@@ -352,7 +276,6 @@ class CodeProject {
         }
         // otherwise, make it a string
         var text = typeof maindata === "string" ? maindata : '';
-        // TODO: load dependencies of non-main files
         return this.loadFileDependencies(text).then((depends) => {
             if (!depends)
                 depends = [];
@@ -383,29 +306,7 @@ class CodeProject {
         // TODO: link listings with source files
         if (data.listings) {
             this.listings = data.listings;
-            for (var lstname in this.listings) {
-                var lst = this.listings[lstname];
-                if (lst.lines) {
-                    lst.sourcefile = new workertypes_1.SourceFile(lst.lines, lst.text);
-                    // A single-pass tool (oscar64) emits one listing that mixes source
-                    // lines from the main file and every linked library, each tagged
-                    // with its own path. Split them so each editor can find the lines
-                    // for its own file (see getListingForFile).
-                    var bypath = {};
-                    for (var info of lst.lines) {
-                        var p = info.path || '';
-                        (bypath[p] || (bypath[p] = [])).push(info);
-                    }
-                    var paths = Object.keys(bypath);
-                    if (paths.length > 1 || (paths.length == 1 && paths[0] != '')) {
-                        lst.sourcefiles = {};
-                        for (var p of paths)
-                            lst.sourcefiles[p] = new workertypes_1.SourceFile(bypath[p], lst.text);
-                    }
-                }
-                if (lst.asmlines)
-                    lst.assemblyfile = new workertypes_1.SourceFile(lst.asmlines, lst.text);
-            }
+            (0, projectcore_1.processListings)(this.listings);
         }
     }
     processBuildResult(data) {
@@ -413,73 +314,18 @@ class CodeProject {
         this.processBuildSegments(data);
     }
     processBuildSegments(data) {
-        // save and sort segment list
-        var segs = (this.platform.getMemoryMap && this.platform.getMemoryMap()["main"]) || [];
-        if (segs === null || segs === void 0 ? void 0 : segs.length) {
-            segs.forEach(seg => seg.source = 'native');
-        }
-        if (data.segments) {
-            data.segments.forEach(seg => seg.source = 'linker');
-            segs = segs.concat(data.segments || []);
-        }
-        segs.sort((a, b) => { return a.start - b.start; });
-        this.segments = segs;
+        var native = this.platform.getMemoryMap && this.platform.getMemoryMap()["main"];
+        this.segments = (0, projectcore_1.mergeSegments)(native, data.segments);
     }
     getListings() {
         return this.listings;
     }
     // returns first listing in format [prefix].lst (TODO: could be better)
     getListingForFile(path) {
-        // ignore include files (TODO)
-        //if (path.toLowerCase().endsWith('.h') || path.toLowerCase().endsWith('.inc'))
-        //return;
-        var stripped = this.stripLocalPath(path);
-        var fnprefix = (0, util_1.getFilenamePrefix)(stripped);
-        // find listing with matching prefix
-        var listings = this.getListings();
-        for (var lstfn in listings) {
-            if (lstfn == path || lstfn == stripped)
-                return this.withSourceFileForPath(listings[lstfn], stripped);
-        }
-        for (var lstfn in listings) {
-            if ((0, util_1.getFilenamePrefix)(lstfn) == fnprefix) {
-                return this.withSourceFileForPath(listings[lstfn], stripped);
-            }
-        }
-        // no listing named after this file; it may be one source among many in a
-        // single mixed listing (e.g. an oscar64 "//#link"ed source)
-        for (var lstfn in listings) {
-            var sf = this.findSourceFileForPath(listings[lstfn], stripped);
-            if (sf)
-                return Object.assign({}, listings[lstfn], { sourcefile: sf });
-        }
-    }
-    // return a copy of `lst` whose sourcefile holds only the lines for `path`,
-    // or `lst` unchanged if it has no per-source-file views
-    withSourceFileForPath(lst, path) {
-        var sf = this.findSourceFileForPath(lst, path);
-        return sf ? Object.assign({}, lst, { sourcefile: sf }) : lst;
-    }
-    // look up the per-source-file view (see processBuildListings) for `path`
-    findSourceFileForPath(lst, path) {
-        if (!lst || !lst.sourcefiles)
-            return null;
-        var want = (0, util_1.getFilenameForPath)((0, util_1.getFilenamePrefix)(path));
-        for (var p in lst.sourcefiles) {
-            if ((0, util_1.getFilenameForPath)((0, util_1.getFilenamePrefix)(p)) == want)
-                return lst.sourcefiles[p];
-        }
-        return null;
+        return (0, projectcore_1.getListingForFile)(this.getListings(), path, this.mainPath);
     }
     stripLocalPath(path) {
-        if (this.mainPath) {
-            var folder = (0, util_1.getFolderForPath)(this.mainPath);
-            // TODO: kinda weird if folder is same name as file prefix
-            if (folder != '' && path.startsWith(folder + '/')) {
-                path = path.substring(folder.length + 1);
-            }
-        }
-        return path;
+        return (0, projectcore_1.stripLocalPath)(path, this.mainPath);
     }
     /**
      * Set per-project build overrides (symbols / raw args per phase). These are

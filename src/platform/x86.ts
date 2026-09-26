@@ -1,5 +1,6 @@
 
 import { Platform  } from "../common/baseplatform";
+import { getToolForFilename_x86 } from "../common/toolselect";
 import { PLATFORMS, RasterVideo } from "../common/emu";
 import { loadScript } from "../common/util";
 
@@ -61,10 +62,7 @@ class X86PCPlatform implements Platform {
         //super();
         this.mainElement = mainElement;
     }
-    getToolForFilename(s: string): string {
-        if (s.endsWith(".c")) return "smlrc";
-        return "yasm";
-    }
+    getToolForFilename = getToolForFilename_x86;
     getDefaultExtensions() {
         return [".c", ".asm"];
     }

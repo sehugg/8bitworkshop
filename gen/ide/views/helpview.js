@@ -7,9 +7,6 @@ exports.HelpView = exports.HELP_TOPICS = void 0;
 exports.resolveHelpId = resolveHelpId;
 exports.getHelpTopic = getHelpTopic;
 exports.helpTopicForView = helpTopicForView;
-exports.registerElementHelpTopic = registerElementHelpTopic;
-exports.unregisterElementHelpTopic = unregisterElementHelpTopic;
-exports.elementHelpTopicForFocus = elementHelpTopicForFocus;
 exports.renderHelpBody = renderHelpBody;
 const DOMPurify = require("dompurify");
 const baseviews_1 = require("./baseviews");
@@ -106,27 +103,6 @@ function helpTopicForView(viewId, isEditor) {
     if (isEditor)
         return "editor";
     return (viewId && VIEW_HELP[viewId]) || "index";
-}
-// Widgets embedded directly in a platform's UI (not a ProjectWindows tab,
-// e.g. the Verilog waveform viewer alongside the emulator screen) register
-// their container + topic id here so F1 can find them while focused.
-let elementHelpTopics = [];
-function registerElementHelpTopic(div, id) {
-    elementHelpTopics.push({ div, id });
-}
-function unregisterElementHelpTopic(div) {
-    elementHelpTopics = elementHelpTopics.filter((eh) => eh.div !== div);
-}
-// topic id for the currently focused element-scoped widget, if any
-function elementHelpTopicForFocus() {
-    const ae = document.activeElement;
-    if (!ae)
-        return null;
-    for (const eh of elementHelpTopics) {
-        if (eh.div.contains(ae))
-            return eh.id;
-    }
-    return null;
 }
 // Turn relative Markdown links ("foo.md") into internal help routes
 // ("#help/foo") so clicks stay in the IDE. Absolute links open in a new tab.

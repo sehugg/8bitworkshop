@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const baseplatform_1 = require("../common/baseplatform");
+const toolselect_1 = require("../common/toolselect");
 const emu_1 = require("../common/emu");
 const teletype_1 = require("../common/teletype");
 const util_1 = require("../common/util");
@@ -545,6 +546,7 @@ const STATUS_NUM_COLS = 80;
 class ZmachinePlatform {
     constructor(mainElement) {
         this.focused = false;
+        this.getToolForFilename = toolselect_1.getToolForFilename_zmachine;
         this.mainElement = mainElement;
         $(mainElement).css('overflowY', 'auto');
     }
@@ -614,9 +616,6 @@ class ZmachinePlatform {
     advance(novideo) {
         // TODO? we should advance 1 step, whatever that is in ZVM
         return 0;
-    }
-    getToolForFilename(s) {
-        return s.endsWith(".dg") ? "dialog" : "inform6";
     }
     getDefaultExtensions() {
         return [".inf", ".dg"];

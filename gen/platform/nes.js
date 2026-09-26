@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const baseplatform_1 = require("../common/baseplatform");
+const toolselect_1 = require("../common/toolselect");
 const emu_1 = require("../common/emu");
 const util_1 = require("../common/util");
 const analysis_1 = require("../common/analysis");
@@ -86,13 +87,7 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
         this.frameindex = 0;
         this.showDebugView = false;
         this.machine = { cpuCyclesPerLine: 114 }; // TODO: hack for width of probe scope
-        this.getToolForFilename = (fn) => {
-            //if (fn.endsWith(".asm")) return "ca65"; // .asm uses ca65
-            if (fn.endsWith(".nesasm"))
-                return "nesasm";
-            else
-                return (0, baseplatform_1.getToolForFilename_6502)(fn);
-        };
+        this.getToolForFilename = toolselect_1.getToolForFilename_nes;
         // probing
         this.nullProbe = new devices_1.NullProbe();
         this.probe = this.nullProbe;
@@ -535,7 +530,7 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
 class NESMAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
     constructor() {
         super(...arguments);
-        this.getToolForFilename = baseplatform_1.getToolForFilename_6502;
+        this.getToolForFilename = toolselect_1.getToolForFilename_nes;
         this.getOpcodeMetadata = baseplatform_1.getOpcodeMetadata_6502;
     }
     start() {

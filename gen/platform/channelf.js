@@ -7,6 +7,7 @@
 // copyright-holders:Juergen Buchmueller, Frank Palazzolo, Sean Riddle
 Object.defineProperty(exports, "__esModule", { value: true });
 const baseplatform_1 = require("../common/baseplatform");
+const toolselect_1 = require("../common/toolselect");
 const emu_1 = require("../common/emu");
 const channelf_1 = require("../machine/channelf");
 const disasmF8_1 = require("../common/cpu/disasmF8");
@@ -26,16 +27,13 @@ function cpuStateToLongString_F8(c) {
         + "  K/Q:   " + c.R.slice(12, 16).map(v => (0, util_1.hex)(v, 2)).join(' ') + "\n";
 }
 class ChannelFPlatform extends baseplatform_1.BaseMachinePlatform {
+    constructor() {
+        super(...arguments);
+        this.getToolForFilename = toolselect_1.getToolForFilename_channelf;
+    }
     newMachine() { return new channelf_1.ChannelF(); }
     getPresets() { return CHANNELF_PRESETS; }
     getDefaultExtensions() { return [".dasm"]; }
-    getToolForFilename(fn) {
-        if (fn.endsWith(".c"))
-            return "cc65";
-        if (fn.endsWith(".s") || fn.endsWith(".ca65"))
-            return "ca65";
-        return "dasm";
-    }
     readAddress(a) { return this.machine.readConst(a); }
     disassemble(pc, read) {
         return (0, disasmF8_1.disassembleF8)(pc, read(pc), read(pc + 1), read(pc + 2));

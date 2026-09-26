@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const baseplatform_1 = require("../common/baseplatform");
+const toolselect_1 = require("../common/toolselect");
 const emu_1 = require("../common/emu");
 const util_1 = require("../common/util");
 const analysis_1 = require("../common/analysis");
@@ -54,35 +55,16 @@ const VCS_PRESETS = [
     { id: 'vcslib/demo_vcslib.c', name: 'VCSLib Demo (C)' },
     { id: 'helloworld.cc2600', name: 'Hello World (cc2600)' },
 ];
-function getToolForFilename_vcs(fn) {
-    if (fn.endsWith(".cc2600"))
-        return "cc2600";
-    if (fn.endsWith("-llvm.c"))
-        return "remote:llvm-mos";
-    if (fn.endsWith(".wiz"))
-        return "wiz";
-    if (fn.endsWith(".bb") || fn.endsWith(".bas"))
-        return "bataribasic";
-    if (fn.endsWith(".ca65"))
-        return "ca65";
-    if (fn.endsWith(".acme"))
-        return "acme";
-    //if (fn.endsWith(".inc")) return "ca65";
-    if (fn.endsWith(".c"))
-        return "cc65";
-    //if (fn.endsWith(".h")) return "cc65";
-    if (fn.endsWith(".ecs"))
-        return "ecs";
-    return "dasm";
-}
 class VCSPlatform extends baseplatform_1.BasePlatform {
     constructor() {
         super(...arguments);
+        this.frame = null; // see captureVideo()
+        this.capturing = false;
         // TODO: super hack for ProbeBitmap view
         this.machine = {
             cpuCyclesPerLine: 76 // NTSC
         };
-        this.getToolForFilename = getToolForFilename_vcs;
+        this.getToolForFilename = toolselect_1.getToolForFilename_vcs;
         this.getMemoryMap = function () {
             return { main: [
                     { name: 'TIA Registers', start: 0x00, size: 0x80, type: 'io' },
@@ -107,7 +89,9 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
         Javatari.DEBUG_SCANLINE_OVERFLOW = false; // TODO: integrate into probe API
         Javatari.AUDIO_BUFFER_SIZE = 256;
         // show console div and start
-        $("#javatari-div").show();
+        const jadiv = document.getElementById("javatari-div");
+        if (jadiv)
+            jadiv.style.display = '';
         Javatari.start();
         var jaconsole = Javatari.room.console;
         // intercept clockPulse function
@@ -127,15 +111,53 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
         videoSignal.oldNextLine = videoSignal.nextLine;
         videoSignal.nextLine = function (pixels, vsync) {
             self.probe.logNewScanline();
+            if (self.capturing && pixels)
+                self.captureLine(this.monitor, pixels);
             return this.oldNextLine(pixels, vsync);
         };
         // resize after added to dom tree
-        var jacanvas = $("#javatari-screen").find("canvas")[0];
-        const resizeObserver = new ResizeObserver(entries => {
-            this.resize();
-        });
-        resizeObserver.observe(jacanvas);
+        var jacanvas = document.querySelector("#javatari-screen canvas");
+        if (jacanvas && typeof ResizeObserver !== 'undefined') {
+            const resizeObserver = new ResizeObserver(entries => {
+                this.resize();
+            });
+            resizeObserver.observe(jacanvas);
+        }
         this.canvas = jacanvas;
+    }
+    /**
+     * Javatari draws to its own screen, so hosts with no screen (EmuCore) call
+     * this to get the visible part of each frame instead.
+     */
+    captureVideo() {
+        this.capturing = true;
+        return () => this.frame;
+    }
+    captureLine(monitor, pixels) {
+        var _a, _b;
+        const p = monitor.getDisplayParameters();
+        const width = p.displayWidth, height = p.displayHeight;
+        if (((_a = this.frame) === null || _a === void 0 ? void 0 : _a.width) != width || ((_b = this.frame) === null || _b === void 0 ? void 0 : _b.height) != height) {
+            this.frame = {
+                pixels: new Uint32Array(width * height), width, height,
+                aspect: (width * p.displayScaleX) / (height * p.displayScaleY),
+            };
+        }
+        const y = monitor.currentLine() - p.displayOriginY;
+        if (y < 0 || y >= height)
+            return;
+        const dest = this.frame.pixels;
+        for (let x = 0, i = y * width; x < width; x++)
+            dest[i++] = pixels[p.displayOriginX + x];
+    }
+    /** Keys from hosts that have no Javatari screen to type into. */
+    setKeyInput(key, code, flags) {
+        const press = (flags & emu_1.KeyFlags.KeyDown) != 0;
+        if (!press && !(flags & emu_1.KeyFlags.KeyUp))
+            return;
+        // Javatari's modifier masks
+        const modifiers = (flags & emu_1.KeyFlags.Ctrl ? 1 : 0) | (flags & emu_1.KeyFlags.Alt ? 2 : 0) | (flags & emu_1.KeyFlags.Shift ? 4 : 0);
+        Javatari.room.controls.processKeyEvent(key, press, modifiers);
     }
     loadROM(title, data) {
         if (data.length == 0 || ((data.length & 0x3ff) != 0))
@@ -435,9 +457,13 @@ class VCSPlatform extends baseplatform_1.BasePlatform {
     }
     // resizing
     resize() {
-        var scale = Math.min(1, ($('#emulator').width() - 24) / 640);
+        const emulator = document.getElementById('emulator');
+        const jadiv = document.getElementById('javatari-div');
+        if (!emulator || !jadiv)
+            return;
+        var scale = Math.min(1, (emulator.clientWidth - 24) / 640);
         var xt = (1 - scale) * 50;
-        $('#javatari-div').css('transform', `translateX(-${xt}%) translateY(-${xt}%) scale(${scale})`);
+        jadiv.style.transform = `translateX(-${xt}%) translateY(-${xt}%) scale(${scale})`;
     }
     updateVideoDebugger() {
         var _a;
@@ -475,7 +501,7 @@ class VCSMAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
             this.loadRegion(":cartslot:cart:rom", data);
         };
         this.getPresets = function () { return VCS_PRESETS; };
-        this.getToolForFilename = getToolForFilename_vcs;
+        this.getToolForFilename = toolselect_1.getToolForFilename_vcs;
         this.getOriginPC = function () {
             return (this.readAddress(0xfffc) | (this.readAddress(0xfffd) << 8)) & 0xffff;
         };
@@ -487,7 +513,7 @@ class VCSMAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
 class VCSStellaPlatform {
     constructor(mainElement) {
         this.running = false;
-        this.getToolForFilename = getToolForFilename_vcs;
+        this.getToolForFilename = toolselect_1.getToolForFilename_vcs;
         this.mainElement = mainElement;
     }
     async start() {

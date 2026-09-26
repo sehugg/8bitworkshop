@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const toolselect_1 = require("../common/toolselect");
 const emu_1 = require("../common/emu");
 const util_1 = require("../common/util");
 const PC_PRESETS = [
@@ -33,13 +34,9 @@ class FATFSArrayBufferDriver {
 }
 class X86PCPlatform {
     constructor(mainElement) {
+        this.getToolForFilename = toolselect_1.getToolForFilename_x86;
         //super();
         this.mainElement = mainElement;
-    }
-    getToolForFilename(s) {
-        if (s.endsWith(".c"))
-            return "smlrc";
-        return "yasm";
     }
     getDefaultExtensions() {
         return [".c", ".asm"];

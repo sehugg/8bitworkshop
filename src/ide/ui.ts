@@ -3,7 +3,8 @@
 
 import * as localforage from "localforage";
 import { BaseDebugPlatform, DebugEvalCondition, DebugSymbols, EmuState, isDebuggable, Platform, Preset } from "../common/baseplatform";
-import { EmuHalt, PLATFORMS } from "../common/emu";
+import { EmuHalt, PLATFORMS, setHaltHandler } from "../common/emu";
+import { installHDLHost } from "./hdlhost";
 import { StateRecorderImpl } from "../common/recorder";
 import {
   arrayCompare, byteArrayToUTF8, decodeQueryString, getBasePlatform, getCookie, getFilenameForPath, getFilenamePrefix,
@@ -30,13 +31,14 @@ import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
 import { AddressHeatMapView, BinaryFileView, BreakpointsView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterStackMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
 import { DisassemblerView, HeaderView, ListingView, PC_LINE_LOOKAHEAD, SourceEditor, setUppercaseOnly } from "./views/editors";
-import { HELP_TOPICS, HelpView, elementHelpTopicForFocus, helpTopicForView } from "./views/helpview";
+import { HELP_TOPICS, HelpView, helpTopicForView } from "./views/helpview";
+import { elementHelpTopicForFocus } from "./helptopics";
 import { CallStackView, DebugBrowserView } from "./views/treeviews";
 import { ProjectWindows } from "./windows";
 import { setupSplits, showTab } from "./layout";
 export { setupSplits, showTab };
 import { bpStore, canUseBreakpoints, resolveBreakpoints } from "./breakpoints";
-import { CondFn } from "./breakcond";
+import { CondFn } from "../common/breakcond";
 import { findListingLocation as findListingLocationPure } from "./search/listinglocation";
 import DOMPurify = require("dompurify");
 
@@ -2317,6 +2319,8 @@ async function startPlatform() {
   var initialHash = window.location.hash;
   replaceURLState();
   installErrorHandler();
+  setHaltHandler(haltEmulation);
+  installHDLHost();
   await platform.start();
   await loadBIOSFromProject();
   await initProject();

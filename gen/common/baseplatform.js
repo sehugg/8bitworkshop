@@ -1,17 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Base6809MachinePlatform = exports.BaseZ80MachinePlatform = exports.Base6502MachinePlatform = exports.BaseMachinePlatform = exports.Base6809Platform = exports.BaseZ80Platform = exports.Base6502Platform = exports.BaseDebugPlatform = exports.BasePlatform = exports.BreakpointList = exports.DebugSymbols = void 0;
+exports.Base6809MachinePlatform = exports.BaseZ80MachinePlatform = exports.Base6502MachinePlatform = exports.BaseMachinePlatform = exports.Base6809Platform = exports.BaseZ80Platform = exports.Base6502Platform = exports.BaseDebugPlatform = exports.BasePlatform = exports.BreakpointList = exports.DebugSymbols = exports.getToolForFilename_z80 = exports.getToolForFilename_arm32 = exports.getToolForFilename_6809 = exports.getToolForFilename_6502 = void 0;
 exports.isDebuggable = isDebuggable;
 exports.inspectSymbol = inspectSymbol;
-exports.getToolForFilename_6502 = getToolForFilename_6502;
 exports.cpuStateToLongString_6502 = cpuStateToLongString_6502;
 exports.getOpcodeMetadata_6502 = getOpcodeMetadata_6502;
 exports.cpuStateToLongString_Z80 = cpuStateToLongString_Z80;
 exports.cpuStateToLongString_SM83 = cpuStateToLongString_SM83;
-exports.getToolForFilename_z80 = getToolForFilename_z80;
 exports.cpuStateToLongString_6809 = cpuStateToLongString_6809;
-exports.getToolForFilename_arm32 = getToolForFilename_arm32;
-exports.getToolForFilename_6809 = getToolForFilename_6809;
 exports.dumpStackToString = dumpStackToString;
 exports.lookupSymbol = lookupSymbol;
 exports.hasVideo = hasVideo;
@@ -28,6 +24,11 @@ const disasmz80_1 = require("./cpu/disasmz80");
 const ZilogZ80_1 = require("./cpu/ZilogZ80");
 const emu_1 = require("./emu");
 const util_1 = require("./util");
+const toolselect_1 = require("./toolselect");
+Object.defineProperty(exports, "getToolForFilename_6502", { enumerable: true, get: function () { return toolselect_1.getToolForFilename_6502; } });
+Object.defineProperty(exports, "getToolForFilename_6809", { enumerable: true, get: function () { return toolselect_1.getToolForFilename_6809; } });
+Object.defineProperty(exports, "getToolForFilename_arm32", { enumerable: true, get: function () { return toolselect_1.getToolForFilename_arm32; } });
+Object.defineProperty(exports, "getToolForFilename_z80", { enumerable: true, get: function () { return toolselect_1.getToolForFilename_z80; } });
 const audio_1 = require("./audio");
 const _6809_1 = require("./cpu/6809");
 const MOS6502_1 = require("./cpu/MOS6502");
@@ -337,37 +338,6 @@ function inspectSymbol(platform, sym) {
     }
 }
 ////// 6502
-function getToolForFilename_6502(fn) {
-    if (fn.endsWith("-llvm.c"))
-        return "remote:llvm-mos";
-    if (fn.endsWith(".c"))
-        return "cc65";
-    if (fn.endsWith(".h"))
-        return "cc65";
-    if (fn.endsWith(".s"))
-        return "ca65";
-    if (fn.endsWith(".ca65"))
-        return "ca65";
-    if (fn.endsWith(".dasm"))
-        return "dasm";
-    if (fn.endsWith(".bb"))
-        return "bataribasic";
-    if (fn.endsWith(".acme"))
-        return "acme";
-    if (fn.endsWith(".xa"))
-        return "xa";
-    if (fn.endsWith(".wiz"))
-        return "wiz";
-    if (fn.endsWith(".ecs"))
-        return "ecs";
-    if (fn.endsWith(".cpp"))
-        return "oscar64";
-    if (fn.endsWith(".cc"))
-        return "oscar64";
-    if (fn.endsWith(".o64"))
-        return "oscar64";
-    return "dasm"; // .a
-}
 // TODO: can merge w/ Z80?
 class Base6502Platform extends BaseDebugPlatform {
     constructor() {
@@ -375,7 +345,7 @@ class Base6502Platform extends BaseDebugPlatform {
         // some platforms store their PC one byte before or after the first opcode
         // so we correct when saving and loading from state
         this.debugPCDelta = -1;
-        this.getToolForFilename = getToolForFilename_6502;
+        this.getToolForFilename = toolselect_1.getToolForFilename_6502;
     }
     fixPC(c) { c.PC = (c.PC + this.debugPCDelta) & 0xffff; return c; }
     unfixPC(c) { c.PC = (c.PC - this.debugPCDelta) & 0xffff; return c; }
@@ -476,7 +446,7 @@ class BaseZ80Platform extends BaseDebugPlatform {
     constructor() {
         super(...arguments);
         this.waitCycles = 0;
-        this.getToolForFilename = getToolForFilename_z80;
+        this.getToolForFilename = toolselect_1.getToolForFilename_z80;
     }
     newCPU(membus, iobus) {
         this._cpu = new ZilogZ80_1.Z80();
@@ -533,25 +503,6 @@ class BaseZ80Platform extends BaseDebugPlatform {
     }
 }
 exports.BaseZ80Platform = BaseZ80Platform;
-function getToolForFilename_z80(fn) {
-    if (fn.endsWith(".c"))
-        return "sdcc";
-    if (fn.endsWith(".h"))
-        return "sdcc";
-    if (fn.endsWith(".s"))
-        return "sdasz80";
-    if (fn.endsWith(".sgb"))
-        return "sdasgb";
-    if (fn.endsWith(".ns"))
-        return "naken";
-    if (fn.endsWith(".scc"))
-        return "sccz80";
-    if (fn.endsWith(".z"))
-        return "zmac";
-    if (fn.endsWith(".wiz"))
-        return "wiz";
-    return "zmac";
-}
 ////// 6809
 function cpuStateToLongString_6809(c) {
     function decodeFlags(flags) {
@@ -566,30 +517,11 @@ function cpuStateToLongString_6809(c) {
         + " Y " + (0, util_1.hex)(c.Y, 4) + "\n"
         + " U " + (0, util_1.hex)(c.U, 4) + "\n";
 }
-function getToolForFilename_arm32(fn) {
-    fn = fn.toLowerCase();
-    if (fn.endsWith(".vasm"))
-        return "vasmarm";
-    if (fn.endsWith(".armips"))
-        return "armips";
-    return "armtcc";
-}
-function getToolForFilename_6809(fn) {
-    if (fn.endsWith(".c"))
-        return "cmoc";
-    if (fn.endsWith(".h"))
-        return "cmoc";
-    if (fn.endsWith(".xasm"))
-        return "xasm6809";
-    if (fn.endsWith(".lwasm"))
-        return "lwasm";
-    return "cmoc";
-}
 class Base6809Platform extends BaseZ80Platform {
     constructor() {
         super(...arguments);
         //this.getOpcodeMetadata = function() { }
-        this.getToolForFilename = getToolForFilename_6809;
+        this.getToolForFilename = toolselect_1.getToolForFilename_6809;
     }
     newCPU(membus) {
         var cpu = Object.create((0, _6809_1.CPU6809)());
@@ -882,7 +814,7 @@ class Base6502MachinePlatform extends BaseMachinePlatform {
         super(...arguments);
         this.getOpcodeMetadata = getOpcodeMetadata_6502;
     }
-    getToolForFilename(fn) { return getToolForFilename_6502(fn); }
+    getToolForFilename(fn) { return (0, toolselect_1.getToolForFilename_6502)(fn); }
     getDefaultExtensions() { return [".c", ".cpp", ".o64", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
     disassemble(pc, read) {
         return (0, disasm6502_1.disassemble6502)(pc, read(pc), read(pc + 1), read(pc + 2));
@@ -907,7 +839,7 @@ class BaseZ80MachinePlatform extends BaseMachinePlatform {
     constructor() {
         super(...arguments);
         //getOpcodeMetadata     = getOpcodeMetadata_z80;
-        this.getToolForFilename = getToolForFilename_z80;
+        this.getToolForFilename = toolselect_1.getToolForFilename_z80;
     }
     getDefaultExtensions() { return [".c", ".ns", ".s", ".scc", ".sgb", ".z", ".wiz"]; }
     getDebugCategories() {
@@ -938,7 +870,7 @@ exports.BaseZ80MachinePlatform = BaseZ80MachinePlatform;
 class Base6809MachinePlatform extends BaseMachinePlatform {
     constructor() {
         super(...arguments);
-        this.getToolForFilename = getToolForFilename_6809;
+        this.getToolForFilename = toolselect_1.getToolForFilename_6809;
     }
     getDefaultExtensions() { return [".c", ".lwasm", ".xasm"]; }
     getDebugCategories() {

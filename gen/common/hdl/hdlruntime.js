@@ -618,8 +618,7 @@ abstract class VerilatorBase {
       this.maxVclockLoop = __VclockLoop;
       if (this.maxVclockLoop > 1) {
         console.log("Graph took " + this.maxVclockLoop + " iterations to stabilize");
-        $("#verilog_bar").show();
-        $("#settle_label").text(this.maxVclockLoop+"");
+        getHDLHost()?.showSettleCount(this.maxVclockLoop);
       }
     }
     this.totalTicks++;

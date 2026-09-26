@@ -1,18 +1,14 @@
 "use strict";
-// Unified breakpoint store, shared by the editor gutter markers and the
-// Breakpoints window. Two kinds of breakpoints:
-//   - 'source'  -- file + line, resolved to a PC via the build listing
-//                  (these render as gutter markers in the editor)
-//   - 'address' -- a target that's a symbol, $hex or decimal address
-// Both support an optional condition expression (see breakcond.ts).
-// The store persists to localStorage, scoped by platform + main file.
+// The IDE's breakpoint store, shared by the editor gutter markers and the
+// Breakpoints window. It persists to localStorage, scoped by platform + main
+// file. Breakpoint types and resolution are in src/common/breakpoints.ts.
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.bpStore = void 0;
 exports.canUseBreakpoints = canUseBreakpoints;
 exports.resolveBreakpoint = resolveBreakpoint;
 exports.resolveBreakpoints = resolveBreakpoints;
 const ui_1 = require("./ui");
-const breakcond_1 = require("./breakcond");
+const breakpoints_1 = require("../common/breakpoints");
 const STORAGE_KEY = '8bitworkshop.breakpoints.v1';
 class BreakpointStore {
     constructor() {
@@ -124,78 +120,22 @@ class BreakpointStore {
     }
 }
 exports.bpStore = new BreakpointStore();
-function makeSymbolLookup() {
-    return (name) => {
-        let sm = ui_1.platform && ui_1.platform.debugSymbols && ui_1.platform.debugSymbols.symbolmap;
-        if (!sm)
-            return undefined;
-        // C symbols often get a leading underscore from the compiler
-        return (name in sm) ? sm[name] : sm['_' + name];
-    };
-}
-function makeCondContext() {
-    let cpuFields = new Set();
-    try {
-        let c = ui_1.platform && ui_1.platform.getCPUState && ui_1.platform.getCPUState();
-        if (c)
-            cpuFields = new Set(Object.keys(c));
-    }
-    catch (e) {
-    }
-    // platform accessors reachable with the '#' sigil; the value is read live
-    // at eval time so it reflects the current raster position, etc.
-    let hw = null;
-    if (ui_1.platform) {
-        if (ui_1.platform.getRasterScanline) {
-            hw = hw || {};
-            hw['scanline'] = () => ui_1.platform.getRasterScanline();
-        }
-        if (ui_1.platform.getRasterLineClock) {
-            hw = hw || {};
-            hw['lineclock'] = () => ui_1.platform.getRasterLineClock();
-        }
-    }
+function ideContext() {
     return {
-        cpuFields,
-        symbol: makeSymbolLookup(),
-        readMem: ui_1.platform && ui_1.platform.readAddress ? (a) => ui_1.platform.readAddress(a) : undefined,
-        readVRAM: ui_1.platform && ui_1.platform.readVRAMAddress ? (a) => ui_1.platform.readVRAMAddress(a) : undefined,
-        hw,
+        symbols: ui_1.platform && ui_1.platform.debugSymbols && ui_1.platform.debugSymbols.symbolmap,
+        getListingForFile: (path) => ui_1.current_project && ui_1.current_project.getListingForFile(path),
+        platform: ui_1.platform,
     };
 }
 // Can this platform actually stop at a breakpoint?
 function canUseBreakpoints() {
-    return !!(ui_1.platform && (ui_1.platform.runEval || ui_1.platform.runToPC || ui_1.platform.runEvalAtPC));
+    return (0, breakpoints_1.canUseBreakpoints)(ui_1.platform);
 }
 function resolveBreakpoint(bp) {
-    try {
-        let pc;
-        if (bp.type == 'source') {
-            let lst = ui_1.current_project.getListingForFile(bp.file);
-            let sf = lst && (lst.sourcefile || lst.assemblyfile);
-            if (!sf)
-                return { bp, error: "no debug info (build first?)" };
-            pc = sf.line2offset.get(bp.line);
-            if (!(pc >= 0))
-                return { bp, error: "line has no code" };
-        }
-        else {
-            let r = (0, breakcond_1.parseTarget)(bp.target, makeSymbolLookup());
-            if (r.error)
-                return { bp, error: r.error };
-            pc = r.pc;
-        }
-        let condFn = undefined;
-        if (bp.condition && bp.condition.trim()) {
-            condFn = (0, breakcond_1.compileCondition)(bp.condition, makeCondContext());
-        }
-        return { bp, pc, condFn };
-    }
-    catch (e) {
-        return { bp, error: String(e.message || e) };
-    }
+    return (0, breakpoints_1.resolveBreakpoint)(bp, ideContext());
 }
 function resolveBreakpoints() {
-    return exports.bpStore.getAll().map(bp => resolveBreakpoint(bp));
+    let ctx = ideContext();
+    return exports.bpStore.getAll().map(bp => (0, breakpoints_1.resolveBreakpoint)(bp, ctx));
 }
 //# sourceMappingURL=breakpoints.js.map

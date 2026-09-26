@@ -1,9 +1,9 @@
 
 import localforage from "localforage";
 import { Platform } from "../common/baseplatform";
-import { getBasePlatform, getFilenameForPath, getFilenamePrefix, getFolderForPath, getWithBinary, isProbablyBinary } from "../common/util";
-import { getCompileLinkedSources, getIncludePatterns, getLinkPatterns, matchDependencyPatterns } from "../common/toolmeta";
-import { BuildArgLists, BuildSymbolLists, CodeListing, CodeListingMap, Dependency, FileData, Segment, SourceFile, SourceLine, WorkerErrorResult, WorkerItemUpdate, WorkerMessage, WorkerOutputResult, WorkerResult, isErrorResult, isOutputResult } from "../common/workertypes";
+import { getBasePlatform, getWithBinary, isProbablyBinary } from "../common/util";
+import { FileProvider, buildWorkerMessage, getListingForFile, mergeSegments, processListings, resolveDependencies, stripLocalPath } from "../common/projectcore";
+import { BuildArgLists, BuildSymbolLists, CodeListing, CodeListingMap, Dependency, FileData, Segment, WorkerErrorResult, WorkerItemUpdate, WorkerMessage, WorkerOutputResult, WorkerResult, isErrorResult, isOutputResult } from "../common/workertypes";
 
 export interface ProjectFilesystem {
   getFileData(path: string): Promise<FileData>;
@@ -206,56 +206,21 @@ export class CodeProject {
     }
   }
 
-  preloadWorker(path: string) {
-    var tool = this.getToolForFilename(path);
+  preloadTool(tool: string) {
     if (tool && !this.tools_preloaded[tool]) {
       this.worker.postMessage({ preload: tool, platform: this.platform_id });
       this.tools_preloaded[tool] = true;
     }
   }
 
-  pushAllFiles(files: string[], fn: string) {
-    // look for local and preset files
-    files.push(fn);
-    // look for files in current (main file) folder
-    var dir = getFolderForPath(this.mainPath);
-    if (dir.length > 0 && dir != 'local') // TODO
-      files.push(dir + '/' + fn);
-  }
-
-  /** Patterns come from the tool registry (src/common/toolmeta.ts), keyed by
-   *  the tool that builds the main file; the platform is only a fallback. */
-  parseIncludeDependencies(text: string): string[] {
-    let tool = this.mainPath && this.getToolForFilename(this.mainPath);
-    let files = [];
-    for (let fn of matchDependencyPatterns(text, getIncludePatterns(tool, this.platform_id))) {
-      this.pushAllFiles(files, fn);
-    }
-    return files;
-  }
-
-  parseLinkDependencies(text: string): string[] {
-    let tool = this.mainPath && this.getToolForFilename(this.mainPath);
-    let files = [];
-    for (let fn of matchDependencyPatterns(text, getLinkPatterns(tool, this.platform_id))) {
-      this.pushAllFiles(files, fn);
-    }
-    return files;
-  }
+  /** Files are read through the project cache, then the filesystem. */
+  fileProvider: FileProvider = {
+    readFile: async (path: string) => (await this.loadFiles([path]))[0]?.data ?? null,
+  };
 
   loadFileDependencies(text: string): Promise<Dependency[]> {
-    let includes = this.parseIncludeDependencies(text);
-    let linkfiles = this.parseLinkDependencies(text);
-    let allfiles = includes.concat(linkfiles);
-    return this.loadFiles(allfiles).then((result) => {
-      // set 'link' property on files that are link dependencies (must match filename)
-      if (result) {
-        for (let dep of result) {
-          dep.link = linkfiles.indexOf(dep.path) >= 0;
-        }
-      }
-      return result;
-    });
+    return resolveDependencies(this.fileProvider, this.mainPath, text, this.platform_id,
+      (path) => this.getToolForFilename(path));
   }
 
   okToSend(): boolean {
@@ -266,57 +231,18 @@ export class CodeProject {
     this.filesystem.setFileData(path, text);
   }
 
-  // TODO: test duplicate files, local paths mixed with presets
   buildWorkerMessage(depends: Dependency[]): WorkerMessage {
-    this.preloadWorker(this.mainPath);
-    var msg: WorkerMessage = { updates: [], buildsteps: [] };
-    // TODO: add preproc directive for __MAINFILE__
-    var mainfilename = this.stripLocalPath(this.mainPath);
-    var maintext = this.getFile(this.mainPath);
-    var depfiles = [];
-    msg.updates.push({ path: mainfilename, data: maintext });
-    this.filename2path[mainfilename] = this.mainPath;
-    const tool = this.getToolForFilename(this.mainPath);
-    let usesRemoteTool = tool.startsWith('remote:');
-    // Single-pass tools (oscar64) compile their linked sources in the same
-    // invocation as the main file, so those files travel in the main step.
-    let compileLinkedSources = getCompileLinkedSources(tool);
-    let linkfiles: string[] = [];
-    for (var dep of depends) {
-      // remote tools send both includes and linked files in one build step
-      if (!dep.link || usesRemoteTool || compileLinkedSources) {
-        msg.updates.push({ path: dep.filename, data: dep.data });
-        depfiles.push(dep.filename);
-        if (dep.link && compileLinkedSources && linkfiles.indexOf(dep.filename) < 0) {
-          linkfiles.push(dep.filename);
-        }
-      }
-      this.filename2path[dep.filename] = dep.path;
-    }
-    var mainstep: any = {
-      path: mainfilename,
-      files: [mainfilename].concat(depfiles),
-      platform: this.platform_id,
-      tool: this.getToolForFilename(this.mainPath),
-      mainfile: true,
-    };
-    if (linkfiles.length) mainstep.linkfiles = linkfiles;
-    if (this.buildSymbols) mainstep.symbols = this.buildSymbols;
-    if (this.buildArgs) mainstep.buildArgs = this.buildArgs;
-    msg.buildsteps.push(mainstep);
-    for (var dep of depends) {
-      if (dep.data && dep.link && !compileLinkedSources) {
-        this.preloadWorker(dep.filename);
-        msg.updates.push({ path: dep.filename, data: dep.data });
-        msg.buildsteps.push({
-          path: dep.filename,
-          files: [dep.filename].concat(depfiles),
-          platform: this.platform_id,
-          tool: this.getToolForFilename(dep.path)
-        });
-      }
-    }
-    if (this.dataItems) msg.setitems = this.dataItems;
+    var { msg, filename2path, preloads } = buildWorkerMessage({
+      mainPath: this.mainPath,
+      mainData: this.getFile(this.mainPath),
+      platformId: this.platform_id,
+      getToolForFilename: (path) => this.getToolForFilename(path),
+      symbols: this.buildSymbols,
+      buildArgs: this.buildArgs,
+      dataItems: this.dataItems,
+    }, depends);
+    Object.assign(this.filename2path, filename2path);
+    for (var tool of preloads) this.preloadTool(tool);
     return msg;
   }
 
@@ -379,7 +305,6 @@ export class CodeProject {
     }
     // otherwise, make it a string
     var text = typeof maindata === "string" ? maindata : '';
-    // TODO: load dependencies of non-main files
     return this.loadFileDependencies(text).then((depends) => {
       if (!depends) depends = [];
       var workermsg = this.buildWorkerMessage(depends);
@@ -408,29 +333,7 @@ export class CodeProject {
     // TODO: link listings with source files
     if (data.listings) {
       this.listings = data.listings;
-      for (var lstname in this.listings) {
-        var lst = this.listings[lstname];
-        if (lst.lines) {
-          lst.sourcefile = new SourceFile(lst.lines, lst.text);
-          // A single-pass tool (oscar64) emits one listing that mixes source
-          // lines from the main file and every linked library, each tagged
-          // with its own path. Split them so each editor can find the lines
-          // for its own file (see getListingForFile).
-          var bypath: { [path: string]: SourceLine[] } = {};
-          for (var info of lst.lines) {
-            var p = info.path || '';
-            (bypath[p] || (bypath[p] = [])).push(info);
-          }
-          var paths = Object.keys(bypath);
-          if (paths.length > 1 || (paths.length == 1 && paths[0] != '')) {
-            lst.sourcefiles = {};
-            for (var p of paths)
-              lst.sourcefiles[p] = new SourceFile(bypath[p], lst.text);
-          }
-        }
-        if (lst.asmlines)
-          lst.assemblyfile = new SourceFile(lst.asmlines, lst.text);
-      }
+      processListings(this.listings);
     }
   }
 
@@ -440,15 +343,8 @@ export class CodeProject {
   }
 
   processBuildSegments(data: WorkerOutputResult<any>) {
-    // save and sort segment list
-    var segs: Segment[] = (this.platform.getMemoryMap && this.platform.getMemoryMap()["main"]) || [];
-    if (segs?.length) { segs.forEach(seg => seg.source = 'native'); }
-    if (data.segments) {
-      data.segments.forEach(seg => seg.source = 'linker');
-      segs = segs.concat(data.segments || []);
-    }
-    segs.sort((a, b) => { return a.start - b.start });
-    this.segments = segs;
+    var native = this.platform.getMemoryMap && this.platform.getMemoryMap()["main"];
+    this.segments = mergeSegments(native, data.segments);
   }
 
   getListings(): CodeListingMap {
@@ -457,56 +353,11 @@ export class CodeProject {
 
   // returns first listing in format [prefix].lst (TODO: could be better)
   getListingForFile(path: string): CodeListing {
-    // ignore include files (TODO)
-    //if (path.toLowerCase().endsWith('.h') || path.toLowerCase().endsWith('.inc'))
-    //return;
-    var stripped = this.stripLocalPath(path);
-    var fnprefix = getFilenamePrefix(stripped);
-    // find listing with matching prefix
-    var listings = this.getListings();
-    for (var lstfn in listings) {
-      if (lstfn == path || lstfn == stripped)
-        return this.withSourceFileForPath(listings[lstfn], stripped);
-    }
-    for (var lstfn in listings) {
-      if (getFilenamePrefix(lstfn) == fnprefix) {
-        return this.withSourceFileForPath(listings[lstfn], stripped);
-      }
-    }
-    // no listing named after this file; it may be one source among many in a
-    // single mixed listing (e.g. an oscar64 "//#link"ed source)
-    for (var lstfn in listings) {
-      var sf = this.findSourceFileForPath(listings[lstfn], stripped);
-      if (sf) return Object.assign({}, listings[lstfn], { sourcefile: sf });
-    }
-  }
-
-  // return a copy of `lst` whose sourcefile holds only the lines for `path`,
-  // or `lst` unchanged if it has no per-source-file views
-  withSourceFileForPath(lst: CodeListing, path: string): CodeListing {
-    var sf = this.findSourceFileForPath(lst, path);
-    return sf ? Object.assign({}, lst, { sourcefile: sf }) : lst;
-  }
-
-  // look up the per-source-file view (see processBuildListings) for `path`
-  findSourceFileForPath(lst: CodeListing, path: string): SourceFile {
-    if (!lst || !lst.sourcefiles) return null;
-    var want = getFilenameForPath(getFilenamePrefix(path));
-    for (var p in lst.sourcefiles) {
-      if (getFilenameForPath(getFilenamePrefix(p)) == want) return lst.sourcefiles[p];
-    }
-    return null;
+    return getListingForFile(this.getListings(), path, this.mainPath);
   }
 
   stripLocalPath(path: string): string {
-    if (this.mainPath) {
-      var folder = getFolderForPath(this.mainPath);
-      // TODO: kinda weird if folder is same name as file prefix
-      if (folder != '' && path.startsWith(folder + '/')) {
-        path = path.substring(folder.length + 1);
-      }
-    }
-    return path;
+    return stripLocalPath(path, this.mainPath);
   }
 
   /**

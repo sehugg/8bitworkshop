@@ -1,12 +1,13 @@
 
 import { Platform, BasePlatform } from "../common/baseplatform";
+import { getToolForFilename_verilog } from "../common/toolselect";
 import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, getMousePos, KeyFlags } from "../common/emu";
 import { SampleAudio } from "../common/audio";
-import { WaveformView, WaveformProvider, WaveformMeta } from "../ide/waveform";
+import { WaveformProvider, WaveformMeta, WaveformScope } from "../common/waveform";
+import { getHDLHost } from "../common/hdl/hdlhost";
 import { HDLModuleRunner, HDLModuleTrace, HDLUnit, isLogicType } from "../common/hdl/hdltypes";
 import { HDLModuleJS } from "../common/hdl/hdlruntime";
 import { HDLModuleWASM } from "../common/hdl/hdlwasm";
-import Split = require("split.js");
 import { FileData } from "../common/workertypes";
 
 interface WaveformSignal extends WaveformMeta {
@@ -175,10 +176,7 @@ var VerilogPlatform = function(mainElement, options) {
     
  class _VerilogPlatform extends BasePlatform implements WaveformProvider {
  
-  waveview : WaveformView;
-  wavediv : JQuery;
-  topdiv : JQuery;
-  split;
+  scope : WaveformScope | null; // null when the host has no scope UI
   hasvideo : boolean;
 
   sourceFileFetch : (path:string) => FileData;
@@ -201,7 +199,6 @@ var VerilogPlatform = function(mainElement, options) {
         keycode = asciiKeycode(code) | 0x80;
       }
     }, true); // true = always send function
-    var vcanvas = $(video.canvas);
     idata = video.getFrameData();
     timerCallback = () => {
       if (!this.isRunning())
@@ -212,22 +209,7 @@ var VerilogPlatform = function(mainElement, options) {
     this.setFrameRate(60);
     // setup scope
     trace_buffer = new Uint32Array(TRACE_BUFFER_DWORDS);
-    var overlay = $("#emuoverlay").show();
-    this.topdiv = $('<div class="emuspacer">').appendTo(overlay);
-    vcanvas.appendTo(this.topdiv);
-    this.wavediv = $('<div class="emuscope">').appendTo(overlay);
-    this.split = Split( [this.topdiv[0], this.wavediv[0]], {
-      minSize: [0,0],
-      sizes: [99,1],
-      direction: 'vertical',
-      gutterSize: 16,
-      onDrag: () => {
-        this.resize();
-        //if (this.waveview) this.waveview.recreate();
-        //vcanvas.css('position','relative');
-        //vcanvas.css('top', -this.wavediv.height()+'px');
-      },
-    });
+    this.scope = getHDLHost()?.createScope(video.canvas, this) ?? null;
     // setup mouse events
     video.setupMouseEvents();
   }
@@ -235,7 +217,7 @@ var VerilogPlatform = function(mainElement, options) {
   // TODO: pollControls() { poller.poll(); }
   
   resize() {
-    if (this.waveview) this.waveview.recreate();
+    if (this.scope) this.scope.resize();
   }
   
   setGenInputs() {
@@ -268,13 +250,13 @@ var VerilogPlatform = function(mainElement, options) {
     //this.restartDebugState();
     this.refreshVideoFrame();
     // set scope offset
-    if (trace && this.waveview) {
-      this.waveview.setCurrentTime(Math.floor(trace_index/trace_signals.length));
+    if (trace) {
+      this.scope.setCurrentTime(Math.floor(trace_index/trace_signals.length));
     }
   }
   
   isScopeVisible() {
-    return this.split.getSizes()[1] > 2; // TODO?
+    return this.scope != null && this.scope.isVisible();
   }
 
   // TODO: merge with prev func  
@@ -301,7 +283,7 @@ var VerilogPlatform = function(mainElement, options) {
   }
   
   updateScopeFrame() {
-    this.split.setSizes([0,100]); // ensure scope visible
+    if (this.scope) this.scope.show(); // ensure scope visible
     //this.topdiv.hide();// hide crt
     var done = this.fillTraceBuffer(CYCLES_PER_FILL * trace_signals.length);
     if (done)
@@ -310,14 +292,7 @@ var VerilogPlatform = function(mainElement, options) {
   }
   
   updateScope() {
-    // create scope, if visible
-    if (this.isScopeVisible()) {
-      if (!this.waveview) {
-        this.waveview = new WaveformView(this.wavediv[0] as HTMLElement, this);
-      } else {
-        this.waveview.refresh();
-      }
-    }
+    if (this.scope) this.scope.update();
   }
 
   updateFrame() {
@@ -612,10 +587,8 @@ var VerilogPlatform = function(mainElement, options) {
         if (this.hasvideo) {
           const IGNORE_SIGNALS = ['clk','reset'];
           trace_signals = trace_signals.filter((v) => { return IGNORE_SIGNALS.indexOf(v.name)<0; }); // remove clk, reset
-          this.showVideoControls();
-        } else {
-          this.hideVideoControls();
         }
+        getHDLHost()?.showVideoControls(this.hasvideo);
       }
     }
     // randomize values
@@ -634,25 +607,13 @@ var VerilogPlatform = function(mainElement, options) {
     }
     // restart audio
     this.restartAudio();
-    if (this.waveview) {
-      this.waveview.recreate();
+    if (this.scope) {
+      this.scope.resize();
     }
     // assert reset pin, wait 100 cycles if using video
     this.reset();
   }
  
-  showVideoControls() {
-    $("#speed_bar").show();
-    $("#run_bar").show();
-    $("#dbg_record").show();
-  }
-
-  hideVideoControls() {
-    $("#speed_bar").hide();
-    $("#run_bar").hide();
-    $("#dbg_record").hide();
-  }
-  
   restartAudio() {
     // stop/start audio
     var hasAudio = top && top.state.spkr != null && frameRate > 1;
@@ -708,7 +669,7 @@ var VerilogPlatform = function(mainElement, options) {
     trace_index = 0;
     if (trace_buffer) trace_buffer.fill(0);
     if (video) video.setRotate(top.state.rotate ? -90 : 0);
-    $("#verilog_bar").hide();
+    getHDLHost()?.showSettleCount(null);
     if (this.hasvideo) {
       top.state.reset = 1;
       top.tick2(100);
@@ -722,11 +683,7 @@ var VerilogPlatform = function(mainElement, options) {
     if (!top) return;
     top.tick2(1);
   }
-  getToolForFilename(fn) {
-    if (fn.endsWith(".asm")) return "jsasm";
-    else if (fn.endsWith(".ice")) return "silice";
-    else return "verilator";
-  }
+  getToolForFilename = getToolForFilename_verilog;
   getDefaultExtensions() { return [".v", ".asm", ".ice"]; }
 
   inspect(name:string) : string {

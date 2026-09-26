@@ -74,9 +74,11 @@ export class FileWorkingStore implements WorkingStore {
     return this.workerseq;
   }
   newVersion() {
+    // strictly increasing, even within one millisecond
     let ts = new Date().getTime();
     if (ts <= this.workerseq)
-      ts = ++this.workerseq;
+      ts = this.workerseq + 1;
+    this.workerseq = ts;
     return ts;
   }
   putFile(path: string, data: FileData): FileEntry {
