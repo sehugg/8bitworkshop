@@ -280,49 +280,57 @@ is; a `.c` file anywhere else sees nothing from us.
   which writes the same entry only when the user clicks it. Nothing pops
   up to ask.
 
-**C: take cc65-style files away from clangd and cpptools.** Both parse
-C as a desktop compiler would: 32-bit `int`, host headers, no
-`__fastcall__`, `__at(x)`, `__sfr`, `__naked`, `#pragma bss-name`, or
-`__asm ... __endasm`. On an 8-bit target that means a screen of false
-errors next to our real ones, and completion full of host libc. Include
-paths and dummy defines hide some of it but can't fix the ABI. So, per
-tool, in `toolmeta.ts`:
+**C: feed clangd and cpptools, don't take files away from them.** Other
+extensions for these compilers (VS64 for cc65/llvm-mos/oscar64, Embedded IDE
+for SDCC, GBDK's docs) all hand cpptools include paths and defines, and
+none claim a language ID of their own. A clang run over the presets
+(`extension/scripts/clangcheck.ts`, 2026-09-26) shows that works once the
+headers, defines and flags match the compiler:
 
-| Tool | Host C tools | Language ID |
+| Tool | Files with no errors | Errors left |
 |---|---|---|
-| cc65, sdcc, sccz80, cmoc, cc2600, cc7800, smlrc, armtcc | poor | `8bws-c` |
-| llvm-mos (clang with a real 6502 target), oscar64 | good | `c` / `cpp` |
+| cc65 (nes, c64) | 70 of 74 | 14: 11 real (cc65 rejects them too), 3 from old-style handlers passed as `irq_handler` |
+| sdcc (z80, gb) | 150 of 205 | all in user `.c` files: `__asm ... __endasm;` blocks and `__at 0x7F` without parentheses |
 
-- *How it turns off*: clangd and cpptools only attach to documents whose
-  language is `c`/`cpp`. A `.c`/`.h` in a project whose tool is marked
-  poor gets `setTextDocumentLanguage(doc, '8bws-c')`, so they never see
-  it. No writes to their settings and no `.clangd` files. Files outside
-  our projects are untouched.
-- *Order*: VS Code opens the document as `c` first, so clangd may see it
-  for a moment and then gets a `didClose`, which clears its diagnostics.
-  `files.associations` (in our own `.vscode/settings.json`, or written
-  from the Project Settings page) avoids even that.
-- *Highlighting*: the `8bws-c` grammar includes the built-in `source.c`
-  grammar and adds the tool's keywords, so it looks the same as C.
-- *What replaces IntelliSense*: our providers (below) plus C basics:
-  outline and go to definition from the build's symbols and a light
-  parse, completion from symbols and the tool's headers, include links
-  into the extracted headers.
-- *Opting out*: `8bitworkshop.cLanguage`: `auto` (the table),
-  `8bitworkshop` (always `8bws-c`), or `c` (always leave C to
-  cpptools/clangd). The Project Settings page shows it.
-- *Headers*: the tool headers ship inside emscripten packages
-  (`src/worker/fs/fs65-nes.data`, `fssdcc.data`, `cc2600-fs.zip`, ...).
-  Extract them on first use to
+The headers themselves parse clean. What it takes, all in
+`extension/src/cheaders.ts` (no `vscode` import):
+
+- *Headers*: `extractHeaders()` writes the tool's preload package
+  (`src/worker/fs/fs65-nes.data`, `fssdcc.data`, ...) and the platform's
+  `src/worker/lib/<platform>/*.h` to
   `globalStorageUri/include/<extension version>/<tool>-<platform>/`,
-  outside the user's workspace. Our include links use them, and so does
-  the next item.
-- *When we leave it as `c`* (llvm-mos, oscar64, or `cLanguage: c`): give
-  cpptools the include dirs and target defines through its
-  `CustomConfigurationProvider` (the `vscode-cpptools` npm API), which
-  writes no files. clangd needs a `compile_commands.json` on disk, so it
-  gets the explicit command "Generate compile_commands.json" and nothing
-  automatic.
+  outside the user's workspace. Our include links use them too.
+- *Patches*: `patchHeaderForClang()` rewrites what clang rejects and the
+  compiler accepts: cc65's `extern void x[]`; SDCC's `__at 0xbe` and
+  `__asm` blocks in header functions. Headers only; never user files.
+- *Shims*: a forced include per tool, `extension/shims/cc65.h` and
+  `sdcc.h`, defines away keywords (`__fastcall__`, `__at(x)`, `__sfr`,
+  `__banked`, `__interrupt`, `__asm__(...)`, `restrict`, ...).
+- *Defines and flags*: `clangConfig()` takes `define` and
+  `extra_preproc_args` from `PLATFORM_PARAMS` (`__C64__ __CBM__`,
+  `CV_MSX`), adds the tool's own (`__CC65__`, `__SDCC_z80`, version from
+  `TOOL_META`), `-funsigned-char`, `-std=gnu89` (cc65) or `gnu99` (sdcc),
+  and downgrades errors the compiler allows (`int-conversion`,
+  `implicit-function-declaration`, ...). `--target=msp430` gives 16-bit
+  `int` and pointers, which also catches real truncation bugs.
+- *cpptools*: gets the config through its `CustomConfigurationProvider`
+  (the `vscode-cpptools` npm API) for files in our projects; writes no
+  files. It has no 16-bit mode, so `sizeof(int)` is wrong there: a few
+  false warnings, no false errors.
+- *clangd*: needs `compile_commands.json` (from `clangArgs()`) on disk, so
+  it gets the explicit command "Generate compile_commands.json", which
+  also writes `.clangd` with `--target=msp430`. Nothing automatic.
+- *`8bws-c`*: opt-in only, for people who want no false errors at all
+  (mostly SDCC projects with inline assembly).
+  `8bitworkshop.cLanguage`: `c` (default: leave C to cpptools/clangd,
+  configured as above) or `8bitworkshop` (set `8bws-c`, so they never see
+  it). Its grammar `include`s the built-in `source.c`; nothing of our own.
+  When set, the old mechanics apply: `setTextDocumentLanguage` for `.c`/`.h`
+  in our projects only, `files.associations` to avoid the brief `c` open,
+  and our providers in place of IntelliSense.
+- *Other tools*: llvm-mos and oscar64 need no shims. sccz80, cmoc,
+  cc2600, cc7800, smlrc and armtcc are untested; run `clangcheck` on them
+  before adding a shim.
 
 #### Language features, by what they need
 
@@ -375,13 +383,13 @@ fourth host of the shared core, like the debug core in §8.
 - Unit tests for `projectFor`: each of the six sources, the order between
   them, the longest `folders` match, and a file under no project.
 - Unit tests for `languageFor`: `.s` on nes and on a z80 platform, `.inc`
-  under a dasm main and a ca65 main, `8bws-c` for `.c` with cc65 or sdcc,
-  and `c` for `.c` with llvm-mos.
+  under a dasm main and a ca65 main, `c` for `.c` with cc65 by default and
+  `8bws-c` with `cLanguage: 8bitworkshop`.
+- Unit tests for `cheaders.ts` (done: `test/cheaders.test.ts`).
 - Extension test: a `.c` and a `.s` outside any project keep their
-  language and get no hover from us. A `.c` in an nes (cc65) project
-  becomes `8bws-c`, and goes back to `c` when the project's setting is
-  removed. The `.s` becomes `8bws-6502`, and hover on a label returns its
-  address after a build.
+  language and get no hover from us. A `.c` in an nes (cc65) project stays
+  `c`, and cpptools gets our configuration for it. The `.s` becomes
+  `8bws-6502`, and hover on a label returns its address after a build.
 
 ## 5. Compiling and errors
 
@@ -1272,6 +1280,33 @@ Recommended:
 The natural lazy boundaries (`importPlatform`, `loadNative`) already match
 these packs, so splitting is mostly a distribution decision, not a code
 change.
+
+**Packs carry assets, not features.** A pack holds wasm, fs packages, npm
+modules (`binaryen`) and presets. Commands, views, the build and emulator
+workers, and detection stay in the base, so there's no extension API to
+design and version. A standalone Verilog extension would need one (or copies
+of the workers and panel); the waveform view's host is also shared with the
+other debug views, so it belongs in the base.
+
+What a pack needs from the base:
+1. **Asset roots per tool.** `rootDir()` returns one toolchain root, and the
+   build worker loads everything from it. Resolve each tool's assets (and
+   `binaryen` in the emuworker) from a list of roots: the base, then each
+   installed pack (`vscode.extensions.getExtension(id).extensionPath`).
+   Build Verilog support this way from the start.
+2. **Missing-pack prompt.** When the main file's tool lives in a pack that
+   isn't installed (e.g. verilator, yosys, silice), offer to install it.
+   Detection already knows the platform.
+3. **Packaging.** A `package.json` per pack with `extensionDependencies` on
+   the base, a build step that copies its assets, and a VSIX and CI job
+   each. Release base and packs together from this repo, so versions match.
+
+The Verilog pack: `verilator_bin.wasm` (6MB), `silice.wasm` and `fsSilice`
+(2MB+), `binaryen`, `presets/verilog`. `yosys.wasm` isn't in
+`src/worker/wasm`; check that tool still works. The jsasm `editorStyle` fix
+(milestone 3) goes with the Verilog work. `.v` stays with other Verilog
+extensions (Rule 2) either way. Create the second package at the packaging
+milestone, along with the other packs.
 
 ### Extension-host build format
 
@@ -2181,10 +2216,16 @@ do them when a platform is the priority (VCS needs 3–4).
    `makeContributions()`. Only extensions no one else uses are claimed
    (`.dasm .ca65 .xa .nesasm .z .zmac .sgb .xasm .lwasm`); `.s .asm .inc .a`
    wait for per-project language assignment (Rule 2).
-   - Decided: no C grammar of our own. `8bws-c`, when it comes, `include`s
-     `source.c`; its only job is keeping clangd/cpptools off cc65 files.
+   - Decided: no C grammar of our own. C goes to clangd/cpptools with our
+     headers, defines and shims (`cheaders.ts`, §4 "C: feed clangd and
+     cpptools"); `8bws-c` is opt-in and `include`s `source.c`.
+   - `scripts/grammarsurvey.ts` lists words the grammars read as macro
+     calls, to find missing mnemonics. It shows that the verilog
+     platform's `.asm` files (jsasm, custom CPUs) get `editorStyle: 'z80'`;
+     they need a style of their own before `.asm` gets a language.
    - Deferred: BASIC, inform6, dialog; acme, ecs, wiz, vasm, gas.
-   - Not done: Rule 2 language assignment, `8bws-c`, Tier A providers,
+   - Not done: Rule 2 language assignment, the cpptools provider and
+     compile_commands command, `8bws-c`, Tier A providers,
      semantic tokens.
 4. **Debugging.** Shared debug core first (`breakcond` move, `breakpoints`
    context, `DebugController`, `RunScript` on top of it). Then DAP session: source breakpoints, stepping, registers,

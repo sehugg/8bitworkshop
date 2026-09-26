@@ -1,42 +1,13 @@
 import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as onig from 'vscode-oniguruma';
-import { INITIAL, IGrammar, Registry, parseRawGrammar } from 'vscode-textmate';
-import { ASM_LANGUAGES, makeContributions, makeGrammar, makeLanguageConfiguration } from '../src/syntaxgen';
+import { IGrammar } from 'vscode-textmate';
+import { ASM_LANGUAGES, makeContributions, makeLanguageConfiguration } from '../src/syntaxgen';
 import { getToolForPlatform } from '../../src/common/toolselect';
 import { TOOL_META } from '../../src/common/toolmeta';
+import { loadGrammar, tokens } from '../scripts/tmtokenize';
 
 const EXT_ROOT = path.resolve(__dirname, '../..');
-
-let registry: Registry;
-
-async function loadGrammar(cpu: string): Promise<IGrammar> {
-  if (!registry) {
-    const wasm = fs.readFileSync(require.resolve('vscode-oniguruma/release/onig.wasm'));
-    await onig.loadWASM(wasm.buffer.slice(wasm.byteOffset, wasm.byteOffset + wasm.byteLength));
-    registry = new Registry({
-      onigLib: Promise.resolve({
-        createOnigScanner: (s: string[]) => new onig.OnigScanner(s),
-        createOnigString: (s: string) => new onig.OnigString(s),
-      }),
-      loadGrammar: async (scope: string) => {
-        const lang = ASM_LANGUAGES.find((l) => `source.asm.${l.cpu}` === scope);
-        return lang ? parseRawGrammar(JSON.stringify(makeGrammar(lang)), `${scope}.json`) : null;
-      },
-    });
-  }
-  return (await registry.loadGrammar(`source.asm.${cpu}`))!;
-}
-
-/** Tokenizes one line; returns [text, last scope without the suffix] pairs. */
-function tokens(g: IGrammar, line: string): [string, string][] {
-  const r = g.tokenizeLine(line, INITIAL);
-  return r.tokens
-    .map((t): [string, string] => [line.slice(t.startIndex, t.endIndex),
-      t.scopes.length > 1 ? t.scopes[t.scopes.length - 1].replace(/\.[^.]+$/, '') : ''])
-    .filter(([text]) => text.trim() !== '');
-}
 
 /** The scope of the first token whose text is `text`. */
 function scopeOf(g: IGrammar, line: string, text: string): string {

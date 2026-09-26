@@ -26,6 +26,8 @@ const ctx = await esbuild.context({
     emuworker: 'src/emuworker.ts',
     presetindex: 'scripts/presetindex.ts',
     syntaxes: 'scripts/syntaxes.ts',
+    clangcheck: 'scripts/clangcheck.ts',
+    grammarsurvey: 'scripts/grammarsurvey.ts',
     ...Object.fromEntries(tests),
   },
   outdir: 'out',
