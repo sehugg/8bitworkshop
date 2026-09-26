@@ -4,7 +4,8 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { Detection, detectProject, isBuildableSource, isClearWinner, isStrongDetection, toolForDialect } from '../../src/common/detect';
+import { Detection, detectProject, detectionSummary, describeDetection, describeFinding, isBuildableSource, isClearWinner, isFolderOfPrograms, isStrongDetection, toolForDialect } from '../../src/common/detect';
+export { detectionSummary, describeDetection, describeFinding, isFolderOfPrograms };
 import { PLATFORM_PARAMS } from '../../src/worker/platforms';
 import { getToolForPlatform } from '../../src/common/toolselect';
 import { isProbablyBinary } from '../../src/common/util';
@@ -31,12 +32,6 @@ export function platformName(templates: Templates, id: string): string {
   } catch (e) {
     return id;
   }
-}
-
-function describe(d: Detection): string {
-  var ev = d.evidence[0];
-  if (!ev) return '';
-  return `${ev.file === '.' ? 'folder' : ev.file}${ev.line ? ':' + ev.line : ''} ${ev.reason}`;
 }
 
 async function readText(uri: vscode.Uri): Promise<string | null> {
@@ -91,7 +86,7 @@ export async function chooseForFile(templates: Templates, file: vscode.Uri): Pro
   if (isClearWinner(found)) {
     platform = found[0].platform;
     // the user asked, so apply it now and offer a way out
-    vscode.window.showInformationMessage(`Using ${platformName(templates, platform)} (${describe(found[0])}).`, 'Change')
+    vscode.window.showInformationMessage(`Using ${platformName(templates, platform)} (${describeDetection(found[0])}).`, 'Change')
       .then(async a => {
         if (a === 'Change') vscode.commands.executeCommand('8bitworkshop.selectPlatform');
       });
@@ -115,7 +110,7 @@ export async function pickPlatformWithEvidence(templates: Templates, found: Dete
     items.push({ label: 'Detected', kind: vscode.QuickPickItemKind.Separator });
     for (var d of candidates) {
       shown.add(d.platform);
-      items.push({ label: platformName(templates, d.platform), description: d.platform, detail: describe(d), id: d.platform });
+      items.push({ label: platformName(templates, d.platform), description: d.platform, detail: describeDetection(d), id: d.platform });
     }
     items.push({ label: 'All platforms', kind: vscode.QuickPickItemKind.Separator });
   }
@@ -173,11 +168,19 @@ export async function scanFolder(templates: Templates, folder: vscode.WorkspaceF
       findings.push({ dir: vscode.Uri.file(dir), detection: found[0] });
     }
   }
+  // a folder of programs already covers a nested library folder inside it;
+  // a nested project with its own main file stays
+  findings = findings.filter(f => !findings.some(p =>
+    p !== f && isFolderOfPrograms(p.detection) && !f.detection.mainFile && isInsideDir(p.dir.fsPath, f.dir.fsPath)));
   return findings;
+}
+
+function isInsideDir(parent: string, child: string): boolean {
+  var rel = path.relative(parent, child);
+  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
 export function dontAskKey(folder: vscode.WorkspaceFolder) {
   return DONT_ASK + folder.uri.toString();
 }
 
-export { describe as describeDetection };

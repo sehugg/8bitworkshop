@@ -2,7 +2,7 @@ import assert from "assert";
 import { describe, it } from "mocha";
 import * as fs from "fs";
 import * as path from "path";
-import { detectProject, detectDialect, findMainCandidates, headersFromPresets, isClearWinner, parseReadmeBadge, toolForDialect } from "../../src/common/detect";
+import { detectProject, detectDialect, detectionSummary, describeFinding, findMainCandidates, headersFromPresets, isClearWinner, isFolderOfPrograms, isHeaderFile, mainEvidence, parseReadmeBadge, toolForDialect } from "../../src/common/detect";
 import { PLATFORM_PARAMS } from "../../src/worker/platforms";
 
 const PRESETS = 'presets';
@@ -70,6 +70,30 @@ describe('detect', () => {
     assert.deepStrictEqual(findMainCandidates('nes', [...texts.keys()], texts), { candidates: ['main.c'], mainFile: 'main.c' });
     texts = new Map([['a.c', 'void main() {}\n'], ['b.c', 'void main() {}\n']]);
     assert.deepStrictEqual(findMainCandidates('nes', [...texts.keys()], texts), { candidates: ['a.c', 'b.c'], mainFile: undefined });
+  });
+
+  it('downweights a fingerprint found in a header', async () => {
+    // the GBDK calls are library declarations, not a program using the hardware
+    var header = 'void display_off();\nvoid SHOW_BKG();\nvoid set_bkg_data();\n';
+    var d = await detectProject({ files: ['gb.h'], read: () => header, platforms: PLATFORMS, dirName: 'gb' });
+    assert.ok(d.every(x => x.score < 0.5), JSON.stringify(d));
+    assert.ok(d[0].score > 0, 'the header still counts for something');
+    assert.ok(isHeaderFile('gb/gb.h'));
+    assert.ok(!isHeaderFile('gb/gb.sgb'));
+    assert.strictEqual(mainEvidence(d[0])?.reason, 'calls GBDK functions');
+  });
+
+  it('lists every program in a folder of programs', async () => {
+    var programs = ['chase.c', 'climber.c', 'testphys.c'];
+    var map: { [fn: string]: string } = {};
+    for (var fn of programs) map[fn] = '#include "gb/gb.h"\nvoid main() {}\n';
+    var d = await detectProject({ files: programs, read: (fn) => map[fn] ?? null, platforms: PLATFORMS, headers: { 'gb/gb.h': ['gb'] }, dirName: 'gb' });
+    assert.strictEqual(d[0].platform, 'gb');
+    assert.strictEqual(d[0].mainFile, undefined);
+    assert.deepStrictEqual(d[0].mainCandidates, programs);
+    assert.ok(isFolderOfPrograms(d[0]));
+    assert.strictEqual(detectionSummary(d[0]), '3 programs');
+    assert.strictEqual(describeFinding(d[0]), '3 programs — chase.c:1 includes "gb/gb.h"');
   });
 
   // Every preset's true platform is its directory. Track how often the top

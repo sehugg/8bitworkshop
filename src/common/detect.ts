@@ -50,6 +50,7 @@ export const ROM_PLATFORMS: { [ext: string]: string } = {
 const SYSTEM_HEADERS: { [header: string]: string[] } = {
   'nes.h': ['nes'],
   'neslib.h': ['nes'],
+  'apu.h': ['nes'],
   'cv.h': ['coleco', 'msx-libcv', 'sms-sg1000-libcv', 'sms-sms-libcv', 'sms-gg-libcv'],
   'cvu.h': ['coleco', 'msx-libcv', 'sms-sg1000-libcv', 'sms-sms-libcv', 'sms-gg-libcv'],
   'c64.h': ['c64'],
@@ -63,6 +64,7 @@ const SYSTEM_HEADERS: { [header: string]: string[] } = {
   'pce.h': ['pce'],
   'gb/gb.h': ['gb'],
   'gb.h': ['gb'],
+  'gbtext.h': ['gb'],
   'vcs.h': ['vcs'],
   'macro.h': ['vcs'],
   'vectrex.h': ['vectrex'],
@@ -88,6 +90,9 @@ const FINGERPRINTS: { re: RegExp, platforms: string[], reason: string }[] = [
 ];
 
 const HEADER_EXTS = ['.h', '.inc', '.i'];
+// a register or function name in a header is a declaration, not a use, so
+// it points at the library rather than at a program written for the platform
+const HEADER_FINGERPRINT_WEIGHT = 0.15;
 // extensions so many tools use that they say nothing about the platform
 const GENERIC_EXTS = ['.c', '.h', '.s', '.asm', '.a', '.inc', '.i', '.bas'];
 
@@ -229,7 +234,8 @@ export async function detectProject(input: DetectInput): Promise<Detection[]> {
       var fm = fp.re.exec(text);
       if (fm) {
         var fline = text.substring(0, fm.index).split('\n').length;
-        addAll(fp.platforms, 0.5, { file, line: fline, reason: fp.reason });
+        var fweight = HEADER_EXTS.includes(ext) ? HEADER_FINGERPRINT_WEIGHT : 0.5;
+        addAll(fp.platforms, fweight, { file, line: fline, reason: fp.reason });
       }
     }
   }
@@ -280,6 +286,45 @@ export function isClearWinner(detections: Detection[]): boolean {
 /** Strong enough to bring up unasked, on opening a folder. */
 export function isStrongDetection(d: Detection): boolean {
   return d.score >= 0.5;
+}
+
+/** True for a header or include file: a declaration, not a program. */
+export function isHeaderFile(fn: string): boolean {
+  return HEADER_EXTS.includes(extname(fn));
+}
+
+/** The clue to show first: a program source's, unless only a header matches. */
+export function mainEvidence(d: Detection): DetectEvidence | undefined {
+  return d.evidence.find(e => e.file !== '.' && !isHeaderFile(e.file)) || d.evidence[0];
+}
+
+/** "game.c", or "26 programs" for a directory of programs. */
+export function detectionSummary(d: Detection): string {
+  if (d.mainFile) return d.mainFile;
+  var n = d.mainCandidates?.length || 0;
+  return n > 1 ? `${n} programs` : '';
+}
+
+/** True for a directory that holds several programs and no single main file. */
+export function isFolderOfPrograms(d: Detection): boolean {
+  return !d.mainFile && (d.mainCandidates?.length || 0) > 1;
+}
+
+/** A one-line description of the clue behind a detection. */
+export function describeDetection(d: Detection): string {
+  var ev = mainEvidence(d);
+  if (!ev) return '';
+  return `${ev.file === '.' ? 'folder' : ev.file}${ev.line ? ':' + ev.line : ''} ${ev.reason}`;
+}
+
+/** The clue, and for a folder of programs the number of programs it holds. */
+export function describeFinding(d: Detection): string {
+  var text = describeDetection(d);
+  if (isFolderOfPrograms(d)) {
+    var n = d.mainCandidates!.length;
+    text = `${n} programs${text ? ' — ' + text : ''}`;
+  }
+  return text;
 }
 
 /**

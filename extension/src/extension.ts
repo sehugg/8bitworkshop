@@ -14,7 +14,7 @@ import { Project, findRootDir, isHeaderFile, isInside, isOwnExtension, isSourceF
 import { CONFIG, ProjectScope } from './projectscope';
 import { BuildReason, BuildScheduler } from './autobuild';
 import { PRESET_SCHEME, PresetFileSystem, Templates } from './templates';
-import { chooseForFile, describeDetection, dontAskKey, platformName, scanFolder } from './detection';
+import { chooseForFile, detectionSummary, describeFinding, dontAskKey, platformName, scanFolder } from './detection';
 import { TOOL_META } from '../../src/common/toolmeta';
 
 let context: vscode.ExtensionContext;
@@ -726,7 +726,7 @@ async function detectProjects(asked: boolean) {
       var f = findings[0], d = f.detection;
       var where = path.relative(folder.uri.fsPath, f.dir.fsPath);
       var answer = await vscode.window.showInformationMessage(
-        `This looks like a${/^[aeiou]/i.test(platformName(templates, d.platform)) ? 'n' : ''} ${platformName(templates, d.platform)} project${where ? ' in ' + where : ''} (${describeDetection(d)}).`,
+        `This looks like a${/^[aeiou]/i.test(platformName(templates, d.platform)) ? 'n' : ''} ${platformName(templates, d.platform)} project${where ? ' in ' + where : ''} (${describeFinding(d)}).`,
         'Use It', 'Choose...', 'Not Now', "Don't Ask");
       if (answer === 'Use It') await acceptFinding(f.dir.fsPath, d.platform, d.mainFile, d.tool);
       else if (answer === 'Choose...') {
@@ -740,9 +740,9 @@ async function detectProjects(asked: boolean) {
     if (review !== 'Review') continue;
     type Item = vscode.QuickPickItem & { f: typeof findings[0] };
     var items: Item[] = findings.map(f => ({
-      label: path.relative(folder.uri.fsPath, f.dir.fsPath) || folder.name,
-      description: `${platformName(templates, f.detection.platform)}${f.detection.mainFile ? ' · ' + f.detection.mainFile : ''}`,
-      detail: describeDetection(f.detection), picked: true, f,
+      label: path.relative(folder.uri.fsPath, f.dir.fsPath) || '.',
+      description: `${platformName(templates, f.detection.platform)}${detectionSummary(f.detection) ? ' · ' + detectionSummary(f.detection) : ''}`,
+      detail: describeFinding(f.detection), picked: true, f,
     }));
     var chosen = await vscode.window.showQuickPick(items, { canPickMany: true, title: 'Use these as 8bitworkshop projects', matchOnDetail: true });
     for (var c of chosen || []) await acceptFinding(c.f.dir.fsPath, c.f.detection.platform, c.f.detection.mainFile, c.f.detection.tool);

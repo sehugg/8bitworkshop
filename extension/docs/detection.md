@@ -38,6 +38,13 @@ Strongest first:
 Plain C or assembly with none of these never brings up a notification,
 so other projects you open aren't interrupted.
 
+Hardware registers and function names in a header only declare a
+library, so a folder of nothing but headers and library sources isn't
+offered as a project. When a folder holds several programs, its review
+entry shows the count (**Game Boy · 26 programs**). Accepting it makes
+the folder a directory of small programs, so **Run** builds whichever
+program is open.
+
 Some platforms share everything detection can see. For example, the
 ColecoVision, MSX and Sega platforms all use `cv.h`. Then the list shows
 them all and you choose.
