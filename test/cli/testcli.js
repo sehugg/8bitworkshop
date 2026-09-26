@@ -61,8 +61,27 @@ describe('8bws CLI', function () {
             var e = cliFails('build', '--platform', 'gb', src);
             assert.ok(e.status !== 0);
         });
-        it('should require a platform', function () {
-            cliFails('build', 'presets/gb/hello.c');
+        it('should detect the platform when it is clear', function () {
+            var r = cliJSON('build', '--check', 'presets/nes/hello.c');
+            assert.ok(r.success);
+            assert.strictEqual(r.data.platform, 'nes');
+        });
+        it('should require a platform when detection is unsure', function () {
+            var dir = fs.mkdtempSync(path.join(os.tmpdir(), '8bws-'));
+            var src = path.join(dir, 'plain.c');
+            fs.writeFileSync(src, 'int add(int a, int b) { return a + b; }\n');
+            var e = cliFails('build', src);
+            assert.ok(/--platform/.test(e.stderr + e.stdout), e.stderr);
+        });
+    });
+
+    describe('detect', function () {
+        it('should guess the platform of a file, with evidence', function () {
+            var r = cliJSON('detect', 'presets/nes/climber.c');
+            assert.ok(r.success);
+            assert.strictEqual(r.data.detections[0].platform, 'nes');
+            assert.ok(r.data.clear);
+            assert.ok(r.data.detections[0].evidence.some(e => /neslib/.test(e.reason)));
         });
     });
 

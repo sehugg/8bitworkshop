@@ -1,0 +1,105 @@
+import assert from "assert";
+import { describe, it } from "mocha";
+import * as fs from "fs";
+import * as path from "path";
+import { detectProject, detectDialect, findMainCandidates, headersFromPresets, isClearWinner, parseReadmeBadge, toolForDialect } from "../../src/common/detect";
+import { PLATFORM_PARAMS } from "../../src/worker/platforms";
+
+const PRESETS = 'presets';
+const PLATFORMS = Object.keys(PLATFORM_PARAMS).filter(p => p.indexOf('.') < 0);
+
+function listing(): { [platform: string]: string[] } {
+  var out: { [platform: string]: string[] } = {};
+  for (var dir of fs.readdirSync(PRESETS)) {
+    if (!PLATFORMS.includes(dir)) continue;
+    out[dir] = fs.readdirSync(path.join(PRESETS, dir));
+  }
+  return out;
+}
+
+function files(map: { [fn: string]: string }) {
+  return { files: Object.keys(map), read: (fn: string) => map[fn] ?? null, platforms: PLATFORMS };
+}
+
+describe('detect', () => {
+  it('reads the README badge', async () => {
+    var badge = parseReadmeBadge('Game\n\n[Open](http://8bitworkshop.com/redir.html?platform=vcs&githubURL=x&file=game.dasm).\n');
+    assert.deepStrictEqual(badge, { platform: 'vcs', mainFile: 'game.dasm' });
+    var d = await detectProject(files({ 'README.md': '[x](https://8bitworkshop.com/?platform=nes&file=main.c)', 'main.c': '' }));
+    assert.strictEqual(d[0].platform, 'nes');
+    assert.strictEqual(d[0].mainFile, 'main.c');
+    assert.strictEqual(d[0].score, 1);
+  });
+
+  it('finds NES from a header, with the line', async () => {
+    var d = await detectProject(files({ 'game.c': '\n#include "neslib.h"\nvoid main() {}\n' }));
+    assert.strictEqual(d[0].platform, 'nes');
+    assert.ok(isClearWinner(d));
+    assert.deepStrictEqual(d[0].evidence[0], { file: 'game.c', line: 2, reason: 'includes "neslib.h"' });
+    assert.strictEqual(d[0].mainFile, 'game.c');
+  });
+
+  it('finds the VCS from TIA registers', async () => {
+    var d = await detectProject(files({ 'game.dasm': '  processor 6502\n  sta WSYNC\n  sta COLUBK\n' }));
+    assert.strictEqual(d[0].platform, 'vcs');
+  });
+
+  it('says nothing about plain C', async () => {
+    var d = await detectProject(files({ 'util.c': 'int add(int a, int b) { return a + b; }\n', 'util.h': 'int add(int, int);\n' }));
+    assert.ok(d.every(x => x.score < 0.5), JSON.stringify(d));
+    assert.ok(!isClearWinner(d));
+  });
+
+  it('reads a cc65 target from a Makefile', async () => {
+    var d = await detectProject(files({ 'Makefile': 'all:\n\tcl65 -t c64 -o game.prg game.c\n', 'game.c': 'void main() {}\n' }));
+    assert.strictEqual(d[0].platform, 'c64');
+  });
+
+  it('knows assembler dialects', () => {
+    assert.strictEqual(detectDialect('.segment "CODE"\n  lda #0\n'), 'ca65');
+    assert.strictEqual(detectDialect('  processor 6502\n  seg code\n'), 'dasm');
+    assert.strictEqual(detectDialect('  lda #0\n'), null);
+    // .asm builds with dasm on the NES; ca65 code needs ca65
+    assert.strictEqual(toolForDialect('nes', 'game.asm', '.segment "CODE"\n'), 'ca65');
+    assert.strictEqual(toolForDialect('nes', 'game.s', '.segment "CODE"\n'), undefined);
+    assert.strictEqual(toolForDialect('nes', 'game.asm', '  processor 6502\n'), undefined);
+  });
+
+  it('picks one main file, or none for a directory of programs', () => {
+    var texts = new Map([['main.c', '#include "util.h"\n//#link "sprites.c"\nvoid main() {}\n'], ['sprites.c', 'void draw() {}\n']]);
+    assert.deepStrictEqual(findMainCandidates('nes', [...texts.keys()], texts), { candidates: ['main.c'], mainFile: 'main.c' });
+    texts = new Map([['a.c', 'void main() {}\n'], ['b.c', 'void main() {}\n']]);
+    assert.deepStrictEqual(findMainCandidates('nes', [...texts.keys()], texts), { candidates: ['a.c', 'b.c'], mainFile: undefined });
+  });
+
+  // Every preset's true platform is its directory. Track how often the top
+  // guess for a lone preset file is right, and fail if it gets worse.
+  it('guesses the platform of the presets', async function () {
+    this.timeout(60000);
+    var dirs = listing();
+    var headers = headersFromPresets(dirs);
+    var total = 0, right = 0, wrong: string[] = [];
+    for (var dir in dirs) {
+      for (var fn of dirs[dir]) {
+        if (fn.endsWith('~') || fn.startsWith('skeleton.')) continue;
+        if (!/\.(c|s|asm|dasm|ca65|acme|z|wiz|bas|v|xasm|cc2600|cc7800)$/.test(fn)) continue;
+        var text = fs.readFileSync(path.join(PRESETS, dir, fn), 'utf-8');
+        var d = await detectProject({ files: [fn], read: () => text, platforms: PLATFORMS, headers });
+        total++;
+        // members of a family that share every header count as right
+        var family = (p: string) => p.replace(/^(sms-.*|msx-libcv|coleco)$/, 'libcv').replace(/^(atari8|astrocade|williams).*$/, '$1');
+        // a tie for first place still puts the right platform in the pick list
+        var top = d.length ? d[0].score : 0;
+        if (d.length && d.some(x => x.score === top && family(x.platform) === family(dir))) right++;
+        else wrong.push(`${dir}/${fn} -> ${d.length ? d[0].platform + ' ' + d[0].score : 'nothing'}`);
+      }
+    }
+    var accuracy = right / total;
+    console.log(`detect: ${right}/${total} presets (${Math.round(accuracy * 100)}%)`);
+    if (process.env.DETECT_VERBOSE) console.log(wrong.join('\n'));
+    assert.ok(accuracy >= ACCURACY_BASELINE, `accuracy ${accuracy} < ${ACCURACY_BASELINE}\n` + wrong.slice(0, 40).join('\n'));
+  });
+});
+
+// raise this when detection improves
+const ACCURACY_BASELINE = 0.7;
