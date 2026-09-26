@@ -5,7 +5,8 @@
 //
 // extension.js stays small; builds and emulation run in worker threads
 // (buildworker.js, emuworker.js) that start on first use. presetindex.js
-// writes out/presets.json (npm run build runs it).
+// writes out/presets.json and syntaxes.js writes out/syntaxes/ (npm run
+// build runs both).
 import esbuild from 'esbuild';
 import { readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -24,6 +25,7 @@ const ctx = await esbuild.context({
     buildworker: 'src/buildworker.ts',
     emuworker: 'src/emuworker.ts',
     presetindex: 'scripts/presetindex.ts',
+    syntaxes: 'scripts/syntaxes.ts',
     ...Object.fromEntries(tests),
   },
   outdir: 'out',
@@ -33,8 +35,9 @@ const ctx = await esbuild.context({
   target: 'node20',
   sourcemap: true,
   // These resolve from the repo's node_modules at runtime: jsdom (for
-  // installNodeMocks) doesn't bundle, and binaryen (verilog) is 51MB.
-  external: ['vscode', 'jsdom', 'canvas', 'binaryen'],
+  // installNodeMocks) doesn't bundle, and binaryen (verilog) is 51MB. The
+  // TextMate packages are for tests only.
+  external: ['vscode', 'jsdom', 'canvas', 'binaryen', 'vscode-textmate', 'vscode-oniguruma'],
   logLevel: 'warning',
 });
 if (watch) {

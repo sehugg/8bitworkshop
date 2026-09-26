@@ -2168,6 +2168,24 @@ do them when a platform is the priority (VCS needs 3–4).
 3. **Syntax highlighting.** Generated TextMate grammars + language IDs from
    `editorStyle`; basic symbol semantic tokens.
    *Outcome: real highlighting and Go to Definition.*
+
+   **Status: assembler grammars done.** One grammar per CPU (`8bws-6502`,
+   `8bws-z80`, `8bws-6809`) covers every assembler for it: dasm (column-0
+   labels, plain directives, `{1}`), ca65 (dot directives, `@local`, `:+`,
+   `.lobyte`), sdas (`.area`, `10$:`), zmac (`name MACRO`, `0FFh`, `101b`),
+   and Motorola-style 6809 (`*` comments). Any other word in statement
+   position is a macro call. `extension/src/syntaxgen.ts` builds them from
+   `src/parser/asmkeywords.ts`, the tables the IDE's Lezer tokenizers now
+   share; `scripts/syntaxes.ts` writes `out/syntaxes/`. `test/syntaxes.test.ts`
+   tokenizes with `vscode-textmate` and checks `package.json` against
+   `makeContributions()`. Only extensions no one else uses are claimed
+   (`.dasm .ca65 .xa .nesasm .z .zmac .sgb .xasm .lwasm`); `.s .asm .inc .a`
+   wait for per-project language assignment (Rule 2).
+   - Decided: no C grammar of our own. `8bws-c`, when it comes, `include`s
+     `source.c`; its only job is keeping clangd/cpptools off cc65 files.
+   - Deferred: BASIC, inform6, dialog; acme, ecs, wiz, vasm, gas.
+   - Not done: Rule 2 language assignment, `8bws-c`, Tier A providers,
+     semantic tokens.
 4. **Debugging.** Shared debug core first (`breakcond` move, `breakpoints`
    context, `DebugController`, `RunScript` on top of it). Then DAP session: source breakpoints, stepping, registers,
    memory, disassembly, conditional breakpoints via `breakcond.ts`.

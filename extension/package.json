@@ -209,6 +209,64 @@
         }
       }
     },
+    "languages": [
+      {
+        "id": "8bws-6502",
+        "aliases": [
+          "6502 Assembly",
+          "6502"
+        ],
+        "extensions": [
+          ".dasm",
+          ".ca65",
+          ".xa",
+          ".nesasm"
+        ],
+        "configuration": "./out/syntaxes/8bws-6502.language-configuration.json"
+      },
+      {
+        "id": "8bws-z80",
+        "aliases": [
+          "Z80 Assembly",
+          "Z80"
+        ],
+        "extensions": [
+          ".z",
+          ".zmac",
+          ".sgb"
+        ],
+        "configuration": "./out/syntaxes/8bws-z80.language-configuration.json"
+      },
+      {
+        "id": "8bws-6809",
+        "aliases": [
+          "6809 Assembly",
+          "6809"
+        ],
+        "extensions": [
+          ".xasm",
+          ".lwasm"
+        ],
+        "configuration": "./out/syntaxes/8bws-6809.language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "8bws-6502",
+        "scopeName": "source.asm.6502",
+        "path": "./out/syntaxes/8bws-6502.tmLanguage.json"
+      },
+      {
+        "language": "8bws-z80",
+        "scopeName": "source.asm.z80",
+        "path": "./out/syntaxes/8bws-z80.tmLanguage.json"
+      },
+      {
+        "language": "8bws-6809",
+        "scopeName": "source.asm.6809",
+        "path": "./out/syntaxes/8bws-6809.tmLanguage.json"
+      }
+    ],
     "menus": {
       "editor/title": [
         {
@@ -320,7 +378,7 @@
     ]
   },
   "scripts": {
-    "build": "node scripts/build.mjs && node out/presetindex.js",
+    "build": "node scripts/build.mjs && node out/presetindex.js && node out/syntaxes.js",
     "watch": "node scripts/build.mjs --watch",
     "typecheck": "tsc --noEmit -p .",
     "test": "npm run build && mocha --timeout 60000 out/test/*.test.js"
