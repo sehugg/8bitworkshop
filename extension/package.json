@@ -50,6 +50,11 @@
         "icon": "$(copy)"
       },
       {
+        "command": "8bitworkshop.downloadToolchains",
+        "title": "Download All Toolchains",
+        "category": "8bitworkshop"
+      },
+      {
         "command": "8bitworkshop.build",
         "title": "Build",
         "category": "8bitworkshop"
@@ -216,7 +221,13 @@
         "8bitworkshop.toolchainPath": {
           "type": "string",
           "default": "",
-          "description": "Directory containing src/worker (toolchain assets). Defaults to the extension's own copy.",
+          "description": "Directory containing src/worker (toolchain assets), such as an 8bitworkshop checkout. When empty, toolchains download on first use.",
+          "scope": "machine"
+        },
+        "8bitworkshop.assetUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Server (or local directory) to download toolchains from, tried before the default servers. Downloads are checked against hashes built into the extension.",
           "scope": "machine"
         }
       }
@@ -403,6 +414,8 @@
     "build": "node scripts/build.mjs && node out/presetindex.js && node out/syntaxes.js",
     "watch": "node scripts/build.mjs --watch",
     "typecheck": "tsc --noEmit -p .",
+    "assets": "node scripts/build.mjs && node out/assetpack.js",
+    "assets-quick": "node scripts/build.mjs && node out/assetpack.js --quality 5",
     "test": "npm run build && mocha --timeout 60000 out/test/*.test.js"
   },
   "devDependencies": {

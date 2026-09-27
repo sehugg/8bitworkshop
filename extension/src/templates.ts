@@ -13,7 +13,8 @@ const COPY_COMMAND = '8bitworkshop.copyToWorkspace';
 export class Templates {
   private index: PresetIndex | null = null;
 
-  constructor(readonly extensionPath: string, readonly rootDir: () => string) { }
+  /** @param rootDir the asset root, downloading toolchains first if need be */
+  constructor(readonly extensionPath: string, readonly rootDir: () => Promise<string>) { }
 
   get(): PresetIndex {
     if (!this.index) {
@@ -46,8 +47,8 @@ export class Templates {
   }
 
   /** presets/<dir>/<file> on disk. */
-  presetPath(platform: PlatformInfo, file: string): string {
-    return path.join(this.rootDir(), 'presets', platform.dir, file);
+  async presetPath(platform: PlatformInfo, file: string): Promise<string> {
+    return path.join(await this.rootDir(), 'presets', platform.dir, file);
   }
 
   ////// pickers
@@ -175,7 +176,7 @@ export class Templates {
     await vscode.workspace.fs.createDirectory(dir);
     var overwriteAll = false;
     for (var [from, to] of files) {
-      var src = this.presetPath(platform, from);
+      var src = await this.presetPath(platform, from);
       if (!fs.existsSync(src)) continue;
       var dest = vscode.Uri.joinPath(dir, to);
       if (!overwriteAll && await exists(dest)) {
@@ -205,11 +206,11 @@ export class PresetFileSystem implements vscode.FileSystemProvider {
     return md;
   }
 
-  private resolve(uri: vscode.Uri): string {
+  private async resolve(uri: vscode.Uri): Promise<string> {
     var [, id, ...rest] = uri.path.split('/');
     var platform = id && this.templates.platform(id);
     if (!platform) throw vscode.FileSystemError.FileNotFound(uri);
-    var dir = path.join(this.templates.rootDir(), 'presets', platform.dir);
+    var dir = path.join(await this.templates.rootDir(), 'presets', platform.dir);
     var file = path.resolve(dir, rest.join('/'));
     if (!file.startsWith(dir)) throw vscode.FileSystemError.NoPermissions(uri);
     return file;
@@ -219,12 +220,12 @@ export class PresetFileSystem implements vscode.FileSystemProvider {
     return new vscode.Disposable(() => { });
   }
 
-  stat(uri: vscode.Uri): vscode.FileStat {
+  async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
     if (uri.path === '/' || uri.path.split('/').length === 2) {
       return { type: vscode.FileType.Directory, ctime: 0, mtime: 0, size: 0, permissions: vscode.FilePermission.Readonly };
     }
     try {
-      var st = fs.statSync(this.resolve(uri));
+      var st = fs.statSync(await this.resolve(uri));
     } catch (e) {
       throw vscode.FileSystemError.FileNotFound(uri);
     }
@@ -234,18 +235,19 @@ export class PresetFileSystem implements vscode.FileSystemProvider {
     };
   }
 
-  readDirectory(uri: vscode.Uri): [string, vscode.FileType][] {
+  async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
     if (uri.path === '/' || uri.path === '') {
       return this.templates.get().platforms.map(p => [p.id, vscode.FileType.Directory] as [string, vscode.FileType]);
     }
-    var dir = this.resolve(uri);
+    var dir = await this.resolve(uri);
     return fs.readdirSync(dir, { withFileTypes: true })
       .map(d => [d.name, d.isDirectory() ? vscode.FileType.Directory : vscode.FileType.File] as [string, vscode.FileType]);
   }
 
-  readFile(uri: vscode.Uri): Uint8Array {
+  async readFile(uri: vscode.Uri): Promise<Uint8Array> {
+    var file = await this.resolve(uri);
     try {
-      return fs.readFileSync(this.resolve(uri));
+      return fs.readFileSync(file);
     } catch (e) {
       throw vscode.FileSystemError.FileNotFound(uri);
     }

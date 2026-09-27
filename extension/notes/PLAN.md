@@ -1308,6 +1308,19 @@ The Verilog pack: `verilator_bin.wasm` (6MB), `silice.wasm` and `fsSilice`
 extensions (Rule 2) either way. Create the second package at the packaging
 milestone, along with the other packs.
 
+**Built: downloaded packs instead of extensions.** The toolchains ship as
+archives on the asset server, not in the VSIX, so neither the base nor a pack
+needs its own extension. `npm run assets` (scripts/assetpack.ts) packs the
+git-tracked files of `src/worker/{wasm,fs,asmjs,lib}` and `presets/` into
+`base` and `verilog` (verilator, silice, `binaryen/index.js`), each one
+Brotli-compressed tar (half the size of a zip), named
+`8bitworkshop-<pack>-<ideVersion>-<hash>.tar.br`, and records their
+hashes in `out/assets.json`. `assets.ts` downloads a platform's packs on
+first use (`packsForPlatform`), checks the hash, and unpacks them into one
+root under global storage, so the workers still see a single `rootDir`.
+`binaryen` is aliased to `src/binaryen.js`, which loads it from that root.
+`8bitworkshop.toolchainPath` and the repo checkout skip downloading.
+
 ### Extension-host build format
 
 Avoid one monolithic CommonJS bundle with `binaryen` inlined. Ship the tsc

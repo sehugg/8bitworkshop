@@ -4,6 +4,7 @@
 // must not see. This module stays light.
 
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import * as path from 'path';
 import type { BuildOutcome } from './buildcore';
 import type { BuildArgs } from './buildworker';
@@ -16,6 +17,8 @@ import { BuildReason, BuildScheduler } from './autobuild';
 import { PRESET_SCHEME, PresetFileSystem, Templates } from './templates';
 import { chooseForFile, detectionSummary, describeFinding, dontAskKey, platformName, scanFolder } from './detection';
 import { TOOL_META } from '../../src/common/toolmeta';
+import { AssetStore } from './assets';
+import { AssetManifest, packsForPlatform } from './assetpacks';
 
 let context: vscode.ExtensionContext;
 let output: vscode.OutputChannel;
@@ -26,6 +29,7 @@ let templates: Templates;
 let scheduler: BuildScheduler;
 let builds: WorkerHandle | undefined;
 let emu: WorkerHandle | undefined;
+let assets: AssetStore | undefined;
 let panel: EmulatorPanel | undefined;
 let emuStatus: EmuStatus | null = null;
 let nextBuildId = 1;
@@ -57,7 +61,7 @@ export function activate(ctx: vscode.ExtensionContext) {
   status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
   status.command = '8bitworkshop.projectMenu';
   scope = new ProjectScope(ctx.workspaceState);
-  templates = new Templates(ctx.extensionPath, rootDir);
+  templates = new Templates(ctx.extensionPath, () => toolchainRoot());
   scheduler = new BuildScheduler(reason => autoBuild(reason));
   ctx.subscriptions.push(output, diagnostics, status, scope);
 
@@ -91,6 +95,7 @@ export function activate(ctx: vscode.ExtensionContext) {
   command('pause', () => emu?.started && emu.call('pause'));
   command('resume', () => emu?.started && emu.call('resume'));
   command('stop', () => panel?.dispose());
+  command('downloadToolchains', () => downloadToolchains());
   command('mute', () => setMuted(true));
   command('unmute', () => setMuted(false));
   muted = ctx.globalState.get<boolean>('muted', false);
@@ -125,15 +130,67 @@ function config(uri?: vscode.Uri) {
   return vscode.workspace.getConfiguration(CONFIG, uri);
 }
 
-function rootDir(): string {
-  var root = config().get<string>('toolchainPath') || findRootDir(context.extensionPath);
-  if (!root) throw new Error('Cannot find toolchain assets (src/worker). Set 8bitworkshop.toolchainPath.');
-  return root;
+////// toolchains
+
+// asset servers, tried in order (8bitworkshop.assetUrl goes first)
+const ASSET_URLS = ['https://sehugg.github.io/8bitworkshop/vscode/', 'https://8bitworkshop.com/vscode/'];
+
+/** A local copy (toolchainPath, or the repo in development), if there is one. */
+function localRoot(): string | null {
+  return config().get<string>('toolchainPath') || findRootDir(context.extensionPath);
 }
 
-function getBuilds(): WorkerHandle {
+function getAssets(): AssetStore {
+  if (!assets) {
+    var file = path.join(context.extensionPath, 'out', 'assets.json');
+    try {
+      var manifest: AssetManifest = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    } catch (e) {
+      throw new Error(`Cannot find toolchains: no ${file}. Set 8bitworkshop.toolchainPath.`);
+    }
+    var custom = config().get<string>('assetUrl');
+    assets = new AssetStore(path.join(context.globalStorageUri.fsPath, 'toolchains'), manifest,
+      custom ? [custom, ...ASSET_URLS] : ASSET_URLS, msg => output.appendLine(msg));
+  }
+  return assets;
+}
+
+/** The asset root, after downloading any packs `platform` needs. */
+async function toolchainRoot(platform?: string): Promise<string> {
+  var local = localRoot();
+  if (local) return local;
+  return installPacks(packsForPlatform(platform));
+}
+
+async function installPacks(packs: string[]): Promise<string> {
+  var store = getAssets();
+  if (packs.every(p => store.has(p))) return store.root;
+  return vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: '8bitworkshop: Downloading toolchains' }, progress => {
+    var shown = new Map<string, number>();
+    return store.ensure(packs, (pack, n, total) => {
+      var pct = total ? Math.floor(100 * n / total / packs.length) : 0;
+      progress.report({ message: `${pack}: ${mb(n)} of ${mb(total)}`, increment: pct - (shown.get(pack) || 0) });
+      shown.set(pack, pct);
+    });
+  });
+}
+
+async function downloadToolchains() {
+  if (localRoot()) {
+    vscode.window.showInformationMessage(`8bitworkshop: using the toolchains in ${localRoot()}.`);
+    return;
+  }
+  await installPacks(Object.keys(getAssets().manifest.packs));
+  vscode.window.showInformationMessage('8bitworkshop: all toolchains downloaded.');
+}
+
+function mb(n: number): string {
+  return (n / 1048576).toFixed(1) + ' MB';
+}
+
+async function getBuilds(platform: string): Promise<WorkerHandle> {
+  var root = await toolchainRoot(platform);
   if (!builds) {
-    var root = rootDir();
     output.appendLine(`Toolchain root: ${root}`);
     builds = new WorkerHandle('buildworker.js', root, {
       readFile: (buildId: number, rel: string) => readers.get(buildId)?.(rel) ?? null,
@@ -142,9 +199,10 @@ function getBuilds(): WorkerHandle {
   return builds;
 }
 
-function getEmu(): WorkerHandle {
+async function getEmu(platform: string): Promise<WorkerHandle> {
+  var root = await toolchainRoot(platform);
   if (!emu) {
-    emu = new WorkerHandle('emuworker.js', rootDir(), {}, msg => output.appendLine(msg));
+    emu = new WorkerHandle('emuworker.js', root, {}, msg => output.appendLine(msg));
     emu.on('frame', frame => panel?.showFrame(frame));
     emu.on('audio', (chunk: AudioChunk) => panel?.showAudio(chunk));
     emu.on('audioReset', () => panel?.resetAudio());
@@ -337,7 +395,7 @@ async function startEmulator(target: Target, rom: any) {
   emu?.dispose();
   emu = undefined;
   emuStatus = null;
-  var worker = getEmu();
+  var worker = await getEmu(target.platform);
   if (!panel) {
     panel = new EmulatorPanel({
       onKey: (key, code, flags) => { emu?.call('key', key, code, flags); },
@@ -382,7 +440,7 @@ async function reloadEmulator(target: Target, reason: BuildReason, result: Build
   if (emuStatus.platform !== target.platform) {
     await startEmulator(target, result.output);
   } else if (!sameBytes(runningRom, result.output)) {
-    emuStatus = await getEmu().call<EmuStatus>('loadROM', result.output);
+    emuStatus = await (await getEmu(target.platform)).call<EmuStatus>('loadROM', result.output);
     runningRom = result.output;
   }
 }
@@ -437,7 +495,7 @@ async function runBuild(target: Target, reason: BuildReason): Promise<BuildOutco
   var result: BuildOutcome;
   if (reason !== 'type') status.text = '$(sync~spin) ' + platformName(templates, target.platform);
   try {
-    result = await getBuilds().call<BuildOutcome>('build', args);
+    result = await (await getBuilds(target.platform)).call<BuildOutcome>('build', args);
   } catch (e) {
     output.appendLine(`Build crashed: ${e && e.stack || e}`);
     output.show(true);

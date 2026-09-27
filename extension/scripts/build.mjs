@@ -8,7 +8,7 @@
 // writes out/presets.json and syntaxes.js writes out/syntaxes/ (npm run
 // build runs both).
 import esbuild from 'esbuild';
-import { readdirSync } from 'fs';
+import { readdirSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 
@@ -18,6 +18,21 @@ const tests = readdirSync(path.join(root, 'test'))
   .filter((f) => f.endsWith('.test.ts'))
   .map((f) => [`test/${f.slice(0, -3)}`, `test/${f}`]);
 
+// jsdom finds its sync-XHR worker script with require.resolve when it loads,
+// which fails once bundled. Nothing uses jsdom's XHR (workerlib has its own),
+// so drop the lookup.
+const jsdomNoSyncXHR = {
+  name: 'jsdom-no-sync-xhr',
+  setup(build) {
+    build.onLoad({ filter: /jsdom[\\/]lib[\\/]jsdom[\\/]living[\\/]xhr[\\/]XMLHttpRequest-impl\.js$/ }, args => {
+      var src = readFileSync(args.path, 'utf-8');
+      var out = src.replace('require.resolve ? require.resolve("./xhr-sync-worker.js") : null', 'null');
+      if (out === src) throw new Error('jsdom-no-sync-xhr: pattern not found; check the jsdom version');
+      return { contents: out, loader: 'js' };
+    });
+  },
+};
+
 const ctx = await esbuild.context({
   absWorkingDir: root,
   entryPoints: {
@@ -25,6 +40,7 @@ const ctx = await esbuild.context({
     buildworker: 'src/buildworker.ts',
     emuworker: 'src/emuworker.ts',
     presetindex: 'scripts/presetindex.ts',
+    assetpack: 'scripts/assetpack.ts',
     syntaxes: 'scripts/syntaxes.ts',
     clangcheck: 'scripts/clangcheck.ts',
     grammarsurvey: 'scripts/grammarsurvey.ts',
@@ -36,10 +52,12 @@ const ctx = await esbuild.context({
   format: 'cjs',
   target: 'node20',
   sourcemap: true,
-  // These resolve from the repo's node_modules at runtime: jsdom (for
-  // installNodeMocks) doesn't bundle, and binaryen (verilog) is 51MB. The
-  // TextMate packages are for tests only.
-  external: ['vscode', 'jsdom', 'canvas', 'binaryen', 'vscode-textmate', 'vscode-oniguruma'],
+  // canvas is jsdom's optional native renderer (nodemock stubs the 2D
+  // context instead). The TextMate packages are for tests only.
+  external: ['vscode', 'canvas', 'vscode-textmate', 'vscode-oniguruma'],
+  plugins: [jsdomNoSyncXHR],
+  // binaryen (Verilog only, 7MB) loads from the asset root: see binaryen.js
+  alias: { binaryen: './src/binaryen.js' },
   logLevel: 'warning',
 });
 if (watch) {
