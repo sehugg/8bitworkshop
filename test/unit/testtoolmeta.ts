@@ -93,6 +93,13 @@ describe('Tool metadata registry', function () {
     assert.deepStrictEqual(deps('#include "foo.h"\n', 'cc65'), ['foo.h']);
     assert.deepStrictEqual(deps('\t.include "foo.inc"\n', 'ca65'), ['foo.inc']);
     assert.deepStrictEqual(deps('//#resource "foo.bin"\n', 'dasm'), ['foo.bin']);
+    // dasm also accepts unquoted include/incbin names
+    assert.deepStrictEqual(deps('\tINCLUDE VCS.h\n\tINCLUDE macro.h\n', 'dasm'),
+      ['VCS.h', 'macro.h']);
+    assert.deepStrictEqual(deps(' .include foo.inc\n  incbin table.bin\n', 'dasm'),
+      ['foo.inc', 'table.bin']);
+    // quoted names stay matched by the shared pattern only (no duplicates)
+    assert.deepStrictEqual(deps('\tinclude "vcs.h"\n', 'dasm'), ['vcs.h']);
     assert.deepStrictEqual(deps('!src "foo.acme"\n', 'acme'), ['foo.acme']);
     assert.deepStrictEqual(deps('%% #include "foo.dg"\n', 'dialog'), ['foo.dg']);
     assert.deepStrictEqual(deps('  USE foo.xasm\n', 'xasm6809'), ['foo.xasm']);
