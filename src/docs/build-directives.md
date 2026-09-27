@@ -41,6 +41,8 @@ directives:
 .incbin "tileset.chr"
 ```
 
+With DASM, make sure to quote the filename in `incbin`.
+
 ## C preprocessor defines
 
 The preprocessor macro `__MAIN__` is defined when compiling the main C
