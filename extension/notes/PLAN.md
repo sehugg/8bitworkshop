@@ -785,9 +785,13 @@ soon as the folder opens.
    a platform header or hardware register in a source file, a cc65
    target. `.c` and `.s` files alone never do, and neither do headers,
    linker configs, ROM files, or folder names without code. Startup
-   code (`crt0.*`) is never a main file. Unasked, more than 5 projects,
-   or a scan that hit its file limit, means a big repo that isn't ours:
-   no notification.
+   code (`crt0.*`) and C files without `main()` are never main files.
+   A finding inside a project with a main file is part of it, not its
+   own project. Unasked, prompt only if the folder is made of projects:
+   at most 5, or projects in at least half its top-level folders (a
+   folder of cloned repos). Projects scattered through a big repo, or a
+   scan that hit its file limit, mean no notification; opening a file
+   there still detects (below).
    - *One project*: "This looks like an NES project (`#include
      "neslib.h"` in main.c). [Use It] [Choose...] [Not Now]". Unlike case
      2, the user didn't ask, so nothing applies until they click Use It,
@@ -805,6 +809,13 @@ soon as the folder opens.
    - *Dismissed*: closing the notification without choosing is "not
      now"; "Don't ask for this folder" is remembered. Either way the
      Projects view keeps the findings.
+   - *Opening a file*: a buildable source file in a directory with no
+     project detects that directory, once a session, after the folder
+     scan. A strong, clear detection gets the one-project prompt; any
+     answer but Use It quiets file prompts in that workspace folder for
+     the session. A weaker one only shows in the status bar (`$(chip)
+     NES?`), whose menu leads to Set as Main File. Directories the
+     folder prompt already covered don't prompt again.
 5. **Other build systems.** Makefiles, cc65 `.cfg` files, and linker
    scripts are evidence for detection only. We build with our own
    toolchains and never run `make`. If the repo needs include paths

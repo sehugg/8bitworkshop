@@ -12,12 +12,21 @@ it always shows you the clue it used.
 - **Opening a folder** that has no 8bitworkshop settings. A notification
   appears only when the clues are strong and point at one platform:
   "This looks like an NES project (...). [Use It] [Choose...] [Not Now]
-  [Don't Ask]". Nothing changes until you choose **Use It**.
+  [Don't Ask]". Nothing changes until you choose **Use It**. A large
+  folder with projects scattered through it, such as a big codebase
+  with a few examples inside, brings up no notification.
+- **Opening a source file** in a folder with no project. If its folder
+  has strong clues, you get the same notification. After **Not Now**,
+  8bitworkshop doesn't ask again until you reopen the window. Weaker
+  clues show only in the status bar, such as **NES?**; click it to
+  choose a platform.
 - **8bitworkshop: Detect Projects** scans the folder again, even after
-  **Don't Ask**.
+  **Don't Ask**. It also lists folders with weaker clues as potential
+  projects, unchecked.
 
 If a folder holds several projects, such as `nes/` and `c64/`
-subfolders, the notification says how many it found. Click **Review**
+subfolders or a folder of cloned repos, the notification says how many
+it found. A project's own subfolders count as part of it. Click **Review**
 and check the ones to use; each gets its own entry in
 `8bitworkshop.folders`.
 
@@ -36,7 +45,10 @@ Strongest first:
 | A folder named after a platform | `nes/`, `c64/` |
 
 Plain C or assembly with none of these never brings up a notification,
-so other projects you open aren't interrupted.
+so other projects you open aren't interrupted. Neither do ROM files,
+linker configs, headers, or folder names alone: a notification needs a
+clue in a program's own source. A C program needs a `main()`, and
+startup code such as `crt0.s` is never the main file.
 
 Hardware registers and function names in a header only declare a
 library, so a folder of nothing but headers and library sources isn't

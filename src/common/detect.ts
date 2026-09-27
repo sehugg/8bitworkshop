@@ -319,6 +319,45 @@ export function classifyFinding(detections: Detection[]): 'project' | 'potential
   return undefined;
 }
 
+/** A directory's finding in a folder scan; `dir` is relative, with posix separators, '' for the folder itself. */
+export interface DirFinding {
+  dir: string;
+  detection: Detection;
+  potential?: boolean;
+}
+
+function isInsideDir(parent: string, child: string): boolean {
+  return parent !== child && (parent === '' || child.startsWith(parent + '/'));
+}
+
+/**
+ * Drop findings that belong to another: anything inside a project with a
+ * main file (its code and data folders), and a library folder inside a
+ * folder of programs. A nested project with its own main file stays.
+ */
+export function dropNestedFindings<T extends DirFinding>(findings: T[]): T[] {
+  return findings.filter(f => !findings.some(p => isInsideDir(p.dir, f.dir) && (
+    (!p.potential && !!p.detection.mainFile) ||
+    (isFolderOfPrograms(p.detection) && !f.detection.mainFile))));
+}
+
+// unasked, this many projects anywhere in a folder is still worth a prompt
+const FEW_PROJECTS = 5;
+
+/**
+ * True if a folder is made of projects, so a prompt nobody asked for is
+ * welcome: a few projects, or projects in at least half its top-level
+ * folders (a folder of cloned repos). Projects scattered through a big
+ * codebase don't count. `allDirs` is every directory the scan saw.
+ */
+export function isMadeOfProjects(projectDirs: string[], allDirs: string[]): boolean {
+  if (projectDirs.length <= FEW_PROJECTS) return true;
+  var top = (d: string) => d.split('/')[0];
+  var tops = new Set(allDirs.filter(d => d).map(top));
+  var covered = new Set(projectDirs.filter(d => d).map(top));
+  return covered.size * 2 >= tops.size;
+}
+
 /** True for a header or include file: a declaration, not a program. */
 export function isHeaderFile(fn: string): boolean {
   return HEADER_EXTS.includes(extname(fn));

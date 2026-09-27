@@ -2,7 +2,7 @@ import assert from "assert";
 import { describe, it } from "mocha";
 import * as fs from "fs";
 import * as path from "path";
-import { detectProject, detectDialect, detectionSummary, describeFinding, findMainCandidates, headersFromPresets, isClearWinner, isFolderOfPrograms, isHeaderFile, classifyFinding, mainEvidence, parseReadmeBadge, toolForDialect } from "../../src/common/detect";
+import { detectProject, detectDialect, detectionSummary, describeFinding, findMainCandidates, headersFromPresets, isClearWinner, isFolderOfPrograms, isHeaderFile, classifyFinding, dropNestedFindings, isMadeOfProjects, mainEvidence, parseReadmeBadge, toolForDialect } from "../../src/common/detect";
 import { PLATFORM_PARAMS } from "../../src/worker/platforms";
 
 const PRESETS = 'presets';
@@ -112,6 +112,32 @@ describe('detect', () => {
     assert.ok(d[0].score >= 0.5 && d[1].score >= 0.5, JSON.stringify(d));
     assert.ok(!isClearWinner(d));
     assert.strictEqual(classifyFinding(d), 'potential');
+  });
+
+  it('keeps subfolders part of their project', () => {
+    var main = { platform: 'vcs', score: 1, evidence: [], mainFile: 'main.asm' };
+    var part = { platform: 'vcs', score: 0.5, evidence: [], mainFile: 'kernel.asm' };
+    var programs = { platform: 'nes', score: 1, evidence: [], mainCandidates: ['a.c', 'b.c'] };
+    var kept = dropNestedFindings([
+      { dir: 'nyancat', detection: main },
+      { dir: 'nyancat/bank1/code', detection: part },
+      { dir: 'nyancat2', detection: part },
+      { dir: 'presets/nes', detection: programs },
+      { dir: 'presets/nes/chase', detection: part },
+      { dir: 'presets/nes/lib', detection: { ...part, mainFile: undefined } },
+    ]).map(f => f.dir);
+    assert.deepStrictEqual(kept, ['nyancat', 'nyancat2', 'presets/nes', 'presets/nes/chase']);
+  });
+
+  it('prompts for a folder made of projects, not a big repo', () => {
+    // ~/emu/workspace: a folder of cloned project repos
+    var repos = ['2048', 'chase', 'falling', 'genemedic', 'guntner', 'mango', 'pacman'];
+    assert.ok(isMadeOfProjects(repos, [...repos, 'guntner/exports', 'scripts']));
+    // the 8bitworkshop repo: projects under a few of many top-level folders
+    var projects = ['src/worker/lib/verilog', 'test/ecs', 'tmp', 'presets/nes', 'presets/c64', 'presets/vcs', 'presets/gb', 'presets/apple2', 'presets/zx'];
+    var dirs = [...projects, 'src/common', 'css', 'res', 'gen', 'doc', 'scripts', 'extension', 'images', 'web', 'meta'];
+    assert.ok(!isMadeOfProjects(projects, dirs));
+    assert.ok(isMadeOfProjects(['presets/nes', 'presets/c64'], dirs), 'a few projects anywhere still count');
   });
 
   it('lists every program in a folder of programs', async () => {

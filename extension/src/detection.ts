@@ -4,7 +4,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { Detection, detectProject, detectionSummary, describeDetection, describeFinding, isBuildableSource, classifyFinding, isClearWinner, isFolderOfPrograms, toolForDialect } from '../../src/common/detect';
+import { Detection, DirFinding, detectProject, detectionSummary, describeDetection, describeFinding, isBuildableSource, classifyFinding, dropNestedFindings, isClearWinner, isFolderOfPrograms, isMadeOfProjects, toolForDialect } from '../../src/common/detect';
 export { detectionSummary, describeDetection, describeFinding, isFolderOfPrograms };
 import { PLATFORM_PARAMS } from '../../src/worker/platforms';
 import { getToolForPlatform } from '../../src/common/toolselect';
@@ -59,6 +59,16 @@ export async function detectDirectory(templates: Templates, dir: vscode.Uri, fil
     read: (f) => readText(vscode.Uri.joinPath(dir, f)),
     dirName: path.basename(dir.fsPath),
   });
+}
+
+/** Detect for a directory on disk, from the files directly in it. */
+export async function detectDirectoryAt(templates: Templates, dir: vscode.Uri): Promise<Detection[]> {
+  try {
+    var files = (await vscode.workspace.fs.readDirectory(dir)).filter(([, t]) => t === vscode.FileType.File).map(([n]) => n);
+    return await detectDirectory(templates, dir, files);
+  } catch (e) {
+    return [];
+  }
 }
 
 export interface FileChoice {
@@ -153,6 +163,8 @@ export interface FolderScan {
   findings: FolderFinding[];
   /** the folder has more files than the scan looks at */
   truncated: boolean;
+  /** the projects make up the folder, rather than being scattered through it */
+  madeOfProjects: boolean;
 }
 
 /**
@@ -169,23 +181,21 @@ export async function scanFolder(templates: Templates, folder: vscode.WorkspaceF
     if (!byDir.has(dir)) byDir.set(dir, []);
     byDir.get(dir).push(path.basename(uri.fsPath));
   }
-  var findings: FolderFinding[] = [];
+  var rel = (dir: string) => path.relative(folder.uri.fsPath, dir).split(path.sep).join('/');
+  var found: (DirFinding & { uri: vscode.Uri })[] = [];
   for (var [dir, files] of byDir) {
     if (!files.some(f => isBuildableSource(f) || /\.(nes|a26|a78|gb|col|sms)$/i.test(f))) continue;
-    var found = await detectDirectory(templates, vscode.Uri.file(dir), files);
-    var kind = classifyFinding(found);
-    if (kind) findings.push({ dir: vscode.Uri.file(dir), detection: found[0], potential: kind === 'potential' });
+    var detections = await detectDirectory(templates, vscode.Uri.file(dir), files);
+    var kind = classifyFinding(detections);
+    if (kind) found.push({ dir: rel(dir), uri: vscode.Uri.file(dir), detection: detections[0], potential: kind === 'potential' });
   }
-  // a folder of programs already covers a nested library folder inside it;
-  // a nested project with its own main file stays
-  findings = findings.filter(f => !findings.some(p =>
-    p !== f && isFolderOfPrograms(p.detection) && !f.detection.mainFile && isInsideDir(p.dir.fsPath, f.dir.fsPath)));
-  return { findings, truncated: uris.length >= MAX_SCAN_FILES };
-}
-
-function isInsideDir(parent: string, child: string): boolean {
-  var rel = path.relative(parent, child);
-  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+  found = dropNestedFindings(found);
+  var projectDirs = found.filter(f => !f.potential).map(f => f.dir);
+  return {
+    findings: found.map(f => ({ dir: f.uri, detection: f.detection, potential: f.potential })),
+    truncated: uris.length >= MAX_SCAN_FILES,
+    madeOfProjects: isMadeOfProjects(projectDirs, [...byDir.keys()].map(rel)),
+  };
 }
 
 export function dontAskKey(folder: vscode.WorkspaceFolder) {

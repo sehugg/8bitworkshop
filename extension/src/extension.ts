@@ -15,7 +15,8 @@ import { Project, findRootDir, isHeaderFile, isInside, isOwnExtension, isSourceF
 import { CONFIG, ProjectScope } from './projectscope';
 import { BuildReason, BuildScheduler } from './autobuild';
 import { PRESET_SCHEME, PresetFileSystem, Templates } from './templates';
-import { chooseForFile, detectionSummary, describeFinding, dontAskKey, FolderFinding, platformName, scanFolder } from './detection';
+import { chooseForFile, detectDirectoryAt, detectionSummary, describeDetection, describeFinding, dontAskKey, FolderFinding, platformName, scanFolder } from './detection';
+import { Detection, classifyFinding, isBuildableSource } from '../../src/common/detect';
 import { TOOL_META } from '../../src/common/toolmeta';
 import { AssetStore } from './assets';
 import { AssetManifest, packsForPlatform } from './assetpacks';
@@ -112,12 +113,13 @@ export function activate(ctx: vscode.ExtensionContext) {
   ctx.subscriptions.push(
     vscode.workspace.onDidSaveTextDocument(doc => onSave(doc)),
     vscode.workspace.onDidChangeTextDocument(e => onChange(e)),
-    vscode.window.onDidChangeActiveTextEditor(() => updateStatus()),
+    vscode.window.onDidChangeActiveTextEditor(() => { updateStatus(); detectForActiveFile(); }),
     scope.onDidChange(() => updateStatus()),
     vscode.workspace.onDidChangeWorkspaceFolders(() => detectProjects(false)),
     { dispose: () => { builds?.dispose(); emu?.dispose(); } },
   );
-  scope.loadReadmes().then(() => detectProjects(false));
+  folderScans = scope.loadReadmes().then(() => detectProjects(false));
+  detectForActiveFile();
   updateStatus();
 }
 
@@ -275,6 +277,11 @@ function updateStatus() {
     if (lastTool(target)?.startsWith('remote:')) tip.appendMarkdown('This tool builds on a server, so it builds when you save.\n\n');
     tip.appendMarkdown('Click for project options.');
     status.tooltip = tip;
+    status.show();
+  } else if (uri && uri.scheme === 'file' && dirGuesses.get(path.dirname(uri.fsPath))) {
+    var guess = dirGuesses.get(path.dirname(uri.fsPath))!;
+    status.text = `$(chip) ${platformName(templates, guess.platform)}?`;
+    status.tooltip = `Looks like ${platformName(templates, guess.platform)}: ${describeDetection(guess)}. Click to choose a platform.`;
     status.show();
   } else if (uri && uri.scheme === 'file' && isOwnExtension(uri.fsPath)) {
     status.text = '$(chip) No platform';
@@ -797,13 +804,27 @@ async function closeEditor(uri: vscode.Uri) {
 
 ////// detection on open (case 3)
 
-// unasked, prompt only for a folder that is plainly one or a few projects;
-// findings scattered across a big repo mean it isn't ours
-const MAX_UNASKED_PROJECTS = 5;
+interface FolderOffer {
+  folder: vscode.WorkspaceFolder;
+  strong: FolderFinding[];
+  potential: FolderFinding[];
+}
 
-async function detectProjects(asked: boolean) {
-  // "Don't Ask" only makes sense on a prompt the user didn't ask for
-  var dontAsk = asked ? [] : ["Don't Ask"];
+// resolves when the latest folder scan is done (not its prompts)
+let folderScans: Promise<void> = Promise.resolve();
+
+/**
+ * Scan the workspace folders and offer what they hold. Resolves once the
+ * scans are done; the prompts carry on.
+ */
+function detectProjects(asked: boolean): Promise<void> {
+  var scans = scanForOffers(asked);
+  scans.then(offers => offerFindings(offers, asked)).catch(e => output.appendLine(`detect: ${e}`));
+  return folderScans = scans.then(() => undefined, () => undefined);
+}
+
+async function scanForOffers(asked: boolean): Promise<FolderOffer[]> {
+  var offers: FolderOffer[] = [];
   for (var folder of vscode.workspace.workspaceFolders || []) {
     if (folder.uri.scheme !== 'file') continue;
     if (!asked && (scope.folderHasProject(folder) || context.workspaceState.get(dontAskKey(folder)))) continue;
@@ -813,34 +834,91 @@ async function detectProjects(asked: boolean) {
     var strong = findings.filter(f => !f.potential);
     // weak evidence is offered only when the user asks
     var potential = asked ? findings.filter(f => f.potential) : [];
-    if (!asked && (scan.truncated || strong.length > MAX_UNASKED_PROJECTS)) continue;
+    // unasked, a big repo with projects scattered through it isn't ours;
+    // opening a file in one of them still asks
+    if (!asked && (scan.truncated || !scan.madeOfProjects)) continue;
     if (!strong.length && !potential.length) {
       if (asked) vscode.window.showInformationMessage(`No 8bitworkshop projects found in ${folder.name}.`);
       continue;
     }
+    // this prompt speaks for the folder; opening a file in it won't ask again
+    for (var f of findings) dirGuesses.set(f.dir.fsPath, f.detection);
+    quietFolders.add(folder.uri.toString());
+    offers.push({ folder, strong, potential });
+  }
+  return offers;
+}
+
+async function offerFindings(offers: FolderOffer[], asked: boolean) {
+  for (var { folder, strong, potential } of offers) {
     if (strong.length === 1 && !potential.length) {
-      var f = strong[0], d = f.detection;
-      var where = path.relative(folder.uri.fsPath, f.dir.fsPath);
-      // a sure thing needs no clue; just say what it found
-      var why = d.score >= 1 ? detectionSummary(d) : describeFinding(d);
-      var answer = await vscode.window.showInformationMessage(
-        `This looks like a${/^[aeiou]/i.test(platformName(templates, d.platform)) ? 'n' : ''} ${platformName(templates, d.platform)} project${where ? ' in ' + where : ''}${why ? ` (${why})` : ''}.`,
-        'Use It', 'Choose...', 'Not Now', ...dontAsk);
-      if (answer === 'Use It') await acceptFinding(f.dir.fsPath, d.platform, d.mainFile, d.tool);
-      else if (answer === 'Choose...') {
-        var picked = await templates.pickPlatform('Platform for this folder', d.platform);
-        if (picked) await acceptFinding(f.dir.fsPath, picked.id, d.mainFile, undefined);
-      } else if (answer === "Don't Ask") await context.workspaceState.update(dontAskKey(folder), true);
+      await offerProject(folder, strong[0].dir, strong[0].detection, asked);
       continue;
     }
     var plural = (n: number) => n === 1 ? '' : 's';
     var message = strong.length
       ? `Found ${strong.length} 8bitworkshop project${plural(strong.length)}${potential.length ? ` and ${potential.length} potential` : ''} in ${folder.name}.`
       : `Found ${potential.length} potential 8bitworkshop project${plural(potential.length)} in ${folder.name}.`;
-    var review = await vscode.window.showInformationMessage(message, 'Review', 'Not Now', ...dontAsk);
+    // "Don't Ask" only makes sense on a prompt the user didn't ask for
+    var review = await vscode.window.showInformationMessage(message, 'Review', 'Not Now', ...(asked ? [] : ["Don't Ask"]));
     if (review === "Don't Ask") await context.workspaceState.update(dontAskKey(folder), true);
     if (review === 'Review') await reviewFindings(folder, [...strong, ...potential]);
   }
+}
+
+/** Offer one directory as a project. Returns true if the user took it. */
+async function offerProject(folder: vscode.WorkspaceFolder | undefined, dir: vscode.Uri, d: Detection, asked: boolean): Promise<boolean> {
+  var where = folder ? path.relative(folder.uri.fsPath, dir.fsPath) : '';
+  var name = platformName(templates, d.platform);
+  // a sure thing needs no clue; just say what it found
+  var why = d.score >= 1 ? detectionSummary(d) : describeFinding(d);
+  var answer = await vscode.window.showInformationMessage(
+    `This looks like a${/^[aeiou]/i.test(name) ? 'n' : ''} ${name} project${where ? ' in ' + where : ''}${why ? ` (${why})` : ''}.`,
+    'Use It', 'Choose...', 'Not Now', ...(asked || !folder ? [] : ["Don't Ask"]));
+  if (answer === 'Use It') {
+    await acceptFinding(dir.fsPath, d.platform, d.mainFile, d.tool);
+    return true;
+  }
+  if (answer === 'Choose...') {
+    var picked = await templates.pickPlatform('Platform for this folder', d.platform);
+    if (picked) await acceptFinding(dir.fsPath, picked.id, d.mainFile, undefined);
+    return !!picked;
+  }
+  if (answer === "Don't Ask" && folder) await context.workspaceState.update(dontAskKey(folder), true);
+  return false;
+}
+
+////// detection on opening a file
+
+// directories detected this session, with the best guess if any
+const dirGuesses = new Map<string, Detection | undefined>();
+// workspace folders not to prompt in again this session
+const quietFolders = new Set<string>();
+
+/**
+ * Opening a source file in a directory with no project detects that
+ * directory, once a session: a strong guess prompts, a weaker one only
+ * shows in the status bar.
+ */
+async function detectForActiveFile() {
+  var uri = activeUri();
+  if (!uri || uri.scheme !== 'file' || currentTarget() || !isBuildableSource(uri.fsPath)) return;
+  await folderScans;
+  var dir = path.dirname(uri.fsPath);
+  if (dirGuesses.has(dir) || currentTarget()) return;
+  dirGuesses.set(dir, undefined);
+  var found = await detectDirectoryAt(templates, vscode.Uri.file(dir));
+  var kind = classifyFinding(found);
+  if (!kind) return;
+  dirGuesses.set(dir, found[0]);
+  updateStatus();
+  if (kind !== 'project') return;
+  var folder = vscode.workspace.getWorkspaceFolder(uri);
+  var key = folder?.uri.toString() || dir;
+  if (quietFolders.has(key) || (folder && context.workspaceState.get(dontAskKey(folder)))) return;
+  // one prompt at a time; turning it down quiets the folder for the session
+  quietFolders.add(key);
+  if (await offerProject(folder, vscode.Uri.file(dir), found[0], false)) quietFolders.delete(key);
 }
 
 /** Let the user pick which findings to keep as projects. */
