@@ -1,12 +1,34 @@
 # 8bitworkshop for VS Code
 
-Write programs for classic consoles and computers, then build and play
-them without leaving VS Code. The extension uses the compilers,
-assemblers, and emulators from [8bitworkshop.com](https://8bitworkshop.com):
-NES, Atari 2600, Commodore 64, and many more.
+![8bitworkshop running a program in VS Code](images/demo.gif)
 
-Builds and emulation run on your computer. The first build downloads the
-toolchains and examples; after that, everything works offline.
+The original online 8-bit IDE, now in VS Code!
+
+Write programs for classic consoles and computers, then build and play
+them without leaving VS Code.
+
+This extension uses the assemblers,
+compilers, and emulators from [8bitworkshop.com](https://8bitworkshop.com).
+
+Supported platforms include 6502, Z80, and 6809 CPUs:
+
+- **NES / Famicom**
+- **Atari 2600 (VCS)**, **Atari 7800**, and **Atari 8-bit** computers
+- **Commodore 64** and **VIC-20**
+- **ColecoVision**, **MSX**, **ZX Spectrum**, **Amstrad CPC**
+- **Apple II**, **Game Boy**, **Sega Master System**, **PC Engine**
+- **Arcade hardware** (Galaxian, Space Invaders, Pac-Man, Williams, VIC Dual, Atari Vector)
+
+Supported programming languages include:
+
+- **Assembler** with DASM, ca65, zmac, and more
+- **C** with CC65, SDCC, and more
+- **BASIC** with batariBASIC and FastBASIC
+- **Verilog** for hardware design
+- ...and others! There's a lot going on in here!
+
+All building and emulation runs on your computer.
+The first build downloads the toolchains and examples; after that, everything works offline.
 
 ## Get started
 
@@ -23,9 +45,9 @@ Change something and the game rebuilds and restarts as you type. Errors
 appear as red underlines and in the **Problems** panel, and the last
 version that built keeps running until you fix them.
 
-To look at examples without copying them, run **8bitworkshop: Open
-Example**. To use code you already have, open its folder: 8bitworkshop
-detects the platform and main file, and says why.
+To look at the included examples without copying them, run **8bitworkshop: Open Example**.
+
+To use code you already have, open its folder: the extension detects the appropriate platform and main file.
 
 ## Settings
 

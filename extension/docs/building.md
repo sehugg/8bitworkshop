@@ -17,19 +17,13 @@ start a build. Editing a file the program doesn't use starts nothing.
 If builds take longer than about a second, 8bitworkshop waits longer
 after you stop typing.
 
-Some compilers, such as llvm-mos, build on a server. They build only
-when you save, whatever the setting says. The status bar's tooltip says
-so.
-
 ## Toolchains
 
-The first build downloads the compilers and examples (about 18 MB), and
-the first Verilog build downloads the Verilog tools (about 3 MB). After
-that, 8bitworkshop builds offline.
+The first build downloads the compilers and examples (Verilog downloads separately).
+After that, 8bitworkshop builds offline.
 
-To download everything at once, run **8bitworkshop: Download All
-Toolchains**. To use a local copy instead, such as an 8bitworkshop
-checkout, set `8bitworkshop.toolchainPath`.
+To download everything at once, run **8bitworkshop: Download All Toolchains**.
+To use a local copy instead, such as an 8bitworkshop checkout, set `8bitworkshop.toolchainPath`.
 
 ## Errors
 

@@ -6,6 +6,7 @@
 !CHANGELOG.md
 !LICENSE
 !images/icon.png
+!images/demo.gif
 !out/extension.js
 !out/buildworker.js
 !out/emuworker.js
