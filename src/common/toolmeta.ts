@@ -171,6 +171,16 @@ export const SHARED_INCLUDE_PATTERNS: RegExp[] = [
   /^\s*([;']|[/][/])#(resource)\s+"(.+?)"/gm,
 ];
 
+// dasm accepts include/incbin file names without quotes as well as quoted
+// ones (v_include() -> getfilename()), e.g. `INCLUDE VCS.h`. The shared pattern
+// only matches the quoted form, so scan the unquoted form here too; the
+// character class excludes a leading quote so quoted names stay with the
+// shared pattern (and dasm allows a leading dot on pseudo-ops, e.g. .include).
+export const DASM_INCLUDE_PATTERNS: RegExp[] = [
+  ...SHARED_INCLUDE_PATTERNS,
+  /^\s*[.]?(include|incbin)\s+([^\s;"]+)/gmi,
+];
+
 // oscar64: #pragma compile("file.c") pulls another source file into the build
 // (the compiler's equivalent of a link). The compiler handles it itself, so the
 // file just has to be a build dependency copied into the tool filesystem.
@@ -283,7 +293,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     helpURL: 'https://raw.githubusercontent.com/dasm-assembler/dasm/refs/tags/v2.20.17/docs/dasm.txt',
     wasmModule: 'dasm-wasisdk',
     version: '2.20.17',
-    includePatterns: SHARED_INCLUDE_PATTERNS,
+    includePatterns: DASM_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
   },
 

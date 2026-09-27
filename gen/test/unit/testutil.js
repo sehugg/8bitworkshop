@@ -116,17 +116,30 @@ var NES_CONIO_ROM_LZG = [
     it('Should detect binary', function () {
         assert_1.default.ok(!(0, util_1.isProbablyBinary)(null, [32, 32, 10, 13, 9, 32, 32, 10, 13]));
         assert_1.default.ok((0, util_1.isProbablyBinary)(null, [32, 32, 0x80]));
-        assert_1.default.ok(!(0, util_1.isProbablyBinary)(null, [32, 32, 0xc1, 0x81, 32, 32, 10, 13]));
+        assert_1.default.ok((0, util_1.isProbablyBinary)(null, [32, 32, 0xc1, 0x81, 32, 32, 10, 13])); // overlong
         assert_1.default.ok((0, util_1.isProbablyBinary)(null, NES_CONIO_ROM_LZG));
         assert_1.default.ok((0, util_1.isProbablyBinary)('test.bin'));
         assert_1.default.ok((0, util_1.isProbablyBinary)('test.chr'));
         assert_1.default.ok(!(0, util_1.isProbablyBinary)('test.txt'));
         assert_1.default.ok((0, util_1.isProbablyBinary)('test.dat'));
-        assert_1.default.ok(!(0, util_1.isProbablyBinary)(null, [0x20, 0xa9, 0x20, 0x31, 0x39, 0x38, 0x32]));
+        assert_1.default.ok((0, util_1.isProbablyBinary)('test.lzh')); // compressed resource
+        assert_1.default.ok((0, util_1.isProbablyBinary)(null, [0x20, 0xa9, 0x20, 0x31, 0x39, 0x38, 0x32])); // stray continuation
         assert_1.default.ok((0, util_1.isProbablyBinary)(null, [0x00, 0x00])); // 00 is binary
         assert_1.default.ok((0, util_1.isProbablyBinary)(null, [0x9f])); // 9f is binary
         assert_1.default.ok((0, util_1.isProbablyBinary)(null, [0xff])); // FF is binary
         assert_1.default.ok((0, util_1.isProbablyBinary)(null, [0xf0, 0x12])); // ran out of data
+        // valid multibyte UTF-8 is text, not binary
+        assert_1.default.ok(!(0, util_1.isProbablyBinary)(null, [0xc3, 0xa9])); // é
+        assert_1.default.ok(!(0, util_1.isProbablyBinary)(null, [0xe2, 0x82, 0xac])); // €
+        assert_1.default.ok(!(0, util_1.isProbablyBinary)(null, [0xf0, 0x9f, 0x98, 0x80])); // 😀
+        assert_1.default.ok(!(0, util_1.isProbablyBinary)(null, new TextEncoder().encode("h\u00e9llo w\u00f6rld\n")));
+        // invalid UTF-8 the old check missed
+        assert_1.default.ok((0, util_1.isProbablyBinary)(null, [0xed, 0xa0, 0x80])); // surrogate
+        assert_1.default.ok((0, util_1.isProbablyBinary)(null, [0xf4, 0x90, 0x80, 0x80])); // > U+10FFFF
+        assert_1.default.ok((0, util_1.isProbablyBinary)(null, [0xe0, 0x80, 0x80])); // overlong
+        assert_1.default.ok((0, util_1.isProbablyBinary)(null, [0xfe])); // invalid lead
+        // control bytes are a soft signal; one form feed is fine in source
+        assert_1.default.ok(!(0, util_1.isProbablyBinary)(null, new TextEncoder().encode("a\fb\n")));
     });
 });
 (0, mocha_1.describe)('EmuHalt', function () {

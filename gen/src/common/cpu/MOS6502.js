@@ -228,7 +228,9 @@ var _MOS6502 = function () {
     };
     var haltOpcode = function () {
         illegalOpcode("KIL/HLT/JAM");
-        throw new emu_1.EmuHalt(`CPU executed halt instruction ($${(0, util_1.hex)(opcode, 2)})`);
+        // PC has already advanced past the opcode, so the halt is at PC-1
+        const addr = (PC - 1) & 0xffff;
+        throw new emu_1.EmuHalt(`CPU executed halt instruction ($${(0, util_1.hex)(opcode, 2)}) at $${(0, util_1.hex)(addr, 4)}`);
     };
     // Addressing routines
     var implied = function (operation) {

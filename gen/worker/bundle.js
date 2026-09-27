@@ -2542,6 +2542,10 @@
     /^\s*[.#%]?(include|incbin|embed)\s+"(.+?)"/gmi,
     /^\s*([;']|[/][/])#(resource)\s+"(.+?)"/gm
   ];
+  var DASM_INCLUDE_PATTERNS = [
+    ...SHARED_INCLUDE_PATTERNS,
+    /^\s*[.]?(include|incbin)\s+([^\s;"]+)/gmi
+  ];
   var OSCAR64_INCLUDE_PATTERNS = [
     ...SHARED_INCLUDE_PATTERNS,
     /^\s*#pragma\s+compile\s*\(\s*"([^"]+)"\s*\)/gmi
@@ -2596,7 +2600,7 @@
       helpURL: "https://raw.githubusercontent.com/dasm-assembler/dasm/refs/tags/v2.20.17/docs/dasm.txt",
       wasmModule: "dasm-wasisdk",
       version: "2.20.17",
-      includePatterns: SHARED_INCLUDE_PATTERNS,
+      includePatterns: DASM_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
     acme: {

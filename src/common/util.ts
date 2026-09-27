@@ -319,42 +319,72 @@ export function removeBOM(s:string) {
   return s;
 }
 
+// File extensions that are always treated as binary, regardless of content.
+const BINARY_EXTS = ['.CHR', '.BIN', '.DAT', '.PAL', '.NAM', '.RLE', '.LZ4', '.LZH', '.LZSA', '.NSF'];
+
+/**
+ * Strict RFC 3629 UTF-8 validation. Unlike decoding with replacement, this
+ * rejects truncated sequences, overlong encodings, surrogate halves and code
+ * points above U+10FFFF -- the cases that silently corrupt bytes when a file
+ * is round-tripped through a JavaScript string.
+ */
+export function isValidUTF8(data: number[] | Uint8Array): boolean {
+  const bytes = data instanceof Uint8Array ? data : Uint8Array.from(data);
+  if (typeof TextDecoder !== 'undefined') {
+    try {
+      new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  // Fallback for environments without TextDecoder.
+  for (var i = 0; i < bytes.length;) {
+    const b = bytes[i];
+    if (b < 0x80) { i++; continue; }
+    var extra: number, cp: number, min: number;
+    if (b >= 0xc2 && b <= 0xdf) { extra = 1; cp = b & 0x1f; min = 0x80; }
+    else if (b >= 0xe0 && b <= 0xef) { extra = 2; cp = b & 0x0f; min = 0x800; }
+    else if (b >= 0xf0 && b <= 0xf4) { extra = 3; cp = b & 0x07; min = 0x10000; }
+    else return false; // stray continuation byte or invalid lead
+    if (i + extra >= bytes.length) return false; // truncated
+    for (var k = 1; k <= extra; k++) {
+      const c = bytes[i + k];
+      if (c < 0x80 || c > 0xbf) return false;
+      cp = (cp << 6) | (c & 0x3f);
+    }
+    if (cp < min || cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff)) return false;
+    i += extra + 1;
+  }
+  return true;
+}
+
 export function isProbablyBinary(path:string, data?:number[] | Uint8Array) : boolean {
-  var score = 0;
-  // check extensions
+  // a known binary extension is a strong enough signal on its own
   if (path) {
-    path = path.toUpperCase();
-    const BINEXTS = ['.CHR','.BIN','.DAT','.PAL','.NAM','.RLE','.LZ4','.NSF'];
-    for (var ext of BINEXTS) {
-      if (path.endsWith(ext)) score++;
+    const upper = path.toUpperCase();
+    for (var ext of BINARY_EXTS) {
+      if (upper.endsWith(ext)) return true;
     }
   }
-  // decode as UTF-8
-  for (var i = 0; i < (data?data.length:0);) {
-    let c = data[i++];
-    if ((c & 0x80) == 0) {
-      // more likely binary if we see a NUL or obscure control character
-      if (c < 9 || (c >= 14 && c < 26) || c == 0x7f) {
-        score++;
-        break;
-      }
-    } else {
-      // look for invalid unicode sequences
-      var nextra = 0;
-      if ((c & 0xe0) == 0xc0) nextra = 1;
-      else if ((c & 0xf0) == 0xe0) nextra = 2;
-      else if ((c & 0xf8) == 0xf0) nextra = 3;
-      else if (c < 0xa0) score++;
-      else if (c == 0xff) score++;
-      while (nextra--) {
-        if (i >= data.length || (data[i++] & 0xc0) != 0x80) {
-          score++;
-          break;
-        }
-      }
+  if (!data || data.length === 0) return false;
+  const bytes = data instanceof Uint8Array ? data : Uint8Array.from(data);
+  // NUL never occurs in text; other C0 controls (apart from tab/LF/VT/FF/CR)
+  // are a soft signal -- a stray one shows up in source (escape sequences,
+  // form feeds), a steady stream means binary.
+  var controls = 0;
+  for (var i = 0; i < bytes.length; i++) {
+    const c = bytes[i];
+    if (c === 0x00) return true;
+    if (c < 0x20) {
+      if (c !== 0x09 && c !== 0x0a && c !== 0x0b && c !== 0x0c && c !== 0x0d) controls++;
+    } else if (c === 0x7f) {
+      controls++;
     }
   }
-  return score > 0;
+  if (controls > 0 && controls * 20 > bytes.length) return true; // >5% control bytes
+  // otherwise anything that isn't valid UTF-8 is binary
+  return !isValidUTF8(bytes);
 }
 
 // need to load liblzg.js first

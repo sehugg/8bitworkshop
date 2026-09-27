@@ -279,7 +279,9 @@ export var _MOS6502 = function() {
 
     var haltOpcode = function() {
         illegalOpcode("KIL/HLT/JAM");
-        throw new EmuHalt(`CPU executed halt instruction ($${hex(opcode,2)})`);
+        // PC has already advanced past the opcode, so the halt is at PC-1
+        const addr = (PC - 1) & 0xffff;
+        throw new EmuHalt(`CPU executed halt instruction ($${hex(opcode,2)}) at $${hex(addr,4)}`);
     }
 
 

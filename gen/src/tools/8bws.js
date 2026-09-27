@@ -151,14 +151,21 @@ async function compileSource(args, source, platform) {
     return { rom: romBytes(result), symbolmap: result.symbolmap || {}, tool, platform, source, result };
 }
 async function doBuild(args, positional) {
-    const source = positional[0];
+    let source = positional[0];
     const checkOnly = !!args['check'];
     if (!source) {
         (0, cliformat_1.fail)('build', 'Required: build [--platform <platform>] <source> [--tool <tool>] [-o <file>]');
     }
     if (!fs.existsSync(source))
         (0, cliformat_1.fail)('build', `No such file: ${source}`);
-    const platform = str(args, 'platform') || await inferPlatform('build', source);
+    const platformArg = str(args, 'platform');
+    let resolvedPlatform;
+    if (fs.statSync(source).isDirectory()) {
+        const resolved = await resolveDirectory('build', source, platformArg);
+        source = resolved.source;
+        resolvedPlatform = resolved.platform;
+    }
+    const platform = platformArg || resolvedPlatform || await inferPlatform('build', source);
     const built = await compileSource(args, source, platform);
     const outputFile = str(args, 'output');
     if (outputFile && !checkOnly)
@@ -241,17 +248,24 @@ function buildScript(args) {
 }
 async function doRun(args, positional) {
     var _a, _b;
-    const input = positional[0];
+    let input = positional[0];
     if (!input) {
         (0, cliformat_1.fail)('run', 'Required: run --platform <id> <rom-or-source>');
     }
     if (!fs.existsSync(input))
         (0, cliformat_1.fail)('run', `No such file: ${input}`);
+    const platformArg = str(args, 'platform');
+    let resolvedPlatform;
+    if (fs.statSync(input).isDirectory()) {
+        const resolved = await resolveDirectory('run', input, platformArg);
+        input = resolved.source;
+        resolvedPlatform = resolved.platform;
+    }
     // A source file is built first; a ROM is loaded as-is.
     let romFile = input;
     let symbols = {};
     let built;
-    let platformId = str(args, 'platform') || detect_1.ROM_PLATFORMS[path.extname(input).toLowerCase()];
+    let platformId = platformArg || resolvedPlatform || detect_1.ROM_PLATFORMS[path.extname(input).toLowerCase()];
     if (!looksLikeROM(input)) {
         if (!platformId)
             platformId = await inferPlatform('run', input);
@@ -367,6 +381,64 @@ async function inferPlatform(command, input) {
     (0, cliformat_1.note)(`platform ${found[0].platform}: ${ev.file}${ev.line ? ':' + ev.line : ''} ${ev.reason}`);
     return found[0].platform;
 }
+/**
+ * Resolve a directory to its main source file and platform with detect.
+ * Fails when no platform is clear or no main file stands out.
+ */
+async function resolveDirectory(command, input, platformArg) {
+    var _a;
+    const { isClearWinner } = await Promise.resolve().then(() => __importStar(require('../common/detect')));
+    const detections = await detectPath(input);
+    const d = (platformArg && detections.find((x) => x.platform === platformArg)) || detections[0];
+    if (!d) {
+        const list = detections.slice(0, 5).map((x) => `${x.platform} (${x.score})`).join(', ');
+        (0, cliformat_1.fail)(command, `Cannot tell the platform of ${input}${list ? '; candidates: ' + list : ''}. Pass --platform.`);
+    }
+    if (!platformArg && !isClearWinner(detections)) {
+        const list = detections.slice(0, 5).map((x) => `${x.platform} (${x.score})`).join(', ');
+        (0, cliformat_1.fail)(command, `Cannot tell the platform of ${input}${list ? '; candidates: ' + list : ''}. Pass --platform.`);
+    }
+    if (!d.mainFile) {
+        const n = ((_a = d.mainCandidates) === null || _a === void 0 ? void 0 : _a.length) || 0;
+        const hint = n > 1 ? ` (${n} programs: ${d.mainCandidates.slice(0, 5).join(', ')}${n > 5 ? ', ...' : ''})` : '';
+        (0, cliformat_1.fail)(command, `No main file detected in ${input}${hint}. Pass a source file.`);
+    }
+    const source = findProjectFile(input, d.mainFile);
+    if (!source)
+        (0, cliformat_1.fail)(command, `Main file '${d.mainFile}' not found under ${input}.`);
+    (0, cliformat_1.note)(`detected ${d.platform}: ${source}`);
+    return { source, platform: d.platform };
+}
+/**
+ * Locate a detection's main file under `root`. A README link names the file
+ * relative to its own subfolder (the githubURL path), so it may live in a
+ * subdirectory rather than at the top level.
+ */
+function findProjectFile(root, rel) {
+    const direct = path.join(root, rel);
+    if (fs.existsSync(direct))
+        return direct;
+    const suffix = path.sep + rel.split('/').join(path.sep);
+    const base = path.basename(rel);
+    let byBase;
+    const stack = [root];
+    while (stack.length) {
+        const dir = stack.pop();
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+            if (entry.name.startsWith('.') || entry.name === 'node_modules')
+                continue;
+            const full = path.join(dir, entry.name);
+            if (entry.isDirectory())
+                stack.push(full);
+            else if (entry.name === base) {
+                if (full.endsWith(suffix))
+                    return full;
+                byBase = byBase || full;
+            }
+        }
+    }
+    return byBase;
+}
 async function doDetect(positional) {
     const input = positional[0] || '.';
     if (!fs.existsSync(input))
@@ -396,15 +468,15 @@ function usage(error) {
         error,
         data: {
             commands: {
-                'build': 'compile a source file to a ROM',
-                'run': 'run a ROM -- or a source file, built first',
+                'build': 'compile a source file or folder to a ROM',
+                'run': 'run a ROM -- or a source file or folder, built first',
                 'detect': 'guess the platform and main file of a source file or directory',
                 'list-platforms': 'platforms available to --platform',
                 'list-tools': 'compilers and assemblers available to --tool',
             },
             options: {
                 'build options': {
-                    '-p, --platform <id>': 'target platform (default: detected from the source)',
+                    '-p, --platform <id>': 'target platform (default: detected from the source or folder)',
                     '-t, --tool <tool>': 'compiler/assembler (default: from file extension)',
                     '-o, --output <file>': 'write the ROM here',
                     '--check': 'compile without writing anything',

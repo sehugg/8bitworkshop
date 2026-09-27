@@ -23,7 +23,7 @@
  * (unless noWorkerBuild) and vice versa.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TOOL_META = exports.DIALOG_INCLUDE_PATTERNS = exports.ECS_INCLUDE_PATTERNS = exports.WIZ_INCLUDE_PATTERNS = exports.ACME_INCLUDE_PATTERNS = exports.USE_ASM_INCLUDE_PATTERNS = exports.SYSTEM_INCLUDE_PATTERNS = exports.VERILOG_INCLUDE_PATTERNS = exports.SHARED_LINK_PATTERNS = exports.OSCAR64_INCLUDE_PATTERNS = exports.SHARED_INCLUDE_PATTERNS = void 0;
+exports.TOOL_META = exports.DIALOG_INCLUDE_PATTERNS = exports.ECS_INCLUDE_PATTERNS = exports.WIZ_INCLUDE_PATTERNS = exports.ACME_INCLUDE_PATTERNS = exports.USE_ASM_INCLUDE_PATTERNS = exports.SYSTEM_INCLUDE_PATTERNS = exports.VERILOG_INCLUDE_PATTERNS = exports.SHARED_LINK_PATTERNS = exports.OSCAR64_INCLUDE_PATTERNS = exports.DASM_INCLUDE_PATTERNS = exports.SHARED_INCLUDE_PATTERNS = void 0;
 exports.getSystemIncludePatterns = getSystemIncludePatterns;
 exports.getToolMeta = getToolMeta;
 exports.getPlatformToolHelpURL = getPlatformToolHelpURL;
@@ -47,6 +47,15 @@ const util_1 = require("./util");
 exports.SHARED_INCLUDE_PATTERNS = [
     /^\s*[.#%]?(include|incbin|embed)\s+"(.+?)"/gmi,
     /^\s*([;']|[/][/])#(resource)\s+"(.+?)"/gm,
+];
+// dasm accepts include/incbin file names without quotes as well as quoted
+// ones (v_include() -> getfilename()), e.g. `INCLUDE VCS.h`. The shared pattern
+// only matches the quoted form, so scan the unquoted form here too; the
+// character class excludes a leading quote so quoted names stay with the
+// shared pattern (and dasm allows a leading dot on pseudo-ops, e.g. .include).
+exports.DASM_INCLUDE_PATTERNS = [
+    ...exports.SHARED_INCLUDE_PATTERNS,
+    /^\s*[.]?(include|incbin)\s+([^\s;"]+)/gmi,
 ];
 // oscar64: #pragma compile("file.c") pulls another source file into the build
 // (the compiler's equivalent of a link). The compiler handles it itself, so the
@@ -144,7 +153,7 @@ exports.TOOL_META = {
         helpURL: 'https://raw.githubusercontent.com/dasm-assembler/dasm/refs/tags/v2.20.17/docs/dasm.txt',
         wasmModule: 'dasm-wasisdk',
         version: '2.20.17',
-        includePatterns: exports.SHARED_INCLUDE_PATTERNS,
+        includePatterns: exports.DASM_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
     },
     acme: {

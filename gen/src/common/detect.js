@@ -209,11 +209,12 @@ async function detectProject(input) {
         if (text == null)
             continue;
         texts.set(file, text);
-        // includes, with their line numbers for the evidence
-        var re = /^[ \t]*[#.]?[ \t]*include\s+[<"]([^>"]+)[>"]/gim;
+        // includes, with their line numbers for the evidence. Quoted (C, ca65),
+        // angle-bracketed (C), or bare (DASM, bB) -- name is whichever matched.
+        var re = /^[ \t]*[#.]?[ \t]*include\s+(?:"([^"]+)"|<([^>]+)>|([^\s;]+))/gim;
         var inc;
         while ((inc = re.exec(text)) != null) {
-            var name = inc[1];
+            var name = inc[1] || inc[2] || inc[3];
             // a local copy of a library header (neslib.h) still counts
             var list = headers[name] || headers[basename(name)];
             if (!list)

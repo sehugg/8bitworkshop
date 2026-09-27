@@ -83,6 +83,11 @@ const workerlib_1 = require("../../src/worker/workerlib");
         assert_1.default.deepStrictEqual(deps('#include "foo.h"\n', 'cc65'), ['foo.h']);
         assert_1.default.deepStrictEqual(deps('\t.include "foo.inc"\n', 'ca65'), ['foo.inc']);
         assert_1.default.deepStrictEqual(deps('//#resource "foo.bin"\n', 'dasm'), ['foo.bin']);
+        // dasm also accepts unquoted include/incbin names
+        assert_1.default.deepStrictEqual(deps('\tINCLUDE VCS.h\n\tINCLUDE macro.h\n', 'dasm'), ['VCS.h', 'macro.h']);
+        assert_1.default.deepStrictEqual(deps(' .include foo.inc\n  incbin table.bin\n', 'dasm'), ['foo.inc', 'table.bin']);
+        // quoted names stay matched by the shared pattern only (no duplicates)
+        assert_1.default.deepStrictEqual(deps('\tinclude "vcs.h"\n', 'dasm'), ['vcs.h']);
         assert_1.default.deepStrictEqual(deps('!src "foo.acme"\n', 'acme'), ['foo.acme']);
         assert_1.default.deepStrictEqual(deps('%% #include "foo.dg"\n', 'dialog'), ['foo.dg']);
         assert_1.default.deepStrictEqual(deps('  USE foo.xasm\n', 'xasm6809'), ['foo.xasm']);

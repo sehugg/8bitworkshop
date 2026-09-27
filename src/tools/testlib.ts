@@ -129,7 +129,10 @@ export class NodeFileProvider implements FileProvider {
     for (var p of searchPaths) {
       try {
         if (fs.existsSync(p) && fs.statSync(p).isFile()) {
-          return isProbablyBinary(filePath) ? new Uint8Array(fs.readFileSync(p)) : fs.readFileSync(p, 'utf-8');
+          const buf = fs.readFileSync(p);
+          // sniff content, not just the filename -- resources such as .lzh
+          // have no registered extension but are not valid UTF-8
+          return isProbablyBinary(filePath, buf) ? new Uint8Array(buf) : buf.toString('utf-8');
         }
       } catch (e) {
         // continue searching
