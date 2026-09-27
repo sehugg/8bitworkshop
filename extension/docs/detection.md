@@ -78,5 +78,12 @@ Click the status bar, then choose one of these:
 ```
 
 `8bws build` and `8bws run` use detection when you leave out
-`--platform`. If no platform clearly wins, they list the candidates and
-ask for `--platform`.
+`--platform`. Give them a source file, or a folder: for a folder they
+build the main file detection picks. If no platform clearly wins, or no
+main file stands out, they list the candidates and ask for `--platform`
+or a source file.
+
+```bash
+8bws build --check path/to/folder
+8bws run path/to/folder --frames 60
+```

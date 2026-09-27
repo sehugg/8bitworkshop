@@ -73,6 +73,31 @@ describe('8bws CLI', function () {
             var e = cliFails('build', src);
             assert.ok(/--platform/.test(e.stderr + e.stdout), e.stderr);
         });
+        it('should detect the platform and main file of a directory', function () {
+            var dir = fs.mkdtempSync(path.join(os.tmpdir(), '8bws-dir-'));
+            fs.copyFileSync('presets/nes/hello.c', path.join(dir, 'hello.c'));
+            var r = cliJSON('build', '--check', dir);
+            assert.ok(r.success, r.error);
+            assert.strictEqual(r.data.platform, 'nes');
+            assert.strictEqual(path.basename(r.data.source), 'hello.c');
+        });
+        it('should name the programs when a directory has no main file', function () {
+            var dir = fs.mkdtempSync(path.join(os.tmpdir(), '8bws-dir-'));
+            for (var fn of ['a.c', 'b.c']) fs.writeFileSync(path.join(dir, fn), '#include "neslib.h"\nvoid main() {}\n');
+            var e = cliFails('build', '--check', dir);
+            assert.ok(/No main file/.test(e.stderr + e.stdout), e.stderr);
+            assert.ok(/a\.c, b\.c/.test(e.stderr + e.stdout), e.stderr);
+        });
+        it('should find a main file a README names in a subfolder', function () {
+            var dir = fs.mkdtempSync(path.join(os.tmpdir(), '8bws-dir-'));
+            fs.mkdirSync(path.join(dir, 'src'));
+            fs.copyFileSync('presets/nes/hello.c', path.join(dir, 'src', 'hello.c'));
+            fs.writeFileSync(path.join(dir, 'README.md'), '[x](http://8bitworkshop.com/redir.html?platform=nes&githubURL=x&file=hello.c)\n');
+            var r = cliJSON('build', '--check', dir);
+            assert.ok(r.success, r.error);
+            assert.strictEqual(r.data.platform, 'nes');
+            assert.ok(r.data.source.endsWith(path.join('src', 'hello.c')), r.data.source);
+        });
     });
 
     describe('detect', function () {
@@ -97,6 +122,14 @@ describe('8bws CLI', function () {
         it('should build and run a source file', function () {
             var r = cliJSON('run', '--platform', 'gb', 'presets/gb/hello.c', '--frames', '10');
             assert.ok(r.success, r.error);
+            assert.equal(r.data.frames, 10);
+        });
+        it('should build and run a directory', function () {
+            var dir = fs.mkdtempSync(path.join(os.tmpdir(), '8bws-dir-'));
+            fs.copyFileSync('presets/nes/hello.c', path.join(dir, 'hello.c'));
+            var r = cliJSON('run', dir, '--frames', '10');
+            assert.ok(r.success, r.error);
+            assert.strictEqual(r.data.platform, 'nes');
             assert.equal(r.data.frames, 10);
         });
         it('should break on a symbol from the build', function () {
