@@ -1,0 +1,14 @@
+# Ship only what the extension loads at runtime. Toolchains and examples
+# download on first use (out/assets/ holds the packs for the servers).
+**
+!package.json
+!README.md
+!CHANGELOG.md
+!LICENSE
+!images/icon.png
+!out/extension.js
+!out/buildworker.js
+!out/emuworker.js
+!out/presets.json
+!out/assets.json
+!out/syntaxes/*.json
