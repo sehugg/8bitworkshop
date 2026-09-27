@@ -3,7 +3,7 @@
 
 import { StreamLanguage, StreamParser } from "@codemirror/language";
 import { LanguageSupport } from "@codemirror/language";
-import * as lang_c from "@fazelstudio/codemirror-lang-c";
+import * as lang_c from "./lang-c";
 import { asm6502 } from "./lang-6502";
 import { asmZ80 } from "./lang-z80";
 import { wiz, wizStreamParser } from "./lang-wiz";
