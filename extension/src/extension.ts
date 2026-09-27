@@ -918,8 +918,12 @@ async function offerFindings(offers: FolderOffer[], asked: boolean) {
   }
 }
 
-/** Offer one directory as a project. Returns true if the user took it. */
-async function offerProject(folder: vscode.WorkspaceFolder | undefined, dir: vscode.Uri, d: Detection, asked: boolean): Promise<boolean> {
+/**
+ * Offer one directory as a project. `prefer` is a program the user opened:
+ * it becomes the main file in place of the detector's pick. Returns true if
+ * the user took the offer.
+ */
+async function offerProject(folder: vscode.WorkspaceFolder | undefined, dir: vscode.Uri, d: Detection, asked: boolean, prefer?: string): Promise<boolean> {
   var where = folder ? path.relative(folder.uri.fsPath, dir.fsPath) : '';
   var name = platformName(templates, d.platform);
   // a sure thing needs no clue; just say what it found
@@ -928,12 +932,12 @@ async function offerProject(folder: vscode.WorkspaceFolder | undefined, dir: vsc
     `This looks like a${/^[aeiou]/i.test(name) ? 'n' : ''} ${name} project${where ? ' in ' + where : ''}${why ? ` (${why})` : ''}.`,
     'Use It', 'Choose...', 'Not Now', ...(asked || !folder ? [] : ["Don't Ask"]));
   if (answer === 'Use It') {
-    await openAndBuild(await acceptFinding(dir.fsPath, d), true);
+    await openAndBuild(await acceptFinding(dir.fsPath, d, d.platform, prefer), true);
     return true;
   }
   if (answer === 'Choose...') {
     var picked = await templates.pickPlatform('Platform for this folder', d.platform);
-    if (picked) await openAndBuild(await acceptFinding(dir.fsPath, d, picked.id), true);
+    if (picked) await openAndBuild(await acceptFinding(dir.fsPath, d, picked.id, prefer), true);
     return !!picked;
   }
   if (answer === "Don't Ask" && folder) await context.workspaceState.update(dontAskKey(folder), true);
@@ -968,9 +972,12 @@ async function detectForActiveFile() {
   var folder = vscode.workspace.getWorkspaceFolder(uri);
   var key = folder?.uri.toString() || dir;
   if (quietFolders.has(key) || (folder && context.workspaceState.get(dontAskKey(folder)))) return;
+  // the file the user opened wins over the detector's pick, when it's a program
+  var name = path.basename(uri.fsPath);
+  var prefer = found[0].mainCandidates?.includes(name) ? name : undefined;
   // one prompt at a time; turning it down quiets the folder for the session
   quietFolders.add(key);
-  if (await offerProject(folder, vscode.Uri.file(dir), found[0], false)) quietFolders.delete(key);
+  if (await offerProject(folder, vscode.Uri.file(dir), found[0], false, prefer)) quietFolders.delete(key);
 }
 
 /** Let the user pick which findings to keep as projects. */
@@ -995,10 +1002,13 @@ async function reviewFindings(folder: vscode.WorkspaceFolder, findings: FolderFi
  * detected one. Returns the file to open: the main file, or a folder of
  * programs' first program.
  */
-async function acceptFinding(dir: string, d: Detection, platform = d.platform): Promise<string | undefined> {
+async function acceptFinding(dir: string, d: Detection, platform = d.platform, prefer?: string): Promise<string | undefined> {
   var tool = platform === d.platform ? d.tool : undefined;
-  await scope.saveProject(dir, { platform, mainFile: d.mainFile ? path.join(dir, d.mainFile) : undefined, tool });
-  var file = d.mainFile || d.mainCandidates?.[0];
+  // a program the user opened is the main file, even when the detector
+  // preferred another one (or saw a folder of programs with none)
+  var file = prefer && d.mainCandidates?.includes(prefer) ? prefer : d.mainFile || d.mainCandidates?.[0];
+  var mainFile = prefer && file === prefer ? file : d.mainFile;
+  await scope.saveProject(dir, { platform, mainFile: mainFile ? path.join(dir, mainFile) : undefined, tool });
   return file && path.join(dir, file);
 }
 
