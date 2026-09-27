@@ -155,7 +155,8 @@ export class ProjectFileProvider implements FileProvider {
       }
     }
     if (data == null) return null;
-    return isProbablyBinary(relpath) ? data : new TextDecoder().decode(data);
+    // the extension list is only a hint; the bytes decide (an .hgr, say)
+    return isProbablyBinary(relpath, data) ? data : new TextDecoder().decode(data);
   }
 }
 

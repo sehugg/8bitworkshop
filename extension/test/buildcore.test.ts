@@ -26,6 +26,20 @@ describe('extension buildcore', function () {
     assert.ok(!isSourceFile('settings.json'));
   });
 
+  // Files the project reads at build time must survive as bytes when they
+  // aren't text, even if their extension isn't on the binary list (.hgr).
+  it('keeps binary files binary and decodes text', async function () {
+    var raw: { [path: string]: Uint8Array } = {
+      'logo.hgr': new Uint8Array([0x25, 0x55, 0xaa, 0xd5]),  // invalid UTF-8
+      'main.s': new TextEncoder().encode('\t.byte 1\n'),
+    };
+    var files = new ProjectFileProvider(async rel => raw[rel] ?? null, ROOT, 'apple2');
+    var hgr = await files.readFile('logo.hgr') as Uint8Array;
+    assert.ok(hgr instanceof Uint8Array);
+    assert.deepEqual(Array.from(hgr), [0x25, 0x55, 0xaa, 0xd5]);
+    assert.equal(await files.readFile('main.s'), '\t.byte 1\n');
+  });
+
   it('builds a C file with a local header and a preset header', async function () {
     var files = project({
       'main.c': '#include "neslib.h"\n#include "util.h"\nvoid main(void) { ppu_on_all(); while (1) { x = 1; } }\n',
