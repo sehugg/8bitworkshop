@@ -10,6 +10,12 @@ import { FolderInfo, Project, ProjectContext, ProjectSettings, RunTargetChoice, 
 export const CONFIG = '8bitworkshop';
 const RECENT_BUILDS = 6;
 
+/** A project setting from the workspace or folder only; user settings don't define projects. */
+function projectSetting<T>(cfg: vscode.WorkspaceConfiguration, key: string): T | undefined {
+  var i = cfg.inspect<T>(key);
+  return i?.workspaceFolderValue ?? i?.workspaceValue;
+}
+
 export interface BuildRecord {
   project: Project;
   /** the file built as the main file */
@@ -72,11 +78,11 @@ export class ProjectScope implements vscode.Disposable {
         return {
           path: f.uri.fsPath,
           settings: {
-            platform: cfg.get<string>('platform') || undefined,
-            mainFile: cfg.get<string>('mainFile') || undefined,
-            tool: cfg.get<string>('tool') || undefined,
+            platform: projectSetting<string>(cfg, 'platform') || undefined,
+            mainFile: projectSetting<string>(cfg, 'mainFile') || undefined,
+            tool: projectSetting<string>(cfg, 'tool') || undefined,
           },
-          folders: cfg.get<{ [dir: string]: ProjectSettings }>('folders') || {},
+          folders: projectSetting<{ [dir: string]: ProjectSettings }>(cfg, 'folders') || {},
           readme: this.readmes.get(f.uri.fsPath),
         };
       });
@@ -169,7 +175,7 @@ export class ProjectScope implements vscode.Disposable {
       await cfg.update('mainFile', main || undefined, target);
       await cfg.update('tool', s.tool || undefined, target);
     } else {
-      var folders = { ...(cfg.get<{ [dir: string]: ProjectSettings }>('folders') || {}) };
+      var folders = { ...(projectSetting<{ [dir: string]: ProjectSettings }>(cfg, 'folders') || {}) };
       var entry: ProjectSettings = { platform: s.platform };
       if (main) entry.mainFile = main;
       if (s.tool) entry.tool = s.tool;

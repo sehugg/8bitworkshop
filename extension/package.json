@@ -155,22 +155,26 @@
         "8bitworkshop.platform": {
           "type": "string",
           "default": "",
+          "scope": "resource",
           "description": "Target platform id (e.g. c64, nes, vcs, gb).",
           "markdownDescription": "Target platform id (`nes`, `c64`, `vcs`, ...). Set by New Project, Set as Main File, or detection."
         },
         "8bitworkshop.mainFile": {
           "type": "string",
           "default": "",
+          "scope": "resource",
           "description": "Main source file, relative to the workspace folder. Leave empty to run whichever program is open."
         },
         "8bitworkshop.tool": {
           "type": "string",
           "default": "",
+          "scope": "resource",
           "description": "Tool for the main file, when it isn't the platform's usual tool for the extension (ca65 for a .asm file, say)."
         },
         "8bitworkshop.folders": {
           "type": "object",
           "default": {},
+          "scope": "resource",
           "markdownDescription": "Projects in subdirectories: directory (relative to the workspace folder) → `{ \"platform\", \"mainFile\", \"tool\" }`. The most specific directory wins.",
           "additionalProperties": {
             "type": "object",
@@ -228,6 +232,7 @@
         "8bitworkshop.exportRomPath": {
           "type": "string",
           "default": "bin",
+          "scope": "resource",
           "description": "Folder for exported ROMs, relative to the main file's directory."
         },
         "8bitworkshop.toolchainPath": {
