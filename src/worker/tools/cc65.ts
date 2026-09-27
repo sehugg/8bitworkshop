@@ -318,6 +318,9 @@ export function compileCC65(step: BuildStep): BuildStepResult {
     }
     gatherFiles(step, { mainFilePath: "main.c" });
     var destpath = step.prefix + '.s';
+    // the link step reads these params, so they have to be settled even when
+    // the assembly file is up to date and nothing below runs
+    fixParamsWithDefines(step.path, params);
     if (staleFiles(step, [destpath])) {
         var CC65: EmscriptenModule = emglobal.cc65({
             instantiateWasm: moduleInstFn('cc65'),
@@ -337,7 +340,6 @@ export function compileCC65(step: BuildStep): BuildStepResult {
                 return code;
             }
         });
-        fixParamsWithDefines(step.path, params);
         var args = [
             '-I', '/share/include',
             '-I', '.',

@@ -87,6 +87,27 @@ describe('extension buildcore', function () {
     assert.ok(second.listings);
   });
 
+  // The linker reads the config file from the source's `//#tooldef ld
+  // cfgfile=` (or legacy `#define CFGFILE`) directives. Those have to be
+  // applied even when the compiler step is skipped as unchanged, or the
+  // second build silently links against the platform default config instead.
+  it('keeps cfgfile source directives on an unchanged rebuild', async function () {
+    // atari8-800 defaults to atari-cart.cfg; atari.cfg is the disk/XEX layout
+    var src = '//#tooldef ld cfgfile=atari.cfg\nvoid main(void) { *(unsigned char*)0x02C8 = 1; }\n';
+    var req = () => ({
+      platform: 'atari8-800', mainPath: 'cfgdirective.c', mainText: src,
+      files: new ProjectFileProvider(project({ 'cfgdirective.c': src }), ROOT, 'atari8-800'),
+    });
+    var first = await builder.build(req());
+    assert.ok(first.success, JSON.stringify(first.diagnostics));
+    var second = await builder.build(req());
+    assert.ok(second.success, JSON.stringify(second.diagnostics));
+    assert.ok(second.unchanged);
+    // the cart config has a completely different segment layout
+    assert.deepEqual(second.segments, first.segments);
+    assert.deepEqual(second.output, first.output);
+  });
+
   // A failed build must not drop the last success: fixing the file back to
   // what built makes the worker say "unchanged", and Run still needs the ROM.
   it('keeps the last output across a failed build', async function () {
