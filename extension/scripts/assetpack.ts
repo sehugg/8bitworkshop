@@ -13,7 +13,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execFileSync } from 'child_process';
 import { createHash } from 'crypto';
-import { ASSET_DIRS, AssetManifest, BROTLI_QUALITY, EXTRA_FILES, PACKS, PackName, makePack, packForFile } from '../src/assetpacks';
+import { ASSET_DIRS, ASSET_EXCLUDE, AssetManifest, BROTLI_QUALITY, EXTRA_FILES, PACKS, PackName, makePack, packForFile } from '../src/assetpacks';
 
 const args = process.argv.slice(2);
 const qi = args.indexOf('--quality');
@@ -33,7 +33,7 @@ export function listPackFiles(root: string): { [pack: string]: string[] } {
     if (!fs.existsSync(path.join(root, f))) continue;
     // a symlinked directory (presets/msx-libcv -> coleco) becomes a copy,
     // since Windows can't make symlinks
-    for (var g of expandLink(root, f, tracked)) out[packForFile(g)].push(g);
+    for (var g of expandLink(root, f, tracked)) if (!ASSET_EXCLUDE.test(g)) out[packForFile(g)].push(g);
   }
   for (var name in EXTRA_FILES) out[name].push(...EXTRA_FILES[name]);
   for (var name in out) out[name].sort();

@@ -6,7 +6,14 @@ import * as zlib from 'zlib';
 import { promisify } from 'util';
 
 /** Repo directories the packs are made from (git-tracked files only). */
-export const ASSET_DIRS = ['src/worker/wasm', 'src/worker/fs', 'src/worker/asmjs', 'src/worker/lib', 'presets'];
+export const ASSET_DIRS = ['src/worker/wasm', 'src/worker/fs', 'src/worker/asmjs', 'src/worker/lib', 'presets', 'res'];
+
+/**
+ * Tracked res files the extension never loads: Altirra debug listings, and the
+ * x86 BIOSes (x86 isn't offered in the extension). Everything else under res/
+ * (kernels, BIOSes, wasm cores) goes in the base pack.
+ */
+export const ASSET_EXCLUDE = /^res\/(altirra\/.*\.(lab|lst)|freedos722\.img|seabios\.bin|vgabios\.bin)$/;
 
 /** Files outside ASSET_DIRS that a pack also carries, from the repo root. */
 export const EXTRA_FILES: { [pack: string]: string[] } = {
