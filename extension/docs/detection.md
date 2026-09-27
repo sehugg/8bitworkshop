@@ -12,7 +12,8 @@ it always shows you the clue it used.
 - **Opening a folder** that has no 8bitworkshop settings. A notification
   appears only when the clues are strong and point at one platform:
   "This looks like an NES project (...). [Use It] [Choose...] [Not Now]
-  [Don't Ask]". Nothing changes until you choose **Use It**. A large
+  [Don't Ask]". Nothing changes until you choose **Use It**, which
+  opens the main file, builds it, and offers **Run**. A large
   folder with projects scattered through it, such as a big codebase
   with a few examples inside, brings up no notification.
 - **Opening a source file** in a folder with no project. If its folder

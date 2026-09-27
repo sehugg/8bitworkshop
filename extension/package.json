@@ -220,6 +220,16 @@
           ],
           "markdownDescription": "When a successful build restarts the running game."
         },
+        "8bitworkshop.exportRom": {
+          "type": "boolean",
+          "default": false,
+          "description": "Write each successful build's ROM to the export folder."
+        },
+        "8bitworkshop.exportRomPath": {
+          "type": "string",
+          "default": "bin",
+          "description": "Folder for exported ROMs, relative to the main file's directory."
+        },
         "8bitworkshop.toolchainPath": {
           "type": "string",
           "default": "",

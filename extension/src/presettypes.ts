@@ -24,6 +24,8 @@ export interface PlatformInfo {
   family: string;
   /** presets/<dir> */
   dir: string;
+  /** the ROM file extension builds produce, e.g. ".nes"; default ".bin" */
+  romext?: string;
   templates: TemplateInfo[];
 }
 

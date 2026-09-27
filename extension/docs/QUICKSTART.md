@@ -51,14 +51,17 @@ right of the editor.
 example it includes `neslib.h`, a notification says "This looks like an
 NES project" and shows why. Click **Use It**, or **Choose...** to pick
 another platform. If the folder holds
-several projects, click **Review** and check the ones to use.
+several projects, click **Review** and check the ones to use. The main
+file then opens and builds; click **Run** in the notification to start
+the emulator.
 
 **A single file.** Right-click it in the Explorer or the editor and
 choose **8bitworkshop: Set as Main File**, then choose the platform.
 
 **A project from the 8bitworkshop website.** Projects the website pushed
 to GitHub have a link in their README that names the platform and the
-main file. Clone the repo and open it; there's nothing to answer.
+main file. Clone the repo and open it; there's nothing to answer. The
+first time you open it, the main file opens and builds.
 
 8bitworkshop builds with its own tools. It reads Makefiles for clues
 about the platform but never runs them.

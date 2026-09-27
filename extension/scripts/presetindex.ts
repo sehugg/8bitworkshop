@@ -18,7 +18,7 @@ import { headersFromPresets } from '../../src/common/detect';
 import type { PresetIndex, TemplateInfo } from '../src/presettypes';
 
 // families from the IDE's platform menu that the extension can't run
-const SKIP_FAMILIES = ['MAME/Other'];
+const SKIP_FAMILIES = ['MAME/Other', 'Interpreters'];
 
 const rootDir = path.resolve(process.argv[2] || path.join(__dirname, '../..'));
 const outFile = path.resolve(process.argv[3] || path.join(__dirname, 'presets.json'));
@@ -36,6 +36,15 @@ function readPlatformMenu(): [string, string, string][] {
     else if (family) out.push([family, m[2], m[3].replace(/&amp;/g, '&').trim()]);
   }
   return out;
+}
+
+/** The ROM file extension the platform's builds produce, for export. */
+function defaultROMExtension(plat: any): string {
+  try {
+    return (plat.getROMExtension && plat.getROMExtension(null)) || '.bin';
+  } catch (e) {
+    return '.bin';
+  }
 }
 
 function language(tool: string): string {
@@ -126,12 +135,13 @@ async function main() {
       await importPlatform(getRootBasePlatform(id));
       var cls = PLATFORMS[id] || PLATFORMS[dir] || PLATFORMS[getRootBasePlatform(id)];
       if (!cls) throw new Error('not registered');
-      var templates = await templatesFor(id, new cls(null));
+      var plat = new cls(null);
+      var templates = await templatesFor(id, plat);
     } catch (e) {
       console.error(`presetindex: skipping ${id}: ${e && e.message || e}`);
       continue;
     }
-    index.platforms.push({ id, name, family, dir, templates });
+    index.platforms.push({ id, name, family, dir, romext: defaultROMExtension(plat), templates });
     listing[dir] = fs.readdirSync(path.join(presetsDir, dir));
   }
   index.headers = headersFromPresets(listing);

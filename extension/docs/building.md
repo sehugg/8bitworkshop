@@ -52,6 +52,15 @@ them.
 A change that doesn't change the output, such as editing a comment,
 doesn't restart the game.
 
+## Exporting the ROM
+
+8bitworkshop normally keeps the built ROM in memory and runs it in the
+emulator; it writes nothing to your folder. To also save the ROM to
+disk, set `8bitworkshop.exportRom` to `true`. Each successful build
+then writes it to the `8bitworkshop.exportRomPath` folder (`bin` by
+default), next to the main file, with the platform's usual extension
+such as `.nes` or `.a26`.
+
 ## Where included files come from
 
 8bitworkshop looks for files your program includes or links in two

@@ -118,7 +118,10 @@ export function activate(ctx: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeWorkspaceFolders(() => detectProjects(false)),
     { dispose: () => { builds?.dispose(); emu?.dispose(); } },
   );
-  folderScans = scope.loadReadmes().then(() => detectProjects(false));
+  folderScans = scope.loadReadmes().then(() => {
+    welcomeProject().catch(e => output.appendLine(`welcome: ${e}`));
+    return detectProjects(false);
+  });
   detectForActiveFile();
   updateStatus();
 }
@@ -356,8 +359,15 @@ async function buildAndMaybeRun(target: Target, run: boolean, reason: BuildReaso
     if (run) vscode.window.showErrorMessage('8bitworkshop: build failed; see Problems.');
     return;
   }
-  if (run && result.output) await startEmulator(target, result.output);
-  else if (!result.unchanged) await reloadEmulator(target, reason, result);
+  if (run) {
+    if (result.output) await startEmulator(target, result.output);
+    else {
+      output.appendLine('8bitworkshop: the build produced no ROM to run; see the output for the last build.');
+      output.show(true);
+    }
+  } else if (!result.unchanged) {
+    await reloadEmulator(target, reason, result);
+  }
 }
 
 async function runFile(project: Project, file: string) {
@@ -388,7 +398,7 @@ async function runMainFile() {
   if (!project) return;
   await scope.setTargetChoice(project, undefined);
   var target = targetIn(project, activeUri());
-  if (target) await buildAndMaybeRun(target, !!panel, 'command');
+  if (target) await buildAndMaybeRun(target, true, 'command');
 }
 
 async function followActiveEditor() {
@@ -467,6 +477,27 @@ function sameBytes(a: Uint8Array | undefined, b: Uint8Array | undefined): boolea
   return true;
 }
 
+/**
+ * Write the build's ROM to <main dir>/<exportRomPath>/<main>.<romext>.
+ * Off by default; only successful command/save builds export.
+ */
+async function exportRom(target: Target, rom: Uint8Array) {
+  var cfg = config(target.main);
+  if (!target.project || !cfg.get<boolean>('exportRom')) return;
+  var dir = path.dirname(target.main.fsPath);
+  var folder = cfg.get<string>('exportRomPath') || 'bin';
+  var ext = templates.platform(target.platform)?.romext || '.bin';
+  var name = path.basename(target.main.fsPath, path.extname(target.main.fsPath)) + ext;
+  var out = path.resolve(dir, folder, name);
+  try {
+    await vscode.workspace.fs.createDirectory(vscode.Uri.file(path.dirname(out)));
+    await vscode.workspace.fs.writeFile(vscode.Uri.file(out), rom);
+    output.appendLine(`Exported ${path.relative(dir, out)} (${rom.length} bytes)`);
+  } catch (e) {
+    output.appendLine(`Cannot export ROM to ${out}: ${e && e.message || e}`);
+  }
+}
+
 /** Build a target; unsaved editor contents win over disk. */
 async function runBuild(target: Target, reason: BuildReason): Promise<BuildOutcome | undefined> {
   var main = target.main;
@@ -533,6 +564,7 @@ async function runBuild(target: Target, reason: BuildReason): Promise<BuildOutco
     showDiagnostics(result, toUri);
     var size = result.output?.length ?? 0;
     output.appendLine(`${mainPath}: built with ${result.tool} for ${target.platform}, ${size} bytes (${elapsed} ms)`);
+    if (result.output && reason !== 'type') await exportRom(target, result.output);
   } else if (reason === 'type') {
     // half-typed code fails; hold the errors until the typing pauses
     holdDiagnostics(() => {
@@ -789,9 +821,7 @@ async function createFromTemplate(platformId: string, templateId: string, replac
   }
   await scope.saveProject(dest.dir.fsPath, settings);
   if (replacing) await closeEditor(replacing);
-  await vscode.window.showTextDocument(main);
-  var target = currentTarget();
-  if (target) await buildAndMaybeRun(target, false, 'command');
+  await openAndBuild(main.fsPath, false);
 }
 
 async function closeEditor(uri: vscode.Uri) {
@@ -876,12 +906,12 @@ async function offerProject(folder: vscode.WorkspaceFolder | undefined, dir: vsc
     `This looks like a${/^[aeiou]/i.test(name) ? 'n' : ''} ${name} project${where ? ' in ' + where : ''}${why ? ` (${why})` : ''}.`,
     'Use It', 'Choose...', 'Not Now', ...(asked || !folder ? [] : ["Don't Ask"]));
   if (answer === 'Use It') {
-    await acceptFinding(dir.fsPath, d.platform, d.mainFile, d.tool);
+    await openAndBuild(await acceptFinding(dir.fsPath, d), true);
     return true;
   }
   if (answer === 'Choose...') {
     var picked = await templates.pickPlatform('Platform for this folder', d.platform);
-    if (picked) await acceptFinding(dir.fsPath, picked.id, d.mainFile, undefined);
+    if (picked) await openAndBuild(await acceptFinding(dir.fsPath, d, picked.id), true);
     return !!picked;
   }
   if (answer === "Don't Ask" && folder) await context.workspaceState.update(dontAskKey(folder), true);
@@ -930,11 +960,73 @@ async function reviewFindings(folder: vscode.WorkspaceFolder, findings: FolderFi
     detail: describeFinding(f.detection), picked: !f.potential, f,
   }));
   var chosen = await vscode.window.showQuickPick(items, { canPickMany: true, title: 'Use these as 8bitworkshop projects', matchOnDetail: true });
-  for (var c of chosen || []) await acceptFinding(c.f.dir.fsPath, c.f.detection.platform, c.f.detection.mainFile, c.f.detection.tool);
+  if (!chosen?.length) return;
+  var files: (string | undefined)[] = [];
+  for (var c of chosen) files.push(await acceptFinding(c.f.dir.fsPath, c.f.detection));
+  // build the rest in the background of the first, which opens
+  for (var file of files.slice(1)) if (file) await buildFile(file);
+  await openAndBuild(files[0], true);
 }
 
-async function acceptFinding(dir: string, platform: string, mainFile: string | undefined, tool: string | undefined) {
-  await scope.saveProject(dir, { platform, mainFile: mainFile ? path.join(dir, mainFile) : undefined, tool });
+/**
+ * Save a detected project, on the platform the user chose if not the
+ * detected one. Returns the file to open: the main file, or a folder of
+ * programs' first program.
+ */
+async function acceptFinding(dir: string, d: Detection, platform = d.platform): Promise<string | undefined> {
+  var tool = platform === d.platform ? d.tool : undefined;
+  await scope.saveProject(dir, { platform, mainFile: d.mainFile ? path.join(dir, d.mainFile) : undefined, tool });
+  var file = d.mainFile || d.mainCandidates?.[0];
+  return file && path.join(dir, file);
+}
+
+////// after a project appears
+
+// set once this workspace has shown the user a project's file
+const WELCOMED = 'welcomed';
+
+/**
+ * Open a project's file and build it, so the Run button and the result
+ * are in view. The emulator never starts unasked; with `offerRun`, a good
+ * build offers it.
+ */
+async function openAndBuild(file: string | undefined, offerRun: boolean) {
+  if (!file) return;
+  await context.workspaceState.update(WELCOMED, true);
+  var uri = vscode.Uri.file(file);
+  await vscode.window.showTextDocument(uri, { preview: false });
+  var project = scope.projectFor(uri);
+  var target = project && targetIn(project, uri);
+  if (!target) return;
+  // with the emulator open, the new program just replaces what it runs
+  if (panel) return buildAndMaybeRun(target, false, 'command');
+  var result = await runBuild(target, 'command');
+  if (!offerRun || !result?.success) return;
+  var answer = await vscode.window.showInformationMessage(
+    `Built ${describeTarget(target)} for ${platformName(templates, target.platform)}.`, 'Run');
+  if (answer === 'Run') await buildAndMaybeRun(target, true, 'command');
+}
+
+/** Build a project's file without opening it; errors go to Problems. */
+async function buildFile(file: string) {
+  var uri = vscode.Uri.file(file);
+  var project = scope.projectFor(uri);
+  var target = project && targetIn(project, uri);
+  if (target) await runBuild(target, 'command');
+}
+
+/**
+ * The first time a folder with a project opens (a README badge, or a new
+ * project opened in a new window), open its main file and build it,
+ * unless the user already has editors open.
+ */
+async function welcomeProject() {
+  if (context.workspaceState.get(WELCOMED)) return;
+  var project = scope.projects().find(p => p.mainFile && (p.origin === 'settings' || p.origin === 'folders' || p.origin === 'readme'));
+  if (!project) return;
+  await context.workspaceState.update(WELCOMED, true);
+  if (vscode.window.tabGroups.all.some(g => g.tabs.length)) return;
+  await openAndBuild(project.mainFile, false);
 }
 
 ////// launch configurations

@@ -821,7 +821,12 @@ soon as the folder opens.
    toolchains and never run `make`. If the repo needs include paths
    (`-I lib`), that's an `8bitworkshop.includePaths` setting, after v1.
 6. Build the accepted project(s), and show errors if the repo doesn't
-   build with our tools. A missing platform header triggers the "wrong
+   build with our tools. The first opens its main file (or a folder of
+   programs' first program); a good build offers "Built game.c for NES.
+   [Run]". The Run offer answers the user's Use It, so it's not unasked.
+   A folder that already has a project (badge, settings, or a new
+   project opened in a new window) gets the same open-and-build, without
+   the Run offer, the first time it opens with no editors open. A missing platform header triggers the "wrong
    platform?" check from "Plan: platform and main-file detection".
 
 *Round trip with the IDE*: repos the IDE pushed to GitHub have the
