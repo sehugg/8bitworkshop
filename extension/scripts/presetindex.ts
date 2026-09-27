@@ -11,6 +11,7 @@ import { importPlatform } from '../../src/platform/_index';
 import { PLATFORMS } from '../../src/common/emu';
 import { installNodeMocks } from '../../src/tools/emutarget';
 import { getToolForPlatform } from '../../src/common/toolselect';
+import { REMOTE_BUILDS } from '../src/projectinfo';
 import { TOOL_META, getSkeletonName } from '../../src/common/toolmeta';
 import { getBasePlatform, getRootBasePlatform, isProbablyBinary } from '../../src/common/util';
 import { resolveDependencies } from '../../src/common/projectcore';
@@ -104,6 +105,7 @@ async function templatesFor(platform: string, plat: any): Promise<TemplateInfo[]
     var text = read(preset.id);
     if (typeof text !== 'string') continue;
     var tool = getTool(preset.id);
+    if (tool.startsWith('remote:') && !REMOTE_BUILDS) continue;
     var deps = await resolveDependencies({ readFile: async (p: string) => read(p) }, preset.id, text, platform, getTool);
     templates.push({
       id: preset.id, name: preset.name, category: category || 'Examples', tool,

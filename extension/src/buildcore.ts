@@ -9,6 +9,7 @@ import { getBasePlatform, isProbablyBinary } from "../../src/common/util";
 import { getToolForPlatform } from "../../src/common/toolselect";
 import { FileProvider, buildWorkerMessage, resolveDependencies } from "../../src/common/projectcore";
 import { setupNodeEnvironment, handleMessage } from "../../src/worker/workerlib";
+import { REMOTE_BUILDS } from "./projectinfo";
 import { PLATFORM_PARAMS } from "../../src/worker/platforms";
 
 export type { FileProvider };
@@ -71,6 +72,10 @@ export class Builder {
     }
     var getTool = (fn: string) => (req.tool && fn === req.mainPath) ? req.tool : getToolForPlatform(req.platform, fn);
     var tool = getTool(req.mainPath);
+    if (tool.startsWith('remote:') && !REMOTE_BUILDS) {
+      var why = `${tool.replace(/^remote:/, '')} builds on the 8bitworkshop server, which the extension doesn't support yet.`;
+      return { success: false, tool, paths: [req.mainPath], diagnostics: [{ path: req.mainPath, line: 0, msg: why }] };
+    }
     var deps = await resolveDependencies(req.files, req.mainPath, req.mainText, req.platform, getTool);
     var { msg, filename2path, preloads } = buildWorkerMessage({
       mainPath: req.mainPath,

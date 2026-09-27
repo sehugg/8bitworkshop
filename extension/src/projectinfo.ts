@@ -8,6 +8,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { TOOL_META } from "../../src/common/toolmeta";
 
+/** Tools that build on the 8bitworkshop server ("remote:llvm-mos"). Off for now. */
+export const REMOTE_BUILDS = false;
+
 var sourceExtensions: Set<string>;
 
 /** True if some tool consumes files with this name's extension. */
