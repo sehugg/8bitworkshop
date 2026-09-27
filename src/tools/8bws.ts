@@ -18,7 +18,7 @@ import { fail, hasOutput, note, output, setJsonMode } from './cliformat';
 import { EmuTarget, loadPlatform } from './emutarget';
 import { RUN_SCRIPT_HELP, RunScript, parseNum } from './runscript';
 import { parseSymbolFile } from '../common/symbols/symbolfile';
-import type { CompileResult } from './testlib';
+import { romBytes, type CompileResult } from './testlib';
 import { ROM_PLATFORMS } from '../common/detect';
 
 interface Args {
@@ -183,14 +183,6 @@ async function saveBuildFiles(source: string, data: any): Promise<void> {
     data.savedFiles.push(filePath);
   }
   data.saveDir = saveDir;
-}
-
-function romBytes(result: CompileResult): Uint8Array | null {
-  const out = result.output?.code ?? result.output;
-  if (out instanceof Uint8Array) return out;
-  if (typeof out === 'string') return new TextEncoder().encode(out);
-  if (out == null) throw new Error('compiler produced no output');
-  return null;
 }
 
 ////////////////////////////////////////////////////////////////////////
