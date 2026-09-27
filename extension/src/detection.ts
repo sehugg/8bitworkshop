@@ -4,7 +4,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { Detection, detectProject, detectionSummary, describeDetection, describeFinding, isBuildableSource, isClearWinner, isFolderOfPrograms, isStrongDetection, toolForDialect } from '../../src/common/detect';
+import { Detection, detectProject, detectionSummary, describeDetection, describeFinding, isBuildableSource, classifyFinding, isClearWinner, isFolderOfPrograms, toolForDialect } from '../../src/common/detect';
 export { detectionSummary, describeDetection, describeFinding, isFolderOfPrograms };
 import { PLATFORM_PARAMS } from '../../src/worker/platforms';
 import { getToolForPlatform } from '../../src/common/toolselect';
@@ -145,13 +145,22 @@ async function confirmDialect(platform: string, file: string, text: string | nul
 export interface FolderFinding {
   dir: vscode.Uri;
   detection: Detection;
+  /** too weak to prompt on its own; only offered when the user asks */
+  potential?: boolean;
+}
+
+export interface FolderScan {
+  findings: FolderFinding[];
+  /** the folder has more files than the scan looks at */
+  truncated: boolean;
 }
 
 /**
  * Case 3: scan a folder for projects. Returns each directory whose code
- * points strongly at one platform; plain C or assembly alone never counts.
+ * points at one platform. A strong, clear detection counts as a project;
+ * a weaker or ambiguous one is only a potential project.
  */
-export async function scanFolder(templates: Templates, folder: vscode.WorkspaceFolder): Promise<FolderFinding[]> {
+export async function scanFolder(templates: Templates, folder: vscode.WorkspaceFolder): Promise<FolderScan> {
   var exclude = '{**/node_modules/**,**/.git/**,**/out/**,**/build/**}';
   var uris = await vscode.workspace.findFiles(new vscode.RelativePattern(folder, '**/*'), exclude, MAX_SCAN_FILES);
   var byDir = new Map<string, string[]>();
@@ -164,15 +173,14 @@ export async function scanFolder(templates: Templates, folder: vscode.WorkspaceF
   for (var [dir, files] of byDir) {
     if (!files.some(f => isBuildableSource(f) || /\.(nes|a26|a78|gb|col|sms)$/i.test(f))) continue;
     var found = await detectDirectory(templates, vscode.Uri.file(dir), files);
-    if (found.length && isStrongDetection(found[0]) && isClearWinner(found)) {
-      findings.push({ dir: vscode.Uri.file(dir), detection: found[0] });
-    }
+    var kind = classifyFinding(found);
+    if (kind) findings.push({ dir: vscode.Uri.file(dir), detection: found[0], potential: kind === 'potential' });
   }
   // a folder of programs already covers a nested library folder inside it;
   // a nested project with its own main file stays
   findings = findings.filter(f => !findings.some(p =>
     p !== f && isFolderOfPrograms(p.detection) && !f.detection.mainFile && isInsideDir(p.dir.fsPath, f.dir.fsPath)));
-  return findings;
+  return { findings, truncated: uris.length >= MAX_SCAN_FILES };
 }
 
 function isInsideDir(parent: string, child: string): boolean {

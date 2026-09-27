@@ -10,6 +10,11 @@ export interface DetectEvidence {
   file: string;
   line?: number;
   reason: string;
+  /**
+   * "code" for a program's own source or build file; "rom" for a ROM
+   * image; "hint" for a header, a linker config, or the folder's name.
+   */
+  kind?: 'code' | 'rom' | 'hint';
 }
 
 export interface Detection {
@@ -25,6 +30,8 @@ export interface Detection {
   evidence: DetectEvidence[];
   /** the files that look like programs, best first */
   mainCandidates?: string[];
+  /** set when a program's own source or build file points here, not just hints */
+  hasCode?: boolean;
 }
 
 export interface DetectInput {
@@ -90,6 +97,7 @@ const FINGERPRINTS: { re: RegExp, platforms: string[], reason: string }[] = [
 ];
 
 const HEADER_EXTS = ['.h', '.inc', '.i'];
+const C_EXTS = ['.c', '.cpp'];
 // a register or function name in a header is a declaration, not a use, so
 // it points at the library rather than at a program written for the platform
 const HEADER_FINGERPRINT_WEIGHT = 0.15;
@@ -174,6 +182,7 @@ export async function detectProject(input: DetectInput): Promise<Detection[]> {
     var d = scores.get(platform);
     if (!d) scores.set(platform, d = { platform, score: 0, evidence: [] });
     if (d.evidence.some(e => e.reason === ev.reason)) return;
+    if (ev.kind === 'code') d.hasCode = true;
     raw.set(platform, (raw.get(platform) || 0) + score);
     if (d.evidence.length < 8) d.evidence.push(ev);
   };
@@ -189,8 +198,8 @@ export async function detectProject(input: DetectInput): Promise<Detection[]> {
     var badge = parseReadmeBadge((await input.read(readme)) || '');
     if (badge) {
       return [{
-        platform: badge.platform, mainFile: badge.mainFile, score: 1,
-        evidence: [{ file: readme, reason: 'has an 8bitworkshop link naming the platform' }],
+        platform: badge.platform, mainFile: badge.mainFile, score: 1, hasCode: true,
+        evidence: [{ file: readme, reason: 'has an 8bitworkshop link naming the platform', kind: 'code' }],
       }];
     }
   }
@@ -201,22 +210,24 @@ export async function detectProject(input: DetectInput): Promise<Detection[]> {
   for (var file of input.files) {
     var ext = extname(file);
     var rom = ROM_PLATFORMS[ext];
-    if (rom) add(rom, 0.6, { file, reason: `is a ${ext} ROM` });
+    if (rom) add(rom, 0.6, { file, reason: `is a ${ext} ROM`, kind: 'rom' });
     var base = basename(file);
     if (/^makefile$/i.test(base) || ext === '.mk') {
       var mk = await input.read(file);
       var m = mk && /(?:\s-t\s+|--target[\s=]+)([a-z0-9]+)/.exec(mk);
-      if (m && CC65_TARGETS[m[1]]) add(CC65_TARGETS[m[1]], 0.6, { file, reason: `builds for the cc65 "${m[1]}" target` });
+      if (m && CC65_TARGETS[m[1]]) add(CC65_TARGETS[m[1]], 0.6, { file, reason: `builds for the cc65 "${m[1]}" target`, kind: 'code' });
       continue;
     }
     if (ext === '.cfg' && CC65_TARGETS[base.replace(/\.cfg$/, '')]) {
-      add(CC65_TARGETS[base.replace(/\.cfg$/, '')], 0.3, { file, reason: 'is a cc65 linker config' });
+      add(CC65_TARGETS[base.replace(/\.cfg$/, '')], 0.3, { file, reason: 'is a cc65 linker config', kind: 'hint' });
       continue;
     }
     if (!isBuildableSource(file) && !HEADER_EXTS.includes(ext)) continue;
     var text = await input.read(file);
     if (text == null) continue;
     texts.set(file, text);
+    // a header declares things for programs; it isn't one
+    var kind: DetectEvidence['kind'] = HEADER_EXTS.includes(ext) ? 'hint' : 'code';
     // includes, with their line numbers for the evidence. Quoted (C, ca65),
     // angle-bracketed (C), or bare (DASM, bB) -- name is whichever matched.
     var re = /^[ \t]*[#.]?[ \t]*include\s+(?:"([^"]+)"|<([^>]+)>|([^\s;]+))/gim;
@@ -229,14 +240,14 @@ export async function detectProject(input: DetectInput): Promise<Detection[]> {
       var line = text.substring(0, inc.index).split('\n').length;
       // a header a family shares (cv.h) points at each member, less strongly
       var weight = 0.6 / Math.sqrt(list.length);
-      for (var p of list) add(p, weight, { file, line, reason: `includes "${name}"` });
+      for (var p of list) add(p, weight, { file, line, reason: `includes "${name}"`, kind });
     }
     for (var fp of FINGERPRINTS) {
       var fm = fp.re.exec(text);
       if (fm) {
         var fline = text.substring(0, fm.index).split('\n').length;
         var fweight = HEADER_EXTS.includes(ext) ? HEADER_FINGERPRINT_WEIGHT : 0.5;
-        addAll(fp.platforms, fweight, { file, line: fline, reason: fp.reason });
+        addAll(fp.platforms, fweight, { file, line: fline, reason: fp.reason, kind });
       }
     }
   }
@@ -252,11 +263,11 @@ export async function detectProject(input: DetectInput): Promise<Detection[]> {
       return meta && (meta.extensions || []).includes(ext);
     });
     if (accepting.length > 0 && accepting.length <= 3)
-      addAll(accepting, 0.5, { file, reason: `has the ${ext} extension` });
+      addAll(accepting, 0.5, { file, reason: `has the ${ext} extension`, kind: 'code' });
   }
 
   if (input.dirName && platforms.has(input.dirName))
-    add(input.dirName, 0.2, { file: '.', reason: `is in a folder named "${input.dirName}"` });
+    add(input.dirName, 0.2, { file: '.', reason: `is in a folder named "${input.dirName}"`, kind: 'hint' });
 
   var result = [...scores.values()];
   // rank on the uncapped total, so two strong candidates still differ
@@ -284,9 +295,28 @@ export function isClearWinner(detections: Detection[]): boolean {
   return detections.length == 1 || w(detections[0]) - w(detections[1]) >= 0.2;
 }
 
-/** Strong enough to bring up unasked, on opening a folder. */
+/**
+ * Strong enough to bring up unasked, on opening a folder: a high score,
+ * and at least some of it from a program's own code. Headers, linker
+ * configs, ROMs, and folder names alone don't make a project.
+ */
 export function isStrongDetection(d: Detection): boolean {
-  return d.score >= 0.5;
+  return d.score >= 0.5 && !!d.hasCode;
+}
+
+/**
+ * How a directory counts when scanning a folder for projects: "project"
+ * for a strong, clear detection; "potential" for weaker or ambiguous
+ * evidence around something to build or run, which is offered only when
+ * the user asks; undefined for nothing worth mentioning.
+ */
+export function classifyFinding(detections: Detection[]): 'project' | 'potential' | undefined {
+  var d = detections[0];
+  if (!d) return undefined;
+  if (isStrongDetection(d) && isClearWinner(detections)) return 'project';
+  var runnable = !!d.mainFile || (d.mainCandidates?.length || 0) > 0 || d.evidence.some(e => e.kind === 'rom');
+  if (runnable && d.score > 0.1) return 'potential';
+  return undefined;
 }
 
 /** True for a header or include file: a declaration, not a program. */
@@ -343,7 +373,11 @@ export function findMainCandidates(platform: string, files: string[], texts: Map
       .concat(matchDependencyPatterns(text, getLinkPatterns(tool, platform)));
     for (var dep of deps) used.add(dep);
   }
-  var candidates = files.filter(f => isBuildableSource(f) && texts.has(f) && !used.has(f) && !used.has(basename(f)));
+  // a crt0 is the startup code a toolchain links in, not a program; a C
+  // program has a main(), so C without one is a library
+  var isProgram = (f: string) => !/^crt0\b/i.test(basename(f))
+    && (!C_EXTS.includes(extname(f)) || /\bmain\s*\(/.test(texts.get(f)));
+  var candidates = files.filter(f => isBuildableSource(f) && texts.has(f) && !used.has(f) && !used.has(basename(f)) && isProgram(f));
   var rank = (f: string) => {
     var t = texts.get(f) || '';
     var r = 0;

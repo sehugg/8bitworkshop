@@ -15,7 +15,7 @@ import { Project, findRootDir, isHeaderFile, isInside, isOwnExtension, isSourceF
 import { CONFIG, ProjectScope } from './projectscope';
 import { BuildReason, BuildScheduler } from './autobuild';
 import { PRESET_SCHEME, PresetFileSystem, Templates } from './templates';
-import { chooseForFile, detectionSummary, describeFinding, dontAskKey, platformName, scanFolder } from './detection';
+import { chooseForFile, detectionSummary, describeFinding, dontAskKey, FolderFinding, platformName, scanFolder } from './detection';
 import { TOOL_META } from '../../src/common/toolmeta';
 import { AssetStore } from './assets';
 import { AssetManifest, packsForPlatform } from './assetpacks';
@@ -797,23 +797,35 @@ async function closeEditor(uri: vscode.Uri) {
 
 ////// detection on open (case 3)
 
+// unasked, prompt only for a folder that is plainly one or a few projects;
+// findings scattered across a big repo mean it isn't ours
+const MAX_UNASKED_PROJECTS = 5;
+
 async function detectProjects(asked: boolean) {
+  // "Don't Ask" only makes sense on a prompt the user didn't ask for
+  var dontAsk = asked ? [] : ["Don't Ask"];
   for (var folder of vscode.workspace.workspaceFolders || []) {
     if (folder.uri.scheme !== 'file') continue;
     if (!asked && (scope.folderHasProject(folder) || context.workspaceState.get(dontAskKey(folder)))) continue;
-    var findings = await scanFolder(templates, folder);
+    var scan = await scanFolder(templates, folder);
     // folders with settings keep them
-    findings = findings.filter(f => !scope.projects().some(p => p.origin !== 'build' && isInside(p.scope, f.dir.fsPath)));
-    if (!findings.length) {
+    var findings = scan.findings.filter(f => !scope.projects().some(p => p.origin !== 'build' && isInside(p.scope, f.dir.fsPath)));
+    var strong = findings.filter(f => !f.potential);
+    // weak evidence is offered only when the user asks
+    var potential = asked ? findings.filter(f => f.potential) : [];
+    if (!asked && (scan.truncated || strong.length > MAX_UNASKED_PROJECTS)) continue;
+    if (!strong.length && !potential.length) {
       if (asked) vscode.window.showInformationMessage(`No 8bitworkshop projects found in ${folder.name}.`);
       continue;
     }
-    if (findings.length === 1) {
-      var f = findings[0], d = f.detection;
+    if (strong.length === 1 && !potential.length) {
+      var f = strong[0], d = f.detection;
       var where = path.relative(folder.uri.fsPath, f.dir.fsPath);
+      // a sure thing needs no clue; just say what it found
+      var why = d.score >= 1 ? detectionSummary(d) : describeFinding(d);
       var answer = await vscode.window.showInformationMessage(
-        `This looks like a${/^[aeiou]/i.test(platformName(templates, d.platform)) ? 'n' : ''} ${platformName(templates, d.platform)} project${where ? ' in ' + where : ''} (${describeFinding(d)}).`,
-        'Use It', 'Choose...', 'Not Now', "Don't Ask");
+        `This looks like a${/^[aeiou]/i.test(platformName(templates, d.platform)) ? 'n' : ''} ${platformName(templates, d.platform)} project${where ? ' in ' + where : ''}${why ? ` (${why})` : ''}.`,
+        'Use It', 'Choose...', 'Not Now', ...dontAsk);
       if (answer === 'Use It') await acceptFinding(f.dir.fsPath, d.platform, d.mainFile, d.tool);
       else if (answer === 'Choose...') {
         var picked = await templates.pickPlatform('Platform for this folder', d.platform);
@@ -821,18 +833,26 @@ async function detectProjects(asked: boolean) {
       } else if (answer === "Don't Ask") await context.workspaceState.update(dontAskKey(folder), true);
       continue;
     }
-    var review = await vscode.window.showInformationMessage(`Found ${findings.length} 8bitworkshop projects in ${folder.name}.`, 'Review', 'Not Now', "Don't Ask");
+    var plural = (n: number) => n === 1 ? '' : 's';
+    var message = strong.length
+      ? `Found ${strong.length} 8bitworkshop project${plural(strong.length)}${potential.length ? ` and ${potential.length} potential` : ''} in ${folder.name}.`
+      : `Found ${potential.length} potential 8bitworkshop project${plural(potential.length)} in ${folder.name}.`;
+    var review = await vscode.window.showInformationMessage(message, 'Review', 'Not Now', ...dontAsk);
     if (review === "Don't Ask") await context.workspaceState.update(dontAskKey(folder), true);
-    if (review !== 'Review') continue;
-    type Item = vscode.QuickPickItem & { f: typeof findings[0] };
-    var items: Item[] = findings.map(f => ({
-      label: path.relative(folder.uri.fsPath, f.dir.fsPath) || '.',
-      description: `${platformName(templates, f.detection.platform)}${detectionSummary(f.detection) ? ' · ' + detectionSummary(f.detection) : ''}`,
-      detail: describeFinding(f.detection), picked: true, f,
-    }));
-    var chosen = await vscode.window.showQuickPick(items, { canPickMany: true, title: 'Use these as 8bitworkshop projects', matchOnDetail: true });
-    for (var c of chosen || []) await acceptFinding(c.f.dir.fsPath, c.f.detection.platform, c.f.detection.mainFile, c.f.detection.tool);
+    if (review === 'Review') await reviewFindings(folder, [...strong, ...potential]);
   }
+}
+
+/** Let the user pick which findings to keep as projects. */
+async function reviewFindings(folder: vscode.WorkspaceFolder, findings: FolderFinding[]) {
+  type Item = vscode.QuickPickItem & { f: FolderFinding };
+  var items: Item[] = findings.map(f => ({
+    label: path.relative(folder.uri.fsPath, f.dir.fsPath) || '.',
+    description: `${platformName(templates, f.detection.platform)}${detectionSummary(f.detection) ? ' · ' + detectionSummary(f.detection) : ''}${f.potential ? ' · potential' : ''}`,
+    detail: describeFinding(f.detection), picked: !f.potential, f,
+  }));
+  var chosen = await vscode.window.showQuickPick(items, { canPickMany: true, title: 'Use these as 8bitworkshop projects', matchOnDetail: true });
+  for (var c of chosen || []) await acceptFinding(c.f.dir.fsPath, c.f.detection.platform, c.f.detection.mainFile, c.f.detection.tool);
 }
 
 async function acceptFinding(dir: string, platform: string, mainFile: string | undefined, tool: string | undefined) {

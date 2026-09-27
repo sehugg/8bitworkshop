@@ -781,9 +781,13 @@ soon as the folder opens.
    `node_modules`, and `files.exclude`; stop after a few thousand), group
    them by directory, and run `detectProject` on each directory with
    main file candidates.
-4. **Results.** Only strong evidence prompts: a platform header, a
-   hardware register fingerprint, a cc65 target, a ROM file. `.c` and
-   `.s` files alone never do.
+4. **Results.** Only strong evidence from a program's own code prompts:
+   a platform header or hardware register in a source file, a cc65
+   target. `.c` and `.s` files alone never do, and neither do headers,
+   linker configs, ROM files, or folder names without code. Startup
+   code (`crt0.*`) is never a main file. Unasked, more than 5 projects,
+   or a scan that hit its file limit, means a big repo that isn't ours:
+   no notification.
    - *One project*: "This looks like an NES project (`#include
      "neslib.h"` in main.c). [Use It] [Choose...] [Not Now]". Unlike case
      2, the user didn't ask, so nothing applies until they click Use It,
@@ -793,9 +797,11 @@ soon as the folder opens.
      opens a **Projects** view in the 8bitworkshop activity-bar
      container: one item per directory with its platform, main file, and
      evidence, and Accept / Change / Ignore on each.
-   - *Weak or nothing*: no notification. Most repos aren't ours. The
-     user can still run Set as Main File, or "8bitworkshop: Detect
-     Projects".
+   - *Weak, ambiguous, or nothing*: no notification, unless the user
+     asks to Detect Projects: a folder with source files or ROMs but
+     only weak or ambiguous evidence is
+     offered as "potential 8bitworkshop projects" (a library folder, say),
+     listed separately and not picked by default. Most repos aren't ours.
    - *Dismissed*: closing the notification without choosing is "not
      now"; "Don't ask for this folder" is remembered. Either way the
      Projects view keeps the findings.

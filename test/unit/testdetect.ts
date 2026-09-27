@@ -2,7 +2,7 @@ import assert from "assert";
 import { describe, it } from "mocha";
 import * as fs from "fs";
 import * as path from "path";
-import { detectProject, detectDialect, detectionSummary, describeFinding, findMainCandidates, headersFromPresets, isClearWinner, isFolderOfPrograms, isHeaderFile, mainEvidence, parseReadmeBadge, toolForDialect } from "../../src/common/detect";
+import { detectProject, detectDialect, detectionSummary, describeFinding, findMainCandidates, headersFromPresets, isClearWinner, isFolderOfPrograms, isHeaderFile, classifyFinding, mainEvidence, parseReadmeBadge, toolForDialect } from "../../src/common/detect";
 import { PLATFORM_PARAMS } from "../../src/worker/platforms";
 
 const PRESETS = 'presets';
@@ -35,7 +35,8 @@ describe('detect', () => {
     var d = await detectProject(files({ 'game.c': '\n#include "neslib.h"\nvoid main() {}\n' }));
     assert.strictEqual(d[0].platform, 'nes');
     assert.ok(isClearWinner(d));
-    assert.deepStrictEqual(d[0].evidence[0], { file: 'game.c', line: 2, reason: 'includes "neslib.h"' });
+    assert.strictEqual(classifyFinding(d), 'project');
+    assert.deepStrictEqual(d[0].evidence[0], { file: 'game.c', line: 2, reason: 'includes "neslib.h"', kind: 'code' });
     assert.strictEqual(d[0].mainFile, 'game.c');
   });
 
@@ -70,6 +71,9 @@ describe('detect', () => {
     assert.deepStrictEqual(findMainCandidates('nes', [...texts.keys()], texts), { candidates: ['main.c'], mainFile: 'main.c' });
     texts = new Map([['a.c', 'void main() {}\n'], ['b.c', 'void main() {}\n']]);
     assert.deepStrictEqual(findMainCandidates('nes', [...texts.keys()], texts), { candidates: ['a.c', 'b.c'], mainFile: undefined });
+    // C without main() is a library, whatever links it
+    texts = new Map([['game.s', 'reset: jmp reset\n'], ['util.c', 'int add(int a, int b) { return a + b; }\n']]);
+    assert.deepStrictEqual(findMainCandidates('nes', [...texts.keys()], texts), { candidates: ['game.s'], mainFile: 'game.s' });
   });
 
   it('downweights a fingerprint found in a header', async () => {
@@ -78,9 +82,36 @@ describe('detect', () => {
     var d = await detectProject({ files: ['gb.h'], read: () => header, platforms: PLATFORMS, dirName: 'gb' });
     assert.ok(d.every(x => x.score < 0.5), JSON.stringify(d));
     assert.ok(d[0].score > 0, 'the header still counts for something');
+    assert.strictEqual(classifyFinding(d), undefined, 'but a header alone is no project');
     assert.ok(isHeaderFile('gb/gb.h'));
     assert.ok(!isHeaderFile('gb/gb.sgb'));
     assert.strictEqual(mainEvidence(d[0])?.reason, 'calls GBDK functions');
+  });
+
+  it('passes over a toolchain library folder', async () => {
+    // src/worker/lib/vcs: a linker config and startup code, in a folder named for the platform
+    var d = await detectProject({ ...files({ 'atari2600.cfg': 'MEMORY {}\n', 'crt0.s': '  .export _init\n_init: rts\n' }), dirName: 'vcs' });
+    assert.strictEqual(d[0].platform, 'vcs');
+    assert.ok(d[0].score >= 0.5, 'enough score...');
+    assert.notStrictEqual(classifyFinding(d), 'project', '...but no program code');
+    assert.strictEqual(d[0].mainFile, undefined, 'crt0 is not a program');
+    // src/worker/lib/vectrex: headers including headers
+    d = await detectProject({ ...files({ 'bios.h': '#include "vectrex.h"\n' }), dirName: 'vectrex' });
+    assert.ok(d[0].score >= 0.5);
+    assert.strictEqual(classifyFinding(d), undefined);
+  });
+
+  it('offers a folder of ROMs only as potential', async () => {
+    var d = await detectProject({ files: ['croom.nes'], read: () => null, platforms: PLATFORMS });
+    assert.ok(isClearWinner(d), 'the CLI can still run it');
+    assert.strictEqual(classifyFinding(d), 'potential');
+  });
+
+  it('offers an ambiguous strong detection as potential', async () => {
+    var d = await detectProject(files({ 'game.c': '#include <cbm.h>\nvoid main() { POKE(0xd020, 0); VIC.bgcolor0 = 1; }\n' }));
+    assert.ok(d[0].score >= 0.5 && d[1].score >= 0.5, JSON.stringify(d));
+    assert.ok(!isClearWinner(d));
+    assert.strictEqual(classifyFinding(d), 'potential');
   });
 
   it('lists every program in a folder of programs', async () => {
