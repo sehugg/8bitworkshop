@@ -14,6 +14,28 @@ export function spacesToTabStop(state: EditorState, head: number): string {
   return " ".repeat(stop - (col % stop));
 }
 
+// Guess a file's indent unit: "\t" if most indented lines start with a tab,
+// else the most common step (2-8 spaces) between consecutive lines, else 2 spaces.
+export function detectIndentUnit(text: string): string {
+  const steps = new Map<number, number>();
+  let tabLines = 0, spaceLines = 0, prev = 0;
+  for (const line of text.split("\n", 2000)) {
+    if (!line.trim()) continue;
+    if (line[0] == "\t") { tabLines++; continue; }
+    const indent = line.length - line.trimStart().length;
+    if (indent > 0) spaceLines++;
+    const step = indent - prev;
+    if (step >= 2 && step <= 8) steps.set(step, (steps.get(step) || 0) + 1);
+    prev = indent;
+  }
+  if (tabLines > spaceLines) return "\t";
+  let best = 2, bestCount = 0;
+  for (const [step, count] of steps) {
+    if (count > bestCount || (count == bestCount && step < best)) { best = step; bestCount = count; }
+  }
+  return " ".repeat(best);
+}
+
 // Insert spaces from the cursor up to the next tab stop.
 // A non-empty selection indents the selected lines instead.
 function insertSpacesToTabStop(view: EditorView): boolean {

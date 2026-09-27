@@ -15,7 +15,7 @@ import { disassemblyTheme } from "../../themes/disassemblyTheme";
 import { editorTheme } from "../../themes/editorTheme";
 import { mbo } from "../../themes/mbo";
 import { loadSettings, registerEditor, settingsExtensions } from "../settings";
-import { asmSpacesKeymap, lineBasedEnterKeymap } from "./tabs";
+import { asmSpacesKeymap, detectIndentUnit, lineBasedEnterKeymap } from "./tabs";
 import { current_project, lastDebugState, openHeaderFile, platform, qs, runToPC } from "../ui";
 import { bpStore, canUseBreakpoints } from "../breakpoints";
 import { IDE_RESERVED_KEYS, stripCMKeymap } from "../keys";
@@ -116,6 +116,8 @@ export class SourceEditor implements ProjectView {
   mode: string;
   editor;
   updateTimer = null;
+  indentUnitCompartment = new Compartment();
+  isAsm = false;
   dirtylisting = true;
   sourcefile: SourceFile;
   currentDebugLine: SourceLocation;
@@ -199,6 +201,7 @@ export class SourceEditor implements ProjectView {
       lineNums = false; // no line numbers while embedded
       isAsm = false; // no opcode bytes either
     }
+    this.isAsm = isAsm;
     const minimalGutters = modedef.noGutters || isMobileDevice;
 
     var parser: Extension;
@@ -214,8 +217,8 @@ export class SourceEditor implements ProjectView {
       doc: text,
       extensions: [
 
-        // Non-asm: 2-space indent (placed before settings so it takes precedence over tabSize-based indentUnit)
-        isAsm ? [] : indentUnit.of("  "),
+        // Non-asm: indent unit detected from the file (placed before settings so it takes precedence over tabSize-based indentUnit)
+        this.indentUnitCompartment.of(this.indentUnitFor(text)),
         // Asm: copy previous line's indentation since asm parsers lack proper indent rules
         isAsm ? indentService.of((context, pos) => {
           let lineNum = context.state.doc.lineAt(pos).number;
@@ -414,12 +417,17 @@ export class SourceEditor implements ProjectView {
     }
   }
 
+  indentUnitFor(text: string): Extension {
+    return this.isAsm ? [] : indentUnit.of(detectIndentUnit(text));
+  }
+
   setText(text: string) {
     var oldtext = this.editor.state.doc.toString();
     if (oldtext != text) {
       this.editor.dispatch({
         changes: { from: 0, to: this.editor.state.doc.length, insert: text },
-        annotations: isolateHistory.of("full")
+        annotations: isolateHistory.of("full"),
+        effects: this.indentUnitCompartment.reconfigure(this.indentUnitFor(text)),
       });
     }
   }

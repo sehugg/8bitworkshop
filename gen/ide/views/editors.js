@@ -103,6 +103,8 @@ function getEditorSelectionText(view) {
 class SourceEditor {
     constructor(path, mode) {
         this.updateTimer = null;
+        this.indentUnitCompartment = new state_1.Compartment();
+        this.isAsm = false;
         this.dirtylisting = true;
         this.refreshDelayMsec = 300;
         this.probe = null;
@@ -185,6 +187,7 @@ class SourceEditor {
             lineNums = false; // no line numbers while embedded
             isAsm = false; // no opcode bytes either
         }
+        this.isAsm = isAsm;
         const minimalGutters = modedef.noGutters || baseviews_1.isMobileDevice;
         var parser;
         const registryEntry = registry_1.parserRegistry[this.mode];
@@ -199,8 +202,8 @@ class SourceEditor {
             parent: parent,
             doc: text,
             extensions: [
-                // Non-asm: 2-space indent (placed before settings so it takes precedence over tabSize-based indentUnit)
-                isAsm ? [] : language_1.indentUnit.of("  "),
+                // Non-asm: indent unit detected from the file (placed before settings so it takes precedence over tabSize-based indentUnit)
+                this.indentUnitCompartment.of(this.indentUnitFor(text)),
                 // Asm: copy previous line's indentation since asm parsers lack proper indent rules
                 isAsm ? language_1.indentService.of((context, pos) => {
                     let lineNum = context.state.doc.lineAt(pos).number;
@@ -361,12 +364,16 @@ class SourceEditor {
             });
         }
     }
+    indentUnitFor(text) {
+        return this.isAsm ? [] : language_1.indentUnit.of((0, tabs_1.detectIndentUnit)(text));
+    }
     setText(text) {
         var oldtext = this.editor.state.doc.toString();
         if (oldtext != text) {
             this.editor.dispatch({
                 changes: { from: 0, to: this.editor.state.doc.length, insert: text },
-                annotations: commands_1.isolateHistory.of("full")
+                annotations: commands_1.isolateHistory.of("full"),
+                effects: this.indentUnitCompartment.reconfigure(this.indentUnitFor(text)),
             });
         }
     }

@@ -59,4 +59,18 @@ function tabAt(textWithCursor, tabSize, unit) {
         assert_1.default.strictEqual(has('x1 = 5'), false);
     });
 });
+(0, mocha_1.describe)('detectIndentUnit', () => {
+    it('should detect the most common indent step', () => {
+        assert_1.default.strictEqual((0, tabs_1.detectIndentUnit)('void main() {\n  int x;\n  if (x) {\n    x++;\n  }\n}\n'), '  ');
+        assert_1.default.strictEqual((0, tabs_1.detectIndentUnit)('void main() {\n    int x;\n    if (x) {\n        x++;\n    }\n}\n'), '    ');
+        assert_1.default.strictEqual((0, tabs_1.detectIndentUnit)('void main() {\n\tint x;\n\tif (x) {\n\t\tx++;\n\t}\n}\n'), '\t');
+    });
+    it('should ignore block comment continuations and alignment outliers', () => {
+        assert_1.default.strictEqual((0, tabs_1.detectIndentUnit)('/*\n * doc\n */\nvoid f() {\n    a();\n    b(1,\n              2);\n    if (x)\n        c();\n}\n'), '    ');
+    });
+    it('should default to two spaces', () => {
+        assert_1.default.strictEqual((0, tabs_1.detectIndentUnit)(''), '  ');
+        assert_1.default.strictEqual((0, tabs_1.detectIndentUnit)('int x;\nint y;\n'), '  ');
+    });
+});
 //# sourceMappingURL=testtabs.js.map

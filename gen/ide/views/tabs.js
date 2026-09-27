@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.insertTabKeymap = exports.insertSpacesKeymap = exports.lineBasedEnterKeymap = void 0;
 exports.spacesToTabStop = spacesToTabStop;
+exports.detectIndentUnit = detectIndentUnit;
 exports.hasLineNumbers = hasLineNumbers;
 exports.inferAsmTabStops = inferAsmTabStops;
 exports.asmTabChange = asmTabChange;
@@ -19,6 +20,37 @@ function spacesToTabStop(state, head) {
     const col = (0, state_1.countColumn)(before, state.tabSize);
     const stop = /^\s*$/.test(before) ? (0, language_1.getIndentUnit)(state) : state.tabSize;
     return " ".repeat(stop - (col % stop));
+}
+// Guess a file's indent unit: "\t" if most indented lines start with a tab,
+// else the most common step (2-8 spaces) between consecutive lines, else 2 spaces.
+function detectIndentUnit(text) {
+    const steps = new Map();
+    let tabLines = 0, spaceLines = 0, prev = 0;
+    for (const line of text.split("\n", 2000)) {
+        if (!line.trim())
+            continue;
+        if (line[0] == "\t") {
+            tabLines++;
+            continue;
+        }
+        const indent = line.length - line.trimStart().length;
+        if (indent > 0)
+            spaceLines++;
+        const step = indent - prev;
+        if (step >= 2 && step <= 8)
+            steps.set(step, (steps.get(step) || 0) + 1);
+        prev = indent;
+    }
+    if (tabLines > spaceLines)
+        return "\t";
+    let best = 2, bestCount = 0;
+    for (const [step, count] of steps) {
+        if (count > bestCount || (count == bestCount && step < best)) {
+            best = step;
+            bestCount = count;
+        }
+    }
+    return " ".repeat(best);
 }
 // Insert spaces from the cursor up to the next tab stop.
 // A non-empty selection indents the selected lines instead.
