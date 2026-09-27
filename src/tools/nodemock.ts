@@ -37,18 +37,32 @@ export class NullAudio implements SampledAudioSink {
 }
 
 export function mockAudio() {
+    // The real TSS PsgDeviceChannel is a small register machine; platforms
+    // (astrocade, vectrex) read/write its registers and set its clock, so the
+    // stand-in has to keep those too, not just absorb the calls.
     class NullPsgDeviceChannel {
+        clock = 0;
+        register = new Int32Array(16);
         setMode() { }
         setDevice() { }
+        setClock(clock: number) { this.clock = clock; }
         generate() { }
         setBufferLength() { }
         setSampleRate() { }
         getBuffer() { return []; }
         writeRegister() { }
         writeRegisterSN() { }
-        writeRegisterAY() { }
-        readRegister() { return 0; }
+        writeRegisterAY(addr: number, val: number) { if (addr >= 0 && addr < 16) this.register[addr] = val & 0xff; }
+        readRegister(addr: number) { return this.register[addr & 0xf]; }
     }
+    // the constants the audio wrappers reference; values match tss/js/tss/PsgDeviceChannel.js
+    (NullPsgDeviceChannel as any).MODE_UNSIGNED = 0;
+    (NullPsgDeviceChannel as any).MODE_SIGNED = 1;
+    (NullPsgDeviceChannel as any).DEVICE_PSG = 0;
+    (NullPsgDeviceChannel as any).DEVICE_SSG = 1;
+    (NullPsgDeviceChannel as any).DEVICE_AY_3_8910 = 0;
+    (NullPsgDeviceChannel as any).DEVICE_YM_2149 = 1;
+    (NullPsgDeviceChannel as any).DEVICE_SN76489 = 2;
     class NullMasterChannel {
         addChannel() { }
     }
@@ -69,8 +83,11 @@ export function mockFetch(rootDir: string = process.cwd()) {
  * Make loadScript() evaluate files from `rootDir` in the global scope, the
  * way a <script> tag would. Each script loads once.
  */
+let clearLoadedScripts: (() => void) | null = null;
+
 export function mockScripts(rootDir: string = process.cwd()) {
     const loaded = new Map<string, Promise<void>>();
+    clearLoadedScripts = () => loaded.clear();
     setScriptLoader((url) => {
         const file = path.resolve(rootDir, url);
         if (!loaded.has(file)) {
@@ -80,6 +97,16 @@ export function mockScripts(rootDir: string = process.cwd()) {
         }
         return loaded.get(file);
     });
+}
+
+/**
+ * Forget which scripts have been evaluated, so the next loadScript() runs them
+ * again. A platform that keeps global state (Javatari deletes its own start())
+ * needs a fresh script for a second run in the same process; a browser gets
+ * that from a page reload.
+ */
+export function resetScripts() {
+    if (clearLoadedScripts) clearLoadedScripts();
 }
 
 export function mockDOM() {

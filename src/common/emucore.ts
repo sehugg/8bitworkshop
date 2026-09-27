@@ -119,6 +119,12 @@ function installHeadlessVideo() {
     this.setKeyboardEvents = setKeyboardEvents;
     this.getFrameData = function () { return datau32; };
     this.getImageData = function () { return { data: datau8, width, height }; };
+    // PCE (and other platforms) build their own ImageData from the canvas
+    // context during start(), so hand out a real one
+    this.createImageData = function (w: number, h: number) {
+      if (w === width && h === height) return { data: datau8, width, height };
+      return { data: new Uint8ClampedArray(w * h * 4), width: w, height: h };
+    };
     this.updateFrame = function () { };
     this.clearRect = function () { };
     this.setupMouseEvents = function () { };

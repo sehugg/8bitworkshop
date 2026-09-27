@@ -3820,7 +3820,7 @@ ARMCore.prototype.compileArm = function(instruction) {
 			// test for UDF instruction
 			if ((instruction & 0xfff000f0) == (0xe7f000f0|0)) {
 				var immediate = instruction & 0x0000000f; // TODO: full range
-				throw new EmuHalt("Program exited (" + immediate + ")");
+				throw new EmuHalt("Program exited (" + immediate + ")", undefined, true);
 			}
 
 			var address : AddressFunction = function() {

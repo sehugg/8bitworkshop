@@ -37,7 +37,7 @@ import * as path from 'path';
 import * as util from 'util';
 import { CompileResult, TOOLS, compileSourceFile, getToolForFilename, preload, romBytes } from './testlib';
 import { EmuTarget, VideoOutput, captureRejectionListeners, dropAbortHandlers, installNodeMocks, loadPlatform } from './emutarget';
-import { PLATFORMS } from '../common/emu';
+import { EmuHalt, PLATFORMS } from '../common/emu';
 import { getSkeletonName, getToolMeta } from '../common/toolmeta';
 import { getBasePlatform } from '../common/util';
 import { c } from './cliformat';
@@ -48,7 +48,7 @@ const PLATFORM_SRC_DIR = 'src/platform';
 export interface RunResult {
     ok: boolean;            // platform started and ran without throwing
     frames: number;         // frames actually advanced
-    verdict: 'ok' | 'solid' | 'blank' | 'novideo' | 'error';
+    verdict: 'ok' | 'solid' | 'blank' | 'novideo' | 'halted' | 'error';
     width?: number;
     height?: number;
     colors?: number;        // distinct pixel colors on the last frame
@@ -479,9 +479,18 @@ export async function runPreset(
             if (opts.pngDir) run.png = await writePresetPNG(video, preset, opts.pngDir);
         }
     } catch (e) {
-        run.ok = false;
-        run.verdict = 'error';
-        run.error = '' + (e && e.message ? e.message : e);
+        if (e instanceof EmuHalt && e.normal) {
+            // the program stopped by design (arm32 semihost exit); the emulator
+            // did its job, so that's a clean halt. Other EmuHalts (HLT opcode,
+            // watchdog, illegal instruction) are still failures.
+            run.ok = true;
+            run.verdict = 'halted';
+            run.error = '' + (e.message || e);
+        } else {
+            run.ok = false;
+            run.verdict = 'error';
+            run.error = '' + (e && e.message ? e.message : e);
+        }
     }
     // report what actually ran, which is less than requested if it threw
     if (target) run.frames = target.frameCount;
@@ -596,6 +605,7 @@ function runStatus(run: RunResult): string {
           (run.color != null ? ` #${(run.color >>> 0).toString(16).padStart(8, '0')}` : '');
     switch (run.verdict) {
         case 'ok': return green('run ok') + ' ' + dim(info);
+        case 'halted': return dim('run halted') + ' ' + dim(info);
         case 'novideo': return dim('run: no video');
         case 'blank': return yellow(bold('run BLANK')) + ' ' + dim(info);
         case 'solid': return yellow(bold('run SOLID')) + ' ' + dim(info);
@@ -657,7 +667,7 @@ async function main() {
     console.log(bold(`${run ? 'building and running' : 'building'} ${presets.length} presets...`));
     const results = await buildAllPresets({
         presets, timeout, verbose, run, frames, pngDir, onResult: (r) => {
-            const clean = !r.run || r.run.verdict === 'ok' || r.run.verdict === 'novideo';
+            const clean = !r.run || r.run.verdict === 'ok' || r.run.verdict === 'novideo' || r.run.verdict === 'halted';
             if (quiet && r.ok && clean) return;
             const status = r.ok ? green('ok  ') : red(bold('FAIL'));
             const size = r.size != null ? `${r.size} bytes` : '';
@@ -690,7 +700,7 @@ async function main() {
     // what the builds did when loaded, separately from whether they built
     const ran = results.filter((r) => r.run);
     if (ran.length) {
-        const problems = ran.filter((r) => r.run.verdict !== 'ok' && r.run.verdict !== 'novideo');
+        const problems = ran.filter((r) => r.run.verdict !== 'ok' && r.run.verdict !== 'novideo' && r.run.verdict !== 'halted');
         const tally2 = `${ran.length - problems.length}/${ran.length} presets run clean`;
         console.log('\n' + bold(problems.length ? yellow(tally2) : green(tally2)));
         if (problems.length) {
