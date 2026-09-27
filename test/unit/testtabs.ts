@@ -2,7 +2,7 @@ import assert from "assert";
 import { describe } from "mocha";
 import { indentUnit } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
-import { hasLineNumbers, spacesToTabStop } from "../../src/ide/views/tabs";
+import { detectIndentUnit, hasLineNumbers, spacesToTabStop } from "../../src/ide/views/tabs";
 
 // Build a state from text with '|' marking the cursor; returns the spaces Tab would insert.
 function tabAt(textWithCursor: string, tabSize: number, unit: number): string {
@@ -55,5 +55,20 @@ describe('hasLineNumbers', () => {
         assert.strictEqual(has(''), false);
         assert.strictEqual(has('for i = 1 to 10\n  print i\nnext'), false);
         assert.strictEqual(has('x1 = 5'), false);
+    });
+});
+
+describe('detectIndentUnit', () => {
+    it('should detect the most common indent step', () => {
+        assert.strictEqual(detectIndentUnit('void main() {\n  int x;\n  if (x) {\n    x++;\n  }\n}\n'), '  ');
+        assert.strictEqual(detectIndentUnit('void main() {\n    int x;\n    if (x) {\n        x++;\n    }\n}\n'), '    ');
+        assert.strictEqual(detectIndentUnit('void main() {\n\tint x;\n\tif (x) {\n\t\tx++;\n\t}\n}\n'), '\t');
+    });
+    it('should ignore block comment continuations and alignment outliers', () => {
+        assert.strictEqual(detectIndentUnit('/*\n * doc\n */\nvoid f() {\n    a();\n    b(1,\n              2);\n    if (x)\n        c();\n}\n'), '    ');
+    });
+    it('should default to two spaces', () => {
+        assert.strictEqual(detectIndentUnit(''), '  ');
+        assert.strictEqual(detectIndentUnit('int x;\nint y;\n'), '  ');
     });
 });
