@@ -20,6 +20,8 @@ import type { PresetIndex, TemplateInfo } from '../src/presettypes';
 
 // families from the IDE's platform menu that the extension can't run
 const SKIP_FAMILIES = ['MAME/Other', 'Interpreters'];
+// platforms we never offer in the extension, even if the menu lists them
+const SKIP_PLATFORMS = ['x86', 'vectrex', 'exidy', 'arm32'];
 
 const rootDir = path.resolve(process.argv[2] || path.join(__dirname, '../..'));
 const outFile = path.resolve(process.argv[3] || path.join(__dirname, 'presets.json'));
@@ -27,7 +29,8 @@ const presetsDir = path.join(rootDir, 'presets');
 
 /** The IDE's platform menu: [family, id, name], in menu order. */
 function readPlatformMenu(): [string, string, string][] {
-  var html = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf-8');
+  // strip HTML comments: commented-out menu entries (e.g. vectrex) aren't offered
+  var html = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf-8').replace(/<!--[\s\S]*?-->/g, '');
   var out: [string, string, string][] = [];
   var family = '';
   var re = /href="javascript:void\(0\)">([^<]+)<|href="\?platform=([^"&]+)">([^<]+)</g;
@@ -131,6 +134,7 @@ async function main() {
   var listing: { [platform: string]: string[] } = {};
   for (var [family, id, name] of readPlatformMenu()) {
     if (SKIP_FAMILIES.includes(family)) continue;
+    if (SKIP_PLATFORMS.includes(id)) continue;
     var dir = getBasePlatform(id);
     if (!fs.existsSync(path.join(presetsDir, dir))) continue;
     try {
