@@ -280,9 +280,16 @@ export class RAM {
 export class EmuHalt extends Error {
   $loc: SourceLocation;
   squelchError = true;
-  constructor(msg: string, loc?: SourceLocation) {
+  /**
+   * true when the program stopped by design (e.g. a semihost exit), as opposed
+   * to a fault the CPU reported (illegal opcode, watchdog, bad ROM). Hosts can
+   * use this to tell "the program ended" from "the emulator gave up".
+   */
+  normal: boolean;
+  constructor(msg: string, loc?: SourceLocation, normal = false) {
     super(msg);
     this.$loc = loc;
+    this.normal = normal;
     Object.setPrototypeOf(this, EmuHalt.prototype);
   }
 }

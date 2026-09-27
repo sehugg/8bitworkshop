@@ -13,6 +13,9 @@ exports.isBuildableSource = isBuildableSource;
 exports.detectProject = detectProject;
 exports.isClearWinner = isClearWinner;
 exports.isStrongDetection = isStrongDetection;
+exports.classifyFinding = classifyFinding;
+exports.dropNestedFindings = dropNestedFindings;
+exports.isMadeOfProjects = isMadeOfProjects;
 exports.isHeaderFile = isHeaderFile;
 exports.mainEvidence = mainEvidence;
 exports.detectionSummary = detectionSummary;
@@ -68,6 +71,7 @@ const FINGERPRINTS = [
     { re: /\bWait_Recal\b|\bIntensity_[0-9a-z]+\b/, platforms: ['vectrex'], reason: 'calls Vectrex BIOS routines' },
 ];
 const HEADER_EXTS = ['.h', '.inc', '.i'];
+const C_EXTS = ['.c', '.cpp'];
 // a register or function name in a header is a declaration, not a use, so
 // it points at the library rather than at a program written for the platform
 const HEADER_FINGERPRINT_WEIGHT = 0.15;
@@ -162,6 +166,8 @@ async function detectProject(input) {
             scores.set(platform, d = { platform, score: 0, evidence: [] });
         if (d.evidence.some(e => e.reason === ev.reason))
             return;
+        if (ev.kind === 'code')
+            d.hasCode = true;
         raw.set(platform, (raw.get(platform) || 0) + score);
         if (d.evidence.length < 8)
             d.evidence.push(ev);
@@ -178,8 +184,8 @@ async function detectProject(input) {
         var badge = parseReadmeBadge((await input.read(readme)) || '');
         if (badge) {
             return [{
-                    platform: badge.platform, mainFile: badge.mainFile, score: 1,
-                    evidence: [{ file: readme, reason: 'has an 8bitworkshop link naming the platform' }],
+                    platform: badge.platform, mainFile: badge.mainFile, score: 1, hasCode: true,
+                    evidence: [{ file: readme, reason: 'has an 8bitworkshop link naming the platform', kind: 'code' }],
                 }];
         }
     }
@@ -190,17 +196,17 @@ async function detectProject(input) {
         var ext = extname(file);
         var rom = exports.ROM_PLATFORMS[ext];
         if (rom)
-            add(rom, 0.6, { file, reason: `is a ${ext} ROM` });
+            add(rom, 0.6, { file, reason: `is a ${ext} ROM`, kind: 'rom' });
         var base = basename(file);
         if (/^makefile$/i.test(base) || ext === '.mk') {
             var mk = await input.read(file);
             var m = mk && /(?:\s-t\s+|--target[\s=]+)([a-z0-9]+)/.exec(mk);
             if (m && CC65_TARGETS[m[1]])
-                add(CC65_TARGETS[m[1]], 0.6, { file, reason: `builds for the cc65 "${m[1]}" target` });
+                add(CC65_TARGETS[m[1]], 0.6, { file, reason: `builds for the cc65 "${m[1]}" target`, kind: 'code' });
             continue;
         }
         if (ext === '.cfg' && CC65_TARGETS[base.replace(/\.cfg$/, '')]) {
-            add(CC65_TARGETS[base.replace(/\.cfg$/, '')], 0.3, { file, reason: 'is a cc65 linker config' });
+            add(CC65_TARGETS[base.replace(/\.cfg$/, '')], 0.3, { file, reason: 'is a cc65 linker config', kind: 'hint' });
             continue;
         }
         if (!isBuildableSource(file) && !HEADER_EXTS.includes(ext))
@@ -209,6 +215,8 @@ async function detectProject(input) {
         if (text == null)
             continue;
         texts.set(file, text);
+        // a header declares things for programs; it isn't one
+        var kind = HEADER_EXTS.includes(ext) ? 'hint' : 'code';
         // includes, with their line numbers for the evidence. Quoted (C, ca65),
         // angle-bracketed (C), or bare (DASM, bB) -- name is whichever matched.
         var re = /^[ \t]*[#.]?[ \t]*include\s+(?:"([^"]+)"|<([^>]+)>|([^\s;]+))/gim;
@@ -223,14 +231,14 @@ async function detectProject(input) {
             // a header a family shares (cv.h) points at each member, less strongly
             var weight = 0.6 / Math.sqrt(list.length);
             for (var p of list)
-                add(p, weight, { file, line, reason: `includes "${name}"` });
+                add(p, weight, { file, line, reason: `includes "${name}"`, kind });
         }
         for (var fp of FINGERPRINTS) {
             var fm = fp.re.exec(text);
             if (fm) {
                 var fline = text.substring(0, fm.index).split('\n').length;
                 var fweight = HEADER_EXTS.includes(ext) ? HEADER_FINGERPRINT_WEIGHT : 0.5;
-                addAll(fp.platforms, fweight, { file, line: fline, reason: fp.reason });
+                addAll(fp.platforms, fweight, { file, line: fline, reason: fp.reason, kind });
             }
         }
     }
@@ -247,10 +255,10 @@ async function detectProject(input) {
             return meta && (meta.extensions || []).includes(ext);
         });
         if (accepting.length > 0 && accepting.length <= 3)
-            addAll(accepting, 0.5, { file, reason: `has the ${ext} extension` });
+            addAll(accepting, 0.5, { file, reason: `has the ${ext} extension`, kind: 'code' });
     }
     if (input.dirName && platforms.has(input.dirName))
-        add(input.dirName, 0.2, { file: '.', reason: `is in a folder named "${input.dirName}"` });
+        add(input.dirName, 0.2, { file: '.', reason: `is in a folder named "${input.dirName}"`, kind: 'hint' });
     var result = [...scores.values()];
     // rank on the uncapped total, so two strong candidates still differ
     result.sort((a, b) => raw.get(b.platform) - raw.get(a.platform) || a.platform.localeCompare(b.platform));
@@ -277,9 +285,59 @@ function isClearWinner(detections) {
     var w = (d) => { var _a; return (_a = d.weight) !== null && _a !== void 0 ? _a : d.score; };
     return detections.length == 1 || w(detections[0]) - w(detections[1]) >= 0.2;
 }
-/** Strong enough to bring up unasked, on opening a folder. */
+/**
+ * Strong enough to bring up unasked, on opening a folder: a high score,
+ * and at least some of it from a program's own code. Headers, linker
+ * configs, ROMs, and folder names alone don't make a project.
+ */
 function isStrongDetection(d) {
-    return d.score >= 0.5;
+    return d.score >= 0.5 && !!d.hasCode;
+}
+/**
+ * How a directory counts when scanning a folder for projects: "project"
+ * for a strong, clear detection; "potential" for weaker or ambiguous
+ * evidence around something to build or run, which is offered only when
+ * the user asks; undefined for nothing worth mentioning.
+ */
+function classifyFinding(detections) {
+    var _a;
+    var d = detections[0];
+    if (!d)
+        return undefined;
+    if (isStrongDetection(d) && isClearWinner(detections))
+        return 'project';
+    var runnable = !!d.mainFile || (((_a = d.mainCandidates) === null || _a === void 0 ? void 0 : _a.length) || 0) > 0 || d.evidence.some(e => e.kind === 'rom');
+    if (runnable && d.score > 0.1)
+        return 'potential';
+    return undefined;
+}
+function isInsideDir(parent, child) {
+    return parent !== child && (parent === '' || child.startsWith(parent + '/'));
+}
+/**
+ * Drop findings that belong to another: anything inside a project with a
+ * main file (its code and data folders), and a library folder inside a
+ * folder of programs. A nested project with its own main file stays.
+ */
+function dropNestedFindings(findings) {
+    return findings.filter(f => !findings.some(p => isInsideDir(p.dir, f.dir) && ((!p.potential && !!p.detection.mainFile) ||
+        (isFolderOfPrograms(p.detection) && !f.detection.mainFile))));
+}
+// unasked, this many projects anywhere in a folder is still worth a prompt
+const FEW_PROJECTS = 5;
+/**
+ * True if a folder is made of projects, so a prompt nobody asked for is
+ * welcome: a few projects, or projects in at least half its top-level
+ * folders (a folder of cloned repos). Projects scattered through a big
+ * codebase don't count. `allDirs` is every directory the scan saw.
+ */
+function isMadeOfProjects(projectDirs, allDirs) {
+    if (projectDirs.length <= FEW_PROJECTS)
+        return true;
+    var top = (d) => d.split('/')[0];
+    var tops = new Set(allDirs.filter(d => d).map(top));
+    var covered = new Set(projectDirs.filter(d => d).map(top));
+    return covered.size * 2 >= tops.size;
 }
 /** True for a header or include file: a declaration, not a program. */
 function isHeaderFile(fn) {
@@ -333,7 +391,11 @@ function findMainCandidates(platform, files, texts) {
         for (var dep of deps)
             used.add(dep);
     }
-    var candidates = files.filter(f => isBuildableSource(f) && texts.has(f) && !used.has(f) && !used.has(basename(f)));
+    // a crt0 is the startup code a toolchain links in, not a program; a C
+    // program has a main(), so C without one is a library
+    var isProgram = (f) => !/^crt0\b/i.test(basename(f))
+        && (!C_EXTS.includes(extname(f)) || /\bmain\s*\(/.test(texts.get(f)));
+    var candidates = files.filter(f => isBuildableSource(f) && texts.has(f) && !used.has(f) && !used.has(basename(f)) && isProgram(f));
     var rank = (f) => {
         var t = texts.get(f) || '';
         var r = 0;

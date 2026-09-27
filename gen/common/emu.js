@@ -253,10 +253,11 @@ class RAM {
 }
 exports.RAM = RAM;
 class EmuHalt extends Error {
-    constructor(msg, loc) {
+    constructor(msg, loc, normal = false) {
         super(msg);
         this.squelchError = true;
         this.$loc = loc;
+        this.normal = normal;
         Object.setPrototypeOf(this, EmuHalt.prototype);
     }
 }

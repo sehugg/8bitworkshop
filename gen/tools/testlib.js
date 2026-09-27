@@ -42,6 +42,7 @@ exports.preload = preload;
 exports.compile = compile;
 exports.compileFile = compileFile;
 exports.getToolForFilename = getToolForFilename;
+exports.romBytes = romBytes;
 exports.compileSourceFile = compileSourceFile;
 exports.buildSourceFileMessage = buildSourceFileMessage;
 exports.listTools = listTools;
@@ -168,6 +169,21 @@ function getToolForFilename(fn, platform) {
     return (0, toolselect_1.getToolForPlatform)(platform, fn);
 }
 /**
+ * The ROM image in a build result, or null when the output isn't one (verilog's
+ * compiled unit). Throws when the tool produced nothing at all.
+ */
+function romBytes(result) {
+    var _a, _b;
+    const out = (_b = (_a = result.output) === null || _a === void 0 ? void 0 : _a.code) !== null && _b !== void 0 ? _b : result.output;
+    if (out instanceof Uint8Array)
+        return out;
+    if (typeof out === 'string')
+        return new TextEncoder().encode(out);
+    if (out == null)
+        throw new Error('compiler produced no output');
+    return null;
+}
+/**
  * Compile an arbitrary source file path.
  * Parses include/link/resource directives and loads dependent files.
  * `buildAs` renames the file for the build, for sources whose name on disk
@@ -177,7 +193,11 @@ async function compileSourceFile(tool, platform, filePath, buildAs, opts) {
     await initialize();
     var msg = await buildSourceFileMessage(tool, platform, filePath, buildAs, opts);
     await (0, workerlib_1.handleMessage)({ reset: true });
-    return workerResultToCompileResult(await (0, workerlib_1.handleMessage)(msg));
+    var result = workerResultToCompileResult(await (0, workerlib_1.handleMessage)(msg));
+    result.files = {};
+    for (var u of msg.updates)
+        result.files[u.path] = u.data;
+    return result;
 }
 /**
  * The worker message compileSourceFile sends for a source file -- the same

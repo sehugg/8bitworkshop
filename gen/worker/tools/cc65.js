@@ -329,6 +329,9 @@ function compileCC65(step) {
     }
     (0, builder_1.gatherFiles)(step, { mainFilePath: "main.c" });
     var destpath = step.prefix + '.s';
+    // the link step reads these params, so they have to be settled even when
+    // the assembly file is up to date and nothing below runs
+    (0, builder_1.fixParamsWithDefines)(step.path, params);
     if ((0, builder_1.staleFiles)(step, [destpath])) {
         var CC65 = wasmutils_1.emglobal.cc65({
             instantiateWasm: (0, wasmutils_1.moduleInstFn)('cc65'),
@@ -348,7 +351,6 @@ function compileCC65(step) {
                 return code;
             }
         });
-        (0, builder_1.fixParamsWithDefines)(step.path, params);
         var args = [
             '-I', '/share/include',
             '-I', '.',

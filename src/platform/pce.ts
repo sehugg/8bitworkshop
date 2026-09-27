@@ -46,6 +46,12 @@ class PCEnginePlatform implements Platform {
         this.pce.Init();
         this.pce.SetROM(rom);
     }
+    // headless hosts drive frames through advance(); the IDE uses the
+    // requestAnimationFrame loop that resume() starts
+    advance(novideo?: boolean): number {
+        this.pce.Run();
+        return 1;
+    }
     getPlatformName(): string {
         return "PC Engine";
     }

@@ -7557,6 +7557,7 @@
     }
     gatherFiles(step, { mainFilePath: "main.c" });
     var destpath = step.prefix + ".s";
+    fixParamsWithDefines(step.path, params);
     if (staleFiles(step, [destpath])) {
       var CC65 = emglobal.cc65({
         instantiateWasm: moduleInstFn("cc65"),
@@ -7576,7 +7577,6 @@
           return code;
         }
       });
-      fixParamsWithDefines(step.path, params);
       var args = [
         "-I",
         "/share/include",

@@ -69,7 +69,8 @@ function files(map) {
         var d = await (0, detect_1.detectProject)(files({ 'game.c': '\n#include "neslib.h"\nvoid main() {}\n' }));
         assert_1.default.strictEqual(d[0].platform, 'nes');
         assert_1.default.ok((0, detect_1.isClearWinner)(d));
-        assert_1.default.deepStrictEqual(d[0].evidence[0], { file: 'game.c', line: 2, reason: 'includes "neslib.h"' });
+        assert_1.default.strictEqual((0, detect_1.classifyFinding)(d), 'project');
+        assert_1.default.deepStrictEqual(d[0].evidence[0], { file: 'game.c', line: 2, reason: 'includes "neslib.h"', kind: 'code' });
         assert_1.default.strictEqual(d[0].mainFile, 'game.c');
     });
     (0, mocha_1.it)('finds the VCS from TIA registers', async () => {
@@ -99,6 +100,9 @@ function files(map) {
         assert_1.default.deepStrictEqual((0, detect_1.findMainCandidates)('nes', [...texts.keys()], texts), { candidates: ['main.c'], mainFile: 'main.c' });
         texts = new Map([['a.c', 'void main() {}\n'], ['b.c', 'void main() {}\n']]);
         assert_1.default.deepStrictEqual((0, detect_1.findMainCandidates)('nes', [...texts.keys()], texts), { candidates: ['a.c', 'b.c'], mainFile: undefined });
+        // C without main() is a library, whatever links it
+        texts = new Map([['game.s', 'reset: jmp reset\n'], ['util.c', 'int add(int a, int b) { return a + b; }\n']]);
+        assert_1.default.deepStrictEqual((0, detect_1.findMainCandidates)('nes', [...texts.keys()], texts), { candidates: ['game.s'], mainFile: 'game.s' });
     });
     (0, mocha_1.it)('downweights a fingerprint found in a header', async () => {
         var _a;
@@ -107,9 +111,57 @@ function files(map) {
         var d = await (0, detect_1.detectProject)({ files: ['gb.h'], read: () => header, platforms: PLATFORMS, dirName: 'gb' });
         assert_1.default.ok(d.every(x => x.score < 0.5), JSON.stringify(d));
         assert_1.default.ok(d[0].score > 0, 'the header still counts for something');
+        assert_1.default.strictEqual((0, detect_1.classifyFinding)(d), undefined, 'but a header alone is no project');
         assert_1.default.ok((0, detect_1.isHeaderFile)('gb/gb.h'));
         assert_1.default.ok(!(0, detect_1.isHeaderFile)('gb/gb.sgb'));
         assert_1.default.strictEqual((_a = (0, detect_1.mainEvidence)(d[0])) === null || _a === void 0 ? void 0 : _a.reason, 'calls GBDK functions');
+    });
+    (0, mocha_1.it)('passes over a toolchain library folder', async () => {
+        // src/worker/lib/vcs: a linker config and startup code, in a folder named for the platform
+        var d = await (0, detect_1.detectProject)(Object.assign(Object.assign({}, files({ 'atari2600.cfg': 'MEMORY {}\n', 'crt0.s': '  .export _init\n_init: rts\n' })), { dirName: 'vcs' }));
+        assert_1.default.strictEqual(d[0].platform, 'vcs');
+        assert_1.default.ok(d[0].score >= 0.5, 'enough score...');
+        assert_1.default.notStrictEqual((0, detect_1.classifyFinding)(d), 'project', '...but no program code');
+        assert_1.default.strictEqual(d[0].mainFile, undefined, 'crt0 is not a program');
+        // src/worker/lib/vectrex: headers including headers
+        d = await (0, detect_1.detectProject)(Object.assign(Object.assign({}, files({ 'bios.h': '#include "vectrex.h"\n' })), { dirName: 'vectrex' }));
+        assert_1.default.ok(d[0].score >= 0.5);
+        assert_1.default.strictEqual((0, detect_1.classifyFinding)(d), undefined);
+    });
+    (0, mocha_1.it)('offers a folder of ROMs only as potential', async () => {
+        var d = await (0, detect_1.detectProject)({ files: ['croom.nes'], read: () => null, platforms: PLATFORMS });
+        assert_1.default.ok((0, detect_1.isClearWinner)(d), 'the CLI can still run it');
+        assert_1.default.strictEqual((0, detect_1.classifyFinding)(d), 'potential');
+    });
+    (0, mocha_1.it)('offers an ambiguous strong detection as potential', async () => {
+        var d = await (0, detect_1.detectProject)(files({ 'game.c': '#include <cbm.h>\nvoid main() { POKE(0xd020, 0); VIC.bgcolor0 = 1; }\n' }));
+        assert_1.default.ok(d[0].score >= 0.5 && d[1].score >= 0.5, JSON.stringify(d));
+        assert_1.default.ok(!(0, detect_1.isClearWinner)(d));
+        assert_1.default.strictEqual((0, detect_1.classifyFinding)(d), 'potential');
+    });
+    (0, mocha_1.it)('keeps subfolders part of their project', () => {
+        var main = { platform: 'vcs', score: 1, evidence: [], mainFile: 'main.asm' };
+        var part = { platform: 'vcs', score: 0.5, evidence: [], mainFile: 'kernel.asm' };
+        var programs = { platform: 'nes', score: 1, evidence: [], mainCandidates: ['a.c', 'b.c'] };
+        var kept = (0, detect_1.dropNestedFindings)([
+            { dir: 'nyancat', detection: main },
+            { dir: 'nyancat/bank1/code', detection: part },
+            { dir: 'nyancat2', detection: part },
+            { dir: 'presets/nes', detection: programs },
+            { dir: 'presets/nes/chase', detection: part },
+            { dir: 'presets/nes/lib', detection: Object.assign(Object.assign({}, part), { mainFile: undefined }) },
+        ]).map(f => f.dir);
+        assert_1.default.deepStrictEqual(kept, ['nyancat', 'nyancat2', 'presets/nes', 'presets/nes/chase']);
+    });
+    (0, mocha_1.it)('prompts for a folder made of projects, not a big repo', () => {
+        // ~/emu/workspace: a folder of cloned project repos
+        var repos = ['2048', 'chase', 'falling', 'genemedic', 'guntner', 'mango', 'pacman'];
+        assert_1.default.ok((0, detect_1.isMadeOfProjects)(repos, [...repos, 'guntner/exports', 'scripts']));
+        // the 8bitworkshop repo: projects under a few of many top-level folders
+        var projects = ['src/worker/lib/verilog', 'test/ecs', 'tmp', 'presets/nes', 'presets/c64', 'presets/vcs', 'presets/gb', 'presets/apple2', 'presets/zx'];
+        var dirs = [...projects, 'src/common', 'css', 'res', 'gen', 'doc', 'scripts', 'extension', 'images', 'web', 'meta'];
+        assert_1.default.ok(!(0, detect_1.isMadeOfProjects)(projects, dirs));
+        assert_1.default.ok((0, detect_1.isMadeOfProjects)(['presets/nes', 'presets/c64'], dirs), 'a few projects anywhere still count');
     });
     (0, mocha_1.it)('lists every program in a folder of programs', async () => {
         var programs = ['chase.c', 'climber.c', 'testphys.c'];

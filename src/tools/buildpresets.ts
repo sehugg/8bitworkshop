@@ -15,6 +15,13 @@
 //   npm run buildpresets -- --json out.json  # machine-readable report
 //   npm run buildpresets -- --baseline test/presets-baseline.json
 //   npm run buildpresets -- --verbose        # let the tools print as they run
+//   npm run buildpresets -- --run            # run each build for 300 frames
+//   npm run buildpresets -- --run --png dir  # ... and save a screenshot each
+//
+// With --run each preset that builds is loaded into its platform headlessly,
+// advanced for --frames frames (default 300), and its screen checked for
+// obvious trouble -- a blank or single-color frame, which usually means the
+// program never got going. --png writes a screenshot for each one.
 //
 // Tool output is hidden unless the build it belongs to fails, and a tool that
 // exits, aborts, or wedges fails just its own preset (see --timeout, ms).
@@ -28,15 +35,30 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as util from 'util';
-import { CompileResult, TOOLS, compileSourceFile, getToolForFilename, preload } from './testlib';
-import { installNodeMocks } from './emutarget';
-import { PLATFORMS } from '../common/emu';
+import { CompileResult, TOOLS, compileSourceFile, getToolForFilename, preload, romBytes } from './testlib';
+import { EmuTarget, VideoOutput, captureRejectionListeners, dropAbortHandlers, installNodeMocks, loadPlatform } from './emutarget';
+import { EmuHalt, PLATFORMS } from '../common/emu';
 import { getSkeletonName, getToolMeta } from '../common/toolmeta';
 import { getBasePlatform } from '../common/util';
 import { c } from './cliformat';
 
 const PRESETS_DIR = 'presets';
 const PLATFORM_SRC_DIR = 'src/platform';
+
+export interface RunResult {
+    ok: boolean;            // platform started and ran without throwing
+    frames: number;         // frames actually advanced
+    verdict: 'ok' | 'solid' | 'blank' | 'novideo' | 'halted' | 'error';
+    width?: number;
+    height?: number;
+    colors?: number;        // distinct pixel colors on the last frame
+    dominant?: number;      // fraction of pixels sharing the most common color
+    color?: number;         // that color, as 0xAARRGGBB
+    error?: string;
+    png?: string;           // screenshot path, when --png was given
+    ms: number;
+    log?: string;           // what the platform printed, kept only on failure
+}
 
 export interface PresetResult {
     preset: string;         // path relative to presets/
@@ -47,6 +69,7 @@ export interface PresetResult {
     ms: number;
     errors?: string[];
     log?: string;           // what the tool printed, kept only when it failed
+    run?: RunResult;        // present when built with --run
 }
 
 export interface PresetEntry {
@@ -59,9 +82,17 @@ export interface PresetEntry {
 export interface BuildOptions {
     timeout?: number;       // ms before a wedged tool is given up on
     verbose?: boolean;      // let tools print as they run, even when they work
+    run?: boolean;          // load each build and run it
+    frames?: number;        // frames to advance when running (default 300)
+    pngDir?: string;        // directory to write a screenshot into, when running
 }
 
 const DEFAULT_TIMEOUT = 120000;
+const DEFAULT_RUN_FRAMES = 300;
+
+// A frame this uniform after a few seconds almost always means nothing drew;
+// a real screen has a background plus text or sprites.
+const SOLID_FRACTION = 0.999;
 
 // skip these platforms, they aren't ready yet or otherwise broken
 const SKIP_PLATFORMS = [
@@ -78,6 +109,9 @@ let platformsLoaded = false;
 async function importAllPlatforms(warn: (s: string) => void) {
     if (platformsLoaded) return;
     platformsLoaded = true;
+    acquireRejectionGuard();
+    // listeners that exist before any platform module loads are the ones to keep
+    const keep = captureRejectionListeners();
     installNodeMocks();
     for (const entry of fs.readdirSync(PLATFORM_SRC_DIR).sort()) {
         if (!entry.endsWith('.ts') || entry.startsWith('_')) continue;
@@ -87,6 +121,7 @@ async function importAllPlatforms(warn: (s: string) => void) {
             warn(`platform module ${entry}: ${e}`);
         }
     }
+    dropAbortHandlers(keep);
 }
 
 // Which tool builds a preset: the same table the IDE's platform objects use
@@ -286,6 +321,32 @@ function releaseExitGuard() {
     if (--guardRefs === 0 && restoreGuard) { restoreGuard(); restoreGuard = null; }
 }
 
+// A platform's start() may kick off async work that rejects after we've moved
+// on (an emulator failing to attach its canvas, say). Left alone, that kills
+// the sweep: the Emscripten runtimes some platform modules import (binaryen,
+// by way of verilog) register their own unhandledRejection handler that calls
+// abort, so the whole process exits 7 with no report. Collect the rejections
+// instead, and drop the abort handlers the platform imports installed.
+export interface StrayError {
+    message: string;
+    stack?: string;
+}
+
+const strayErrors: StrayError[] = [];
+let rejectGuard: (() => void) | null = null;
+
+function acquireRejectionGuard() {
+    if (rejectGuard) return;
+    const handler = (reason: any) => {
+        strayErrors.push({
+            message: '' + ((reason && reason.message) || reason),
+            stack: reason && reason.stack,
+        });
+    };
+    process.on('unhandledRejection', handler);
+    rejectGuard = () => { process.off('unhandledRejection', handler); rejectGuard = null; };
+}
+
 // Tools chatter on stdout/stderr while they run -- banners, warnings, the
 // occasional fatal error. Buffer it all and only show the part that belongs
 // to a build that failed.
@@ -326,6 +387,117 @@ function captureOutput() {
 // A build step can reach for a second tool -- a project that links sources of
 // more than one kind -- whose filesystem nobody preloaded. Load it and retry.
 const RE_NO_FS = /No filesystem for '([^']+)'/;
+
+// --- running a built preset ------------------------------------------------
+
+// Reject when a platform's start() wedges, so one stuck emulator can't hold up
+// the whole sweep. The underlying promise is abandoned, not cancelled.
+function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`${what} timed out after ${ms}ms`)), ms);
+        p.then(
+            (v) => { clearTimeout(timer); resolve(v); },
+            (e) => { clearTimeout(timer); reject(e); });
+    });
+}
+
+// Some platforms pick a load format from the title's extension (an Atari XEX
+// named .rom would load as a cartridge), the same as `8bws run`.
+function romTitle(preset: string, rom: Uint8Array, target: EmuTarget): string {
+    const base = path.basename(preset);
+    const ext = target.platform.getROMExtension && target.platform.getROMExtension(rom);
+    return ext ? base.replace(/\.[^.]*$/, '') + ext : base;
+}
+
+// Count the colors on the last frame. A single color -- or a frame nobody ever
+// touched -- is the cheapest sign that a program didn't get going. Pure, so it
+// can be checked without an emulator.
+export function screenStats(pixels: Uint32Array, width = 0, height = 0):
+    Pick<RunResult, 'width' | 'height' | 'colors' | 'dominant' | 'color' | 'verdict'> {
+    const counts = new Map<number, number>();
+    let top = 0, topColor = 0;
+    for (let i = 0; i < pixels.length; i++) {
+        const color = pixels[i];
+        const n = (counts.get(color) || 0) + 1;
+        counts.set(color, n);
+        if (n > top) { top = n; topColor = color; }
+    }
+    const dominant = top / (pixels.length || 1);
+    let verdict: RunResult['verdict'];
+    if (counts.size <= 1) {
+        // transparent black is the untouched headless buffer, not a drawn frame
+        verdict = (topColor >>> 24) === 0 ? 'blank' : 'solid';
+    } else {
+        verdict = dominant >= SOLID_FRACTION ? 'solid' : 'ok';
+    }
+    return { width, height, colors: counts.size, dominant, color: topColor, verdict };
+}
+
+function analyzeVideo(video: VideoOutput, run: RunResult) {
+    Object.assign(run, screenStats(video.pixels, video.width, video.height));
+}
+
+async function writePresetPNG(video: VideoOutput, preset: string, dir: string): Promise<string> {
+    const { encode } = await import('fast-png');
+    const { pixels, width, height } = video;
+    const png = encode({
+        width, height,
+        data: new Uint8Array(pixels.buffer, pixels.byteOffset, width * height * 4),
+        channels: 4,
+    });
+    // flatten the preset path so presets/<platform>/foo.c and a sibling
+    // foo.s never collide in the output directory
+    const file = path.join(dir, preset.replace(/[\\/]/g, '_') + '.png');
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, png);
+    return file;
+}
+
+/** Load a finished build into its platform and advance it a while. */
+export async function runPreset(
+    result: CompileResult, preset: string, platform: string, opts: BuildOptions = {}
+): Promise<RunResult> {
+    const started = Date.now();
+    const frames = opts.frames || DEFAULT_RUN_FRAMES;
+    const run: RunResult = { ok: false, frames, verdict: 'error', ms: 0 };
+    const capture = opts.verbose ? null : captureOutput();
+    let target: EmuTarget | null = null;
+    try {
+        target = await loadPlatform(platform);
+        await withTimeout(target.start(), opts.timeout || DEFAULT_TIMEOUT, 'platform start');
+        if (result.files) target.setFileData(result.files);
+        const rom = romBytes(result);
+        if (rom) await target.loadROM(rom, romTitle(preset, rom, target));
+        else await target.loadROM(result.output, path.basename(preset));
+        for (let i = 0; i < frames; i++) target.advanceFrame();
+        run.ok = true;
+        const video = target.getVideo();
+        if (!video) {
+            run.verdict = 'novideo';
+        } else {
+            analyzeVideo(video, run);
+            if (opts.pngDir) run.png = await writePresetPNG(video, preset, opts.pngDir);
+        }
+    } catch (e) {
+        if (e instanceof EmuHalt && e.normal) {
+            // the program stopped by design (arm32 semihost exit); the emulator
+            // did its job, so that's a clean halt. Other EmuHalts (HLT opcode,
+            // watchdog, illegal instruction) are still failures.
+            run.ok = true;
+            run.verdict = 'halted';
+            run.error = '' + (e.message || e);
+        } else {
+            run.ok = false;
+            run.verdict = 'error';
+            run.error = '' + (e && e.message ? e.message : e);
+        }
+    }
+    // report what actually ran, which is less than requested if it threw
+    if (target) run.frames = target.frameCount;
+    if (capture) run.log = capture.stop() || undefined;
+    run.ms = Date.now() - started;
+    return run;
+}
 
 export async function buildPreset(
     preset: string, platform: string, tool: string, opts: BuildOptions & { buildAs?: string } = {}
@@ -379,7 +551,9 @@ export async function buildPreset(
 
     const ms = Date.now() - started;
     if (errors.length) return { preset, platform, tool, ok: false, ms, errors, log: log || undefined };
-    return { preset, platform, tool, ok: true, size: outputSize(result), ms };
+    const built: PresetResult = { preset, platform, tool, ok: true, size: outputSize(result), ms };
+    if (opts.run) built.run = await runPreset(result, preset, platform, opts);
+    return built;
 }
 
 export async function buildAllPresets(
@@ -423,6 +597,22 @@ function arg(argv: string[], name: string): string | undefined {
     return i >= 0 ? argv[i + 1] : undefined;
 }
 
+/** One short phrase describing what running a preset produced. */
+function runStatus(run: RunResult): string {
+    const info = run.error
+        ? run.error
+        : `${run.colors} color${run.colors === 1 ? '' : 's'}, ${(100 * (run.dominant ?? 1)).toFixed(1)}%` +
+          (run.color != null ? ` #${(run.color >>> 0).toString(16).padStart(8, '0')}` : '');
+    switch (run.verdict) {
+        case 'ok': return green('run ok') + ' ' + dim(info);
+        case 'halted': return dim('run halted') + ' ' + dim(info);
+        case 'novideo': return dim('run: no video');
+        case 'blank': return yellow(bold('run BLANK')) + ' ' + dim(info);
+        case 'solid': return yellow(bold('run SOLID')) + ' ' + dim(info);
+        default: return red(bold('run FAIL')) + ' ' + dim(info);
+    }
+}
+
 function compareToBaseline(results: PresetResult[], baselinePath: string): number {
     const baseline: PresetResult[] = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
     const was: { [preset: string]: boolean } = {};
@@ -458,7 +648,13 @@ async function main() {
     const baseline = arg(argv, 'baseline');
     const quiet = argv.includes('--quiet');
     const verbose = argv.includes('--verbose');
+    // asking for frames or a screenshot only makes sense while running
+    const run = argv.includes('--run') || argv.includes('--frames') || argv.includes('--png');
+    const frames = arg(argv, 'frames') ? parseInt(arg(argv, 'frames')) : undefined;
+    const pngDir = arg(argv, 'png');
     const timeout = arg(argv, 'timeout') ? parseInt(arg(argv, 'timeout')) : undefined;
+    // collect stray async rejections so a misbehaving platform can't abort the sweep
+    acquireRejectionGuard();
 
     const warnings: string[] = [];
     const errors: string[] = [];
@@ -468,16 +664,22 @@ async function main() {
     if (errors.length) {
         console.error(red(`aborting: ${errors.length} platform(s) list preset files that don't exist`));
     }
-    console.log(bold(`building ${presets.length} presets...`));
+    console.log(bold(`${run ? 'building and running' : 'building'} ${presets.length} presets...`));
     const results = await buildAllPresets({
-        presets, timeout, verbose, onResult: (r) => {
-            if (quiet && r.ok) return;
+        presets, timeout, verbose, run, frames, pngDir, onResult: (r) => {
+            const clean = !r.run || r.run.verdict === 'ok' || r.run.verdict === 'novideo' || r.run.verdict === 'halted';
+            if (quiet && r.ok && clean) return;
             const status = r.ok ? green('ok  ') : red(bold('FAIL'));
             const size = r.size != null ? `${r.size} bytes` : '';
-            console.log(`${status} ${r.preset} ${cyan(`[${r.tool}/${r.platform}]`)} ${dim(size)} ${dim(r.ms + 'ms')}`);
+            const runText = r.run ? ' ' + runStatus(r.run) : '';
+            console.log(`${status} ${r.preset} ${cyan(`[${r.tool}/${r.platform}]`)} ${dim(size)} ${dim(r.ms + 'ms')}${runText}`);
             for (const e of r.errors || []) console.log(`       ${yellow(e)}`);
-            // only a failure gets the tool's own output
+            if (r.run?.png) console.log(`       ${dim(r.run.png)}`);
+            // only a failure gets the tool's / platform's own output
             if (r.log) console.log(dim(r.log.split('\n').map((l) => '     | ' + l).join('\n')));
+            if (r.run?.log && r.run.verdict === 'error') {
+                console.log(dim(r.run.log.split('\n').map((l) => '     | ' + l).join('\n')));
+            }
         }
     });
 
@@ -495,10 +697,34 @@ async function main() {
         console.log('\nby tool: ' + Object.keys(byTool).sort()
             .map((t) => `${cyan(t)}=${byTool[t]}`).join(' '));
     }
+    // what the builds did when loaded, separately from whether they built
+    const ran = results.filter((r) => r.run);
+    if (ran.length) {
+        const problems = ran.filter((r) => r.run.verdict !== 'ok' && r.run.verdict !== 'novideo' && r.run.verdict !== 'halted');
+        const tally2 = `${ran.length - problems.length}/${ran.length} presets run clean`;
+        console.log('\n' + bold(problems.length ? yellow(tally2) : green(tally2)));
+        if (problems.length) {
+            console.log('\n' + bold('run problems:'));
+            for (const r of problems) {
+                console.log(`  ${red(r.preset)} ${cyan(`[${r.tool}/${r.platform}]`)} ${runStatus(r.run)}`);
+            }
+        }
+    }
+    // stray async failures from platforms that never settled
+    if (strayErrors.length) {
+        console.log('\n' + bold(yellow(`${strayErrors.length} stray async error(s):`)));
+        for (const e of strayErrors) {
+            console.log('  ' + red(e.message));
+            if (verbose && e.stack) console.log(dim(e.stack.split('\n').map((l) => '     ' + l).join('\n')));
+        }
+    }
     if (jsonFile) {
-        // the captured tool output is for reading on the console, not for
-        // diffing against a baseline
-        const report = results.map(({ log, ...r }) => r);
+        // captured output is for reading on the console, not for diffing
+        // against a baseline
+        const report = results.map(({ log, ...r }) => ({
+            ...r,
+            run: r.run ? { ...r.run, log: undefined } : undefined,
+        }));
         fs.writeFileSync(jsonFile, JSON.stringify(report, null, 1));
         console.log(dim(`\nwrote ${jsonFile}`));
     }

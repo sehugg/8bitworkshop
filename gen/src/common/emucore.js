@@ -116,14 +116,25 @@ function installHeadlessVideo() {
         const datau8 = new Uint8Array(buffer);
         const datau32 = new Uint32Array(buffer);
         // the first one is the screen; later ones are debug views (nes nametables)
-        if (!pixels) {
+        const isScreen = !pixels;
+        if (isScreen) {
             params = { width, height, rotate: options === null || options === void 0 ? void 0 : options.rotate, aspect: options === null || options === void 0 ? void 0 : options.aspect };
             pixels = datau32;
         }
         this.create = function () { this.width = width; this.height = height; };
+        // verilog rotates at reset, when the design asks for it
+        this.setRotate = function (rotate) { if (isScreen)
+            params.rotate = rotate || undefined; };
         this.setKeyboardEvents = setKeyboardEvents;
         this.getFrameData = function () { return datau32; };
         this.getImageData = function () { return { data: datau8, width, height }; };
+        // PCE (and other platforms) build their own ImageData from the canvas
+        // context during start(), so hand out a real one
+        this.createImageData = function (w, h) {
+            if (w === width && h === height)
+                return { data: datau8, width, height };
+            return { data: new Uint8ClampedArray(w * h * 4), width: w, height: h };
+        };
         this.updateFrame = function () { };
         this.clearRect = function () { };
         this.setupMouseEvents = function () { };
@@ -213,7 +224,19 @@ class EmuCore {
         }
     }
     reset() { this.platform.reset(); }
-    loadROM(data, title = 'ROM') { this.platform.loadROM(title, data); }
+    /**
+     * `data` is a ROM image, or whatever else the build produced (verilog's
+     * compiled unit). Some platforms (verilog) load asynchronously; await this
+     * to see their errors.
+     */
+    async loadROM(data, title = 'ROM') { await this.platform.loadROM(title, data); }
+    /**
+     * Project files the program reads at load time (verilog's $readmem), keyed
+     * by the name the program uses. The IDE gets these from the open project.
+     */
+    setFileData(files) {
+        this.platform.sourceFileFetch = (path) => files[path];
+    }
     loadBIOS(data, title = 'BIOS') {
         if (!this.platform.loadBIOS)
             return false;

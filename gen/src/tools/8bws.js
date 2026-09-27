@@ -51,6 +51,7 @@ const cliformat_1 = require("./cliformat");
 const emutarget_1 = require("./emutarget");
 const runscript_1 = require("./runscript");
 const symbolfile_1 = require("../common/symbols/symbolfile");
+const testlib_1 = require("./testlib");
 const detect_1 = require("../common/detect");
 /** Options that may be repeated; each occurrence adds to a list. */
 const REPEATABLE_FLAGS = new Set([
@@ -148,7 +149,7 @@ async function compileSource(args, source, platform) {
     if (!result.success) {
         (0, cliformat_1.fail)('build', `${tool} failed on ${source}`, { errors: result.errors });
     }
-    return { rom: romBytes(result), symbolmap: result.symbolmap || {}, tool, platform, source, result };
+    return { rom: (0, testlib_1.romBytes)(result), symbolmap: result.symbolmap || {}, tool, platform, source, result };
 }
 async function doBuild(args, positional) {
     let source = positional[0];
@@ -168,11 +169,14 @@ async function doBuild(args, positional) {
     const platform = platformArg || resolvedPlatform || await inferPlatform('build', source);
     const built = await compileSource(args, source, platform);
     const outputFile = str(args, 'output');
-    if (outputFile && !checkOnly)
+    if (outputFile && !checkOnly) {
+        if (!built.rom)
+            (0, cliformat_1.fail)('build', `${built.tool} produces no ROM image to write`);
         fs.writeFileSync(outputFile, Buffer.from(built.rom));
+    }
     const data = {
         tool: built.tool, platform, source,
-        outputSize: built.rom.length,
+        outputSize: built.rom ? built.rom.length : null,
         outputFile: outputFile || null,
     };
     if (args['symbols']) {
@@ -198,15 +202,6 @@ async function saveBuildFiles(source, data) {
         data.savedFiles.push(filePath);
     }
     data.saveDir = saveDir;
-}
-function romBytes(result) {
-    var _a, _b;
-    const out = (_b = (_a = result.output) === null || _a === void 0 ? void 0 : _a.code) !== null && _b !== void 0 ? _b : result.output;
-    if (out instanceof Uint8Array)
-        return out;
-    if (typeof out === 'string')
-        return new TextEncoder().encode(out);
-    throw new Error('compiler produced no ROM image');
 }
 ////////////////////////////////////////////////////////////////////////
 // run
@@ -270,10 +265,16 @@ async function doRun(args, positional) {
         if (!platformId)
             platformId = await inferPlatform('run', input);
         built = await compileSource(args, input, platformId);
-        romFile = path.join(os.tmpdir(), '8bws-' + path.basename(input).replace(/\.\w+$/, '') + '.rom');
-        fs.writeFileSync(romFile, Buffer.from(built.rom));
         symbols = built.symbolmap;
-        (0, cliformat_1.note)(`built ${input} with ${built.tool} -> ${romFile} (${built.rom.length} bytes)`);
+        if (built.rom) {
+            romFile = path.join(os.tmpdir(), '8bws-' + path.basename(input).replace(/\.\w+$/, '') + '.rom');
+            fs.writeFileSync(romFile, Buffer.from(built.rom));
+            (0, cliformat_1.note)(`built ${input} with ${built.tool} -> ${romFile} (${built.rom.length} bytes)`);
+        }
+        else {
+            romFile = null; // loaded straight from the build
+            (0, cliformat_1.note)(`built ${input} with ${built.tool}`);
+        }
     }
     else if (!platformId) {
         (0, cliformat_1.fail)('run', `Cannot infer a platform from '${path.basename(input)}': pass --platform`);
@@ -281,11 +282,18 @@ async function doRun(args, positional) {
     const target = await openTarget(args, platformId);
     // The temp file is always written as .rom, but some platforms use the title
     // to pick a load format -- an Atari XEX named .rom would load as a cartridge.
-    let romTitle = path.basename(romFile);
-    if (built && target.platform.getROMExtension) {
-        romTitle = path.basename(romFile, '.rom') + target.platform.getROMExtension(new Uint8Array(built.rom));
+    if (built)
+        target.setFileData(built.result.files || {});
+    if (romFile) {
+        let romTitle = path.basename(romFile);
+        if (built && target.platform.getROMExtension) {
+            romTitle = path.basename(romFile, '.rom') + target.platform.getROMExtension(new Uint8Array(built.rom));
+        }
+        await target.loadROM(new Uint8Array(fs.readFileSync(romFile)), romTitle);
     }
-    target.loadROM(new Uint8Array(fs.readFileSync(romFile)), romTitle);
+    else {
+        await target.loadROM(built.result.output, path.basename(input));
+    }
     const script = new runscript_1.RunScript(target);
     script.addSymbols(symbols);
     const symbolFile = str(args, 'symbols');

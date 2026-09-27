@@ -38,6 +38,8 @@ export interface CompileResult {
   segments?: any;
   params?: any;
   unchanged?: boolean;
+  /** every file the build read, by worker filename (verilog's $readmem reads them at load time) */
+  files?: { [path: string]: FileData };
 }
 
 let initialized = false;
@@ -150,6 +152,18 @@ export function getToolForFilename(fn: string, platform: string): string {
 }
 
 /**
+ * The ROM image in a build result, or null when the output isn't one (verilog's
+ * compiled unit). Throws when the tool produced nothing at all.
+ */
+export function romBytes(result: CompileResult): Uint8Array | null {
+  const out = result.output?.code ?? result.output;
+  if (out instanceof Uint8Array) return out;
+  if (typeof out === 'string') return new TextEncoder().encode(out);
+  if (out == null) throw new Error('compiler produced no output');
+  return null;
+}
+
+/**
  * Compile an arbitrary source file path.
  * Parses include/link/resource directives and loads dependent files.
  * `buildAs` renames the file for the build, for sources whose name on disk
@@ -160,7 +174,10 @@ export async function compileSourceFile(tool: string, platform: string, filePath
   await initialize();
   var msg = await buildSourceFileMessage(tool, platform, filePath, buildAs, opts);
   await handleMessage({ reset: true } as any);
-  return workerResultToCompileResult(await handleMessage(msg));
+  var result = workerResultToCompileResult(await handleMessage(msg));
+  result.files = {};
+  for (var u of msg.updates) result.files[u.path] = u.data;
+  return result;
 }
 
 /**
