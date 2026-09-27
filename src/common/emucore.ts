@@ -20,6 +20,7 @@ import {
   CpuState, DisasmLine, EmuState, Machine, Platform, hasProbe, isDebuggable,
 } from "./baseplatform";
 import { ProbeAll, SampledAudioParams, TrapCondition } from "./devices";
+import { FileData } from "./workertypes";
 import { disassemble6502 } from "./cpu/disasm6502";
 import { disassembleZ80 } from "./cpu/disasmz80";
 import { disassembleSM83 } from "./cpu/disasmSM83";
@@ -107,11 +108,14 @@ function installHeadlessVideo() {
     const datau8 = new Uint8Array(buffer);
     const datau32 = new Uint32Array(buffer);
     // the first one is the screen; later ones are debug views (nes nametables)
-    if (!pixels) {
+    const isScreen = !pixels;
+    if (isScreen) {
       params = { width, height, rotate: options?.rotate, aspect: options?.aspect };
       pixels = datau32;
     }
     this.create = function () { this.width = width; this.height = height; };
+    // verilog rotates at reset, when the design asks for it
+    this.setRotate = function (rotate: number) { if (isScreen) params.rotate = rotate || undefined; };
     this.setKeyboardEvents = setKeyboardEvents;
     this.getFrameData = function () { return datau32; };
     this.getImageData = function () { return { data: datau8, width, height }; };
@@ -201,7 +205,20 @@ export class EmuCore {
     }
   }
   reset() { this.platform.reset(); }
-  loadROM(data: Uint8Array, title = 'ROM') { this.platform.loadROM(title, data); }
+  /**
+   * `data` is a ROM image, or whatever else the build produced (verilog's
+   * compiled unit). Some platforms (verilog) load asynchronously; await this
+   * to see their errors.
+   */
+  async loadROM(data: Uint8Array | object, title = 'ROM') { await this.platform.loadROM(title, data); }
+
+  /**
+   * Project files the program reads at load time (verilog's $readmem), keyed
+   * by the name the program uses. The IDE gets these from the open project.
+   */
+  setFileData(files: { [path: string]: FileData }) {
+    this.platform.sourceFileFetch = (path) => files[path];
+  }
 
   loadBIOS(data: Uint8Array, title = 'BIOS'): boolean {
     if (!this.platform.loadBIOS) return false;

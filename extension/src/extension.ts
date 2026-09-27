@@ -46,8 +46,8 @@ interface Target {
 
 /** What the emulator runs, so a rebuild of the same thing reloads it. */
 let running: Target | undefined;
-/** The ROM it runs, so an identical rebuild (a comment edit) doesn't restart it. */
-let runningRom: Uint8Array | undefined;
+/** The build it runs, so an identical rebuild (a comment edit) doesn't restart it. */
+let runningBuild: BuildOutcome | undefined;
 /** The target auto-build rebuilds: the last one changed or saved. */
 let autoTarget: Target | undefined;
 /** Diagnostics from a failed type-build, shown after a pause in typing. */
@@ -360,7 +360,7 @@ async function buildAndMaybeRun(target: Target, run: boolean, reason: BuildReaso
     return;
   }
   if (run) {
-    if (result.output) await startEmulator(target, result.output);
+    if (result.output) await startEmulator(target, result);
     else {
       output.appendLine('8bitworkshop: the build produced no ROM to run; see the output for the last build.');
       output.show(true);
@@ -407,7 +407,7 @@ async function followActiveEditor() {
   await scope.setTargetChoice(project, 'follow');
 }
 
-async function startEmulator(target: Target, rom: any) {
+async function startEmulator(target: Target, build: BuildOutcome) {
   // each run gets a fresh worker: platforms keep global state (see emuworker)
   emu?.dispose();
   emu = undefined;
@@ -436,11 +436,11 @@ async function startEmulator(target: Target, rom: any) {
   panel.setTitle(`${title} (${target.platform})`);
   panel.setMuted(muted);
   try {
-    emuStatus = await worker.call<EmuStatus>('start', target.platform, rom);
+    emuStatus = await worker.call<EmuStatus>('start', target.platform, build.output, build.files);
     worker.call('setMuted', muted);
     panel.showStatus(emuStatus);
     running = target;
-    runningRom = rom;
+    runningBuild = build;
     output.appendLine(`Running ${title} on ${target.platform}`);
   } catch (e) {
     output.appendLine(`Emulator failed to start: ${e && e.stack || e}`);
@@ -455,10 +455,15 @@ async function reloadEmulator(target: Target, reason: BuildReason, result: Build
   var mode = config(target.main).get<string>('reloadOnBuild', 'always');
   if (mode === 'never' || (mode === 'onSave' && reason === 'type')) return;
   if (emuStatus.platform !== target.platform) {
-    await startEmulator(target, result.output);
-  } else if (!sameBytes(runningRom, result.output)) {
-    emuStatus = await (await getEmu(target.platform)).call<EmuStatus>('loadROM', result.output);
-    runningRom = result.output;
+    await startEmulator(target, result);
+  } else if (!sameBuild(runningBuild, result)) {
+    runningBuild = result;
+    try {
+      emuStatus = await (await getEmu(target.platform)).call<EmuStatus>('loadROM', result.output, result.files);
+    } catch (e) {
+      output.appendLine(`Emulator failed to load: ${e && e.message || e}`);
+      output.show(true);
+    }
   }
 }
 
@@ -471,10 +476,27 @@ function setMuted(m: boolean) {
   vscode.commands.executeCommand('setContext', '8bitworkshop.muted', m);
 }
 
-function sameBytes(a: Uint8Array | undefined, b: Uint8Array | undefined): boolean {
-  if (!a || !b || a.length !== b.length) return false;
-  for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-  return true;
+/** Same output and same load-time files (see BuildOutcome.files). */
+function sameBuild(a: BuildOutcome | undefined, b: BuildOutcome): boolean {
+  if (!a || !sameData(a.output, b.output)) return false;
+  var af = a.files || {}, bf = b.files || {};
+  var keys = Object.keys(bf);
+  return keys.length === Object.keys(af).length && keys.every(k => sameData(af[k], bf[k]));
+}
+
+/** Compares ROM bytes, file text, or (verilog) the compiled unit. */
+function sameData(a: any, b: any): boolean {
+  if (a instanceof Uint8Array && b instanceof Uint8Array) {
+    if (a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+  if (typeof a === 'string' || typeof b === 'string') return a === b;
+  try {
+    return !!a && !!b && JSON.stringify(a) === JSON.stringify(b);
+  } catch (e) {
+    return false;  // not JSON (cycles): assume it changed
+  }
 }
 
 /**

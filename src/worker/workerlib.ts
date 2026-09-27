@@ -39,6 +39,35 @@ class Blob {
   }
 }
 
+/** Scripts loaded through the importScripts shim (Emscripten glue) */
+const importedScripts = new Set<string>();
+const GLUE_EVENTS = ['uncaughtException', 'unhandledRejection'];
+let glueHandlersIgnored = false;
+
+/**
+ * Emscripten glue running under Node adds uncaughtException and
+ * unhandledRejection handlers every time a tool module is instantiated. They
+ * rethrow or abort, which kills a long-lived host (the VS Code extension), and
+ * they pile up, one pair per tool per build. Drop the ones the glue adds; the
+ * build catches tool errors itself.
+ */
+function ignoreGlueProcessHandlers() {
+  if (glueHandlersIgnored) return;
+  glueHandlersIgnored = true;
+  const fromGlue = () => {
+    const stack = new Error().stack || '';
+    for (const script of importedScripts) if (stack.includes(script)) return true;
+    return false;
+  };
+  for (const method of ['on', 'addListener', 'prependListener'] as const) {
+    const original = process[method];
+    (process as any)[method] = function (event: string | symbol, listener: (...args: any[]) => void) {
+      if (GLUE_EVENTS.includes(event as string) && fromGlue()) return this;
+      return original.call(this, event, listener);
+    };
+  }
+}
+
 /**
  * Set up the Node.js environment to provide XMLHttpRequest, fetch, and other
  * browser globals that the worker build system expects.
@@ -115,8 +144,10 @@ export function setupNodeEnvironment(rootDir: string = process.cwd()) {
     var resolved = scriptPath.replace(/^\.\.\/\.\.\//, '');
     var fullPath = path.resolve(rootDir, resolved);
     var code = fs.readFileSync(fullPath, 'utf-8');
+    importedScripts.add(fullPath);
     vm.runInThisContext(code, fullPath);
   };
+  ignoreGlueProcessHandlers();
 
   // Suppress onmessage/postMessage (not used in Node mode)
   emglobal.onmessage = null;

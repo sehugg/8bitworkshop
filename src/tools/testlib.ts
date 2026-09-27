@@ -38,6 +38,8 @@ export interface CompileResult {
   segments?: any;
   params?: any;
   unchanged?: boolean;
+  /** every file the build read, by worker filename (verilog's $readmem reads them at load time) */
+  files?: { [path: string]: FileData };
 }
 
 let initialized = false;
@@ -160,7 +162,10 @@ export async function compileSourceFile(tool: string, platform: string, filePath
   await initialize();
   var msg = await buildSourceFileMessage(tool, platform, filePath, buildAs, opts);
   await handleMessage({ reset: true } as any);
-  return workerResultToCompileResult(await handleMessage(msg));
+  var result = workerResultToCompileResult(await handleMessage(msg));
+  result.files = {};
+  for (var u of msg.updates) result.files[u.path] = u.data;
+  return result;
 }
 
 /**

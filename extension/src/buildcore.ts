@@ -42,6 +42,12 @@ export interface BuildOutcome {
   segments?: Segment[];
   /** every project path the build read */
   paths: string[];
+  /**
+   * The files the build read besides the main file, keyed by both worker
+   * filename and project path. The emulator reads some at load time
+   * (verilog's $readmem).
+   */
+  files?: { [path: string]: FileData };
   /** true when no inputs changed since the previous build */
   unchanged?: boolean;
 }
@@ -84,6 +90,8 @@ export class Builder {
       getToolForFilename: getTool,
     }, deps);
     var paths = [req.mainPath].concat(deps.map(d => d.path));
+    var files: { [path: string]: FileData } = {};
+    for (var d of deps) files[d.filename] = files[d.path] = d.data;
     var key = `${req.platform}/${tool}/${req.mainPath}`;
     var result: WorkerResult;
     try {
@@ -102,7 +110,7 @@ export class Builder {
       // Keep the last success even after a failed build: reverting to the
       // source that built it makes the worker say unchanged again, and that
       // output is what Run (and the next unchanged build) must use.
-      return { ...this.last.get(key), success: true, tool, paths, diagnostics: [], unchanged: true };
+      return { ...this.last.get(key), success: true, tool, paths, files, diagnostics: [], unchanged: true };
     }
     if ('errors' in result && result.errors && result.errors.length) {
       var toPath = (err: WorkerError) => (err.path && filename2path[err.path]) || err.path || req.mainPath;
@@ -116,7 +124,7 @@ export class Builder {
       // the receiver runs projectcore.processListings on them
       var r = result as any;
       var outcome: BuildOutcome = {
-        success: true, tool, paths, diagnostics: [],
+        success: true, tool, paths, files, diagnostics: [],
         output: r.output, listings: r.listings, symbolmap: r.symbolmap, segments: r.segments,
       };
       this.last.set(key, outcome);

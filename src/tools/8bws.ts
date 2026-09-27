@@ -110,7 +110,8 @@ function buildOverrides(args: Args) {
 // build
 
 interface Build {
-  rom: Uint8Array;
+  /** null when the output isn't a ROM image (verilog's compiled unit) */
+  rom: Uint8Array | null;
   symbolmap: { [name: string]: number };
   tool: string;
   platform: string;
@@ -151,11 +152,14 @@ async function doBuild(args: Args, positional: string[]): Promise<void> {
   const built = await compileSource(args, source, platform);
 
   const outputFile = str(args, 'output');
-  if (outputFile && !checkOnly) fs.writeFileSync(outputFile, Buffer.from(built.rom));
+  if (outputFile && !checkOnly) {
+    if (!built.rom) fail('build', `${built.tool} produces no ROM image to write`);
+    fs.writeFileSync(outputFile, Buffer.from(built.rom));
+  }
 
   const data: any = {
     tool: built.tool, platform, source,
-    outputSize: built.rom.length,
+    outputSize: built.rom ? built.rom.length : null,
     outputFile: outputFile || null,
   };
   if (args['symbols']) {
@@ -181,11 +185,12 @@ async function saveBuildFiles(source: string, data: any): Promise<void> {
   data.saveDir = saveDir;
 }
 
-function romBytes(result: CompileResult): Uint8Array {
+function romBytes(result: CompileResult): Uint8Array | null {
   const out = result.output?.code ?? result.output;
   if (out instanceof Uint8Array) return out;
   if (typeof out === 'string') return new TextEncoder().encode(out);
-  throw new Error('compiler produced no ROM image');
+  if (out == null) throw new Error('compiler produced no output');
+  return null;
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -241,17 +246,22 @@ async function doRun(args: Args, positional: string[]): Promise<void> {
   }
 
   // A source file is built first; a ROM is loaded as-is.
-  let romFile = input;
+  let romFile: string | null = input;
   let symbols: { [name: string]: number } = {};
   let built: Awaited<ReturnType<typeof compileSource>> | undefined;
   let platformId = platformArg || resolvedPlatform || ROM_PLATFORMS[path.extname(input).toLowerCase()];
   if (!looksLikeROM(input)) {
     if (!platformId) platformId = await inferPlatform('run', input);
     built = await compileSource(args, input, platformId);
-    romFile = path.join(os.tmpdir(), '8bws-' + path.basename(input).replace(/\.\w+$/, '') + '.rom');
-    fs.writeFileSync(romFile, Buffer.from(built.rom));
     symbols = built.symbolmap;
-    note(`built ${input} with ${built.tool} -> ${romFile} (${built.rom.length} bytes)`);
+    if (built.rom) {
+      romFile = path.join(os.tmpdir(), '8bws-' + path.basename(input).replace(/\.\w+$/, '') + '.rom');
+      fs.writeFileSync(romFile, Buffer.from(built.rom));
+      note(`built ${input} with ${built.tool} -> ${romFile} (${built.rom.length} bytes)`);
+    } else {
+      romFile = null;  // loaded straight from the build
+      note(`built ${input} with ${built.tool}`);
+    }
   } else if (!platformId) {
     fail('run', `Cannot infer a platform from '${path.basename(input)}': pass --platform`);
   }
@@ -259,11 +269,16 @@ async function doRun(args: Args, positional: string[]): Promise<void> {
   const target = await openTarget(args, platformId);
   // The temp file is always written as .rom, but some platforms use the title
   // to pick a load format -- an Atari XEX named .rom would load as a cartridge.
-  let romTitle = path.basename(romFile);
-  if (built && target.platform.getROMExtension) {
-    romTitle = path.basename(romFile, '.rom') + target.platform.getROMExtension(new Uint8Array(built.rom));
+  if (built) target.setFileData(built.result.files || {});
+  if (romFile) {
+    let romTitle = path.basename(romFile);
+    if (built && target.platform.getROMExtension) {
+      romTitle = path.basename(romFile, '.rom') + target.platform.getROMExtension(new Uint8Array(built.rom));
+    }
+    await target.loadROM(new Uint8Array(fs.readFileSync(romFile)), romTitle);
+  } else {
+    await target.loadROM(built.result.output, path.basename(input));
   }
-  target.loadROM(new Uint8Array(fs.readFileSync(romFile)), romTitle);
 
   const script = new RunScript(target);
   script.addSymbols(symbols);

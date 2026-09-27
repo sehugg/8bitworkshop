@@ -185,6 +185,40 @@ describe('8bws CLI', function () {
         });
     });
 
+    // verilog builds a compiled unit, not a ROM image, and $readmem reads
+    // project files when it loads
+    describe('run --platform verilog', function () {
+        const MAIN = [
+            'module top(clk, reset, hsync, vsync, rgb);',
+            '  input clk, reset;',
+            '  output hsync, vsync;',
+            '  output [3:0] rgb;',
+            '  reg [7:0] rom[0:3];',
+            '  initial $readmemh("rom_data.hex", rom);',
+            '  assign hsync = 0;',
+            '  assign vsync = 0;',
+            '  assign rgb = rom[1][3:0];',
+            'endmodule',
+            '',
+        ].join('\n');
+        function project(withData) {
+            var dir = fs.mkdtempSync(path.join(os.tmpdir(), '8bws-verilog-'));
+            fs.writeFileSync(path.join(dir, 'main.v'), MAIN);
+            if (withData) fs.writeFileSync(path.join(dir, 'rom_data.hex'), '00\n0f\n00\n00\n');
+            return path.join(dir, 'main.v');
+        }
+        it('should build and run a source file that reads data with $readmem', function () {
+            var r = cliJSON('run', '--platform', 'verilog', '--frames', '5', project(true));
+            assert.ok(r.success, r.error);
+            assert.equal(r.data.frames, 5);
+            assert.strictEqual(r.data.rom, null);
+        });
+        it('should report a missing $readmem file', function () {
+            var e = cliFails('run', '--platform', 'verilog', '--frames', '5', project(false));
+            assert.ok(/no file "rom_data.hex"/.test(e.stdout + e.stderr), e.stdout + e.stderr);
+        });
+    });
+
     describe('run: emulator control', function () {
         // these all reach through the Platform to its Machine (common/devices.ts)
         it('should reject an unknown platform', function () {

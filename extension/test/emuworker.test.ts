@@ -5,6 +5,7 @@ import * as path from 'path';
 import { Worker } from 'worker_threads';
 import { Rpc } from '../src/rpc';
 import { findRootDir } from '../src/projectinfo';
+import { Builder, ProjectFileProvider } from '../src/buildcore';
 import type { AudioChunk, EmuStatus, FrameEvent } from '../src/emuworker';
 
 // Drives out/emuworker.js in a worker thread, the way the extension host does.
@@ -132,5 +133,54 @@ describe('extension emuworker', function () {
     assert.equal(audios.length, n);
     await rpc.call('setMuted', false);
     await waitForAudio(1);
+  });
+
+  // $readmem reads project files at load time, so they travel with the ROM
+  describe('verilog $readmem', function () {
+    const MAIN = [
+      'module top(clk, reset, hsync, vsync, rgb);',
+      '  input clk, reset;',
+      '  output hsync, vsync;',
+      '  output [3:0] rgb;',
+      '  reg [7:0] rom[0:3];',
+      '  initial $readmemh("rom_data.hex", rom);',
+      '  assign hsync = 0;',
+      '  assign vsync = 0;',
+      '  assign rgb = rom[1][3:0];',
+      'endmodule',
+      '',
+    ].join('\n');
+    var built: Awaited<ReturnType<Builder['build']>>;
+
+    before(async function () {
+      var enc = new TextEncoder();
+      var files: { [path: string]: string } = { 'main.v': MAIN, 'rom_data.hex': '00\n0f\n00\n00\n' };
+      var read = async (rel: string) => rel in files ? enc.encode(files[rel]) : null;
+      built = await new Builder(ROOT).build({
+        platform: 'verilog', mainPath: 'main.v', mainText: MAIN,
+        files: new ProjectFileProvider(read, ROOT, 'verilog'),
+      });
+      assert.deepEqual(built.diagnostics, []);
+    });
+
+    it('builds with the data file attached', function () {
+      assert.equal(built.files['rom_data.hex'], '00\n0f\n00\n00\n');
+    });
+
+    it('runs with the data file', async function () {
+      var s = await rpc.call<EmuStatus>('start', 'verilog', built.output, built.files);
+      assert.equal(s.state, 'running');
+      await waitForFrames(3);
+      assert.ok(!statuses.some(s => s && s.state === 'halted'), JSON.stringify(statuses));
+    });
+
+    it('reports a missing data file without killing the worker', async function () {
+      var exited = false;
+      worker.on('exit', () => { exited = true; });
+      await assert.rejects(rpc.call('start', 'verilog', built.output, {}), /no file "rom_data.hex"/);
+      await new Promise(r => setTimeout(r, 200));
+      assert.ok(!exited, 'worker exited');
+      await rpc.call('status');
+    });
   });
 });

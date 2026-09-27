@@ -11,6 +11,7 @@ import { clearLastKeycodeMap, describeControls, getLastKeycodeMap, setHaltHandle
 import { ControlHint, PLATFORM_CONTROLS } from '../../src/common/controls';
 import { AudioStream, setAudioStreamFactory } from '../../src/common/audio';
 import { getRootBasePlatform } from '../../src/common/util';
+import type { FileData } from '../../src/common/workertypes';
 
 /** Audio is resampled to this rate in the worker; the webview plays it back. */
 const STREAM_RATE = 48000;
@@ -76,7 +77,8 @@ class RpcAudioStream implements AudioStream {
 }
 
 const rpc: Rpc = new Rpc(parentPort, {
-  async start(platform: string, rom: any) {
+  /** `files` are the project files the program reads at load time (BuildOutcome.files) */
+  async start(platform: string, rom: any, files?: { [path: string]: FileData }) {
     // platform modules keep global state (Javatari deletes its own start()),
     // so a worker runs one emulator; the host starts a new worker per run
     if (started) throw new Error('This emulator worker already ran a platform; start a new worker.');
@@ -87,14 +89,16 @@ const rpc: Rpc = new Rpc(parentPort, {
     await target.start();
     // machines build their keyboard handler as they start
     controls = PLATFORM_CONTROLS[getRootBasePlatform(platform)] || describeControls(getLastKeycodeMap());
-    target.loadROM(rom);
+    target.setFileData(files || {});
+    await target.loadROM(rom);
     resume();
     rpc.emit('audioReset', null);
     return status();
   },
-  loadROM(rom: any) {
+  async loadROM(rom: any, files?: { [path: string]: FileData }) {
     if (!target) throw new Error('emulator not started');
-    target.loadROM(rom);
+    target.setFileData(files || {});
+    await target.loadROM(rom);
     resume();
     rpc.emit('audioReset', null);
     return status();
