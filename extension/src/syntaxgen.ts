@@ -34,7 +34,7 @@ export const ASM_LANGUAGES: AsmLanguage[] = [
   {
     id: '8bws-6502', cpu: '6502',
     aliases: ['6502 Assembly', '6502'],
-    extensions: ['.dasm', '.ca65', '.xa', '.nesasm'],
+    extensions: ['.dasm', '.ca65', '.xa', '.nesasm', '.acme'],
     opcodes: uniq([...K.opcodes6502, ...K.opcodes65C02]),
     illegalOpcodes: K.illegalOpcodes6502,
     registers: K.registers6502,

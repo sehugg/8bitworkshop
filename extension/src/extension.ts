@@ -13,7 +13,7 @@ import { WorkerHandle } from './engine';
 import { EmulatorPanel } from './emulatorpanel';
 import { WorkerDebugBackend } from './debugbackend';
 import { EmuDebugSession, LaunchArgs } from '../../src/tools/dapsession';
-import { Project, findRootDir, isHeaderFile, isInside, isOwnExtension, isSourceFile } from './projectinfo';
+import { ASM_LANGUAGE_CPUS, Project, asmLanguageFor, findRootDir, isHeaderFile, isInside, isOwnExtension, isSourceFile } from './projectinfo';
 import { CONFIG, ProjectScope } from './projectscope';
 import { BuildReason, BuildScheduler } from './autobuild';
 import { PRESET_SCHEME, PresetFileSystem, Templates } from './templates';
@@ -131,7 +131,8 @@ export function activate(ctx: vscode.ExtensionContext) {
     vscode.workspace.onDidSaveTextDocument(doc => onSave(doc)),
     vscode.workspace.onDidChangeTextDocument(e => onChange(e)),
     vscode.window.onDidChangeActiveTextEditor(() => { updateStatus(); detectForActiveFile(); }),
-    scope.onDidChange(() => updateStatus()),
+    vscode.workspace.onDidOpenTextDocument(doc => assignLanguage(doc)),
+    scope.onDidChange(() => { updateStatus(); vscode.workspace.textDocuments.forEach(assignLanguage); }),
     vscode.workspace.onDidChangeWorkspaceFolders(() => detectProjects(false)),
     { dispose: () => { builds?.dispose(); emu?.dispose(); } },
   );
@@ -139,6 +140,7 @@ export function activate(ctx: vscode.ExtensionContext) {
     welcomeProject().catch(e => output.appendLine(`welcome: ${e}`));
     return detectProjects(false);
   });
+  vscode.workspace.textDocuments.forEach(assignLanguage);
   detectForActiveFile();
   updateStatus();
 }
@@ -302,6 +304,24 @@ function targetIn(project: Project, uri: vscode.Uri | undefined): Target | undef
 
 function describeTarget(t: Target): string {
   return path.posix.basename(t.main.path);
+}
+
+////// languages
+
+const ASM_LANGUAGES = ASM_LANGUAGE_CPUS.map(cpu => '8bws-' + cpu);
+
+/**
+ * Give a .s/.asm/.inc/.a file its project's assembler language. Files no
+ * other extension claimed open as plaintext; we leave the rest alone.
+ */
+function assignLanguage(doc: vscode.TextDocument) {
+  if (doc.languageId !== 'plaintext' && !ASM_LANGUAGES.includes(doc.languageId)) return;
+  var platform = doc.uri.scheme === PRESET_SCHEME
+    ? templates.fromUri(doc.uri)?.platform.id
+    : scope.projectFor(doc.uri)?.platform;
+  var lang = platform && asmLanguageFor(doc.uri.path, platform);
+  if (lang && lang !== doc.languageId)
+    vscode.languages.setTextDocumentLanguage(doc, lang).then(undefined, e => output.appendLine(`language: ${e}`));
 }
 
 ////// status bar
@@ -490,8 +510,10 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
         emu?.dispose();
         emu = undefined;
         vscode.commands.executeCommand('setContext', '8bitworkshop.emuRunning', false);
+        vscode.commands.executeCommand('setContext', '8bitworkshop.emuOpen', false);
       },
     }, context.globalState.get<boolean>('controlsVisible', true));
+    vscode.commands.executeCommand('setContext', '8bitworkshop.emuOpen', true);
   } else {
     panel.reveal();
   }

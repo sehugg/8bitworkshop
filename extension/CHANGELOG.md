@@ -4,6 +4,8 @@
 
 - The Atari 2600 now stops at breakpoints and steps by instruction, not by
   frame, and can step back.
+- `.s`, `.asm`, `.inc` and `.a` files in a project get the highlighting
+  for the platform's CPU. `.acme` files get 6502 highlighting.
 
 ## 0.1.0
 

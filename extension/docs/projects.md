@@ -19,6 +19,10 @@ A folder becomes an 8bitworkshop project in one of these ways:
 Files outside a project behave exactly as they would without the
 extension.
 
+Inside a project, `.s`, `.asm`, `.inc` and `.a` files get the assembly
+highlighting and breakpoints for the platform's CPU. If another
+extension already handles those files, 8bitworkshop leaves them to it.
+
 ## The main file and the file that runs
 
 The **main file** is the project's program. **Build** and **Run** build

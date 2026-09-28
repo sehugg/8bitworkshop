@@ -1,10 +1,30 @@
 import * as assert from 'assert';
 import * as path from 'path';
-import { FolderInfo, Project, isOwnExtension, projectFor, resolveRunTarget } from '../src/projectinfo';
+import { FolderInfo, Project, asmLanguageFor, isOwnExtension, projectFor, resolveRunTarget } from '../src/projectinfo';
 import { BuildReason, BuildScheduler, Clock } from '../src/autobuild';
 
 const WS = path.resolve('/work/game');
 const at = (...p: string[]) => path.join(WS, ...p);
+
+describe('asmLanguageFor', function () {
+  it('picks the grammar for shared extensions from the platform', function () {
+    assert.equal(asmLanguageFor('main.s', 'nes'), '8bws-6502');
+    assert.equal(asmLanguageFor('main.s', 'coleco'), '8bws-z80');
+    assert.equal(asmLanguageFor('main.s', 'gb'), '8bws-z80');
+    assert.equal(asmLanguageFor('main.asm', 'zx'), '8bws-z80');
+    assert.equal(asmLanguageFor('game.a', 'vcs'), '8bws-6502');
+    assert.equal(asmLanguageFor('vcs.inc', 'vcs'), '8bws-6502');
+    assert.equal(asmLanguageFor('MAIN.S', 'apple2'), '8bws-6502');
+  });
+
+  it('leaves other files and CPUs alone', function () {
+    assert.equal(asmLanguageFor('main.c', 'nes'), undefined);
+    assert.equal(asmLanguageFor('notes.txt', 'nes'), undefined);
+    assert.equal(asmLanguageFor('main.asm', 'x86'), undefined);
+    assert.equal(asmLanguageFor('main.s', 'arm32'), undefined);
+    assert.equal(asmLanguageFor('lib.inc', 'williams'), undefined);  // cmoc: C header
+  });
+});
 
 describe('projectFor', function () {
   var folder: FolderInfo = {

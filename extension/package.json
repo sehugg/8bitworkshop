@@ -45,7 +45,7 @@
     "theme": "dark"
   },
   "preview": true,
-  "license": "GPL-3.0",
+  "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "https://github.com/sehugg/8bitworkshop.git",
@@ -64,18 +64,7 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "onStartupFinished",
-    "workspaceContains:README.md",
-    "workspaceContains:**/*.dasm",
-    "workspaceContains:**/*.ca65",
-    "workspaceContains:**/*.acme",
-    "workspaceContains:**/*.xa",
-    "workspaceContains:**/*.nesasm",
-    "workspaceContains:**/*.z",
-    "workspaceContains:**/*.xasm",
-    "workspaceContains:**/*.lwasm",
-    "workspaceContains:**/*.vasm",
-    "workspaceContains:**/*.armips"
+    "onStartupFinished"
   ],
   "contributes": {
     "commands": [
@@ -277,6 +266,7 @@
         "8bitworkshop.exportRom": {
           "type": "boolean",
           "default": false,
+          "scope": "resource",
           "description": "Write each successful build's ROM to the export folder."
         },
         "8bitworkshop.exportRomPath": {
@@ -310,7 +300,8 @@
           ".dasm",
           ".ca65",
           ".xa",
-          ".nesasm"
+          ".nesasm",
+          ".acme"
         ],
         "configuration": "./out/syntaxes/8bws-6502.language-configuration.json"
       },
@@ -439,7 +430,23 @@
         },
         {
           "command": "8bitworkshop.resume",
-          "when": "!8bitworkshop.emuRunning"
+          "when": "8bitworkshop.emuOpen && !8bitworkshop.emuRunning"
+        },
+        {
+          "command": "8bitworkshop.reset",
+          "when": "8bitworkshop.emuOpen"
+        },
+        {
+          "command": "8bitworkshop.stop",
+          "when": "8bitworkshop.emuOpen"
+        },
+        {
+          "command": "8bitworkshop.mute",
+          "when": "8bitworkshop.emuOpen && !8bitworkshop.muted"
+        },
+        {
+          "command": "8bitworkshop.unmute",
+          "when": "8bitworkshop.emuOpen && 8bitworkshop.muted"
         }
       ]
     },

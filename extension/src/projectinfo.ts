@@ -7,6 +7,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { TOOL_META } from "../../src/common/toolmeta";
+import { getToolForPlatform } from "../../src/common/toolselect";
 
 /** Tools that build on the 8bitworkshop server ("remote:llvm-mos"). Off for now. */
 export const REMOTE_BUILDS = false;
@@ -31,6 +32,19 @@ const SHARED_EXTENSIONS = new Set(['.c', '.h', '.s', '.asm', '.a', '.inc', '.bas
 export function isOwnExtension(fn: string): boolean {
   var ext = path.extname(fn).toLowerCase();
   return isSourceFile(fn) && !SHARED_EXTENSIONS.has(ext);
+}
+
+// assembler extensions several CPUs share; package.json leaves them unclaimed
+const SHARED_ASM_EXTENSIONS = new Set(['.s', '.asm', '.inc', '.a']);
+
+/** CPUs with an 8bws-<cpu> language (syntaxgen's ASM_LANGUAGES). */
+export const ASM_LANGUAGE_CPUS = ['6502', 'z80', '6809'];
+
+/** The 8bws-<cpu> language for a shared assembler extension on `platform`, if it has one. */
+export function asmLanguageFor(fn: string, platform: string): string | undefined {
+  if (!SHARED_ASM_EXTENSIONS.has(path.extname(fn).toLowerCase())) return undefined;
+  var style = TOOL_META[getToolForPlatform(platform, fn)]?.editorStyle;
+  return ASM_LANGUAGE_CPUS.includes(style) ? '8bws-' + style : undefined;
 }
 
 /** Headers and include files: never a main file. */

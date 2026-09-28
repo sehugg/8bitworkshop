@@ -2,6 +2,7 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IGrammar } from 'vscode-textmate';
+import { ASM_LANGUAGE_CPUS } from '../src/projectinfo';
 import { ASM_LANGUAGES, makeContributions, makeLanguageConfiguration } from '../src/syntaxgen';
 import { getToolForPlatform } from '../../src/common/toolselect';
 import { TOOL_META } from '../../src/common/toolmeta';
@@ -121,6 +122,10 @@ describe('assembler languages', function () {
     const c = makeContributions();
     assert.deepEqual(pkg.contributes.languages, c.languages);
     assert.deepEqual(pkg.contributes.grammars, c.grammars);
+  });
+
+  it('are the ones projectinfo assigns', function () {
+    assert.deepEqual(ASM_LANGUAGE_CPUS, ASM_LANGUAGES.map((l) => l.cpu));
   });
 
   it('claim only extensions whose tool uses that CPU style', function () {
