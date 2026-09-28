@@ -194,7 +194,10 @@ export class JavatariMachine implements FrameBased, RasterFrameBased, VideoSourc
   // VIDEO
 
   getVideoParams(): VideoParams {
-    return { width: VISIBLE_WIDTH, height: VISIBLE_HEIGHT, aspect: VISIBLE_WIDTH * 2 / VISIBLE_HEIGHT, overscan: true };
+    // a 2600's picture is 4:3 whatever the pixel grid happens to be -- with
+    // overscan showing 223 lines, the pixels are about 1.86:1, so the ratio
+    // has to be stated rather than derived from the width and height
+    return { width: VISIBLE_WIDTH, height: VISIBLE_HEIGHT, aspect: 4 / 3, overscan: true };
   }
   connectVideo(pixels: Uint32Array) {
     this.pixels = pixels;
