@@ -8,7 +8,7 @@
 // one CPU clock and MachineCore can stop, rewind and replay at any cycle.
 
 import { EmuHalt, KeyFlags, Keys, makeKeycodeMap } from "../common/emu";
-import { AcceptsKeyInput, AcceptsROM, FrameBased, NullProbe, Probeable, ProbeAll, RasterFrameBased, Resettable, SampledAudioParams, SampledAudioSink, SampledAudioSource, SavesState, TrapCondition, VideoParams, VideoSource } from "../common/devices";
+import { AcceptsKeyInput, AcceptsPaddleInput, AcceptsROM, FrameBased, NullProbe, Probeable, ProbeAll, RasterFrameBased, Resettable, SampledAudioParams, SampledAudioSink, SampledAudioSource, SavesState, TrapCondition, VideoParams, VideoSource } from "../common/devices";
 
 // resolved through the package's "imports" map so the same specifier works in
 // the source tree, the compiled test tree (gen/src/machine) and the bundle
@@ -85,7 +85,7 @@ function isCartHotspot(format: string, a: number) {
 }
 
 export class JavatariMachine implements FrameBased, RasterFrameBased, VideoSource, SampledAudioSource,
-  AcceptsROM, AcceptsKeyInput, Probeable, Resettable, SavesState<any> {
+  AcceptsROM, AcceptsKeyInput, AcceptsPaddleInput, Probeable, Resettable, SavesState<any> {
 
   readonly cpuCyclesPerLine = 76;
   readonly cpuFrequency = 1193182;
@@ -324,6 +324,39 @@ export class JavatariMachine implements FrameBased, RasterFrameBased, VideoSourc
     this.tia.controlStateChanged(control, pressed);
     if (pressed) this.controlsDown.add(control);
     else this.controlsDown.delete(control);
+  }
+
+  /**
+   * A 2600 port takes a joystick or a pair of paddles, never both, and the
+   * core aliases the paddle triggers onto the joystick directions: PADDLE0_BUTTON
+   * falls through to JOY0_RIGHT and PADDLE1_BUTTON to JOY0_LEFT. The platform
+   * polls the paddles every frame, so a declared setPaddleButton() would
+   * release a held direction every frame. The only safe answer is to keep the
+   * paddles switched off until something asks for them.
+   */
+  paddlesConnected = false;
+  setPaddlesConnected(connected: boolean) {
+    if (connected === this.paddlesConnected) return;
+    this.paddlesConnected = connected;
+    // the core's own "disconnected" value, so the POTs stop charging. The
+    // trigger bits are left alone: they are the joystick's bits too.
+    if (!connected) {
+      this.tia.controlValueChanged(C.PADDLE0_POSITION, -1);
+      this.tia.controlValueChanged(C.PADDLE1_POSITION, -1);
+    }
+  }
+  setPaddleInput(port: number, value: number) {
+    if (!this.paddlesConnected) return;
+    if (!isFinite(value)) return;  // the headless video has no mouse to track
+    // 8bitworkshop hands a paddle over as 0 (far left) to 255 (far right); the
+    // core counts the charge the other way, 380 (left) to 0 (right)
+    this.tia.controlValueChanged(
+      port === 0 ? C.PADDLE0_POSITION : C.PADDLE1_POSITION,
+      380 - Math.round(value * 380 / 255));
+  }
+  setPaddleButton(port: number, pressed: boolean) {
+    if (!this.paddlesConnected) return;
+    this.setControl(port === 0 ? C.PADDLE0_BUTTON : C.PADDLE1_BUTTON, pressed);
   }
 
   /**

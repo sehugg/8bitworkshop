@@ -592,6 +592,17 @@ class VCSMachinePlatform extends Base6502MachinePlatform<JavatariMachine> {
   newMachine() { return new JavatariMachine(); }
   getPresets() { return VCS_PRESETS; }
 
+  /**
+   * A 2600 takes joysticks or paddles in the same ports, and the core reads the
+   * paddle triggers as the joystick directions, so the paddles stay off until
+   * this is set. See JavatariMachine.setPaddlesConnected.
+   */
+  paddles = false;
+  pollControls() {
+    this.machine.setPaddlesConnected(this.paddles);
+    super.pollControls();
+  }
+
   getToolForFilename = getToolForFilename_vcs;
   getDefaultExtensions() { return [".c", ".bb", ".acme", ".xa", ".ca65", ".dasm", ".cc2600", ".ecs", ".wiz"]; }
   getROMExtension() { return ".a26"; }
