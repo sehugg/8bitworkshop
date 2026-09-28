@@ -85,6 +85,10 @@ A launch configuration can also set:
 While you debug, a rebuild doesn't restart the program. Press
 <kbd>F5</kbd> again to debug the new build.
 
+**Stop** on the Debug toolbar ends debugging and leaves the program
+running in the panel, without breakpoints. Close the panel to stop the
+program.
+
 Some platforms, such as the Atari 2600 and Verilog, can only stop
 between frames. There, breakpoints and steps work a frame at a time.
 

@@ -1184,8 +1184,12 @@ function newDebugSession(session: vscode.DebugSession): EmuDebugSession {
     },
     async () => {
       if (debugging?.session === session) debugging = undefined;
-      // stopping the session stops its program, not one started since
-      if (worker && worker === emu) panel?.dispose();
+      // stopping the debugger leaves the program running, as Run would,
+      // unless another run has replaced it since
+      if (worker && worker === emu) {
+        await worker.call('debug', 'setBreakpoints', []);
+        await worker.call('resume');
+      }
     });
   debugging = { session, backend };
   return new EmuDebugSession(backend);
