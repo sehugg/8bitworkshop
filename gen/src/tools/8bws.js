@@ -50,6 +50,8 @@ const util_1 = require("../common/util");
 const cliformat_1 = require("./cliformat");
 const emutarget_1 = require("./emutarget");
 const runscript_1 = require("./runscript");
+const verifyreplay_1 = require("./verifyreplay");
+const debugcontroller_1 = require("../common/debugcontroller");
 const symbolfile_1 = require("../common/symbols/symbolfile");
 const testlib_1 = require("./testlib");
 const detect_1 = require("../common/detect");
@@ -67,11 +69,13 @@ const SHORT_FLAGS = {
 const BOOLEAN_FLAGS = {
     build: ['check', 'symbols', 'save'],
     run: ['info'],
+    'verify-replay': ['verbose'],
 };
 const ALIASES = {
     compile: 'build',
     check: 'build',
     compilerun: 'run',
+    verify: 'verify-replay',
 };
 function parseArgs(argv) {
     let command = argv[2] || 'help';
@@ -241,18 +245,17 @@ function buildScript(args) {
     }
     return parts.length ? parts.join('\n') : 'run 1';
 }
-async function doRun(args, positional) {
-    var _a, _b;
-    let input = positional[0];
+/** Build `input` if it's source, and load it into a new emulator. */
+async function openProgram(command, args, input) {
     if (!input) {
-        (0, cliformat_1.fail)('run', 'Required: run --platform <id> <rom-or-source>');
+        (0, cliformat_1.fail)(command, `Required: ${command} --platform <id> <rom-or-source>`);
     }
     if (!fs.existsSync(input))
-        (0, cliformat_1.fail)('run', `No such file: ${input}`);
+        (0, cliformat_1.fail)(command, `No such file: ${input}`);
     const platformArg = str(args, 'platform');
     let resolvedPlatform;
     if (fs.statSync(input).isDirectory()) {
-        const resolved = await resolveDirectory('run', input, platformArg);
+        const resolved = await resolveDirectory(command, input, platformArg);
         input = resolved.source;
         resolvedPlatform = resolved.platform;
     }
@@ -263,7 +266,7 @@ async function doRun(args, positional) {
     let platformId = platformArg || resolvedPlatform || detect_1.ROM_PLATFORMS[path.extname(input).toLowerCase()];
     if (!looksLikeROM(input)) {
         if (!platformId)
-            platformId = await inferPlatform('run', input);
+            platformId = await inferPlatform(command, input);
         built = await compileSource(args, input, platformId);
         symbols = built.symbolmap;
         if (built.rom) {
@@ -277,7 +280,7 @@ async function doRun(args, positional) {
         }
     }
     else if (!platformId) {
-        (0, cliformat_1.fail)('run', `Cannot infer a platform from '${path.basename(input)}': pass --platform`);
+        (0, cliformat_1.fail)(command, `Cannot infer a platform from '${path.basename(input)}': pass --platform`);
     }
     const target = await openTarget(args, platformId);
     // The temp file is always written as .rom, but some platforms use the title
@@ -294,8 +297,21 @@ async function doRun(args, positional) {
     else {
         await target.loadROM(built.result.output, path.basename(input));
     }
+    let debugInfo;
+    if (built) {
+        const mainPath = path.basename(input);
+        debugInfo = { listings: built.result.listings, symbols, mainPath, paths: [mainPath] };
+    }
+    return { target, source: input, romFile, built, symbols, debugInfo };
+}
+async function doRun(args, positional) {
+    var _a, _b;
+    const input = positional[0];
+    const { target, romFile, symbols, debugInfo } = await openProgram('run', args, input);
     const script = new runscript_1.RunScript(target);
     script.addSymbols(symbols);
+    if (debugInfo)
+        script.setDebugContext((0, debugcontroller_1.buildDebugContext)(debugInfo));
     const symbolFile = str(args, 'symbols');
     if (symbolFile)
         script.addSymbols((0, symbolfile_1.parseSymbolFile)(fs.readFileSync(symbolFile, 'utf8')));
@@ -456,6 +472,70 @@ async function doDetect(positional) {
     (0, cliformat_1.output)({ success: true, command: 'detect', data: { input, clear: isClearWinner(detections), detections: detections.slice(0, 8) } });
 }
 ////////////////////////////////////////////////////////////////////////
+// determinism
+/**
+ * Serve the Debug Adapter Protocol on stdin/stdout. A launch request names
+ * the program (and platform); flags given here (--tool, --bios, --define)
+ * apply to every launch.
+ */
+async function doDap(args) {
+    (0, cliformat_1.setServerMode)();
+    const { EmuDebugSession } = await Promise.resolve().then(() => __importStar(require('./dapsession')));
+    const { LocalDebugBackend } = await Promise.resolve().then(() => __importStar(require('./daplocal')));
+    const backend = new LocalDebugBackend(async (launch) => {
+        const launchArgs = Object.assign({}, args);
+        if (launch.platform)
+            launchArgs['platform'] = launch.platform;
+        const prog = await openProgram('dap', launchArgs, launch.program || launch.mainFile);
+        return { target: prog.target, debugInfo: prog.debugInfo, root: path.dirname(path.resolve(prog.source)) };
+    });
+    new EmuDebugSession(backend).start(process.stdin, process.stdout);
+    await new Promise(resolve => process.stdin.on('end', resolve));
+    process.exit(0);
+}
+/** Record a run with random key input, replay it, and check every frame matches. */
+async function doVerifyReplay(args, positional) {
+    var _a, _b, _c;
+    const input = positional[0];
+    const platformId = str(args, 'platform') || (input ? detect_1.ROM_PLATFORMS[path.extname(input).toLowerCase()] : null);
+    if (!platformId)
+        (0, cliformat_1.fail)('verify-replay', 'Required: verify-replay --platform <id> [rom]');
+    const target = await openTarget(args, platformId);
+    if (input) {
+        if (!fs.existsSync(input))
+            (0, cliformat_1.fail)('verify-replay', `No such file: ${input}`);
+        await target.loadROM(new Uint8Array(fs.readFileSync(input)), path.basename(input));
+    }
+    if (!target.history)
+        (0, cliformat_1.fail)('verify-replay', `'${platformId}' cannot save and restore state`);
+    const frames = parseInt((_a = str(args, 'frames')) !== null && _a !== void 0 ? _a : '') || 60;
+    const seed = parseInt((_b = str(args, 'seed')) !== null && _b !== void 0 ? _b : '') || 12345;
+    const keys = ((_c = str(args, 'input')) !== null && _c !== void 0 ? _c : 'keys') !== 'none';
+    const r = (0, verifyreplay_1.verifyReplay)(target, { frames, keys, seed });
+    const ok = r.diverged.length === 0;
+    if (!ok)
+        (0, cliformat_1.note)(`first divergence at frame ${r.diverged[0]} of ${frames}`);
+    (0, cliformat_1.output)({
+        success: ok,
+        command: 'verify-replay',
+        error: ok ? undefined : `replay diverged at frame ${r.diverged[0]}`,
+        data: {
+            platform: platformId,
+            rom: input !== null && input !== void 0 ? input : null,
+            frames,
+            input: r.input === 'keys' && r.controlStates < 2 ? 'keys (no effect)' : r.input,
+            controlStates: r.controlStates,
+            keyEvents: r.keyEvents,
+            seed: r.input === 'keys' ? seed : null,
+            granularity: r.granularity,
+            deterministic: ok,
+            firstDivergentFrame: ok ? null : r.diverged[0],
+            divergentFrames: r.diverged,
+            recordedTo: r.recordedTo,
+        }
+    });
+}
+////////////////////////////////////////////////////////////////////////
 // listings & help
 async function doList(command) {
     const { initialize, listPlatforms, listTools, PLATFORM_PARAMS } = await Promise.resolve().then(() => __importStar(require('./testlib')));
@@ -479,6 +559,8 @@ function usage(error) {
                 'build': 'compile a source file or folder to a ROM',
                 'run': 'run a ROM -- or a source file or folder, built first',
                 'detect': 'guess the platform and main file of a source file or directory',
+                'dap': 'serve the Debug Adapter Protocol on stdin/stdout, for editors',
+                'verify-replay': 'record a run with random key input, replay it, and check every frame matches',
                 'list-platforms': 'platforms available to --platform',
                 'list-tools': 'compilers and assemblers available to --tool',
             },
@@ -508,6 +590,12 @@ function usage(error) {
                     '--info': 'dump debug info and disassembly when done',
                     '--memdump <a,b>': 'hexdump a hex address range',
                 },
+                'verify-replay options': {
+                    '-p, --platform <id>': 'platform emulator',
+                    '-f, --frames <n>': 'frames to record (default 60)',
+                    '--input <keys|none>': 'press random keys while recording (default keys)',
+                    '--seed <n>': 'seed for the random keys',
+                },
                 'global options': {
                     '--json': 'machine-readable output on stdout',
                 },
@@ -525,7 +613,8 @@ async function main() {
     // A platform whose start() never settles (usually one that needs a
     // browser-only library) drains the event loop and would otherwise exit 0.
     process.on('exit', () => {
-        if ((0, cliformat_1.hasOutput)())
+        // dap answers over its protocol, not with a result
+        if ((0, cliformat_1.hasOutput)() || command === 'dap')
             return;
         (0, cliformat_1.output)({ success: false, command, error: `${command} did not run to completion -- the emulator never finished starting` });
         process.exitCode = 1;
@@ -540,6 +629,12 @@ async function main() {
                 break;
             case 'detect':
                 await doDetect(positional);
+                break;
+            case 'verify-replay':
+                await doVerifyReplay(args, positional);
+                break;
+            case 'dap':
+                await doDap(args);
                 break;
             case 'list-tools':
             case 'list-platforms':

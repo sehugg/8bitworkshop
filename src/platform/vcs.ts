@@ -1,5 +1,6 @@
 
-import { Platform, BasePlatform, cpuStateToLongString_6502, dumpStackToString, DisasmLine, CpuState, Preset } from "../common/baseplatform";
+import { Platform, BasePlatform, Base6502MachinePlatform, cpuStateToLongString_6502, dumpStackToString, DisasmLine, CpuState, Preset } from "../common/baseplatform";
+import { JavatariMachine } from "../machine/vcs";
 import { getToolForFilename_vcs } from "../common/toolselect";
 import { PLATFORMS, dumpRAM, EmuHalt, KeyFlags, __createCanvas, drawCrosshair } from "../common/emu";
 import { hex, loadScript, lpad, tobin } from "../common/util";
@@ -96,9 +97,13 @@ class VCSPlatform extends BasePlatform {
       self.probe.logNewFrame();
       this.oldClockPulse();
       // look for KIL instruction
-      if (Javatari.room.console.getCPUState().o == 0x02 && Javatari.room.console.onBreakpointHit != null) {
-        Javatari.room.console.onBreakpointHit(Javatari.room.console.saveState());
-        //throw new EmuHalt("CPU STOPPED"); // TODO: requires browser reload
+      // Halt passively, like vcs.jt4, instead of stopping as a breakpoint would
+      // (which moves the cursor). Throw outside Javatari's clock, since it
+      // can't recover from an exception.
+      if (Javatari.room.console.getCPUState().o == 0x02 && self.isRunning()) {
+        self.pause();
+        const pc = (Javatari.room.console.saveState().c.PC - 1) & 0xffff;
+        setTimeout(() => { throw new EmuHalt(`CPU halted at $${pc.toString(16)}`); }, 0);
       }
     }
     // intercept TIA end of line
@@ -576,6 +581,158 @@ class VCSStellaPlatform implements Platform {
 
 ////////////////
 
+// the ROM itself, and the cartridge format properties that never change
+const CART_CONTENT_KEYS = 'f r b ra e rnd'.split(' ');
+const CART_STATIC_KEYS = 'bb es tb sm m fo s sa'.split(' ');
+const CART_BANK_LABELS: { [k: string]: string } = {
+  bo: 'BankOffset', s0: 'Slice0', s1: 'Slice1', s2: 'Slice2',
+  b0o: 'Bank0Offset', b1o: 'Bank1Offset',
+};
+
+/**
+ * The headless Javatari core (src/machine/vcs.ts) as a Platform, registered
+ * as "vcs.jt4" so it runs beside VCSPlatform, which still drives the Javatari
+ * room UI. The two share presets, tools and the memory map, and differ only in
+ * the core underneath.
+ *
+ * Because this one is built on a Machine, EmuCore drives it with MachineCore:
+ * it stops mid-frame and mid-instruction, and it can rewind, which is what
+ * the room UI could not do.
+ */
+class VCSMachinePlatform extends Base6502MachinePlatform<JavatariMachine> {
+
+  newMachine() { return new JavatariMachine(); }
+  getPresets() { return VCS_PRESETS; }
+
+  // Javatari's 6502 saves its PC one past the opcode it has fetched, though
+  // its getPC() returns the opcode's address
+  debugPCDelta = -1;
+
+  /**
+   * A 2600 takes joysticks or paddles in the same ports, and the core reads the
+   * paddle triggers as the joystick directions, so the paddles stay off until
+   * this is set. See JavatariMachine.setPaddlesConnected.
+   */
+  paddles = false;
+  pollControls() {
+    this.machine.setPaddlesConnected(this.paddles);
+    super.pollControls();
+  }
+
+  getToolForFilename = getToolForFilename_vcs;
+  getDefaultExtensions() { return [".c", ".bb", ".acme", ".xa", ".ca65", ".dasm", ".cc2600", ".ecs", ".wiz"]; }
+  getROMExtension() { return ".a26"; }
+
+  // readConst() has no side effects: it skips the TIA and PIA registers and
+  // undoes a bank switch, so reading memory for a view cannot change the run
+  readAddress(addr: number) { return this.machine.readConst(addr); }
+  writeAddress(addr: number, value: number) { this.machine.write(addr, value); }
+
+  getOriginPC() {
+    return (this.machine.readConst(0xfffc) | (this.machine.readConst(0xfffd) << 8)) & 0xffff;
+  }
+  newCodeAnalyzer() { return new CodeAnalyzer_vcs(this); }
+  showHelp() { return "https://8bitworkshop.com/docs/platforms/vcs/"; }
+
+  getDebugCategories() { return ['CPU', 'Stack', 'PIA RAM', 'PIA', 'TIA']; }
+  getDebugInfo(category, state) {
+    switch (category) {
+      case 'CPU':     return this.cpuStateToLongString(state.c) + this.bankSwitchStateToString(state);
+      case 'Stack':   return dumpStackToString(this, this.getRAMForState(state), 0x100, 0x1ff, 0x100 + state.c.SP, 0x20);
+      case 'PIA RAM': return this.ramStateToLongString(state);
+      case 'PIA':     return this.piaStateToLongString(state.p);
+      case 'TIA':     return this.tiaStateToLongString(state);
+    }
+  }
+  cpuStateToLongString(c) { return cpuStateToLongString_6502(c); }
+  bankSwitchStateToString(state) {
+    const ca = state.ca;
+    if (!ca) return '';
+    // The cartridge formats keep their live bank selection under different
+    // keys, and ro/rs mean something different in each of them, so the ones
+    // that are unambiguous get a name and the rest are shown as the core
+    // spells them. The ROM contents and the fixed format properties are noise.
+    let s = 'Cart ' + ca.f + '\n';
+    for (const k of Object.keys(ca)) {
+      if (CART_CONTENT_KEYS.indexOf(k) >= 0 || CART_STATIC_KEYS.indexOf(k) >= 0) continue;
+      const v = ca[k];
+      if (typeof v !== 'number') continue;  // e.g. the AR rom page offsets
+      s += lpad(CART_BANK_LABELS[k] || k, 12) + ' ' + (v < 0 ? String(v) : '$' + hex(v, 4)) + '\n';
+    }
+    return s;
+  }
+  piaStateToLongString(p) {
+    return "Timer  " + p.t + "/" + p.c + "\nINTIM  $" + hex(p.IT, 2) + " (" + p.IT + ")\nINSTAT $" + hex(p.IS, 2)
+      + "\nSWCHA $" + hex(p.SA, 2) + "  SWCHB $" + hex(p.SB, 2) + "\n";
+  }
+
+  // The core's raw states are plain signed byte arrays, not base64 strings.
+  // Mask to unsigned: toradix() would print a negative byte as "-1".
+  getRAMForState(state) {
+    const b = state.r?.b;
+    if (!b) return new Uint8Array(0);
+    return Uint8Array.from(b, (v: number) => v & 0xff);
+  }
+  ramStateToLongString(state) {
+    return "\n" + dumpRAM(this.getRAMForState(state), 0x80, 0x80);
+  }
+
+  /**
+   * The new TIA keeps per-object fields (p0e, p0lp, p0c, ...) and also saves
+   * every register by name, so the registers are listed from whatever the
+   * state happens to carry rather than from a hand-written list that the next
+   * core change would invalidate.
+   */
+  tiaStateToLongString(state) {
+    const t = state.t;
+    let s = "H" + lpad(this.machine.getRasterX().toString(), 5)
+      + "   V" + lpad(this.machine.getRasterY().toString(), 5) + "   "
+      + (t.vs ? "VSYNC " : "- ") + (t.vb ? "VBLANK " : "- ") + "\n\n";
+    // pfl is the 20-bit pattern ((PF2<<12)|(rev PF1<<4)|(PF0&f0)>>4); pfr
+    // only differs from it while the playfield is reflected
+    s += "Playfield " + lpad(tobin(t.pfl & 0xfffff), 21) + "\n";
+    if ((t.pfr | 0) !== (t.pfl | 0)) s += "          " + lpad(tobin(t.pfr & 0xfffff), 21) + "\n";
+    s += "          " + (t.pfe ? "ON " : "- ") + (t.pfrl ? "REFLECT " : "- ")
+      + (t.pfsc ? "SCOREMODE " : "- ") + (t.pfp ? "PRIORITY " : "- ") + "\n";
+    s += "\n          Graphics Copy\n";
+    for (let j = 0; j < 2; j++) {
+      const i = "p" + j;
+      s += "Player" + j + lpad(tobin(t[i + "lp"]), 9) + lpad(tobin(t["GRP" + j + "d"]), 9) + "\n";
+      s += "          NUSIZ " + t["NUSIZ" + j]
+        + "  Alt " + t[i + "a"] + "/" + t[i + "af"] + "/" + t[i + "al"] + "/" + t[i + "ao"]
+        + (t[i + "e"] ? "  ON" : "") + "\n";
+    }
+    s += "\n";
+    for (let j = 0; j < 2; j++) {
+      const i = "m" + j;
+      s += "Missile" + j + lpad(t[i + "e"] ? "ON" : "-", 3) + lpad(tobin(t[i + "lp"]), 9)
+        + "   HMP" + hex(t["HMP" + j] & 0xff, 2) + (t["HMM" + j] ? "  HM" : "") + "\n";
+    }
+    s += "Ball" + lpad(t.be ? "ON" : "-", 6) + lpad(tobin(t.bx), 9) + "\n";
+    const regs = Object.keys(t).filter((k) => /^[A-Z][A-Z0-9]*d?$/.test(k) && typeof t[k] == "number");
+    if (regs.length) {
+      s += "\nRegisters\n";
+      regs.forEach((k, i) => {
+        s += lpad(k, 7) + hex(t[k] & 0xff, 2);
+        if (i % 4 == 3) s += "\n";
+      });
+      if (regs.length % 4) s += "\n";
+    }
+    return s;
+  }
+
+  getMemoryMap = function() { return {main:[
+      {name:'TIA Registers',start:0x00,size:0x80,type:'io'},
+      {name:'PIA RAM',start:0x80,size:0x80,type:'ram'},
+      {name:'PIA Ports and Timer',start:0x280,size:0x18,type:'io'},
+      {name:'Cartridge ROM',start:0xf000,size:0x1000-6,type:'rom'},
+      {name:'CPU Vectors',start:0xfffa,size:0x6,type:'rom'},
+  ]}};
+}
+
+////////////////
+
 PLATFORMS['vcs'] = VCSPlatform;
+PLATFORMS['vcs.jt4'] = VCSMachinePlatform;
 PLATFORMS['vcs.mame'] = VCSMAMEPlatform;
 PLATFORMS['vcs.stellerator'] = VCSStellaPlatform;

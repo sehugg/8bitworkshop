@@ -8,6 +8,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.c = void 0;
 exports.setJsonMode = setJsonMode;
 exports.isJsonMode = isJsonMode;
+exports.setServerMode = setServerMode;
 exports.write = write;
 exports.note = note;
 exports.hasOutput = hasOutput;
@@ -43,13 +44,24 @@ function setJsonMode(on) {
     console.log = (...args) => process.stderr.write(args.join(' ') + '\n');
 }
 function isJsonMode() { return jsonMode; }
+let serving = false;
+/**
+ * For `8bws dap`: stdout carries the protocol, so console output goes to
+ * stderr, and fail() throws, so the server can answer with the error
+ * instead of exiting.
+ */
+function setServerMode() {
+    serving = true;
+    const toStderr = (...args) => { process.stderr.write(args.join(' ') + '\n'); };
+    console.log = console.info = console.warn = console.debug = toStderr;
+}
 /** Human-facing output: stdout normally, stderr in --json mode. */
 function write(s) {
     (jsonMode ? process.stderr : process.stdout).write(s);
 }
 // progress/status chatter -- suppressed in --json mode so stdout stays parseable
 function note(msg) {
-    if (!jsonMode)
+    if (!jsonMode || serving)
         process.stderr.write(`${exports.c.dim}${msg}${exports.c.reset}\n`);
 }
 let emitted = false;
@@ -74,6 +86,10 @@ function output(result) {
 }
 // exit with a formatted error message
 function fail(command, error, data) {
+    if (serving) {
+        const details = ((data === null || data === void 0 ? void 0 : data.errors) || []).map((e) => `\n${e.path || ''}${e.line ? ':' + e.line : ''}: ${e.msg}`).join('');
+        throw new Error(`${command}: ${error}${details}`);
+    }
     output({ success: false, command, error, data });
     process.exit(1);
 }

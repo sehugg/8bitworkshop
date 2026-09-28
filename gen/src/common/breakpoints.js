@@ -6,10 +6,12 @@
 // Both support an optional condition expression (see breakcond.ts).
 // The IDE's store (persistence, gutter markers) is in src/ide/breakpoints.ts.
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.makeCondContext = makeCondContext;
 exports.canUseBreakpoints = canUseBreakpoints;
 exports.resolveBreakpoint = resolveBreakpoint;
 const breakcond_1 = require("./breakcond");
 const symbolfile_1 = require("./symbols/symbolfile");
+/** What an expression can read: registers, symbols, memory, hardware. */
 function makeCondContext(ctx) {
     let platform = ctx.platform;
     let cpuFields = new Set();

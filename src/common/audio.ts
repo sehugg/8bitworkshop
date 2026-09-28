@@ -397,9 +397,29 @@ export var SampleAudio = function(clockfreq) {
   var ifill;                // physical ring slot the producer is filling
   var written, read;        // monotonic buffer counts (committed / consumed)
   var skippedBuffers = 0, lastSkipLog = 0;
-  // Ring depth. The ScriptProcessor callback runs on the main thread, so it can
-  // be delayed by rendering/GC; a shallow ring overruns on those stalls. ~370ms here.
-  var nbuffers = 8;
+  var underruns = 0;
+  var fillHist = null;      // ring-fill histogram; opt-in via setStatsEnabled
+  var collectStats = false;
+  // Clock recovery. The emulated frame clock and the AudioContext clock drift apart
+  // by a fraction of a percent, so over time the ring either drains (underruns) or
+  // fills. We nudge the resample ratio by a hair to hold a small cushion, instead of
+  // adding ring depth, which would just add latency.
+  var baseSinc = 1;         // sr / clockfreq, the untrimmed ratio
+  var trim = 1;             // current trim around baseSinc
+  var fillAvg = 0;          // EWMA of ring fill, in buffers
+  var lastTrimAdj = 0;
+  var FILL_TARGET = 1.5;    // buffers of cushion to hold
+  var FILL_ALPHA = 0.05;    // EWMA weight per consumer pull (~1s at 21 pulls/s)
+  var TRIM_GAIN = 0.004;    // resample-ratio change per buffer of error
+  var MAX_TRIM = 0.01;      // cap the pitch shift at 1%
+  var TRIM_INTERVAL_MS = 500;
+  // The ring is allocated once at MAXBUFFERS and always indexed with that modulo.
+  // Measurement showed the fill settles at 1-2 buffers and never nears this cap, so
+  // depth is not the latency lever -- the per-buffer floor (bufferlen) is -- and
+  // clock recovery holds the small cushion. The cap stays as insurance against the
+  // ScriptProcessor callback stalling on the main thread (rendering/GC), ~370ms.
+  var MAXBUFFERS = 8;
+  var targetDepth = MAXBUFFERS;
 
   function mix(ape) {
     var lbuf = ape.outputBuffer.getChannelData(0);
@@ -411,13 +431,18 @@ export var SampleAudio = function(clockfreq) {
       return;
     } else if (written > read) {
       // copy the oldest committed buffer, then free it
-      var buf = bufferlist[read % nbuffers];
+      if (collectStats) fillHist[Math.min(written - read, MAXBUFFERS)]++;
+      fillAvg += ((written - read) - fillAvg) * FILL_ALPHA;
+      var buf = bufferlist[read % MAXBUFFERS];
       for (var i=0; i<lbuf.length; i++) {
         lbuf[i] = i < buf.length ? buf[i] : 0;
       }
       read++;
     } else {
       // underrun: nothing produced yet, play silence rather than stale data
+      underruns++;
+      if (collectStats) fillHist[0]++;
+      fillAvg *= (1 - FILL_ALPHA);
       lbuf.fill(0);
     }
   }
@@ -492,6 +517,10 @@ export var SampleAudio = function(clockfreq) {
     createContext();		// create it
     if (!this.context) return;  // not created?
     sinc = this.sr * 1.0 / clockfreq;
+    baseSinc = sinc;
+    trim = 1;
+    fillAvg = 0;
+    lastTrimAdj = Date.now();
     sfrac = 0;
     accum = 0;
     bufpos = 0;
@@ -499,7 +528,8 @@ export var SampleAudio = function(clockfreq) {
     written = 0;
     read = 0;
     ifill = 0;
-    for (var i=0; i<nbuffers; i++) {
+    fillHist = collectStats ? new Array(MAXBUFFERS + 1).fill(0) : null;
+    for (var i=0; i<MAXBUFFERS; i++) {
       var arrbuf = new ArrayBuffer(self.bufferlen*4);
       bufferlist[i] = new Float32Array(arrbuf);
     }
@@ -540,21 +570,31 @@ export var SampleAudio = function(clockfreq) {
       }
       bufferlist[ifill] = buffer;
       written++;
-      // Ring full? Producer outran the consumer; drop the oldest audio to make room.
-      if (written - read >= nbuffers) {
+      // Producer outran the consumer; drop the oldest audio to make room.
+      if (written - read >= targetDepth) {
         read++;
         skippedBuffers++;
         var now = Date.now();
         if (now - lastSkipLog > 1000) { // throttle so a sustained overrun doesn't flood the console
           console.warn('SampleAudio: skipped audio buffer(s), total=' + skippedBuffers +
-            ', fill=' + (written - read) + '/' + nbuffers +
+            ', fill=' + (written - read) + '/' + targetDepth +
             ', contextRate=' + self.sr + ', requestedBuf=' + self.bufferlen +
             ', expectedIntervalMs=' + (self.bufferlen * 1000 / self.sr).toFixed(2));
           lastSkipLog = now;
         }
       }
-      ifill = (ifill + 1) % nbuffers;
+      ifill = (ifill + 1) % MAXBUFFERS;
       buffer = bufferlist[ifill];
+      // Clock recovery: steer the resample ratio to hold FILL_TARGET buffers.
+      var trimNow = Date.now();
+      if (trimNow - lastTrimAdj > TRIM_INTERVAL_MS) {
+        lastTrimAdj = trimNow;
+        var want = 1 + TRIM_GAIN * (FILL_TARGET - fillAvg);
+        if (want > 1 + MAX_TRIM) want = 1 + MAX_TRIM;
+        else if (want < 1 - MAX_TRIM) want = 1 - MAX_TRIM;
+        trim = want;
+        sinc = baseSinc * trim;
+      }
     }
   }
 
@@ -570,6 +610,46 @@ export var SampleAudio = function(clockfreq) {
       accum *= sfrac;
     }
   }
+
+  /**
+   * Diagnostics for tuning the ring depth: where the fill actually sits, and how
+   * often the producer overruns (drops) or the consumer underruns (silence).
+   * Sampling happens on the ScriptProcessor path only; streaming hosts have no ring.
+   * The fill histogram is off by default (it touches every consumer pull); turn it
+   * on with setStatsEnabled(true) when you want the distribution. The mean/skips/
+   * underruns/trim fields are always tracked.
+   */
+  this.getStats = function() {
+    var total = 0, weighted = 0, maxFill = 0;
+    if (fillHist) {
+      for (var fill=0; fill<fillHist.length; fill++) {
+        var count = fillHist[fill];
+        total += count;
+        weighted += fill * count;
+        if (count > 0 && fill > maxFill) maxFill = fill;
+      }
+    }
+    return {
+      maxBuffers: MAXBUFFERS,
+      targetDepth: targetDepth,
+      sampleRate: self.sr || 0,
+      bufferLength: self.bufferlen || 0,
+      fillHistogram: fillHist ? fillHist.slice() : [],
+      meanFill: total > 0 ? weighted / total : 0,
+      maxFill: maxFill,
+      samples: total,
+      skippedBuffers: skippedBuffers,
+      underruns: underruns,
+      fillAvg: fillAvg,
+      trim: trim,
+    };
+  };
+
+  /** Turn the per-pull fill histogram on or off (off by default). */
+  this.setStatsEnabled = function(on) {
+    collectStats = !!on;
+    fillHist = collectStats ? new Array(MAXBUFFERS + 1).fill(0) : null;
+  };
   
 }
 
@@ -590,6 +670,14 @@ export class SampledAudio {
   }
   reset() {
     this.sa.reset();
+  }
+  /** ring-depth diagnostics; see SampleAudio.getStats */
+  getStats() {
+    return this.sa.getStats ? this.sa.getStats() : null;
+  }
+  /** turn the ring-fill histogram on or off (off by default) */
+  setStatsEnabled(on: boolean) {
+    this.sa.setStatsEnabled && this.sa.setStatsEnabled(on);
   }
   /** the rate this sink outputs at, once start() has run (Web Audio or stream) */
   get sampleRate() : number {

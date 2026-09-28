@@ -19,6 +19,7 @@
 // The whole expression is true when it evaluates to non-zero.
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.compileCondition = compileCondition;
+exports.compileExpression = compileExpression;
 exports.parseTarget = parseTarget;
 const OPERATORS2 = ['<<', '>>', '<=', '>=', '==', '!=', '&&', '||'];
 const OPERATORS1 = '+-*/%<>!~&|^()[]#';
@@ -339,8 +340,7 @@ function compileNode(n, ctx) {
 // The returned function never throws: if evaluation fails (e.g. unreadable
 // memory) it returns false so the emulator loop is never interrupted.
 function compileCondition(src, ctx) {
-    let ast = new Parser(tokenize(src)).parse();
-    let fn = compileNode(ast, ctx);
+    let fn = compileExpression(src, ctx);
     return (c) => {
         try {
             return fn(c) != 0;
@@ -349,6 +349,11 @@ function compileCondition(src, ctx) {
             return false;
         }
     };
+}
+// Compile an expression to its value, for watches and hovers. Unlike a
+// condition, evaluating it throws when it fails, so the caller can say why.
+function compileExpression(src, ctx) {
+    return compileNode(new Parser(tokenize(src)).parse(), ctx);
 }
 // Parse a breakpoint target: '$hex', '0xhex', decimal, or a symbol name.
 function parseTarget(target, symbol) {

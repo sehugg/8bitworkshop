@@ -14,6 +14,8 @@ const emu_1 = require("../common/emu");
 const probe_1 = require("../common/probe");
 const util_1 = require("../common/util");
 const symbolfile_1 = require("../common/symbols/symbolfile");
+const timeline_1 = require("../common/timeline");
+const debugcontroller_1 = require("../common/debugcontroller");
 const cliformat_1 = require("./cliformat");
 const emutarget_1 = require("./emutarget");
 exports.RUN_SCRIPT_HELP = [
@@ -21,9 +23,19 @@ exports.RUN_SCRIPT_HELP = [
     '  run N | wait N              - advance N frames (default 1)',
     '  break ADDR [MAXFRAMES]      - stop when PC==ADDR (alias: runto)',
     '  step [N]                    - execute N instructions (default 1)',
+    '  over [N]                    - step over N source lines, or instructions',
+    '                                without source, running calls through',
+    '  out                         - run until the current routine returns',
     '  trace [MAXLINES] ADDR       - run until PC==ADDR, then log every',
     '                                instruction until the routine returns',
     '  hist [MAXLINES]             - last N instructions from the trace buffer',
+    'Time travel (replays the recording; output is labeled [frame:step]):',
+    '  back [N]                    - step back N instructions (default 1)',
+    '  rewind [N]                  - back to the start of the Nth frame before (default 1)',
+    '  seek FRAME[:STEP]           - go to a recorded moment',
+    '  rbreak ADDR                 - run back to the last time PC==ADDR',
+    '  now                         - print the current moment and the recorded range',
+    '  (run and step in the past replay the recording; a key starts a new future)',
     'Inspection & input:',
     '  key KEY                     - press key (down, 3 frames, up)',
     '  keydown KEY / keyup KEY     - raw key down/up events',
@@ -119,9 +131,10 @@ function formatRegs(state) {
 // Trace buffer size; the most recent half is kept once it fills up.
 const PROBE_BUFFER_SIZE = 0x400000;
 class RunScript {
-    constructor(target, out = cliformat_1.write) {
+    constructor(target, out = cliformat_1.write, debug = new debugcontroller_1.DebugController(target)) {
         this.target = target;
         this.out = out;
+        this.debug = debug;
         this.symbols = {};
         this.addr2symbol = {};
         this.probe = null;
@@ -130,6 +143,12 @@ class RunScript {
         Object.assign(this.symbols, symbols);
         for (const [name, addr] of Object.entries(this.symbols))
             this.addr2symbol[addr] = name;
+        this.debug.setContext(Object.assign(Object.assign({}, this.debug.context), { symbols: this.symbols }));
+    }
+    /** Source lines (and symbols) from the build, for `over` and for output. */
+    setDebugContext(ctx) {
+        this.debug.setContext(ctx);
+        this.addSymbols(ctx.symbols || {});
     }
     /** Start recording executed instructions, for the 'hist' command. */
     startTracing() {
@@ -162,7 +181,7 @@ class RunScript {
         }
     }
     //// helpers used by the commands
-    log(msg) { this.out(`[frame ${this.target.frameCount}] ${msg}\n`); }
+    log(msg) { this.out(`[${(0, timeline_1.formatTimestamp)(this.target.now())}] ${msg}\n`); }
     addr(tok) {
         try {
             return parseNum(tok);
@@ -210,6 +229,28 @@ class RunScript {
             addr += d.nbytes;
         }
     }
+    requireRewind() {
+        if (!this.target.supportsRewind) {
+            throw new Error(`'${this.target.id}' cannot rewind (it can't save its state)`);
+        }
+    }
+    parseTimestamp(tok) {
+        const [f, st] = tok.split(':');
+        return (0, timeline_1.timestamp)(parseNum(f), st ? parseNum(st) : 0);
+    }
+    /** "PC=$ADDR", and the source line if the build has one */
+    pcAt() {
+        const loc = this.debug.location();
+        const pc = loc.pc != null ? '$' + (0, util_1.hex)(loc.pc, 4) : '?';
+        return `PC=${pc}` + (loc.source ? ` (${loc.source.path}:${loc.source.line})` : '');
+    }
+    /** Run the controller's goal to a stop. A halt is an error, as when running. */
+    runToStop(maxFrames = emutarget_1.DEFAULT_MAX_FRAMES) {
+        const stop = this.debug.runToStop(maxFrames);
+        if (stop && (stop.reason === 'halt' || stop.reason === 'exception'))
+            throw new Error(stop.message);
+        return stop;
+    }
     requireStep() {
         if (!this.target.supportsStep) {
             throw new Error(`'${this.target.id}' does not support instruction stepping`);
@@ -225,11 +266,23 @@ class RunScript {
         this.requireStep();
         this.target.settle();
         const n = tokens[1] ? parseNum(tokens[1]) : 1;
+        this.target.stepInsn(n, () => { this.out(this.disasmLine(this.target.getPC(), true) + '\n'); });
+        this.log(this.pcAt());
+    }
+    cmdOver(tokens) {
+        const n = tokens[1] ? parseNum(tokens[1]) : 1;
         for (let i = 0; i < n; i++) {
-            this.out(this.disasmLine(this.target.getPC(), true) + '\n');
-            this.target.stepInsn();
+            this.debug.stepOver();
+            if (!this.runToStop())
+                throw new Error(`no next line within ${emutarget_1.DEFAULT_MAX_FRAMES} frames`);
         }
-        this.log(`PC=$${(0, util_1.hex)(this.target.getPC(), 4)}`);
+        this.log(this.pcAt());
+    }
+    cmdOut() {
+        this.debug.stepOut();
+        if (!this.runToStop())
+            throw new Error(`no return within ${emutarget_1.DEFAULT_MAX_FRAMES} frames`);
+        this.log(this.pcAt());
     }
     cmdBreak(tokens) {
         if (!tokens[1])
@@ -237,7 +290,8 @@ class RunScript {
         const addr = this.addr(tokens[1]);
         const maxFrames = tokens[2] ? parseNum(tokens[2]) : emutarget_1.DEFAULT_MAX_FRAMES;
         const start = this.target.frameCount;
-        const hit = this.target.runToPC(new Set([addr]), maxFrames);
+        this.debug.runTo(addr);
+        const hit = this.runToStop(maxFrames) != null;
         const pc = this.target.getPC();
         const where = pc != null ? '$' + (0, util_1.hex)(pc, 4) : '?';
         this.log(`break $${(0, util_1.hex)(addr, 4)}: ${hit ? 'HIT' : 'MISSED'} (pc=${where} after ${this.target.frameCount - start} frames)`);
@@ -246,7 +300,7 @@ class RunScript {
         }
     }
     cmdTrace(tokens) {
-        var _a, _b, _c;
+        var _a, _b;
         this.requireStep();
         let i = 1;
         let maxLines = 5000;
@@ -266,20 +320,19 @@ class RunScript {
         this.log(`--- trace ON at $${(0, util_1.hex)(this.target.getPC(), 4)} ---`);
         let lines = 0;
         let done = 'ran out of frames';
-        while (this.target.frameCount - start < emutarget_1.DEFAULT_MAX_FRAMES) {
-            this.out(this.disasmLine(this.target.getPC(), true) + '\n');
-            if (++lines >= maxLines) {
-                done = `line cap (${maxLines}) reached`;
-                break;
-            }
-            this.target.stepInsn();
+        // one run, logging each instruction before it executes
+        this.target.stepInsn(maxLines, () => {
+            var _a;
             // the routine returned once the stack has popped back past entry level
-            const sp = (_c = this.target.getCPUState()) === null || _c === void 0 ? void 0 : _c.SP;
-            if (sp != null && sp > entrySP) {
+            const sp = (_a = this.target.getCPUState()) === null || _a === void 0 ? void 0 : _a.SP;
+            if (lines > 0 && sp != null && sp > entrySP) {
                 done = `returned after ${lines} instructions`;
-                break;
+                return true;
             }
-        }
+            this.out(this.disasmLine(this.target.getPC(), true) + '\n');
+            if (++lines >= maxLines)
+                done = `line cap (${maxLines}) reached`;
+        });
         this.log(`--- trace OFF: ${done} ---`);
     }
     cmdHist(tokens) {
@@ -313,6 +366,53 @@ class RunScript {
             }
         }
         this.out(`(${shown} instructions shown, ${p.idx} events recorded)\n`);
+    }
+    cmdBack(tokens) {
+        this.requireRewind();
+        this.requireStep();
+        const n = tokens[1] ? parseNum(tokens[1]) : 1;
+        if (!this.target.stepBack(n))
+            throw new Error(`the recording doesn't reach back ${n} instruction${n == 1 ? '' : 's'}`);
+        this.log(`back ${n}: ${this.pcAt()}`);
+        this.out(this.disasmLine(this.target.getPC(), true) + '\n');
+    }
+    cmdSeek(tokens) {
+        this.requireRewind();
+        if (!tokens[1])
+            throw new Error('seek requires FRAME[:STEP]');
+        this.target.seek(this.parseTimestamp(tokens[1]));
+        this.log(this.where());
+    }
+    cmdRewind(tokens) {
+        this.requireRewind();
+        const n = tokens[1] ? parseNum(tokens[1]) : 1;
+        const t = this.target.now();
+        // from partway into a frame, its own start counts as the first
+        const frame = t.step > 0 ? t.frame - n + 1 : t.frame - n;
+        const first = this.target.history.first();
+        this.target.seek((0, timeline_1.timestamp)(Math.max(frame, first.frame), 0));
+        this.log(this.where());
+    }
+    cmdReverseBreak(tokens) {
+        this.requireRewind();
+        if (!tokens[1])
+            throw new Error('rbreak requires an address');
+        const addr = this.addr(tokens[1]);
+        const hit = this.target.reverseRunUntil(() => this.target.getPC() === addr);
+        const pc = this.target.getPC();
+        this.log(`rbreak $${(0, util_1.hex)(addr, 4)}: ${hit ? 'HIT' : 'MISSED'} (pc=${pc != null ? '$' + (0, util_1.hex)(pc, 4) : '?'})`);
+    }
+    cmdNow() {
+        this.log(this.where());
+    }
+    /** "at F:S (past; recorded A to B)" */
+    where() {
+        const t = this.target;
+        const h = t.history;
+        if (!h)
+            return `at frame ${t.frameCount} (no recording)`;
+        const range = `recorded ${(0, timeline_1.formatTimestamp)(h.first())} to ${(0, timeline_1.formatTimestamp)(h.last())}`;
+        return `at ${(0, timeline_1.formatTimestamp)(t.now())} (${t.isInPast() ? 'past' : 'present'}; ${range})`;
     }
     cmdKey(tokens) {
         if (!tokens[1])
@@ -384,6 +484,10 @@ const COMMANDS = {
     'wait': RunScript.prototype.cmdRun,
     'frames': RunScript.prototype.cmdRun,
     'step': RunScript.prototype.cmdStep,
+    'over': RunScript.prototype.cmdOver,
+    'next': RunScript.prototype.cmdOver,
+    'out': RunScript.prototype.cmdOut,
+    'finish': RunScript.prototype.cmdOut,
     'break': RunScript.prototype.cmdBreak,
     'runto': RunScript.prototype.cmdBreak,
     'trace': RunScript.prototype.cmdTrace,
@@ -397,6 +501,11 @@ const COMMANDS = {
     'pc': RunScript.prototype.cmdPC,
     'info': RunScript.prototype.cmdInfo,
     'reset': RunScript.prototype.cmdReset,
+    'back': RunScript.prototype.cmdBack,
+    'seek': RunScript.prototype.cmdSeek,
+    'rewind': RunScript.prototype.cmdRewind,
+    'rbreak': RunScript.prototype.cmdReverseBreak,
+    'now': RunScript.prototype.cmdNow,
     'echo': RunScript.prototype.cmdEcho,
 };
 //# sourceMappingURL=runscript.js.map

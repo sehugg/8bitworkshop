@@ -2641,11 +2641,14 @@ export function getSaveState() {
 export function emulationHalted(err: EmuHalt) {
   var msg = (err && err.message) || msg;
   showExceptionAsError(err, msg);
-  projectWindows.refresh(false); // don't mess with cursor
+  // passive refresh: show the PC gutter arrow but don't move the cursor or
+  // repaint the current line, since the user may be typing
+  projectWindows.refresh(false);
   if (platform.saveState) {
-    const state = platform.saveState()
+    const state = platform.saveState();
     showDebugInfo(state);
-    openRelevantListing(state);
+    // don't do this because it'll mess with user selected window!
+    //openRelevantListing(state);
   }
 }
 

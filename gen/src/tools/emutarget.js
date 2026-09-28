@@ -3,7 +3,7 @@
 // The emulator driver itself is EmuCore (src/common/emucore.ts); EmuTarget is
 // the name the CLI and the extension know it by.
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEFAULT_MAX_FRAMES = exports.DISASSEMBLERS = exports.EmuTarget = void 0;
+exports.DEFAULT_MAX_FRAMES = exports.EmuTarget = void 0;
 exports.loadPlatform = loadPlatform;
 exports.captureRejectionListeners = captureRejectionListeners;
 exports.dropAbortHandlers = dropAbortHandlers;
@@ -15,7 +15,6 @@ const _index_1 = require("../platform/_index");
 const nodemock_1 = require("./nodemock");
 var emucore_2 = require("../common/emucore");
 Object.defineProperty(exports, "EmuTarget", { enumerable: true, get: function () { return emucore_2.EmuCore; } });
-Object.defineProperty(exports, "DISASSEMBLERS", { enumerable: true, get: function () { return emucore_2.DISASSEMBLERS; } });
 Object.defineProperty(exports, "DEFAULT_MAX_FRAMES", { enumerable: true, get: function () { return emucore_2.DEFAULT_MAX_FRAMES; } });
 /** Load a platform module by ID (e.g. "nes", "c64.wasm", "atari8-5200"). */
 async function loadPlatform(platformId) {

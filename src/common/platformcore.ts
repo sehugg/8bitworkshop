@@ -1,0 +1,202 @@
+// Bridges the existing Platform objects to the deterministic timeline.
+//
+// Most platforms are built on a Machine and get MachineCore, which can stop
+// between instructions. The ones that aren't -- vcs (Javatari), verilog, x86 --
+// only know how to run a whole frame, so they get FramePlatformCore, which says
+// so through its granularity instead of pretending to sub-frame accuracy.
+
+import { Platform } from "./baseplatform";
+import { EmuHalt, getNoiseSeed, setNoiseSeed } from "./emu";
+import { FrameInputSource } from "./history";
+import {
+  DeterministicCore,
+  formatTimestamp,
+  Granularity,
+  MachineCore,
+  RunResult,
+  Timestamp,
+  timestamp,
+} from "./timeline";
+import { TrapCondition } from "./devices";
+
+export interface RecordedKey {
+  key: number;
+  code: number;
+  flags: number;
+}
+
+export interface PlatformInputOptions {
+  /** Where the core is, which decides the frame an incoming key event belongs to. */
+  now?: () => Timestamp;
+  /** Deliver a key event to the platform, live or during a replay. */
+  dispatchKey?: (key: number, code: number, flags: number) => void;
+}
+
+/**
+ * Captures and replays what varies between otherwise identical frames: the
+ * controls, the seed of the shared PRNG, and the key events themselves.
+ *
+ * Snapshotting the controls is not enough on its own. Some platforms *act* on a
+ * key event rather than only latching it -- atari8 raises a POKEY interrupt on
+ * key-down (atari8.ts, getKeyboardFunction) -- and that effect lands in POKEY's
+ * registers, which saveControlsState() does not cover. A replay that only
+ * restored controls would silently lose the interrupt.
+ *
+ * So when a dispatcher is supplied, the recorded events are the source of truth
+ * and the controls snapshot is not restored at all. The two must not be
+ * combined: a checkpoint already contains the effect of every earlier event, so
+ * redelivering on top of a restore applies them twice -- on c64 the key goes
+ * into a queue inside the WASM state, and the doubled press diverges
+ * immediately. Replaying just the events that came after the checkpoint is both
+ * necessary and sufficient. Without a dispatcher there is nothing to replay, so
+ * the controls snapshot is used instead.
+ *
+ * Events are delivered only at frame boundaries, by capture() as the frame
+ * starts, so that recording and replay deliver them at the same moment. An
+ * event that arrives while the debugger is stopped mid-frame waits for the next
+ * frame; delivering it on the spot would put it where a replay can't.
+ */
+export class PlatformFrameInput implements FrameInputSource {
+  private frames = new Map<number, { controls: any, seed: number }>();
+  private keys = new Map<number, RecordedKey[]>();
+  private oldest = 0;
+
+  constructor(readonly platform: Platform, readonly opts: PlatformInputOptions = {}) { }
+
+  /**
+   * Queue a key event for the next frame to start: this one if the core is at
+   * its start, the next one if it is stopped partway through.
+   */
+  key(key: number, code: number, flags: number): void {
+    if (!this.opts.dispatchKey) throw new Error('no dispatchKey to deliver key events with');
+    const t = this.opts.now ? this.opts.now() : timestamp(0, 0);
+    const frame = t.step === 0 ? t.frame : t.frame + 1;
+    var evs = this.keys.get(frame);
+    if (!evs) this.keys.set(frame, evs = []);
+    evs.push({ key, code, flags });
+  }
+
+  /** Deliver the frame's key events, then record the rest of its input. */
+  capture(frame: number): void {
+    this.dispatchKeys(frame);
+    this.frames.set(frame, {
+      controls: this.platform.saveControlsState ? this.platform.saveControlsState() : undefined,
+      seed: getNoiseSeed(),
+    });
+  }
+
+  replay(frame: number): void {
+    // same order as capture(): keys, then the seed as it was after them
+    this.dispatchKeys(frame);
+    const rec = this.frames.get(frame);
+    if (rec) {
+      if (!this.opts.dispatchKey && rec.controls !== undefined && this.platform.loadControlsState) {
+        this.platform.loadControlsState(rec.controls);
+      }
+      setNoiseSeed(rec.seed);
+    }
+  }
+
+  private dispatchKeys(frame: number): void {
+    const evs = this.opts.dispatchKey && this.keys.get(frame);
+    if (evs) {
+      for (const e of evs) this.opts.dispatchKey(e.key, e.code, e.flags);
+    }
+  }
+
+  trim(firstFrame: number): void {
+    while (this.oldest < firstFrame) {
+      this.frames.delete(this.oldest);
+      this.keys.delete(this.oldest);
+      this.oldest++;
+    }
+  }
+
+  truncate(fromFrame: number): void {
+    for (const f of [...this.frames.keys()]) if (f >= fromFrame) this.frames.delete(f);
+    for (const f of [...this.keys.keys()]) if (f >= fromFrame) this.keys.delete(f);
+  }
+
+}
+
+/**
+ * A core for platforms with no Machine behind them. Frames are the only thing
+ * it can count, so every target is rounded down to a frame boundary and
+ * clamp() tells the history layer as much -- without that, a caller asking for
+ * a sub-frame position would spin waiting for progress that can never happen.
+ */
+export class FramePlatformCore implements DeterministicCore {
+
+  readonly granularity: Granularity = 'frame';
+  private frame: number = 0;
+
+  constructor(readonly platform: Platform) { }
+
+  now(): Timestamp { return timestamp(this.frame, 0); }
+
+  clamp(t: Timestamp): Timestamp {
+    return t.step === 0 ? t : timestamp(t.frame, 0);
+  }
+
+  snapshot() { return this.platform.saveState(); }
+
+  restore(state: any, at: Timestamp): void {
+    if (at.step !== 0) {
+      throw new Error(`can only restore at a frame boundary, not ${formatTimestamp(at)}`);
+    }
+    this.platform.loadState(state);
+    this.frame = at.frame;
+  }
+
+  runUntil(target: Timestamp, trap?: TrapCondition | null): RunResult {
+    while (this.frame < target.frame) {
+      if (trap && trap()) return { at: this.now(), trapped: true };
+      try {
+        this.advanceFrame();
+      } catch (e) {
+        // Frames are all this core can count, so the halt is reported at the
+        // start of the frame it happened in. The platform is left as the halt
+        // left it; seeking restores it from a checkpoint.
+        if (e instanceof EmuHalt) return { at: this.now(), trapped: false, halt: e };
+        throw e;
+      }
+      this.frame++;
+    }
+    return { at: this.now(), trapped: false };
+  }
+
+  private advanceFrame(): void {
+    const p = this.platform as any;
+    // advance() is the bare frame; nextFrame() would also poll controls and
+    // drive the old recorder, which would fight with this one. Video stays on:
+    // a replay has to draw the frame it lands on.
+    if (p.advance) p.advance(false);
+    else if (p.nextFrame) p.nextFrame(false);
+    else throw new Error('platform cannot advance a frame');
+  }
+}
+
+/** True if this platform can be rewound at all. */
+export function isRewindable(platform: Platform): boolean {
+  return !!(platform && platform.saveState && platform.loadState &&
+    ((platform as any).machine || (platform as any).advance));
+}
+
+/**
+ * Pick the most precise core the platform supports. WASM machines trap per
+ * clock tick, and so do JS machines with a clock-based CPU (6502); the rest
+ * trap per instruction. Both are exposed as "steps" but the granularity is
+ * reported so the UI can label the sub-frame axis honestly.
+ */
+export function createCore(platform: Platform): DeterministicCore {
+  const machine = (platform as any).machine;
+  if (machine && typeof machine.advanceFrame === 'function' && typeof machine.saveState === 'function') {
+    const clocked = typeof machine.advanceFrameClock === 'function' || typeof machine.cpu?.advanceClock === 'function';
+    const granularity: Granularity = clocked ? 'clock' : 'insn';
+    // whole frames go through the platform, which may do more than the machine
+    const p = platform as any;
+    const wholeFrame = typeof p.advance === 'function' ? () => { p.advance(false); } : undefined;
+    return new MachineCore(machine, granularity, wholeFrame);
+  }
+  return new FramePlatformCore(platform);
+}

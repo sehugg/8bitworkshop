@@ -11,6 +11,8 @@ import { ProbeFlags, ProbeRecorder } from '../common/probe';
 import { hex } from '../common/util';
 import type { SymbolMap } from '../common/baseplatform';
 import { lookupSymbol } from '../common/symbols/symbolfile';
+import { formatTimestamp, timestamp, Timestamp } from '../common/timeline';
+import { DebugContext, DebugController, StopEvent } from '../common/debugcontroller';
 import { hexdump, write } from './cliformat';
 import { DEFAULT_MAX_FRAMES, EmuTarget } from './emutarget';
 
@@ -19,9 +21,19 @@ export const RUN_SCRIPT_HELP = [
   '  run N | wait N              - advance N frames (default 1)',
   '  break ADDR [MAXFRAMES]      - stop when PC==ADDR (alias: runto)',
   '  step [N]                    - execute N instructions (default 1)',
+  '  over [N]                    - step over N source lines, or instructions',
+  '                                without source, running calls through',
+  '  out                         - run until the current routine returns',
   '  trace [MAXLINES] ADDR       - run until PC==ADDR, then log every',
   '                                instruction until the routine returns',
   '  hist [MAXLINES]             - last N instructions from the trace buffer',
+  'Time travel (replays the recording; output is labeled [frame:step]):',
+  '  back [N]                    - step back N instructions (default 1)',
+  '  rewind [N]                  - back to the start of the Nth frame before (default 1)',
+  '  seek FRAME[:STEP]           - go to a recorded moment',
+  '  rbreak ADDR                 - run back to the last time PC==ADDR',
+  '  now                         - print the current moment and the recorded range',
+  '  (run and step in the past replay the recording; a key starts a new future)',
   'Inspection & input:',
   '  key KEY                     - press key (down, 3 frames, up)',
   '  keydown KEY / keyup KEY     - raw key down/up events',
@@ -111,11 +123,19 @@ export class RunScript {
   private addr2symbol: { [addr: number]: string } = {};
   private probe: ProbeRecorder | null = null;
 
-  constructor(readonly target: EmuTarget, private out = write) { }
+  constructor(readonly target: EmuTarget, private out = write,
+    readonly debug = new DebugController(target)) { }
 
   addSymbols(symbols: SymbolMap) {
     Object.assign(this.symbols, symbols);
     for (const [name, addr] of Object.entries(this.symbols)) this.addr2symbol[addr] = name;
+    this.debug.setContext({ ...this.debug.context, symbols: this.symbols });
+  }
+
+  /** Source lines (and symbols) from the build, for `over` and for output. */
+  setDebugContext(ctx: DebugContext) {
+    this.debug.setContext(ctx);
+    this.addSymbols(ctx.symbols || {});
   }
 
   /** Start recording executed instructions, for the 'hist' command. */
@@ -148,7 +168,7 @@ export class RunScript {
 
   //// helpers used by the commands
 
-  private log(msg: string) { this.out(`[frame ${this.target.frameCount}] ${msg}\n`); }
+  private log(msg: string) { this.out(`[${formatTimestamp(this.target.now())}] ${msg}\n`); }
 
   private addr(tok: string): number {
     try { return parseNum(tok); }
@@ -192,6 +212,31 @@ export class RunScript {
     }
   }
 
+  private requireRewind() {
+    if (!this.target.supportsRewind) {
+      throw new Error(`'${this.target.id}' cannot rewind (it can't save its state)`);
+    }
+  }
+
+  private parseTimestamp(tok: string): Timestamp {
+    const [f, st] = tok.split(':');
+    return timestamp(parseNum(f), st ? parseNum(st) : 0);
+  }
+
+  /** "PC=$ADDR", and the source line if the build has one */
+  private pcAt(): string {
+    const loc = this.debug.location();
+    const pc = loc.pc != null ? '$' + hex(loc.pc, 4) : '?';
+    return `PC=${pc}` + (loc.source ? ` (${loc.source.path}:${loc.source.line})` : '');
+  }
+
+  /** Run the controller's goal to a stop. A halt is an error, as when running. */
+  private runToStop(maxFrames = DEFAULT_MAX_FRAMES): StopEvent | null {
+    const stop = this.debug.runToStop(maxFrames);
+    if (stop && (stop.reason === 'halt' || stop.reason === 'exception')) throw new Error(stop.message);
+    return stop;
+  }
+
   private requireStep() {
     if (!this.target.supportsStep) {
       throw new Error(`'${this.target.id}' does not support instruction stepping`);
@@ -210,11 +255,23 @@ export class RunScript {
     this.requireStep();
     this.target.settle();
     const n = tokens[1] ? parseNum(tokens[1]) : 1;
+    this.target.stepInsn(n, () => { this.out(this.disasmLine(this.target.getPC(), true) + '\n'); });
+    this.log(this.pcAt());
+  }
+
+  cmdOver(tokens: string[]) {
+    const n = tokens[1] ? parseNum(tokens[1]) : 1;
     for (let i = 0; i < n; i++) {
-      this.out(this.disasmLine(this.target.getPC(), true) + '\n');
-      this.target.stepInsn();
+      this.debug.stepOver();
+      if (!this.runToStop()) throw new Error(`no next line within ${DEFAULT_MAX_FRAMES} frames`);
     }
-    this.log(`PC=$${hex(this.target.getPC(), 4)}`);
+    this.log(this.pcAt());
+  }
+
+  cmdOut() {
+    this.debug.stepOut();
+    if (!this.runToStop()) throw new Error(`no return within ${DEFAULT_MAX_FRAMES} frames`);
+    this.log(this.pcAt());
   }
 
   cmdBreak(tokens: string[]) {
@@ -222,7 +279,8 @@ export class RunScript {
     const addr = this.addr(tokens[1]);
     const maxFrames = tokens[2] ? parseNum(tokens[2]) : DEFAULT_MAX_FRAMES;
     const start = this.target.frameCount;
-    const hit = this.target.runToPC(new Set([addr]), maxFrames);
+    this.debug.runTo(addr);
+    const hit = this.runToStop(maxFrames) != null;
     const pc = this.target.getPC();
     const where = pc != null ? '$' + hex(pc, 4) : '?';
     this.log(`break $${hex(addr, 4)}: ${hit ? 'HIT' : 'MISSED'} (pc=${where} after ${this.target.frameCount - start} frames)`);
@@ -249,14 +307,14 @@ export class RunScript {
     this.log(`--- trace ON at $${hex(this.target.getPC(), 4)} ---`);
     let lines = 0;
     let done = 'ran out of frames';
-    while (this.target.frameCount - start < DEFAULT_MAX_FRAMES) {
-      this.out(this.disasmLine(this.target.getPC(), true) + '\n');
-      if (++lines >= maxLines) { done = `line cap (${maxLines}) reached`; break; }
-      this.target.stepInsn();
+    // one run, logging each instruction before it executes
+    this.target.stepInsn(maxLines, () => {
       // the routine returned once the stack has popped back past entry level
       const sp = (this.target.getCPUState() as any)?.SP;
-      if (sp != null && sp > entrySP) { done = `returned after ${lines} instructions`; break; }
-    }
+      if (lines > 0 && sp != null && sp > entrySP) { done = `returned after ${lines} instructions`; return true; }
+      this.out(this.disasmLine(this.target.getPC(), true) + '\n');
+      if (++lines >= maxLines) done = `line cap (${maxLines}) reached`;
+    });
     this.log(`--- trace OFF: ${done} ---`);
   }
 
@@ -280,6 +338,55 @@ export class RunScript {
       else if (op === ProbeFlags.INTERRUPT) { this.out('  --- INTERRUPT ---\n'); shown++; }
     }
     this.out(`(${shown} instructions shown, ${p.idx} events recorded)\n`);
+  }
+
+  cmdBack(tokens: string[]) {
+    this.requireRewind();
+    this.requireStep();
+    const n = tokens[1] ? parseNum(tokens[1]) : 1;
+    if (!this.target.stepBack(n)) throw new Error(`the recording doesn't reach back ${n} instruction${n == 1 ? '' : 's'}`);
+    this.log(`back ${n}: ${this.pcAt()}`);
+    this.out(this.disasmLine(this.target.getPC(), true) + '\n');
+  }
+
+  cmdSeek(tokens: string[]) {
+    this.requireRewind();
+    if (!tokens[1]) throw new Error('seek requires FRAME[:STEP]');
+    this.target.seek(this.parseTimestamp(tokens[1]));
+    this.log(this.where());
+  }
+
+  cmdRewind(tokens: string[]) {
+    this.requireRewind();
+    const n = tokens[1] ? parseNum(tokens[1]) : 1;
+    const t = this.target.now();
+    // from partway into a frame, its own start counts as the first
+    const frame = t.step > 0 ? t.frame - n + 1 : t.frame - n;
+    const first = this.target.history.first();
+    this.target.seek(timestamp(Math.max(frame, first.frame), 0));
+    this.log(this.where());
+  }
+
+  cmdReverseBreak(tokens: string[]) {
+    this.requireRewind();
+    if (!tokens[1]) throw new Error('rbreak requires an address');
+    const addr = this.addr(tokens[1]);
+    const hit = this.target.reverseRunUntil(() => this.target.getPC() === addr);
+    const pc = this.target.getPC();
+    this.log(`rbreak $${hex(addr, 4)}: ${hit ? 'HIT' : 'MISSED'} (pc=${pc != null ? '$' + hex(pc, 4) : '?'})`);
+  }
+
+  cmdNow() {
+    this.log(this.where());
+  }
+
+  /** "at F:S (past; recorded A to B)" */
+  private where(): string {
+    const t = this.target;
+    const h = t.history;
+    if (!h) return `at frame ${t.frameCount} (no recording)`;
+    const range = `recorded ${formatTimestamp(h.first())} to ${formatTimestamp(h.last())}`;
+    return `at ${formatTimestamp(t.now())} (${t.isInPast() ? 'past' : 'present'}; ${range})`;
   }
 
   cmdKey(tokens: string[]) {
@@ -355,6 +462,10 @@ const COMMANDS: { [name: string]: Command } = {
   'wait': RunScript.prototype.cmdRun,
   'frames': RunScript.prototype.cmdRun,
   'step': RunScript.prototype.cmdStep,
+  'over': RunScript.prototype.cmdOver,
+  'next': RunScript.prototype.cmdOver,
+  'out': RunScript.prototype.cmdOut,
+  'finish': RunScript.prototype.cmdOut,
   'break': RunScript.prototype.cmdBreak,
   'runto': RunScript.prototype.cmdBreak,
   'trace': RunScript.prototype.cmdTrace,
@@ -368,5 +479,10 @@ const COMMANDS: { [name: string]: Command } = {
   'pc': RunScript.prototype.cmdPC,
   'info': RunScript.prototype.cmdInfo,
   'reset': RunScript.prototype.cmdReset,
+  'back': RunScript.prototype.cmdBack,
+  'seek': RunScript.prototype.cmdSeek,
+  'rewind': RunScript.prototype.cmdRewind,
+  'rbreak': RunScript.prototype.cmdReverseBreak,
+  'now': RunScript.prototype.cmdNow,
   'echo': RunScript.prototype.cmdEcho,
 };

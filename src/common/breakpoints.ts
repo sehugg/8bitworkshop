@@ -37,7 +37,8 @@ export interface BreakpointContext {
     platform?: Platform;
 }
 
-function makeCondContext(ctx: BreakpointContext): CondContext {
+/** What an expression can read: registers, symbols, memory, hardware. */
+export function makeCondContext(ctx: BreakpointContext): CondContext {
     let platform = ctx.platform;
     let cpuFields = new Set<string>();
     try {

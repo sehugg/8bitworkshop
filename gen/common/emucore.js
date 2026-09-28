@@ -16,6 +16,11 @@
 // host that already started the platform (the IDE) can wrap it without
 // calling start(). The Node side (mocks, loading platform modules) is in
 // src/tools/emutarget.ts.
+//
+// Execution goes through a History (common/history.ts) when the platform can
+// save and restore its state: every frame is recorded, key input is logged,
+// and the machine can be stepped backwards or moved to any recorded moment.
+// Platforms that can't save state run frames directly and can't rewind.
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -52,6 +57,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EmuCore = exports.DEFAULT_MAX_FRAMES = exports.DISASSEMBLERS = void 0;
 const baseplatform_1 = require("./baseplatform");
+const history_1 = require("./history");
+const platformcore_1 = require("./platformcore");
+const timeline_1 = require("./timeline");
 const disasm6502_1 = require("./cpu/disasm6502");
 const disasmz80_1 = require("./cpu/disasmz80");
 const disasmSM83_1 = require("./cpu/disasmSM83");
@@ -92,8 +100,6 @@ function archOf(cpu) {
 }
 // Frames to run before giving up on a `runUntil` predicate that never fires.
 exports.DEFAULT_MAX_FRAMES = 1000;
-// Upper bound on clocks in one instruction, so stepping can't spin forever.
-const MAX_CYCLES_PER_INSN = 64;
 /**
  * Headless stand-ins for RasterVideo/VectorVideo/AnimationTimer. Platform
  * modules pick these up because Platform.start() reads them off the emu module.
@@ -175,9 +181,61 @@ class EmuCore {
     constructor(id, platform) {
         this.id = id;
         this.platform = platform;
-        this.frameCount = 0;
         this.video = null;
         this.captured = null;
+        this.recording = null;
+        // the machine's state was changed from outside the recording
+        this.recordingStale = true;
+        this.input = null;
+        this.probe = null;
+        // frames run on a platform without a timeline
+        this.untimedFrames = 0;
+    }
+    /** The recorded timeline, or null if the platform can't save its state. */
+    get history() { return this.timeline; }
+    get timeline() {
+        if (this.recordingStale)
+            this.startTimeline();
+        return this.recording;
+    }
+    /** Frames run so far. Keeps counting across loadROM() and reset(). */
+    get frameCount() {
+        return this.timeline ? this.timeline.now().frame : this.untimedFrames;
+    }
+    /** Where the machine is: frames, and steps into the current frame. */
+    now() {
+        return this.timeline ? this.timeline.now() : (0, timeline_1.timestamp)(this.untimedFrames, 0);
+    }
+    /** True if the machine shows a recorded past rather than the present. */
+    isInPast() {
+        var _a;
+        return !!((_a = this.timeline) === null || _a === void 0 ? void 0 : _a.isInPast());
+    }
+    /**
+     * Start recording from the machine's current state, which was changed from
+     * outside the timeline (start, a ROM or BIOS load, a reset). The past before
+     * it is dropped: it can't be replayed into this state.
+     */
+    startTimeline() {
+        var _a;
+        this.recordingStale = false;
+        const t = this.recording ? this.recording.now() : (0, timeline_1.timestamp)(this.untimedFrames, 0);
+        if (!(0, platformcore_1.isRewindable)(this.platform)) {
+            this.recording = null;
+            this.input = null;
+            this.untimedFrames = t.frame;
+            return;
+        }
+        const core = (0, platformcore_1.createCore)(this.platform);
+        // the new state starts a frame, which is the next one if we were mid-frame
+        core.restore(core.snapshot(), (0, timeline_1.timestamp)(t.step === 0 ? t.frame : t.frame + 1, 0));
+        if (this.probe)
+            (_a = core.connectProbe) === null || _a === void 0 ? void 0 : _a.call(core, this.probe);
+        this.input = new platformcore_1.PlatformFrameInput(this.platform, {
+            now: () => core.now(),
+            dispatchKey: (key, code, flags) => this.deliverKey(key, code, flags),
+        });
+        this.recording = new history_1.History(core, { input: this.input });
     }
     /**
      * The underlying Machine, if there is one. Platforms built on
@@ -223,13 +281,19 @@ class EmuCore {
             catch (e) { /* not a SampledAudio sink */ }
         }
     }
-    reset() { this.platform.reset(); }
+    reset() {
+        this.platform.reset();
+        this.recordingStale = true;
+    }
     /**
      * `data` is a ROM image, or whatever else the build produced (verilog's
      * compiled unit). Some platforms (verilog) load asynchronously; await this
      * to see their errors.
      */
-    async loadROM(data, title = 'ROM') { await this.platform.loadROM(title, data); }
+    async loadROM(data, title = 'ROM') {
+        await this.platform.loadROM(title, data);
+        this.recordingStale = true;
+    }
     /**
      * Project files the program reads at load time (verilog's $readmem), keyed
      * by the name the program uses. The IDE gets these from the open project.
@@ -241,6 +305,7 @@ class EmuCore {
         if (!this.platform.loadBIOS)
             return false;
         this.platform.loadBIOS(title, data);
+        this.recordingStale = true;
         return true;
     }
     read(addr) {
@@ -283,22 +348,47 @@ class EmuCore {
             return null;
         }
     }
+    /**
+     * Press or release a key. With a timeline, the event is logged and delivered
+     * as the next frame starts, so a replay delivers it at the same moment. A
+     * key pressed while showing the past makes that moment the present: the
+     * recorded future is dropped.
+     */
     setKeyInput(key, code, flags) {
+        const deliver = this.keyReceiver();
+        if (!this.timeline)
+            return deliver(key, code, flags);
+        if (this.timeline.isInPast())
+            this.timeline.truncate();
+        this.input.key(key, code, flags);
+    }
+    deliverKey(key, code, flags) {
+        this.keyReceiver()(key, code, flags);
+    }
+    /** What takes key events: the platform's canvas handler, or the machine. */
+    keyReceiver() {
         var _a;
         const handler = (_a = this.video) === null || _a === void 0 ? void 0 : _a.keyHandler;
         if (handler)
-            return handler(key, code, flags);
+            return handler;
         const target = this.machine || this.platform;
         if (typeof target.setKeyInput !== 'function') {
             throw new Error(`platform '${this.id}' does not accept key input`);
         }
-        target.setKeyInput(key, code, flags);
+        return (key, code, flags) => target.setKeyInput(key, code, flags);
     }
     connectProbe(probe) {
+        var _a;
         const m = this.machine;
         if (!m || !(0, baseplatform_1.hasProbe)(m))
             return false;
-        m.connectProbe(probe);
+        this.probe = probe;
+        // the core mutes the probe while it replays steps the probe already saw
+        const core = (_a = this.timeline) === null || _a === void 0 ? void 0 : _a.core;
+        if (core === null || core === void 0 ? void 0 : core.connectProbe)
+            core.connectProbe(probe);
+        else
+            m.connectProbe(probe);
         return true;
     }
     getVideo() {
@@ -340,40 +430,36 @@ class EmuCore {
     get supportsTrap() { return this.machine != null; }
     /** True if single instructions can be stepped. */
     get supportsStep() { return this.supportsTrap; }
+    /** True if the machine can be stepped backwards and moved around in time. */
+    get supportsRewind() { return this.timeline != null; }
     /**
-     * A function that advances the CPU by the smallest amount the machine
-     * supports -- one clock for ClockBased CPUs, one instruction for
-     * InstructionBased ones -- without disturbing the frame loop. Null if the
-     * machine only knows how to run whole frames.
+     * Run to the end of the current frame, or until `trap` returns true. The
+     * trap sees every step from the current position on: a clock on a 6502 or
+     * a WASM machine, an instruction elsewhere, a whole frame on a target
+     * without a Machine. Returns true if the trap stopped the run.
+     *
+     * In the past, this replays the recorded future (with its input) rather
+     * than recording a new one. A halt (KIL, a watchdog) is thrown as the
+     * EmuHalt, with the machine parked just before it.
      */
-    clockStepper() {
-        const m = this.machine;
-        if (!m)
-            return null;
-        if (typeof m.advanceCPU === 'function')
-            return () => m.advanceCPU(); // BasicHeadlessMachine
-        if (typeof m.advanceFrameClock === 'function')
-            return () => m.advanceFrameClock(null, 1); // WASM
-        return null;
-    }
-    /**
-     * Finish any partly-executed instruction, so getPC() names a real
-     * instruction. Frames can end mid-instruction on clock-based CPUs.
-     */
-    settle() {
-        const clock = this.clockStepper();
-        if (!clock)
-            return;
-        for (let i = 0; i < MAX_CYCLES_PER_INSN && !this.isStable(); i++)
-            clock();
-    }
     advanceFrame(trap) {
+        const h = this.timeline;
+        if (!h)
+            return this.advanceUntimed(trap);
+        const t = h.now();
+        const r = h.isInPast() ? h.seek((0, timeline_1.timestamp)(t.frame + 1, 0), trap) : h.recordFrame(trap);
+        if (r.halt)
+            throw r.halt;
+        return r.trapped;
+    }
+    advanceUntimed(trap) {
         const m = this.machine;
+        let hit = false;
         // With a trap we drive the Machine directly -- Platform.advance() only
         // honors traps registered as breakpoints, and installing/removing those
         // rewinds BaseDebugPlatform's saved state.
         if (trap && m) {
-            m.advanceFrame(trap);
+            m.advanceFrame(() => (hit = hit || !!trap()));
         }
         else {
             const p = this.platform;
@@ -381,51 +467,113 @@ class EmuCore {
                 p.nextFrame();
             else if (p.advance)
                 p.advance(false);
+            hit = !!(trap === null || trap === void 0 ? void 0 : trap());
         }
-        this.frameCount++;
+        this.untimedFrames++;
+        return hit;
     }
     isStable() {
         return this.machine ? this.machine.cpu.isStable() : true;
     }
-    /** Execute exactly one instruction. Returns false if the target can't step. */
-    stepInsn() {
-        if (!this.machine)
-            return false;
-        const clock = this.clockStepper();
-        if (clock) {
-            this.settle(); // don't count an in-flight instruction as this step
-            clock();
-            for (let i = 0; i < MAX_CYCLES_PER_INSN && !this.isStable(); i++)
-                clock();
-            return true;
+    /**
+     * Run until `pred` is true at an instruction boundary, up to `maxFrames`
+     * frames. `pred` is first asked about the current position. Exact to the
+     * instruction on targets with a Machine; frame-granular otherwise.
+     */
+    runUntil(pred, maxFrames = exports.DEFAULT_MAX_FRAMES) {
+        const trap = () => this.isStable() && pred();
+        const start = this.frameCount;
+        while (this.frameCount - start < maxFrames) {
+            if (this.advanceFrame(trap))
+                return true;
         }
-        // No clock-level entry point: stop at the next instruction boundary via
-        // the frame trap. This restarts the frame, so it is the last resort.
-        let boundaries = 0;
-        for (let frames = 0; frames < 2 && boundaries < 2; frames++) {
-            this.advanceFrame(() => this.isStable() && ++boundaries >= 2);
+        return false;
+    }
+    /**
+     * Finish any partly-executed instruction, so getPC() names a real
+     * instruction. Frames can end mid-instruction on clock-based CPUs.
+     */
+    settle() {
+        if (!this.supportsStep || this.isStable())
+            return;
+        this.runUntil(() => true, 2);
+    }
+    /**
+     * Execute `n` instructions, calling `each` before each one. Stops early,
+     * returning false, if `each` returns true. Throws if the target can't step.
+     */
+    stepInsn(n = 1, each) {
+        if (!this.supportsStep)
+            throw new Error(`'${this.id}' does not support instruction stepping`);
+        this.settle(); // don't count an in-flight instruction as a step
+        let seen = 0;
+        let stopped = false;
+        // the first boundary is the current position, so n steps end at the n+1th
+        this.runUntil(() => {
+            if (seen++ === n)
+                return true;
+            if (each && each())
+                return stopped = true;
+            return false;
+        });
+        return !stopped;
+    }
+    /**
+     * Go back `n` instructions, by replaying the recorded past. Returns false,
+     * and stays put, if the recording doesn't reach back that far.
+     */
+    stepBack(n = 1) {
+        const h = this.timeline;
+        if (!h || !this.supportsStep)
+            return false;
+        const start = h.now();
+        for (let i = 0; i < n; i++) {
+            if (!this.stepBackUntil(() => true)) {
+                h.seek(start);
+                return false;
+            }
         }
         return true;
     }
     /**
-     * Run until `pred` is true, up to `maxFrames` frames. Exact to the
-     * instruction on targets with a Machine; frame-granular otherwise.
+     * Go back to the last instruction boundary before now where `pred` holds.
+     * Returns false, and stays put, if there is none in the recording.
      */
-    runUntil(pred, maxFrames = exports.DEFAULT_MAX_FRAMES) {
-        const start = this.frameCount;
-        while (this.frameCount - start < maxFrames) {
-            if (this.supportsTrap) {
-                let hit = false;
-                this.advanceFrame(() => (hit = this.isStable() && pred()));
-                if (hit)
-                    return true;
-            }
-            else {
-                this.advanceFrame();
-                if (pred())
-                    return true;
-            }
-        }
+    stepBackUntil(pred) {
+        const h = this.timeline;
+        if (!h)
+            throw new Error(`'${this.id}' cannot rewind`);
+        const t = h.now();
+        const test = () => this.isStable() && pred();
+        // most searches end in this frame, so try it before the whole past
+        const frameStart = (0, timeline_1.timestamp)(t.frame, 0);
+        if ((0, timeline_1.compareTimestamps)(frameStart, h.first()) >= 0 && h.findLast(test, frameStart, t))
+            return true;
+        if (h.findLast(test, h.first(), t))
+            return true;
+        h.seek(t);
+        return false;
+    }
+    /** Move to a recorded moment, past or present. Throws if it isn't recorded. */
+    seek(t) {
+        if (!this.timeline)
+            throw new Error(`'${this.id}' cannot rewind`);
+        const r = this.timeline.seek(t);
+        if (r.halt)
+            throw r.halt;
+    }
+    /**
+     * Run backwards to the last moment `pred` held at an instruction boundary.
+     * Returns false, and stays put, if it never held in the recording.
+     */
+    reverseRunUntil(pred) {
+        const h = this.timeline;
+        if (!h)
+            throw new Error(`'${this.id}' cannot rewind`);
+        const start = h.now();
+        if (h.findLast(() => this.isStable() && pred(), h.first(), start))
+            return true;
+        h.seek(start);
         return false;
     }
     /** Run until the PC reaches one of `addrs`. */

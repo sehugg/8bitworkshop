@@ -2645,11 +2645,14 @@ function getSaveState() {
 function emulationHalted(err) {
     var msg = (err && err.message) || msg;
     showExceptionAsError(err, msg);
-    exports.projectWindows.refresh(false); // don't mess with cursor
+    // passive refresh: show the PC gutter arrow but don't move the cursor or
+    // repaint the current line, since the user may be typing
+    exports.projectWindows.refresh(false);
     if (exports.platform.saveState) {
         const state = exports.platform.saveState();
         showDebugInfo(state);
-        openRelevantListing(state);
+        // don't do this because it'll mess with user selected window!
+        //openRelevantListing(state);
     }
 }
 async function reloadWorkspaceFile(path) {

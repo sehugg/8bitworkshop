@@ -8,7 +8,8 @@ const analysis_1 = require("../common/analysis");
 const audio_1 = require("../common/audio");
 const probe_1 = require("../common/probe");
 const devices_1 = require("../common/devices");
-const jsnes = require("../../jsnes");
+// jsnes is an ES module; load its emulator core, not its browser front end
+const JSNES_NES = require('../../jsnes/src/nes.js').default;
 // Lazy mousetrap require: mousetrap references `document` at module load time,
 // which crashes in Node-based tests (window is polyfilled, document is not).
 function getMousetrap() {
@@ -72,13 +73,37 @@ const JSNES_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
     [emu_1.Keys.P2_RIGHT, 1, 7],
 ]);
 /** Replace every typed array in `o` with a copy, breaking aliasing. */
-function copyTypedArrays(o) {
-    if (!o)
-        return;
-    for (var k in o) {
-        if (ArrayBuffer.isView(o[k]))
-            o[k] = o[k].slice(0);
+/**
+ * The JSNES core seen as a Machine, so the headless debugger (EmuCore,
+ * MachineCore) can stop between instructions and step. JSNES runs whole
+ * instructions, so every stop is stable.
+ */
+class JSNESMachine {
+    constructor(p) {
+        this.p = p;
+        this.cpuCyclesPerLine = 114; // width of the probe scope
+        this.cpu = {
+            getPC: () => this.p.getPC(),
+            getSP: () => this.p.getSP(),
+            isStable: () => true,
+        };
     }
+    advanceFrame(trap) {
+        var steps = 0;
+        // frame() asks the trap before each instruction, so count those
+        this.p.nes.frame(() => {
+            if (trap && trap())
+                return true;
+            steps++;
+            return false;
+        });
+        return steps;
+    }
+    saveState() { return this.p.saveState(); }
+    loadState(s) { this.p.loadState(s); }
+    read(a) { return this.p.readAddress(a); }
+    readConst(a) { return this.p.readAddress(a); }
+    connectProbe(probe) { this.p.connectProbe(probe); }
 }
 class JSNESPlatform extends baseplatform_1.Base6502Platform {
     constructor(mainElement) {
@@ -86,7 +111,7 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
         this.audioFrequency = 44030; //44100
         this.frameindex = 0;
         this.showDebugView = false;
-        this.machine = { cpuCyclesPerLine: 114 }; // TODO: hack for width of probe scope
+        this.machine = new JSNESMachine(this);
         this.getToolForFilename = toolselect_1.getToolForFilename_nes;
         // probing
         this.nullProbe = new devices_1.NullProbe();
@@ -127,7 +152,7 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
         $('<button>').text("Nametable").appendTo(debugbar).click(() => { $(this.ntvideo.canvas).toggle() });
         */
         var idata = this.video.getFrameData();
-        this.nes = new jsnes.NES({
+        this.nes = new JSNES_NES({
             onFrame: (frameBuffer) => {
                 for (var i = 0; i < frameBuffer.length; i++)
                     idata[i] = frameBuffer[i] | 0xff000000;
@@ -144,25 +169,11 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
             onStatusUpdate: function (s) {
                 console.log(s);
             },
+            sampleRate: this.audioFrequency, // must match SampleAudio's rate
             //TODO: onBatteryRamWrite
         });
         //this.nes.ppu.showSpr0Hit = true;
         //this.nes.ppu.clipToTvSize = false;
-        this.nes.stop = () => {
-            this.haltAndCatchFire("Illegal instruction");
-            throw new emu_1.EmuHalt("CPU STOPPED"); //TODO: haltEmulation()
-        };
-        // insert debug hook
-        this.nes.cpu._emulate = this.nes.cpu.emulate;
-        this.nes.cpu.emulate = () => {
-            if (this.nes.cpu.irqRequested)
-                this.probe.logInterrupt(this.nes.cpu.irqType || 0);
-            this.probe.logExecute(this.nes.cpu.REG_PC + 1, this.nes.cpu.REG_SP);
-            var cycles = this.nes.cpu._emulate();
-            this.evalDebugCondition();
-            this.probe.logClocks(cycles);
-            return cycles > 0 ? cycles : 1;
-        };
         this.timer = new emu_1.AnimationTimer(60, this.nextFrame.bind(this));
         // set keyboard map
         this.poller = (0, emu_1.setKeyboardFromMap)(this.video, [], JSNES_KEYCODE_MAP, (o, key, code, flags) => {
@@ -225,7 +236,34 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
         this.frameindex = 0;
         this.installIntercepts();
     }
+    // nes.fromJSON() replaces the CPU, PPU and mapper, so this runs after every
+    // load as well as after loadROM()
     installIntercepts() {
+        // insert debug hook
+        var cpu = this.nes.cpu;
+        if (!cpu.haveProxied) {
+            var old_emulate = cpu.emulate.bind(cpu);
+            cpu.emulate = () => {
+                if (cpu.irqRequested)
+                    this.probe.logInterrupt(cpu.irqType || 0);
+                this.probe.logExecute(cpu.REG_PC + 1, cpu.REG_SP);
+                var cycles;
+                try {
+                    cycles = old_emulate();
+                }
+                catch (e) {
+                    // jsnes throws on an invalid opcode
+                    if (e instanceof emu_1.EmuHalt)
+                        throw e;
+                    this.haltAndCatchFire(e.message || "Illegal instruction");
+                    throw new emu_1.EmuHalt("CPU STOPPED");
+                }
+                this.evalDebugCondition();
+                this.probe.logClocks(cycles);
+                return cycles > 0 ? cycles : 1;
+            };
+            cpu.haveProxied = true;
+        }
         // intercept bus calls, unless we did it already
         var mmap = this.nes.mmap;
         if (!mmap.haveProxied) {
@@ -289,6 +327,7 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
     getROMExtension() { return ".nes"; }
     reset() {
         //this.nes.cpu.reset(); // doesn't work right, crashes
+        this.nes.crashed = false; // jsnes won't run after an invalid opcode until this is cleared
         this.nes.cpu.requestIrq(this.nes.cpu.IRQ_RESET);
         this.installIntercepts();
     }
@@ -313,6 +352,10 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
     getRasterLineClock() {
         return this.nes.ppu.curX;
     }
+    // the debugger asks for these before every instruction; skip toJSON()
+    getPC() { return (this.nes.cpu.REG_PC + this.debugPCDelta) & 0xffff; }
+    getSP() { return this.nes.cpu.REG_SP & 0xff; }
+    isStable() { return true; }
     getCPUState() {
         var c = this.nes.cpu.toJSON();
         this.copy6502REGvars(c);
@@ -331,13 +374,8 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
         }
         s.c = s.cpu;
         this.copy6502REGvars(s.c);
-        // jsnes's utils.toJSON() stores *references* to the live typed arrays
-        // (jsnes/src/utils.js), so a save state keeps changing as the emulator
-        // runs on. Copy every one of them, or a checkpoint is worthless the moment
-        // it is taken -- restoring it would be a no-op self-copy.
-        copyTypedArrays(s.cpu);
-        copyTypedArrays(s.ppu);
-        copyTypedArrays(s.mmap);
+        // our jsnes fork's toJSON() copies every array, so the state doesn't
+        // change as the emulator runs on
         s.b = s.cpu.mem;
         s.ctrl = this.saveControlsState();
         return s;
@@ -349,10 +387,7 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
         //this.nes.cpu.fromJSON(state.cpu);
         //this.nes.mmap.fromJSON(state.mmap);
         //this.nes.ppu.fromJSON(state.ppu);
-        // fromJSON() copies typed arrays in with .set(), so nothing here aliases
-        // the state -- but the plain `mem` reference does, and the debugger reads
-        // through it
-        this.nes.cpu.mem = state.cpu.mem.slice(0);
+        // fromJSON() copies arrays in, so nothing here aliases the state
         this.loadControlsState(state.ctrl);
         //$.extend(this.nes, state);
         this.installIntercepts();
@@ -364,8 +399,9 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
         };
     }
     loadControlsState(state) {
-        this.nes.controllers[1].state = state.c1;
-        this.nes.controllers[2].state = state.c2;
+        // copy, or later button presses would change the saved state
+        this.nes.controllers[1].state = state.c1.slice(0);
+        this.nes.controllers[2].state = state.c2.slice(0);
     }
     readAddress(addr) {
         return this.nes.cpu.mem[addr];
