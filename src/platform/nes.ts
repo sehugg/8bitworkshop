@@ -7,7 +7,8 @@ import { CodeAnalyzer_nes } from "../common/analysis";
 import { SampleAudio } from "../common/audio";
 import { ProbeRecorder } from "../common/probe";
 import { NullProbe, Probeable, ProbeAll, TrapCondition } from "../common/devices";
-import jsnes = require('../../jsnes');
+// jsnes is an ES module; load its emulator core, not its browser front end
+const JSNES_NES = require('../../jsnes/src/nes.js').default;
 
 // Lazy mousetrap require: mousetrap references `document` at module load time,
 // which crashes in Node-based tests (window is polyfilled, document is not).
@@ -154,7 +155,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     $('<button>').text("Nametable").appendTo(debugbar).click(() => { $(this.ntvideo.canvas).toggle() });
     */
     var idata = this.video.getFrameData();
-    this.nes = new jsnes.NES({
+    this.nes = new JSNES_NES({
       onFrame: (frameBuffer : number[]) => {
         for (var i=0; i<frameBuffer.length; i++)
           idata[i] = frameBuffer[i] | 0xff000000;
@@ -171,24 +172,11 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
       onStatusUpdate: function(s) {
         console.log(s);
       },
+      sampleRate: this.audioFrequency, // must match SampleAudio's rate
       //TODO: onBatteryRamWrite
     });
     //this.nes.ppu.showSpr0Hit = true;
     //this.nes.ppu.clipToTvSize = false;
-    this.nes.stop = () => {
-      this.haltAndCatchFire("Illegal instruction");
-      throw new EmuHalt("CPU STOPPED"); //TODO: haltEmulation()
-    };
-    // insert debug hook
-    this.nes.cpu._emulate = this.nes.cpu.emulate;
-    this.nes.cpu.emulate = () => {
-      if (this.nes.cpu.irqRequested) this.probe.logInterrupt(this.nes.cpu.irqType || 0);
-      this.probe.logExecute(this.nes.cpu.REG_PC+1, this.nes.cpu.REG_SP);
-      var cycles = this.nes.cpu._emulate();
-      this.evalDebugCondition();
-      this.probe.logClocks(cycles);
-      return cycles > 0 ? cycles : 1;
-    }
     this.timer = new AnimationTimer(60, this.nextFrame.bind(this));
     // set keyboard map
     this.poller = setKeyboardFromMap(this.video, [], JSNES_KEYCODE_MAP, (o,key,code,flags) => {
@@ -252,7 +240,31 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
     this.frameindex = 0;
     this.installIntercepts();
   }
+  // nes.fromJSON() replaces the CPU, PPU and mapper, so this runs after every
+  // load as well as after loadROM()
   installIntercepts() {
+    // insert debug hook
+    var cpu = this.nes.cpu;
+    if (!cpu.haveProxied) {
+      var old_emulate = cpu.emulate.bind(cpu);
+      cpu.emulate = () => {
+        if (cpu.irqRequested) this.probe.logInterrupt(cpu.irqType || 0);
+        this.probe.logExecute(cpu.REG_PC+1, cpu.REG_SP);
+        var cycles;
+        try {
+          cycles = old_emulate();
+        } catch (e) {
+          // jsnes throws on an invalid opcode
+          if (e instanceof EmuHalt) throw e;
+          this.haltAndCatchFire(e.message || "Illegal instruction");
+          throw new EmuHalt("CPU STOPPED");
+        }
+        this.evalDebugCondition();
+        this.probe.logClocks(cycles);
+        return cycles > 0 ? cycles : 1;
+      }
+      cpu.haveProxied = true;
+    }
     // intercept bus calls, unless we did it already
     var mmap = this.nes.mmap;
     if (!mmap.haveProxied) {
@@ -316,6 +328,7 @@ class JSNESPlatform extends Base6502Platform implements Platform, Probeable {
 
   reset() {
     //this.nes.cpu.reset(); // doesn't work right, crashes
+    this.nes.crashed = false; // jsnes won't run after an invalid opcode until this is cleared
     this.nes.cpu.requestIrq(this.nes.cpu.IRQ_RESET);
     this.installIntercepts();
   }
