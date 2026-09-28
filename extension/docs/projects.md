@@ -102,21 +102,16 @@ also name another platform, so one program can run on `c64` and `vic20`:
 | Run This File, Follow Active Editor | VS Code, on this computer only |
 | Launch configurations | `.vscode/launch.json` |
 
-Commit `.vscode/settings.json` so people who clone your repo skip these
-questions.
+Commit `.vscode/settings.json` to pin an ambiguous answer or a folder
+with several projects; detection normally fills these in from your
+README and source. Your own settings — `autoBuild`, `reloadOnBuild`,
+`toolchainPath` — stay in your user settings and aren't committed.
 
 A file opened with no folder has nowhere to save, so its platform lasts
 until you close the window. Choose **Open Containing Folder** in the
 notification to keep it.
 
-## Settings
-
-| Setting | Meaning |
-|---|---|
-| `8bitworkshop.platform` | The platform id, such as `nes` or `c64`. |
-| `8bitworkshop.mainFile` | The main file, relative to the workspace folder. Leave it empty for a folder of small programs. |
-| `8bitworkshop.tool` | The build tool, when it isn't the usual one for the file's extension (`ca65` for a `.asm` file, say). |
-| `8bitworkshop.folders` | Projects in subfolders. The most specific folder wins. |
+## Settings JSON
 
 For example, a repo with a game at the top and a C64 port in a
 subfolder:

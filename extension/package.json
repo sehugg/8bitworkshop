@@ -1,9 +1,10 @@
 {
   "name": "8bitworkshop",
-  "displayName": "8bitworkshop — Retro 8-bit Dev (NES, Atari, C64, 6502)",
-  "description": "Build, run, and debug retro 8-bit programs — NES, Atari 2600/7800/8-bit, Commodore 64, and more — with 8bitworkshop's 6502/Z80/6809 assemblers, compilers, and emulators",
+  "displayName": "8bitworkshop — Retro 8-bit Dev",
+  "description": "Build, run, and debug 8-bit programs — NES, Atari, C-64, and more — with 8bitworkshop's 6502/Z80/6809 assemblers, compilers, and emulators",
   "keywords": [
     "retro",
+    "vintage",
     "8-bit",
     "8bit",
     "6502",
@@ -31,6 +32,9 @@
     "dasm",
     "homebrew",
     "game development",
+    "Verilog",
+    "HDL",
+    "hardware design",
     "retrogaming"
   ],
   "version": "0.1.0",
@@ -44,8 +48,13 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sehugg/8bitworkshop.git"
+    "url": "https://github.com/sehugg/8bitworkshop.git",
+    "directory": "extension"
   },
+  "bugs": {
+    "url": "https://github.com/sehugg/8bitworkshop/issues"
+  },
+  "homepage": "https://8bitworkshop.com",
   "engines": {
     "vscode": "^1.90.0"
   },

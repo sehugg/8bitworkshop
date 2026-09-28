@@ -107,22 +107,16 @@ If the game restarting while you type gets in the way, set
 Some compilers, such as llvm-mos, build on a server. Those always wait
 until you save.
 
-## Other C and assembly extensions
-
-In an 8bitworkshop project, C files use the **8bitworkshop C** language
-mode (shown at the right of the status bar) for compilers like cc65 and
-SDCC. That keeps C/C++ extensions and clangd from reporting errors that
-only apply to desktop C. 8bitworkshop provides hover, go to definition,
-and completion instead. Files outside 8bitworkshop projects don't
-change.
-
-To keep your usual C tools, set `8bitworkshop.cLanguage` to `c`.
-
 ## Where your choices are saved
 
 8bitworkshop saves the platform, main file, and build tool in
 `.vscode/settings.json`, whenever you choose or change one. Commit that
-file so people who clone your repo skip these questions.
+file to pin an ambiguous answer or a folder with several projects;
+detection normally fills these in from your README and source.
+
+Your own settings stay in your user settings instead: `autoBuild` and
+`reloadOnBuild` (window settings) and `toolchainPath` (a path on your
+machine, which VS Code keeps out of the workspace file).
 
 **Run This File** is just for you: VS Code remembers it on this
 computer, and it never changes a file. **Add Launch Configuration**

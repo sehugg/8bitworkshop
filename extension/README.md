@@ -1,13 +1,13 @@
 # 8bitworkshop for VS Code
 
-![8bitworkshop running a program in VS Code](images/demo.gif)
+![8bitworkshop running a program in VS Code](https://8bitworkshop.com/images/vscode_demo.gif)
 
 The original online 8-bit IDE, now in VS Code!
 
 Write programs for classic consoles and computers, then build and play
 them without leaving VS Code.
 
-This extension uses the assemblers,
+This extension bundles the assemblers,
 compilers, and emulators from [8bitworkshop.com](https://8bitworkshop.com).
 
 Supported platforms include 6502, Z80, and 6809 CPUs:
@@ -52,24 +52,59 @@ To use code you already have, open its folder: the extension detects the appropr
 
 ## Settings
 
+Project settings, saved in `.vscode/settings.json`:
+
 | Setting | What it does |
 |---|---|
 | `8bitworkshop.platform` | The platform, such as `nes`, `c64`, or `vcs` |
 | `8bitworkshop.mainFile` | The file that runs. Empty: the file in the editor |
+| `8bitworkshop.tool` | The build tool, when it isn't the usual one for the file |
+| `8bitworkshop.folders` | Projects in subfolders |
+| `8bitworkshop.exportRomPath` | Folder for exported ROMs, relative to the main file (`bin` by default) |
+
+Your local user settings:
+
+| Setting | What it does |
+|---|---|
 | `8bitworkshop.autoBuild` | `onType` (default), `onSave`, or `off` |
 | `8bitworkshop.reloadOnBuild` | `always` (default), `onSave`, or `never` |
+| `8bitworkshop.exportRom` | Write each successful build's ROM to the export folder |
 | `8bitworkshop.toolchainPath` | Use a local 8bitworkshop checkout instead of the included toolchains |
+| `8bitworkshop.assetUrl` | Server or local directory to download toolchains from, tried before the default servers |
 
-8bitworkshop saves your choices in `.vscode/settings.json`. Commit it so
-people who clone your repo skip the questions.
+## Commands
+
+Every command is under **8bitworkshop:** in the Command Palette; several
+also appear in the editor title bar, the Explorer, or **Project Options**.
+
+| Command | What it does |
+|---|---|
+| **New Project...** | Create a project from an example or a blank program |
+| **Open Example** | Open a bundled example without copying it |
+| **Copy to Workspace** | Copy the open example into your workspace |
+| **Set as Main File** | Make the active file the one that runs |
+| **Change Main File...** | Pick the main file from the workspace |
+| **Change Platform...** | Build the project for another platform |
+| **Detect Projects** | Scan the folder for projects and platforms |
+| **Add Launch Configuration** | Write a run configuration to `.vscode/launch.json` |
+| **Project Options** | Open the project menu |
+| **Build** | Build without running |
+| **Run** | Build and run in the emulator |
+| **Run This File** | Run the active file, without changing the project |
+| **Run Main File** | Run the project's main file |
+| **Follow Active Editor** | Run whichever program is in the editor |
+| **Reset / Pause / Resume / Stop / Mute / Unmute Emulator** | Control the emulator panel |
+| **Download All Toolchains** | Fetch every platform's toolchain for offline use |
 
 ## More
 
-- [Projects and the file that runs](https://github.com/sehugg/8bitworkshop/blob/master/extension/docs/projects.md)
-- [Platform detection](https://github.com/sehugg/8bitworkshop/blob/master/extension/docs/detection.md)
+- [Projects](https://github.com/sehugg/8bitworkshop/blob/master/extension/docs/projects.md)
 - [Building](https://github.com/sehugg/8bitworkshop/blob/master/extension/docs/building.md)
 - [The emulator](https://github.com/sehugg/8bitworkshop/blob/master/extension/docs/emulator.md)
+- [Platform detection](https://github.com/sehugg/8bitworkshop/blob/master/extension/docs/detection.md)
+- [Changelog](https://github.com/sehugg/8bitworkshop/blob/master/extension/CHANGELOG.md)
 - [Report a problem](https://github.com/sehugg/8bitworkshop/issues)
+- [Source code](https://github.com/sehugg/8bitworkshop)
 
 ## License
 
