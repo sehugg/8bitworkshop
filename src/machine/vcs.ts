@@ -106,6 +106,10 @@ export class JavatariMachine implements FrameBased, RasterFrameBased, VideoSourc
     // a WSYNC halt stops the CPU with T=0 for the rest of the line
     isStable: () => this.m6502.isStable() && this.m6502.isRDY(),
     reset: () => this.reset(),
+    saveState: () => this.m6502.saveState(),
+    loadState: (s) => this.m6502.loadState(s),
+    // the bus is wired up in the constructor, so there is nothing to connect
+    connectMemoryBus: () => { },
   };
 
   pixels: Uint32Array;
@@ -318,6 +322,21 @@ export class JavatariMachine implements FrameBased, RasterFrameBased, VideoSourc
   setControl(control: number, pressed: boolean) {
     this.pia.controlStateChanged(control, pressed);
     this.tia.controlStateChanged(control, pressed);
+    if (pressed) this.controlsDown.add(control);
+    else this.controlsDown.delete(control);
+  }
+
+  /**
+   * The joystick and switch positions live in the PIA and TIA states, so they
+   * rewind with everything else; these record which controls are held, for
+   * hosts that save and restore the input on their own.
+   */
+  private controlsDown = new Set<number>();
+  saveControlsState() {
+    return Array.from(this.controlsDown);
+  }
+  loadControlsState(controls: Iterable<number>) {
+    this.controlsDown = new Set(controls || []);
   }
 
   // STATE

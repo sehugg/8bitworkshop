@@ -21,10 +21,10 @@ function firstROM(platid) {
 }
 
 /** Record `frames` frames with input, then replay and compare every frame. */
-async function checkDeterministic(platid, frames) {
+async function checkDeterministic(platid, frames, romid) {
   var target = await emutarget.loadPlatform(platid);
   await target.start();
-  await target.loadROM(new Uint8Array(fs.readFileSync(firstROM(platid))));
+  await target.loadROM(new Uint8Array(fs.readFileSync(firstROM(romid || platid))));
   var r = verifyreplay.verifyReplay(target, { frames: frames });
   // the input has to actually reach the machine, or a pass means nothing
   assert.ok(r.controlStates > 1,
@@ -58,5 +58,9 @@ describe('Deterministic replay', function () {
   });
   it('should replay nes exactly (jsnes save states must not alias live arrays)', async function () {
     assert.strictEqual(await checkDeterministic('nes', 20), 'insn');
+  });
+  it('should replay vcs.jt4 exactly (Javatari power-on noise and TIA colors)', async function () {
+    // the ROMs live under the base platform's folder
+    assert.strictEqual(await checkDeterministic('vcs.jt4', 20, 'vcs'), 'insn');
   });
 });
