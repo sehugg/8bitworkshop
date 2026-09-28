@@ -145,6 +145,16 @@ function localRoot(): string | null {
   return config().get<string>('toolchainPath') || findRootDir(context.extensionPath);
 }
 
+/** Toolchain packs shipped inside the extension (see .vscodeignore). */
+function bundledAssetsDir(): string {
+  return path.join(context.extensionPath, 'out', 'assets');
+}
+
+function hasBundledPack(manifest: AssetManifest, pack: string): boolean {
+  var info = manifest.packs[pack];
+  return !!info && fs.existsSync(path.join(bundledAssetsDir(), info.file));
+}
+
 function getAssets(): AssetStore {
   if (!assets) {
     var file = path.join(context.extensionPath, 'out', 'assets.json');
@@ -154,13 +164,19 @@ function getAssets(): AssetStore {
       throw new Error(`Cannot find toolchains: no ${file}. Set 8bitworkshop.toolchainPath.`);
     }
     var custom = config().get<string>('assetUrl');
+    // The bundled packs first, so a common platform needs no network; then the
+    // user's server, then the 8bitworkshop servers (for packs not bundled).
+    var urls: string[] = [];
+    if (Object.keys(manifest.packs).some(p => hasBundledPack(manifest, p))) urls.push(bundledAssetsDir());
+    if (custom) urls.push(custom);
+    urls.push(...ASSET_URLS);
     assets = new AssetStore(path.join(context.globalStorageUri.fsPath, 'toolchains'), manifest,
-      custom ? [custom, ...ASSET_URLS] : ASSET_URLS, msg => output.appendLine(msg));
+      urls, msg => output.appendLine(msg));
   }
   return assets;
 }
 
-/** The asset root, after downloading any packs `platform` needs. */
+/** The asset root, after installing any packs `platform` needs. */
 async function toolchainRoot(platform?: string): Promise<string> {
   var local = localRoot();
   if (local) return local;
@@ -170,6 +186,8 @@ async function toolchainRoot(platform?: string): Promise<string> {
 async function installPacks(packs: string[]): Promise<string> {
   var store = getAssets();
   if (packs.every(p => store.has(p))) return store.root;
+  // Everything needed is in the extension: unpack it without a progress pop-up.
+  if (packs.every(p => store.has(p) || hasBundledPack(store.manifest, p))) return store.ensure(packs);
   return vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: '8bitworkshop: Downloading toolchains' }, progress => {
     var shown = new Map<string, number>();
     return store.ensure(packs, (pack, n, total) => {
@@ -186,7 +204,7 @@ async function downloadToolchains() {
     return;
   }
   await installPacks(Object.keys(getAssets().manifest.packs));
-  vscode.window.showInformationMessage('8bitworkshop: all toolchains downloaded.');
+  vscode.window.showInformationMessage('8bitworkshop: toolchains ready.');
 }
 
 function mb(n: number): string {

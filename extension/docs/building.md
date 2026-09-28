@@ -19,10 +19,11 @@ after you stop typing.
 
 ## Toolchains
 
-The first build downloads the compilers and examples (Verilog downloads separately).
-After that, 8bitworkshop builds offline.
+The compilers, assemblers, emulators, and examples are included. Verilog
+downloads its toolchain the first time you use it; after that 8bitworkshop
+builds offline.
 
-To download everything at once, run **8bitworkshop: Download All Toolchains**.
+To download every optional toolchain at once, run **8bitworkshop: Download All Toolchains**.
 To use a local copy instead, such as an 8bitworkshop checkout, set `8bitworkshop.toolchainPath`.
 
 ## Errors

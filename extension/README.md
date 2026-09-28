@@ -27,8 +27,9 @@ Supported programming languages include:
 - **Verilog** for hardware design
 - ...and others! There's a lot going on in here!
 
-All building and emulation runs on your computer.
-The first build downloads the toolchains and examples; after that, everything works offline.
+All building and emulation runs on your computer. The toolchains and
+examples are included; only a few platforms, such as Verilog, download an
+extra component the first time you use them.
 
 ## Get started
 
@@ -57,7 +58,7 @@ To use code you already have, open its folder: the extension detects the appropr
 | `8bitworkshop.mainFile` | The file that runs. Empty: the file in the editor |
 | `8bitworkshop.autoBuild` | `onType` (default), `onSave`, or `off` |
 | `8bitworkshop.reloadOnBuild` | `always` (default), `onSave`, or `never` |
-| `8bitworkshop.toolchainPath` | Use a local 8bitworkshop checkout instead of downloading |
+| `8bitworkshop.toolchainPath` | Use a local 8bitworkshop checkout instead of the included toolchains |
 
 8bitworkshop saves your choices in `.vscode/settings.json`. Commit it so
 people who clone your repo skip the questions.
@@ -72,5 +73,6 @@ people who clone your repo skip the questions.
 
 ## License
 
-GPL-3.0. The downloaded components (toolchains, emulators, libraries, etc.) keep their own licenses.
+GPL-3.0. The included components (toolchains, emulators, libraries, firmware,
+etc.) keep their own licenses; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 

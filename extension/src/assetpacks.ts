@@ -15,6 +15,45 @@ export const ASSET_DIRS = ['src/worker/wasm', 'src/worker/fs', 'src/worker/asmjs
  */
 export const ASSET_EXCLUDE = /^res\/(altirra\/.*\.(lab|lst)|freedos722\.img|seabios\.bin|vgabios\.bin)$/;
 
+/**
+ * Toolchain components left out of the packs because their license has not
+ * been cleared for redistribution. Review each license, then remove its entry
+ * to ship the tool again.
+ *
+ * Only the packs are affected, so the VS Code bundle and the download servers
+ * won't carry these files. A full checkout still works through
+ * `8bitworkshop.toolchainPath`, and platforms that need an excluded tool fail
+ * to build with a missing-file error until their license is cleared.
+ *
+ * Each key is a tool id (src/common/toolmeta.ts). Each pattern matches the
+ * files that belong to it, under ASSET_DIRS or EXTRA_FILES.
+ */
+export const UNREVIEWED_TOOLS: { [tool: string]: RegExp[] } = {
+  xa: [/^src\/worker\/wasm\/xa\.wasm$/],
+  nesasm: [/^src\/worker\/wasm\/nesasm\.(js|wasm)$/],
+  merlin32: [/^src\/worker\/wasm\/merlin32\.(js|wasm)$/],
+  xasm: [/^src\/worker\/asmjs\/xasm6809\.js$/],
+  // vasm has a license, but it only allows non-commercial redistribution
+  vasm: [/^src\/worker\/wasm\/vasmarm_std\.(js|wasm)$/],
+
+  // TODO: review these too. They are libraries/emulators or tools whose
+  // upstream we could not resolve, so their files are not mapped yet.
+  //   shiru       shiru's NES/Atari libraries        (presets, src/worker/lib)
+  //   libcv       ColecoVision/MSX/SMS library         (presets/*-libcv, src/worker/lib/*libcv*)
+  //   6809tools   built into cmoc, lwasm, lwlink       (assumed GPL-3.0; verify)
+  //   makewav     WAV tool, not shipped here
+  //   jsvecx      Vectrex emulator, excluded from the extension bundle
+  //               (src/platform/vectrex.ts, stubbed by scripts/build.mjs)
+};
+
+/** True if a pack file belongs to a tool whose license is not cleared. */
+export function isUnreviewedFile(file: string): boolean {
+  for (var patterns of Object.values(UNREVIEWED_TOOLS)) {
+    if (patterns.some(re => re.test(file))) return true;
+  }
+  return false;
+}
+
 /** Files outside ASSET_DIRS that a pack also carries, from the repo root. */
 export const EXTRA_FILES: { [pack: string]: string[] } = {
   // the Verilog emulator compiles HDL to WASM with binaryen (see binaryen.js)

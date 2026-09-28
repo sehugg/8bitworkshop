@@ -8,7 +8,7 @@ import { Worker } from 'worker_threads';
 import * as zlib from 'zlib';
 import { execFileSync } from 'child_process';
 import { AssetStore } from '../src/assets';
-import { AssetManifest, PackInfo, makePack, packForFile, packsForPlatform, readPack } from '../src/assetpacks';
+import { AssetManifest, PackInfo, isUnreviewedFile, makePack, packForFile, packsForPlatform, readPack } from '../src/assetpacks';
 import { listPackFiles } from '../scripts/assetpack';
 import { findRootDir } from '../src/projectinfo';
 import { Rpc } from '../src/rpc';
@@ -56,6 +56,17 @@ describe('extension asset packs', function () {
     for (var f of lists.base.concat(lists.verilog)) {
       assert.ok(fs.statSync(path.join(ROOT, f)).isFile(), f);
       assert.ok(!f.endsWith('~'), `backup file ${f}`);
+    }
+  });
+
+  it('leaves out tools whose license is not cleared', function () {
+    assert.ok(isUnreviewedFile('src/worker/wasm/nesasm.wasm'));
+    assert.ok(isUnreviewedFile('src/worker/wasm/merlin32.js'));
+    assert.ok(isUnreviewedFile('src/worker/asmjs/xasm6809.js'));
+    assert.ok(!isUnreviewedFile('src/worker/wasm/cc65.wasm'));
+    var lists = listPackFiles(ROOT);
+    for (var f of lists.base.concat(lists.verilog)) {
+      assert.ok(!isUnreviewedFile(f), `unreviewed file shipped: ${f}`);
     }
   });
 

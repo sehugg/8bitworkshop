@@ -93,6 +93,7 @@
     "test-cli": "NODE_PATH=$(pwd) mocha --timeout 60000 test/cli/testcli.js",
     "test-services": "NODE_PATH=$(pwd) mocha --timeout 60000 test/services",
     "test-verilog": "NODE_PATH=$(pwd) mocha --timeout 60000 --reporter mocha-simple-html-reporter --reporter-options output=test/output/verilog.html test/verilog/testverilog.js",
+    "test-extension": "cd extension && npm run test",
     "test-web-quick": "nightwatch -e chrome test/web/testembed.js",
     "test-web-all": "nightwatch -e chrome test/web",
     "fuzzbasic": "jsfuzz gen/common/basic/fuzz.js ~/basic/corpus/ --versifier false",

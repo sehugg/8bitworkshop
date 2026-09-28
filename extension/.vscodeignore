@@ -1,10 +1,12 @@
-# Ship only what the extension loads at runtime. Toolchains and examples
-# download on first use (out/assets/ holds the packs for the servers).
+# Ship only what the extension loads at runtime. The base and Verilog toolchain
+# packs are bundled (out/assets, see out/assets.json). Any pack not listed here
+# downloads from the servers on first use (ASSET_URLS in src/extension.ts).
 **
 !package.json
 !README.md
 !CHANGELOG.md
 !LICENSE
+!THIRD-PARTY-NOTICES.md
 !images/icon.png
 !images/demo.gif
 !out/extension.js
@@ -12,4 +14,6 @@
 !out/emuworker.js
 !out/presets.json
 !out/assets.json
+!out/assets/8bitworkshop-base-*.tar.br
+!out/assets/8bitworkshop-verilog-*.tar.br
 !out/syntaxes/*.json

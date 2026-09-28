@@ -8,12 +8,17 @@
 // out/assets.json. Upload the packs to the asset server (ASSET_URLS in
 // extension.ts). --quality trades size for speed: 11 (the default, for
 // releases) takes minutes; 5 takes seconds.
+//
+// `npm run package` packs a quick (quality 5) bundle so dev installs work;
+// the release scripts (`npm run package:release`, `npm run vsce-publish`,
+// `npm run ovsx-publish`) pack at full quality first. `vscode:prepublish`
+// only builds, so vsce never repacks the assets on its own.
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { execFileSync } from 'child_process';
 import { createHash } from 'crypto';
-import { ASSET_DIRS, ASSET_EXCLUDE, AssetManifest, BROTLI_QUALITY, EXTRA_FILES, PACKS, PackName, makePack, packForFile } from '../src/assetpacks';
+import { ASSET_DIRS, ASSET_EXCLUDE, AssetManifest, BROTLI_QUALITY, EXTRA_FILES, PACKS, PackName, isUnreviewedFile, makePack, packForFile } from '../src/assetpacks';
 
 const args = process.argv.slice(2);
 const qi = args.indexOf('--quality');
@@ -33,9 +38,11 @@ export function listPackFiles(root: string): { [pack: string]: string[] } {
     if (!fs.existsSync(path.join(root, f))) continue;
     // a symlinked directory (presets/msx-libcv -> coleco) becomes a copy,
     // since Windows can't make symlinks
-    for (var g of expandLink(root, f, tracked)) if (!ASSET_EXCLUDE.test(g)) out[packForFile(g)].push(g);
+    for (var g of expandLink(root, f, tracked)) {
+      if (!ASSET_EXCLUDE.test(g) && !isUnreviewedFile(g)) out[packForFile(g)].push(g);
+    }
   }
-  for (var name in EXTRA_FILES) out[name].push(...EXTRA_FILES[name]);
+  for (var name in EXTRA_FILES) out[name].push(...EXTRA_FILES[name].filter(f => !isUnreviewedFile(f)));
   for (var name in out) out[name].sort();
   return out;
 }
@@ -60,6 +67,12 @@ async function main() {
     var sha256 = createHash('sha256').update(data).digest('hex');
     var file = `8bitworkshop-${pack}-${ideVersion}-${sha256.slice(0, 8)}.tar.br`;
     fs.writeFileSync(path.join(outDir, file), data);
+    // drop packs from earlier runs, so the extension never bundles a stale one
+    for (var old of fs.readdirSync(outDir)) {
+      if (old !== file && old.startsWith(`8bitworkshop-${pack}-`) && old.endsWith('.tar.br')) {
+        fs.rmSync(path.join(outDir, old), { force: true });
+      }
+    }
     manifest.packs[pack as PackName] = { file, size: data.length, sha256, count: files.length };
     var raw = files.reduce((n, f) => n + f.data.length, 0);
     console.error(`assetpack: ${pack}: ${files.length} files, ${mb(raw)} -> ${mb(data.length)} ${path.relative(process.cwd(), path.join(outDir, file))}`);

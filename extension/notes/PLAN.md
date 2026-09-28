@@ -1343,6 +1343,11 @@ root under global storage, so the workers still see a single `rootDir`.
 `binaryen` is aliased to `src/binaryen.js`, which loads it from that root.
 `8bitworkshop.toolchainPath` and the repo checkout skip downloading.
 
+**Bundling.** The base (11 MB) and verilog (2.4 MB) packs both ship in the
+VSIX (`out/assets/*.tar.br` via .vscodeignore); `hasBundledPack` unpacks
+them with no network. The asset server and `download`/`ensure` path stay for
+packs that grow too big to bundle, or new ones.
+
 ### Extension-host build format
 
 Avoid one monolithic CommonJS bundle with `binaryen` inlined. Ship the tsc
