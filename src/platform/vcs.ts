@@ -577,6 +577,14 @@ class VCSStellaPlatform implements Platform {
 
 ////////////////
 
+// the ROM itself, and the cartridge format properties that never change
+const CART_CONTENT_KEYS = 'f r b ra e rnd'.split(' ');
+const CART_STATIC_KEYS = 'bb es tb sm m fo s sa'.split(' ');
+const CART_BANK_LABELS: { [k: string]: string } = {
+  bo: 'BankOffset', s0: 'Slice0', s1: 'Slice1', s2: 'Slice2',
+  b0o: 'Bank0Offset', b1o: 'Bank1Offset',
+};
+
 /**
  * The headless Javatari core (src/machine/vcs.ts) as a Platform, registered
  * as "vcs.jt4" so it runs beside VCSPlatform, which still drives the Javatari
@@ -630,8 +638,20 @@ class VCSMachinePlatform extends Base6502MachinePlatform<JavatariMachine> {
   }
   cpuStateToLongString(c) { return cpuStateToLongString_6502(c); }
   bankSwitchStateToString(state) {
-    if (state.ca?.ro >= 0) return "RAMOffset " + hex(state.ca.ro, 4) + "\n";
-    return (state.ca?.bo >= 0) ? "BankOffset " + hex(state.ca.bo, 4) + "\n" : "";
+    const ca = state.ca;
+    if (!ca) return '';
+    // The cartridge formats keep their live bank selection under different
+    // keys, and ro/rs mean something different in each of them, so the ones
+    // that are unambiguous get a name and the rest are shown as the core
+    // spells them. The ROM contents and the fixed format properties are noise.
+    let s = 'Cart ' + ca.f + '\n';
+    for (const k of Object.keys(ca)) {
+      if (CART_CONTENT_KEYS.indexOf(k) >= 0 || CART_STATIC_KEYS.indexOf(k) >= 0) continue;
+      const v = ca[k];
+      if (typeof v !== 'number') continue;  // e.g. the AR rom page offsets
+      s += lpad(CART_BANK_LABELS[k] || k, 12) + ' ' + (v < 0 ? String(v) : '$' + hex(v, 4)) + '\n';
+    }
+    return s;
   }
   piaStateToLongString(p) {
     return "Timer  " + p.t + "/" + p.c + "\nINTIM  $" + hex(p.IT, 2) + " (" + p.IT + ")\nINSTAT $" + hex(p.IS, 2)
