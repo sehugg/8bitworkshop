@@ -43,19 +43,21 @@ const workerlib_1 = require("../../src/worker/workerlib");
         assert_1.default.deepStrictEqual((0, toolmeta_1.getToolMetaForFilename)('foo.xyz'), []);
     });
     (0, mocha_1.it)('getPreloadFSName resolves per-platform filesystems', function () {
-        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('cc65', 'nes'), '65-nes');
-        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('cc65', 'c64'), '65-c64');
-        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('cc65', 'nonexistent'), undefined);
+        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('cc65', 'nes'), undefined); // WASI zip, not preloadFS
+        assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('cc65', 'nes'), 'wasi:cc65-fs-nes.zip');
+        assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('cc65', 'c64'), 'wasi:cc65-fs-c64.zip');
+        assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('cc65', 'nonexistent'), undefined);
         assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('sdcc'), 'sdcc'); // default config
         assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('dasm'), undefined);
     });
-    (0, mocha_1.it)('getPreloadFSName resolves suffixed platform ids to their root base', function () {
+    (0, mocha_1.it)('getSharedFileSystemName resolves suffixed platform ids to their root base', function () {
         // atari8 runs as 'atari8-800' / 'atari8-5200' / *.xlmame variants
-        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('cc65', 'atari8'), '65-atari8');
-        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('cc65', 'atari8-800'), '65-atari8');
-        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('cc65', 'atari8-800.xlmame'), '65-atari8');
-        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('cc65', 'atari8-5200'), '65-atari8');
-        assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('cc65', 'atari8-800'), '65-atari8');
+        assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('cc65', 'atari8'), 'wasi:cc65-fs-atari8.zip');
+        assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('cc65', 'atari8-800'), 'wasi:cc65-fs-atari8.zip');
+        assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('cc65', 'atari8-800.xlmame'), 'wasi:cc65-fs-atari8.zip');
+        assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('cc65', 'atari8-5200'), 'wasi:cc65-fs-atari8.zip');
+        assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('fastbasic', 'atari8-800'), 'wasi:cc65-fs-atari8.zip');
+        assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('ecs', 'nes'), 'wasi:cc65-fs-nes.zip');
     });
     (0, mocha_1.it)('getSkeletonName defaults to the tool id', function () {
         assert_1.default.strictEqual((0, toolmeta_1.getSkeletonName)('dasm'), 'dasm');
@@ -119,8 +121,8 @@ const workerlib_1 = require("../../src/worker/workerlib");
         assert_1.default.deepStrictEqual(deps('#include "foo.h"\n', 'cc65'), []);
     });
     (0, mocha_1.it)('resolves shared filesystem names for all tools with includeDirs', function () {
+        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('cc65', 'nes'), 'wasi:cc65-fs-nes.zip');
         // preloadFS-backed tools
-        assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('cc65', 'nes'), '65-nes');
         assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('sdcc', 'coleco'), 'sdcc');
         assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('bataribasic', 'vcs'), 'wasi:bb-fs.zip');
         assert_1.default.equal((0, toolmeta_1.getSharedFileSystemName)('wiz'), 'wiz');

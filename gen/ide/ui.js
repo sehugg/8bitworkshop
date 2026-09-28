@@ -2329,7 +2329,7 @@ async function startPlatform() {
         // try to load last file (redirect)
         var lastid = userPrefs.getLastPreset();
         // load first preset file, unless we're in a repo
-        var defaultfile = lastid || (exports.repo_id ? null : PRESETS[0].id);
+        var defaultfile = lastid || (exports.repo_id ? null : (PRESETS[0] && PRESETS[0].id));
         exports.qs.file = defaultfile || 'DEFAULT';
         if (!defaultfile) {
             (0, dialogs_1.alertError)("There is no default main file for this project. Try selecting one from the pulldown.");

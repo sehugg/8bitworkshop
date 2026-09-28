@@ -32,7 +32,7 @@ export interface SymbolRecord {
 /** On-disk shape of a prebuilt index (gen/symidx/<name>.json). */
 export interface PrebuiltIndex {
   version: number;         // bump when the extractor changes; runtime rejects mismatches
-  corpus: string;          // fs name, e.g. 'fs65-c64', or 'docs'
+  corpus: string;          // fs name, e.g. 'sdcc', 'wasi:cc65-fs-c64.zip', or 'docs'
   generated: string;       // ISO date
   records: SymbolRecord[];
   ms?: object;             // MiniSearch.toJSON() output, loaded via loadJSAsync

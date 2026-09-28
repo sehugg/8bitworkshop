@@ -130,18 +130,18 @@ const TOOL_PLATFORM_HELPURL = {
         lynx: 'https://cc65.github.io/doc/lynx.html',
     },
 };
-const CC65_PRELOADFS = {
-    'apple2': { preloadFS: '65-apple2' },
-    'c64': { preloadFS: '65-c64' },
-    'vic20': { preloadFS: '65-vic20' },
-    'nes': { preloadFS: '65-nes' },
-    'atari8': { preloadFS: '65-atari8' },
-    'vector': { preloadFS: '65-none' },
-    'atari7800': { preloadFS: '65-none' },
-    'devel': { preloadFS: '65-none' },
-    'vcs': { preloadFS: '65-atari2600' },
-    'pce': { preloadFS: '65-pce' },
-    'exidy': { preloadFS: '65-none' },
+const CC65_WASIFS = {
+    'apple2': { wasiFSZip: 'cc65-fs-apple2.zip' },
+    'c64': { wasiFSZip: 'cc65-fs-c64.zip' },
+    'vic20': { wasiFSZip: 'cc65-fs-vic20.zip' },
+    'nes': { wasiFSZip: 'cc65-fs-nes.zip' },
+    'atari8': { wasiFSZip: 'cc65-fs-atari8.zip' },
+    'vector': { wasiFSZip: 'cc65-fs-none.zip' },
+    'atari7800': { wasiFSZip: 'cc65-fs-none.zip' },
+    'devel': { wasiFSZip: 'cc65-fs-none.zip' },
+    'vcs': { wasiFSZip: 'cc65-fs-atari2600.zip' },
+    'pce': { wasiFSZip: 'cc65-fs-pce.zip' },
+    'exidy': { wasiFSZip: 'cc65-fs-none.zip' },
 };
 //// tool registry
 exports.TOOL_META = {
@@ -200,26 +200,26 @@ exports.TOOL_META = {
     cc65: {
         id: 'cc65', name: 'cc65', kind: 'compiler', arch: '6502',
         extensions: ['.c', '.h'],
-        includeDirs: ['/include', '/asminc'],
+        includeDirs: ['/share/cc65/include', '/share/cc65/asminc'],
         editorStyle: 'text/x-csrc',
         helpURL: 'https://cc65.github.io/doc/cc65.html',
         wasmModule: 'cc65',
         version: '2.19',
         defineFlag: '-D', defineInline: true,
-        platforms: CC65_PRELOADFS,
+        platforms: CC65_WASIFS,
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
     },
     ca65: {
         id: 'ca65', name: 'ca65', kind: 'assembler', arch: '6502',
         extensions: ['.s', '.ca65', '.inc'],
-        includeDirs: ['/include', '/asminc'],
+        includeDirs: ['/share/cc65/include', '/share/cc65/asminc'],
         editorStyle: '6502',
         helpURL: 'https://cc65.github.io/doc/ca65.html',
         wasmModule: 'ca65',
         version: '2.19',
         defineFlag: '-D', defineInline: false,
-        platforms: CC65_PRELOADFS,
+        platforms: CC65_WASIFS,
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
     },
@@ -439,7 +439,7 @@ exports.TOOL_META = {
         helpURL: 'https://github.com/dmsc/fastbasic/blob/v4.4/manual.md',
         wasmModule: 'fastbasic-int',
         version: '4.4',
-        platforms: { default: { preloadFS: '65-atari8' } },
+        platforms: { default: { wasiFSZip: 'cc65-fs-atari8.zip' } },
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
     },
@@ -489,9 +489,9 @@ exports.TOOL_META = {
         extensions: ['.ecs'],
         editorStyle: 'ecs',
         platforms: {
-            vcs: { preloadFS: '65-atari2600' },
-            nes: { preloadFS: '65-nes' },
-            c64: { preloadFS: '65-c64' },
+            vcs: { wasiFSZip: 'cc65-fs-atari2600.zip' },
+            nes: { wasiFSZip: 'cc65-fs-nes.zip' },
+            c64: { wasiFSZip: 'cc65-fs-c64.zip' },
         },
         includePatterns: [...exports.SHARED_INCLUDE_PATTERNS, ...exports.ECS_INCLUDE_PATTERNS],
     },
@@ -655,7 +655,7 @@ function getPreloadFSName(tool, platform) {
         if (platform) {
             // Try the exact id, then the root base id so suffixed platform ids
             // (e.g. 'atari8-800', 'atari8-5200.xlmame') resolve to the shared
-            // filesystem registered under the root ('atari8' -> '65-atari8').
+            // filesystem registered under the root (e.g. 'atari8-800' -> 'atari8').
             let p = meta.platforms[platform];
             if (p && p.preloadFS)
                 return p.preloadFS;
@@ -773,7 +773,7 @@ function getIncludeDirs(tool, platform_id) {
 }
 /**
  * Name of the shared filesystem to query for this tool's bundled files:
- * either the emscripten preloadFS package name (e.g. '65-nes') or, for tools
+ * either the emscripten preloadFS package name (e.g. 'sdcc') or, for tools
  * with a WASI filesystem zip (e.g. cc2600), 'wasi:<zipname>'.
  * Undefined if the tool has no bundled filesystem.
  */
@@ -781,6 +781,9 @@ function getSharedFileSystemName(tool, platform) {
     var fsName = getPreloadFSName(tool, platform);
     if (fsName)
         return fsName;
+    let config = getPlatformToolConfig(tool, platform);
+    if (config && config.wasiFSZip)
+        return 'wasi:' + config.wasiFSZip;
     let meta = tool && getToolMeta(tool);
     return (meta && meta.wasiFSZip) ? 'wasi:' + meta.wasiFSZip : undefined;
 }

@@ -2575,18 +2575,18 @@
   var DIALOG_INCLUDE_PATTERNS = [
     /^\s*%%\s*#include\s+"(.+?)"/gm
   ];
-  var CC65_PRELOADFS = {
-    "apple2": { preloadFS: "65-apple2" },
-    "c64": { preloadFS: "65-c64" },
-    "vic20": { preloadFS: "65-vic20" },
-    "nes": { preloadFS: "65-nes" },
-    "atari8": { preloadFS: "65-atari8" },
-    "vector": { preloadFS: "65-none" },
-    "atari7800": { preloadFS: "65-none" },
-    "devel": { preloadFS: "65-none" },
-    "vcs": { preloadFS: "65-atari2600" },
-    "pce": { preloadFS: "65-pce" },
-    "exidy": { preloadFS: "65-none" }
+  var CC65_WASIFS = {
+    "apple2": { wasiFSZip: "cc65-fs-apple2.zip" },
+    "c64": { wasiFSZip: "cc65-fs-c64.zip" },
+    "vic20": { wasiFSZip: "cc65-fs-vic20.zip" },
+    "nes": { wasiFSZip: "cc65-fs-nes.zip" },
+    "atari8": { wasiFSZip: "cc65-fs-atari8.zip" },
+    "vector": { wasiFSZip: "cc65-fs-none.zip" },
+    "atari7800": { wasiFSZip: "cc65-fs-none.zip" },
+    "devel": { wasiFSZip: "cc65-fs-none.zip" },
+    "vcs": { wasiFSZip: "cc65-fs-atari2600.zip" },
+    "pce": { wasiFSZip: "cc65-fs-pce.zip" },
+    "exidy": { wasiFSZip: "cc65-fs-none.zip" }
   };
   var TOOL_META = {
     // ---- 6502 assemblers ----
@@ -2662,14 +2662,14 @@
       kind: "compiler",
       arch: "6502",
       extensions: [".c", ".h"],
-      includeDirs: ["/include", "/asminc"],
+      includeDirs: ["/share/cc65/include", "/share/cc65/asminc"],
       editorStyle: "text/x-csrc",
       helpURL: "https://cc65.github.io/doc/cc65.html",
       wasmModule: "cc65",
       version: "2.19",
       defineFlag: "-D",
       defineInline: true,
-      platforms: CC65_PRELOADFS,
+      platforms: CC65_WASIFS,
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2679,14 +2679,14 @@
       kind: "assembler",
       arch: "6502",
       extensions: [".s", ".ca65", ".inc"],
-      includeDirs: ["/include", "/asminc"],
+      includeDirs: ["/share/cc65/include", "/share/cc65/asminc"],
       editorStyle: "6502",
       helpURL: "https://cc65.github.io/doc/ca65.html",
       wasmModule: "ca65",
       version: "2.19",
       defineFlag: "-D",
       defineInline: false,
-      platforms: CC65_PRELOADFS,
+      platforms: CC65_WASIFS,
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2979,7 +2979,7 @@
       helpURL: "https://github.com/dmsc/fastbasic/blob/v4.4/manual.md",
       wasmModule: "fastbasic-int",
       version: "4.4",
-      platforms: { default: { preloadFS: "65-atari8" } },
+      platforms: { default: { wasiFSZip: "cc65-fs-atari8.zip" } },
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -3042,9 +3042,9 @@
       extensions: [".ecs"],
       editorStyle: "ecs",
       platforms: {
-        vcs: { preloadFS: "65-atari2600" },
-        nes: { preloadFS: "65-nes" },
-        c64: { preloadFS: "65-c64" }
+        vcs: { wasiFSZip: "cc65-fs-atari2600.zip" },
+        nes: { wasiFSZip: "cc65-fs-nes.zip" },
+        c64: { wasiFSZip: "cc65-fs-c64.zip" }
       },
       includePatterns: [...SHARED_INCLUDE_PATTERNS, ...ECS_INCLUDE_PATTERNS]
     },
@@ -3201,6 +3201,14 @@
     if (kind === "compiler" || kind === "assembler" || kind === "linker")
       return buildArgs[kind] || [];
     return [];
+  }
+  function getSharedFileSystemName(tool, platform) {
+    var fsName = getPreloadFSName(tool, platform);
+    if (fsName) return fsName;
+    let config = getPlatformToolConfig(tool, platform);
+    if (config && config.wasiFSZip) return "wasi:" + config.wasiFSZip;
+    let meta = tool && getToolMeta(tool);
+    return meta && meta.wasiFSZip ? "wasi:" + meta.wasiFSZip : void 0;
   }
 
   // src/worker/platforms.ts
@@ -6666,6 +6674,14 @@
       errors.push({ line: 0, msg: "" + e });
     }
   }
+  function wasiFSAdapter(wasi) {
+    return {
+      mkdir: (path) => wasi.fs.putDirectory(path),
+      writeFile: (path, data) => wasi.fs.putFile(path, data),
+      utime: () => {
+      }
+    };
+  }
 
   // src/worker/wasmutils.ts
   var ENVIRONMENT_IS_NODE = typeof process === "object" && process != null && typeof process.versions === "object" && process.versions != null && typeof process.versions.node === "string";
@@ -6798,11 +6814,6 @@
   }
   function setupFS(FS, name) {
     var WORKERFS = FS.filesystems["WORKERFS"];
-    if (name === "65-vector") name = "65-none";
-    if (name === "65-atari7800") name = "65-none";
-    if (name === "65-devel") name = "65-none";
-    if (name === "65-vcs") name = "65-atari2600";
-    if (name === "65-exidy") name = "65-none";
     if (!fsMeta[name]) throw Error("No filesystem for '" + name + "'");
     FS.mkdir("/share");
     FS.mount(WORKERFS, {
@@ -7277,6 +7288,44 @@
   }
 
   // src/worker/tools/cc65.ts
+  var CC65_SHARE = "share/cc65";
+  var wasiModules = {};
+  async function runCC65Tool(step, tool, args, populate) {
+    const fsname = getSharedFileSystemName("cc65", step.platform);
+    if (!fsname || !fsname.startsWith("wasi:"))
+      throw new Error("No cc65 filesystem for platform " + step.platform);
+    const sharefs = await ensureWasiFilesystem(fsname.substring(5));
+    if (!sharefs)
+      throw new Error("Could not load cc65 filesystem " + fsname);
+    if (!wasiModules[tool]) {
+      wasiModules[tool] = new WebAssembly.Module(loadWASMBinary(tool));
+    }
+    const wasi = new WASIRunner();
+    wasi.initSync(wasiModules[tool]);
+    wasi.fs.setParent(sharefs);
+    populate(wasiFSAdapter(wasi));
+    wasi.addPreopenDirectory(".");
+    wasi.setArgs([tool, ...args]);
+    const errno = wasi.run();
+    console.log("exec", tool, args.join(" "));
+    const stdout = wasi.fds[1].getBytesAsString();
+    if (stdout) console.log(stdout);
+    const stderr = wasi.fds[2].getBytesAsString().split(re_crlf).filter((s) => s != "");
+    return { wasi, errno, stderr };
+  }
+  function checkExitCode(tool, errno, stderr, errors) {
+    if (errno && !errors.length) {
+      errors.push({ line: 0, msg: tool + " exited with code " + errno + (stderr.length ? ": " + stderr.join("\n") : "") });
+    }
+  }
+  function readWASIOutput(wasi, path) {
+    const fd = wasi.fs.getFile(path);
+    if (!fd) throw new Error("Missing output file " + path);
+    return fd.getBytes().slice();
+  }
+  function readWASIOutputString(wasi, path) {
+    return new TextDecoder().decode(readWASIOutput(wasi, path));
+  }
   function parseCA65Listing(asmfn, code, symbols, segments, params, dbg, listings) {
     var _a;
     var segofs = 0;
@@ -7358,8 +7407,7 @@
     }
     return origlines;
   }
-  function assembleCA65(step) {
-    loadNative("ca65");
+  async function assembleCA65(step) {
     var errors = [];
     gatherFiles(step, { mainFilePath: "main.s" });
     var objpath = step.prefix + ".o";
@@ -7369,33 +7417,22 @@
     }
     fixParamsWithDefines(step.path, step.params);
     if (staleFiles(step, [objpath, lstpath])) {
-      var objout, lstout;
-      var CA65 = emglobal.ca65({
-        instantiateWasm: moduleInstFn("ca65"),
-        noInitialRun: true,
-        //logReadFiles:true,
-        print: print_fn,
-        printErr: makeErrorMatcher(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1)
-      });
-      var FS = CA65.FS;
-      setupFS(FS, "65-" + getRootBasePlatform(step.platform));
-      populateFiles(step, FS);
-      var args = ["-v", "-g", "-I", "/share/asminc", "-o", objpath, "-l", lstpath, step.path];
+      var args = ["-v", "-g", "-I", CC65_SHARE + "/asminc", "-o", objpath, "-l", lstpath, step.path];
       args.unshift.apply(args, ["-D", "__8BITWORKSHOP__=1"]);
       if (step.mainfile) {
         args.unshift.apply(args, ["-D", "__MAIN__=1"]);
       }
       var extra = defineArgs("ca65", step.params.define).concat(defineArgs("ca65", step.params.symbols && step.params.symbols.assembler)).concat(extraArgsFor("ca65", step.params.buildArgs));
       args.splice(args.length - 1, 0, ...extra);
-      execMain(step, CA65, args);
+      const { wasi, errno, stderr } = await runCC65Tool(step, "ca65", args, (fs) => populateFiles(step, fs));
+      stderr.forEach(makeErrorMatcher(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1));
+      checkExitCode("ca65", errno, stderr, errors);
       if (errors.length) {
         let listings = {};
         return { errors, listings };
       }
-      objout = FS.readFile(objpath, { encoding: "binary" });
-      lstout = FS.readFile(lstpath, { encoding: "utf8" });
-      putWorkFile(objpath, objout);
-      putWorkFile(lstpath, lstout);
+      putWorkFile(objpath, readWASIOutput(wasi, objpath));
+      putWorkFile(lstpath, readWASIOutputString(wasi, lstpath));
     }
     return {
       linktool: "ld65",
@@ -7403,37 +7440,20 @@
       args: [objpath]
     };
   }
-  function linkLD65(step) {
+  async function linkLD65(step) {
     var _a, _b, _c;
-    loadNative("ld65");
     var params = step.params;
     gatherFiles(step);
     var binpath = "main";
     if (staleFiles(step, [binpath])) {
       var errors = [];
-      var LD65 = emglobal.ld65({
-        instantiateWasm: moduleInstFn("ld65"),
-        noInitialRun: true,
-        //logReadFiles:true,
-        print: print_fn,
-        printErr: function(s2) {
-          errors.push({ msg: s2, line: 0 });
-        }
-      });
-      var FS = LD65.FS;
-      setupFS(FS, "65-" + getRootBasePlatform(step.platform));
-      populateFiles(step, FS);
-      populateExtraFiles(step, FS, params.extra_link_files);
-      if (store.hasFile(params.cfgfile)) {
-        populateEntry(FS, params.cfgfile, store.getFileEntry(params.cfgfile), null);
-      }
       var libargs = params.libargs || [];
       var cfgfile = params.cfgfile;
       var args = [
         "--cfg-path",
-        "/share/cfg",
+        CC65_SHARE + "/cfg",
         "--lib-path",
-        "/share/lib",
+        CC65_SHARE + "/lib",
         "-C",
         cfgfile,
         "-Ln",
@@ -7447,12 +7467,20 @@
       ].concat(step.args, libargs);
       args.push.apply(args, linkSymbolArgs("ld65", params.symbols && params.symbols.linker));
       args.push.apply(args, extraArgsFor("ld65", params.buildArgs));
-      execMain(step, LD65, args);
+      const { wasi, errno, stderr } = await runCC65Tool(step, "ld65", args, (fs) => {
+        populateFiles(step, fs);
+        populateExtraFiles(step, fs, params.extra_link_files);
+        if (store.hasFile(params.cfgfile)) {
+          populateEntry(fs, params.cfgfile, store.getFileEntry(params.cfgfile), null);
+        }
+      });
+      for (let s2 of stderr) errors.push({ msg: s2, line: 0 });
+      checkExitCode("ld65", errno, stderr, errors);
       if (errors.length)
         return { errors };
-      var aout = FS.readFile("main", { encoding: "binary" });
-      var mapout = FS.readFile("main.map", { encoding: "utf8" });
-      var viceout = FS.readFile("main.vice", { encoding: "utf8" });
+      var aout = readWASIOutput(wasi, "main");
+      var mapout = readWASIOutputString(wasi, "main.map");
+      var viceout = readWASIOutputString(wasi, "main.vice");
       if (step.platform == "pce" && aout.length > 8192) {
         let newrom = new Uint8Array(aout.length);
         newrom.set(aout.slice(aout.length - 8192), 0);
@@ -7477,7 +7505,7 @@
       }
       var symbolsizes = {};
       try {
-        let dbgsyms = parseCC65DbgSizes(FS.readFile("main.dbg", { encoding: "utf8" }), params.ignore_segments);
+        let dbgsyms = parseCC65DbgSizes(readWASIOutputString(wasi, "main.dbg"), params.ignore_segments);
         symbolsizes = dbgsyms.sizes;
         for (let name of dbgsyms.ignored) delete symbolmap[name];
       } catch (e) {
@@ -7504,7 +7532,7 @@
       var listings = {};
       for (var fn of step.files) {
         if (fn.endsWith(".lst")) {
-          var lstout = FS.readFile(fn, { encoding: "utf8" });
+          var lstout = readWASIOutputString(wasi, fn);
           lstout = lstout.split("\n\n")[1] || lstout;
           putWorkFile(fn, lstout);
           let isECS = ((_c = (_b = step.debuginfo) == null ? void 0 : _b.systems) == null ? void 0 : _c.Init) != null;
@@ -7537,49 +7565,16 @@
       };
     }
   }
-  function compileCC65(step) {
-    loadNative("cc65");
+  async function compileCC65(step) {
     var params = step.params;
-    var re_err1 = /(.*?):(\d+): (.+)/;
     var errors = [];
-    var errline = 0;
-    function match_fn(s) {
-      console.log(s);
-      var matches = re_err1.exec(s);
-      if (matches) {
-        errline = parseInt(matches[2]);
-        errors.push({
-          line: errline,
-          msg: matches[3],
-          path: matches[1]
-        });
-      }
-    }
     gatherFiles(step, { mainFilePath: "main.c" });
     var destpath = step.prefix + ".s";
     fixParamsWithDefines(step.path, params);
     if (staleFiles(step, [destpath])) {
-      var CC65 = emglobal.cc65({
-        instantiateWasm: moduleInstFn("cc65"),
-        noInitialRun: true,
-        //logReadFiles:true,
-        print: print_fn,
-        printErr: match_fn
-      });
-      var FS = CC65.FS;
-      setupFS(FS, "65-" + getRootBasePlatform(step.platform));
-      populateFiles(step, FS, {
-        mainFilePath: step.path,
-        processFn: (path, code) => {
-          if (typeof code === "string") {
-            code = processEmbedDirective(code);
-          }
-          return code;
-        }
-      });
       var args = [
         "-I",
-        "/share/include",
+        CC65_SHARE + "/include",
         "-I",
         ".",
         "-D",
@@ -7596,8 +7591,19 @@
       var customArgs = params.extra_compiler_args || ["-T", "-g", "-Oirs", "-Cl", "-W", "-pointer-sign,-no-effect"];
       args = args.concat(customArgs, args);
       args.push(step.path);
-      const runerr = execToFile(step, CC65, args, FS, destpath, errors);
-      if (runerr) return runerr;
+      const { wasi, errno, stderr } = await runCC65Tool(step, "cc65", args, (fs) => populateFiles(step, fs, {
+        mainFilePath: step.path,
+        processFn: (path, code) => {
+          if (typeof code === "string") {
+            code = processEmbedDirective(code);
+          }
+          return code;
+        }
+      }));
+      stderr.forEach(makeErrorMatcher(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
+      checkExitCode("cc65", errno, stderr, errors);
+      if (errors.length) return { errors };
+      putWorkFile(destpath, readWASIOutputString(wasi, destpath));
     }
     return {
       nexttool: "ca65",
@@ -14692,7 +14698,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   }
 
   // src/worker/tools/cc6502.ts
-  var wasiModules = {};
+  var wasiModules2 = {};
   var wasiFilesystems2 = {};
   async function compileCC6502(step, cfg) {
     const errors = [];
@@ -14702,11 +14708,11 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       if (!wasiFilesystems2[cfg.tool]) {
         wasiFilesystems2[cfg.tool] = await loadWASIFilesystemZip(cfg.fsZip);
       }
-      if (!wasiModules[cfg.tool]) {
-        wasiModules[cfg.tool] = new WebAssembly.Module(loadWASMBinary(cfg.tool));
+      if (!wasiModules2[cfg.tool]) {
+        wasiModules2[cfg.tool] = new WebAssembly.Module(loadWASMBinary(cfg.tool));
       }
       const wasi = new WASIRunner();
-      wasi.initSync(wasiModules[cfg.tool]);
+      wasi.initSync(wasiModules2[cfg.tool]);
       wasi.fs.setParent(wasiFilesystems2[cfg.tool]);
       populateWASIFiles(wasi, step, ["headers", "."]);
       wasi.setArgs([cfg.tool, "-v", "-g", "-S", "-I", "headers", step.path]);
@@ -15938,9 +15944,9 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   }
   async function handleMessage(data) {
     if (data.preload) {
-      var fs = getPreloadFSName(data.preload, data.platform);
-      if (fs && !fsMeta[fs])
-        loadFilesystem(fs);
+      var fs0 = splitWasiFSName(getSharedFileSystemName(data.preload, data.platform) || "");
+      if (fs0.wasi) await ensureWasiFilesystem(fs0.name);
+      else if (fs0.name && !fsMeta[fs0.name]) loadFilesystem(fs0.name);
       return;
     }
     if (data.readshared) {

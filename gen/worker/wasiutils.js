@@ -8,6 +8,7 @@ exports.unzipWASIFilesystem = unzipWASIFilesystem;
 exports.loadWASIFilesystemZip = loadWASIFilesystemZip;
 exports.populateWASIFiles = populateWASIFiles;
 exports.runWASI = runWASI;
+exports.wasiFSAdapter = wasiFSAdapter;
 const jszip_1 = __importDefault(require("jszip"));
 const wasishim_1 = require("../common/wasi/wasishim");
 const builder_1 = require("./builder");
@@ -66,5 +67,16 @@ function runWASI(wasi, errors) {
     catch (e) {
         errors.push({ line: 0, msg: "" + e });
     }
+}
+/**
+ * Wrap a WASI runner's filesystem in the Emscripten FS calls the builder's
+ * populateFiles/populateExtraFiles/populateEntry use, so tools can share them.
+ */
+function wasiFSAdapter(wasi) {
+    return {
+        mkdir: (path) => wasi.fs.putDirectory(path),
+        writeFile: (path, data) => wasi.fs.putFile(path, data),
+        utime: () => { },
+    };
 }
 //# sourceMappingURL=wasiutils.js.map

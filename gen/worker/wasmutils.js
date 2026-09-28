@@ -180,16 +180,6 @@ function loadNative(modulename) {
 // mount the filesystem at /share
 function setupFS(FS, name) {
     var WORKERFS = FS.filesystems['WORKERFS'];
-    if (name === '65-vector')
-        name = '65-none'; // TODO
-    if (name === '65-atari7800')
-        name = '65-none'; // TODO
-    if (name === '65-devel')
-        name = '65-none'; // TODO
-    if (name === '65-vcs')
-        name = '65-atari2600'; // TODO
-    if (name === '65-exidy')
-        name = '65-none'; // TODO
     if (!exports.fsMeta[name])
         throw Error("No filesystem for '" + name + "'");
     FS.mkdir('/share');

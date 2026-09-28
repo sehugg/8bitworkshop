@@ -189,7 +189,7 @@ unless a different license is explicitly stated within the specific code sample.
 * https://www.mamedev.org/ (BSD-3-Clause)
 * https://github.com/floooh/chips (Zlib)
 * https://github.com/DrGoldfire/Z80.js (MIT)
-* http://www.twitchasylum.com/jsvecx/
+* http://www.twitchasylum.com/jsvecx/ (GPL-3)
 * https://github.com/curiousdannii/ifvms.js/ (MIT)
 * https://github.com/6502ts/6502.ts (MIT)
 * https://github.com/yhzmr442/jspce (MIT)
@@ -200,16 +200,16 @@ unless a different license is explicitly stated within the specific code sample.
 * https://cc65.github.io/ (zlib)
 * http://sdcc.sourceforge.net/ (GPL-2)
 * https://github.com/stahta01/cmoc/ (GPL-3.0)
-* https://github.com/batari-Basic/batari-Basic
+* https://github.com/batari-Basic/batari-Basic (GPL-2)
 * https://www.veripool.org/wiki/verilator (GNU Lesser Public License Version 3)
 * http://mcpp.sourceforge.net/ (BSD-2)
-* https://github.com/DavidKinder/Inform6
+* https://github.com/DavidKinder/Inform6 (Inform, https://github.com/DavidKinder/Inform6/blob/master/licence.txt)
 * https://github.com/dmsc/fastbasic (GPL-2.0)
 * https://github.com/wiz-lang/wiz (MIT)
 * https://github.com/sylefeb/Silice (GPL-3.0)
 * https://github.com/steux/cc7800 (GPL-3.0)
-* https://bellard.org/tcc/
-* https://github.com/Dialog-IF/dialog
+* https://bellard.org/tcc/ (MIT)
+* https://github.com/Dialog-IF/dialog (BSD-2-Clause)
 * https://github.com/alexfru/SmallerC (BSD-2-Clause)
 * https://github.com/drmortalwombat/oscar64/ (GPL-3.0)
 
@@ -220,7 +220,7 @@ unless a different license is explicitly stated within the specific code sample.
 * http://48k.ca/zmac.html (public domain)
 * https://github.com/apple2accumulator/merlin32
 * https://github.com/camsaul/nesasm
-* https://www.floodgap.com/retrotech/xa/
+* https://www.floodgap.com/retrotech/xa/ (GPL-2)
 * https://github.com/mikeakohn/naken_asm (GPL-3)
 * https://github.com/yasm/yasm
 * https://github.com/mbitsnbites/vasm-mirror
@@ -229,11 +229,11 @@ unless a different license is explicitly stated within the specific code sample.
 ### Dev Kits / Libraries
 
 * https://shiru.untergrund.net/code.shtml
-* http://www.colecovision.eu/ColecoVision/development/libcv.shtml
+* http://www.colecovision.eu/ColecoVision/development/libcv.shtml (LGPL-2.1)
 * https://github.com/toyoshim/tss (BSD-3-Clause)
 * https://github.com/lronaldo/cpctelera (LGPL-3.0)
 * https://github.com/datajerk/c2t (BSD-3)
-* https://github.com/sehugg/6809tools
+* https://github.com/sehugg/6809tools (GPL-3)
 * https://github.com/mbitsnbites/liblzg (Zlib)
 * https://github.com/sehugg/makewav
 * https://github.com/Kingcom/armips (MIT)

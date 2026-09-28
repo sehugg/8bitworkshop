@@ -27,6 +27,7 @@ class GalaxianPlatform extends baseplatform_1.BaseZ80MachinePlatform {
 }
 class GalaxianScramblePlatform extends GalaxianPlatform {
     newMachine() { return new galaxian_1.GalaxianScrambleMachine(); }
+    getPresets() { return GALAXIAN_PRESETS; }
 }
 emu_1.PLATFORMS['galaxian'] = GalaxianPlatform;
 emu_1.PLATFORMS['galaxian-scramble'] = GalaxianScramblePlatform;

@@ -260,8 +260,8 @@ function c64Params() {
 });
 (0, mocha_1.describe)("platform tool config resolution", function () {
     (0, mocha_1.it)("resolves per-platform, root-base, and default configs", function () {
-        assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolConfig)('cc65', 'nes').preloadFS, '65-nes');
-        assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolConfig)('cc65', 'atari8-800').preloadFS, '65-atari8');
+        assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolConfig)('cc65', 'nes').wasiFSZip, 'cc65-fs-nes.zip');
+        assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolConfig)('cc65', 'atari8-800').wasiFSZip, 'cc65-fs-atari8.zip');
         assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolConfig)('sdcc').preloadFS, 'sdcc');
         assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolConfig)('dasm', 'nes'), undefined);
     });

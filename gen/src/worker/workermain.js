@@ -34,9 +34,11 @@ function setupRequireFunction() {
 async function handleMessage(data) {
     // preload file system
     if (data.preload) {
-        var fs = (0, toolmeta_1.getPreloadFSName)(data.preload, data.platform);
-        if (fs && !wasmutils_1.fsMeta[fs])
-            (0, wasmutils_1.loadFilesystem)(fs);
+        var fs0 = splitWasiFSName((0, toolmeta_1.getSharedFileSystemName)(data.preload, data.platform) || "");
+        if (fs0.wasi)
+            await (0, wasmutils_1.ensureWasiFilesystem)(fs0.name);
+        else if (fs0.name && !wasmutils_1.fsMeta[fs0.name])
+            (0, wasmutils_1.loadFilesystem)(fs0.name);
         return;
     }
     // read a file from a filesystem package (shared code)

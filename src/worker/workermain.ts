@@ -1,6 +1,6 @@
 
 import type { WorkerResult, WorkerMessage, WorkerError, SourceLine } from "../common/workertypes";
-import { getPreloadFSName } from "../common/toolmeta";
+import { getSharedFileSystemName } from "../common/toolmeta";
 import { store, builder, errorResult, getWorkFileAsString } from "./builder";
 import { emglobal, fsMeta, loadFilesystem, listSharedFiles, readSharedFile, ensureFilesystem, readWasiSharedFile, listWasiSharedFiles, ensureWasiFilesystem } from "./wasmutils";
 
@@ -36,9 +36,9 @@ export function setupRequireFunction() {
 export async function handleMessage(data: WorkerMessage): Promise<WorkerResult> {
   // preload file system
   if (data.preload) {
-    var fs = getPreloadFSName(data.preload, data.platform);
-    if (fs && !fsMeta[fs])
-      loadFilesystem(fs);
+    var fs0 = splitWasiFSName(getSharedFileSystemName(data.preload, data.platform) || "");
+    if (fs0.wasi) await ensureWasiFilesystem(fs0.name);
+    else if (fs0.name && !fsMeta[fs0.name]) loadFilesystem(fs0.name);
     return;
   }
   // read a file from a filesystem package (shared code)
