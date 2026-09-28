@@ -35,6 +35,7 @@
     "minisearch": "^7.2.0",
     "mousetrap": "^1.6.5",
     "octokat": "^0.10.0",
+    "pako": "^2.2.0",
     "split.js": "^1.6.2"
   },
   "devDependencies": {
@@ -124,5 +125,8 @@
     "linux": {
       "category": "Development"
     }
+  },
+  "imports": {
+    "#javatari-core": "./javatari.js/release/core/javatari-core.js"
   }
 }

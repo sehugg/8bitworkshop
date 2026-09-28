@@ -10,7 +10,9 @@
 import { EmuHalt, KeyFlags, Keys, makeKeycodeMap } from "../common/emu";
 import { AcceptsKeyInput, AcceptsROM, FrameBased, NullProbe, Probeable, ProbeAll, RasterFrameBased, Resettable, SampledAudioParams, SampledAudioSink, SampledAudioSource, SavesState, TrapCondition, VideoParams, VideoSource } from "../common/devices";
 
-const { jt } = require('../../javatari.js/release/core/javatari-core.js');
+// resolved through the package's "imports" map so the same specifier works in
+// the source tree, the compiled test tree (gen/src/machine) and the bundle
+const { jt } = require('#javatari-core');
 
 // store savestate arrays as plain copies, not deflated base64 strings
 jt.Util.rawStates = true;
@@ -51,6 +53,28 @@ const MAX_LINES_TO_SYNC = NTSC.totalHeight + 16 + 5;
 export const VCS_SAMPLE_RATE = 31440;       // TIA audio clock, 2 pulses per line
 const AUDIO_VOLUME = 0.4;
 
+/**
+ * The core draws a random number when a component is created: the 128 bytes of
+ * RAM, the PIA's INTIM (which some games read to seed their own PRNG), the bus's
+ * open-bus register and the tape cartridges' delay-line seeds. Real hardware
+ * does come up with whatever is in the RAM, but a machine that can be replayed
+ * is worth more here than one that is faithful, so the draw is seeded. Pass a
+ * different seed to get a different power-on state.
+ */
+export const VCS_RANDOM_SEED = 0x26001977;
+
+/** A seeded generator, so power-on noise is the same on every run. */
+function newRandom(seed: number) {
+  let s = seed >>> 0;
+  return () => {                                    // mulberry32
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 // Cartridge addresses (masked to 0xfff) whose reads may switch banks or
 // clock a coprocessor. readConst() puts the cartridge back after reading them.
 function isCartHotspot(format: string, a: number) {
@@ -67,12 +91,13 @@ export class JavatariMachine implements FrameBased, RasterFrameBased, VideoSourc
   readonly cpuFrequency = 1193182;
   readonly numTotalScanlines = NTSC.totalHeight;
 
-  // javatari components
-  readonly m6502 = new jt.M6502();
-  readonly pia = new jt.Pia();
-  readonly tia = new jt.Tia(this.m6502, this.pia);
-  readonly ram = new jt.Ram();
-  readonly bus = new jt.Bus(this.m6502, this.tia, this.pia, this.ram);
+  // javatari components, built in the constructor so that the seeded draw
+  // covers all of them
+  m6502;
+  pia;
+  tia;
+  ram;
+  bus;
   cart = null;
 
   cpu = {
@@ -89,7 +114,14 @@ export class JavatariMachine implements FrameBased, RasterFrameBased, VideoSourc
   probing = false;
   line = 0;             // scanline within the frame, from the last vsync
 
-  constructor() {
+  constructor(readonly seed = VCS_RANDOM_SEED) {
+    this.seeded(() => {
+      this.m6502 = new jt.M6502();
+      this.pia = new jt.Pia();
+      this.tia = new jt.Tia(this.m6502, this.pia);
+      this.ram = new jt.Ram();
+      this.bus = new jt.Bus(this.m6502, this.tia, this.pia, this.ram);
+    });
     const video = this.tia.getVideoOutput();
     video.connectMonitor({
       nextLine: (pixels: Uint32Array, vsync: boolean) => this.nextLine(pixels, vsync),
@@ -115,10 +147,28 @@ export class JavatariMachine implements FrameBased, RasterFrameBased, VideoSourc
     this.probeBus();
   }
 
+  /**
+   * Run `body` with the core drawing its power-on noise from this machine's
+   * seed. The core's generator is global to it, so it is only swapped for the
+   * duration: two machines built in the same process must not share a stream.
+   */
+  private seeded(body: () => void) {
+    const outer = jt.Util.random;
+    jt.Util.random = newRandom(this.seed);
+    try {
+      body();
+    } finally {
+      jt.Util.random = outer;
+    }
+  }
+
   loadROM(data: Uint8Array, title?: string) {
     // MD5 of the ROM wants a plain Array
     const rom = new jt.ROM(title || 'rom', Array.from(data));
-    this.insertCartridge(jt.CartridgeCreator.createCartridgeFromRom(rom));
+    // the tape cartridges draw their delay-line seeds as well
+    this.seeded(() => {
+      this.insertCartridge(jt.CartridgeCreator.createCartridgeFromRom(rom));
+    });
     this.reset();
   }
 
@@ -285,7 +335,9 @@ export class JavatariMachine implements FrameBased, RasterFrameBased, VideoSourc
   }
   loadState(s) {
     if (s.ca && (!this.cart || this.cart.format.name != s.ca.f)) {
-      this.insertCartridge(jt.CartridgeCreator.recreateCartridgeFromSaveState(s.ca, this.cart));
+      this.seeded(() => {
+        this.insertCartridge(jt.CartridgeCreator.recreateCartridgeFromSaveState(s.ca, this.cart));
+      });
     }
     this.m6502.loadState(s.c);
     this.pia.loadState(s.p);
