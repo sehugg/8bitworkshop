@@ -11,6 +11,7 @@ import { ProbeFlags, ProbeRecorder } from '../common/probe';
 import { hex } from '../common/util';
 import type { SymbolMap } from '../common/baseplatform';
 import { lookupSymbol } from '../common/symbols/symbolfile';
+import { formatTimestamp, timestamp, Timestamp } from '../common/timeline';
 import { hexdump, write } from './cliformat';
 import { DEFAULT_MAX_FRAMES, EmuTarget } from './emutarget';
 
@@ -22,6 +23,13 @@ export const RUN_SCRIPT_HELP = [
   '  trace [MAXLINES] ADDR       - run until PC==ADDR, then log every',
   '                                instruction until the routine returns',
   '  hist [MAXLINES]             - last N instructions from the trace buffer',
+  'Time travel (replays the recording; output is labeled [frame:step]):',
+  '  back [N]                    - step back N instructions (default 1)',
+  '  rewind [N]                  - back to the start of the Nth frame before (default 1)',
+  '  seek FRAME[:STEP]           - go to a recorded moment',
+  '  rbreak ADDR                 - run back to the last time PC==ADDR',
+  '  now                         - print the current moment and the recorded range',
+  '  (run and step in the past replay the recording; a key starts a new future)',
   'Inspection & input:',
   '  key KEY                     - press key (down, 3 frames, up)',
   '  keydown KEY / keyup KEY     - raw key down/up events',
@@ -148,7 +156,7 @@ export class RunScript {
 
   //// helpers used by the commands
 
-  private log(msg: string) { this.out(`[frame ${this.target.frameCount}] ${msg}\n`); }
+  private log(msg: string) { this.out(`[${formatTimestamp(this.target.now())}] ${msg}\n`); }
 
   private addr(tok: string): number {
     try { return parseNum(tok); }
@@ -190,6 +198,17 @@ export class RunScript {
       this.out(this.disasmLine(addr, false) + '\n');
       addr += d.nbytes;
     }
+  }
+
+  private requireRewind() {
+    if (!this.target.supportsRewind) {
+      throw new Error(`'${this.target.id}' cannot rewind (it can't save its state)`);
+    }
+  }
+
+  private parseTimestamp(tok: string): Timestamp {
+    const [f, st] = tok.split(':');
+    return timestamp(parseNum(f), st ? parseNum(st) : 0);
   }
 
   private requireStep() {
@@ -279,6 +298,55 @@ export class RunScript {
     this.out(`(${shown} instructions shown, ${p.idx} events recorded)\n`);
   }
 
+  cmdBack(tokens: string[]) {
+    this.requireRewind();
+    this.requireStep();
+    const n = tokens[1] ? parseNum(tokens[1]) : 1;
+    if (!this.target.stepBack(n)) throw new Error(`the recording doesn't reach back ${n} instruction${n == 1 ? '' : 's'}`);
+    this.log(`back ${n}: PC=$${hex(this.target.getPC(), 4)}`);
+    this.out(this.disasmLine(this.target.getPC(), true) + '\n');
+  }
+
+  cmdSeek(tokens: string[]) {
+    this.requireRewind();
+    if (!tokens[1]) throw new Error('seek requires FRAME[:STEP]');
+    this.target.seek(this.parseTimestamp(tokens[1]));
+    this.log(this.where());
+  }
+
+  cmdRewind(tokens: string[]) {
+    this.requireRewind();
+    const n = tokens[1] ? parseNum(tokens[1]) : 1;
+    const t = this.target.now();
+    // from partway into a frame, its own start counts as the first
+    const frame = t.step > 0 ? t.frame - n + 1 : t.frame - n;
+    const first = this.target.history.first();
+    this.target.seek(timestamp(Math.max(frame, first.frame), 0));
+    this.log(this.where());
+  }
+
+  cmdReverseBreak(tokens: string[]) {
+    this.requireRewind();
+    if (!tokens[1]) throw new Error('rbreak requires an address');
+    const addr = this.addr(tokens[1]);
+    const hit = this.target.reverseRunUntil(() => this.target.getPC() === addr);
+    const pc = this.target.getPC();
+    this.log(`rbreak $${hex(addr, 4)}: ${hit ? 'HIT' : 'MISSED'} (pc=${pc != null ? '$' + hex(pc, 4) : '?'})`);
+  }
+
+  cmdNow() {
+    this.log(this.where());
+  }
+
+  /** "at F:S (past; recorded A to B)" */
+  private where(): string {
+    const t = this.target;
+    const h = t.history;
+    if (!h) return `at frame ${t.frameCount} (no recording)`;
+    const range = `recorded ${formatTimestamp(h.first())} to ${formatTimestamp(h.last())}`;
+    return `at ${formatTimestamp(t.now())} (${t.isInPast() ? 'past' : 'present'}; ${range})`;
+  }
+
   cmdKey(tokens: string[]) {
     if (!tokens[1]) throw new Error('key requires a key name');
     const { key, flags } = parseKeyValue(tokens[1]);
@@ -365,5 +433,10 @@ const COMMANDS: { [name: string]: Command } = {
   'pc': RunScript.prototype.cmdPC,
   'info': RunScript.prototype.cmdInfo,
   'reset': RunScript.prototype.cmdReset,
+  'back': RunScript.prototype.cmdBack,
+  'seek': RunScript.prototype.cmdSeek,
+  'rewind': RunScript.prototype.cmdRewind,
+  'rbreak': RunScript.prototype.cmdReverseBreak,
+  'now': RunScript.prototype.cmdNow,
   'echo': RunScript.prototype.cmdEcho,
 };
