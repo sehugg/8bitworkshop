@@ -1,13 +1,14 @@
 // What a host C parser (clangd, cpptools) needs to read cc65 and SDCC
-// code: the toolchain's headers, extracted from the worker's emscripten
-// packages and patched where clang can't parse them; the defines the build
+// code: the toolchain's headers, extracted from the worker's filesystem
+// packages (emscripten .data or WASI .zip) and patched where clang can't parse them; the defines the build
 // passes; and flags that match the compiler's dialect. Forced-include shims
 // in extension/shims/ hide the keywords a macro can hide.
 // No vscode import: scripts/clangcheck.ts and the extension share it.
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { TOOL_META, getPreloadFSName } from '../../src/common/toolmeta';
+import * as zlib from 'zlib';
+import { TOOL_META, getSharedFileSystemName, getIncludeDirs } from '../../src/common/toolmeta';
 import { PLATFORM_PARAMS } from '../../src/worker/platforms';
 
 export interface PackageFile { path: string; data: Buffer; }
@@ -18,6 +19,34 @@ export function readPreloadPackage(workerDir: string, fsName: string): PackageFi
   const meta = JSON.parse(fs.readFileSync(`${base}.js.metadata`, 'utf8'));
   const data = fs.readFileSync(`${base}.data`);
   return meta.files.map((f: any) => ({ path: f.filename, data: data.subarray(f.start, f.end) }));
+}
+
+/** Files in a WASI filesystem zip (src/worker/fs/<name>.zip), at '/' + their zip path. */
+export function readWASIZipPackage(workerDir: string, zipName: string): PackageFile[] {
+  const zip = fs.readFileSync(path.join(workerDir, 'fs', zipName));
+  // the end-of-central-directory record gives the central directory's offset
+  let eocd = zip.length - 22;
+  while (eocd >= 0 && zip.readUInt32LE(eocd) !== 0x06054b50) eocd--;
+  if (eocd < 0) throw new Error(`${zipName}: not a zip file`);
+  const count = zip.readUInt16LE(eocd + 10);
+  let p = zip.readUInt32LE(eocd + 16);
+  const files: PackageFile[] = [];
+  for (let i = 0; i < count; i++) {
+    const method = zip.readUInt16LE(p + 10);
+    const csize = zip.readUInt32LE(p + 20);
+    const namelen = zip.readUInt16LE(p + 28);
+    const extralen = zip.readUInt16LE(p + 30);
+    const commentlen = zip.readUInt16LE(p + 32);
+    const local = zip.readUInt32LE(p + 42);
+    const name = zip.toString('utf8', p + 46, p + 46 + namelen);
+    p += 46 + namelen + extralen + commentlen;
+    if (name.endsWith('/')) continue; // directory
+    const start = local + 30 + zip.readUInt16LE(local + 26) + zip.readUInt16LE(local + 28);
+    const raw = zip.subarray(start, start + csize);
+    if (method !== 0 && method !== 8) throw new Error(`${zipName}: ${name} uses unsupported compression ${method}`);
+    files.push({ path: '/' + name, data: method === 8 ? zlib.inflateRawSync(raw) : raw });
+  }
+  return files;
 }
 
 /** Rewrites what clang rejects in a toolchain header but the compiler accepts. */
@@ -37,15 +66,16 @@ export function patchHeaderForClang(tool: string, text: string): string {
 }
 
 /**
- * Writes a tool's patched headers under outDir: the preload package's files
- * at their own paths (/include/...), and the platform's lib directory
+ * Writes a tool's patched headers under outDir: the filesystem package's
+ * files at their own paths (/include/..., /share/cc65/include/...), and the platform's lib directory
  * (src/worker/lib/<platform>, which the worker copies into the build) in
  * /lib. Returns the files written.
  */
 export function extractHeaders(workerDir: string, tool: string, platform: string, outDir: string): string[] {
   const files: PackageFile[] = [];
-  const fsName = getPreloadFSName(tool, platform);
-  if (fsName) files.push(...readPreloadPackage(workerDir, fsName));
+  const fsName = getSharedFileSystemName(tool, platform);
+  if (fsName && fsName.startsWith('wasi:')) files.push(...readWASIZipPackage(workerDir, fsName.substring(5)));
+  else if (fsName) files.push(...readPreloadPackage(workerDir, fsName));
   const libDir = path.join(workerDir, 'lib', platform);
   if (fs.existsSync(libDir)) {
     for (const f of fs.readdirSync(libDir).filter((f) => /\.h$/i.test(f)))
@@ -93,7 +123,8 @@ export function clangConfig(tool: string, platform: string, dirs: {
         : dir.replace(/^\/share/, dirs.headerDir));
     }
   }
-  const includeRoot = path.join(dirs.headerDir, 'include');
+  // the first of the tool's include dirs, as extractHeaders() wrote it
+  const includeRoot = path.join(dirs.headerDir, getIncludeDirs(tool, platform)[0] || '/include');
   if (tool === 'cc65') {
     return {
       target: 'msp430', std: 'gnu89',

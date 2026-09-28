@@ -296,8 +296,8 @@ describe("explicit build directives (//#symbol, //#flag, //#tooldef)", function 
 describe("platform tool config resolution", function () {
 
   it("resolves per-platform, root-base, and default configs", function () {
-    assert.strictEqual(getPlatformToolConfig('cc65', 'nes').preloadFS, '65-nes');
-    assert.strictEqual(getPlatformToolConfig('cc65', 'atari8-800').preloadFS, '65-atari8');
+    assert.strictEqual(getPlatformToolConfig('cc65', 'nes').wasiFSZip, 'cc65-fs-nes.zip');
+    assert.strictEqual(getPlatformToolConfig('cc65', 'atari8-800').wasiFSZip, 'cc65-fs-atari8.zip');
     assert.strictEqual(getPlatformToolConfig('sdcc').preloadFS, 'sdcc');
     assert.strictEqual(getPlatformToolConfig('dasm', 'nes'), undefined);
   });

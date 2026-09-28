@@ -32,6 +32,7 @@ describe('clangConfig', function () {
     assert.equal(c.target, 'msp430');
     assert.ok(clangArgs(c).includes('-funsigned-char'));
     assert.equal(c.forcedInclude, path.join('/shims', 'cc65.h'));
+    assert.ok(c.includeDirs.includes(path.join('/h', 'share', 'cc65', 'include')));
   });
 
   it('reads -D and -I from extra_preproc_args', function () {
@@ -59,8 +60,8 @@ describe('extractHeaders', function () {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'cheaders-'));
     try {
       const files = extractHeaders(WORKER, 'cc65', 'c64', out);
-      assert.ok(files.some((f) => f.endsWith(path.join('include', 'c64.h'))));
-      const c64 = fs.readFileSync(path.join(out, 'include', 'c64.h'), 'latin1');
+      assert.ok(files.some((f) => f.endsWith(path.join('share', 'cc65', 'include', 'c64.h'))));
+      const c64 = fs.readFileSync(path.join(out, 'share', 'cc65', 'include', 'c64.h'), 'latin1');
       assert.ok(!/extern void \w+\[\]/.test(c64));
       const lib = extractHeaders(WORKER, 'sdcc', 'msx-libcv', out);
       assert.ok(lib.some((f) => f.endsWith(path.join('lib', 'cv.h'))));

@@ -47,20 +47,22 @@ describe('Tool metadata registry', function () {
   });
 
   it('getPreloadFSName resolves per-platform filesystems', function () {
-    assert.strictEqual(getPreloadFSName('cc65', 'nes'), '65-nes');
-    assert.strictEqual(getPreloadFSName('cc65', 'c64'), '65-c64');
-    assert.strictEqual(getPreloadFSName('cc65', 'nonexistent'), undefined);
+    assert.strictEqual(getPreloadFSName('cc65', 'nes'), undefined); // WASI zip, not preloadFS
+    assert.strictEqual(getSharedFileSystemName('cc65', 'nes'), 'wasi:cc65-fs-nes.zip');
+    assert.strictEqual(getSharedFileSystemName('cc65', 'c64'), 'wasi:cc65-fs-c64.zip');
+    assert.strictEqual(getSharedFileSystemName('cc65', 'nonexistent'), undefined);
     assert.strictEqual(getPreloadFSName('sdcc'), 'sdcc'); // default config
     assert.strictEqual(getPreloadFSName('dasm'), undefined);
   });
 
-  it('getPreloadFSName resolves suffixed platform ids to their root base', function () {
+  it('getSharedFileSystemName resolves suffixed platform ids to their root base', function () {
     // atari8 runs as 'atari8-800' / 'atari8-5200' / *.xlmame variants
-    assert.strictEqual(getPreloadFSName('cc65', 'atari8'), '65-atari8');
-    assert.strictEqual(getPreloadFSName('cc65', 'atari8-800'), '65-atari8');
-    assert.strictEqual(getPreloadFSName('cc65', 'atari8-800.xlmame'), '65-atari8');
-    assert.strictEqual(getPreloadFSName('cc65', 'atari8-5200'), '65-atari8');
-    assert.strictEqual(getSharedFileSystemName('cc65', 'atari8-800'), '65-atari8');
+    assert.strictEqual(getSharedFileSystemName('cc65', 'atari8'), 'wasi:cc65-fs-atari8.zip');
+    assert.strictEqual(getSharedFileSystemName('cc65', 'atari8-800'), 'wasi:cc65-fs-atari8.zip');
+    assert.strictEqual(getSharedFileSystemName('cc65', 'atari8-800.xlmame'), 'wasi:cc65-fs-atari8.zip');
+    assert.strictEqual(getSharedFileSystemName('cc65', 'atari8-5200'), 'wasi:cc65-fs-atari8.zip');
+    assert.strictEqual(getSharedFileSystemName('fastbasic', 'atari8-800'), 'wasi:cc65-fs-atari8.zip');
+    assert.strictEqual(getSharedFileSystemName('ecs', 'nes'), 'wasi:cc65-fs-nes.zip');
   });
 
   it('getSkeletonName defaults to the tool id', function () {
@@ -137,8 +139,8 @@ describe('Tool metadata registry', function () {
   });
 
   it('resolves shared filesystem names for all tools with includeDirs', function () {
+    assert.equal(getSharedFileSystemName('cc65', 'nes'), 'wasi:cc65-fs-nes.zip');
     // preloadFS-backed tools
-    assert.equal(getSharedFileSystemName('cc65', 'nes'), '65-nes');
     assert.equal(getSharedFileSystemName('sdcc', 'coleco'), 'sdcc');
     assert.equal(getSharedFileSystemName('bataribasic', 'vcs'), 'wasi:bb-fs.zip');
     assert.equal(getSharedFileSystemName('wiz'), 'wiz');

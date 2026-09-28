@@ -60,7 +60,7 @@ describe('ToolchainSource', function () {
   });
 
   it('should list and lazily search bundled header files', async function () {
-    setProjectProvider(() => makeFs({ '/include/nes.h': NES_H, '/include/apple.h': APPLE_H }));
+    setProjectProvider(() => makeFs({ '/share/cc65/include/nes.h': NES_H, '/share/cc65/include/apple.h': APPLE_H }));
     const ts = new ToolchainSource();
 
     // First query triggers ready(), which lists and reads every header file
@@ -70,21 +70,21 @@ describe('ToolchainSource', function () {
     const rec = hits[0].record;
     assert.strictEqual(rec.kind, 'text');
     assert.strictEqual(rec.source, 'toolchain');
-    assert.strictEqual(rec.file, '/include/nes.h');
+    assert.strictEqual(rec.file, '/share/cc65/include/nes.h');
     assert.ok(rec.line && rec.line > 0);
     // The two hash-flavored hits should both appear (each file is searched)
-    assert.ok(hits.some(h => h.record.file === '/include/nes.h' && h.record.name.includes('VBLANK')));
+    assert.ok(hits.some(h => h.record.file === '/share/cc65/include/nes.h' && h.record.name.includes('VBLANK')));
   });
 
   it('should be case-insensitive', async function () {
-    setProjectProvider(() => makeFs({ '/include/nes.h': NES_H }));
+    setProjectProvider(() => makeFs({ '/share/cc65/include/nes.h': NES_H }));
     const ts = new ToolchainSource();
     const hits = await ts.query('vblank', 10);
     assert.ok(hits.length >= 1);
   });
 
   it('should require at least 2 chars', async function () {
-    setProjectProvider(() => makeFs({ '/include/nes.h': NES_H }));
+    setProjectProvider(() => makeFs({ '/share/cc65/include/nes.h': NES_H }));
     const ts = new ToolchainSource();
     const hits = await ts.query('x', 10);
     assert.strictEqual(hits.length, 0);
@@ -92,9 +92,9 @@ describe('ToolchainSource', function () {
 
   it('should read every header before answering the first query', async function () {
     const fs = makeFs({
-      '/include/a.h': '#define AAA 1\n',
-      '/include/b.h': '#define BBB 2\n',
-      '/include/tgi.h': '#define TGI_OK 1\n',
+      '/share/cc65/include/a.h': '#define AAA 1\n',
+      '/share/cc65/include/b.h': '#define BBB 2\n',
+      '/share/cc65/include/tgi.h': '#define TGI_OK 1\n',
     });
     setProjectProvider(() => fs);
     const ts = new ToolchainSource();
@@ -105,12 +105,12 @@ describe('ToolchainSource', function () {
     // otherwise results depend on how many times the user types.
     const hits = await ts.query('TGI', 10);
     assert.ok(hits.length >= 1, 'should index all headers on the first query');
-    assert.strictEqual(hits[0].record.file, '/include/tgi.h');
+    assert.strictEqual(hits[0].record.file, '/share/cc65/include/tgi.h');
     assert.strictEqual(ts['loaded'].size, 3);
   });
 
   it('should rank matches near the start of the line higher', async function () {
-    setProjectProvider(() => makeFs({ '/include/nes.h': NES_H }));
+    setProjectProvider(() => makeFs({ '/share/cc65/include/nes.h': NES_H }));
     const ts = new ToolchainSource();
     const hits = await ts.query('PPU', 10);
     assert.ok(hits.length >= 2, 'PPU matches several lines');
@@ -124,8 +124,8 @@ describe('ToolchainSource', function () {
 
   it('should skip non-searchable file types', async function () {
     const ts = new ToolchainSource();
-    assert.strictEqual((ts as any).isSearchable('/include/nes.h'), true);
-    assert.strictEqual((ts as any).isSearchable('/include/nes.o'), false);
+    assert.strictEqual((ts as any).isSearchable('/share/cc65/include/nes.h'), true);
+    assert.strictEqual((ts as any).isSearchable('/share/cc65/include/nes.o'), false);
     assert.strictEqual((ts as any).isSearchable('/lib/binary.bin'), false);
     assert.strictEqual((ts as any).isSearchable('/scripts/makefile'), true); // no ext
   });

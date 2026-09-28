@@ -1,11 +1,65 @@
 
-import { defineArgs, extraArgsFor, linkSymbolArgs } from "../../common/toolmeta";
-import { getRootBasePlatform } from "../../common/util";
+import { defineArgs, extraArgsFor, linkSymbolArgs, getSharedFileSystemName } from "../../common/toolmeta";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
+import { WASIRunner } from "../../common/wasi/wasishim";
 import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, fixParamsWithDefines, applyAsmProjectParams, putWorkFile, populateExtraFiles, store, populateEntry, anyTargetChanged, processEmbedDirective } from "../builder";
 import { re_crlf, makeErrorMatcher } from "../listingutils";
 import { parseCC65DbgSizes } from "./cc65dbg";
-import { loadNative, moduleInstFn, print_fn, setupFS, execMain, execToFile, emglobal, EmscriptenModule } from "../wasmutils";
+import { loadWASMBinary, ensureWasiFilesystem } from "../wasmutils";
+import { wasiFSAdapter } from "../wasiutils";
+
+// the WASI builds look for their data under share/cc65 in the per-platform
+// cc65-fs-<platform>.zip, preopened at '.'
+const CC65_SHARE = 'share/cc65';
+
+const wasiModules: { [tool: string]: WebAssembly.Module } = {};
+
+/**
+ * Run cc65, ca65 or ld65 on a fresh WASI runner layered over the platform's
+ * cc65 filesystem. `populate` copies the step's inputs into the runner first.
+ * Returns the runner (for reading outputs) and its stderr lines.
+ */
+async function runCC65Tool(step: BuildStep, tool: string, args: string[],
+    populate: (fs: ReturnType<typeof wasiFSAdapter>) => void) {
+    const fsname = getSharedFileSystemName('cc65', step.platform);
+    if (!fsname || !fsname.startsWith('wasi:'))
+        throw new Error("No cc65 filesystem for platform " + step.platform);
+    const sharefs = await ensureWasiFilesystem(fsname.substring(5));
+    if (!sharefs)
+        throw new Error("Could not load cc65 filesystem " + fsname);
+    if (!wasiModules[tool]) {
+        wasiModules[tool] = new WebAssembly.Module(loadWASMBinary(tool));
+    }
+    const wasi = new WASIRunner();
+    wasi.initSync(wasiModules[tool]);
+    wasi.fs.setParent(sharefs);
+    populate(wasiFSAdapter(wasi));
+    wasi.addPreopenDirectory(".");
+    wasi.setArgs([tool, ...args]);
+    const errno = wasi.run();
+    console.log('exec', tool, args.join(' '));
+    const stdout = wasi.fds[1].getBytesAsString();
+    if (stdout) console.log(stdout);
+    const stderr = wasi.fds[2].getBytesAsString().split(re_crlf).filter(s => s != '');
+    return { wasi, errno, stderr };
+}
+
+/** Report a failed tool run that printed no parseable error message. */
+function checkExitCode(tool: string, errno: number, stderr: string[], errors: WorkerError[]) {
+    if (errno && !errors.length) {
+        errors.push({ line: 0, msg: tool + " exited with code " + errno + (stderr.length ? ": " + stderr.join('\n') : '') });
+    }
+}
+
+function readWASIOutput(wasi: WASIRunner, path: string): Uint8Array {
+    const fd = wasi.fs.getFile(path);
+    if (!fd) throw new Error("Missing output file " + path);
+    return fd.getBytes().slice();
+}
+
+function readWASIOutputString(wasi: WASIRunner, path: string): string {
+    return new TextDecoder().decode(readWASIOutput(wasi, path));
+}
 
 
 /*
@@ -108,8 +162,7 @@ function parseCA65Listing(asmfn: string, code: string, symbols, segments, params
     return origlines;
 }
 
-export function assembleCA65(step: BuildStep): BuildStepResult {
-    loadNative("ca65");
+export async function assembleCA65(step: BuildStep): Promise<BuildStepResult> {
     var errors = [];
     gatherFiles(step, { mainFilePath: "main.s" });
     var objpath = step.prefix + ".o";
@@ -121,18 +174,7 @@ export function assembleCA65(step: BuildStep): BuildStepResult {
     }
     fixParamsWithDefines(step.path, step.params);
     if (staleFiles(step, [objpath, lstpath])) {
-        var objout, lstout;
-        var CA65: EmscriptenModule = emglobal.ca65({
-            instantiateWasm: moduleInstFn('ca65'),
-            noInitialRun: true,
-            //logReadFiles:true,
-            print: print_fn,
-            printErr: makeErrorMatcher(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1),
-        });
-        var FS = CA65.FS;
-        setupFS(FS, '65-' + getRootBasePlatform(step.platform));
-        populateFiles(step, FS);
-        var args = ['-v', '-g', '-I', '/share/asminc', '-o', objpath, '-l', lstpath, step.path];
+        var args = ['-v', '-g', '-I', CC65_SHARE + '/asminc', '-o', objpath, '-l', lstpath, step.path];
         args.unshift.apply(args, ["-D", "__8BITWORKSHOP__=1"]);
         if (step.mainfile) {
             args.unshift.apply(args, ["-D", "__MAIN__=1"]);
@@ -144,17 +186,17 @@ export function assembleCA65(step: BuildStep): BuildStepResult {
             .concat(defineArgs('ca65', step.params.symbols && step.params.symbols.assembler))
             .concat(extraArgsFor('ca65', step.params.buildArgs));
         args.splice(args.length - 1, 0, ...extra);
-        execMain(step, CA65, args);
+        const { wasi, errno, stderr } = await runCC65Tool(step, 'ca65', args, (fs) => populateFiles(step, fs));
+        stderr.forEach(makeErrorMatcher(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1));
+        checkExitCode('ca65', errno, stderr, errors);
         if (errors.length) {
             let listings : CodeListingMap = {};
             // TODO? change extension to .lst
             //listings[step.path] = { lines:[], text:getWorkFileAsString(step.path) };
             return { errors, listings };
         }
-        objout = FS.readFile(objpath, { encoding: 'binary' });
-        lstout = FS.readFile(lstpath, { encoding: 'utf8' });
-        putWorkFile(objpath, objout);
-        putWorkFile(lstpath, lstout);
+        putWorkFile(objpath, readWASIOutput(wasi, objpath));
+        putWorkFile(lstpath, readWASIOutputString(wasi, lstpath));
     }
     return {
         linktool: "ld65",
@@ -163,32 +205,16 @@ export function assembleCA65(step: BuildStep): BuildStepResult {
     };
 }
 
-export function linkLD65(step: BuildStep): BuildStepResult {
-    loadNative("ld65");
+export async function linkLD65(step: BuildStep): Promise<BuildStepResult> {
     var params = step.params;
     gatherFiles(step);
     var binpath = "main";
     if (staleFiles(step, [binpath])) {
         var errors = [];
-        var LD65: EmscriptenModule = emglobal.ld65({
-            instantiateWasm: moduleInstFn('ld65'),
-            noInitialRun: true,
-            //logReadFiles:true,
-            print: print_fn,
-            printErr: function (s) { errors.push({ msg: s, line: 0 }); }
-        });
-        var FS = LD65.FS;
-        setupFS(FS, '65-' + getRootBasePlatform(step.platform));
-        populateFiles(step, FS);
-        populateExtraFiles(step, FS, params.extra_link_files);
-        // populate .cfg file, if it is a custom one
-        if (store.hasFile(params.cfgfile)) {
-            populateEntry(FS, params.cfgfile, store.getFileEntry(params.cfgfile), null);
-        }
         var libargs = params.libargs || [];
         var cfgfile = params.cfgfile;
-        var args = ['--cfg-path', '/share/cfg',
-            '--lib-path', '/share/lib',
+        var args = ['--cfg-path', CC65_SHARE + '/cfg',
+            '--lib-path', CC65_SHARE + '/lib',
             '-C', cfgfile,
             '-Ln', 'main.vice',
             '--dbgfile', 'main.dbg',
@@ -197,12 +223,22 @@ export function linkLD65(step: BuildStep): BuildStepResult {
         // //#symbol ld (symbols not already merged into libargs) and //#flag ld
         args.push.apply(args, linkSymbolArgs('ld65', params.symbols && params.symbols.linker));
         args.push.apply(args, extraArgsFor('ld65', params.buildArgs));
-        execMain(step, LD65, args);
+        const { wasi, errno, stderr } = await runCC65Tool(step, 'ld65', args, (fs) => {
+            populateFiles(step, fs);
+            populateExtraFiles(step, fs, params.extra_link_files);
+            // populate .cfg file, if it is a custom one
+            if (store.hasFile(params.cfgfile)) {
+                populateEntry(fs, params.cfgfile, store.getFileEntry(params.cfgfile), null);
+            }
+        });
+        // any ld65 message (even a warning) fails the build
+        for (let s of stderr) errors.push({ msg: s, line: 0 });
+        checkExitCode('ld65', errno, stderr, errors);
         if (errors.length)
             return { errors: errors };
-        var aout = FS.readFile("main", { encoding: 'binary' });
-        var mapout = FS.readFile("main.map", { encoding: 'utf8' });
-        var viceout = FS.readFile("main.vice", { encoding: 'utf8' });
+        var aout = readWASIOutput(wasi, "main");
+        var mapout = readWASIOutputString(wasi, "main.map");
+        var viceout = readWASIOutputString(wasi, "main.vice");
         // correct binary for PCEngine
         if (step.platform == 'pce' && aout.length > 0x2000) {
             // move 8 KB from end to front
@@ -232,7 +268,7 @@ export function linkLD65(step: BuildStep): BuildStepResult {
         // symbol sizes from the linker debug file
         var symbolsizes = {};
         try {
-            let dbgsyms = parseCC65DbgSizes(FS.readFile("main.dbg", { encoding: 'utf8' }), params.ignore_segments);
+            let dbgsyms = parseCC65DbgSizes(readWASIOutputString(wasi, "main.dbg"), params.ignore_segments);
             symbolsizes = dbgsyms.sizes;
             // labels outside CPU address space (e.g. NES CHR) would alias real addresses
             for (let name of dbgsyms.ignored) delete symbolmap[name];
@@ -263,7 +299,7 @@ export function linkLD65(step: BuildStep): BuildStepResult {
         var listings: CodeListingMap = {};
         for (var fn of step.files) {
             if (fn.endsWith('.lst')) {
-                var lstout = FS.readFile(fn, { encoding: 'utf8' });
+                var lstout = readWASIOutputString(wasi, fn);
                 lstout = lstout.split('\n\n')[1] || lstout; // remove header
                 putWorkFile(fn, lstout);
                 //const asmpath = fn.replace(/\.lst$/, '.ca65'); // TODO! could be .s
@@ -297,51 +333,17 @@ export function linkLD65(step: BuildStep): BuildStepResult {
     }
 }
 
-export function compileCC65(step: BuildStep): BuildStepResult {
-    loadNative("cc65");
+export async function compileCC65(step: BuildStep): Promise<BuildStepResult> {
     var params = step.params;
-    // stderr
-    var re_err1 = /(.*?):(\d+): (.+)/;
     var errors: WorkerError[] = [];
-    var errline = 0;
-    function match_fn(s) {
-        console.log(s);
-        var matches = re_err1.exec(s);
-        if (matches) {
-            errline = parseInt(matches[2]);
-            errors.push({
-                line: errline,
-                msg: matches[3],
-                path: matches[1]
-            });
-        }
-    }
     gatherFiles(step, { mainFilePath: "main.c" });
     var destpath = step.prefix + '.s';
     // the link step reads these params, so they have to be settled even when
     // the assembly file is up to date and nothing below runs
     fixParamsWithDefines(step.path, params);
     if (staleFiles(step, [destpath])) {
-        var CC65: EmscriptenModule = emglobal.cc65({
-            instantiateWasm: moduleInstFn('cc65'),
-            noInitialRun: true,
-            //logReadFiles:true,
-            print: print_fn,
-            printErr: match_fn,
-        });
-        var FS = CC65.FS;
-        setupFS(FS, '65-' + getRootBasePlatform(step.platform));
-        populateFiles(step, FS, {
-            mainFilePath: step.path,
-            processFn: (path, code) => {
-                if (typeof code === 'string') {
-                    code = processEmbedDirective(code);
-                }
-                return code;
-            }
-        });
         var args = [
-            '-I', '/share/include',
+            '-I', CC65_SHARE + '/include',
             '-I', '.',
             "-D", "__8BITWORKSHOP__",
         ];
@@ -357,8 +359,19 @@ export function compileCC65(step: BuildStep): BuildStepResult {
         var customArgs = params.extra_compiler_args || ['-T', '-g', '-Oirs', '-Cl', '-W', '-pointer-sign,-no-effect'];
         args = args.concat(customArgs, args);
         args.push(step.path);
-        const runerr = execToFile(step, CC65, args, FS, destpath, errors);
-        if (runerr) return runerr;
+        const { wasi, errno, stderr } = await runCC65Tool(step, 'cc65', args, (fs) => populateFiles(step, fs, {
+            mainFilePath: step.path,
+            processFn: (path, code) => {
+                if (typeof code === 'string') {
+                    code = processEmbedDirective(code);
+                }
+                return code;
+            }
+        }));
+        stderr.forEach(makeErrorMatcher(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
+        checkExitCode('cc65', errno, stderr, errors);
+        if (errors.length) return { errors };
+        putWorkFile(destpath, readWASIOutputString(wasi, destpath));
     }
     return {
         nexttool: "ca65",
@@ -367,4 +380,3 @@ export function compileCC65(step: BuildStep): BuildStepResult {
         files: [destpath],
     };
 }
-

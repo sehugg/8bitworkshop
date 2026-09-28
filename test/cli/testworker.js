@@ -98,20 +98,20 @@ async function doBuild(msgs, callback, outlen, nlines, nerrors, options) {
 
 describe('Worker', function() {
   it('should list shared files in filesystem package', async function() {
-    var msg = await queryWorker({preload_fs:'65-nes', listshared:'/include', updates:[], buildsteps:[], qid:123});
+    var msg = await queryWorker({preload_fs:'wasi:cc65-fs-nes.zip', listshared:'/share/cc65/include', updates:[], buildsteps:[], qid:123});
     assert.ok(Array.isArray(msg.output));
     assert.ok(msg.output.length > 0);
-    assert.ok(msg.output.includes('/include/nes.h'));
+    assert.ok(msg.output.includes('share/cc65/include/nes.h'));
     assert.equal(msg.qid, 123);
   });
   it('should read a shared header from filesystem package', async function() {
-    var msg = await queryWorker({preload_fs:'65-nes', readshared:'/include/nes.h', updates:[], buildsteps:[], qid:124});
+    var msg = await queryWorker({preload_fs:'wasi:cc65-fs-nes.zip', readshared:'/share/cc65/include/nes.h', updates:[], buildsteps:[], qid:124});
     assert.ok(msg.output instanceof Uint8Array);
     assert.ok(msg.output.length > 100);
     assert.equal(msg.qid, 124);
   });
   it('should return null for missing shared file', async function() {
-    var msg = await queryWorker({preload_fs:'65-nes', readshared:'/include/nosuchfile.h', updates:[], buildsteps:[], qid:125});
+    var msg = await queryWorker({preload_fs:'wasi:cc65-fs-nes.zip', readshared:'/share/cc65/include/nosuchfile.h', updates:[], buildsteps:[], qid:125});
     assert.equal(msg.output, null);
     assert.equal(msg.qid, 125);
   });

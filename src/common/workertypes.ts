@@ -123,7 +123,7 @@ export interface WorkerItemUpdate {
 // TODO: split into different msg types
 export interface WorkerMessage {
   preload?:string
-  /** preload a filesystem package directly by name (e.g. '65-nes') */
+  /** preload a filesystem package directly by name (e.g. 'sdcc', 'wasi:cc65-fs-nes.zip') */
   preload_fs?:string
   /** read a file from the preloaded filesystem package (path e.g. '/include/nes.h')
    *  requires preload_fs; result comes back as {output:Uint8Array} */

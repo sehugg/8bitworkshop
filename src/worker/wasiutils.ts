@@ -61,3 +61,15 @@ export function runWASI(wasi: WASIRunner, errors: WorkerError[]) {
         errors.push({ line: 0, msg: "" + e });
     }
 }
+
+/**
+ * Wrap a WASI runner's filesystem in the Emscripten FS calls the builder's
+ * populateFiles/populateExtraFiles/populateEntry use, so tools can share them.
+ */
+export function wasiFSAdapter(wasi: WASIRunner) {
+    return {
+        mkdir: (path: string) => wasi.fs.putDirectory(path),
+        writeFile: (path: string, data: string | Uint8Array) => wasi.fs.putFile(path, data),
+        utime: () => { },
+    };
+}
