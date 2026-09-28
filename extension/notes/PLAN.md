@@ -1563,10 +1563,16 @@ Extract before building the adapter:
   `BreakpointContext` gives the symbols, `getListingForFile`, and the
   platform (CPU fields, memory, raster). `src/ide/breakpoints.ts` keeps the
   localStorage store and builds its context from `ui`.
-- **`DebugController`** over `EmuTarget`: `runUntil(trap, maxFrames)`,
-  `stepInsn`, `stepOver` (same source line, via `projectcore` listings),
-  `stepOut` (SP-based, from `RunScript`), `runTo(addr)`. `RunScript` commands
-  and the DAP handlers both become thin wrappers. The IDE can adopt it later.
+- ~~**`DebugController`**~~ Done: `src/common/debugcontroller.ts`. Forward
+  commands (`continue`, `stepInstruction`, `stepOver`, `stepOut`, `runTo`)
+  set a goal and `run(maxFrames)` works toward it, returning a `StopEvent`.
+  Backward ones (`stepBack`, `reverseContinue`, `seek`) finish at once.
+  Steps go by source line when `buildDebugContext()` has the build's
+  listings; a call is stepped over by running to its return address at the
+  same SP, and a return is a return instruction that pops past the entry SP.
+  A line never reaches back across a symbol, so a function's unlisted
+  prologue belongs to its first line. `RunScript`'s `break`, `over` and `out`
+  use it. The IDE can adopt it later.
 - ~~**`EmuTarget`** split~~ Done. The driver is `EmuCore`
   (`src/common/emucore.ts`, no DOM, no Node); `src/tools/emutarget.ts` keeps
   `installNodeMocks()` and `loadPlatform()` and exports `EmuCore` as

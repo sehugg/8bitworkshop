@@ -18,6 +18,7 @@ import { fail, hasOutput, note, output, setJsonMode } from './cliformat';
 import { EmuTarget, loadPlatform } from './emutarget';
 import { RUN_SCRIPT_HELP, RunScript, parseNum } from './runscript';
 import { verifyReplay } from './verifyreplay';
+import { buildDebugContext } from '../common/debugcontroller';
 import { parseSymbolFile } from '../common/symbols/symbolfile';
 import { romBytes, type CompileResult } from './testlib';
 import { ROM_PLATFORMS } from '../common/detect';
@@ -277,6 +278,10 @@ async function doRun(args: Args, positional: string[]): Promise<void> {
 
   const script = new RunScript(target);
   script.addSymbols(symbols);
+  if (built) {
+    const mainPath = path.basename(input);
+    script.setDebugContext(buildDebugContext({ listings: built.result.listings, symbols, mainPath, paths: [mainPath] }));
+  }
   const symbolFile = str(args, 'symbols');
   if (symbolFile) script.addSymbols(parseSymbolFile(fs.readFileSync(symbolFile, 'utf8')));
   script.startTracing();

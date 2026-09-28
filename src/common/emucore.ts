@@ -499,19 +499,30 @@ export class EmuCore {
     const h = this.timeline;
     if (!h || !this.supportsStep) return false;
     const start = h.now();
-    const stable = () => this.isStable();
     for (let i = 0; i < n; i++) {
-      const t = h.now();
-      // most steps back stay in the frame, so search it before the whole past
-      const frameStart = timestamp(t.frame, 0);
-      const hit = (compareTimestamps(frameStart, h.first()) >= 0 && h.findLast(stable, frameStart, t))
-        || h.findLast(stable, h.first(), t);
-      if (!hit) {
+      if (!this.stepBackUntil(() => true)) {
         h.seek(start);
         return false;
       }
     }
     return true;
+  }
+
+  /**
+   * Go back to the last instruction boundary before now where `pred` holds.
+   * Returns false, and stays put, if there is none in the recording.
+   */
+  stepBackUntil(pred: () => boolean): boolean {
+    const h = this.timeline;
+    if (!h) throw new Error(`'${this.id}' cannot rewind`);
+    const t = h.now();
+    const test = () => this.isStable() && pred();
+    // most searches end in this frame, so try it before the whole past
+    const frameStart = timestamp(t.frame, 0);
+    if (compareTimestamps(frameStart, h.first()) >= 0 && h.findLast(test, frameStart, t)) return true;
+    if (h.findLast(test, h.first(), t)) return true;
+    h.seek(t);
+    return false;
   }
 
   /** Move to a recorded moment, past or present. Throws if it isn't recorded. */
