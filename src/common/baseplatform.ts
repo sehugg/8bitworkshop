@@ -261,6 +261,20 @@ export abstract class BaseDebugPlatform extends BasePlatform {
 
   abstract getCPUState(): CpuState;
 
+  // Some CPU cores save their program counter one byte before or after the
+  // opcode they are on, so a raw PC lands on an operand or on the previous
+  // instruction. debugPCDelta corrects it: getCPUState() and saveState()
+  // report PC + delta, which is the address of the opcode, the same address
+  // getPC() returns.
+  debugPCDelta = 0;
+  fixPC(c) { c.PC = (c.PC + this.debugPCDelta) & 0xffff; return c; }
+  unfixPC(c) { c.PC = (c.PC - this.debugPCDelta) & 0xffff; return c; }
+
+  // True if a breakpoint targets the effective PC (see EPC), which some
+  // platforms use to fold a bank offset into the address. Those need the CPU
+  // state to find, so they skip the cheap getPC() test in runEvalAtPC().
+  debugUsesEPC(): boolean { return false; }
+
   setBreakpoint(id: string, cond: DebugCondition) {
     if (cond) {
       this.breakpoints.id2bp[id] = { cond: cond };
@@ -376,19 +390,25 @@ export abstract class BaseDebugPlatform extends BasePlatform {
     });
   }
   runToPC(pc: number[]) {
-    this.debugTargetClock++;
-    const pcs = new Set(pc);
-    this.runEval((c) => {
-      return pcs.has(c.PC);
-    });
+    this.runEvalAtPC(new Map(pc.map((a) => [a, null])));
   }
+  // Runs until a breakpoint is hit, which can be a whole frame away, so it
+  // tests getPC() on its own rather than building a CPU state at every
+  // instruction. The state is only wanted once an address matches, to run
+  // that breakpoint's condition.
   runEvalAtPC(targets: Map<number, DebugEvalCondition | null>) {
     this.debugTargetClock++;
-    this.runEval((c) => {
+    const useEPC = this.debugUsesEPC();
+    this.setDebugCondition(() => {
+      if (++this.debugClock < this.debugTargetClock || !this.isStable()) return;
+      if (!useEPC && !targets.has(this.getPC())) return;
+      const c = this.getCPUState();
       const epc = c.EPC != null ? c.EPC : c.PC;
-      if (!targets.has(epc)) return false;
+      if (!targets.has(epc)) return;
       const cond = targets.get(epc);
-      return cond ? cond(c) : true;
+      if (cond && !cond(c)) return;
+      this.breakpointHit(this.debugClock);
+      return true;
     });
   }
   runUntilReturn() {
@@ -478,11 +498,8 @@ export function inspectSymbol(platform: Platform, sym: string): string {
 // TODO: can merge w/ Z80?
 export abstract class Base6502Platform extends BaseDebugPlatform {
 
-  // some platforms store their PC one byte before or after the first opcode
-  // so we correct when saving and loading from state
+  // the MOS6502 keeps its PC one byte past the opcode it fetched
   debugPCDelta = -1;
-  fixPC(c) { c.PC = (c.PC + this.debugPCDelta) & 0xffff; return c; }
-  unfixPC(c) { c.PC = (c.PC - this.debugPCDelta) & 0xffff; return c; }
   getSP() { return this.getCPUState().SP };
   getPC() { return this.getCPUState().PC };
   isStable() { return !this.getCPUState()['T']; }
@@ -807,12 +824,23 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     this.machine.reset();
     if (this.serialVisualizer != null) this.serialVisualizer.reset();
   }
-  loadState(s) { this.machine.loadState(s); }
-  saveState() { return this.machine.saveState(); }
+  // The machine's CPU state is the core's own, so debugPCDelta corrects its PC
+  // on the way out and restores it on the way in. The machine's cpu.getPC()
+  // already names the opcode, so getPC() is left alone.
+  loadState(s) {
+    if (!this.debugPCDelta || !s.c) return this.machine.loadState(s);
+    this.unfixPC(s.c);
+    try { this.machine.loadState(s); } finally { this.fixPC(s.c); }
+  }
+  saveState() {
+    const s = this.machine.saveState();
+    if (this.debugPCDelta && s.c) this.fixPC(s.c);
+    return s;
+  }
   getSP() { return this.machine.cpu.getSP(); }
   getPC() { return this.machine.cpu.getPC(); }
   isStable() { return this.machine.cpu.isStable(); }
-  getCPUState() { return this.machine.cpu.saveState(); }
+  getCPUState() { return this.fixPC(this.machine.cpu.saveState()); }
   loadControlsState(s) { this.machine.loadControlsState(s); }
   saveControlsState() { return this.machine.saveControlsState(); }
 

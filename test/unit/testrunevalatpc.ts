@@ -14,6 +14,7 @@ class TestClockPlatform extends BaseDebugPlatform {
   getSP(): number { return 0; }
   getCPUState(): CpuState { return { PC: this.pc, EPC: this.epc }; }
   isStable(): boolean { return true; }
+  debugUsesEPC(): boolean { return this.epc !== undefined; }
   saveState(): EmuState { return { c: { PC: this.pc, EPC: this.epc } }; }
   loadState(state: EmuState) { this.pc = state.c.PC; this.epc = state.c.EPC; }
   pause() { this.paused = true; }

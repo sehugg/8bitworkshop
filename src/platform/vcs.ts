@@ -600,6 +600,10 @@ class VCSMachinePlatform extends Base6502MachinePlatform<JavatariMachine> {
   newMachine() { return new JavatariMachine(); }
   getPresets() { return VCS_PRESETS; }
 
+  // Javatari's 6502 saves its PC one past the opcode it has fetched, though
+  // its getPC() returns the opcode's address
+  debugPCDelta = -1;
+
   /**
    * A 2600 takes joysticks or paddles in the same ports, and the core reads the
    * paddle triggers as the joystick directions, so the paddles stay off until
