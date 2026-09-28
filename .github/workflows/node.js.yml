@@ -8,6 +8,8 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  # Testers can build an installable VSIX from any branch on demand.
+  workflow_dispatch:
 
 jobs:
   build:
@@ -37,6 +39,19 @@ jobs:
         npm ci --no-audit --legacy-peer-deps --prefix extension
         npm run typecheck --prefix extension
         npm test --prefix extension
+    # Package the extension with the toolchain packs bundled, so testers can
+    # install it from the artifact with no other setup.
+    - name: Package VS Code extension
+      if: github.event_name != 'pull_request'
+      run: npm run package --prefix extension
+    - name: Upload VS Code extension
+      if: github.event_name != 'pull_request'
+      uses: actions/upload-artifact@v4
+      with:
+        name: 8bitworkshop-vscode-${{ github.run_number }}
+        path: extension/*.vsix
+        if-no-files-found: error
+        retention-days: 30
     - name: Deploy
       if: github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: JamesIves/github-pages-deploy-action@v4.9.0
