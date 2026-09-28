@@ -97,9 +97,13 @@ class VCSPlatform extends BasePlatform {
       self.probe.logNewFrame();
       this.oldClockPulse();
       // look for KIL instruction
-      if (Javatari.room.console.getCPUState().o == 0x02 && Javatari.room.console.onBreakpointHit != null) {
-        Javatari.room.console.onBreakpointHit(Javatari.room.console.saveState());
-        //throw new EmuHalt("CPU STOPPED"); // TODO: requires browser reload
+      // Halt passively, like vcs.jt4, instead of stopping as a breakpoint would
+      // (which moves the cursor). Throw outside Javatari's clock, since it
+      // can't recover from an exception.
+      if (Javatari.room.console.getCPUState().o == 0x02 && self.isRunning()) {
+        self.pause();
+        const pc = (Javatari.room.console.saveState().c.PC - 1) & 0xffff;
+        setTimeout(() => { throw new EmuHalt(`CPU halted at $${pc.toString(16)}`); }, 0);
       }
     }
     // intercept TIA end of line

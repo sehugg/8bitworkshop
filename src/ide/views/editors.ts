@@ -624,8 +624,11 @@ export class SourceEditor implements ProjectView {
       this.editor.dispatch({
         effects: [
           currentPcMarker.set.of(line.line),
-          currentPc.effect.of(line.line),
-          // Follow the execution point when stepping/hitting breakpoints.
+          // Follow the execution point when stepping/hitting breakpoints. A
+          // passive halt (e.g. the program ends while the user is typing) only
+          // shows the gutter arrow, so it doesn't repaint/highlight the line
+          // out from under the user's cursor.
+          currentPc.effect.of(moveCursor ? line.line : null),
           ...(moveCursor ? [EditorView.scrollIntoView(this.editor.state.doc.line(line.line).from, { y: "center" })] : []),
         ]
       });
