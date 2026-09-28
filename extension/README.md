@@ -95,7 +95,7 @@ also appear in the editor title bar, the Explorer, or **Project Options**.
 | **Run Main File** | Run the project's main file |
 | **Follow Active Editor** | Run whichever program is in the editor |
 | **Reset / Pause / Resume / Stop / Mute / Unmute Emulator** | Control the emulator panel |
-| **Download All Toolchains** | Fetch every platform's toolchain for offline use |
+| **Prepare Toolchains** | Unpack or download every platform's toolchain for offline use (shown only when a toolchain isn't bundled) |
 
 ## More
 

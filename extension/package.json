@@ -97,7 +97,7 @@
       },
       {
         "command": "8bitworkshop.downloadToolchains",
-        "title": "Download All Toolchains",
+        "title": "Prepare Toolchains",
         "category": "8bitworkshop"
       },
       {
@@ -425,6 +425,10 @@
         }
       ],
       "commandPalette": [
+        {
+          "command": "8bitworkshop.downloadToolchains",
+          "when": "8bitworkshop.canDownloadToolchains"
+        },
         {
           "command": "8bitworkshop.copyToWorkspace",
           "when": "resourceScheme == 8bws-preset"

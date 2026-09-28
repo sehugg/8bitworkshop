@@ -101,11 +101,12 @@ export function activate(ctx: vscode.ExtensionContext) {
   command('pause', () => emu?.started && emu.call('pause'));
   command('resume', () => emu?.started && emu.call('resume'));
   command('stop', () => panel?.dispose());
-  command('downloadToolchains', () => downloadToolchains());
+  command('downloadToolchains', () => prepareToolchains());
   command('mute', () => setMuted(true));
   command('unmute', () => setMuted(false));
   muted = ctx.globalState.get<boolean>('muted', false);
   vscode.commands.executeCommand('setContext', '8bitworkshop.muted', muted);
+  vscode.commands.executeCommand('setContext', '8bitworkshop.canDownloadToolchains', hasDownloadablePacks());
 
   // F5 on an 8bitworkshop launch configuration debugs it; Ctrl+F5 (Run
   // Without Debugging) just runs it in the emulator panel
@@ -171,6 +172,16 @@ function hasBundledPack(manifest: AssetManifest, pack: string): boolean {
   return !!info && fs.existsSync(path.join(bundledAssetsDir(), info.file));
 }
 
+/** True when some pack isn't bundled, so the user could download it. */
+function hasDownloadablePacks(): boolean {
+  try {
+    var store = getAssets();
+    return Object.keys(store.manifest.packs).some(p => !hasBundledPack(store.manifest, p));
+  } catch (e) {
+    return true;  // no manifest: the command reports the toolchainPath hint
+  }
+}
+
 function getAssets(): AssetStore {
   if (!assets) {
     var file = path.join(context.extensionPath, 'out', 'assets.json');
@@ -214,7 +225,7 @@ async function installPacks(packs: string[]): Promise<string> {
   });
 }
 
-async function downloadToolchains() {
+async function prepareToolchains() {
   if (localRoot()) {
     vscode.window.showInformationMessage(`8bitworkshop: using the toolchains in ${localRoot()}.`);
     return;
