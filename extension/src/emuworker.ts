@@ -15,6 +15,15 @@ import type { FileData } from '../../src/common/workertypes';
 import type { StopEvent } from '../../src/common/debugcontroller';
 import { BuildInfo, DebugService, TimelineInfo } from '../../src/tools/debugservice';
 
+/**
+ * Emulators to run in place of a platform's default. The build still uses the
+ * platform's own tools. vcs.jt4 is the same Javatari core, but built on a
+ * Machine, so it stops mid-frame and can rewind.
+ */
+const EMULATOR_FOR: { [platform: string]: string } = {
+  'vcs': 'vcs.jt4',
+};
+
 /** Audio is resampled to this rate in the worker; the webview plays it back. */
 const STREAM_RATE = 48000;
 
@@ -106,7 +115,7 @@ const rpc: Rpc = new Rpc(parentPort, {
     started = true;
     stop();
     clearLastKeycodeMap();
-    target = await loadPlatform(platform);
+    target = await loadPlatform(EMULATOR_FOR[platform] || platform);
     await target.start();
     service = new DebugService(target, stopped);
     // machines build their keyboard handler as they start

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- The Atari 2600 now stops at breakpoints and steps by instruction, not by
+  frame, and can step back.
+
 ## 0.1.0
 
 First preview.

@@ -111,6 +111,15 @@ describe('extension emuworker', function () {
     await assert.rejects(rpc.call('start', 'vcs', rom('vcs/brickgame.rom')), /new worker/);
   });
 
+  // vcs runs on the vcs.jt4 core, which can stop between instructions
+  it('runs the VCS on a core that steps and rewinds', async function () {
+    var s = await rpc.call<EmuStatus>('start', 'vcs', rom('vcs/brickgame.rom'));
+    assert.equal(s.platform, 'vcs.jt4');
+    var caps = await rpc.call<any>('debug', 'capabilities');
+    assert.ok(caps.step && caps.rewind, JSON.stringify(caps));
+    assert.notEqual(caps.granularity, 'frame');
+  });
+
   it('loads a BIOS from the asset root', async function () {
     await rpc.call('start', 'atari8-5200', rom('atari8-5200/hello.a.rom'));
     await waitForFrames(10);

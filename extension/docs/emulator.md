@@ -89,8 +89,8 @@ While you debug, a rebuild doesn't restart the program. Press
 running in the panel, without breakpoints. Close the panel to stop the
 program.
 
-Some platforms, such as the Atari 2600 and Verilog, can only stop
-between frames. There, breakpoints and steps work a frame at a time.
+Some platforms, such as Verilog, can only stop between frames. There,
+breakpoints and steps work a frame at a time.
 
 ## Sound
 
