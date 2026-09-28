@@ -55,6 +55,34 @@ describe('Timestamp', function () {
 
 describe('MachineCore', function () {
 
+  it('ignores an error from the frame tail after a stop, but not otherwise', function () {
+    // like galaxian: code after the CPU loop mutates state and may throw
+    class TailMachine extends FakeMachine {
+      watchdog = 0;
+      advanceFrame(trap: TrapCondition): number {
+        const n = super.advanceFrame(trap);
+        this.acc += 1000;
+        if (++this.watchdog >= 3) throw new Error('watchdog');
+        return n;
+      }
+      saveState() { return { ...super.saveState(), watchdog: this.watchdog }; }
+      loadState(s) { super.loadState(s); this.watchdog = s.watchdog; }
+    }
+    const m = new TailMachine();
+    const c = new MachineCore(m);
+    c.runUntil(timestamp(2, 0));
+    // the tail throws on this frame, but the stop comes first
+    var steps = 0;
+    const r = c.runUntil(timestamp(3, 0), () => steps++ === 5);
+    assert.ok(r.trapped);
+    assert.ok(timestampsEqual(r.at, timestamp(2, 5)), formatTimestamp(r.at));
+    assert.strictEqual(m.acc, 2025);
+    assert.strictEqual(m.watchdog, 2);
+    // finishing the frame runs the tail for real
+    assert.throws(() => c.runUntil(timestamp(3, 0)), /watchdog/);
+  });
+
+
   it('counts frames monotonically and never rewinds the clock', function () {
     const m = new FakeMachine();
     const c = new MachineCore(m);

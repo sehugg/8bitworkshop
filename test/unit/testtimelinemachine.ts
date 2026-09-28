@@ -9,6 +9,8 @@ mockAudio();
 // imported after the globals are mocked -- the machine pulls in the audio
 // classes that live on globalThis
 import { Midway8080 } from "../../src/machine/mw8080bw";
+import { GalaxianScrambleMachine } from "../../src/machine/galaxian";
+import { hashState as hashAnyState } from "../../src/common/statehash";
 import { NullProbe } from "../../src/common/devices";
 import { History } from "../../src/common/history";
 import {
@@ -189,5 +191,54 @@ describe('History on a real machine', function () {
     assert.strictEqual(m.cpu.getPC(), pcAt40);
     hist.seek(timestamp(10, 39));
     assert.strictEqual(m.cpu.getPC(), pcAt39);
+  });
+});
+
+// A trap stops the CPU loop, not the frame: galaxian's advanceFrame() still
+// advances its graphics, decrements the watchdog and raises an NMI after the
+// loop exits. A core stopped mid-frame must show the state at the stop, not
+// the state after that tail ran.
+describe('MachineCore break state', function () {
+
+  function newGalaxian() {
+    const m = new GalaxianScrambleMachine();
+    m.connectVideo(new Uint32Array(m.canvasWidth * m.numVisibleScanlines));
+    m.loadROM(new Uint8Array(fs.readFileSync('./test/roms/galaxian-scramble/shoot2.c.rom')));
+    m.reset();
+    return { m, core: new MachineCore(m) };
+  }
+
+  it('shows the state at the trap, not after the frame tail', function () {
+    const { m, core } = newGalaxian();
+    core.runUntil(timestamp(5, 0));
+    var n = 0;
+    var atTrap: number = null;
+    const r = core.runUntil(timestamp(6, 0), () => {
+      if (n++ < 500) return false;
+      atTrap = hashAnyState(m.saveState());
+      return true;
+    });
+    assert.ok(r.trapped);
+    assert.strictEqual(hashAnyState(m.saveState()), atTrap);
+  });
+
+  it('shows the state at the target step when stopping at one', function () {
+    // the trap is not consulted at the target step itself, so capture the
+    // expected state from a second run that goes one step further
+    const ref = newGalaxian();
+    ref.core.runUntil(timestamp(5, 0));
+    var atStep: number = null;
+    var n = 0;
+    ref.core.runUntil(timestamp(5, 501), () => {
+      if (n++ === 500) atStep = hashAnyState(ref.m.saveState());
+      return false;
+    });
+    assert.notStrictEqual(atStep, null);
+
+    const { m, core } = newGalaxian();
+    core.runUntil(timestamp(5, 0));
+    core.runUntil(timestamp(5, 500));
+    assert.ok(timestampsEqual(core.now(), timestamp(5, 500)), formatTimestamp(core.now()));
+    assert.strictEqual(hashAnyState(m.saveState()), atStep);
   });
 });

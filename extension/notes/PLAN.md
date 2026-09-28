@@ -1701,7 +1701,9 @@ The shared core adopts the IDE's model:
   Registers, memory, the disassembly, and the debug views all read the
   snapshot, not the live machine. After `advanceFrame` returns, the core
   loads the snapshot back (as `postFrame` does) so memory reads and writes
-  go to the right state.
+  go to the right state. Done for `MachineCore` (`common/timeline.ts`):
+  it saves and reloads `saveState()`. An error thrown by the frame's tail
+  after a stop is dropped; resuming replays the frame and raises it then.
 - **Resuming or stepping always replays**: load the frame-start state and
   run to `step + n` with breakpoints suppressed until `step`. Step back
   replays to `step - 1` (a step count, not the IDE's `clock - 25`

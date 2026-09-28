@@ -205,22 +205,35 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
     }
     let n = 0;
     let trapped = false;
+    // A trap stops the CPU loop, not the frame: advanceFrame() still runs its
+    // tail (drawing the line, the vblank interrupt, a watchdog) after the loop
+    // exits. So the state is saved inside the trap, at the exact stop, and
+    // loaded back once advanceFrame() returns.
+    let stopState: any = null;
     // The trap runs before each step, so when it returns true exactly n steps
     // have executed -- n is the position, not the step about to run. step is
     // published before calling the caller's trap so that now() is the current
     // position while the condition is being evaluated; a search relies on that
     // to record where a hit happened.
-    this.machine.advanceFrame(() => {
-      this.step = n;
-      if (n >= untilStep) return true;
-      if (n >= from && trap && trap()) {
-        trapped = true;
-        return true;
-      }
-      n++;
-      return false;
-    });
-    if (trapped || n >= untilStep) {
+    try {
+      this.machine.advanceFrame(() => {
+        this.step = n;
+        if (n >= untilStep || (n >= from && trap && (trapped = !!trap()))) {
+          stopState = this.machine.saveState();
+          return true;
+        }
+        n++;
+        return false;
+      });
+    } catch (e) {
+      // Once stopped, only the frame's tail runs, and it runs early: the frame
+      // hasn't really ended. An error from it (galaxian's watchdog) is not an
+      // error at the stop. Resuming replays the whole frame, so a real one is
+      // raised again then.
+      if (!stopState) throw e;
+    }
+    if (stopState) this.machine.loadState(stopState);
+    if (stopState) {
       this.step = n;
       return trapped;
     }
