@@ -8,7 +8,7 @@ var wtu = require('./workertestutils.js');
 
 const dom = createTestDOM();
 includeInThisContext('gen/common/cpu/6809.js');
-includeInThisContext("javatari.js/release/javatari/javatari.js");
+includeInThisContext("javatari/javatari.js");
 Javatari.AUTO_START = false;
 includeInThisContext('tss/js/Log.js');
 //global.Log = require('tss/js/Log.js').Log;
