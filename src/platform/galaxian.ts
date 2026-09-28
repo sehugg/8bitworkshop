@@ -27,6 +27,7 @@ class GalaxianPlatform extends BaseZ80MachinePlatform<GalaxianMachine> implement
 class GalaxianScramblePlatform extends GalaxianPlatform implements Platform {
 
   newMachine()          { return new GalaxianScrambleMachine(); }
+  getPresets()          { return GALAXIAN_PRESETS; }
 
 }
 
