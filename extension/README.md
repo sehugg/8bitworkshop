@@ -97,6 +97,17 @@ also appear in the editor title bar, the Explorer, or **Project Options**.
 | **Reset / Pause / Resume / Stop / Mute / Unmute Emulator** | Control the emulator panel (shown while it is open) |
 | **Prepare Toolchains** | Unpack or download every platform's toolchain for offline use (shown only when a toolchain isn't bundled) |
 
+## Books
+
+Many of the examples come from the 8bitworkshop books. The New Project
+and Open Example lists show which platforms have one.
+
+- [Making Games For The Atari 2600](https://www.amazon.com/dp/1541021304)
+- [Making Games for the NES](https://www.amazon.com/dp/1075952727)
+- [Making Games for the C-64](https://www.amazon.com/dp/B0DMKH8NGL)
+- [Making 8-bit Arcade Games in C](https://www.amazon.com/dp/1545484759): Midway 8080, VIC Dual, Galaxian/Scramble, Atari Color Vector, Williams
+- [Designing Video Game Hardware in Verilog](https://www.amazon.com/dp/1728619440)
+
 ## More
 
 - [Projects](https://github.com/sehugg/8bitworkshop/blob/master/extension/docs/projects.md)

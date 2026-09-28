@@ -4,6 +4,7 @@
 import * as localforage from "localforage";
 import { BaseDebugPlatform, DebugEvalCondition, DebugSymbols, EmuState, isDebuggable, Platform, Preset } from "../common/baseplatform";
 import { EmuHalt, PLATFORMS, setHaltHandler } from "../common/emu";
+import { BOOKS, bookFor } from "../common/books";
 import { PLATFORM_CONTROLS } from "../common/controls";
 import { installHDLHost } from "./hdlhost";
 import { StateRecorderImpl } from "../common/recorder";
@@ -2389,11 +2390,15 @@ function hideControlsForEmbed() {
 }
 
 function updateBooksMenu() {
-  if (getRootBasePlatform(platform_id) == 'nes') $(".book-nes").addClass("book-active");
-  else if (getRootBasePlatform(platform_id) == 'vcs') $(".book-vcs").addClass("book-active");
-  else if (getRootBasePlatform(platform_id) == 'verilog') $(".book-verilog").addClass("book-active");
-  else if (getRootBasePlatform(platform_id) == 'c64') $(".book-c64").addClass("book-active");
-  else if (platform.getToolForFilename(getCurrentMainFilename()) == 'sdcc') $(".book-arcade").addClass("book-active");
+  var active = bookFor(platform_id);
+  for (var book of BOOKS) {
+    var link = $('<a class="dropdown-item dropdown-link">')
+      .attr({ href: book.url, target: '_book_' + book.id })
+      .toggleClass('book-active', book === active)
+      .append($('<img>').attr('src', 'images/' + book.image))
+      .append('&nbsp;&nbsp;', $('<span class="book-title">').text(book.title));
+    $('#booksMenuList').append($('<li>').append(link));
+  }
 }
 
 function revealTopBar() {

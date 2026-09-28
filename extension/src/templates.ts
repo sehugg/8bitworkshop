@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { PlatformInfo, PresetIndex, TemplateInfo } from './presettypes';
+import { Book, bookFor } from '../../src/common/books';
 
 export const PRESET_SCHEME = '8bws-preset';
 // VS Code only allows commands in trusted Markdown that we list
@@ -55,13 +56,21 @@ export class Templates {
 
   /** Platforms grouped by family, `current` first. */
   async pickPlatform(title: string, current?: string): Promise<PlatformInfo | undefined> {
-    type Item = vscode.QuickPickItem & { platform?: PlatformInfo };
+    type Item = vscode.QuickPickItem & { platform?: PlatformInfo, book?: Book };
+    var item = (p: PlatformInfo): Item => {
+      var book = bookFor(p.id);
+      return {
+        label: p.name, description: p.id, platform: p, book,
+        detail: book && `$(book) ${book.title}`,
+        buttons: book && [{ iconPath: new vscode.ThemeIcon('link-external'), tooltip: `Open "${book.title}" on Amazon` }],
+      };
+    };
     var items: Item[] = [];
     var platforms = this.get().platforms;
     var cur = platforms.find(p => p.id === current);
     if (cur) {
       items.push({ label: 'Current', kind: vscode.QuickPickItemKind.Separator });
-      items.push({ label: cur.name, description: cur.id, platform: cur });
+      items.push(item(cur));
     }
     var family = '';
     for (var p of platforms) {
@@ -70,9 +79,17 @@ export class Templates {
         family = p.family;
         items.push({ label: family, kind: vscode.QuickPickItemKind.Separator });
       }
-      items.push({ label: p.name, description: p.id, platform: p });
+      items.push(item(p));
     }
-    var picked = await vscode.window.showQuickPick(items, { title, placeHolder: 'Platform', matchOnDescription: true });
+    var qp = vscode.window.createQuickPick<Item>();
+    Object.assign(qp, { title, placeholder: 'Platform', matchOnDescription: true, items });
+    var picked = await new Promise<Item | undefined>(resolve => {
+      qp.onDidTriggerItemButton(e => vscode.env.openExternal(vscode.Uri.parse(e.item.book.url)));
+      qp.onDidAccept(() => resolve(qp.selectedItems[0]));
+      qp.onDidHide(() => resolve(undefined));
+      qp.show();
+    });
+    qp.dispose();
     return picked?.platform;
   }
 

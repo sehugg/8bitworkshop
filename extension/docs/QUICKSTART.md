@@ -18,7 +18,7 @@ you choose them.
    from the Command Palette (<kbd>Ctrl+Shift+P</kbd>, or
    <kbd>Cmd+Shift+P</kbd> on a Mac).
 2. Choose a platform, such as **NES** or **Atari 2600 (VCS)**. Platforms
-   with a book show it here.
+   with a book show its title; click the link button to open it.
 3. Choose where to start:
    - **Start here** lists a blank program for each language the platform
      supports, such as "Blank C program (cc65)". The first one is the
