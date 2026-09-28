@@ -55,8 +55,10 @@ states, so it keeps about 10 seconds.
 
 ## Debug
 
-Press <kbd>F5</kbd> to build the program and debug it. Press
-<kbd>Ctrl</kbd>+<kbd>F5</kbd> (**Run Without Debugging**) to just run it.
+Click **Debug** (the bug button beside **Run**, at the top right of the
+editor) or run **8bitworkshop: Debug** to build the program and debug it.
+In a folder with a launch configuration, <kbd>F5</kbd> does the same, and
+<kbd>Ctrl</kbd>+<kbd>F5</kbd> (**Run Without Debugging**) just runs it.
 
 - **Breakpoints:** click left of a line number in C or assembly. You can
   also add a breakpoint on a function by name (**+** in the Breakpoints

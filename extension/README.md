@@ -90,6 +90,7 @@ also appear in the editor title bar, the Explorer, or **Project Options**.
 | **Project Options** | Open the project menu |
 | **Build** | Build without running |
 | **Run** | Build and run in the emulator |
+| **Debug** | Build and debug in the emulator, with breakpoints and step back |
 | **Run This File** | Run the active file, without changing the project |
 | **Run Main File** | Run the project's main file |
 | **Follow Active Editor** | Run whichever program is in the editor |

@@ -84,6 +84,7 @@ export function activate(ctx: vscode.ExtensionContext) {
     }));
   command('build', () => buildCommand(false));
   command('run', () => buildCommand(true));
+  command('debug', () => debugCommand());
   command('runThisFile', (uri?: vscode.Uri) => runThisFile(uri));
   command('runMainFile', () => runMainFile());
   command('followActiveEditor', () => followActiveEditor());
@@ -371,19 +372,30 @@ async function projectMenu() {
 ////// build and run
 
 async function buildCommand(run: boolean) {
+  var target = await ensureTarget();
+  if (target) await buildAndMaybeRun(target, run, 'command');
+}
+
+/** Debug the current target, as F5 would with no launch configuration. */
+async function debugCommand() {
+  var target = await ensureTarget();
+  if (!target) return;
+  // no mainFile: the launch debugs the current target (see launchTarget)
+  await vscode.debug.startDebugging(vscode.workspace.getWorkspaceFolder(target.main),
+    { type: '8bitworkshop', request: 'launch', name: `Debug ${describeTarget(target)}` });
+}
+
+/** The current target; for a file no project owns yet, start one from it (case 2). */
+async function ensureTarget(): Promise<Target | undefined> {
   var target = currentTarget();
-  if (!target) {
-    // no project owns this file yet: start one from it (case 2)
-    var uri = activeUri();
-    if (!uri || !isSourceFile(uri.fsPath)) {
-      vscode.window.showWarningMessage('8bitworkshop: open a source file, or run "8bitworkshop: New Project...".');
-      return;
-    }
-    if (!await setMainFile(uri)) return;
-    target = currentTarget();
-    if (!target) return;
+  if (target) return target;
+  var uri = activeUri();
+  if (!uri || !isSourceFile(uri.fsPath)) {
+    vscode.window.showWarningMessage('8bitworkshop: open a source file, or run "8bitworkshop: New Project...".');
+    return undefined;
   }
-  await buildAndMaybeRun(target, run, 'command');
+  if (!await setMainFile(uri)) return undefined;
+  return currentTarget();
 }
 
 async function buildAndMaybeRun(target: Target, run: boolean, reason: BuildReason) {

@@ -112,6 +112,12 @@
         "icon": "$(play)"
       },
       {
+        "command": "8bitworkshop.debug",
+        "title": "Debug",
+        "category": "8bitworkshop",
+        "icon": "$(debug-alt)"
+      },
+      {
         "command": "8bitworkshop.runThisFile",
         "title": "Run This File",
         "category": "8bitworkshop"
@@ -356,6 +362,11 @@
         {
           "command": "8bitworkshop.run",
           "when": "8bitworkshop.canRun && activeWebviewPanelId != '8bitworkshop.emulator'",
+          "group": "navigation"
+        },
+        {
+          "command": "8bitworkshop.debug",
+          "when": "8bitworkshop.canRun && activeWebviewPanelId != '8bitworkshop.emulator' && !inDebugMode",
           "group": "navigation"
         },
         {
