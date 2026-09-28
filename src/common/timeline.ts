@@ -12,8 +12,7 @@
 // instruction for a Z80 or 6809 BasicScanlineMachine, one clock tick for a
 // 6502 one and for the WASM machines -- and it is consistent within a machine,
 // which is all the timeline needs. A clock step can land mid-instruction, so
-// "the previous instruction" is the last step where cpu.isStable(), not
-// previousStep(). It is the same unit the replay bar's "Step" slider uses.
+// "the previous instruction" is the last step where cpu.isStable(). It is the same unit the replay bar's "Step" slider uses.
 
 import { FrameBased, NullProbe, ProbeAll, SavesState, TrapCondition } from "./devices";
 import { EmuHalt } from "./emu";
@@ -26,8 +25,6 @@ export interface Timestamp {
   readonly frame: number;
   readonly step: number;
 }
-
-export const TIMESTAMP_ZERO: Timestamp = { frame: 0, step: 0 };
 
 export function timestamp(frame: number, step: number = 0): Timestamp {
   return { frame, step };
@@ -139,8 +136,6 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
   private step: number = 0;
   // state at the start of the current frame; the anchor for sub-frame seeks
   private frameStart: any = null;
-  // steps in the last frame we counted, or -1 if that frame ran unmetered
-  private lastFrameSteps: number = -1;
   private probe: ProbeAll | null = null;
   // stands in for the probe while replaying steps it has already seen
   private readonly mute = new NullProbe();
@@ -175,16 +170,6 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
     this.frame = at.frame;
     this.step = 0;
     this.frameStart = state;
-    this.lastFrameSteps = -1;
-  }
-
-  /**
-   * Steps counted in the most recently completed frame, or -1 if that frame
-   * ran without a trap and so was never counted. The UI uses this for the
-   * range of the sub-frame slider.
-   */
-  getLastFrameSteps(): number {
-    return this.lastFrameSteps;
   }
 
   connectProbe(probe: ProbeAll | null): void {
@@ -239,7 +224,7 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
         // unmetered, so we don't know which step halted: find out
         return this.parkAtHalt(this.findHaltStep(), e);
       }
-      this.endFrame(-1);
+      this.endFrame();
       return null;
     }
     // Re-run the frame from its start if we're already partway into it, since
@@ -298,7 +283,7 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
       return trapped ? 'trap' : null;
     }
     // ran off the end of the frame without stopping
-    this.endFrame(n);
+    this.endFrame();
     return null;
   }
 
@@ -330,10 +315,9 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
     return halt;
   }
 
-  private endFrame(steps: number): void {
+  private endFrame(): void {
     this.frame++;
     this.step = 0;
-    this.lastFrameSteps = steps;
     this.frameStart = this.machine.saveState();
   }
 }

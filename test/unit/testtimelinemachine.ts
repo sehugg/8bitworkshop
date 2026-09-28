@@ -111,14 +111,6 @@ describe('MachineCore on a real machine', function () {
     core.runUntil(timestamp(7, 20), () => false);
     assert.ok(timestampsEqual(core.now(), timestamp(7, 20)));
   });
-
-  it('counts a whole metered frame', function () {
-    const { core } = newCore();
-    core.runUntil(timestamp(2, 0), () => false);
-    // one Z80 instruction per step, so a frame is a few thousand of them
-    const steps = core.getLastFrameSteps();
-    assert.ok(steps > 100 && steps < 100000, `implausible step count ${steps}`);
-  });
 });
 
 // A watchpoint: a probe that latches a write to one address. Params are
@@ -176,23 +168,6 @@ describe('History on a real machine', function () {
     const soloHit = soloHist.findLast(soloProbe.asCondition());
     assert.ok(timestampsEqual(hit, soloHit),
       `checkpointed search said ${formatTimestamp(hit)}, linear scan said ${formatTimestamp(soloHit)}`);
-  });
-
-  it('steps backwards one instruction exactly', function () {
-    const { m, core } = newCore();
-    const hist = new History(core, { checkpointInterval: 5 });
-    for (var i = 0; i < 20; i++) hist.recordFrame();
-
-    hist.seek(timestamp(10, 40));
-    const pcAt40 = m.cpu.getPC();
-    const prev = hist.previousStep();
-    assert.ok(timestampsEqual(prev, timestamp(10, 39)), formatTimestamp(prev));
-    const pcAt39 = m.cpu.getPC();
-    // seeking to each again must reproduce both
-    hist.seek(timestamp(10, 40));
-    assert.strictEqual(m.cpu.getPC(), pcAt40);
-    hist.seek(timestamp(10, 39));
-    assert.strictEqual(m.cpu.getPC(), pcAt39);
   });
 });
 
@@ -294,7 +269,7 @@ describe('MachineCore on a 6502 that halts', function () {
     assert.strictEqual(m.cpu.getPC(), KIL_ADDR);
     // a 6502 steps by clocks, so the previous instruction is the last stable
     // step before now: the bne that fell through to the KIL
-    const prev = hist.findLast(() => m.cpu.isStable(), hist.first(), hist.previousStep());
+    const prev = hist.findLast(() => m.cpu.isStable(), hist.first(), hist.now());
     assert.ok(prev, 'no previous instruction');
     assert.strictEqual(m.cpu.getPC(), 0x800a);
     // and forward to the present again, without halting

@@ -117,12 +117,6 @@ export class PlatformFrameInput implements FrameInputSource {
     for (const f of [...this.keys.keys()]) if (f >= fromFrame) this.keys.delete(f);
   }
 
-  get size(): number { return this.frames.size; }
-  get keyEventCount(): number {
-    var n = 0;
-    this.keys.forEach((v) => n += v.length);
-    return n;
-  }
 }
 
 /**

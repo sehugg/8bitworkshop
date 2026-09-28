@@ -104,9 +104,6 @@ export class History<S = any> {
   /** Latest point ever reached, i.e. the present. */
   private head: Timestamp = timestamp(0, 0);
 
-  /** Called when the recorded range changes, for the UI's timeline. */
-  onChange: () => void = null;
-
   constructor(core: DeterministicCore<S>, opts: HistoryOptions = {}) {
     this.core = core;
     this.checkpointInterval = opts.checkpointInterval ?? 10;
@@ -123,7 +120,6 @@ export class History<S = any> {
     this.checkpointBytes = 0;
     this.addCheckpoint(this.core.now());
     this.head = this.core.now();
-    this.onChange?.();
   }
 
   /** Round a target to what the core can actually stop at. */
@@ -161,7 +157,6 @@ export class History<S = any> {
     }
     const r = this.core.runUntil(timestamp(t.frame + 1, 0), trap);
     this.head = r.at;
-    this.onChange?.();
     return r;
   }
 
@@ -196,11 +191,10 @@ export class History<S = any> {
     // a frame already under way has taken its input; later frames take new input
     this.input?.truncate?.(now.step === 0 ? now.frame : now.frame + 1);
     this.head = now;
-    this.onChange?.();
   }
 
   /** The latest checkpoint at or before t, or null if t is before the window. */
-  checkpointAtOrBefore(t: Timestamp): Checkpoint<S> | null {
+  private checkpointAtOrBefore(t: Timestamp): Checkpoint<S> | null {
     for (var i = this.checkpoints.length - 1; i >= 0; i--) {
       if (compareTimestamps(this.checkpoints[i].at, t) <= 0) return this.checkpoints[i];
     }
@@ -244,22 +238,6 @@ export class History<S = any> {
       if (compareTimestamps(r.at, at) <= 0) break;
     }
     return { at: this.core.now(), trapped: false };
-  }
-
-  /**
-   * First moment in [from, to) where pred holds, or null. Leaves the core at
-   * the hit, or at `to` if there wasn't one.
-   */
-  findNext(cond: SearchCondition, from?: Timestamp, to?: Timestamp): Timestamp | null {
-    from = this.clamp(from ?? this.core.now());
-    to = this.clamp(to ?? this.head);
-    if (compareTimestamps(from, to) >= 0) return null;
-    return this.withProbe(cond, () => {
-      this.seek(from);
-      conditionReset(cond);
-      const r = this.runTo(to, conditionTest(cond));
-      return r.trapped ? r.at : null;
-    });
   }
 
   /**
@@ -321,28 +299,5 @@ export class History<S = any> {
       return false;    // keep going; we want the last hit, not the first
     });
     return last;
-  }
-
-  /**
-   * The moment one step before t: reverse single-step. Exact, because it is
-   * reached by replaying rather than by guessing a cycle count backwards.
-   */
-  previousStep(t?: Timestamp): Timestamp | null {
-    t = t ?? this.core.now();
-    if (compareTimestamps(t, this.first()) <= 0) return null;
-    if (t.step > 0) {
-      const prev = timestamp(t.frame, t.step - 1);
-      this.seek(prev);
-      return prev;
-    }
-    // step 0 of a frame: the previous step is the last step of the frame before
-    if (t.frame - 1 < this.first().frame) return null;
-    var steps = 0;
-    this.seek(timestamp(t.frame - 1, 0));
-    this.runTo(timestamp(t.frame, 0), () => { steps++; return false; });
-    if (steps === 0) return null;
-    const prev = timestamp(t.frame - 1, steps - 1);
-    this.seek(prev);
-    return prev;
   }
 }

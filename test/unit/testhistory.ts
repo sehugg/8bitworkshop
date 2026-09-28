@@ -129,34 +129,6 @@ describe('History', function () {
     assert.strictEqual(hist.findLast(() => m.acc === 99999), null);
   });
 
-  it('finds the next time a condition holds', function () {
-    const { m, hist } = newHistory();
-    record(hist, 30);
-    hist.seek(timestamp(5, 0));
-    const hit = hist.findNext(() => m.acc === 123, timestamp(5, 0), hist.last());
-    assert.ok(timestampsEqual(hit, timestamp(12, 3)), formatTimestamp(hit));
-    assert.strictEqual(m.acc, 123);
-  });
-
-  it('steps backwards exactly, within a frame', function () {
-    const { m, hist } = newHistory();
-    record(hist, 20);
-    hist.seek(timestamp(8, 5));
-    const prev = hist.previousStep();
-    assert.ok(timestampsEqual(prev, timestamp(8, 4)), formatTimestamp(prev));
-    assert.strictEqual(m.acc, 84);
-  });
-
-  it('steps backwards across a frame boundary', function () {
-    const { m, hist } = newHistory();
-    record(hist, 20);
-    hist.seek(timestamp(8, 0));
-    const prev = hist.previousStep();
-    // last step of frame 7 is position 9, i.e. 79 steps in
-    assert.ok(timestampsEqual(prev, timestamp(7, 9)), formatTimestamp(prev));
-    assert.strictEqual(m.acc, 79);
-  });
-
   it('drops the oldest checkpoints and reports the window it still has', function () {
     const trimmed: number[] = [];
     const input: FrameInputSource = {
@@ -273,7 +245,7 @@ describe('History', function () {
     assert.ok(r.halt instanceof EmuHalt);
     assert.ok(timestampsEqual(hist.last(), timestamp(12, 3)));
     // the past before the halt is all there
-    assert.ok(timestampsEqual(hist.previousStep(), timestamp(12, 2)));
+    assert.ok(timestampsEqual(hist.findLast(() => true, hist.first(), hist.now()), timestamp(12, 2)));
     assert.strictEqual(m.acc, 122);
     const hit = hist.findLast(() => m.acc === 77);
     assert.ok(timestampsEqual(hit, timestamp(7, 7)), formatTimestamp(hit));

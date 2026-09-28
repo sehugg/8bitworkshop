@@ -1671,7 +1671,7 @@ debugger shouldn't become a third.
 - **Steps are clocks on a 6502.** `BasicHeadlessMachine.advanceCPU()` runs
   one clock on a clock-based CPU, so a step can land mid-instruction. Step
   back means the last step where `cpu.isStable()`
-  (`findLast(isStable, first, previousStep())`), not `previousStep()`.
+  (`findLast(isStable, first, now)`, as `EmuCore.stepBack()` does).
   `createCore` reports these machines as `clock`.
 - **Rewind budget and branching.** Done in `History`. `maxBytes` (default
   64 MB, sizes from `stateSize()`) caps checkpoints along with

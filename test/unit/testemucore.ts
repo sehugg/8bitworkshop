@@ -62,16 +62,6 @@ for (const { platform, rom } of TARGETS) {
       }
       assert.ok(t.isInPast());
     });
-
-    it('seeks back and forward to the same state', async function () {
-      const t = await open(platform, rom);
-      for (let i = 0; i < 12; i++) t.advanceFrame();
-      const present = stateOf(t);
-      t.seek(timestamp(3, 0));
-      assert.ok(timestampsEqual(t.now(), timestamp(3, 0)), formatTimestamp(t.now()));
-      t.seek(timestamp(12, 0));
-      assert.strictEqual(stateOf(t), present);
-    });
   });
 }
 

@@ -8,7 +8,7 @@ import { getRootBasePlatform } from "../common/util";
 import { importPlatform } from "../platform/_index";
 import { mockAudio, mockDOM, mockFetch, mockGlobals, mockScripts, resetScripts } from "./nodemock";
 
-export { EmuCore as EmuTarget, DISASSEMBLERS, DEFAULT_MAX_FRAMES } from "../common/emucore";
+export { EmuCore as EmuTarget, DEFAULT_MAX_FRAMES } from "../common/emucore";
 export type { VideoOutput, DebugSection } from "../common/emucore";
 type EmuTarget = EmuCore;
 

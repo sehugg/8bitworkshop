@@ -195,15 +195,6 @@ describe('MachineCore', function () {
     assert.throws(() => c.restore(c.snapshot(), timestamp(1, 3)), /frame boundary/);
   });
 
-  it('counts steps only for metered frames', function () {
-    const m = new FakeMachine();
-    const c = new MachineCore(m);
-    c.runUntil(timestamp(1, 0));            // no trap: unmetered fast path
-    assert.strictEqual(c.getLastFrameSteps(), -1);
-    c.runUntil(timestamp(2, 0), () => false); // trap: counted
-    assert.strictEqual(c.getLastFrameSteps(), 10);
-  });
-
   it('does nothing when the target is already reached', function () {
     const m = new FakeMachine();
     const c = new MachineCore(m);
