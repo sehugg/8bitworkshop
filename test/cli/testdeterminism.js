@@ -56,4 +56,7 @@ describe('Deterministic replay', function () {
   it('should replay zx exactly (joymask must round-trip)', async function () {
     await checkDeterministic('zx', 20);
   });
+  it('should replay nes exactly (jsnes save states must not alias live arrays)', async function () {
+    assert.strictEqual(await checkDeterministic('nes', 20), 'insn');
+  });
 });

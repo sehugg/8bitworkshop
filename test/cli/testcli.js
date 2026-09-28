@@ -244,6 +244,13 @@ describe('8bws CLI', function () {
             // 6502 registers and flags should be shown while stepping
             assert.ok(/A=\$[0-9A-F]{2} X=\$[0-9A-F]{2} Y=\$[0-9A-F]{2} SP=\$[0-9A-F]{2} [NnVvDdIiZzCc]{6}/.test(out), out);
         });
+        it('should step and step back on nes (jsnes)', function () {
+            var out = cli('run', '--platform', 'nes', '-e', 'run 5; step 3; back 2; pc 1', 'test/roms/nes/shoot2.c.rom');
+            assert.ok(!/does not support|only checks the PC at frame boundaries/.test(out), out);
+            // stopped 3 instructions into frame 5, then back to the 1st
+            assert.ok(/^\[5:3\] PC=/m.test(out), out);
+            assert.ok(/^\[5:1\] back 2: PC=\$[0-9A-F]{4}/m.test(out), out);
+        });
         it('should record an instruction history', function () {
             var out = cli('run', '--platform', 'apple2', '-e', 'run 20; hist 5', 'test/roms/apple2/cosmic.c.rom');
             assert.ok(/instructions shown/.test(out), out);

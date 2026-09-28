@@ -233,6 +233,35 @@ describe('extension emuworker', function () {
       assert.equal(statuses[statuses.length - 1].state, 'paused');
     });
 
+    it('steps through C source on the NES, which has no Machine of its own', async function () {
+      // jsnes stops between instructions through the trap its frame() takes
+      var dir = path.join(ROOT, 'presets/nes');
+      var mainText = fs.readFileSync(path.join(dir, 'hello.c'), 'utf-8');
+      var read = async (rel: string) => {
+        var p = path.join(dir, rel);
+        return fs.existsSync(p) ? new Uint8Array(fs.readFileSync(p)) : null;
+      };
+      var nes = await new Builder(ROOT).build({
+        platform: 'nes', mainPath: 'hello.c', mainText,
+        files: new ProjectFileProvider(read, ROOT, 'nes'),
+      });
+      assert.deepEqual(nes.diagnostics, []);
+      await rpc.call('start', 'nes', nes.output, nes.files, { paused: true });
+      await debug('setBuild', { listings: nes.listings, symbols: nes.symbolmap, mainPath: 'hello.c', paths: nes.paths });
+      var [bp] = await debug('setBreakpoints', [{ id: 1, type: 'source', file: 'hello.c', line: 19, enabled: true }]);
+      assert.ok(bp.verified, bp.message);
+      await debug('continue');
+      assert.equal((await nextStop()).reason, 'breakpoint');
+      assert.equal((await debug('location')).source.line, 19);
+      await debug('step', 'over', 'line');
+      assert.equal((await nextStop()).reason, 'step');
+      assert.equal((await debug('location')).source.line, 20);
+      await debug('stepBack', 'line');
+      assert.equal((await nextStop()).reason, 'step');
+      assert.equal((await debug('location')).source.line, 19);
+      await debug('setBreakpoints', []);
+    });
+
     it('drives the debug adapter through the worker, as the extension does', async function () {
       var backend = new WorkerDebugBackend((method, ...args) => rpc.call('debug', method, ...args), async () => {
         await rpc.call('start', 'mw8080bw', built.output, built.files, { paused: true });
