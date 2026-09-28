@@ -1,6 +1,7 @@
 import assert from "assert";
 import { describe, it } from "mocha";
 import { TrapCondition } from "../../src/common/devices";
+import { EmuHalt } from "../../src/common/emu";
 import {
   compareTimestamps,
   CoreMachine,
@@ -54,6 +55,15 @@ describe('Timestamp', function () {
 });
 
 describe('MachineCore', function () {
+
+  it('finishes a frame it stopped in before running whole frames', function () {
+    const m = new FakeMachine();
+    const c = new MachineCore(m);
+    c.runUntil(timestamp(2, 5));
+    // no trap and a frame-boundary target: must not restart frame 2 midway
+    c.runUntil(timestamp(4, 0));
+    assert.strictEqual(m.acc, 40);
+  });
 
   it('ignores an error from the frame tail after a stop, but not otherwise', function () {
     // like galaxian: code after the CPU loop mutates state and may throw
@@ -204,3 +214,74 @@ describe('MachineCore', function () {
     assert.ok(timestampsEqual(r.at, timestamp(2, 4)));
   });
 });
+
+// A machine whose CPU executes a halt instruction (6502 KIL) when acc reaches
+// haltAt: the step throws EmuHalt partway through, as MOS6502 does.
+class HaltingMachine extends FakeMachine {
+  haltAt = 23;
+  error: () => Error = () => new EmuHalt('CPU executed halt instruction');
+  advanceFrame(trap: TrapCondition): number {
+    var n = 0;
+    for (var i = 0; i < this.stepsPerFrame; i++) {
+      if (trap && trap()) break;
+      if (this.acc === this.haltAt) throw this.error();
+      this.acc = (this.acc + 1) | 0;
+      n++;
+    }
+    return n;
+  }
+}
+
+describe('MachineCore halts', function () {
+
+  it('reports a halt as a stop before the halting step, running unmetered', function () {
+    const m = new HaltingMachine();
+    const c = new MachineCore(m);
+    const r = c.runUntil(timestamp(5, 0));
+    assert.ok(r.halt instanceof EmuHalt, 'expected a halt');
+    assert.strictEqual(r.trapped, false);
+    // frame 2 starts at acc 20; step 3 is the one that halts
+    assert.ok(timestampsEqual(r.at, timestamp(2, 3)), formatTimestamp(r.at));
+    assert.ok(timestampsEqual(c.now(), timestamp(2, 3)));
+    assert.strictEqual(m.acc, 23);
+  });
+
+  it('reports the same halt when metered', function () {
+    const m = new HaltingMachine();
+    const c = new MachineCore(m);
+    const r = c.runUntil(timestamp(5, 0), () => false);
+    assert.ok(r.halt instanceof EmuHalt);
+    assert.ok(timestampsEqual(r.at, timestamp(2, 3)), formatTimestamp(r.at));
+    assert.strictEqual(m.acc, 23);
+  });
+
+  it('halts again, without progress, when run on from a halt', function () {
+    const m = new HaltingMachine();
+    const c = new MachineCore(m);
+    c.runUntil(timestamp(5, 0));
+    const r = c.runUntil(timestamp(5, 0));
+    assert.ok(r.halt instanceof EmuHalt);
+    assert.ok(timestampsEqual(r.at, timestamp(2, 3)), formatTimestamp(r.at));
+    assert.strictEqual(m.acc, 23);
+  });
+
+  it('can reach every step up to the halt without halting', function () {
+    const m = new HaltingMachine();
+    const c = new MachineCore(m);
+    const snap = c.snapshot();
+    const r = c.runUntil(timestamp(2, 3));
+    assert.strictEqual(r.halt, undefined);
+    assert.strictEqual(m.acc, 23);
+    c.restore(snap, timestamp(0, 0));
+    assert.strictEqual(c.runUntil(timestamp(2, 2)).halt, undefined);
+    assert.strictEqual(m.acc, 22);
+  });
+
+  it('lets errors that are not halts propagate', function () {
+    const m = new HaltingMachine();
+    m.error = () => new TypeError('emulator bug');
+    const c = new MachineCore(m);
+    assert.throws(() => c.runUntil(timestamp(5, 0)), TypeError);
+  });
+});
+

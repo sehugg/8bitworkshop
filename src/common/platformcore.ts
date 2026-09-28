@@ -6,7 +6,7 @@
 // so through its granularity instead of pretending to sub-frame accuracy.
 
 import { Platform } from "./baseplatform";
-import { getNoiseSeed, setNoiseSeed } from "./emu";
+import { EmuHalt, getNoiseSeed, setNoiseSeed } from "./emu";
 import { FrameInputSource } from "./history";
 import {
   DeterministicCore,
@@ -139,7 +139,15 @@ export class FramePlatformCore implements DeterministicCore {
   runUntil(target: Timestamp, trap?: TrapCondition | null): RunResult {
     while (this.frame < target.frame) {
       if (trap && trap()) return { at: this.now(), trapped: true };
-      this.advanceFrame();
+      try {
+        this.advanceFrame();
+      } catch (e) {
+        // Frames are all this core can count, so the halt is reported at the
+        // start of the frame it happened in. The platform is left as the halt
+        // left it; seeking restores it from a checkpoint.
+        if (e instanceof EmuHalt) return { at: this.now(), trapped: false, halt: e };
+        throw e;
+      }
       this.frame++;
     }
     return { at: this.now(), trapped: false };
@@ -163,13 +171,15 @@ export function isRewindable(platform: Platform): boolean {
 
 /**
  * Pick the most precise core the platform supports. WASM machines trap per
- * clock tick, JS machines per instruction; both are exposed as "steps" but the
- * granularity is reported so the UI can label the sub-frame axis honestly.
+ * clock tick, and so do JS machines with a clock-based CPU (6502); the rest
+ * trap per instruction. Both are exposed as "steps" but the granularity is
+ * reported so the UI can label the sub-frame axis honestly.
  */
 export function createCore(platform: Platform): DeterministicCore {
   const machine = (platform as any).machine;
   if (machine && typeof machine.advanceFrame === 'function' && typeof machine.saveState === 'function') {
-    const granularity: Granularity = typeof machine.advanceFrameClock === 'function' ? 'clock' : 'insn';
+    const clocked = typeof machine.advanceFrameClock === 'function' || typeof machine.cpu?.advanceClock === 'function';
+    const granularity: Granularity = clocked ? 'clock' : 'insn';
     return new MachineCore(machine, granularity);
   }
   return new FramePlatformCore(platform);

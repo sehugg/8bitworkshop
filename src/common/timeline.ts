@@ -9,11 +9,14 @@
 //
 // A *step* is one invocation of the TrapCondition that FrameBased.advanceFrame()
 // already defines. That means the unit is whatever the machine traps on -- one
-// instruction for BasicScanlineMachine, one clock tick for the WASM machines --
-// and it is consistent within a machine, which is all the timeline needs. It is
-// the same unit the replay bar's "Step" slider already uses.
+// instruction for a Z80 or 6809 BasicScanlineMachine, one clock tick for a
+// 6502 one and for the WASM machines -- and it is consistent within a machine,
+// which is all the timeline needs. A clock step can land mid-instruction, so
+// "the previous instruction" is the last step where cpu.isStable(), not
+// previousStep(). It is the same unit the replay bar's "Step" slider uses.
 
 import { FrameBased, ProbeAll, SavesState, TrapCondition } from "./devices";
+import { EmuHalt } from "./emu";
 
 /**
  * A point in emulated time. Frames count from the start of recording and are
@@ -55,6 +58,12 @@ export interface RunResult {
   at: Timestamp;
   /** True if the caller's trap stopped the run before the target. */
   trapped: boolean;
+  /**
+   * Set if the machine halted (a KIL opcode, a watchdog). `at` is then the
+   * position just before the step that halted, and the machine is parked
+   * there. Running on from it halts again at the same place.
+   */
+  halt?: EmuHalt;
 }
 
 /**
@@ -176,25 +185,32 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
     while (compareTimestamps(this.now(), target) < 0) {
       // run to the end of this frame, or to target.step if the target is in it
       const untilStep = this.frame < target.frame ? Infinity : target.step;
-      if (this.runFrame(untilStep, trap)) {
-        return { at: this.now(), trapped: true };
-      }
+      const stop = this.runFrame(untilStep, trap);
+      if (stop === 'trap') return { at: this.now(), trapped: true };
+      if (stop instanceof EmuHalt) return { at: this.now(), trapped: false, halt: stop };
     }
     return { at: this.now(), trapped: false };
   }
 
   /**
    * Advance within the current frame to `untilStep` (Infinity = end of frame).
-   * Returns true if `trap` stopped the run.
+   * Returns 'trap' if `trap` stopped the run, the EmuHalt if the machine
+   * halted, or null if it reached `untilStep`.
    */
-  private runFrame(untilStep: number, trap?: TrapCondition | null): boolean {
-    // Unmetered fast path: a whole frame with nothing to evaluate. Machines
-    // can take their bulk-execution route (e.g. machine_exec) instead of
-    // paying for a trap call per tick.
-    if (untilStep === Infinity && !trap) {
-      this.machine.advanceFrame(null);
+  private runFrame(untilStep: number, trap?: TrapCondition | null): 'trap' | EmuHalt | null {
+    // Unmetered fast path: a whole frame from its start with nothing to
+    // evaluate. Machines can take their bulk-execution route (e.g.
+    // machine_exec) instead of paying for a trap call per tick.
+    if (untilStep === Infinity && !trap && this.step === 0) {
+      try {
+        this.machine.advanceFrame(null);
+      } catch (e) {
+        if (!(e instanceof EmuHalt)) throw e;
+        // unmetered, so we don't know which step halted: find out
+        return this.parkAtHalt(this.findHaltStep(), e);
+      }
       this.endFrame(-1);
-      return false;
+      return null;
     }
     // Re-run the frame from its start if we're already partway into it, since
     // advanceFrame() restarts rather than resumes. Steps before our current
@@ -230,16 +246,49 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
       // hasn't really ended. An error from it (galaxian's watchdog) is not an
       // error at the stop. Resuming replays the whole frame, so a real one is
       // raised again then.
-      if (!stopState) throw e;
+      if (!stopState) {
+        if (!(e instanceof EmuHalt)) throw e;
+        // the last step the trap saw is the one that halted (or the frame's
+        // tail halted after it)
+        return this.parkAtHalt(n > 0 ? n - 1 : 0, e);
+      }
     }
-    if (stopState) this.machine.loadState(stopState);
     if (stopState) {
+      this.machine.loadState(stopState);
       this.step = n;
-      return trapped;
+      return trapped ? 'trap' : null;
     }
     // ran off the end of the frame without stopping
     this.endFrame(n);
-    return false;
+    return null;
+  }
+
+  /**
+   * Replay the current frame from its start, counting steps, to find which one
+   * halts. Only needed after an unmetered run, which doesn't count.
+   */
+  private findHaltStep(): number {
+    this.machine.loadState(this.frameStart);
+    let n = 0;
+    try {
+      this.machine.advanceFrame(() => { n++; return false; });
+    } catch (e) {
+      if (e instanceof EmuHalt) return n > 0 ? n - 1 : 0;
+      throw e;
+    }
+    throw new Error(`halt at frame ${this.frame} did not happen again on replay; the machine is not deterministic`);
+  }
+
+  /**
+   * Put the machine just before the step that halted, so the PC shows the
+   * halting instruction instead of the mess the halt left behind.
+   */
+  private parkAtHalt(haltStep: number, halt: EmuHalt): EmuHalt {
+    this.machine.loadState(this.frameStart);
+    this.step = 0;
+    // stops before the halting step, so it can't halt again
+    if (haltStep > 0) this.runFrame(haltStep, null);
+    return halt;
   }
 
   private endFrame(steps: number): void {

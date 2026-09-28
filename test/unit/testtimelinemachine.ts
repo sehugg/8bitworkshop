@@ -10,6 +10,8 @@ mockAudio();
 // classes that live on globalThis
 import { Midway8080 } from "../../src/machine/mw8080bw";
 import { GalaxianScrambleMachine } from "../../src/machine/galaxian";
+import { Devel6502 } from "../../src/machine/devel";
+import { EmuHalt } from "../../src/common/emu";
 import { hashState as hashAnyState } from "../../src/common/statehash";
 import { NullProbe } from "../../src/common/devices";
 import { History } from "../../src/common/history";
@@ -240,5 +242,63 @@ describe('MachineCore break state', function () {
     core.runUntil(timestamp(5, 500));
     assert.ok(timestampsEqual(core.now(), timestamp(5, 500)), formatTimestamp(core.now()));
     assert.strictEqual(hashAnyState(m.saveState()), atStep);
+  });
+});
+
+// A 6502 that counts $11 up to 100 (about 12 frames at 1 MHz), then executes
+// KIL, which MOS6502 throws as EmuHalt from the middle of the instruction.
+describe('MachineCore on a 6502 that halts', function () {
+
+  const KIL_ADDR = 0x800c;
+
+  function newDevel() {
+    const rom = new Uint8Array(0x8000);
+    rom.set([
+      0xe6, 0x10,         // 8000 loop: inc $10
+      0xd0, 0xfc,         // 8002       bne loop
+      0xe6, 0x11,         // 8004       inc $11
+      0xa5, 0x11,         // 8006       lda $11
+      0xc9, 100,          // 8008       cmp #100
+      0xd0, 0xf4,         // 800a       bne loop
+      0x02,               // 800c       kil
+    ]);
+    rom[0x7ffc] = 0x00; rom[0x7ffd] = 0x80;
+    const m = new Devel6502();
+    m.loadROM(rom);
+    m.reset();
+    return { m, core: new MachineCore(m) };
+  }
+
+  it('parks on the KIL instruction, whether metered or not', function () {
+    const a = newDevel();
+    const ra = a.core.runUntil(timestamp(100, 0));
+    assert.ok(ra.halt instanceof EmuHalt, 'expected a halt');
+    assert.ok(ra.at.frame > 5, formatTimestamp(ra.at));
+    assert.strictEqual(a.m.cpu.getPC(), KIL_ADDR);
+    assert.strictEqual(a.m.ram[0x11], 100);
+
+    const b = newDevel();
+    const rb = b.core.runUntil(timestamp(100, 0), () => false);
+    assert.ok(rb.halt instanceof EmuHalt);
+    assert.ok(timestampsEqual(ra.at, rb.at), `${formatTimestamp(ra.at)} != ${formatTimestamp(rb.at)}`);
+    assert.strictEqual(hashAnyState(a.m.saveState()), hashAnyState(b.m.saveState()));
+  });
+
+  it('records to the halt and rewinds to the step before it', function () {
+    const { m, core } = newDevel();
+    const hist = new History(core, { checkpointInterval: 4 });
+    var r;
+    for (var i = 0; i < 100 && !r?.halt; i++) r = hist.recordFrame();
+    assert.ok(r.halt instanceof EmuHalt, 'expected a halt');
+    const haltAt = hist.last();
+    assert.strictEqual(m.cpu.getPC(), KIL_ADDR);
+    // a 6502 steps by clocks, so the previous instruction is the last stable
+    // step before now: the bne that fell through to the KIL
+    const prev = hist.findLast(() => m.cpu.isStable(), hist.first(), hist.previousStep());
+    assert.ok(prev, 'no previous instruction');
+    assert.strictEqual(m.cpu.getPC(), 0x800a);
+    // and forward to the present again, without halting
+    assert.strictEqual(hist.seek(haltAt).halt, undefined);
+    assert.strictEqual(m.cpu.getPC(), KIL_ADDR);
   });
 });

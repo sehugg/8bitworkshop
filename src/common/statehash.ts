@@ -67,3 +67,35 @@ function hashValue(h: number, v: any, path: Set<object>): number {
 export function hashState(state: any): number {
   return hashValue(0x811c9dc5, state, new Set());
 }
+
+/**
+ * Rough bytes held by a state, for budgeting checkpoints. Typed arrays count
+ * their byteLength; an object reachable twice (or through a cycle) counts
+ * once, since it is held once. Views on the same buffer each count, which
+ * overestimates, but states rarely share buffers that way.
+ */
+export function stateSize(state: any): number {
+  const seen = new Set<object>();
+  const walk = (v: any): number => {
+    if (v == null) return 0;
+    switch (typeof v) {
+      case 'number': return 8;
+      case 'boolean': return 4;
+      case 'string': return 2 * v.length;
+      case 'object': break;
+      default: return 0;
+    }
+    if (seen.has(v)) return 0;
+    seen.add(v);
+    if (ArrayBuffer.isView(v)) return v.byteLength;
+    if (v instanceof ArrayBuffer) return v.byteLength;
+    var n = 0;
+    if (Array.isArray(v)) {
+      for (var i = 0; i < v.length; i++) n += walk(v[i]);
+    } else {
+      for (const k of Object.keys(v)) n += walk(v[k]);
+    }
+    return n;
+  };
+  return walk(state);
+}

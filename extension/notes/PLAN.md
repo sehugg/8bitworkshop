@@ -1657,6 +1657,25 @@ debugger shouldn't become a third.
   reports what each supports (`supportsTrap`, `supportsStep`,
   `supportsStepBack`), and hosts disable what's missing instead of faking
   it. Frame-granular breaking says so.
+- **Halts are stops.** Done in `MachineCore`. An `EmuHalt` (6502 KIL, a
+  watchdog) comes back as `RunResult.halt`, not an exception. The core
+  parks just before the step that halted, so the PC shows the halting
+  instruction. An unmetered run replays the frame, counting steps, to find
+  that step. Running on halts again at the same place, and the past before
+  it can be rewound: "how did we get here?" works after a crash. Other
+  errors still propagate. `FramePlatformCore` reports the halt at the start
+  of its frame. Hosts turn `halt` into a `StopEvent` (`exception`), and
+  `EmuHalt.normal` into `halt`.
+- **Steps are clocks on a 6502.** `BasicHeadlessMachine.advanceCPU()` runs
+  one clock on a clock-based CPU, so a step can land mid-instruction. Step
+  back means the last step where `cpu.isStable()`
+  (`findLast(isStable, first, previousStep())`), not `previousStep()`.
+  `createCore` reports these machines as `clock`.
+- **Rewind budget and branching.** Done in `History`. `maxBytes` (default
+  64 MB, sizes from `stateSize()`) caps checkpoints along with
+  `maxCheckpoints`. `truncate()` makes the current position the present
+  before running on from the past; the host calls it before delivering new
+  input.
 - **Pause is not a stop.** A user pause stops between frames; the
   controller still reports a `StopEvent` with a PC and source location so
   every host shows where it is.

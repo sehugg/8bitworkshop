@@ -9,6 +9,7 @@
 // the same operation with different predicates.
 
 import { ProbeAll, TrapCondition } from "./devices";
+import { stateSize } from "./statehash";
 import {
   compareTimestamps,
   DeterministicCore,
@@ -31,11 +32,15 @@ export interface FrameInputSource {
   replay(frame: number): void;
   /** Drop everything recorded for frames before this one. */
   trim?(firstFrame: number): void;
+  /** Drop everything recorded for this frame and later: the future is being rewritten. */
+  truncate?(fromFrame: number): void;
 }
 
 export interface Checkpoint<S = any> {
   at: Timestamp;
   state: S;
+  /** estimated size of `state`, for the byte budget */
+  bytes: number;
 }
 
 /**
@@ -70,8 +75,10 @@ function conditionReset(c: SearchCondition): void {
 export interface HistoryOptions {
   /** Frames between checkpoints. Larger = less memory, slower seeks. */
   checkpointInterval?: number;
-  /** Oldest checkpoints are dropped past this. */
+  /** Oldest checkpoints are dropped past this many... */
   maxCheckpoints?: number;
+  /** ...or past this many bytes, whichever comes first. One is always kept. */
+  maxBytes?: number;
   input?: FrameInputSource;
 }
 
@@ -87,7 +94,9 @@ export class History<S = any> {
   readonly core: DeterministicCore<S>;
   checkpointInterval: number;
   maxCheckpoints: number;
+  maxBytes: number;
   private input?: FrameInputSource;
+  private checkpointBytes = 0;
   private checkpoints: Checkpoint<S>[] = [];
   /** Latest point ever reached, i.e. the present. */
   private head: Timestamp = timestamp(0, 0);
@@ -99,13 +108,17 @@ export class History<S = any> {
     this.core = core;
     this.checkpointInterval = opts.checkpointInterval ?? 10;
     this.maxCheckpoints = opts.maxCheckpoints ?? 300;
+    // checkpoint sizes run from 8 KB (mw8080bw) to 1 MB (nes)
+    this.maxBytes = opts.maxBytes ?? 64 * 1024 * 1024;
     this.input = opts.input;
     this.reset();
   }
 
   /** Start recording again from wherever the core is now. */
   reset(): void {
-    this.checkpoints = [{ at: this.core.now(), state: this.core.snapshot() }];
+    this.checkpoints = [];
+    this.checkpointBytes = 0;
+    this.addCheckpoint(this.core.now());
     this.head = this.core.now();
     this.onChange?.();
   }
@@ -123,11 +136,14 @@ export class History<S = any> {
   /** True if the core is showing a reconstructed past rather than the present. */
   isInPast(): boolean { return compareTimestamps(this.core.now(), this.head) < 0; }
   getCheckpoints(): ReadonlyArray<Checkpoint<S>> { return this.checkpoints; }
+  /** Estimated bytes held by all checkpoints. */
+  getCheckpointBytes(): number { return this.checkpointBytes; }
 
   /**
    * Run one frame at the head of the recording, capturing input and taking a
    * checkpoint when one is due. This is the recording loop; it must be called
-   * with the core positioned at the head.
+   * with the core positioned at the head. If the machine halts, the head stays
+   * at the halt, and every later call halts there again (see RunResult.halt).
    */
   recordFrame(trap?: TrapCondition | null): RunResult {
     const t = this.core.now();
@@ -147,11 +163,35 @@ export class History<S = any> {
   private checkpointIfDue(at: Timestamp): void {
     const last = this.checkpoints[this.checkpoints.length - 1];
     if (last && at.frame - last.at.frame < this.checkpointInterval) return;
-    this.checkpoints.push({ at, state: this.core.snapshot() });
-    while (this.checkpoints.length > this.maxCheckpoints) {
-      this.checkpoints.shift();
+    this.addCheckpoint(at);
+    while (this.checkpoints.length > 1 &&
+      (this.checkpoints.length > this.maxCheckpoints || this.checkpointBytes > this.maxBytes)) {
+      this.checkpointBytes -= this.checkpoints.shift().bytes;
       this.input?.trim?.(this.checkpoints[0].at.frame);
     }
+  }
+
+  private addCheckpoint(at: Timestamp): void {
+    const state = this.core.snapshot();
+    const bytes = stateSize(state);
+    this.checkpoints.push({ at, state, bytes });
+    this.checkpointBytes += bytes;
+  }
+
+  /**
+   * Make the current position the present, dropping the recorded future, so
+   * recording can carry on from here -- running on after rewinding. Call it
+   * before delivering any new input, or that input lands in the old future.
+   */
+  truncate(): void {
+    const now = this.core.now();
+    while (this.checkpoints.length > 1 && compareTimestamps(this.checkpoints[this.checkpoints.length - 1].at, now) > 0) {
+      this.checkpointBytes -= this.checkpoints.pop().bytes;
+    }
+    // a frame already under way has taken its input; later frames take new input
+    this.input?.truncate?.(now.step === 0 ? now.frame : now.frame + 1);
+    this.head = now;
+    this.onChange?.();
   }
 
   /** The latest checkpoint at or before t, or null if t is before the window. */
@@ -194,7 +234,7 @@ export class History<S = any> {
       const frameEnd = timestamp(at.frame + 1, 0);
       const stop = compareTimestamps(frameEnd, t) < 0 ? frameEnd : t;
       const r = this.core.runUntil(stop, trap);
-      if (r.trapped) return r;
+      if (r.trapped || r.halt) return r;
       // a core that reports no progress can't reach t; stop rather than spin
       if (compareTimestamps(r.at, at) <= 0) break;
     }

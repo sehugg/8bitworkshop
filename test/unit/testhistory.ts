@@ -1,6 +1,9 @@
 import assert from "assert";
 import { describe, it } from "mocha";
 import { TrapCondition } from "../../src/common/devices";
+import { EmuHalt } from "../../src/common/emu";
+import { stateSize } from "../../src/common/statehash";
+import { FramePlatformCore } from "../../src/common/platformcore";
 import { FrameInputSource, History } from "../../src/common/history";
 import {
   formatTimestamp,
@@ -173,6 +176,123 @@ describe('History', function () {
     const { hist } = newHistory({ checkpointInterval: 2, maxCheckpoints: 3 });
     record(hist, 20);
     assert.throws(() => hist.seek(timestamp(0, 0)), /older than the recording/);
+  });
+
+  it('truncates the future mid-frame and records a new one', function () {
+    const truncated: number[] = [];
+    const input: FrameInputSource = {
+      capture() { }, replay() { }, truncate(f) { truncated.push(f); },
+    };
+    const { m, hist } = newHistory({ checkpointInterval: 5, input });
+    record(hist, 20);
+    hist.seek(timestamp(8, 5));
+    hist.truncate();
+    assert.ok(timestampsEqual(hist.last(), timestamp(8, 5)), formatTimestamp(hist.last()));
+    assert.strictEqual(hist.isInPast(), false);
+    assert.deepStrictEqual(hist.getCheckpoints().map(c => c.at.frame), [0, 5]);
+    // frame 8 already took its input, so only later frames are dropped
+    assert.deepStrictEqual(truncated, [9]);
+    // recording finishes frame 8, then carries on
+    hist.recordFrame();
+    assert.ok(timestampsEqual(hist.last(), timestamp(9, 0)), formatTimestamp(hist.last()));
+    assert.strictEqual(m.acc, 90);
+  });
+
+  it('truncates at a frame boundary, and the new future replays', function () {
+    const m = new FakeMachine();
+    const log: { [frame: number]: number } = {};
+    var live = 0;
+    // input comes from `live`, as a player's would
+    const input: FrameInputSource = {
+      capture(frame) { log[frame] = m.inp = live; },
+      replay(frame) { m.inp = log[frame]; },
+      truncate(f) { for (const k of Object.keys(log)) if (+k >= f) delete log[+k]; },
+    };
+    const hist = new History(new MachineCore(m), { checkpointInterval: 5, input });
+    record(hist, 20);
+    hist.seek(timestamp(12, 0));
+    hist.truncate();
+    assert.strictEqual(log[12], undefined, 'frame 12 must take new input');
+    live = 1;
+    record(hist, 8);
+    assert.ok(timestampsEqual(hist.last(), timestamp(20, 0)));
+    const present = m.acc;
+    assert.strictEqual(present, 120 + 8 * 20);
+    // the new branch reproduces
+    hist.seek(timestamp(3, 0));
+    hist.seek(hist.last());
+    assert.strictEqual(m.acc, present);
+  });
+
+  it('keeps checkpoints within a byte budget', function () {
+    // same machine, but with 1000 bytes of RAM in its state
+    class BigMachine extends FakeMachine {
+      ram = new Uint8Array(1000);
+      saveState() { return { ...super.saveState(), ram: this.ram.slice() }; }
+      loadState(s) { super.loadState(s); this.ram.set(s.ram); }
+    }
+    const one = stateSize(new BigMachine().saveState());
+    assert.ok(one >= 1000 && one < 1100, `size ${one}`);
+    const hist = new History(new MachineCore(new BigMachine()), { checkpointInterval: 2, maxBytes: one * 3 + 10 });
+    record(hist, 20);
+    assert.strictEqual(hist.getCheckpoints().length, 3);
+    assert.ok(hist.getCheckpointBytes() <= one * 3 + 10);
+    // taken as each frame starts, so the last is frame 18
+    assert.deepStrictEqual(hist.getCheckpoints().map(c => c.at.frame), [14, 16, 18]);
+  });
+
+  it('keeps one checkpoint even if it is over budget', function () {
+    const { hist } = newHistory({ checkpointInterval: 2, maxBytes: 1 });
+    record(hist, 10);
+    assert.strictEqual(hist.getCheckpoints().length, 1);
+    assert.ok(timestampsEqual(hist.first(), timestamp(8, 0)), formatTimestamp(hist.first()));
+  });
+
+  it('records up to a halt, stops there, and rewinds from it', function () {
+    class HaltingMachine extends FakeMachine {
+      advanceFrame(trap: TrapCondition): number {
+        var n = 0;
+        for (var i = 0; i < this.stepsPerFrame; i++) {
+          if (trap && trap()) break;
+          if (this.acc === 123) throw new EmuHalt('KIL');
+          this.acc = (this.acc + 1) | 0;
+          n++;
+        }
+        return n;
+      }
+    }
+    const m = new HaltingMachine();
+    const hist = new History(new MachineCore(m), { checkpointInterval: 5 });
+    var r;
+    for (var i = 0; i < 20 && !r?.halt; i++) r = hist.recordFrame();
+    assert.ok(r.halt instanceof EmuHalt, 'expected a halt');
+    assert.ok(timestampsEqual(hist.last(), timestamp(12, 3)), formatTimestamp(hist.last()));
+    assert.strictEqual(m.acc, 123);
+    // recording again halts at the same place
+    r = hist.recordFrame();
+    assert.ok(r.halt instanceof EmuHalt);
+    assert.ok(timestampsEqual(hist.last(), timestamp(12, 3)));
+    // the past before the halt is all there
+    assert.ok(timestampsEqual(hist.previousStep(), timestamp(12, 2)));
+    assert.strictEqual(m.acc, 122);
+    const hit = hist.findLast(() => m.acc === 77);
+    assert.ok(timestampsEqual(hit, timestamp(7, 7)), formatTimestamp(hit));
+    // and seeking back to the present doesn't halt
+    assert.strictEqual(hist.seek(hist.last()).halt, undefined);
+    assert.strictEqual(m.acc, 123);
+  });
+
+  it('reports a halt at the frame boundary on a frame-only core', function () {
+    var frames = 0;
+    const platform: any = {
+      advance() { if (++frames === 4) throw new EmuHalt('CPU STOPPED'); },
+      saveState() { return { frames }; },
+      loadState(s) { frames = s.frames; },
+    };
+    const core = new FramePlatformCore(platform);
+    const r = core.runUntil(timestamp(10, 0));
+    assert.ok(r.halt instanceof EmuHalt, 'expected a halt');
+    assert.ok(timestampsEqual(r.at, timestamp(3, 0)), formatTimestamp(r.at));
   });
 
   it('refuses to record from a replayed past', function () {
