@@ -78,7 +78,7 @@ To switch between programs with <kbd>F5</kbd>:
 2. Click the status bar and choose **Add Launch Configuration**.
 
 The program appears in the **Run and Debug** view's list. Choose it there
-and press <kbd>F5</kbd> to build and run it. A launch configuration can
+and press <kbd>F5</kbd> to build and debug it. A launch configuration can
 also name another platform, so one program can run on `c64` and `vic20`:
 
 ```json
@@ -91,7 +91,8 @@ also name another platform, so one program can run on `c64` and `vic20`:
 }
 ```
 
-<kbd>F5</kbd> runs the program but doesn't debug it yet.
+<kbd>F5</kbd> builds and debugs the program; <kbd>Ctrl</kbd>+<kbd>F5</kbd>
+runs it without the debugger. See [Debug](emulator.md#debug).
 
 ## Where your choices are saved
 

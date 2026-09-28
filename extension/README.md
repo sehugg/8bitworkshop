@@ -86,7 +86,7 @@ also appear in the editor title bar, the Explorer, or **Project Options**.
 | **Change Main File...** | Pick the main file from the workspace |
 | **Change Platform...** | Build the project for another platform |
 | **Detect Projects** | Scan the folder for projects and platforms |
-| **Add Launch Configuration** | Write a run configuration to `.vscode/launch.json` |
+| **Add Launch Configuration** | Write a run configuration to `.vscode/launch.json`; <kbd>F5</kbd> debugs it, with step back |
 | **Project Options** | Open the project menu |
 | **Build** | Build without running |
 | **Run** | Build and run in the emulator |

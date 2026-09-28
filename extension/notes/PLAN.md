@@ -1647,8 +1647,11 @@ debugger shouldn't become a third.
   `DebugService` and answers `debug(method, ...)`; its frame loop runs
   through the controller, and every stop is a `stopped` event. The adapter
   is `src/tools/dapsession.ts`, shared with `8bws dap`;
-  `extension/src/debugbackend.ts` is its RPC backend. Not yet wired into
-  `extension.ts`.)* The Debug Adapter (next
+  `extension/src/debugbackend.ts` is its RPC backend. F5 debugs; Ctrl+F5
+  (`noDebug`) runs as before. A debug launch builds, starts the worker
+  paused, and sends the listings with `setBuild`. Rebuilds don't reload
+  under the debugger; a plain Run ends the session. The panel's timeline
+  slider (shown while stopped) calls `seekFrame`.)* The Debug Adapter (next
   section) runs in the extension host and translates DAP to RPC. DAP has
   reverse debugging built in: report `supportsStepBack`, and handle
   `stepBack` and `reverseContinue`. Scrubbing (`seekFrame`) is a timeline

@@ -11,6 +11,8 @@ import type { BuildArgs } from './buildworker';
 import type { AudioChunk, EmuStatus } from './emuworker';
 import { WorkerHandle } from './engine';
 import { EmulatorPanel } from './emulatorpanel';
+import { WorkerDebugBackend } from './debugbackend';
+import { EmuDebugSession, LaunchArgs } from '../../src/tools/dapsession';
 import { Project, findRootDir, isHeaderFile, isInside, isOwnExtension, isSourceFile } from './projectinfo';
 import { CONFIG, ProjectScope } from './projectscope';
 import { BuildReason, BuildScheduler } from './autobuild';
@@ -54,6 +56,8 @@ let autoTarget: Target | undefined;
 let heldDiagnostics: { timer: NodeJS.Timeout, show: () => void } | undefined;
 /** Sound is muted; remembered across runs and webviews. */
 let muted = false;
+/** The debug session driving the emulator, if one is. */
+let debugging: { session: vscode.DebugSession, backend: WorkerDebugBackend } | undefined;
 
 export function activate(ctx: vscode.ExtensionContext) {
   context = ctx;
@@ -102,12 +106,23 @@ export function activate(ctx: vscode.ExtensionContext) {
   muted = ctx.globalState.get<boolean>('muted', false);
   vscode.commands.executeCommand('setContext', '8bitworkshop.muted', muted);
 
-  // F5 on an 8bitworkshop launch configuration runs it (no debugger yet)
+  // F5 on an 8bitworkshop launch configuration debugs it; Ctrl+F5 (Run
+  // Without Debugging) just runs it in the emulator panel
   ctx.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('8bitworkshop', {
     resolveDebugConfiguration: async (folder, config) => {
-      await runLaunchConfiguration(folder, config);
-      return undefined;  // no debug session; the emulator panel runs it
+      if (config.noDebug) {
+        await runLaunchConfiguration(folder, config);
+        return undefined;  // no debug session; the emulator panel runs it
+      }
+      // F5 with no launch.json: debug the current target
+      return { type: '8bitworkshop', request: 'launch', name: 'Debug', ...config };
     },
+  }));
+  ctx.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('8bitworkshop', {
+    createDebugAdapterDescriptor: session => new vscode.DebugAdapterInlineImplementation(newDebugSession(session)),
+  }));
+  ctx.subscriptions.push(vscode.debug.onDidTerminateDebugSession(session => {
+    if (debugging?.session === session) debugging = undefined;
   }));
 
   ctx.subscriptions.push(
@@ -229,6 +244,7 @@ async function getEmu(platform: string): Promise<WorkerHandle> {
     emu.on('frame', frame => panel?.showFrame(frame));
     emu.on('audio', (chunk: AudioChunk) => panel?.showAudio(chunk));
     emu.on('audioReset', () => panel?.resetAudio());
+    emu.on('stopped', e => debugging?.backend.handleStop(e));
     emu.on('status', (s: EmuStatus | null) => {
       emuStatus = s;
       panel?.showStatus(s);
@@ -425,7 +441,10 @@ async function followActiveEditor() {
   await scope.setTargetChoice(project, 'follow');
 }
 
-async function startEmulator(target: Target, build: BuildOutcome) {
+/** Start `build` in the emulator panel. Returns false if it didn't start. */
+async function startEmulator(target: Target, build: BuildOutcome, opts: { paused?: boolean } = {}): Promise<boolean> {
+  // a plain Run replaces what the debugger was looking at
+  if (debugging && !opts.paused) vscode.debug.stopDebugging(debugging.session);
   // each run gets a fresh worker: platforms keep global state (see emuworker)
   emu?.dispose();
   emu = undefined;
@@ -437,7 +456,10 @@ async function startEmulator(target: Target, build: BuildOutcome) {
       onControlsVisible: visible => context.globalState.update('controlsVisible', visible),
       // don't burn CPU on a hidden screen
       onVisible: visible => { emu?.call('setVisible', visible); },
+      onSeek: frame => { emu?.call('seekFrame', frame); },
       onDispose: () => {
+        // closing the emulator ends the program, and any session debugging it
+        if (debugging) vscode.debug.stopDebugging(debugging.session);
         panel = undefined;
         emuStatus = null;
         running = undefined;
@@ -454,15 +476,17 @@ async function startEmulator(target: Target, build: BuildOutcome) {
   panel.setTitle(`${title} (${target.platform})`);
   panel.setMuted(muted);
   try {
-    emuStatus = await worker.call<EmuStatus>('start', target.platform, build.output, build.files);
+    emuStatus = await worker.call<EmuStatus>('start', target.platform, build.output, build.files, opts);
     worker.call('setMuted', muted);
     panel.showStatus(emuStatus);
     running = target;
     runningBuild = build;
     output.appendLine(`Running ${title} on ${target.platform}`);
+    return true;
   } catch (e) {
     output.appendLine(`Emulator failed to start: ${e && e.stack || e}`);
     output.show(true);
+    return false;
   }
 }
 
@@ -470,6 +494,8 @@ async function startEmulator(target: Target, build: BuildOutcome) {
 async function reloadEmulator(target: Target, reason: BuildReason, result: BuildOutcome) {
   if (!panel || !emuStatus || !running || !result.output) return;
   if (running.main.toString() !== target.main.toString()) return;
+  // the code under the debugger doesn't change beneath it; F5 again rebuilds
+  if (debugging) return;
   var mode = config(target.main).get<string>('reloadOnBuild', 'always');
   if (mode === 'never' || (mode === 'onSave' && reason === 'type')) return;
   if (emuStatus.platform !== target.platform) {
@@ -1102,18 +1128,65 @@ async function addLaunchConfiguration() {
 }
 
 async function runLaunchConfiguration(folder: vscode.WorkspaceFolder | undefined, cfg: vscode.DebugConfiguration) {
+  if (!cfg.mainFile) {
+    // Ctrl+F5 with no launch.json: run the current target
+    return buildCommand(true);
+  }
+  var target = await launchTarget(folder, cfg);
+  await buildAndMaybeRun(target, true, 'command');
+}
+
+/** What a launch configuration runs: its mainFile, or the current target. */
+async function launchTarget(folder: vscode.WorkspaceFolder | undefined, cfg: { name?: string, mainFile?: string, platform?: string, tool?: string }): Promise<Target> {
   var base = folder?.uri.fsPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!cfg.mainFile || !base) {
-    // F5 with no launch.json: run the current target
-    return buildCommand(true);
+    var current = currentTarget();
+    if (!current) throw new Error('open a program to debug, or set mainFile in the launch configuration');
+    return current;
   }
   var file = path.resolve(base, cfg.mainFile);
   var project = scope.projectFor(vscode.Uri.file(file));
   var platform = cfg.platform || project?.platform;
-  if (!platform) {
-    vscode.window.showErrorMessage(`8bitworkshop: launch configuration "${cfg.name}" needs a platform.`);
-    return;
-  }
+  if (!platform) throw new Error(`launch configuration "${cfg.name}" needs a platform`);
   if (project) await scope.setTargetChoice(project, file);
-  await buildAndMaybeRun({ platform, main: vscode.Uri.file(file), tool: cfg.tool, project }, true, 'command');
+  return { platform, main: vscode.Uri.file(file), tool: cfg.tool, project };
+}
+
+/**
+ * A debug session over the emulator worker. The adapter (shared with
+ * `8bws dap`) runs here in the extension host; the debugger itself runs in
+ * the worker, next to the emulator.
+ */
+function newDebugSession(session: vscode.DebugSession): EmuDebugSession {
+  // the worker this session launched; a later Run starts another
+  var worker: WorkerHandle | undefined;
+  var backend = new WorkerDebugBackend(
+    (method, ...args) => {
+      if (!worker || worker !== emu) throw new Error('the emulator this session started has stopped');
+      return worker.call('debug', method, ...args);
+    },
+    async args => {
+      var r = await launchForDebug(session.workspaceFolder, args);
+      worker = emu;
+      return r;
+    },
+    async () => {
+      if (debugging?.session === session) debugging = undefined;
+      // stopping the session stops its program, not one started since
+      if (worker && worker === emu) panel?.dispose();
+    });
+  debugging = { session, backend };
+  return new EmuDebugSession(backend);
+}
+
+/** Build the program and load it stopped, with its listings for the debugger. */
+async function launchForDebug(folder: vscode.WorkspaceFolder | undefined, args: LaunchArgs): Promise<{ root: string }> {
+  var target = await launchTarget(folder, args);
+  var result = await runBuild(target, 'command');
+  if (!result || !result.success) throw new Error('the build failed; see Problems');
+  if (!result.output) throw new Error('the build produced no ROM to run');
+  if (!await startEmulator(target, result, { paused: true })) throw new Error('the emulator failed to start; see Output');
+  var mainPath = path.posix.basename(target.main.path);
+  await emu!.call('debug', 'setBuild', { listings: result.listings, symbols: result.symbolmap, mainPath, paths: result.paths });
+  return { root: path.dirname(target.main.fsPath) };
 }

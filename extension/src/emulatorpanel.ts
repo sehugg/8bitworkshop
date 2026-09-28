@@ -11,6 +11,8 @@ export interface PanelEvents {
   onKey(key: number, code: number, flags: number): void;
   /** the user showed or hid the controls bar */
   onControlsVisible(visible: boolean): void;
+  /** the user dragged the timeline to a recorded frame */
+  onSeek?(frame: number): void;
   onVisible(visible: boolean): void;
   onDispose(): void;
 }
@@ -29,6 +31,7 @@ export class EmulatorPanel {
       if (msg.type === 'key') this.events.onKey(msg.key, msg.code, msg.flags);
       else if (msg.type === 'frameDone') this.frameInFlight = false;
       else if (msg.type === 'controlsVisible') this.events.onControlsVisible(!!msg.visible);
+      else if (msg.type === 'seek') this.events.onSeek?.(msg.frame);
     });
     this.panel.onDidChangeViewState(e => this.events.onVisible(e.webviewPanel.visible));
     this.panel.onDidDispose(() => this.events.onDispose());
@@ -102,11 +105,19 @@ function getHtml(controlsVisible: boolean) {
   #show { position: absolute; right: 6px; bottom: 4px; display: none; cursor: pointer; font: 11px var(--vscode-font-family);
           color: #ccc; background: rgba(0,0,0,0.5); border: 0; border-radius: 3px; padding: 2px 6px; }
   body.hascontrols:not(.controls) #show { display: block; }
+  /* the timeline: shown while stopped, to scrub through the recording */
+  #timeline { position: absolute; left: 0; right: 0; display: none; align-items: center; gap: 8px;
+              padding: 2px 8px; box-sizing: border-box; background: rgba(0,0,0,0.7);
+              font: 11px var(--vscode-font-family); color: #ccc; }
+  body.stopped.haslog #timeline { display: flex; }
+  #scrub { flex: 1; accent-color: var(--vscode-focusBorder); }
+  #when { white-space: nowrap; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body class="${controlsVisible ? 'controls' : ''}">
 <div id="wrap"><canvas id="screen" tabindex="0" width="1" height="1"></canvas></div>
 <div id="status"></div>
+<div id="timeline"><input id="scrub" type="range" min="0" max="0" value="0" title="Recorded frames: drag to go back in time"><span id="when"></span></div>
 <div id="bar"><span id="hints"></span><button id="hide" title="Hide controls">&times;</button></div>
 <button id="show" title="Show controls">Controls</button>
 <script nonce="${nonce}">
@@ -223,6 +234,31 @@ function getHtml(controlsVisible: boolean) {
     fit();
   }
 
+  // the timeline: where the shown frame is in the recording. Dragging asks
+  // the host to seek, one request at a time; the next frame answers it.
+  const timelineEl = document.getElementById('timeline');
+  const scrub = document.getElementById('scrub');
+  const whenEl = document.getElementById('when');
+  let seekPending = false, seekWanted = null;
+  function showTimeline(t) {
+    document.body.classList.toggle('haslog', !!t);
+    if (!t) return;
+    scrub.min = t.first;
+    scrub.max = t.last;
+    if (!seekPending && seekWanted == null) scrub.value = t.now.frame;
+    whenEl.textContent = 'frame ' + t.now.frame + (t.now.step ? ':' + t.now.step : '') + ' / ' + t.last;
+  }
+  function requestSeek(frame) {
+    if (seekPending) { seekWanted = frame; return; }
+    seekPending = true;
+    vscode.postMessage({ type: 'seek', frame });
+  }
+  function seekDone() {
+    seekPending = false;
+    if (seekWanted != null) { const f = seekWanted; seekWanted = null; requestSeek(f); }
+  }
+  scrub.addEventListener('input', () => requestSeek(Number(scrub.value)));
+
   // scale the canvas to fill the panel, keeping its aspect ratio
   function fit() {
     const { w, h, rotate, aspect } = layout;
@@ -231,6 +267,7 @@ function getHtml(controlsVisible: boolean) {
     let ratio = aspect || w / h;
     if (sideways) ratio = 1 / ratio;
     const barH = document.body.classList.contains('controls') ? bar.offsetHeight : 0;
+    timelineEl.style.bottom = barH + 'px';
     document.getElementById('wrap').style.bottom = barH + 'px';
     const W = window.innerWidth, H = window.innerHeight - barH;
     let dw = W, dh = W / ratio;
@@ -257,6 +294,8 @@ function getHtml(controlsVisible: boolean) {
       image.data.set(msg.pixels);
       ctx.putImageData(image, 0, 0);
       vscode.postMessage({ type: 'frameDone' });
+      if (msg.timeline) showTimeline(msg.timeline);
+      seekDone();
     } else if (msg.type === 'status') {
       const s = msg.status;
       if (s && JSON.stringify(s.controls) !== lastControls) {
@@ -264,6 +303,9 @@ function getHtml(controlsVisible: boolean) {
         showControls(s.controls);
       }
       statusEl.textContent = !s ? '' : s.state == 'running' ? '' : s.state == 'halted' ? 'Halted: ' + (s.message || '') : 'Paused';
+      document.body.classList.toggle('stopped', !!s && s.state != 'running');
+      showTimeline(s && s.timeline);
+      seekDone();  // a seek always ends with a status, even if its frame was dropped
     } else if (msg.type === 'audio') {
       onAudio(msg);
     } else if (msg.type === 'audioReset') {

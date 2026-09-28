@@ -88,7 +88,7 @@ back, click the status bar and choose **Run Main File**.
 
 To keep a list of programs to switch between, click the status bar and
 choose **Add Launch Configuration**. The program then appears in the
-**Run and Debug** view's list, and <kbd>F5</kbd> runs the one you chose.
+**Run and Debug** view's list, and <kbd>F5</kbd> debugs the one you chose.
 
 **A folder of small programs**, like a set of exercises, has no main
 file. **Run** runs the program in the editor you're looking at. The

@@ -434,6 +434,13 @@
         "contents": "Make a program for a classic console or computer.\n[New 8bitworkshop Project](command:8bitworkshop.newProject)\n[Open 8bitworkshop Example](command:8bitworkshop.openExample)"
       }
     ],
+    "breakpoints": [
+      { "language": "c" },
+      { "language": "cpp" },
+      { "language": "8bws-6502" },
+      { "language": "8bws-z80" },
+      { "language": "8bws-6809" }
+    ],
     "debuggers": [
       {
         "type": "8bitworkshop",
@@ -453,6 +460,15 @@
               "tool": {
                 "type": "string",
                 "description": "Tool for the main file, if not the usual one."
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Stop before the program's first instruction instead of running.",
+                "default": false
+              },
+              "script": {
+                "type": "string",
+                "description": "Commands to run once the program is loaded, as in the Debug Console (e.g. \"break main; key SPACE\")."
               }
             }
           }

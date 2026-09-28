@@ -7,6 +7,9 @@ import { Rpc } from '../src/rpc';
 import { findRootDir } from '../src/projectinfo';
 import { Builder, ProjectFileProvider } from '../src/buildcore';
 import type { AudioChunk, EmuStatus, FrameEvent } from '../src/emuworker';
+import { WorkerDebugBackend } from '../src/debugbackend';
+import { EmuDebugSession } from '../../src/tools/dapsession';
+import { DapClient } from '../../test/unit/dapclient';
 
 // Drives out/emuworker.js in a worker thread, the way the extension host does.
 // Mocha runs from extension/, so BIOS fetches must resolve against ROOT.
@@ -228,6 +231,33 @@ describe('extension emuworker', function () {
       assert.equal((await nextStop()).reason, 'step');
       assert.equal((await debug('location')).source.line, 166);
       assert.equal(statuses[statuses.length - 1].state, 'paused');
+    });
+
+    it('drives the debug adapter through the worker, as the extension does', async function () {
+      var backend = new WorkerDebugBackend((method, ...args) => rpc.call('debug', method, ...args), async () => {
+        await rpc.call('start', 'mw8080bw', built.output, built.files, { paused: true });
+        await rpc.call('debug', 'setBuild', { listings: built.listings, symbols: built.symbolmap, mainPath: 'game2.c', paths: built.paths });
+        return { root: '/proj' };
+      }, async () => { });
+      rpc.on('stopped', e => backend.handleStop(e));
+      var c = new DapClient(new EmuDebugSession(backend));
+      await c.request('initialize', { adapterID: '8bitworkshop', pathFormat: 'path', linesStartAt1: true, columnsStartAt1: true });
+      await c.request('launch', { mainFile: 'game2.c' });
+      await c.event('initialized');
+      var { breakpoints } = await c.request('setBreakpoints', { source: { path: '/proj/game2.c' }, breakpoints: [{ line: 166 }] });
+      assert.ok(breakpoints[0].verified);
+      await c.request('configurationDone');
+      assert.equal((await c.event('stopped')).reason, 'breakpoint');
+      var frame = await c.where();
+      assert.equal(frame.source.path, '/proj/game2.c');
+      assert.equal(frame.line, 166);
+      await c.request('next', { threadId: 1 });
+      await c.event('stopped');
+      assert.equal((await c.where()).line, 167);
+      await c.request('stepBack', { threadId: 1 });
+      await c.event('stopped');
+      assert.equal((await c.where()).line, 166);
+      assert.match((await c.request('evaluate', { expression: 'now', context: 'repl' })).result, /past/);
     });
 
     it('pauses with a stop, and seeks to a recorded frame', async function () {

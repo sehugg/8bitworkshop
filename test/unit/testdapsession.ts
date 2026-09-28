@@ -1,7 +1,7 @@
 import assert from "assert";
 import { before, describe, it } from "mocha";
-import { DebugProtocol } from "@vscode/debugprotocol";
 import { EmuDebugSession } from "../../src/tools/dapsession";
+import { DapClient } from "./dapclient";
 import { LocalDebugBackend } from "../../src/tools/daplocal";
 import { loadPlatform } from "../../src/tools/emutarget";
 import { compileSourceFile, preload } from "../../src/tools/testlib";
@@ -12,53 +12,14 @@ import { compileSourceFile, preload } from "../../src/tools/testlib";
 const ROOT = '/proj';
 let build: any;
 
-/** Just enough of a DAP client: requests by sequence number, events by name. */
-class Client {
-  private seq = 1;
-  private pending = new Map<number, (r: DebugProtocol.Response) => void>();
-  private events: DebugProtocol.Event[] = [];
-  private waiting: { name: string, resolve: (e: DebugProtocol.Event) => void }[] = [];
-
-  constructor(readonly session: EmuDebugSession) {
-    session.onDidSendMessage((m: any) => {
-      if (m.type === 'response') this.pending.get(m.request_seq)?.(m);
-      else if (m.type === 'event') {
-        const w = this.waiting.findIndex(w => w.name === m.event);
-        if (w >= 0) this.waiting.splice(w, 1)[0].resolve(m);
-        else this.events.push(m);
-      }
-    });
-  }
-
-  request(command: string, args: any = {}): Promise<any> {
-    const seq = this.seq++;
-    return new Promise((resolve, reject) => {
-      this.pending.set(seq, (r) => r.success ? resolve(r.body) : reject(new Error(r.message)));
-      this.session.handleMessage({ seq, type: 'request', command, arguments: args } as any);
-    });
-  }
-
-  /** The next event of this name, including one that already came. */
-  event(name: string): Promise<any> {
-    const i = this.events.findIndex(e => e.event === name);
-    if (i >= 0) return Promise.resolve(this.events.splice(i, 1)[0].body);
-    return new Promise(resolve => this.waiting.push({ name, resolve: e => resolve(e.body) }));
-  }
-
-  async where() {
-    const { stackFrames } = await this.request('stackTrace', { threadId: 1 });
-    return stackFrames[0];
-  }
-}
-
-async function launch(): Promise<Client> {
+async function launch(): Promise<DapClient> {
   const backend = new LocalDebugBackend(async () => {
     const target = await loadPlatform('mw8080bw');
     await target.start();
     await target.loadROM(build.output);
     return { target, root: ROOT, debugInfo: { listings: build.listings, symbols: build.symbolmap, mainPath: 'game2.c' } };
   });
-  const c = new Client(new EmuDebugSession(backend));
+  const c = new DapClient(new EmuDebugSession(backend));
   const caps = await c.request('initialize', { adapterID: '8bitworkshop', linesStartAt1: true, columnsStartAt1: true, pathFormat: 'path' });
   assert.ok(caps.supportsDisassembleRequest);
   await c.request('launch', { program: 'game2.c' });
