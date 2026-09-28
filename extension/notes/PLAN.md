@@ -1588,7 +1588,9 @@ Extract before building the adapter:
   controls and noise seed, replayed from the nearest checkpoint.
 - CLI: `EmuTarget` drives the Machine with a `TrapCondition` and a
   single-clock stepper (`stepInsn`, `runUntil`, `runToPC`); `RunScript` adds
-  break, step, and SP-based step-out. No rewind.
+  break, step, and SP-based step-out. No rewind. *(Done since: `EmuCore` now
+  runs on `History`/`MachineCore`, with `stepBack`, `seek` and
+  `reverseRunUntil`; the clock stepper is gone.)*
 
 Both are correct in their own way; they don't share code, and the VS Code
 debugger shouldn't become a third.

@@ -26,9 +26,9 @@ export interface RecordedKey {
 }
 
 export interface PlatformInputOptions {
-  /** Which frame an incoming key event belongs to. */
-  currentFrame?: () => number;
-  /** How to re-deliver a recorded key event during a replay. */
+  /** Where the core is, which decides the frame an incoming key event belongs to. */
+  now?: () => Timestamp;
+  /** Deliver a key event to the platform, live or during a replay. */
   dispatchKey?: (key: number, code: number, flags: number) => void;
 }
 
@@ -51,9 +51,10 @@ export interface PlatformInputOptions {
  * necessary and sufficient. Without a dispatcher there is nothing to replay, so
  * the controls snapshot is used instead.
  *
- * Frames are a fine granularity for this because the browser cannot deliver a
- * key event in the middle of advanceFrame() -- JS is single-threaded, so events
- * queue until the frame returns.
+ * Events are delivered only at frame boundaries, by capture() as the frame
+ * starts, so that recording and replay deliver them at the same moment. An
+ * event that arrives while the debugger is stopped mid-frame waits for the next
+ * frame; delivering it on the spot would put it where a replay can't.
  */
 export class PlatformFrameInput implements FrameInputSource {
   private frames = new Map<number, { controls: any, seed: number }>();
@@ -62,15 +63,22 @@ export class PlatformFrameInput implements FrameInputSource {
 
   constructor(readonly platform: Platform, readonly opts: PlatformInputOptions = {}) { }
 
-  /** Note a key event as it is delivered, so the replay can redeliver it. */
-  recordKey(key: number, code: number, flags: number): void {
-    const frame = this.opts.currentFrame ? this.opts.currentFrame() : 0;
+  /**
+   * Queue a key event for the next frame to start: this one if the core is at
+   * its start, the next one if it is stopped partway through.
+   */
+  key(key: number, code: number, flags: number): void {
+    if (!this.opts.dispatchKey) throw new Error('no dispatchKey to deliver key events with');
+    const t = this.opts.now ? this.opts.now() : timestamp(0, 0);
+    const frame = t.step === 0 ? t.frame : t.frame + 1;
     var evs = this.keys.get(frame);
     if (!evs) this.keys.set(frame, evs = []);
     evs.push({ key, code, flags });
   }
 
+  /** Deliver the frame's key events, then record the rest of its input. */
   capture(frame: number): void {
+    this.dispatchKeys(frame);
     this.frames.set(frame, {
       controls: this.platform.saveControlsState ? this.platform.saveControlsState() : undefined,
       seed: getNoiseSeed(),
@@ -78,6 +86,8 @@ export class PlatformFrameInput implements FrameInputSource {
   }
 
   replay(frame: number): void {
+    // same order as capture(): keys, then the seed as it was after them
+    this.dispatchKeys(frame);
     const rec = this.frames.get(frame);
     if (rec) {
       if (!this.opts.dispatchKey && rec.controls !== undefined && this.platform.loadControlsState) {
@@ -85,6 +95,9 @@ export class PlatformFrameInput implements FrameInputSource {
       }
       setNoiseSeed(rec.seed);
     }
+  }
+
+  private dispatchKeys(frame: number): void {
     const evs = this.opts.dispatchKey && this.keys.get(frame);
     if (evs) {
       for (const e of evs) this.opts.dispatchKey(e.key, e.code, e.flags);
@@ -97,6 +110,11 @@ export class PlatformFrameInput implements FrameInputSource {
       this.keys.delete(this.oldest);
       this.oldest++;
     }
+  }
+
+  truncate(fromFrame: number): void {
+    for (const f of [...this.frames.keys()]) if (f >= fromFrame) this.frames.delete(f);
+    for (const f of [...this.keys.keys()]) if (f >= fromFrame) this.keys.delete(f);
   }
 
   get size(): number { return this.frames.size; }
@@ -156,9 +174,10 @@ export class FramePlatformCore implements DeterministicCore {
   private advanceFrame(): void {
     const p = this.platform as any;
     // advance() is the bare frame; nextFrame() would also poll controls and
-    // drive the old recorder, which would fight with this one
-    if (p.advance) p.advance(true);
-    else if (p.nextFrame) p.nextFrame(true);
+    // drive the old recorder, which would fight with this one. Video stays on:
+    // a replay has to draw the frame it lands on.
+    if (p.advance) p.advance(false);
+    else if (p.nextFrame) p.nextFrame(false);
     else throw new Error('platform cannot advance a frame');
   }
 }
@@ -180,7 +199,10 @@ export function createCore(platform: Platform): DeterministicCore {
   if (machine && typeof machine.advanceFrame === 'function' && typeof machine.saveState === 'function') {
     const clocked = typeof machine.advanceFrameClock === 'function' || typeof machine.cpu?.advanceClock === 'function';
     const granularity: Granularity = clocked ? 'clock' : 'insn';
-    return new MachineCore(machine, granularity);
+    // whole frames go through the platform, which may do more than the machine
+    const p = platform as any;
+    const wholeFrame = typeof p.advance === 'function' ? () => { p.advance(false); } : undefined;
+    return new MachineCore(machine, granularity, wholeFrame);
   }
   return new FramePlatformCore(platform);
 }

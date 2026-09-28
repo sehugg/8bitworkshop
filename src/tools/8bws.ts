@@ -13,15 +13,11 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { KeyFlags } from '../common/emu';
-import { History } from '../common/history';
-import { createCore, isRewindable, PlatformFrameInput } from '../common/platformcore';
-import { hashState } from '../common/statehash';
-import { formatTimestamp, timestamp } from '../common/timeline';
 import { isProbablyBinary } from '../common/util';
 import { fail, hasOutput, note, output, setJsonMode } from './cliformat';
 import { EmuTarget, loadPlatform } from './emutarget';
 import { RUN_SCRIPT_HELP, RunScript, parseNum } from './runscript';
+import { verifyReplay } from './verifyreplay';
 import { parseSymbolFile } from '../common/symbols/symbolfile';
 import { romBytes, type CompileResult } from './testlib';
 import { ROM_PLATFORMS } from '../common/detect';
@@ -435,56 +431,7 @@ async function doDetect(positional: string[]): Promise<void> {
 ////////////////////////////////////////////////////////////////////////
 // determinism
 
-/**
- * Keys worth mashing: the directions and the fire/start buttons, which is what
- * a joystick-driven platform reads. Pressing arbitrary keyboard keys would be
- * noisier without testing anything more.
- */
-const EXERCISE_KEYS = [37, 38, 39, 40, 32, 13];   // left up right down space enter
-
-/**
- * A seeded button masher. Verification is only meaningful if the recording has
- * input in it -- without input the controls path is never exercised, and a
- * platform whose loadControlsState() is not the inverse of saveControlsState()
- * passes for the wrong reason. Seeded so a failure is reproducible.
- */
-class InputExerciser {
-  private state = 1;
-  private held = new Map<number, boolean>();
-  /** Where delivered events are logged so the replay can redeliver them. */
-  log: PlatformFrameInput | null = null;
-
-  constructor(readonly target: EmuTarget, seed: number) {
-    this.state = seed | 0 || 1;
-  }
-
-  private next(): number {
-    // xorshift32, same shape as the emulator's own noise()
-    let x = this.state;
-    x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
-    return (this.state = x) >>> 0;
-  }
-
-  /** Press or release a key or two, as if a player were at the controls. */
-  frame(): void {
-    for (const key of EXERCISE_KEYS) {
-      if ((this.next() & 7) !== 0) continue;         // ~1 change per key per 8 frames
-      const down = !this.held.get(key);
-      this.held.set(key, down);
-      const flags = down ? KeyFlags.KeyDown : KeyFlags.KeyUp;
-      this.target.setKeyInput(key, key, flags);
-      this.log?.recordKey(key, key, flags);
-    }
-  }
-}
-
-/**
- * Record a run, then replay it from the first checkpoint and check that every
- * frame comes back bit for bit. This is what keeps the deterministic debugger
- * honest: rewinding is only meaningful on platforms that reproduce, and a
- * platform that quietly picks up entropy (an unseeded Math.random, a clock)
- * shows up here as a diverging frame rather than as a mystery months later.
- */
+/** Record a run with random key input, replay it, and check every frame matches. */
 async function doVerifyReplay(args: Args, positional: string[]): Promise<void> {
   const input = positional[0];
   const platformId = str(args, 'platform') || (input ? ROM_PLATFORMS[path.extname(input).toLowerCase()] : null);
@@ -493,85 +440,34 @@ async function doVerifyReplay(args: Args, positional: string[]): Promise<void> {
   const target = await openTarget(args, platformId);
   if (input) {
     if (!fs.existsSync(input)) fail('verify-replay', `No such file: ${input}`);
-    target.loadROM(new Uint8Array(fs.readFileSync(input)), path.basename(input));
+    await target.loadROM(new Uint8Array(fs.readFileSync(input)), path.basename(input));
   }
-  const platform = target.platform;
-  if (!isRewindable(platform)) {
-    fail('verify-replay', `'${platformId}' cannot save and restore state`);
-  }
+  if (!target.history) fail('verify-replay', `'${platformId}' cannot save and restore state`);
 
   const frames = parseInt(str(args, 'frames') ?? '') || 60;
-  const wantInput = (str(args, 'input') ?? 'keys') !== 'none';
   const seed = parseInt(str(args, 'seed') ?? '') || 12345;
-  let exerciser: InputExerciser | null = null;
-  let inputMode = 'none';
-  if (wantInput) {
-    exerciser = new InputExerciser(target, seed);
-    try {
-      exerciser.frame();          // fails fast if the target takes no key input
-      inputMode = 'keys';
-    } catch (e) {
-      exerciser = null;
-      inputMode = 'unsupported';
-    }
-  }
-  const core = createCore(platform);
-  const input_ = new PlatformFrameInput(platform, {
-    currentFrame: () => core.now().frame,
-    dispatchKey: (key, code, flags) => target.setKeyInput(key, code, flags),
-  });
-  if (exerciser) exerciser.log = input_;
-  // one checkpoint only, so the replay re-runs the whole span rather than
-  // being handed a fresh state part way through
-  const hist = new History(core, { checkpointInterval: frames + 1, input: input_ });
+  const keys = (str(args, 'input') ?? 'keys') !== 'none';
+  const r = verifyReplay(target, { frames, keys, seed });
 
-  // record, hashing the state at every frame boundary
-  const recorded: number[] = [];
-  // distinct control states seen; 1 means the input never reached the machine,
-  // which would make a passing verification meaningless
-  const controlStates = new Set<number>();
-  for (let i = 0; i < frames; i++) {
-    // input goes in before recordFrame(), so the frame's captured controls
-    // include it -- that is what the replay has to reproduce
-    exerciser?.frame();
-    if (platform.saveControlsState) controlStates.add(hashState(platform.saveControlsState()));
-    hist.recordFrame();
-    recorded.push(hashState(core.snapshot()));
-  }
-
-  // replay the same span and compare
-  const diverged: { frame: number }[] = [];
-  hist.seek(hist.first());
-  for (let i = 0; i < frames; i++) {
-    hist.seek(timestamp(i + 1, 0));
-    const h = hashState(core.snapshot());
-    if (h !== recorded[i]) {
-      diverged.push({ frame: i + 1 });
-      if (diverged.length >= 5) break;
-    }
-  }
-
-  const ok = diverged.length === 0;
-  if (!ok) {
-    note(`first divergence at frame ${diverged[0].frame} of ${frames}`);
-  }
+  const ok = r.diverged.length === 0;
+  if (!ok) note(`first divergence at frame ${r.diverged[0]} of ${frames}`);
   output({
     success: ok,
     command: 'verify-replay',
-    error: ok ? undefined : `replay diverged at frame ${diverged[0].frame}`,
+    error: ok ? undefined : `replay diverged at frame ${r.diverged[0]}`,
     data: {
       platform: platformId,
       rom: input ?? null,
       frames,
-      input: inputMode === 'keys' && controlStates.size < 2 ? 'keys (no effect)' : inputMode,
-      controlStates: controlStates.size,
-      keyEvents: input_.keyEventCount,
-      seed: inputMode === 'keys' ? seed : null,
-      granularity: core.granularity,
+      input: r.input === 'keys' && r.controlStates < 2 ? 'keys (no effect)' : r.input,
+      controlStates: r.controlStates,
+      keyEvents: r.keyEvents,
+      seed: r.input === 'keys' ? seed : null,
+      granularity: r.granularity,
       deterministic: ok,
-      firstDivergentFrame: ok ? null : diverged[0].frame,
-      divergentFrames: diverged.map((d) => d.frame),
-      recordedTo: formatTimestamp(hist.last()),
+      firstDivergentFrame: ok ? null : r.diverged[0],
+      divergentFrames: r.diverged,
+      recordedTo: r.recordedTo,
     }
   });
 }

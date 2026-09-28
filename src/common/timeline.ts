@@ -15,7 +15,7 @@
 // "the previous instruction" is the last step where cpu.isStable(), not
 // previousStep(). It is the same unit the replay bar's "Step" slider uses.
 
-import { FrameBased, ProbeAll, SavesState, TrapCondition } from "./devices";
+import { FrameBased, NullProbe, ProbeAll, SavesState, TrapCondition } from "./devices";
 import { EmuHalt } from "./emu";
 
 /**
@@ -103,8 +103,10 @@ export interface DeterministicCore<S = any> {
    */
   clamp?(t: Timestamp): Timestamp;
 
-  /** Connect a probe, if this core supports probing. */
-  connectProbe?(probe: ProbeAll): void;
+  /** Connect a probe (null to disconnect), if this core supports probing. */
+  connectProbe?(probe: ProbeAll | null): void;
+  /** The probe connected now, or null. */
+  getProbe?(): ProbeAll | null;
 }
 
 /**
@@ -139,8 +141,16 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
   private frameStart: any = null;
   // steps in the last frame we counted, or -1 if that frame ran unmetered
   private lastFrameSteps: number = -1;
+  private probe: ProbeAll | null = null;
+  // stands in for the probe while replaying steps it has already seen
+  private readonly mute = new NullProbe();
 
-  constructor(machine: T, granularity: Granularity = 'insn') {
+  /**
+   * `wholeFrame` runs one whole frame with no trap, if the host has more to do
+   * per frame than the machine does (a platform's advance() also checks for a
+   * finished program). Frames with a trap always go to the machine.
+   */
+  constructor(machine: T, granularity: Granularity = 'insn', private wholeFrame?: () => void) {
     this.machine = machine;
     this.granularity = granularity;
     this.frameStart = machine.saveState();
@@ -177,8 +187,27 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
     return this.lastFrameSteps;
   }
 
-  connectProbe(probe: ProbeAll): void {
+  connectProbe(probe: ProbeAll | null): void {
+    this.probe = probe;
     this.machine.connectProbe?.(probe);
+  }
+
+  getProbe(): ProbeAll | null {
+    return this.probe;
+  }
+
+  /**
+   * Run `body` with the probe muted: it re-executes steps that already ran,
+   * and the probe saw them the first time.
+   */
+  private replaying<R>(body: () => R): R {
+    if (!this.probe) return body();
+    this.machine.connectProbe?.(this.mute);
+    try {
+      return body();
+    } finally {
+      this.machine.connectProbe?.(this.probe);
+    }
   }
 
   runUntil(target: Timestamp, trap?: TrapCondition | null): RunResult {
@@ -203,7 +232,8 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
     // machine_exec) instead of paying for a trap call per tick.
     if (untilStep === Infinity && !trap && this.step === 0) {
       try {
-        this.machine.advanceFrame(null);
+        if (this.wholeFrame) this.wholeFrame();
+        else this.machine.advanceFrame(null);
       } catch (e) {
         if (!(e instanceof EmuHalt)) throw e;
         // unmetered, so we don't know which step halted: find out
@@ -216,9 +246,12 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
     // advanceFrame() restarts rather than resumes. Steps before our current
     // position already happened, so the caller's trap must not see them again.
     const from = this.step;
+    // steps before `from` already happened: the probe hears them once
+    let muted = from > 0 && this.probe != null;
     if (from > 0) {
       this.machine.loadState(this.frameStart);
     }
+    if (muted) this.machine.connectProbe?.(this.mute);
     let n = 0;
     let trapped = false;
     // A trap stops the CPU loop, not the frame: advanceFrame() still runs its
@@ -234,6 +267,10 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
     try {
       this.machine.advanceFrame(() => {
         this.step = n;
+        if (muted && n >= from) {
+          muted = false;
+          this.machine.connectProbe?.(this.probe);
+        }
         if (n >= untilStep || (n >= from && trap && (trapped = !!trap()))) {
           stopState = this.machine.saveState();
           return true;
@@ -242,6 +279,7 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
         return false;
       });
     } catch (e) {
+      if (muted) this.machine.connectProbe?.(this.probe);
       // Once stopped, only the frame's tail runs, and it runs early: the frame
       // hasn't really ended. An error from it (galaxian's watchdog) is not an
       // error at the stop. Resuming replays the whole frame, so a real one is
@@ -253,6 +291,7 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
         return this.parkAtHalt(n > 0 ? n - 1 : 0, e);
       }
     }
+    if (muted) this.machine.connectProbe?.(this.probe);
     if (stopState) {
       this.machine.loadState(stopState);
       this.step = n;
@@ -271,7 +310,7 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
     this.machine.loadState(this.frameStart);
     let n = 0;
     try {
-      this.machine.advanceFrame(() => { n++; return false; });
+      this.replaying(() => this.machine.advanceFrame(() => { n++; return false; }));
     } catch (e) {
       if (e instanceof EmuHalt) return n > 0 ? n - 1 : 0;
       throw e;
@@ -287,7 +326,7 @@ export class MachineCore<T extends CoreMachine> implements DeterministicCore {
     this.machine.loadState(this.frameStart);
     this.step = 0;
     // stops before the halting step, so it can't halt again
-    if (haltStep > 0) this.runFrame(haltStep, null);
+    if (haltStep > 0) this.replaying(() => this.runFrame(haltStep, null));
     return halt;
   }
 

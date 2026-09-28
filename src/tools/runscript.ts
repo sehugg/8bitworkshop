@@ -210,10 +210,7 @@ export class RunScript {
     this.requireStep();
     this.target.settle();
     const n = tokens[1] ? parseNum(tokens[1]) : 1;
-    for (let i = 0; i < n; i++) {
-      this.out(this.disasmLine(this.target.getPC(), true) + '\n');
-      this.target.stepInsn();
-    }
+    this.target.stepInsn(n, () => { this.out(this.disasmLine(this.target.getPC(), true) + '\n'); });
     this.log(`PC=$${hex(this.target.getPC(), 4)}`);
   }
 
@@ -249,14 +246,14 @@ export class RunScript {
     this.log(`--- trace ON at $${hex(this.target.getPC(), 4)} ---`);
     let lines = 0;
     let done = 'ran out of frames';
-    while (this.target.frameCount - start < DEFAULT_MAX_FRAMES) {
-      this.out(this.disasmLine(this.target.getPC(), true) + '\n');
-      if (++lines >= maxLines) { done = `line cap (${maxLines}) reached`; break; }
-      this.target.stepInsn();
+    // one run, logging each instruction before it executes
+    this.target.stepInsn(maxLines, () => {
       // the routine returned once the stack has popped back past entry level
       const sp = (this.target.getCPUState() as any)?.SP;
-      if (sp != null && sp > entrySP) { done = `returned after ${lines} instructions`; break; }
-    }
+      if (lines > 0 && sp != null && sp > entrySP) { done = `returned after ${lines} instructions`; return true; }
+      this.out(this.disasmLine(this.target.getPC(), true) + '\n');
+      if (++lines >= maxLines) done = `line cap (${maxLines}) reached`;
+    });
     this.log(`--- trace OFF: ${done} ---`);
   }
 

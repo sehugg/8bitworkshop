@@ -26,7 +26,10 @@ import {
  * looks like; the history layer only knows *when* to call it.
  */
 export interface FrameInputSource {
-  /** Record whatever input applies to this frame, as it is about to run. */
+  /**
+   * Apply and record whatever input applies to this frame, as it is about to
+   * run. Called after the frame's checkpoint is taken.
+   */
   capture(frame: number): void;
   /** Re-apply the input recorded for this frame before re-running it. */
   replay(frame: number): void;
@@ -151,8 +154,10 @@ export class History<S = any> {
       throw new Error(`not at the head of the recording: ${formatTimestamp(t)} != ${formatTimestamp(this.head)}`);
     }
     if (t.step === 0) {
-      this.input?.capture(t.frame);
+      // checkpoint first: replaying from it re-applies this frame's input, so
+      // it must not contain that input already
       this.checkpointIfDue(t);
+      this.input?.capture(t.frame);
     }
     const r = this.core.runUntil(timestamp(t.frame + 1, 0), trap);
     this.head = r.at;
@@ -264,11 +269,12 @@ export class History<S = any> {
   private withProbe<R>(cond: SearchCondition, body: () => R): R {
     const probe = typeof cond === 'function' ? null : cond.probe;
     if (!probe || !this.core.connectProbe) return body();
+    const prev = this.core.getProbe?.() ?? null;
     this.core.connectProbe(probe);
     try {
       return body();
     } finally {
-      this.core.connectProbe(null);
+      this.core.connectProbe(prev);
     }
   }
 

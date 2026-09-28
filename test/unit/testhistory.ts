@@ -3,7 +3,7 @@ import { describe, it } from "mocha";
 import { TrapCondition } from "../../src/common/devices";
 import { EmuHalt } from "../../src/common/emu";
 import { stateSize } from "../../src/common/statehash";
-import { FramePlatformCore } from "../../src/common/platformcore";
+import { FramePlatformCore, PlatformFrameInput } from "../../src/common/platformcore";
 import { FrameInputSource, History } from "../../src/common/history";
 import {
   formatTimestamp,
@@ -300,5 +300,50 @@ describe('History', function () {
     record(hist, 10);
     hist.seek(timestamp(4, 0));
     assert.throws(() => hist.recordFrame(), /not at the head/);
+  });
+});
+
+describe('History with key events', function () {
+
+  // A key event is not idempotent: each one bumps `inp`, as a keypress that
+  // lands in a queue does (c64). Delivering one twice diverges.
+  function newKeyed(checkpointInterval: number) {
+    const m = new FakeMachine();
+    const core = new MachineCore(m);
+    const input = new PlatformFrameInput({} as any, {
+      now: () => core.now(),
+      dispatchKey: () => { m.inp++; },
+    });
+    const hist = new History(core, { checkpointInterval, input });
+    return { m, core, input, hist };
+  }
+
+  it('replays a key pressed on a checkpoint frame once', function () {
+    const { m, input, hist } = newKeyed(5);
+    record(hist, 5);
+    // at 5:0, where a checkpoint is due
+    input.key(1, 1, 1);
+    record(hist, 5);
+    assert.strictEqual(m.acc, 50 + 5 * 20);
+    const present = m.acc;
+    hist.seek(timestamp(6, 0));
+    hist.seek(hist.last());
+    assert.strictEqual(m.acc, present);
+  });
+
+  it('holds a key pressed mid-frame until the next frame', function () {
+    const { m, input, hist } = newKeyed(5);
+    record(hist, 3);
+    hist.recordFrame(() => m.acc === 34);        // stop at 3:4
+    input.key(1, 1, 1);
+    assert.strictEqual(m.inp, 0, 'delivered mid-frame');
+    hist.recordFrame();                          // finish frame 3 without it
+    assert.strictEqual(m.acc, 40);
+    hist.recordFrame();                          // frame 4 has it
+    assert.strictEqual(m.acc, 60);
+    // and the replay agrees
+    hist.seek(timestamp(1, 0));
+    hist.seek(hist.last());
+    assert.strictEqual(m.acc, 60);
   });
 });
