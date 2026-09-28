@@ -183,4 +183,63 @@ describe('extension emuworker', function () {
       await rpc.call('status');
     });
   });
+
+  describe('debugging', function () {
+    var built: Awaited<ReturnType<Builder['build']>>;
+    var stops: any[];
+
+    before(async function () {
+      var mainText = fs.readFileSync(path.join(ROOT, 'presets/mw8080bw/game2.c'), 'utf-8');
+      var read = async (rel: string) => rel === 'game2.c' ? new TextEncoder().encode(mainText) : null;
+      built = await new Builder(ROOT).build({
+        platform: 'mw8080bw', mainPath: 'game2.c', mainText,
+        files: new ProjectFileProvider(read, ROOT, 'mw8080bw'),
+      });
+      assert.deepEqual(built.diagnostics, []);
+    });
+
+    beforeEach(function () {
+      stops = [];
+      rpc.on('stopped', e => stops.push(e));
+    });
+
+    /** The next stop not yet seen; it may have come before the call's reply. */
+    async function nextStop() {
+      for (var i = 0; i < 300 && !stops.length; i++) await new Promise(r => setTimeout(r, 20));
+      assert.ok(stops.length, 'never stopped');
+      return stops.shift();
+    }
+
+    const debug = (method: string, ...args: any[]) => rpc.call('debug', method, ...args);
+
+    it('starts stopped, then stops at a source breakpoint, steps, and steps back', async function () {
+      var s = await rpc.call<EmuStatus>('start', 'mw8080bw', built.output, built.files, { paused: true });
+      assert.equal(s.state, 'paused');
+      await debug('setBuild', { listings: built.listings, symbols: built.symbolmap, mainPath: 'game2.c', paths: built.paths });
+      var [bp] = await debug('setBreakpoints', [{ id: 1, type: 'source', file: 'game2.c', line: 166, enabled: true }]);
+      assert.ok(bp.verified, bp.message);
+      await debug('continue');
+      assert.equal((await nextStop()).reason, 'breakpoint');
+      assert.equal((await debug('location')).source.line, 166);
+      await debug('step', 'over', 'line');
+      assert.equal((await nextStop()).reason, 'step');
+      assert.equal((await debug('location')).source.line, 167);
+      await debug('stepBack', 'line');
+      assert.equal((await nextStop()).reason, 'step');
+      assert.equal((await debug('location')).source.line, 166);
+      assert.equal(statuses[statuses.length - 1].state, 'paused');
+    });
+
+    it('pauses with a stop, and seeks to a recorded frame', async function () {
+      await rpc.call('start', 'mw8080bw', built.output, built.files);
+      await waitForFrames(10);
+      await rpc.call('pause');
+      assert.equal((await nextStop()).reason, 'pause');
+      var s = await rpc.call<EmuStatus>('seekFrame', 3);
+      assert.equal((await nextStop()).reason, 'goto');
+      assert.equal(s.timeline.now.frame, 3);
+      assert.ok(s.timeline.past);
+      assert.ok(s.timeline.last >= 10);
+    });
+  });
 });

@@ -28,7 +28,7 @@ export interface CondContext {
 }
 
 export type CondFn = (c: any) => boolean;
-type NumFn = (c: any) => number;
+export type NumFn = (c: any) => number;
 
 interface Token {
     t: 'num' | 'id' | 'op';
@@ -314,8 +314,7 @@ function compileNode(n: Node, ctx: CondContext): NumFn {
 // The returned function never throws: if evaluation fails (e.g. unreadable
 // memory) it returns false so the emulator loop is never interrupted.
 export function compileCondition(src: string, ctx: CondContext): CondFn {
-    let ast = new Parser(tokenize(src)).parse();
-    let fn = compileNode(ast, ctx);
+    let fn = compileExpression(src, ctx);
     return (c) => {
         try {
             return fn(c) != 0;
@@ -323,6 +322,12 @@ export function compileCondition(src: string, ctx: CondContext): CondFn {
             return false;
         }
     };
+}
+
+// Compile an expression to its value, for watches and hovers. Unlike a
+// condition, evaluating it throws when it fails, so the caller can say why.
+export function compileExpression(src: string, ctx: CondContext): NumFn {
+    return compileNode(new Parser(tokenize(src)).parse(), ctx);
 }
 
 // Parse a breakpoint target: '$hex', '0xhex', decimal, or a symbol name.

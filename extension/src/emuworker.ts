@@ -12,6 +12,8 @@ import { ControlHint, PLATFORM_CONTROLS } from '../../src/common/controls';
 import { AudioStream, setAudioStreamFactory } from '../../src/common/audio';
 import { getRootBasePlatform } from '../../src/common/util';
 import type { FileData } from '../../src/common/workertypes';
+import type { StopEvent } from '../../src/common/debugcontroller';
+import { BuildInfo, DebugService, TimelineInfo } from '../../src/tools/debugservice';
 
 /** Audio is resampled to this rate in the worker; the webview plays it back. */
 const STREAM_RATE = 48000;
@@ -28,6 +30,8 @@ export interface FrameEvent {
   height: number;
   rotate?: number;
   aspect?: number;
+  /** the recorded range and where this frame is in it */
+  timeline?: TimelineInfo;
 }
 
 export interface EmuStatus {
@@ -39,7 +43,22 @@ export interface EmuStatus {
   controls?: ControlHint[];
   /** the platform's audio output rate, if it makes sound */
   audio?: { sampleRate: number };
+  timeline?: TimelineInfo;
 }
+
+/** How the host wants a program loaded. */
+export interface LoadOptions {
+  /** load it stopped, as a debug session does until it is configured */
+  paused?: boolean;
+}
+
+/** DebugService methods the host may call through `debug`. */
+const DEBUG_METHODS = new Set([
+  'capabilities', 'setBuild', 'setBreakpoints', 'continue', 'step', 'pause', 'stepBack', 'reverseContinue',
+  'seekFrame', 'location', 'timeline', 'registers', 'readMemory', 'disassemble', 'evaluate',
+]);
+// the ones that start the machine running toward a goal
+const FORWARD_METHODS = new Set(['continue', 'step']);
 
 // frames to run at once when catching up, before giving up and resyncing
 const MAX_CATCHUP_FRAMES = 4;
@@ -49,6 +68,8 @@ installNodeMocks(workerData.rootDir);
 setHaltHandler(err => halt(err?.message || 'Program halted'));
 
 let target: EmuTarget | null = null;
+let service: DebugService | null = null;
+/** frames are running (toward the service's goal) */
 let running = false;
 /** the panel is hidden: don't run frames, but keep `running` for when it shows */
 let hidden = false;
@@ -78,7 +99,7 @@ class RpcAudioStream implements AudioStream {
 
 const rpc: Rpc = new Rpc(parentPort, {
   /** `files` are the project files the program reads at load time (BuildOutcome.files) */
-  async start(platform: string, rom: any, files?: { [path: string]: FileData }) {
+  async start(platform: string, rom: any, files?: { [path: string]: FileData }, opts: LoadOptions = {}) {
     // platform modules keep global state (Javatari deletes its own start()),
     // so a worker runs one emulator; the host starts a new worker per run
     if (started) throw new Error('This emulator worker already ran a platform; start a new worker.');
@@ -87,21 +108,30 @@ const rpc: Rpc = new Rpc(parentPort, {
     clearLastKeycodeMap();
     target = await loadPlatform(platform);
     await target.start();
+    service = new DebugService(target, stopped);
     // machines build their keyboard handler as they start
     controls = PLATFORM_CONTROLS[getRootBasePlatform(platform)] || describeControls(getLastKeycodeMap());
     target.setFileData(files || {});
     await target.loadROM(rom);
-    resume();
+    if (!opts.paused) resume();
     rpc.emit('audioReset', null);
     return status();
   },
-  async loadROM(rom: any, files?: { [path: string]: FileData }) {
+  async loadROM(rom: any, files?: { [path: string]: FileData }, opts: LoadOptions = {}) {
     if (!target) throw new Error('emulator not started');
     target.setFileData(files || {});
     await target.loadROM(rom);
-    resume();
+    if (!opts.paused) resume();
     rpc.emit('audioReset', null);
     return status();
+  },
+  /** Call a DebugService method; stops come back as 'stopped' events. */
+  debug(method: string, ...args: any[]) {
+    if (!service) throw new Error('emulator not started');
+    if (!DEBUG_METHODS.has(method)) throw new Error(`no debug method '${method}'`);
+    const result = (service as any)[method](...args);
+    if (FORWARD_METHODS.has(method)) startRunning();
+    return result;
   },
   reset() {
     if (!target) return null;
@@ -113,6 +143,12 @@ const rpc: Rpc = new Rpc(parentPort, {
   pause() {
     pause();
     rpc.emit('audioReset', null);
+    return status();
+  },
+  /** Show a recorded frame, stopped there. */
+  seekFrame(frame: number) {
+    if (!service) return null;
+    service.seekFrame(frame);
     return status();
   },
   resume() {
@@ -151,20 +187,42 @@ function status(): EmuStatus | null {
   return {
     state: running ? 'running' : 'paused', platform: target.id, frame: target.frameCount,
     controls, audio: audio ? { sampleRate: audio.sampleRate } : undefined,
+    timeline: service?.timeline() ?? undefined,
   };
 }
 
+/** Run on from here, until a breakpoint or a pause. */
 function resume() {
-  if (!target || running) return;
+  if (!service || running) return;
+  service.continue();
+  startRunning();
+}
+
+/** Run frames toward whatever goal the service has. */
+function startRunning() {
+  if (running) return;
   running = true;
   schedule();
   rpc.emit('status', status());
 }
 
+/** Stop between frames. The stop comes back through stopped(). */
 function pause() {
+  if (service) service.pause();
+  else { running = false; stopTimer(); }
+}
+
+/** Every stop: a breakpoint, a finished step, a pause, a halt, a seek. */
+function stopped(e: StopEvent) {
   running = false;
   stopTimer();
-  rpc.emit('status', status());
+  sendFrame();
+  rpc.emit('stopped', e);
+  if (e.reason === 'halt' || e.reason === 'exception') {
+    rpc.emit('status', { ...status(), state: 'halted', message: e.message });
+  } else {
+    rpc.emit('status', status());
+  }
 }
 
 /** Start ticking from now, if running, shown, and not already ticking. */
@@ -180,35 +238,42 @@ function stopTimer() {
 }
 
 function stop() {
-  pause();
-  target = null;
-}
-
-function halt(message: string) {
-  if (!running || !target) return;
   running = false;
   stopTimer();
-  sendFrame();
-  rpc.emit('status', { ...status(), state: 'halted', message });
+  rpc.emit('status', status());
+  target = null;
+  service = null;
+}
+
+/**
+ * The program ended (the platform's halt handler) or the emulator failed.
+ * Both stop the machine where it is, like any other stop.
+ */
+function halt(message: string, reason: 'halt' | 'exception' = 'halt') {
+  if (!running || !target || !service) return;
+  service.debug.pause();
+  const { at, pc } = service.location();
+  stopped({ reason, at, pc, message });
 }
 
 function tick() {
   timer = null;
-  if (!running || hidden || !target) return;
+  if (!running || hidden || !target || !service) return;
   var interval = 1000 / target.frameRate;
   var now = performance.now();
   var frames = 0;
   try {
+    // a stop (breakpoint, step done, halt) comes back through stopped()
     while (running && nextTime <= now && frames < MAX_CATCHUP_FRAMES) {
-      target.advanceFrame();
+      service.advance(1);
       nextTime += interval;
       frames++;
     }
   } catch (e) {
-    halt(String(e && e.message || e));
+    halt(String(e && e.message || e), 'exception');
     return;
   }
-  if (!running) return;  // halted during the frame
+  if (!running) return;  // stopped during the frame
   if (now - nextTime > interval * MAX_CATCHUP_FRAMES) nextTime = now;  // too far behind
   if (frames) sendFrame();
   timer = setTimeout(tick, Math.max(0, nextTime - performance.now()));
@@ -219,6 +284,9 @@ function sendFrame() {
   if (!video) return;
   // the platform keeps drawing into its buffer, so send a copy
   var pixels = video.pixels.slice().buffer;
-  var frame: FrameEvent = { pixels, width: video.width, height: video.height, rotate: video.rotate, aspect: video.aspect };
+  var frame: FrameEvent = {
+    pixels, width: video.width, height: video.height, rotate: video.rotate, aspect: video.aspect,
+    timeline: service?.timeline() ?? undefined,
+  };
   rpc.emit('frame', frame, [pixels]);
 }

@@ -43,6 +43,19 @@ export function setJsonMode(on: boolean) {
 }
 export function isJsonMode() { return jsonMode; }
 
+let serving = false;
+
+/**
+ * For `8bws dap`: stdout carries the protocol, so console output goes to
+ * stderr, and fail() throws, so the server can answer with the error
+ * instead of exiting.
+ */
+export function setServerMode() {
+  serving = true;
+  const toStderr = (...args: any[]) => { process.stderr.write(args.join(' ') + '\n'); };
+  console.log = console.info = console.warn = console.debug = toStderr;
+}
+
 /** Human-facing output: stdout normally, stderr in --json mode. */
 export function write(s: string): void {
   (jsonMode ? process.stderr : process.stdout).write(s);
@@ -50,7 +63,7 @@ export function write(s: string): void {
 
 // progress/status chatter -- suppressed in --json mode so stdout stays parseable
 export function note(msg: string): void {
-  if (!jsonMode) process.stderr.write(`${c.dim}${msg}${c.reset}\n`);
+  if (!jsonMode || serving) process.stderr.write(`${c.dim}${msg}${c.reset}\n`);
 }
 
 let emitted = false;
@@ -78,6 +91,10 @@ export function output(result: CLIResult): void {
 
 // exit with a formatted error message
 export function fail(command: string, error: string, data?: any): never {
+  if (serving) {
+    const details = (data?.errors || []).map((e: any) => `\n${e.path || ''}${e.line ? ':' + e.line : ''}: ${e.msg}`).join('');
+    throw new Error(`${command}: ${error}${details}`);
+  }
   output({ success: false, command, error, data });
   process.exit(1);
 }

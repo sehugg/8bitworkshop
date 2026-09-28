@@ -1643,7 +1643,12 @@ debugger shouldn't become a third.
   `step`, `pc`, ...), and it gains `back [n]` and `seek <frame>`. Scripted
   tests of rewind run here, headless, fast.
 - **VS Code**: `DebugController` runs in the emuworker, next to the
-  emulator, and is exposed over the existing RPC. The Debug Adapter (next
+  emulator, and is exposed over the existing RPC. *(Done: the worker hosts a
+  `DebugService` and answers `debug(method, ...)`; its frame loop runs
+  through the controller, and every stop is a `stopped` event. The adapter
+  is `src/tools/dapsession.ts`, shared with `8bws dap`;
+  `extension/src/debugbackend.ts` is its RPC backend. Not yet wired into
+  `extension.ts`.)* The Debug Adapter (next
   section) runs in the extension host and translates DAP to RPC. DAP has
   reverse debugging built in: report `supportsStepBack`, and handle
   `stepBack` and `reverseContinue`. Scrubbing (`seekFrame`) is a timeline

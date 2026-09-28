@@ -64,6 +64,8 @@ export function isReturnInsn(line: string): boolean { return RETURN_INSN.test(li
 interface Goal {
   reason: StopReason;
   test(pc: number | null, first: boolean): boolean;
+  /** never stops by itself: with no breakpoints, frames can run untrapped */
+  free?: boolean;
   /** the next test() is at the starting position */
   atStart: boolean;
 }
@@ -107,6 +109,7 @@ export class DebugController {
 
   continue() {
     this.setGoal('breakpoint', () => false);
+    this.goal.free = true;
   }
 
   /** Run until the PC reaches `addr`, which may be where it already is. */
@@ -117,6 +120,21 @@ export class DebugController {
   stepInstruction() {
     this.requireStep();
     this.setGoal('step', (_pc, first) => !first);
+  }
+
+  /**
+   * Step to the next source line, into any call on this one, or one
+   * instruction. Without source for the current PC, steps one instruction.
+   */
+  stepIn(granularity: StepGranularity = 'line') {
+    this.requireStep();
+    const line = granularity === 'line' ? this.sourceAt(this.core.getPC()) : null;
+    this.setGoal('step', (pc, first) => {
+      if (first) return false;
+      if (!line) return true;
+      const here = this.sourceAt(pc);
+      return !!here && !sameLine(here, line);
+    });
   }
 
   /**
@@ -170,6 +188,7 @@ export class DebugController {
   run(maxFrames = DEFAULT_MAX_FRAMES): StopEvent | null {
     const g = this.goal;
     if (!g) return null;
+    if (g.free && this.byPC.size === 0) return this.runFree(maxFrames);
     let stop: StopEvent | null = null;
     const pred = () => {
       const first = g.atStart;
@@ -182,15 +201,30 @@ export class DebugController {
       if (g.test(pc, first)) { stop = this.stopEvent(g.reason); return true; }
       return false;
     };
-    try {
+    return this.stopOnHalt(() => {
       this.core.runUntil(pred, maxFrames);
+      if (stop) this.goal = null;
+      return stop;
+    });
+  }
+
+  /** Whole frames with no trap, which is as fast as the emulator runs. */
+  private runFree(maxFrames: number): StopEvent | null {
+    return this.stopOnHalt(() => {
+      for (let i = 0; i < maxFrames; i++) this.core.advanceFrame();
+      return null;
+    });
+  }
+
+  /** A halt (KIL, a watchdog, a program's exit) is a stop, not an error. */
+  private stopOnHalt(body: () => StopEvent | null): StopEvent | null {
+    try {
+      return body();
     } catch (e) {
       if (!(e instanceof EmuHalt)) throw e;
       this.goal = null;
       return this.stopEvent(e.normal ? 'halt' : 'exception', { message: e.message });
     }
-    if (stop) this.goal = null;
-    return stop;
   }
 
   /** run() until it stops, for hosts that can wait: null if it ran out of frames. */
@@ -346,7 +380,8 @@ export function buildDebugContext(build: {
   paths?: string[],
 }): DebugContext {
   const listings = build.listings || {};
-  if (Object.values(listings).some(l => l.lines && !l.sourcefile)) processListings(listings);
+  // listings that came over an RPC have lost their SourceFile methods
+  if (Object.values(listings).some(l => l.lines && !(l.sourcefile instanceof SourceFile))) processListings(listings);
   const paths = build.paths && build.paths.length ? build.paths : [build.mainPath];
   const byName = (name: string): string => {
     const want = getFilenamePrefix(getFilenameForPath(stripLocalPath(name, build.mainPath)));

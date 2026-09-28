@@ -14,11 +14,12 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { isProbablyBinary } from '../common/util';
-import { fail, hasOutput, note, output, setJsonMode } from './cliformat';
+import { fail, hasOutput, note, output, setJsonMode, setServerMode } from './cliformat';
 import { EmuTarget, loadPlatform } from './emutarget';
 import { RUN_SCRIPT_HELP, RunScript, parseNum } from './runscript';
 import { verifyReplay } from './verifyreplay';
 import { buildDebugContext } from '../common/debugcontroller';
+import type { BuildInfo } from './debugservice';
 import { parseSymbolFile } from '../common/symbols/symbolfile';
 import { romBytes, type CompileResult } from './testlib';
 import { ROM_PLATFORMS } from '../common/detect';
@@ -226,17 +227,30 @@ function buildScript(args: Args): string {
   return parts.length ? parts.join('\n') : 'run 1';
 }
 
-async function doRun(args: Args, positional: string[]): Promise<void> {
-  let input = positional[0];
+/** A program loaded into an emulator, from a ROM or built from source. */
+interface Program {
+  target: EmuTarget;
+  /** the ROM or main source file (a folder resolves to its main file) */
+  source: string;
+  /** the ROM file, or null when loaded straight from the build */
+  romFile: string | null;
+  built?: Awaited<ReturnType<typeof compileSource>>;
+  symbols: { [name: string]: number };
+  /** the build's listings and symbols, for the debugger */
+  debugInfo?: BuildInfo;
+}
+
+/** Build `input` if it's source, and load it into a new emulator. */
+async function openProgram(command: string, args: Args, input: string): Promise<Program> {
   if (!input) {
-    fail('run', 'Required: run --platform <id> <rom-or-source>');
+    fail(command, `Required: ${command} --platform <id> <rom-or-source>`);
   }
-  if (!fs.existsSync(input)) fail('run', `No such file: ${input}`);
+  if (!fs.existsSync(input)) fail(command, `No such file: ${input}`);
 
   const platformArg = str(args, 'platform');
   let resolvedPlatform: string | undefined;
   if (fs.statSync(input).isDirectory()) {
-    const resolved = await resolveDirectory('run', input, platformArg);
+    const resolved = await resolveDirectory(command, input, platformArg);
     input = resolved.source;
     resolvedPlatform = resolved.platform;
   }
@@ -247,7 +261,7 @@ async function doRun(args: Args, positional: string[]): Promise<void> {
   let built: Awaited<ReturnType<typeof compileSource>> | undefined;
   let platformId = platformArg || resolvedPlatform || ROM_PLATFORMS[path.extname(input).toLowerCase()];
   if (!looksLikeROM(input)) {
-    if (!platformId) platformId = await inferPlatform('run', input);
+    if (!platformId) platformId = await inferPlatform(command, input);
     built = await compileSource(args, input, platformId);
     symbols = built.symbolmap;
     if (built.rom) {
@@ -259,7 +273,7 @@ async function doRun(args: Args, positional: string[]): Promise<void> {
       note(`built ${input} with ${built.tool}`);
     }
   } else if (!platformId) {
-    fail('run', `Cannot infer a platform from '${path.basename(input)}': pass --platform`);
+    fail(command, `Cannot infer a platform from '${path.basename(input)}': pass --platform`);
   }
 
   const target = await openTarget(args, platformId);
@@ -275,13 +289,21 @@ async function doRun(args: Args, positional: string[]): Promise<void> {
   } else {
     await target.loadROM(built.result.output, path.basename(input));
   }
+  let debugInfo: BuildInfo | undefined;
+  if (built) {
+    const mainPath = path.basename(input);
+    debugInfo = { listings: built.result.listings, symbols, mainPath, paths: [mainPath] };
+  }
+  return { target, source: input, romFile, built, symbols, debugInfo };
+}
+
+async function doRun(args: Args, positional: string[]): Promise<void> {
+  const input = positional[0];
+  const { target, romFile, symbols, debugInfo } = await openProgram('run', args, input);
 
   const script = new RunScript(target);
   script.addSymbols(symbols);
-  if (built) {
-    const mainPath = path.basename(input);
-    script.setDebugContext(buildDebugContext({ listings: built.result.listings, symbols, mainPath, paths: [mainPath] }));
-  }
+  if (debugInfo) script.setDebugContext(buildDebugContext(debugInfo));
   const symbolFile = str(args, 'symbols');
   if (symbolFile) script.addSymbols(parseSymbolFile(fs.readFileSync(symbolFile, 'utf8')));
   script.startTracing();
@@ -436,6 +458,26 @@ async function doDetect(positional: string[]): Promise<void> {
 ////////////////////////////////////////////////////////////////////////
 // determinism
 
+/**
+ * Serve the Debug Adapter Protocol on stdin/stdout. A launch request names
+ * the program (and platform); flags given here (--tool, --bios, --define)
+ * apply to every launch.
+ */
+async function doDap(args: Args): Promise<void> {
+  setServerMode();
+  const { EmuDebugSession } = await import('./dapsession');
+  const { LocalDebugBackend } = await import('./daplocal');
+  const backend = new LocalDebugBackend(async launch => {
+    const launchArgs: Args = { ...args };
+    if (launch.platform) launchArgs['platform'] = launch.platform;
+    const prog = await openProgram('dap', launchArgs, launch.program || launch.mainFile);
+    return { target: prog.target, debugInfo: prog.debugInfo, root: path.dirname(path.resolve(prog.source)) };
+  });
+  new EmuDebugSession(backend).start(process.stdin, process.stdout);
+  await new Promise(resolve => process.stdin.on('end', resolve));
+  process.exit(0);
+}
+
 /** Record a run with random key input, replay it, and check every frame matches. */
 async function doVerifyReplay(args: Args, positional: string[]): Promise<void> {
   const input = positional[0];
@@ -502,6 +544,7 @@ function usage(error?: string): never {
         'build': 'compile a source file or folder to a ROM',
         'run': 'run a ROM -- or a source file or folder, built first',
         'detect': 'guess the platform and main file of a source file or directory',
+        'dap': 'serve the Debug Adapter Protocol on stdin/stdout, for editors',
         'verify-replay': 'record a run with random key input, replay it, and check every frame matches',
         'list-platforms': 'platforms available to --platform',
         'list-tools': 'compilers and assemblers available to --tool',
@@ -556,7 +599,8 @@ async function main() {
   // A platform whose start() never settles (usually one that needs a
   // browser-only library) drains the event loop and would otherwise exit 0.
   process.on('exit', () => {
-    if (hasOutput()) return;
+    // dap answers over its protocol, not with a result
+    if (hasOutput() || command === 'dap') return;
     output({ success: false, command, error: `${command} did not run to completion -- the emulator never finished starting` });
     process.exitCode = 1;
   });
@@ -566,6 +610,7 @@ async function main() {
       case 'run': await doRun(args, positional); break;
       case 'detect': await doDetect(positional); break;
       case 'verify-replay': await doVerifyReplay(args, positional); break;
+      case 'dap': await doDap(args); break;
       case 'list-tools':
       case 'list-platforms': await doList(command); break;
       case 'help': usage(); break;
