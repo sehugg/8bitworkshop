@@ -17,7 +17,7 @@ Supported platforms include 6502, Z80, and 6809 CPUs:
 - **Commodore 64** and **VIC-20**
 - **ColecoVision**, **MSX**, **ZX Spectrum**, **Amstrad CPC**
 - **Apple II**, **Game Boy**, **Sega Master System**, **PC Engine**
-- **Arcade hardware** (Galaxian, Space Invaders, Pac-Man, Williams, VIC Dual, Atari Vector)
+- **Arcade hardware**
 
 Supported programming languages include:
 
@@ -25,11 +25,10 @@ Supported programming languages include:
 - **C** with CC65, SDCC, and more
 - **BASIC** with batariBASIC and FastBASIC
 - **Verilog** for hardware design
-- ...and others! There's a lot going on in here!
+- ...and more! There's a lot going on in here!
 
 All building and emulation runs on your computer. The toolchains and
-examples are included; only a few platforms, such as Verilog, download an
-extra component the first time you use them.
+examples are included in the extension.
 
 ## Get started
 
@@ -51,7 +50,7 @@ To use code you already have, open its folder: the extension detects the appropr
 You don't need Microsoft's C/C++ extension: this extension builds your C code
 and reports its errors. VS Code suggests C/C++ whenever you open a `.c` file,
 so new projects include a `.vscode/extensions.json` that turns the suggestion
-off for that folder. Elsewhere, you can safely dismiss it.
+off for that folder.
 
 ## Settings
 
@@ -99,7 +98,6 @@ also appear in the editor title bar, the Explorer, or **Project Options**.
 | **Run Main File** | Run the project's main file |
 | **Follow Active Editor** | Run whichever program is in the editor |
 | **Reset / Pause / Resume / Stop / Mute / Unmute Emulator** | Control the emulator panel (shown while it is open) |
-| **Prepare Toolchains** | Unpack or download every platform's toolchain for offline use (shown only when a toolchain isn't bundled) |
 
 ## Books
 
@@ -144,7 +142,7 @@ tools, such as Copilot's agent mode, get **Build 8bitworkshop Program** and
 **Run 8bitworkshop Program**, which returns a screenshot. Agents in the
 terminal, such as Claude Code, use the `8bws` command, once you turn on
 `8bitworkshop.terminalCommand`. See
-[AI agents and the terminal](docs/building.md#ai-agents).
+[AI agents and the terminal](https://github.com/sehugg/8bitworkshop/blob/master/extension/docs/building.md#ai-agents).
 
 ## License
 
