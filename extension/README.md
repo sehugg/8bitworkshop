@@ -37,25 +37,16 @@ extra component the first time you use them.
    Project** button below **Open Folder**; click it. Or run
    **8bitworkshop: New Project...** from the Command Palette.
 2. Choose a platform, such as **NES** or **Atari 2600 (VCS)**.
-3. Choose a blank program or an example, then a folder to copy it to.
-4. Click **Run** (▷) at the top right of the editor. The emulator opens
+3. Choose **8bitworkshop: Open Example** from the Command Palette.
+4. Click **Run** (▷) or **Debug** at the top right of the editor. The emulator opens
    beside your code.
-5. Click the emulator to play. Click your code to type again.
+5. Click on the emulator window to play.
 
 Change something and the game rebuilds and restarts as you type. Errors
 appear as red underlines and in the **Problems** panel, and the last
 version that built keeps running until you fix them.
 
-To look at the included examples without copying them, run **8bitworkshop: Open Example**.
-
 To use code you already have, open its folder: the extension detects the appropriate platform and main file.
-
-AI agents can build and test your program too. Agents that use VS Code's
-tools, such as Copilot's agent mode, get **Build 8bitworkshop Program** and
-**Run 8bitworkshop Program**, which returns a screenshot. Agents in the
-terminal, such as Claude Code, use the `8bws` command, once you turn on
-`8bitworkshop.terminalCommand`. See
-[AI agents and the terminal](docs/building.md#ai-agents).
 
 ## Settings
 
@@ -140,6 +131,15 @@ These group reports from one install together.
 
 The reports follow VS Code's `telemetry.telemetryLevel` setting: set it to
 `off` to stop them.
+
+## Agents
+
+AI agents can build and test your program too. Agents that use VS Code's
+tools, such as Copilot's agent mode, get **Build 8bitworkshop Program** and
+**Run 8bitworkshop Program**, which returns a screenshot. Agents in the
+terminal, such as Claude Code, use the `8bws` command, once you turn on
+`8bitworkshop.terminalCommand`. See
+[AI agents and the terminal](docs/building.md#ai-agents).
 
 ## License
 
