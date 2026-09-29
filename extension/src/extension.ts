@@ -8,7 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { BuildOutcome } from './buildcore';
 import type { BuildArgs } from './buildworker';
-import type { AudioChunk, EmuStatus } from './emuworker';
+import type { AudioChunk, EmuStatus, ScriptResult } from './emuworker';
 import { WorkerHandle } from './engine';
 import { EmulatorPanel } from './emulatorpanel';
 import { WorkerDebugBackend } from './debugbackend';
@@ -23,6 +23,7 @@ import { TOOL_META } from '../../src/common/toolmeta';
 import { ASSET_URLS, AssetStore } from './assets';
 import { projectReadme, writeLauncher } from './terminalcli';
 import type { PlatformInfo } from './presettypes';
+import { registerTools } from './lmtools';
 import { AssetManifest, packsForPlatform } from './assetpacks';
 import { ErrorTelemetry } from './telemetry';
 
@@ -75,6 +76,7 @@ export function activate(ctx: vscode.ExtensionContext) {
   scheduler = new BuildScheduler(reason => autoBuild(reason));
   ctx.subscriptions.push(output, telemetry, diagnostics, status, scope);
   setupTerminalCommand();
+  ctx.subscriptions.push(...registerTools({ target: toolTarget, build: t => runBuild(t, 'command'), run: runScriptHeadless }));
   ctx.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
     if (['terminalCommand', 'toolchainPath', 'assetUrl'].some(k => e.affectsConfiguration(`${CONFIG}.${k}`))) setupTerminalCommand();
   }));
@@ -346,6 +348,69 @@ function targetIn(project: Project, uri: vscode.Uri | undefined): Target | undef
 
 function describeTarget(t: Target): string {
   return path.posix.basename(t.main.path);
+}
+
+////// language model tools (lmtools.ts)
+
+/** A file named by an agent: absolute, or relative to a workspace folder. */
+function resolveToolPath(file: string): vscode.Uri | undefined {
+  if (path.isAbsolute(file)) return vscode.Uri.file(file);
+  for (var folder of vscode.workspace.workspaceFolders || []) {
+    var uri = vscode.Uri.joinPath(folder.uri, file);
+    if (fs.existsSync(uri.fsPath)) return uri;
+  }
+  return undefined;
+}
+
+/**
+ * The target for a tool call: the file's project (its program, when the file
+ * is a header), else the file itself on `platform`. No settings are written.
+ */
+function toolTarget(file: string | undefined, platform: string | undefined): Target | string {
+  if (platform && !templates.platform(platform)) {
+    return `Unknown platform "${platform}". Platforms: ${templates.get().platforms.map(p => p.id).join(', ')}.`;
+  }
+  if (!file) {
+    var current = currentTarget();
+    if (current && (!platform || current.platform === platform)) return current;
+    return 'No 8bitworkshop program is open in the editor. Pass the path of a source file.';
+  }
+  var uri = resolveToolPath(file);
+  if (!uri || !fs.existsSync(uri.fsPath)) return `No such file: ${file}`;
+  var project = scope.projectFor(uri);
+  if (project && (!platform || project.platform === platform)) {
+    var t = targetIn(project, uri);
+    if (t) return t;
+  }
+  if (platform) return { platform, main: uri };
+  return `${file} isn't in an 8bitworkshop project, so its platform is unknown. Pass platform, one of: ${templates.get().platforms.map(p => p.id).join(', ')}.`;
+}
+
+const SCRIPT_TIMEOUT_MS = 60000;
+
+/** Run a build in a hidden emulator of its own, for the run tool. */
+async function runScriptHeadless(target: Target, build: BuildOutcome, script: string, token: vscode.CancellationToken): Promise<ScriptResult> {
+  var worker = new WorkerHandle('emuworker.js', await toolchainRoot(target.platform), {}, msg => output.appendLine(msg),
+    err => telemetry.reportError('emu', err, { platform: target.platform }));
+  var timer: NodeJS.Timeout | undefined;
+  var cancel: vscode.Disposable | undefined;
+  try {
+    var stop = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`the script ran longer than ${SCRIPT_TIMEOUT_MS / 1000} seconds`)), SCRIPT_TIMEOUT_MS);
+      cancel = token.onCancellationRequested(() => reject(new Error('cancelled')));
+    });
+    var run = async () => {
+      await worker.call('start', target.platform, build.output, build.files, { paused: true });
+      var mainPath = path.posix.basename(target.main.path);
+      return worker.call<ScriptResult>('script', script, { listings: build.listings, symbols: build.symbolmap, mainPath, paths: build.paths });
+    };
+    return await Promise.race([run(), stop]);
+  } finally {
+    clearTimeout(timer);
+    cancel?.dispose();
+    // terminating also ends a script that's still running
+    worker.dispose();
+  }
 }
 
 ////// languages

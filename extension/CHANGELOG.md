@@ -19,6 +19,8 @@ First preview.
   for the platform's CPU. `.acme` files get 6502 highlighting.
 - An `8bws` command in the integrated terminal builds and runs programs
   from the command line, for scripts and AI agents.
+- Build and Run tools for AI agents in VS Code, such as Copilot's agent
+  mode. Run returns a screenshot from a hidden emulator.
 - New Project writes a README with build instructions and the link that
   platform detection reads.
 - The platform list shows the 8bitworkshop book for each platform that

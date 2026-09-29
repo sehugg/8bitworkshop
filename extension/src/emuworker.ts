@@ -15,6 +15,9 @@ import { toInternalError } from '../../src/common/telemetry';
 import type { FileData } from '../../src/common/workertypes';
 import type { StopEvent } from '../../src/common/debugcontroller';
 import { BuildInfo, DebugService, TimelineInfo } from '../../src/tools/debugservice';
+import { RunScript } from '../../src/tools/runscript';
+import { buildDebugContext } from '../../src/common/debugcontroller';
+import { encode as encodePng } from 'fast-png';
 
 /**
  * Emulators to run in place of a platform's default. The build still uses the
@@ -57,6 +60,16 @@ export interface EmuStatus {
 }
 
 /** How the host wants a program loaded. */
+/** What a run-script printed, and the machine afterward (see `script`). */
+export interface ScriptResult {
+  output: string;
+  /** the script stopped on a bad command or an emulator error */
+  error?: string;
+  frame: number;
+  /** the last frame */
+  png?: Uint8Array;
+}
+
 export interface LoadOptions {
   /** load it stopped, as a debug session does until it is configured */
   paused?: boolean;
@@ -185,6 +198,28 @@ const rpc: Rpc = new Rpc(parentPort, {
     stop();
   },
   status,
+  /**
+   * Run a run-script (src/tools/runscript.ts) on a machine loaded paused, as
+   * `8bws run -e` does. For the language model tools, on a worker of their
+   * own: the script drives the machine directly, not through the pacing loop.
+   */
+  script(text: string, build?: BuildInfo): ScriptResult {
+    if (!target) throw new Error('emulator not started');
+    if (running) throw new Error('the emulator is running; scripts need a paused machine');
+    var out: string[] = [];
+    var script = new RunScript(target, s => { out.push(s); });
+    if (build) script.setDebugContext(buildDebugContext(build));
+    script.startTracing();
+    var error: string | undefined;
+    try {
+      script.run(text);
+    } catch (e) {
+      error = e && e.message || String(e);
+    }
+    var video = target.getVideo();
+    var png = video ? encodePng({ width: video.width, height: video.height, data: new Uint8Array(video.pixels.buffer), channels: 4 }) : undefined;
+    return { output: out.join(''), error, frame: target.frameCount, png };
+  },
 });
 
 // take over the platform's audio sink: SampleAudio resamples to STREAM_RATE

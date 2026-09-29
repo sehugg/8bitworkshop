@@ -6,7 +6,7 @@ import { Worker } from 'worker_threads';
 import { Rpc } from '../src/rpc';
 import { findRootDir } from '../src/projectinfo';
 import { Builder, ProjectFileProvider } from '../src/buildcore';
-import type { AudioChunk, EmuStatus, FrameEvent } from '../src/emuworker';
+import type { AudioChunk, EmuStatus, FrameEvent, ScriptResult } from '../src/emuworker';
 import { WorkerDebugBackend } from '../src/debugbackend';
 import { EmuDebugSession } from '../../src/tools/dapsession';
 import { DapClient } from '../../test/unit/dapclient';
@@ -148,6 +148,30 @@ describe('extension emuworker', function () {
   });
 
   // $readmem reads project files at load time, so they travel with the ROM
+  it('runs a script on a paused machine for the language model tools', async function () {
+    var dir = path.join(ROOT, 'presets/nes');
+    var read = async (rel: string) => {
+      var p = path.join(dir, rel);
+      return fs.existsSync(p) ? new Uint8Array(fs.readFileSync(p)) : null;
+    };
+    var nes = await new Builder(ROOT).build({
+      // not hello.c: the build store is global, and another test builds that
+      platform: 'nes', mainPath: 'attributes.c', mainText: fs.readFileSync(path.join(dir, 'attributes.c'), 'utf-8'),
+      files: new ProjectFileProvider(read, ROOT, 'nes'),
+    });
+    await rpc.call('start', 'nes', nes.output, nes.files, { paused: true });
+    var build = { listings: nes.listings, symbols: nes.symbolmap, mainPath: 'attributes.c', paths: nes.paths };
+    var r = await rpc.call<ScriptResult>('script', 'run 30; mem main 4', build);
+    assert.equal(r.error, undefined);
+    assert.equal(r.frame, 30);
+    assert.match(r.output, /[0-9a-f]{4}/i);
+    assert.deepEqual([...r.png.slice(0, 4)], [0x89, 0x50, 0x4e, 0x47]);
+    // no frames streamed: the script drives the machine, not the pacing loop
+    assert.equal(frames.length, 0);
+    r = await rpc.call<ScriptResult>('script', 'bogus', build);
+    assert.match(r.error, /unknown command 'bogus'/);
+  });
+
   describe('verilog $readmem', function () {
     const MAIN = [
       'module top(clk, reset, hsync, vsync, rgb);',

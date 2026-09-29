@@ -56,6 +56,25 @@ then writes it to the `8bitworkshop.exportRomPath` folder (`bin` by
 default), next to the main file, with the platform's usual extension
 such as `.nes` or `.a26`.
 
+## AI agents
+
+Agents that use VS Code's language model tools, such as Copilot's agent
+mode, have two tools (VS Code 1.95 or later):
+
+- **Build 8bitworkshop Program** (`#8bitworkshopBuild`) builds, and returns
+  the ROM size or each error as `file:line: message`. Errors also appear in
+  Problems, as with **Build**.
+- **Run 8bitworkshop Program** (`#8bitworkshopRun`) builds, runs the program
+  in a hidden emulator, and returns a screenshot of the last frame. It can
+  also run a script, as `8bws run -e` does: press keys, stop at a routine,
+  dump memory. Your emulator panel isn't touched. Screenshots need a VS Code
+  version whose tools can return images; older ones get the text alone.
+
+Both use unsaved editor contents and the project's platform and tool. For
+a file outside a project, the agent passes the platform.
+
+Agents in the terminal use the `8bws` command below.
+
 ## Building from the terminal
 
 VS Code's integrated terminal has an `8bws` command that builds and runs

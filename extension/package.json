@@ -193,6 +193,70 @@
         "icon": "$(unmute)"
       }
     ],
+    "languageModelTools": [
+      {
+        "name": "8bitworkshop_build",
+        "displayName": "Build 8bitworkshop Program",
+        "toolReferenceName": "8bitworkshopBuild",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(tools)",
+        "userDescription": "Build an 8bitworkshop program and report its errors.",
+        "modelDescription": "Compile a retro game or program (C, assembly, BASIC, and more, for consoles and computers such as the NES, Atari 2600, C64, and Game Boy) with 8bitworkshop's toolchains. Uses unsaved editor contents and the project's platform and build tool. Returns the ROM size, or each error as file:line: message. The errors also appear in the Problems panel.",
+        "tags": [
+          "8bitworkshop",
+          "build"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string",
+              "description": "Path of the source file, absolute or relative to the workspace folder. In a project, any of its files builds the project's program. Omit to use the program in the active editor."
+            },
+            "platform": {
+              "type": "string",
+              "description": "Platform id, such as nes, c64, vcs, or sms. Needed only for a file outside an 8bitworkshop project; a project's own platform is used otherwise."
+            }
+          }
+        }
+      },
+      {
+        "name": "8bitworkshop_run",
+        "displayName": "Run 8bitworkshop Program",
+        "toolReferenceName": "8bitworkshopRun",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(play)",
+        "userDescription": "Build an 8bitworkshop program, run it in a hidden emulator, and return a screenshot.",
+        "modelDescription": "Build an 8bitworkshop program, run it in a hidden emulator (not the user's emulator panel), and return a PNG screenshot of the last frame, plus any script output. Use it to check that a program starts, draws what you expect, or reaches a routine. If the build fails, returns the errors instead. The script is a list of commands separated by ';' or newlines, with symbol names from the build allowed as addresses: 'run N' advances N frames; 'key KEY' presses a key (a character, ENTER, SPACE, UP/DOWN/LEFT/RIGHT, F1...); 'break ADDR [MAXFRAMES]' runs until PC reaches ADDR (such as main); 'step [N]' and 'over [N]' step instructions or source lines; 'mem START [LEN]' hexdumps memory; 'pc [N]' disassembles at PC; 'screen [START] [COLS] [ROWS]' decodes text screen RAM; 'hist [N]' shows recently executed instructions; 'info' prints machine state; 'reset' resets. Example: 'run 60; key SPACE; run 30; mem score 2'.",
+        "tags": [
+          "8bitworkshop",
+          "emulator",
+          "screenshot"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string",
+              "description": "Path of the source file, absolute or relative to the workspace folder. In a project, any of its files builds the project's program. Omit to use the program in the active editor."
+            },
+            "platform": {
+              "type": "string",
+              "description": "Platform id, such as nes, c64, vcs, or sms. Needed only for a file outside an 8bitworkshop project; a project's own platform is used otherwise."
+            },
+            "frames": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Frames to run before the script (60 is about one second). Without frames or script, runs 60 frames."
+            },
+            "script": {
+              "type": "string",
+              "description": "Commands to run after the frames, such as 'run 60; key SPACE; run 30; mem score 2'."
+            }
+          }
+        }
+      }
+    ],
     "configuration": {
       "title": "8bitworkshop",
       "properties": {

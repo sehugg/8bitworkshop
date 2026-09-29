@@ -50,9 +50,11 @@ To look at the included examples without copying them, run **8bitworkshop: Open 
 
 To use code you already have, open its folder: the extension detects the appropriate platform and main file.
 
-To build from the command line, or let an AI agent build and test your
-program, use the `8bws` command in VS Code's integrated terminal. See
-[Building from the terminal](docs/building.md#building-from-the-terminal).
+AI agents can build and test your program too. Agents that use VS Code's
+tools, such as Copilot's agent mode, get **Build 8bitworkshop Program** and
+**Run 8bitworkshop Program**, which returns a screenshot. Agents in the
+terminal, such as Claude Code, use the `8bws` command. See
+[AI agents and the terminal](docs/building.md#ai-agents).
 
 ## Settings
 
