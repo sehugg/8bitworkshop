@@ -12,6 +12,7 @@ import { FileProvider, buildWorkerMessage, resolveDependencies } from "../common
 import { setupNodeEnvironment, handleMessage, store } from "../worker/workerlib";
 import { PLATFORM_PARAMS } from "../worker/platforms";
 import { TOOLS } from "../worker/workertools";
+import { toolRoot } from "./toolroot";
 
 export { store, PLATFORM_PARAMS, TOOLS };
 
@@ -52,7 +53,7 @@ let initialized = false;
  */
 export async function initialize(): Promise<void> {
   if (initialized) return;
-  setupNodeEnvironment();
+  setupNodeEnvironment(toolRoot());
   // The worker tools are already registered through the import chain:
   // workerlib -> workertools -> tools/* and builder -> TOOLS
   // No need to load the esbuild bundle.
@@ -110,7 +111,7 @@ export async function compile(options: CompileOptions): Promise<CompileResult> {
 export async function compileFile(tool: string, platform: string, presetPath: string): Promise<CompileResult> {
   await initialize();
 
-  var code = fs.readFileSync('presets/' + platform + '/' + presetPath, 'utf-8');
+  var code = fs.readFileSync(path.join(toolRoot(), 'presets', platform, presetPath), 'utf-8');
   return compile({
     tool: tool,
     platform: platform,
@@ -121,14 +122,14 @@ export async function compileFile(tool: string, platform: string, presetPath: st
 
 /**
  * Reads files for a build from the source file's directory, then
- * presets/<base platform>, then the current directory.
+ * presets/<base platform> under the tool root, then the current directory.
  */
 export class NodeFileProvider implements FileProvider {
   constructor(readonly sourceDir: string, readonly platform: string) { }
   async readFile(filePath: string): Promise<FileData | null> {
     var searchPaths = [];
     if (this.sourceDir) searchPaths.push(path.resolve(this.sourceDir, filePath));
-    searchPaths.push(path.resolve('presets', getBasePlatform(this.platform), filePath));
+    searchPaths.push(path.resolve(toolRoot(), 'presets', getBasePlatform(this.platform), filePath));
     searchPaths.push(path.resolve(filePath));
     for (var p of searchPaths) {
       try {

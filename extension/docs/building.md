@@ -56,6 +56,33 @@ then writes it to the `8bitworkshop.exportRomPath` folder (`bin` by
 default), next to the main file, with the platform's usual extension
 such as `.nes` or `.a26`.
 
+## Building from the terminal
+
+VS Code's integrated terminal has an `8bws` command that builds and runs
+programs with the same toolchains and emulators as the extension. It
+needs no Node.js install. Scripts and AI agents that run in the
+terminal, such as Claude Code, can use it to check their work:
+
+```bash
+8bws build game.c -o game.nes          # compile to a ROM
+8bws build --check game.c              # just report errors
+8bws run game.c --frames 120 --png screen.png
+8bws run game.c -e "run 60; screen"    # a run script; see 8bws help
+8bws help
+```
+
+Add `--json` for machine-readable output on stdout. Without `--platform`,
+`8bws` uses [platform detection](detection.md#from-the-command-line); the
+README that **New Project** writes names the platform, so a new project
+needs no `--platform`. Library files that aren't in your folder come from
+the examples, as they do in the editor.
+
+The command is a launcher script in the extension's storage folder, which
+the extension adds to `PATH` for each new terminal. Terminals opened
+before the extension started don't have it; open a new one. To turn it
+off, set `8bitworkshop.terminalCommand` to `false`. The first run in a
+while may take a few seconds while it unpacks the toolchains.
+
 ## Where included files come from
 
 8bitworkshop looks for files your program includes or links in two

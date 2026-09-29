@@ -13,6 +13,7 @@
 !out/extension.js
 !out/buildworker.js
 !out/emuworker.js
+!out/8bws.js
 !out/presets.json
 !out/assets.json
 !out/assets/8bitworkshop-base-*.tar.br

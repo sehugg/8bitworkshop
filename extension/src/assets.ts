@@ -9,6 +9,9 @@ import { createHash } from 'crypto';
 import { AssetManifest, PackInfo, readPack } from './assetpacks';
 
 /** Reports download progress: bytes so far of `total`. */
+/** The 8bitworkshop asset servers, tried in order after 8bitworkshop.assetUrl. */
+export const ASSET_URLS = ['https://sehugg.github.io/8bitworkshop/vscode/', 'https://8bitworkshop.com/vscode/'];
+
 export type ProgressFn = (pack: string, received: number, total: number) => void;
 
 export class AssetStore {

@@ -8,7 +8,9 @@ your choices.
 
 A folder becomes an 8bitworkshop project in one of these ways:
 
-- **New Project** or **Copy to Workspace** creates it.
+- **New Project** or **Copy to Workspace** creates it. It also writes a
+  `README.md`, unless the folder has one, with the 8bitworkshop link
+  below and how to build from the terminal.
 - You choose **Set as Main File** on a file, or run a file that has no
   project yet, and confirm its platform.
 - You accept a detected platform when you open a folder. See

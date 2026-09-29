@@ -50,6 +50,10 @@ To look at the included examples without copying them, run **8bitworkshop: Open 
 
 To use code you already have, open its folder: the extension detects the appropriate platform and main file.
 
+To build from the command line, or let an AI agent build and test your
+program, use the `8bws` command in VS Code's integrated terminal. See
+[Building from the terminal](docs/building.md#building-from-the-terminal).
+
 ## Settings
 
 Project settings, saved in `.vscode/settings.json`:
@@ -71,6 +75,7 @@ Your local user settings:
 | `8bitworkshop.exportRom` | Write each successful build's ROM to the export folder |
 | `8bitworkshop.toolchainPath` | Use a local 8bitworkshop checkout instead of the included toolchains |
 | `8bitworkshop.assetUrl` | Server or local directory to download toolchains from, tried before the default servers |
+| `8bitworkshop.terminalCommand` | Add the `8bws` command to the integrated terminal (on by default) |
 
 ## Commands
 

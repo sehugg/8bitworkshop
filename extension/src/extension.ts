@@ -20,7 +20,9 @@ import { PRESET_SCHEME, PresetFileSystem, Templates } from './templates';
 import { chooseForFile, detectDirectoryAt, detectionSummary, describeDetection, describeFinding, dontAskKey, FolderFinding, platformName, scanFolder } from './detection';
 import { Detection, classifyFinding, isBuildableSource } from '../../src/common/detect';
 import { TOOL_META } from '../../src/common/toolmeta';
-import { AssetStore } from './assets';
+import { ASSET_URLS, AssetStore } from './assets';
+import { projectReadme, writeLauncher } from './terminalcli';
+import type { PlatformInfo } from './presettypes';
 import { AssetManifest, packsForPlatform } from './assetpacks';
 import { ErrorTelemetry } from './telemetry';
 
@@ -72,6 +74,10 @@ export function activate(ctx: vscode.ExtensionContext) {
   templates = new Templates(ctx.extensionPath, () => toolchainRoot());
   scheduler = new BuildScheduler(reason => autoBuild(reason));
   ctx.subscriptions.push(output, telemetry, diagnostics, status, scope);
+  setupTerminalCommand();
+  ctx.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
+    if (['terminalCommand', 'toolchainPath', 'assetUrl'].some(k => e.affectsConfiguration(`${CONFIG}.${k}`))) setupTerminalCommand();
+  }));
 
   ctx.subscriptions.push(vscode.workspace.registerFileSystemProvider(PRESET_SCHEME, new PresetFileSystem(templates),
     { isCaseSensitive: true, isReadonly: PresetFileSystem.readonlyMessage() }));
@@ -160,12 +166,14 @@ function config(uri?: vscode.Uri) {
 
 ////// toolchains
 
-// asset servers, tried in order (8bitworkshop.assetUrl goes first)
-const ASSET_URLS = ['https://sehugg.github.io/8bitworkshop/vscode/', 'https://8bitworkshop.com/vscode/'];
-
 /** A local copy (toolchainPath, or the repo in development), if there is one. */
 function localRoot(): string | null {
   return config().get<string>('toolchainPath') || findRootDir(context.extensionPath);
+}
+
+/** Where downloaded and unpacked toolchains live. */
+function toolchainCacheDir(): string {
+  return path.join(context.globalStorageUri.fsPath, 'toolchains');
 }
 
 /** Toolchain packs shipped inside the extension (see .vscodeignore). */
@@ -203,7 +211,7 @@ function getAssets(): AssetStore {
     if (Object.keys(manifest.packs).some(p => hasBundledPack(manifest, p))) urls.push(bundledAssetsDir());
     if (custom) urls.push(custom);
     urls.push(...ASSET_URLS);
-    assets = new AssetStore(path.join(context.globalStorageUri.fsPath, 'toolchains'), manifest,
+    assets = new AssetStore(toolchainCacheDir(), manifest,
       urls, msg => output.appendLine(msg));
   }
   return assets;
@@ -229,6 +237,34 @@ async function installPacks(packs: string[]): Promise<string> {
       shown.set(pack, pct);
     });
   });
+}
+
+/**
+ * Put 8bws on the integrated terminal's PATH (8bitworkshop.terminalCommand):
+ * a launcher in global storage runs out/8bws.js with VS Code's Node. It is
+ * rewritten on each activation, since VS Code's and the extension's paths
+ * change with updates.
+ */
+function setupTerminalCommand() {
+  var env = context.environmentVariableCollection;
+  env.clear();
+  var script = path.join(context.extensionPath, 'out', '8bws.js');
+  if (!config().get<boolean>('terminalCommand') || !fs.existsSync(script)) return;
+  var vars: { [name: string]: string } = {};
+  var local = localRoot();
+  if (local) vars.EIGHTBITWORKSHOP_ROOT = local;
+  else vars.EIGHTBITWORKSHOP_TOOLCHAINS = toolchainCacheDir();
+  var custom = config().get<string>('assetUrl');
+  if (custom) vars.EIGHTBITWORKSHOP_ASSET_URL = custom;
+  var bin = path.join(context.globalStorageUri.fsPath, 'bin');
+  try {
+    writeLauncher(bin, { node: process.execPath, script, env: vars });
+  } catch (e) {
+    output.appendLine(`Cannot write the 8bws launcher to ${bin}: ${e && e.message || e}`);
+    return;
+  }
+  env.description = 'Adds the 8bws command, to build and run 8bitworkshop programs from the terminal.';
+  env.prepend('PATH', bin + path.delimiter);
 }
 
 async function prepareToolchains() {
@@ -985,6 +1021,7 @@ async function createFromTemplate(platformId: string, templateId: string, replac
   }
   var main = await templates.copy(platform, t, dest.dir, withLibraries);
   if (!main) return;
+  await writeReadme(dest.dir, platform, path.relative(dest.dir.fsPath, main.fsPath).split(path.sep).join('/'));
   var settings = { platform: platform.id, mainFile: main.fsPath };
   if (dest.open) {
     await writeFolderSettings(dest.dir, { platform: platform.id, mainFile: path.basename(main.fsPath) });
@@ -994,6 +1031,19 @@ async function createFromTemplate(platformId: string, templateId: string, replac
   await scope.saveProject(dest.dir.fsPath, settings);
   if (replacing) await closeEditor(replacing);
   await openAndBuild(main.fsPath, false);
+}
+
+/** A README with build instructions, unless the folder has one. */
+async function writeReadme(dir: vscode.Uri, platform: PlatformInfo, mainFile: string) {
+  var readme = vscode.Uri.joinPath(dir, 'README.md');
+  try {
+    await vscode.workspace.fs.stat(readme);
+    return;
+  } catch (e) {
+    // none yet
+  }
+  var text = projectReadme(path.basename(dir.fsPath), platform, mainFile);
+  await vscode.workspace.fs.writeFile(readme, new TextEncoder().encode(text));
 }
 
 async function closeEditor(uri: vscode.Uri) {

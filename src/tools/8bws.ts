@@ -23,6 +23,7 @@ import type { BuildInfo } from './debugservice';
 import { parseSymbolFile } from '../common/symbols/symbolfile';
 import { romBytes, type CompileResult } from './testlib';
 import { ROM_PLATFORMS } from '../common/detect';
+import { toolRoot } from './toolroot';
 
 interface Args {
   [key: string]: string | true | string[];
@@ -349,7 +350,7 @@ async function writeScreenshot(video: ReturnType<EmuTarget['getVideo']>, pngFile
 // platform detection
 
 function presetsDir(): string | null {
-  for (const dir of [path.resolve('presets'), path.resolve(__dirname, '../../presets')]) {
+  for (const dir of [path.resolve(toolRoot(), 'presets'), path.resolve(__dirname, '../../presets')]) {
     if (fs.existsSync(dir)) return dir;
   }
   return null;

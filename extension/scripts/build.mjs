@@ -4,7 +4,8 @@
 //   node scripts/build.mjs --watch   # rebuild on change
 //
 // extension.js stays small; builds and emulation run in worker threads
-// (buildworker.js, emuworker.js) that start on first use. presetindex.js
+// (buildworker.js, emuworker.js) that start on first use. 8bws.js is the
+// command line tool for the integrated terminal (src/cli.ts). presetindex.js
 // writes out/presets.json and syntaxes.js writes out/syntaxes/ (npm run
 // build runs both).
 import esbuild from 'esbuild';
@@ -51,6 +52,7 @@ const ctx = await esbuild.context({
     extension: 'src/extension.ts',
     buildworker: 'src/buildworker.ts',
     emuworker: 'src/emuworker.ts',
+    '8bws': 'src/cli.ts',
     presetindex: 'scripts/presetindex.ts',
     assetpack: 'scripts/assetpack.ts',
     syntaxes: 'scripts/syntaxes.ts',
