@@ -295,6 +295,31 @@ describe('extension emuworker', function () {
       await debug('setBreakpoints', []);
     });
 
+    it('browses the NES machine state and symbols', async function () {
+      var dir = path.join(ROOT, 'presets/nes');
+      var read = async (rel: string) => {
+        var p = path.join(dir, rel);
+        return fs.existsSync(p) ? new Uint8Array(fs.readFileSync(p)) : null;
+      };
+      var nes = await new Builder(ROOT).build({
+        platform: 'nes', mainPath: 'scroll.c', mainText: fs.readFileSync(path.join(dir, 'scroll.c'), 'utf-8'),
+        files: new ProjectFileProvider(read, ROOT, 'nes'),
+      });
+      await rpc.call('start', 'nes', nes.output, nes.files, { paused: true });
+      await debug('setBuild', { listings: nes.listings, symbols: nes.symbolmap, mainPath: 'scroll.c', paths: nes.paths });
+      var caps = await debug('capabilities');
+      assert.equal(caps.tree, true);
+      assert.equal(caps.write, true);
+      assert.deepEqual(await debug('debugTree', []), [{ name: 'state', value: '', expandable: true }]);
+      var cpu = await debug('debugTree', ['state', 'c']);
+      assert.ok(cpu.find((e: any) => e.name === 'PC'));
+      var syms = await debug('symbols');
+      assert.ok(syms.find((s: any) => s.name === '_main'));
+      // zero page, through the machine's write
+      assert.equal(await debug('writeMemory', 0x10, [0x5a]), 1);
+      assert.deepEqual(await debug('readMemory', 0x10, 1), [0x5a]);
+    });
+
     it('drives the debug adapter through the worker, as the extension does', async function () {
       var backend = new WorkerDebugBackend((method, ...args) => rpc.call('debug', method, ...args), async () => {
         await rpc.call('start', 'mw8080bw', built.output, built.files, { paused: true });

@@ -1871,8 +1871,9 @@ runs has to be a webview too.
 - **Memory writes.** `EmuCore.write()` goes through the machine's bus, so
   writing an I/O address does what a store there does. It restarts the
   timeline (the past can't be replayed into the edited state). It needs a
-  `Machine`, so NES (JSNES), VCS and the MAME platforms
-  can't write; `DebugCapabilities.write` says so and the adapter turns on
+  `Machine` with `write()`, so VCS and the MAME platforms can't write
+  (NES's `JSNESMachine` writes RAM or the mapper directly, skipping
+  `cpu.write()`'s bus cycle); `DebugCapabilities.write` says so and the adapter turns on
   `supportsWriteMemoryRequest` only when it can. After a write the adapter
   sends `invalidated` (variables); after every stop it sends a `memory`
   event for the whole space so the Hex Editor reads again.

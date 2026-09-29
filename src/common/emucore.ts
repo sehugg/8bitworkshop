@@ -305,7 +305,7 @@ export class EmuCore {
     throw new Error(`platform '${this.id}' cannot read memory`);
   }
 
-  get supportsWrite(): boolean { return !!this.machine; }
+  get supportsWrite(): boolean { return typeof this.machine?.write === 'function'; }
 
   /**
    * Write a byte through the machine's bus, as the CPU would (so an I/O

@@ -75,7 +75,7 @@ In a folder with a launch configuration, <kbd>F5</kbd> does the same, and
   of memory, `#mem16[addr]` for a word.
 - **Memory:** the binary-data icon next to a register or symbol opens
   memory at that address in the Hex Editor (VS Code offers to install
-  it). On most platforms you can edit it there; NES, VCS and MAME-based
+  it). On most platforms you can edit it there; VCS and MAME-based
   platforms are read-only.
 - **Disassembly:** right-click in the Call Stack and choose **Open
   Disassembly View**. It shows instructions with their symbols and source
