@@ -1,0 +1,111 @@
+                           008000     1 __VRAM        = 0x8000
+                           008000     2 __VRAM8000    = 0x8000
+                           008800     3 __VRAM8800    = 0x8800
+                           009000     4 __VRAM9000    = 0x9000
+                           009800     5 __SCRN0       = 0x9800
+                           009C00     6 __SCRN1       = 0x9C00
+                           00A000     7 __SRAM        = 0xA000
+                           00C000     8 __RAM         = 0xC000
+                           00D000     9 __RAMBANK     = 0xD000
+                           00FE00    10 __OAMRAM      = 0xFE00
+                           00FF00    11 __IO          = 0xFF00
+                           00FF30    12 __AUD3WAVERAM = 0xFF30
+                           00FF80    13 __HRAM        = 0xFF80
+                                     14 
+                                     15 .globl __VRAM, __VRAM8000, __VRAM8800, __VRAM9000, __SCRN0, __SCRN1, __SRAM, __RAM, __RAMBANK, __OAMRAM, __IO, __AUD3WAVERAM, __HRAM       
+                                     16 
+                           000000    17 _rRAMG        = 0x0000
+                           002000    18 _rROMB0       = 0x2000
+                           003000    19 _rROMB1       = 0x3000
+                           004000    20 _rRAMB        = 0x4000
+                                     21 
+                                     22 .globl _rRAMG, _rROMB0, _rROMB1, _rRAMB
+                                     23 
+                           00FF00    24 _P1_REG      = 0xFF00    ; Joystick: 1.1.P15.P14.P13.P12.P11.P10
+                           00FF01    25 _SB_REG      = 0xFF01    ; Serial IO data buffer
+                           00FF02    26 _SC_REG      = 0xFF02    ; Serial IO control register
+                           00FF04    27 _DIV_REG     = 0xFF04    ; Divider register
+                           00FF05    28 _TIMA_REG    = 0xFF05    ; Timer counter
+                           00FF06    29 _TMA_REG     = 0xFF06    ; Timer modulo
+                           00FF07    30 _TAC_REG     = 0xFF07    ; Timer control
+                           00FF0F    31 _IF_REG      = 0xFF0F    ; Interrupt flags: 0.0.0.JOY.SIO.TIM.LCD.VBL
+                           00FF10    32 _NR10_REG    = 0xFF10    ; Sound register
+                           00FF11    33 _NR11_REG    = 0xFF11    ; Sound register
+                           00FF12    34 _NR12_REG    = 0xFF12    ; Sound register
+                           00FF13    35 _NR13_REG    = 0xFF13    ; Sound register
+                           00FF14    36 _NR14_REG    = 0xFF14    ; Sound register
+                           00FF16    37 _NR21_REG    = 0xFF16    ; Sound register
+                           00FF17    38 _NR22_REG    = 0xFF17    ; Sound register
+                           00FF18    39 _NR23_REG    = 0xFF18    ; Sound register
+                           00FF19    40 _NR24_REG    = 0xFF19    ; Sound register
+                           00FF1A    41 _NR30_REG    = 0xFF1A    ; Sound register
+                           00FF1B    42 _NR31_REG    = 0xFF1B    ; Sound register
+                           00FF1C    43 _NR32_REG    = 0xFF1C    ; Sound register
+                           00FF1D    44 _NR33_REG    = 0xFF1D    ; Sound register
+                           00FF1E    45 _NR34_REG    = 0xFF1E    ; Sound register
+                           00FF20    46 _NR41_REG    = 0xFF20    ; Sound register
+                           00FF21    47 _NR42_REG    = 0xFF21    ; Sound register
+                           00FF22    48 _NR43_REG    = 0xFF22    ; Sound register
+                           00FF23    49 _NR44_REG    = 0xFF23    ; Sound register
+                           00FF24    50 _NR50_REG    = 0xFF24    ; Sound register
+                           00FF25    51 _NR51_REG    = 0xFF25    ; Sound register
+                           00FF26    52 _NR52_REG    = 0xFF26    ; Sound register
+                           00FF30    53 _PCM_SAMPLE  = 0xFF30    ; PCM wave pattern
+                           00FF30    54 _AUD3WAVE    = 0xFF30    ; PCM wave pattern
+                           00FF40    55 _LCDC_REG    = 0xFF40    ; LCD control
+                           00FF41    56 _STAT_REG    = 0xFF41    ; LCD status
+                           00FF42    57 _SCY_REG     = 0xFF42    ; Scroll Y
+                           00FF43    58 _SCX_REG     = 0xFF43    ; Scroll X
+                           00FF44    59 _LY_REG      = 0xFF44    ; LCDC Y-coordinate
+                           00FF45    60 _LYC_REG     = 0xFF45    ; LY compare
+                           00FF46    61 _DMA_REG     = 0xFF46    ; DMA transfer
+                           00FF47    62 _BGP_REG     = 0xFF47    ; BG palette data
+                           00FF48    63 _OBP0_REG    = 0xFF48    ; OBJ palette 0 data
+                           00FF49    64 _OBP1_REG    = 0xFF49    ; OBJ palette 1 data
+                           00FF4A    65 _WY_REG      = 0xFF4A    ; Window Y coordinate
+                           00FF4B    66 _WX_REG      = 0xFF4B    ; Window X coordinate
+                           00FF4D    67 _KEY1_REG    = 0xFF4D    ; CPU speed
+                           00FF4F    68 _VBK_REG     = 0xFF4F    ; VRAM bank
+                           00FF51    69 _HDMA1_REG   = 0xFF51    ; DMA control 1
+                           00FF52    70 _HDMA2_REG   = 0xFF52    ; DMA control 2
+                           00FF53    71 _HDMA3_REG   = 0xFF53    ; DMA control 3
+                           00FF54    72 _HDMA4_REG   = 0xFF54    ; DMA control 4
+                           00FF55    73 _HDMA5_REG   = 0xFF55    ; DMA control 5
+                           00FF56    74 _RP_REG      = 0xFF56    ; IR port
+                           00FF68    75 _BCPS_REG    = 0xFF68    ; BG color palette specification
+                           00FF69    76 _BCPD_REG    = 0xFF69    ; BG color palette data
+                           00FF6A    77 _OCPS_REG    = 0xFF6A    ; OBJ color palette specification
+                           00FF6B    78 _OCPD_REG    = 0xFF6B    ; OBJ color palette data
+                           00FF70    79 _SVBK_REG    = 0xFF70    ; WRAM bank
+                           00FF76    80 _PCM12_REG   = 0xFF76    ; Sound channel 1&2 PCM amplitude (R)
+                           00FF77    81 _PCM34_REG   = 0xFF77    ; Sound channel 3&4 PCM amplitude (R)
+                           00FFFF    82 _IE_REG      = 0xFFFF    ; Interrupt enable
+                                     83 
+                                     84 .globl _P1_REG
+                                     85 .globl _SB_REG, _SC_REG
+                                     86 .globl _DIV_REG
+                                     87 .globl _TIMA_REG, _TMA_REG, _TAC_REG
+                                     88 .globl _IF_REG
+                                     89 .globl _NR10_REG, _NR11_REG, _NR12_REG, _NR13_REG, _NR14_REG
+                                     90 .globl _NR21_REG, _NR22_REG, _NR23_REG, _NR24_REG
+                                     91 .globl _NR30_REG, _NR31_REG, _NR32_REG, _NR33_REG, _NR34_REG
+                                     92 .globl _NR41_REG, _NR42_REG, _NR43_REG, _NR44_REG
+                                     93 .globl _NR50_REG, _NR51_REG, _NR52_REG
+                                     94 .globl _PCM_SAMPLE, _AUD3WAVE
+                                     95 .globl _LCDC_REG
+                                     96 .globl _STAT_REG
+                                     97 .globl _SCY_REG, _SCX_REG
+                                     98 .globl _LY_REG, _LYC_REG
+                                     99 .globl _DMA_REG
+                                    100 .globl _BGP_REG
+                                    101 .globl _OBP0_REG, _OBP1_REG
+                                    102 .globl _WY_REG, _WX_REG
+                                    103 .globl _KEY1_REG
+                                    104 .globl _VBK_REG
+                                    105 .globl _HDMA1_REG, _HDMA2_REG, _HDMA3_REG, _HDMA4_REG, _HDMA5_REG
+                                    106 .globl _RP_REG
+                                    107 .globl _BCPS_REG, _BCPD_REG
+                                    108 .globl _OCPS_REG, _OCPD_REG
+                                    109 .globl _SVBK_REG
+                                    110 .globl _PCM12_REG, _PCM34_REG
+                                    111 .globl _IE_REG

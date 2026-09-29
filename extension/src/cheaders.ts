@@ -76,10 +76,13 @@ export function extractHeaders(workerDir: string, tool: string, platform: string
   const fsName = getSharedFileSystemName(tool, platform);
   if (fsName && fsName.startsWith('wasi:')) files.push(...readWASIZipPackage(workerDir, fsName.substring(5)));
   else if (fsName) files.push(...readPreloadPackage(workerDir, fsName));
+  // subdirectories too: GBDK's headers are gb/gb.h and so on
   const libDir = path.join(workerDir, 'lib', platform);
   if (fs.existsSync(libDir)) {
-    for (const f of fs.readdirSync(libDir).filter((f) => /\.h$/i.test(f)))
-      files.push({ path: `/lib/${f}`, data: fs.readFileSync(path.join(libDir, f)) });
+    for (const f of fs.readdirSync(libDir, { recursive: true }) as string[]) {
+      if (/\.h$/i.test(f))
+        files.push({ path: `/lib/${f.split(path.sep).join('/')}`, data: fs.readFileSync(path.join(libDir, f)) });
+    }
   }
   const written: string[] = [];
   for (const f of files) {
@@ -111,16 +114,17 @@ export function clangConfig(tool: string, platform: string, dirs: {
 }): ClangConfig | undefined {
   const params: any = (PLATFORM_PARAMS as any)[platform] || {};
   const defines = ['__8BITWORKSHOP__', ...(params.define || [])];
-  const includeDirs = [dirs.sourceDir];
-  // -D and -I from extra_preproc_args; '.' is the platform's lib directory,
-  // which extractHeaders() puts in /lib
+  // the worker stages the platform's lib directory (extra_compile_files) in
+  // the build directory, next to the source; extractHeaders() puts it in /lib
+  const libDir = path.join(dirs.headerDir, 'lib');
+  const includeDirs = [dirs.sourceDir, libDir];
+  // -D and -I from extra_preproc_args; '.' is the build directory
   const extra: string[] = params.extra_preproc_args || [];
   for (let i = 0; i < extra.length - 1; i++) {
     if (extra[i] === '-D') defines.push(extra[++i]);
     else if (extra[i] === '-I') {
       const dir = extra[++i];
-      includeDirs.push(dir === '.' ? path.join(dirs.headerDir, 'lib')
-        : dir.replace(/^\/share/, dirs.headerDir));
+      if (dir !== '.') includeDirs.push(dir.replace(/^\/share/, dirs.headerDir));
     }
   }
   // the first of the tool's include dirs, as extractHeaders() wrote it

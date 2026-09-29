@@ -16,10 +16,6 @@ Notes on the port:
 - The map/tile data lives in bigmap.h (generated with png2asset).
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
-
 #include <stdint.h>
 #include "gb/types.h"
 #include "gb/hardware.h"

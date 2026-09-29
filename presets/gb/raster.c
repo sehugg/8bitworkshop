@@ -13,10 +13,6 @@ next interrupt. The table phase advances every two frames, so the wave travels
 across the screen.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
-
 #include <stdint.h>
 #include "gb/types.h"
 #include "gb/hardware.h"

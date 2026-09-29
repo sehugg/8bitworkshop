@@ -7,9 +7,6 @@ are the sub-pixel fraction, dropped with >> 4 when the sprite
 is moved. Arrow keys apply thrust; holding A gives a jump burst.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
 #include <stdint.h>
 #include <string.h>
 #include "gb/types.h"

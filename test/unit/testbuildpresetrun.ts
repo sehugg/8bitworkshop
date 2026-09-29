@@ -1,6 +1,10 @@
 import assert from "assert";
 import { describe, it } from "mocha";
-import { screenStats } from "../../src/tools/buildpresets";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import { libraryCollisions, screenStats } from "../../src/tools/buildpresets";
+import { PLATFORM_PARAMS } from "../../src/worker/platforms";
 
 // buildpresets --run flags the frames that look like nothing drew: a blank
 // (untouched) screen or one color covering everything. screenStats is the pure
@@ -46,5 +50,26 @@ describe('buildpresets screen check', function () {
     const s = screenStats(fill(BLUE, 96), 16, 6);
     assert.strictEqual(s.width, 16);
     assert.strictEqual(s.height, 6);
+  });
+});
+
+// Library headers live in src/worker/lib only; a preset copy would be copied
+// into new projects and shadow the one the worker stages.
+describe('buildpresets library collisions', function () {
+  it('finds none in the presets tree', function () {
+    assert.deepStrictEqual(libraryCollisions('presets', PLATFORM_PARAMS), []);
+  });
+
+  it('reports a preset that shadows a library file', function () {
+    const params = { nes: { extra_compile_files: ['neslib.h'] }, 'gb.color': { extra_compile_files: ['gb/gb.h'] } };
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'presets-'));
+    try {
+      fs.mkdirSync(path.join(dir, 'gb/gb'), { recursive: true });
+      fs.writeFileSync(path.join(dir, 'gb/gb/gb.h'), '');
+      assert.deepStrictEqual(libraryCollisions(dir, params),
+        [`${dir}/gb/gb/gb.h shadows library file src/worker/lib/gb/gb/gb.h`]);
+    } finally {
+      fs.rmSync(dir, { recursive: true });
+    }
   });
 });

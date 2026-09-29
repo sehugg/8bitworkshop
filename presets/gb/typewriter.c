@@ -16,10 +16,6 @@ The font is the 8x8 text font from gbtext.h. Its tile numbers equal
 ASCII codes, so the characters can go straight into the map.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
-
 #include <stdint.h>
 #include "gb/types.h"
 #include "gb/hardware.h"

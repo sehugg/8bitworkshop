@@ -12,10 +12,6 @@ gb_decompress() returns the decompressed size in bytes, and the
 tile count is that divided by 16.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
-
 #include <stdint.h>
 #include "gb/types.h"
 #include "gb/hardware.h"

@@ -115,6 +115,20 @@ describe('Worker', function() {
     assert.equal(msg.output, null);
     assert.equal(msg.qid, 125);
   });
+  it('should read a platform library header', async function() {
+    var msg = await queryWorker({platform:'nes', readlib:'neslib.h', updates:[], buildsteps:[], qid:140});
+    assert.ok(msg.output instanceof Uint8Array);
+    assert.ok(new TextDecoder().decode(msg.output).includes('ppu_on_all'));
+    assert.equal(msg.qid, 140);
+    msg = await queryWorker({platform:'gb.color', readlib:'gb/gb.h', updates:[], buildsteps:[], qid:141});
+    assert.ok(new TextDecoder().decode(msg.output).includes('wait_vbl_done'));
+  });
+  it('should return null for a file the platform library does not list', async function() {
+    var msg = await queryWorker({platform:'nes', readlib:'neslib2.lib', updates:[], buildsteps:[], qid:142});
+    assert.equal(msg.output, null);
+    msg = await queryWorker({platform:'nes', readlib:'nosuchfile.h', updates:[], buildsteps:[], qid:143});
+    assert.equal(msg.output, null);
+  });
   it('should list shared files in WASI filesystem zip', async function() {
     var msg = await queryWorker({preload_fs:'wasi:cc7800-fs.zip', listshared:'/headers', updates:[], buildsteps:[], qid:126});
     assert.ok(Array.isArray(msg.output));

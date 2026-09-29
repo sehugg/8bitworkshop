@@ -6,10 +6,6 @@ then turn on the LCD.
 Ported from presets/nes/hello.c, using GBDK (gb/gb.h).
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
-
 #include <stdint.h>
 #include "gb/types.h"
 #include "gb/hardware.h"

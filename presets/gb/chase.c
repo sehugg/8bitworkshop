@@ -11,9 +11,6 @@
  * Controls: D-pad move, Start = pause, A = start / continue.
  */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
 #include <stdint.h>
 #include <string.h>
 #include "gb/types.h"
@@ -127,7 +124,6 @@ byte sfx_timer;
 byte sfx_vol;
 byte sfx_busy; /* ch1 claimed by SFX */
 byte hw_note[3]; /* last note pushed to hardware (avoid retrigger clicks) */
-
 
 /*
  * Level maps — exact NES Chase layouts (from levelN_nam.h metatiles).

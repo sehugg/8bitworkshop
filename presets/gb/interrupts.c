@@ -12,10 +12,6 @@ much faster than the VBlank. Press START to remove both handlers, then
 press it again to add them back.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
-
 #include <stdint.h>
 #include "gb/types.h"
 #include "gb/hardware.h"

@@ -13,9 +13,6 @@ Reading the clock is the same on real hardware:
 The screen redraws only when the seconds change.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
 //#symbol ld GB_MAPPER=0x10
 
 #include <stdint.h>

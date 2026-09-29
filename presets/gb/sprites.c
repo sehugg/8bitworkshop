@@ -9,10 +9,6 @@ is the same tile data the objects use, so we can point the
 sprites at them too.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
-
 #include <stdint.h>
 #include <stdlib.h>
 #include "gb/types.h"

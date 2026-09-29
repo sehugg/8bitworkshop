@@ -44,6 +44,11 @@ describe('clangConfig', function () {
     assert.ok(coleco.includeDirs.includes('/h/include/coleco'));
   });
 
+  it('always searches the lib directory, as the worker stages it', function () {
+    const c = clangConfig('cc65', 'nes', DIRS)!;
+    assert.ok(c.includeDirs.includes(path.join('/h', 'lib')));
+  });
+
   it('uses gbz80 defines on the Game Boy', function () {
     const c = clangConfig('sdcc', 'gb', DIRS)!;
     assert.ok(c.defines.includes('__SDCC_gbz80'));
@@ -65,6 +70,10 @@ describe('extractHeaders', function () {
       assert.ok(!/extern void \w+\[\]/.test(c64));
       const lib = extractHeaders(WORKER, 'sdcc', 'msx-libcv', out);
       assert.ok(lib.some((f) => f.endsWith(path.join('lib', 'cv.h'))));
+      const nes = extractHeaders(WORKER, 'cc65', 'nes', out);
+      assert.ok(nes.some((f) => f.endsWith(path.join('lib', 'neslib.h'))));
+      const gb = extractHeaders(WORKER, 'sdcc', 'gb', out);
+      assert.ok(gb.some((f) => f.endsWith(path.join('lib', 'gb', 'gb.h'))));
     } finally {
       fs.rmSync(out, { recursive: true, force: true });
     }

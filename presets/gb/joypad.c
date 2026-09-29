@@ -11,10 +11,6 @@ This demo waits for START, then moves a sprite with the d-pad while
 counting A and B presses with edge detection.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
-
 #include <stdint.h>
 #include "gb/types.h"
 #include "gb/hardware.h"

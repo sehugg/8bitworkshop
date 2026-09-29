@@ -13,10 +13,6 @@ This demo exercises the low-level access helpers:
 - hide_sprite() hides the objects outside a moving four-sprite window.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
-
 #include <stdint.h>
 #include "gb/types.h"
 #include "gb/hardware.h"

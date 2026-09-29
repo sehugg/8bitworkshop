@@ -40,6 +40,7 @@ import { EmuTarget, VideoOutput, captureRejectionListeners, dropAbortHandlers, i
 import { EmuHalt, PLATFORMS } from '../common/emu';
 import { getSkeletonName, getToolMeta } from '../common/toolmeta';
 import { getBasePlatform } from '../common/util';
+import { PLATFORM_PARAMS } from '../worker/platforms';
 import { c } from './cliformat';
 
 const PRESETS_DIR = 'presets';
@@ -181,6 +182,24 @@ function listSkeletons(dir: string, platform: string, skelTools: { [name: string
 // (.mame, .wasm, -defender) repeat their parent's list, so the same file can
 // be named several times; it is built once, under the first platform that
 // claims it.
+/**
+ * Preset files that shadow a platform library file: the worker stages
+ * `extra_compile_files` from src/worker/lib/<platform>, so a same-named file in
+ * presets/<base platform> would be copied into new projects and win over it.
+ * Library files go in src/worker/lib only (doc/notes/sysroot.md, Tiers).
+ */
+export function libraryCollisions(presetsDir: string, params: { [platform: string]: any }): string[] {
+    const found = new Set<string>();
+    for (const id of Object.keys(params).sort()) {
+        for (const file of params[id].extra_compile_files || []) {
+            const relpath = getBasePlatform(id) + '/' + file;
+            if (fs.existsSync(path.join(presetsDir, relpath)))
+                found.add(`${presetsDir}/${relpath} shadows library file src/worker/lib/${relpath}`);
+        }
+    }
+    return [...found];
+}
+
 export async function listPresets(
     filter?: string, platform?: string,
     warn: (s: string) => void = () => { },
@@ -252,6 +271,7 @@ export async function listPresets(
     for (const id of Object.keys(missing).sort()) {
         err(`platform ${id}: ${missing[id]} preset(s) not in presets/${getBasePlatform(id)}/`);
     }
+    for (const e of libraryCollisions(PRESETS_DIR, PLATFORM_PARAMS)) err(e);
     found.sort((a, b) => a.preset < b.preset ? -1 : a.preset > b.preset ? 1 : 0);
     return found;
 }
@@ -662,7 +682,7 @@ async function main() {
     for (const w of warnings) console.log(dim(`note: ${w}`));
     for (const e of errors) console.log(red(`error: ${e}`));
     if (errors.length) {
-        console.error(red(`aborting: ${errors.length} platform(s) list preset files that don't exist`));
+        console.error(red(`aborting: ${errors.length} problem(s) with the presets tree`));
     }
     console.log(bold(`${run ? 'building and running' : 'building'} ${presets.length} presets...`));
     const results = await buildAllPresets({

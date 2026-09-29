@@ -23,9 +23,6 @@ Porting notes:
 Controls: D-pad moves player 1, Start starts the game.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>

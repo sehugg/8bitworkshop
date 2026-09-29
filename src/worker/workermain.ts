@@ -1,7 +1,7 @@
 
 import type { WorkerResult, WorkerMessage, WorkerError, SourceLine } from "../common/workertypes";
 import { getSharedFileSystemName } from "../common/toolmeta";
-import { store, builder, errorResult, getWorkFileAsString } from "./builder";
+import { store, builder, errorResult, getWorkFileAsString, readLibraryHeader } from "./builder";
 import { emglobal, fsMeta, loadFilesystem, listSharedFiles, readSharedFile, ensureFilesystem, readWasiSharedFile, listWasiSharedFiles, ensureWasiFilesystem } from "./wasmutils";
 
 // shared FS names starting with 'wasi:' refer to a WASI filesystem zip
@@ -47,6 +47,10 @@ export async function handleMessage(data: WorkerMessage): Promise<WorkerResult> 
     var contents = fs1.wasi ? await readWasiSharedFile(fs1.name, data.readshared)
       : (ensureFilesystem(fs1.name), await readSharedFile(fs1.name, data.readshared));
     return { output: contents, qid: data.qid } as WorkerResult;
+  }
+  // read a header from the platform's library (src/worker/lib)
+  if (data.readlib) {
+    return { output: readLibraryHeader(data.platform, data.readlib), qid: data.qid } as WorkerResult;
   }
   // list files in a filesystem package directory (shared code)
   if (data.listshared != null) {

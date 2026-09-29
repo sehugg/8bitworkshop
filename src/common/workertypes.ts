@@ -128,6 +128,9 @@ export interface WorkerMessage {
   /** read a file from the preloaded filesystem package (path e.g. '/include/nes.h')
    *  requires preload_fs; result comes back as {output:Uint8Array} */
   readshared?:string
+  /** read a header from the platform's library (one of its extra_compile_files,
+   *  e.g. 'neslib.h'); requires platform; result comes back as {output:Uint8Array|null} */
+  readlib?:string
   /** list files under a directory of the preloaded filesystem package
    *  requires preload_fs; result comes back as {output:string[]} */
   listshared?:string

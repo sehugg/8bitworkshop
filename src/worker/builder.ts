@@ -285,20 +285,27 @@ export function getWorkFileAsString(path: string): string {
   return store.getFileAsString(path);
 }
 
+/** Create the directories above `path` (a/b/c.h -> a, a/b). */
+function makeParentDirs(fs, path: string) {
+  var toks = path.split('/');
+  for (var i = 1; i < toks.length; i++) {
+    var dir = toks.slice(0, i).join('/');
+    try {
+      fs.mkdir(dir);
+    } catch (e) {
+      // emscripten's FS throws EEXIST, whose errno differs between builds
+      if (!(fs.analyzePath && fs.analyzePath(dir).exists)) throw e;
+    }
+  }
+}
+
 export function populateEntry(fs, path: string, entry: FileEntry, options: BuildOptions) {
   var data = entry.data;
   if (options && options.processFn) {
     data = options.processFn(path, data);
   }
   data = fixLineEndings(data);
-  // create subfolders
-  var toks = path.split('/');
-  if (toks.length > 1) {
-    for (var i = 0; i < toks.length - 1; i++)
-      try {
-        fs.mkdir(toks[i]);
-      } catch (e) { }
-  }
+  makeParentDirs(fs, path);
   // write file
   fs.writeFile(path, data, { encoding: entry.encoding });
   var time = new Date(entry.ts);
@@ -360,27 +367,39 @@ export function populateExtraFiles(step: BuildStep, fs, extrafiles) {
   if (extrafiles) {
     for (var i = 0; i < extrafiles.length; i++) {
       var xfn = extrafiles[i];
+      makeParentDirs(fs, xfn);
       // is this file cached?
       if (store.workfs[xfn]) {
-        fs.writeFile(xfn, store.workfs[xfn].data, { encoding: 'binary' });
+        // may be the project's own file of that name, as text
+        fs.writeFile(xfn, store.workfs[xfn].data, { encoding: store.workfs[xfn].encoding });
         continue;
       }
-      // fetch from network
-      var xpath = "lib/" + getBasePlatform(step.platform) + "/" + xfn;
-      var xhr = new XMLHttpRequest();
-      xhr.responseType = 'arraybuffer';
-      xhr.open("GET", PWORKER + xpath, false);  // synchronous request
-      xhr.send(null);
-      if (xhr.response && xhr.status == 200) {
-        var data = new Uint8Array(xhr.response);
-        fs.writeFile(xfn, data, { encoding: 'binary' });
-        putWorkFile(xfn, data);
-        console.log(":::", xfn, data.length);
-      } else {
-        throw Error("Could not load extra file " + xpath);
-      }
+      var data = fetchLibraryFile(step.platform, xfn);
+      if (!data) throw Error("Could not load extra file lib/" + getBasePlatform(step.platform) + "/" + xfn);
+      fs.writeFile(xfn, data, { encoding: 'binary' });
+      putWorkFile(xfn, data);
+      console.log(":::", xfn, data.length);
     }
   }
+}
+
+/** A file from the platform's library, src/worker/lib/<base platform>/, or null. */
+export function fetchLibraryFile(platform: string, name: string): Uint8Array | null {
+  var xhr = new XMLHttpRequest();
+  xhr.responseType = 'arraybuffer';
+  xhr.open("GET", PWORKER + "lib/" + getBasePlatform(platform) + "/" + name, false);  // synchronous request
+  xhr.send(null);
+  return xhr.response && xhr.status == 200 ? new Uint8Array(xhr.response) : null;
+}
+
+/**
+ * A header the platform's library provides (listed in extra_compile_files,
+ * which builds copy in), or null -- for the IDE's read-only header view.
+ */
+export function readLibraryHeader(platform: string, name: string): Uint8Array | null {
+  var params = PLATFORM_PARAMS[platform] || PLATFORM_PARAMS[getBasePlatform(platform)];
+  var listed: string[] = (params && params.extra_compile_files) || [];
+  return listed.includes(name) ? fetchLibraryFile(platform, name) : null;
 }
 
 // see if any target file compares to the inputs in the given direction
@@ -411,9 +430,9 @@ export function anyTargetChanged(step: BuildStep, targets: string[]) {
  * interrupt vectors, so linking it against crt0.o (which has vectors of its
  * own) and the bank-switched config its C programs use can only collide. A
  * platform spells the difference out with asm_-prefixed copies of the link
- * params -- asm_cfgfile, asm_libargs, asm_extra_link_files -- which the
- * assembler applies when the project's main file is its own source, and which
- * nothing else looks at. Runs before fixParamsWithDefines() so that a source
+ * params -- asm_cfgfile, asm_libargs, asm_extra_link_files, asm_startup_objs
+ * -- which the assembler (ca65, sdas) applies when the project's main file is
+ * its own source, and which nothing else looks at. Runs before fixParamsWithDefines() so that a source
  * file's own directive (//#tooldef ... cfgfile=, or a legacy CFGFILE define)
  * still has the last word.
  */
