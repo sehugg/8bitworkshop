@@ -42,7 +42,8 @@ void lcd_handler(void) NONBANKED {
   uint8_t ly = LY_REG;
   if (ly < 143) {
     // offset this line and arm the interrupt for the next one
-    SCX_REG = 248 + (int8_t)wave[(ly + phase) & 31];
+    // (ly advances 8 lines per interrupt, so ly >> 3 steps one table entry)
+    SCX_REG = 248 + (int8_t)wave[((ly >> 3) + phase) & 31];
     LYC_REG = ly + 8;
   } else {
     // last line: reset so the next frame starts at the top

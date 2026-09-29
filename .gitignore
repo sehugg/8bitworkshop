@@ -13,3 +13,4 @@ chromedriver.log
 nightwatch.conf.js
 /src/docs/toolchains.md
 LICENSES/
+.vscode
