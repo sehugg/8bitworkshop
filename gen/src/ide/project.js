@@ -14,9 +14,7 @@ class WebPresetsFileSystem {
         this.preset_id = (0, util_1.getBasePlatform)(platform_id); // remove .suffix from preset name
     }
     async getRemoteFile(path) {
-        return new Promise((yes, no) => {
-            return (0, util_1.getWithBinary)(path, yes, (0, util_1.isProbablyBinary)(path) ? 'arraybuffer' : 'text');
-        });
+        return (0, util_1.fetchWithBinary)(path, (0, util_1.isProbablyBinary)(path) ? 'arraybuffer' : 'text');
     }
     async getFileData(path) {
         // found on remote fetch?

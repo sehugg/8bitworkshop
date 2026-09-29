@@ -8,7 +8,11 @@ exports.reportErrorToServer = reportErrorToServer;
 exports.reportInternalError = reportInternalError;
 const telemetry_1 = require("../common/telemetry");
 const SEND_URL = '/error.php';
+// crawlers and automated browsers hit odd URLs; their errors are noise
+const isBot = typeof navigator !== 'undefined' && (navigator.webdriver || (0, telemetry_1.isBotUserAgent)(navigator.userAgent));
 function send(payload) {
+    if (isBot)
+        return;
     payload.url = window.location.href.substring(0, 500);
     payload.userAgent = navigator.userAgent.substring(0, 500);
     payload.language = navigator.language;

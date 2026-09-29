@@ -55,6 +55,7 @@ const debugcontroller_1 = require("../common/debugcontroller");
 const symbolfile_1 = require("../common/symbols/symbolfile");
 const testlib_1 = require("./testlib");
 const detect_1 = require("../common/detect");
+const toolroot_1 = require("./toolroot");
 /** Options that may be repeated; each occurrence adds to a list. */
 const REPEATABLE_FLAGS = new Set([
     'define', 'as-define', 'ld-define', 'cflag', 'asflag', 'ldflag',
@@ -358,7 +359,7 @@ async function writeScreenshot(video, pngFile) {
 ////////////////////////////////////////////////////////////////////////
 // platform detection
 function presetsDir() {
-    for (const dir of [path.resolve('presets'), path.resolve(__dirname, '../../presets')]) {
+    for (const dir of [path.resolve((0, toolroot_1.toolRoot)(), 'presets'), path.resolve(__dirname, '../../presets')]) {
         if (fs.existsSync(dir))
             return dir;
     }

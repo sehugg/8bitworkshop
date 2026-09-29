@@ -36,6 +36,15 @@ export function clampField(val: any, max: number): string {
   }
 }
 
+// Crawlers, link previewers, and headless browsers. Keep in sync with
+// is_bot_user_agent() in web/error.php.
+const BOT_UA = /bot\b|bot\/|crawl|spider|slurp|headless|lighthouse|facebookexternalhit|preview|inspectiontool|pingdom|python-requests|\bcurl\/|\bwget\//i;
+
+/** True if an error from this user agent isn't worth reporting. */
+export function isBotUserAgent(ua: string): boolean {
+  return !!ua && BOT_UA.test(ua);
+}
+
 export function toInternalError(e: any): InternalError {
   return { msg: String(e && e.message || e), stack: e && e.stack };
 }

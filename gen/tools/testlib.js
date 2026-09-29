@@ -60,6 +60,7 @@ const platforms_1 = require("../worker/platforms");
 Object.defineProperty(exports, "PLATFORM_PARAMS", { enumerable: true, get: function () { return platforms_1.PLATFORM_PARAMS; } });
 const workertools_1 = require("../worker/workertools");
 Object.defineProperty(exports, "TOOLS", { enumerable: true, get: function () { return workertools_1.TOOLS; } });
+const toolroot_1 = require("./toolroot");
 let initialized = false;
 /**
  * Initialize the Node.js environment for compilation.
@@ -68,7 +69,7 @@ let initialized = false;
 async function initialize() {
     if (initialized)
         return;
-    (0, workerlib_1.setupNodeEnvironment)();
+    (0, workerlib_1.setupNodeEnvironment)((0, toolroot_1.toolRoot)());
     // The worker tools are already registered through the import chain:
     // workerlib -> workertools -> tools/* and builder -> TOOLS
     // No need to load the esbuild bundle.
@@ -122,7 +123,7 @@ async function compile(options) {
  */
 async function compileFile(tool, platform, presetPath) {
     await initialize();
-    var code = fs.readFileSync('presets/' + platform + '/' + presetPath, 'utf-8');
+    var code = fs.readFileSync(path.join((0, toolroot_1.toolRoot)(), 'presets', platform, presetPath), 'utf-8');
     return compile({
         tool: tool,
         platform: platform,
@@ -132,7 +133,7 @@ async function compileFile(tool, platform, presetPath) {
 }
 /**
  * Reads files for a build from the source file's directory, then
- * presets/<base platform>, then the current directory.
+ * presets/<base platform> under the tool root, then the current directory.
  */
 class NodeFileProvider {
     constructor(sourceDir, platform) {
@@ -143,7 +144,7 @@ class NodeFileProvider {
         var searchPaths = [];
         if (this.sourceDir)
             searchPaths.push(path.resolve(this.sourceDir, filePath));
-        searchPaths.push(path.resolve('presets', (0, util_1.getBasePlatform)(this.platform), filePath));
+        searchPaths.push(path.resolve((0, toolroot_1.toolRoot)(), 'presets', (0, util_1.getBasePlatform)(this.platform), filePath));
         searchPaths.push(path.resolve(filePath));
         for (var p of searchPaths) {
             try {

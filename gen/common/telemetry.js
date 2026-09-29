@@ -5,6 +5,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ErrorReporter = exports.MAX_REPORTS_PER_SESSION = exports.ERROR_REPORT_URL = void 0;
 exports.clampField = clampField;
+exports.isBotUserAgent = isBotUserAgent;
 exports.toInternalError = toInternalError;
 exports.ERROR_REPORT_URL = 'https://8bitworkshop.com/error.php';
 exports.MAX_REPORTS_PER_SESSION = 10;
@@ -19,6 +20,13 @@ function clampField(val, max) {
     catch (e) {
         return '<unserializable: ' + e + '>';
     }
+}
+// Crawlers, link previewers, and headless browsers. Keep in sync with
+// is_bot_user_agent() in web/error.php.
+const BOT_UA = /bot\b|bot\/|crawl|spider|slurp|headless|lighthouse|facebookexternalhit|preview|inspectiontool|pingdom|python-requests|\bcurl\/|\bwget\//i;
+/** True if an error from this user agent isn't worth reporting. */
+function isBotUserAgent(ua) {
+    return !!ua && BOT_UA.test(ua);
 }
 function toInternalError(e) {
     return { msg: String(e && e.message || e), stack: e && e.stack };
