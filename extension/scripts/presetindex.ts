@@ -21,7 +21,10 @@ import type { PresetIndex, TemplateInfo } from '../src/presettypes';
 // families from the IDE's platform menu that the extension can't run
 const SKIP_FAMILIES = ['MAME/Other', 'Interpreters'];
 // platforms we never offer in the extension, even if the menu lists them
-const SKIP_PLATFORMS = ['x86', 'vectrex', 'exidy', 'arm32'];
+// TODO: vector-* need vector video in the webview, williams-z80 a headless
+// sound Worker (notes/PLAN.md, "platforms that don't run in the extension")
+const SKIP_PLATFORMS = ['x86', 'vectrex', 'exidy', 'arm32',
+  'vector-z80color', 'vector-ataricolor', 'williams-z80'];
 
 const rootDir = path.resolve(process.argv[2] || path.join(__dirname, '../..'));
 const outFile = path.resolve(process.argv[3] || path.join(__dirname, 'presets.json'));

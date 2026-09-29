@@ -6,12 +6,11 @@
 //
 // writes <outDir>/8bitworkshop-<pack>-<ideVersion>-<hash>.tar.br and
 // out/assets.json. Upload the packs to the asset server (ASSET_URLS in
-// extension.ts). --quality trades size for speed: 11 (the default, for
-// releases) takes minutes; 5 takes seconds.
+// extension.ts). --quality trades size for speed: 11 (the default)
+// takes minutes; 8 is nearly as small and much faster.
 //
-// `npm run package` packs a quick (quality 5) bundle so dev installs work;
-// the release scripts (`npm run package:release`, `npm run vsce-publish`,
-// `npm run ovsx-publish`) pack at full quality first. `vscode:prepublish`
+// `npm run package` packs at quality 8, which we ship; `npm run
+// package:release`, `vsce-publish` and `ovsx-publish` pack at 11. `vscode:prepublish`
 // only builds, so vsce never repacks the assets on its own.
 
 import * as fs from 'fs';

@@ -258,7 +258,7 @@ is; a `.c` file anywhere else sees nothing from us.
 **Rule 2: claim a language ID only where nobody else does.**
 
 - *Extensions only 8bitworkshop uses* (`.dasm`, `.ca65`, `.acme`, `.xa`,
-  `.nesasm`, `.z`, `.xasm`, `.lwasm`, `.vasm`, `.wiz`, `.ecs`, `.bb`,
+  `.nesasm`, `.zmac`, `.xasm`, `.lwasm`, `.vasm`, `.wiz`, `.ecs`, `.bb`,
   `.cc2600`, `.cc7800`, ...): list them in
   `contributes.languages[].extensions`, generated from `toolmeta.ts`.
   Before each release, check the Marketplace for collisions.
@@ -1453,6 +1453,12 @@ vicdual, williams, zx. Since then (2026-09-26), vcs and arm32 work too. These do
 | `vector-*` | no frames | Vector video isn't forwarded; the webview needs line drawing (`VectorVideo.drawLine` ops). |
 | `kim1` | no frames | LED display, no raster video; needs its own view. |
 
+**TODO: hidden until they run** (2026-09-29). `vector-z80color`,
+`vector-ataricolor` (no frames) and `williams-z80` (`Worker is not
+defined`) are in `SKIP_PLATFORMS` in `scripts/presetindex.ts`, so New
+Project and Open Example don't offer them. Take each out of that list once
+the survey shows it producing frames.
+
 Also:
 - **Start timeout.** A platform whose `start()` never settles leaves the
   panel blank with no error (the CLI already reports "never finished
@@ -2379,7 +2385,7 @@ do them when a platform is the priority (VCS needs 3–4).
    share; `scripts/syntaxes.ts` writes `out/syntaxes/`. `test/syntaxes.test.ts`
    tokenizes with `vscode-textmate` and checks `package.json` against
    `makeContributions()`. Only extensions no one else uses are claimed
-   (`.dasm .ca65 .xa .nesasm .z .zmac .sgb .xasm .lwasm`); `.s .asm .inc .a`
+   (`.dasm .ca65 .xa .nesasm .zmac .sgb .xasm .lwasm`); `.s .asm .inc .a`
    wait for per-project language assignment (Rule 2).
    - Decided: no C grammar of our own. C goes to clangd/cpptools with our
      headers, defines and shims (`cheaders.ts`, §4 "C: feed clangd and

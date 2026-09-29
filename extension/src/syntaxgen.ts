@@ -49,7 +49,7 @@ export const ASM_LANGUAGES: AsmLanguage[] = [
   {
     id: '8bws-z80', cpu: 'z80',
     aliases: ['Z80 Assembly', 'Z80'],
-    extensions: ['.z', '.zmac', '.sgb'],
+    extensions: ['.zmac', '.sgb'],
     opcodes: uniq([...K.opcodesZ80, ...K.opcodesGBZ80]),
     registers: K.registersZ80,
     conditions: K.conditionsZ80,

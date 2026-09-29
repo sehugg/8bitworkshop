@@ -13,8 +13,12 @@ First preview.
 - Toolchains download on first use, checked against built-in hashes.
 - Compiler and emulator crashes send an error report to 8bitworkshop.com,
   following VS Code's `telemetry.telemetryLevel` setting. See the README.
-- The Atari 2600 now stops at breakpoints and steps by instruction, not by
-  frame, and can step back.
+- Debugging with <kbd>F5</kbd>: breakpoints on lines, functions and
+  conditions; step, step over, step out, step back and reverse continue;
+  a timeline to scrub through the recording while paused.
+- Debug views: registers, the machine's internal state (the IDE's Debug
+  Tree), symbols, a call stack walked from return addresses, and
+  disassembly. Memory opens in VS Code's Hex Editor.
 - `.s`, `.asm`, `.inc` and `.a` files in a project get the highlighting
   for the platform's CPU. `.acme` files get 6502 highlighting.
 - An `8bws` command in the integrated terminal builds and runs programs

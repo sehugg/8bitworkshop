@@ -386,7 +386,6 @@
           "Z80"
         ],
         "extensions": [
-          ".z",
           ".zmac",
           ".sgb"
         ],
