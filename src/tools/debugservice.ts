@@ -9,6 +9,7 @@
 import { Breakpoint, makeCondContext } from '../common/breakpoints';
 import { compileExpression } from '../common/breakcond';
 import { TreeEntry, treeChildren } from '../common/debugtree';
+import { walkStack } from '../common/stackwalk';
 import { buildDebugContext, DebugController, DebugLocation, StepGranularity, StopEvent } from '../common/debugcontroller';
 import { lookupSymbol } from '../common/symbols/symbolfile';
 import { Granularity, Timestamp } from '../common/timeline';
@@ -52,6 +53,15 @@ export interface SymbolValue {
   addr: number;
   /** the byte there */
   value: number;
+}
+
+export interface CallStackFrame {
+  /** the PC, or for callers, the address of the call */
+  pc: number;
+  source?: { path: string, line: number };
+  symbol?: { name: string, offset: number };
+  /** its call doesn't go to the routine the frame below is in */
+  unsure?: boolean;
 }
 
 export interface DisasmResult {
@@ -158,6 +168,33 @@ export class DebugService {
   seekFrame(frame: number) { this.onStop(this.debug.seekFrame(frame)); }
 
   location(): DebugLocation { return this.debug.location(); }
+
+  /**
+   * Where it is and how it got there: the PC, then each call found on the
+   * stack (see stackwalk.ts), innermost first.
+   */
+  callStack(maxFrames = 64): CallStackFrame[] {
+    const t = this.target;
+    const pc = t.getPC();
+    if (pc == null) return [];
+    const regs: any = t.getCPUState() || {};
+    const frames = walkStack({
+      arch: t.arch,
+      sp: regs.SP ?? 0,
+      read: a => t.read(a & 0xffff),
+      disassemble: a => t.disassemble(a & 0xffff),
+      isCode: a => !!this.debug.sourceAt(a) || (this.debug.symbolAt(a)?.offset ?? Infinity) < 0x1000,
+    }, pc, maxFrames);
+    return frames.map(f => {
+      const frame: CallStackFrame = { pc: f.pc };
+      const source = this.debug.sourceAt(f.pc);
+      if (source) frame.source = { path: source.path, line: source.line };
+      const symbol = this.debug.symbolAt(f.pc);
+      if (symbol) frame.symbol = symbol;
+      if (f.matched === false) frame.unsure = true;
+      return frame;
+    });
+  }
 
   timeline(): TimelineInfo | null {
     const h = this.target.history;

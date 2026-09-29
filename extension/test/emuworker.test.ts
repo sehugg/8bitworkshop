@@ -318,6 +318,16 @@ describe('extension emuworker', function () {
       // zero page, through the machine's write
       assert.equal(await debug('writeMemory', 0x10, [0x5a]), 1);
       assert.deepEqual(await debug('readMemory', 0x10, 1), [0x5a]);
+
+      // a 6502 call stack, from JSR return addresses: neslib's vram_write
+      // (no source) called from put_str, called from main
+      await debug('setBreakpoints', [{ id: 2, type: 'address', target: 'vram_write', enabled: true }]);
+      await debug('continue');
+      assert.equal((await nextStop()).reason, 'breakpoint');
+      var stack = await debug('callStack');
+      assert.deepEqual(stack.map((f: any) => [f.symbol?.name, f.source?.line ?? null, !!f.unsure]),
+        [['_vram_write', null, false], ['_put_str', 21, false], ['_main', 52, false]]);
+      await debug('setBreakpoints', []);
     });
 
     it('drives the debug adapter through the worker, as the extension does', async function () {

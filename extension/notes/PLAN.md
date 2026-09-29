@@ -1843,7 +1843,8 @@ runs has to be a webview too.
 | Debug info panel (`getDebugInfo()` text) | webview ("Machine" view) |
 | Memory with symbols, memory map | webviews |
 | Probe log, scanline I/O, heatmaps, stack map, frame calls | webviews |
-| Call stack | webview; could also feed DAP `stackTrace` real frames |
+| Call stack (where it is now) | DAP `stackTrace` from a stack scan (done) |
+| Call Stack window (call graph over time) | webview, over `CallGraphBuilder` |
 | Waveform | webview |
 
 **Done (2026-09-29): the DAP layer.**
@@ -1880,9 +1881,36 @@ runs has to be a webview too.
 - Tests: `test/unit/testdebugtree.ts`, and a case in
   `test/unit/testdapsession.ts`.
 
-**Next, still DAP:** `setVariable` on Symbols (write the byte), and a real
-call stack from the probe's call tracking (see `CallStackView`) instead of
-the single PC frame.
+- **Call stack.** `src/common/stackwalk.ts` scans up from SP for return
+  addresses (6502: page 1, JSR's address minus one; Z80/SM83: words). A
+  value counts only if a call instruction ends just before it (checked with
+  the disassembler), and one whose call goes to the routine the frame below
+  is in (within 4K before its PC) wins over one that doesn't, looking 32
+  bytes further for it. An unmatched one (indirect call, trampoline) must
+  be in code (a source line, or near a symbol) and shows as `subtle` with a
+  `?`. Interrupt handlers skip the routine they interrupted. The CPU comes
+  from `EmuCore.arch`. Tested on sdcc (mw8080bw) and cc65 (NES) programs.
+- **Frames with no source** (libraries, hand assembly without a listing,
+  ROMs) get a disassembly listing of their routine as a DAP source
+  (`sourceReference`), so VS Code still focuses the frame and shows it.
+  A listing runs from the routine's symbol to the next one; the same text
+  keeps the same reference. Breakpoints set in it are address breakpoints.
+
+**IDE Call Stack window.** Its call graph moved to
+`src/common/callgraph.ts` (`CallGraphBuilder`, tested). It now tells calls
+and returns by the instruction (disassembled once per address) and whether
+SP moved, instead of guessing from SP moving 2-3 bytes and the PC jumping:
+the guess took Z80 `PUSH` + a jump for a call. The guess remains for
+platforms without a disassembler. The root is made at the first
+instruction, not from SP -1.
+
+**Next, still DAP:** `setVariable` on Symbols (write the byte).
+
+**Not DAP: live state while running.** VS Code drops the call stack and
+Variables when the thread runs; that's the protocol, not something to work
+around with a fake always-stopped thread (its values would go stale, and
+its step and continue buttons would act on the real CPU). Live views are
+webviews: the Machine view first.
 
 ### Plan: dedicated debug views (waveform first)
 

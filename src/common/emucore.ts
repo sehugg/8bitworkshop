@@ -22,6 +22,7 @@
 // Platforms that can't save state run frames directly and can't rewind.
 
 import {
+  Base6502Platform, Base6809Platform, BaseZ80Platform,
   CpuState, DisasmLine, EmuState, Machine, Platform, hasProbe, isDebuggable,
 } from "./baseplatform";
 import { ProbeAll, SampledAudioParams, TrapCondition } from "./devices";
@@ -334,6 +335,20 @@ export class EmuCore {
     try { if (this.platform.getPC) return this.platform.getPC(); } catch (e) { }
     const s = this.getCPUState();
     return s ? s.PC : null;
+  }
+
+  /**
+   * The CPU, as a DISASSEMBLERS key, or '' if we can't tell: from the
+   * machine's CPU, or else which base class the platform has (nes).
+   */
+  get arch(): string {
+    const arch = archOf(this.machine?.cpu);
+    if (arch) return arch;
+    const p = this.platform;
+    if (p instanceof Base6502Platform) return '6502';
+    if (p instanceof Base6809Platform) return '6809';
+    if (p instanceof BaseZ80Platform) return 'z80';
+    return '';
   }
 
   disassemble(addr: number): DisasmLine | null {

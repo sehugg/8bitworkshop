@@ -2,6 +2,8 @@ import assert from "assert";
 import { before, describe, it } from "mocha";
 import { EmuDebugSession } from "../../src/tools/dapsession";
 import { DapClient } from "./dapclient";
+import type { Breakpoint } from "../../src/common/breakpoints";
+import type { DebugBackend } from "../../src/tools/dapsession";
 import { LocalDebugBackend } from "../../src/tools/daplocal";
 import { loadPlatform } from "../../src/tools/emutarget";
 import { compileSourceFile, preload } from "../../src/tools/testlib";
@@ -12,7 +14,7 @@ import { compileSourceFile, preload } from "../../src/tools/testlib";
 const ROOT = '/proj';
 let build: any;
 
-async function launch(): Promise<DapClient> {
+async function launch(args: any = {}): Promise<DapClient> {
   const backend = new LocalDebugBackend(async () => {
     const target = await loadPlatform('mw8080bw');
     await target.start();
@@ -22,7 +24,7 @@ async function launch(): Promise<DapClient> {
   const c = new DapClient(new EmuDebugSession(backend));
   const caps = await c.request('initialize', { adapterID: '8bitworkshop', linesStartAt1: true, columnsStartAt1: true, pathFormat: 'path', supportsMemoryEvent: true, supportsInvalidatedEvent: true });
   assert.ok(caps.supportsDisassembleRequest);
-  await c.request('launch', { program: 'game2.c' });
+  await c.request('launch', { program: 'game2.c', ...args });
   await c.event('initialized');
   const { capabilities } = await c.event('capabilities');
   assert.strictEqual(capabilities.supportsStepBack, true);
@@ -72,6 +74,14 @@ describe('Debug adapter', function () {
     const frame = await c.where();
     const pc = parseInt(frame.instructionPointerReference, 16);
     assert.strictEqual(pc, build.symbolmap['_draw_char']);
+    // the callers, from return addresses on the stack
+    const { stackFrames, totalFrames } = await c.request('stackTrace', { threadId: 1 });
+    assert.deepStrictEqual(stackFrames.map((f: any) => `${f.name.replace(/\+\d+$/, '')} ${f.line}`),
+      ['_draw_char 155', '_draw_string 168', '_draw_playfield 391', '_play_round 487', '_play_game 533', '_main 552']);
+    assert.strictEqual(totalFrames, 6);
+    assert.ok(stackFrames.every((f: any) => !f.presentationHint));
+    const callers = await c.request('stackTrace', { threadId: 1, startFrame: 1, levels: 2 });
+    assert.deepStrictEqual(callers.stackFrames.map((f: any) => f.id), [1, 2]);
 
     const { scopes } = await c.request('scopes', { frameId: frame.id });
     const { variables } = await c.request('variables', { variablesReference: scopes[0].variablesReference });
@@ -155,3 +165,53 @@ describe('Debug adapter', function () {
     assert.ok((await c.where()).instructionPointerReference);
   });
 });
+
+describe('Debug adapter, where there is no source', function () {
+  // a routine `lib` at $1000 of one-byte NOPs, the PC 3 bytes in, and
+  // another routine at $1008
+  const PC = 0x1003;
+  let bpsSent: Breakpoint[] = [];
+  const backend: DebugBackend = {
+    launch: async () => ({ capabilities: { step: true, rewind: false, granularity: 'insn', write: false, tree: false }, root: ROOT }),
+    terminate: async () => { },
+    onStop: () => { },
+    setBreakpoints: async (bps) => { bpsSent = bps; return bps.map(b => ({ id: b.id, verified: true, pc: parseInt(b.target.slice(1), 16) })); },
+    continue: async () => { }, step: async () => { }, pause: async () => { }, stepBack: async () => { }, reverseContinue: async () => { },
+    location: async () => ({ at: { frame: 0, step: 0 }, pc: PC, symbol: { name: 'lib', offset: PC - 0x1000 } }),
+    callStack: async () => [{ pc: PC, symbol: { name: 'lib', offset: PC - 0x1000 } }],
+    registers: async () => [], readMemory: async () => [], writeMemory: async () => 0,
+    debugTree: async () => [], symbols: async () => [],
+    evaluate: async () => ({ result: '' }),
+    disassemble: async (addr, insnOffset, count) => Array.from({ length: count }, (_, i) => {
+      const a = addr + insnOffset + i;
+      return { addr: a, bytes: '00', text: 'NOP', symbol: a === 0x1000 ? 'lib' : a === 0x1008 ? 'next' : undefined };
+    }),
+  };
+
+  it('shows a disassembly of the routine, and takes breakpoints in it', async function () {
+    const c = new DapClient(new EmuDebugSession(backend));
+    await c.request('initialize', { adapterID: '8bitworkshop', linesStartAt1: true, columnsStartAt1: true, pathFormat: 'path' });
+    await c.request('launch', { program: 'x.s' });
+    const frame = await c.where();
+    assert.strictEqual(frame.source.name, 'lib (disassembly)');
+    assert.ok(frame.source.sourceReference > 0);
+    const { content } = await c.request('source', { source: frame.source, sourceReference: frame.source.sourceReference });
+    const lines = content.split('\n');
+    assert.deepStrictEqual(lines.slice(0, 3), ['lib:', '  $1000  00          NOP', '  $1001  00          NOP']);
+    // up to the next routine
+    assert.strictEqual(lines.length, 1 + 8 + 1);
+    assert.strictEqual(frame.line, 1 + 4);
+    assert.match(lines[frame.line - 1], /^  \$1003 /);
+
+    // the same code keeps the same reference
+    assert.strictEqual((await c.where()).source.sourceReference, frame.source.sourceReference);
+
+    // breakpoints go on instructions' lines, not labels'
+    const { breakpoints } = await c.request('setBreakpoints', { source: frame.source, breakpoints: [{ line: 3 }, { line: 1 }] });
+    assert.deepStrictEqual(bpsSent.map(b => b.target), ['$1001']);
+    assert.strictEqual(breakpoints[0].verified, true);
+    assert.strictEqual(breakpoints[0].line, 3);
+    assert.strictEqual(breakpoints[1].verified, false);
+  });
+});
+

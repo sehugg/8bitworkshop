@@ -1,3 +1,5 @@
+import { CallGraphBuilder, InsnKind } from "../../common/callgraph";
+import { isCallInsn, isReturnInsn } from "../../common/debugcontroller";
 import { dumpRAM } from "../../common/emu";
 import { ProbeFlags } from "../../common/probe";
 import { hex } from "../../common/util";
@@ -206,24 +208,11 @@ export class DebugBrowserView extends TreeViewBase implements ProjectView {
   getRootObject() { return platform.getDebugTree(); }
 }
 
-interface CallGraphNode {
-  $$SP : number;
-  $$PC : number;
-  count : number;
-  startLine : number;
-  endLine : number;
-  calls : {[id:string] : CallGraphNode};
-}
-
 // TODO: clear stack data when reset?
 export class CallStackView extends ProbeViewBaseBase implements ProjectView {
   treeroot : TreeNode;
-  graph : CallGraphNode;
-  stack : CallGraphNode[];
-  lastsp : number;
-  lastpc : number;
-  jsr : boolean;
-  rts : boolean;
+  builder = new CallGraphBuilder(pc => this.classify(pc), pc => this.addr2str(pc));
+  kinds = new Map<number, InsnKind>();
   cumulativeData = true;
 
   createDiv(parent : HTMLElement) : HTMLElement {
@@ -242,80 +231,32 @@ export class CallStackView extends ProbeViewBaseBase implements ProjectView {
   }
 
   clear() {
-    this.graph = null;
-    this.reset();
+    this.builder.clear();
+    this.kinds.clear();
   }
 
-  reset() {
-    this.stack = [];
-    this.lastsp = -1;
-    this.lastpc = 0;
-    this.jsr = false;
-    this.rts = false;
-  }
-
-  newNode(pc : number, sp : number) {
-    return {$$SP:sp, $$PC:pc, count:0, startLine:null, endLine:null, calls:{}};
-  }
-
-  newRoot(pc : number, sp : number) {
-    if (this.stack.length == 0) {
-      this.graph = this.newNode(null, sp);
-      this.stack.unshift(this.graph);
-    } else if (sp > this.stack[0].$$SP) {
-      this.graph = this.newNode(null, sp);
-      this.graph.calls[this.addr2str(pc)] = this.stack[0];
-      this.stack.unshift(this.graph);
+  /** Call, return or neither, from the disassembly (cached: code rarely changes). */
+  classify(pc : number) : InsnKind {
+    let kind = this.kinds.get(pc);
+    if (kind == null) {
+      kind = 'unknown';
+      if (platform.disassemble && platform.readAddress) {
+        try {
+          const d = platform.disassemble(pc, (a) => platform.readAddress(a));
+          if (d) kind = isCallInsn(d.line) ? 'call' : isReturnInsn(d.line) ? 'return' : 'other';
+        } catch (e) { }
+      }
+      this.kinds.set(pc, kind);
     }
+    return kind;
   }
 
   getRootObject() : Object {
     // TODO: we don't capture every frame, so if we don't start @ the top frame we may have problems
-    this.redraw((op,addr,col,row,clk,value) => {
-      switch (op) {
-        case ProbeFlags.SP_POP:
-          this.newRoot(this.lastpc, this.lastsp);
-        case ProbeFlags.SP_PUSH:
-          if (this.stack.length) {
-            let top = this.stack[this.stack.length-1];
-            var delta = this.lastsp - addr;
-            if ((delta == 2 || delta == 3) && addr < top.$$SP) { // TODO: look for opcode?
-              this.jsr = true;
-            }
-            if ((delta == -2 || delta == -3) && this.stack.length > 1 && addr > top.$$SP) {
-              this.rts = true;
-            }
-          }
-          this.lastsp = addr;
-          break;
-        case ProbeFlags.EXECUTE:
-          // TODO: better check for CALL/RET opcodes
-          if (Math.abs(addr - this.lastpc) >= 4) { // make sure we're jumping a distance (TODO)
-            if (this.jsr && this.stack.length) {
-              let top = this.stack[this.stack.length-1];
-              let sym = this.addr2str(addr);
-              let child = top.calls[sym];
-              if (child == null) { 
-                child = top.calls[sym] = this.newNode(addr, this.lastsp);
-              }
-              else if (child.$$PC == null) child.$$PC = addr;
-              //this.stack.forEach((node) => node.count++);
-              this.stack.push(child);
-              child.count++;
-              child.startLine = row;
-            }
-            this.jsr = false;
-            if (this.rts && this.stack.length) {
-              this.stack.pop().endLine = row;
-            }
-            this.rts = false;
-          }
-          this.lastpc = addr;
-          break;
-      }
-    });
-    if (this.graph) this.graph['$$Stack'] = this.stack;
-    return TREE_SHOW_DOLLAR_IDENTS ? this.graph : this.graph && this.graph.calls;
+    this.redraw((op,addr,col,row,clk,value) => this.builder.event(op, addr, row));
+    const graph = this.builder.graph;
+    if (graph) graph['$$Stack'] = this.builder.stack;
+    return TREE_SHOW_DOLLAR_IDENTS ? graph : graph && graph.calls;
   }
 }
 

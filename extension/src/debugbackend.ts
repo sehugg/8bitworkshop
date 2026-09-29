@@ -50,6 +50,7 @@ export class WorkerDebugBackend implements DebugBackend {
   stepBack(...a: Parameters<DebugService['stepBack']>) { return this.call('stepBack', ...a); }
   reverseContinue() { return this.call('reverseContinue'); }
   location() { return this.call('location'); }
+  callStack(...a: Parameters<DebugService['callStack']>) { return this.call('callStack', ...a); }
   registers() { return this.call('registers'); }
   readMemory(...a: Parameters<DebugService['readMemory']>) { return this.call('readMemory', ...a); }
   writeMemory(...a: Parameters<DebugService['writeMemory']>) { return this.call('writeMemory', ...a); }

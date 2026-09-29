@@ -77,6 +77,11 @@ In a folder with a launch configuration, <kbd>F5</kbd> does the same, and
   memory at that address in the Hex Editor (VS Code offers to install
   it). On most platforms you can edit it there; VCS and MAME-based
   platforms are read-only.
+- **Call Stack** shows the routines that called the current one, found
+  from return addresses on the stack. A caller marked `?` (dimmed) is a
+  guess: its call went through a pointer or a jump table.
+- Where there's no source (a library, or a ROM), the frame opens a
+  disassembly of that routine, where you can set breakpoints too.
 - **Disassembly:** right-click in the Call Stack and choose **Open
   Disassembly View**. It shows instructions with their symbols and source
   lines.
