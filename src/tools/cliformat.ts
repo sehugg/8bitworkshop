@@ -66,6 +66,11 @@ export function note(msg: string): void {
   if (!jsonMode || serving) process.stderr.write(`${c.dim}${msg}${c.reset}\n`);
 }
 
+/** A problem worth fixing that doesn't stop the command; stderr in any mode. */
+export function warn(msg: string): void {
+  process.stderr.write(`${c.yellow}Warning: ${msg}${c.reset}\n`);
+}
+
 let emitted = false;
 
 /** True once a CLIResult has been printed -- lets main() detect a silent exit. */

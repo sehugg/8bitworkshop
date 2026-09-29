@@ -5,7 +5,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { WorkerResult, WorkerMessage, BuildArgLists, BuildSymbolLists, FileData } from "../common/workertypes";
+import type { WorkerResult, WorkerErrorResult, WorkerMessage, BuildArgLists, BuildSymbolLists, FileData } from "../common/workertypes";
 import { isProbablyBinary, getBasePlatform } from "../common/util";
 import { getToolForPlatform } from "../common/toolselect";
 import { FileProvider, buildWorkerMessage, resolveDependencies } from "../common/projectcore";
@@ -40,6 +40,8 @@ export interface CompileResult {
   unchanged?: boolean;
   /** every file the build read, by worker filename (verilog's $readmem reads them at load time) */
   files?: { [path: string]: FileData };
+  /** the tool crashed: the IDE and extension report this to us (common/telemetry) */
+  internal?: WorkerErrorResult['internal'];
 }
 
 let initialized = false;
@@ -213,6 +215,7 @@ function workerResultToCompileResult(result: WorkerResult): CompileResult {
     return {
       success: false,
       errors: result.errors,
+      internal: result.internal,
     };
   }
   if ('output' in result) {

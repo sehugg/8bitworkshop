@@ -14,7 +14,8 @@ export class WorkerHandle {
     readonly script: string,
     readonly rootDir: string,
     readonly handlers: { [method: string]: (...args: any[]) => any } = {},
-    readonly log: (msg: string) => void = () => { }) { }
+    readonly log: (msg: string) => void = () => { },
+    readonly onCrash: (err: Error) => void = () => { }) { }
 
   get(): Rpc {
     if (!this.rpc) {
@@ -27,6 +28,7 @@ export class WorkerHandle {
       };
       worker.on('error', err => {
         this.log(`${this.script}: ${err && err.stack || err}`);
+        this.onCrash(err);
         fail(err);
       });
       worker.on('exit', code => fail(new Error(`${this.script} exited (${code})`)));

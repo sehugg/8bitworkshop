@@ -1,3 +1,4 @@
+import type { InternalError } from "./telemetry";
 
 export type FileData = string | Uint8Array;
 
@@ -186,6 +187,8 @@ export interface WorkerErrorResult {
   errors: WorkerError[]
   listings?: CodeListingMap
   uppercaseOnly?: boolean
+  /** set when a tool crashed rather than rejected the program, for error reports */
+  internal?: InternalError & { tool: string, platform: string }
 }
 
 export interface WorkerOutputResult<T> {

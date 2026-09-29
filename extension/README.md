@@ -118,6 +118,17 @@ and Open Example lists show which platforms have one.
 - [Report a problem](https://github.com/sehugg/8bitworkshop/issues)
 - [Source code](https://github.com/sehugg/8bitworkshop)
 
+## Error reports
+
+When a compiler or the emulator crashes, the extension sends an error report
+to 8bitworkshop.com: the error message, stack trace, platform, tool, and
+VS Code and extension versions. It doesn't send your source files. Errors in your
+program, like a syntax error or a crash in the emulated machine, aren't
+reported.
+
+The reports follow VS Code's `telemetry.telemetryLevel` setting: set it to
+`off` to stop them.
+
 ## License
 
 GPL-3.0. The included components (toolchains, emulators, libraries, firmware,

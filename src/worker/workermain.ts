@@ -1,7 +1,7 @@
 
 import type { WorkerResult, WorkerMessage, WorkerError, SourceLine } from "../common/workertypes";
 import { getSharedFileSystemName } from "../common/toolmeta";
-import { store, builder, errorResult, getWorkFileAsString, readLibraryHeader } from "./builder";
+import { store, builder, internalErrorResult, getWorkFileAsString, readLibraryHeader } from "./builder";
 import { emglobal, fsMeta, loadFilesystem, listSharedFiles, readSharedFile, ensureFilesystem, readWasiSharedFile, listWasiSharedFiles, ensureWasiFilesystem } from "./wasmutils";
 
 // shared FS names starting with 'wasi:' refer to a WASI filesystem zip
@@ -79,7 +79,14 @@ if (ENVIRONMENT_IS_WORKER) {
   var lastpromise = null;
   onmessage = async function (e) {
     await lastpromise; // wait for previous message to complete
-    lastpromise = handleMessage(e.data);
+    var data = e.data as WorkerMessage;
+    lastpromise = handleMessage(data).catch(err => {
+      // otherwise the IDE waits forever for a result
+      console.log(err);
+      var r: any = internalErrorResult(err, 'worker', data.platform || '');
+      if (data.qid != null) r.qid = data.qid;
+      return r as WorkerResult;
+    });
     var result = await lastpromise;
     lastpromise = null;
     if (result) {
@@ -87,7 +94,7 @@ if (ENVIRONMENT_IS_WORKER) {
         postMessage(result);
       } catch (e) {
         console.log(e);
-        postMessage(errorResult(`${e}`));
+        postMessage(internalErrorResult(e, 'worker', ''));
       }
     }
   }

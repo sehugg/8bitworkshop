@@ -14,7 +14,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { isProbablyBinary } from '../common/util';
-import { fail, hasOutput, note, output, setJsonMode, setServerMode } from './cliformat';
+import { fail, hasOutput, note, output, setJsonMode, setServerMode, warn } from './cliformat';
 import { EmuTarget, loadPlatform } from './emutarget';
 import { RUN_SCRIPT_HELP, RunScript, parseNum } from './runscript';
 import { verifyReplay } from './verifyreplay';
@@ -133,8 +133,12 @@ async function compileSource(args: Args, source: string, platform: string): Prom
   }
   await preload(tool, platform);
   const result = await compileSourceFile(tool, platform, source, undefined, buildOverrides(args));
+  if (result.internal) {
+    warn(`${result.internal.tool} crashed; the IDE would send an error report: ${result.internal.msg}`);
+    if (process.env.DEBUG) console.error(result.internal.stack);
+  }
   if (!result.success) {
-    fail('build', `${tool} failed on ${source}`, { errors: result.errors });
+    fail('build', `${tool} failed on ${source}`, { errors: result.errors, internal: result.internal });
   }
   return { rom: romBytes(result), symbolmap: result.symbolmap || {}, tool, platform, source, result };
 }

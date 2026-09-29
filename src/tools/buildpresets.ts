@@ -69,6 +69,7 @@ export interface PresetResult {
     size?: number;          // bytes of output, when it built
     ms: number;
     errors?: string[];
+    internal?: string;      // the tool crashed: the IDE would send an error report
     log?: string;           // what the tool printed, kept only when it failed
     run?: RunResult;        // present when built with --run
 }
@@ -570,7 +571,8 @@ export async function buildPreset(
     }
 
     const ms = Date.now() - started;
-    if (errors.length) return { preset, platform, tool, ok: false, ms, errors, log: log || undefined };
+    const internal = result?.internal ? `${result.internal.tool}: ${result.internal.msg}` : undefined;
+    if (errors.length) return { preset, platform, tool, ok: false, ms, errors, internal, log: log || undefined };
     const built: PresetResult = { preset, platform, tool, ok: true, size: outputSize(result), ms };
     if (opts.run) built.run = await runPreset(result, preset, platform, opts);
     return built;
@@ -694,6 +696,7 @@ async function main() {
             const runText = r.run ? ' ' + runStatus(r.run) : '';
             console.log(`${status} ${r.preset} ${cyan(`[${r.tool}/${r.platform}]`)} ${dim(size)} ${dim(r.ms + 'ms')}${runText}`);
             for (const e of r.errors || []) console.log(`       ${yellow(e)}`);
+            if (r.internal) console.log(`       ${red(bold('CRASH'))} ${red(r.internal)} ${dim('(the IDE would report this)')}`);
             if (r.run?.png) console.log(`       ${dim(r.run.png)}`);
             // only a failure gets the tool's / platform's own output
             if (r.log) console.log(dim(r.log.split('\n').map((l) => '     | ' + l).join('\n')));
@@ -716,6 +719,11 @@ async function main() {
         }
         console.log('\nby tool: ' + Object.keys(byTool).sort()
             .map((t) => `${cyan(t)}=${byTool[t]}`).join(' '));
+    }
+    const crashed = results.filter((r) => r.internal);
+    if (crashed.length) {
+        console.log('\n' + bold(red(`${crashed.length} tool crash(es)`)) + dim(' -- would be sent as error reports:'));
+        for (const r of crashed) console.log(`  ${red(r.preset)} ${cyan(`[${r.tool}/${r.platform}]`)} ${r.internal}`);
     }
     // what the builds did when loaded, separately from whether they built
     const ran = results.filter((r) => r.run);

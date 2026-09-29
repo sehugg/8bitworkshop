@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Compiler and emulator crashes send an error report to 8bitworkshop.com,
+  following VS Code's `telemetry.telemetryLevel` setting. See the README.
+
 - The Atari 2600 now stops at breakpoints and steps by instruction, not by
   frame, and can step back.
 - `.s`, `.asm`, `.inc` and `.a` files in a project get the highlighting

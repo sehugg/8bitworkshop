@@ -11,6 +11,7 @@ import { clearLastKeycodeMap, describeControls, getLastKeycodeMap, setHaltHandle
 import { ControlHint, PLATFORM_CONTROLS } from '../../src/common/controls';
 import { AudioStream, setAudioStreamFactory } from '../../src/common/audio';
 import { getRootBasePlatform } from '../../src/common/util';
+import { toInternalError } from '../../src/common/telemetry';
 import type { FileData } from '../../src/common/workertypes';
 import type { StopEvent } from '../../src/common/debugcontroller';
 import { BuildInfo, DebugService, TimelineInfo } from '../../src/tools/debugservice';
@@ -279,6 +280,9 @@ function tick() {
       frames++;
     }
   } catch (e) {
+    // EmuHalt (the program's fault) is a stop, caught in DebugController;
+    // anything reaching here is an emulator bug
+    rpc.emit('internalError', { platform: target.id, ...toInternalError(e) });
     halt(String(e && e.message || e), 'exception');
     return;
   }

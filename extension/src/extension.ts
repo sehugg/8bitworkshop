@@ -22,9 +22,11 @@ import { Detection, classifyFinding, isBuildableSource } from '../../src/common/
 import { TOOL_META } from '../../src/common/toolmeta';
 import { AssetStore } from './assets';
 import { AssetManifest, packsForPlatform } from './assetpacks';
+import { ErrorTelemetry } from './telemetry';
 
 let context: vscode.ExtensionContext;
 let output: vscode.OutputChannel;
+let telemetry: ErrorTelemetry;
 let diagnostics: vscode.DiagnosticCollection;
 let status: vscode.StatusBarItem;
 let scope: ProjectScope;
@@ -62,13 +64,14 @@ let debugging: { session: vscode.DebugSession, backend: WorkerDebugBackend } | u
 export function activate(ctx: vscode.ExtensionContext) {
   context = ctx;
   output = vscode.window.createOutputChannel('8bitworkshop');
+  telemetry = new ErrorTelemetry(msg => output.appendLine(msg));
   diagnostics = vscode.languages.createDiagnosticCollection('8bitworkshop');
   status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
   status.command = '8bitworkshop.projectMenu';
   scope = new ProjectScope(ctx.workspaceState);
   templates = new Templates(ctx.extensionPath, () => toolchainRoot());
   scheduler = new BuildScheduler(reason => autoBuild(reason));
-  ctx.subscriptions.push(output, diagnostics, status, scope);
+  ctx.subscriptions.push(output, telemetry, diagnostics, status, scope);
 
   ctx.subscriptions.push(vscode.workspace.registerFileSystemProvider(PRESET_SCHEME, new PresetFileSystem(templates),
     { isCaseSensitive: true, isReadonly: PresetFileSystem.readonlyMessage() }));
@@ -246,7 +249,7 @@ async function getBuilds(platform: string): Promise<WorkerHandle> {
     output.appendLine(`Toolchain root: ${root}`);
     builds = new WorkerHandle('buildworker.js', root, {
       readFile: (buildId: number, rel: string) => readers.get(buildId)?.(rel) ?? null,
-    }, msg => output.appendLine(msg));
+    }, msg => output.appendLine(msg), err => telemetry.reportError('worker', err, { platform }));
   }
   return builds;
 }
@@ -254,7 +257,9 @@ async function getBuilds(platform: string): Promise<WorkerHandle> {
 async function getEmu(platform: string): Promise<WorkerHandle> {
   var root = await toolchainRoot(platform);
   if (!emu) {
-    emu = new WorkerHandle('emuworker.js', root, {}, msg => output.appendLine(msg));
+    emu = new WorkerHandle('emuworker.js', root, {}, msg => output.appendLine(msg),
+      err => telemetry.reportError('emu', err, { platform }));
+    emu.on('internalError', e => telemetry.reportInternal('emu', e, { platform: e.platform }));
     emu.on('frame', frame => panel?.showFrame(frame));
     emu.on('audio', (chunk: AudioChunk) => panel?.showAudio(chunk));
     emu.on('audioReset', () => panel?.resetAudio());
@@ -529,6 +534,7 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
     output.appendLine(`Running ${title} on ${target.platform}`);
     return true;
   } catch (e) {
+    telemetry.reportError('emu', e, { platform: target.platform });
     output.appendLine(`Emulator failed to start: ${e && e.stack || e}`);
     output.show(true);
     return false;
@@ -646,12 +652,16 @@ async function runBuild(target: Target, reason: BuildReason): Promise<BuildOutco
   try {
     result = await (await getBuilds(target.platform)).call<BuildOutcome>('build', args);
   } catch (e) {
+    telemetry.reportError('worker', e, { platform: target.platform, tool: target.tool });
     output.appendLine(`Build crashed: ${e && e.stack || e}`);
     output.show(true);
     return;
   } finally {
     readers.delete(buildId);
     updateStatus();
+  }
+  if (result.internal) {
+    telemetry.reportInternal('worker', result.internal, { tool: result.internal.tool, platform: result.internal.platform });
   }
   if (main.scheme === 'file' && target.project) {
     scope.recordBuild({

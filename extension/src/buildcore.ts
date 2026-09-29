@@ -4,7 +4,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { CodeListingMap, FileData, Segment, WorkerError, WorkerResult } from "../../src/common/workertypes";
+import type { CodeListingMap, FileData, Segment, WorkerError, WorkerErrorResult, WorkerResult } from "../../src/common/workertypes";
+import { toInternalError } from "../../src/common/telemetry";
 import { getBasePlatform, isProbablyBinary } from "../../src/common/util";
 import { getToolForPlatform } from "../../src/common/toolselect";
 import { FileProvider, buildWorkerMessage, resolveDependencies } from "../../src/common/projectcore";
@@ -50,6 +51,8 @@ export interface BuildOutcome {
   files?: { [path: string]: FileData };
   /** true when no inputs changed since the previous build */
   unchanged?: boolean;
+  /** set when the tool crashed, for error reports */
+  internal?: WorkerErrorResult['internal'];
 }
 
 /**
@@ -103,7 +106,10 @@ export class Builder {
       }
       result = await handleMessage(msg);
     } catch (e) {
-      return { success: false, tool, paths, diagnostics: [{ path: req.mainPath, line: 0, msg: String(e && e.message || e) }] };
+      return {
+        success: false, tool, paths, diagnostics: [{ path: req.mainPath, line: 0, msg: String(e && e.message || e) }],
+        internal: { tool, platform: req.platform, ...toInternalError(e) },
+      };
     }
     if (!result || ('unchanged' in result && result.unchanged)) {
       // the worker skips unchanged builds, but Run still needs the output.
@@ -117,6 +123,7 @@ export class Builder {
       return {
         success: false, tool, paths,
         diagnostics: result.errors.map(err => ({ path: toPath(err), line: err.line || 0, msg: err.msg })),
+        internal: result.internal,
       };
     }
     if ('output' in result) {

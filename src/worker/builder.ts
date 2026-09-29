@@ -1,6 +1,7 @@
 import { getPlatformToolConfig, getToolMeta } from "../common/toolmeta";
 import { convertDataToUint8Array, getBasePlatform } from "../common/util";
 import { WorkerBuildStep, WorkerError, WorkerErrorResult, WorkerMessage, WorkerResult, WorkingStore } from "../common/workertypes";
+import { toInternalError } from "../common/telemetry";
 import { PLATFORM_PARAMS } from "./platforms";
 import { TOOLS } from "./workertools";
 
@@ -118,6 +119,22 @@ export function errorResult(msg: string): WorkerErrorResult {
   return { errors: [{ line: 0, msg: msg }] };
 }
 
+/** A tool crash: shown like any build error, and flagged for error reports. */
+export function internalErrorResult(e: any, tool: string, platform: string): WorkerErrorResult {
+  var result = errorResult(e + "");
+  result.internal = { tool, platform, ...toInternalError(e) };
+  return result;
+}
+
+/** A build failure caused by the user's project (a bad directive, a missing
+ * file), as opposed to a tool crash, which gets reported to us. */
+export class BuildError extends Error {
+  constructor(msg: string) {
+    super(msg);
+    Object.setPrototypeOf(this, BuildError.prototype);
+  }
+}
+
 export class Builder {
   steps: BuildStep[] = [];
   startseq: number = 0;
@@ -167,8 +184,9 @@ export class Builder {
         applyPlatformAndStepParams(step);
         step.result = await toolfn(step);
       } catch (e) {
+        if (e instanceof BuildError) return errorResult(e.message);
         console.log("EXCEPTION", e, e.stack);
-        return errorResult(e + ""); // TODO: catch errors already generated?
+        return internalErrorResult(e, tool, platform);
       }
       if (step.result) {
         (step.result as any).params = step.params; // TODO: type check
@@ -566,7 +584,7 @@ function applyPlatformAndStepParams(step: BuildStep) {
     mergeDirectives(dir, directivesFromOverrides(symbols, buildArgs));
   applyBuildDirectives(dir, params);
   if (dir.errors.length)
-    throw new Error('build config error: ' + dir.errors.join('; '));
+    throw new BuildError('build config error: ' + dir.errors.join('; '));
 }
 
 /** Split a directive body into argv, honoring single/double quotes. */
@@ -775,7 +793,7 @@ export function fixParamsWithDefines(path: string, params) {
   applyBuildDirectives(dir, params);
   // malformed directives are a build-config error, not a silent no-op
   if (dir.errors.length)
-    throw new Error('build directive error: ' + dir.errors.join('; '));
+    throw new BuildError('build directive error: ' + dir.errors.join('; '));
 }
 
 export function processEmbedDirective(code: string) {
@@ -791,7 +809,7 @@ export function processEmbedDirective(code: string) {
       let filename = m[1];
       let filedata = store.getFileData(filename);
       let bytes = convertDataToUint8Array(filedata);
-      if (!bytes) throw new Error('#embed: file not found: "' + filename + '"');
+      if (!bytes) throw new BuildError('#embed: file not found: "' + filename + '"');
       let out = '';
       for (let i = 0; i < bytes.length; i++) {
           out += bytes[i].toString() + ',';
