@@ -22,6 +22,7 @@
 // Platforms that can't save state run frames directly and can't rewind.
 
 import {
+  Base6502Platform, Base6809Platform, BaseZ80Platform,
   CpuState, DisasmLine, EmuState, Machine, Platform, hasProbe, isDebuggable,
 } from "./baseplatform";
 import { ProbeAll, SampledAudioParams, TrapCondition } from "./devices";
@@ -305,6 +306,25 @@ export class EmuCore {
     throw new Error(`platform '${this.id}' cannot read memory`);
   }
 
+  get supportsWrite(): boolean { return typeof this.machine?.write === 'function'; }
+
+  /**
+   * Write a byte through the machine's bus, as the CPU would (so an I/O
+   * address does what a store there does). The recording can't replay
+   * this, so it starts over from here.
+   */
+  write(addr: number, value: number) {
+    const m = this.machine;
+    if (!m) throw new Error(`platform '${this.id}' cannot write memory`);
+    m.write(addr, value);
+    this.recordingStale = true;
+  }
+
+  /** The platform's debug tree, or null if it has none. */
+  getDebugTree(): {} | null {
+    return this.platform.getDebugTree ? this.platform.getDebugTree() : null;
+  }
+
   getCPUState(): CpuState | null {
     try { return this.platform.getCPUState ? this.platform.getCPUState() : null; }
     catch (e) { return null; }
@@ -315,6 +335,20 @@ export class EmuCore {
     try { if (this.platform.getPC) return this.platform.getPC(); } catch (e) { }
     const s = this.getCPUState();
     return s ? s.PC : null;
+  }
+
+  /**
+   * The CPU, as a DISASSEMBLERS key, or '' if we can't tell: from the
+   * machine's CPU, or else which base class the platform has (nes).
+   */
+  get arch(): string {
+    const arch = archOf(this.machine?.cpu);
+    if (arch) return arch;
+    const p = this.platform;
+    if (p instanceof Base6502Platform) return '6502';
+    if (p instanceof Base6809Platform) return '6809';
+    if (p instanceof BaseZ80Platform) return 'z80';
+    return '';
   }
 
   disassemble(addr: number): DisasmLine | null {

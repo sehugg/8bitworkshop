@@ -10,6 +10,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DebugService = void 0;
 const breakpoints_1 = require("../common/breakpoints");
 const breakcond_1 = require("../common/breakcond");
+const debugtree_1 = require("../common/debugtree");
+const stackwalk_1 = require("../common/stackwalk");
 const debugcontroller_1 = require("../common/debugcontroller");
 const symbolfile_1 = require("../common/symbols/symbolfile");
 const util_1 = require("../common/util");
@@ -34,6 +36,8 @@ class DebugService {
             step: t.supportsStep,
             rewind: t.supportsRewind,
             granularity: t.history ? t.history.core.granularity : (t.supportsStep ? 'insn' : 'frame'),
+            write: t.supportsWrite,
+            tree: !!t.platform.getDebugTree,
         };
     }
     setBreakpoints(bps) {
@@ -79,6 +83,37 @@ class DebugService {
     reverseContinue() { this.onStop(this.debug.reverseContinue()); }
     seekFrame(frame) { this.onStop(this.debug.seekFrame(frame)); }
     location() { return this.debug.location(); }
+    /**
+     * Where it is and how it got there: the PC, then each call found on the
+     * stack (see stackwalk.ts), innermost first.
+     */
+    callStack(maxFrames = 64) {
+        var _a;
+        const t = this.target;
+        const pc = t.getPC();
+        if (pc == null)
+            return [];
+        const regs = t.getCPUState() || {};
+        const frames = (0, stackwalk_1.walkStack)({
+            arch: t.arch,
+            sp: (_a = regs.SP) !== null && _a !== void 0 ? _a : 0,
+            read: a => t.read(a & 0xffff),
+            disassemble: a => t.disassemble(a & 0xffff),
+            isCode: a => { var _a, _b; return !!this.debug.sourceAt(a) || ((_b = (_a = this.debug.symbolAt(a)) === null || _a === void 0 ? void 0 : _a.offset) !== null && _b !== void 0 ? _b : Infinity) < 0x1000; },
+        }, pc, maxFrames);
+        return frames.map(f => {
+            const frame = { pc: f.pc };
+            const source = this.debug.sourceAt(f.pc);
+            if (source)
+                frame.source = { path: source.path, line: source.line };
+            const symbol = this.debug.symbolAt(f.pc);
+            if (symbol)
+                frame.symbol = symbol;
+            if (f.matched === false)
+                frame.unsure = true;
+            return frame;
+        });
+    }
     timeline() {
         const h = this.target.history;
         if (!h)
@@ -103,6 +138,25 @@ class DebugService {
         for (let i = 0; i < count; i++)
             bytes.push(this.target.read((addr + i) & 0xffff) & 0xff);
         return bytes;
+    }
+    /** Write bytes; returns how many. */
+    writeMemory(addr, bytes) {
+        bytes.forEach((b, i) => this.target.write((addr + i) & 0xffff, b & 0xff));
+        return bytes.length;
+    }
+    /** The debug tree's entries under `path` (names from earlier calls). */
+    debugTree(path) {
+        const tree = this.target.getDebugTree();
+        if (!tree)
+            throw new Error('this platform has no debug tree');
+        return (0, debugtree_1.treeChildren)(tree, path);
+    }
+    /** The build's symbols, by name, with the byte at each. */
+    symbols() {
+        const syms = this.debug.context.symbols || {};
+        return Object.keys(syms)
+            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+            .map(name => ({ name, addr: syms[name], value: this.target.read(syms[name] & 0xffff) & 0xff }));
     }
     /**
      * `count` instructions starting `insnOffset` instructions from `addr`

@@ -103,6 +103,13 @@ class JSNESMachine {
     loadState(s) { this.p.loadState(s); }
     read(a) { return this.p.readAddress(a); }
     readConst(a) { return this.p.readAddress(a); }
+    // for the debugger: RAM, or the mapper, without cpu.write()'s bus cycle
+    write(a, v) {
+        if (a < 0x2000)
+            this.p.nes.cpu.mem[a & 0x7ff] = v;
+        else
+            this.p.nes.mmap.write(a, v);
+    }
     connectProbe(probe) { this.p.connectProbe(probe); }
 }
 class JSNESPlatform extends baseplatform_1.Base6502Platform {

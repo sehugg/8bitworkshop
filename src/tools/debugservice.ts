@@ -8,6 +8,8 @@
 
 import { Breakpoint, makeCondContext } from '../common/breakpoints';
 import { compileExpression } from '../common/breakcond';
+import { TreeEntry, treeChildren } from '../common/debugtree';
+import { walkStack } from '../common/stackwalk';
 import { buildDebugContext, DebugController, DebugLocation, StepGranularity, StopEvent } from '../common/debugcontroller';
 import { lookupSymbol } from '../common/symbols/symbolfile';
 import { Granularity, Timestamp } from '../common/timeline';
@@ -25,6 +27,10 @@ export interface DebugCapabilities {
   rewind: boolean;
   /** what a step is: a clock, an instruction, or a whole frame */
   granularity: Granularity | 'frame';
+  /** can write memory */
+  write: boolean;
+  /** has a debug tree (getDebugTree) */
+  tree: boolean;
 }
 
 export interface BreakpointResult {
@@ -40,6 +46,22 @@ export interface RegisterValue {
   name: string;
   value: number;
   text: string;
+}
+
+export interface SymbolValue {
+  name: string;
+  addr: number;
+  /** the byte there */
+  value: number;
+}
+
+export interface CallStackFrame {
+  /** the PC, or for callers, the address of the call */
+  pc: number;
+  source?: { path: string, line: number };
+  symbol?: { name: string, offset: number };
+  /** its call doesn't go to the routine the frame below is in */
+  unsure?: boolean;
 }
 
 export interface DisasmResult {
@@ -96,6 +118,8 @@ export class DebugService {
       step: t.supportsStep,
       rewind: t.supportsRewind,
       granularity: t.history ? t.history.core.granularity : (t.supportsStep ? 'insn' : 'frame'),
+      write: t.supportsWrite,
+      tree: !!t.platform.getDebugTree,
     };
   }
 
@@ -145,6 +169,33 @@ export class DebugService {
 
   location(): DebugLocation { return this.debug.location(); }
 
+  /**
+   * Where it is and how it got there: the PC, then each call found on the
+   * stack (see stackwalk.ts), innermost first.
+   */
+  callStack(maxFrames = 64): CallStackFrame[] {
+    const t = this.target;
+    const pc = t.getPC();
+    if (pc == null) return [];
+    const regs: any = t.getCPUState() || {};
+    const frames = walkStack({
+      arch: t.arch,
+      sp: regs.SP ?? 0,
+      read: a => t.read(a & 0xffff),
+      disassemble: a => t.disassemble(a & 0xffff),
+      isCode: a => !!this.debug.sourceAt(a) || (this.debug.symbolAt(a)?.offset ?? Infinity) < 0x1000,
+    }, pc, maxFrames);
+    return frames.map(f => {
+      const frame: CallStackFrame = { pc: f.pc };
+      const source = this.debug.sourceAt(f.pc);
+      if (source) frame.source = { path: source.path, line: source.line };
+      const symbol = this.debug.symbolAt(f.pc);
+      if (symbol) frame.symbol = symbol;
+      if (f.matched === false) frame.unsure = true;
+      return frame;
+    });
+  }
+
   timeline(): TimelineInfo | null {
     const h = this.target.history;
     if (!h) return null;
@@ -167,6 +218,27 @@ export class DebugService {
     const bytes: number[] = [];
     for (let i = 0; i < count; i++) bytes.push(this.target.read((addr + i) & 0xffff) & 0xff);
     return bytes;
+  }
+
+  /** Write bytes; returns how many. */
+  writeMemory(addr: number, bytes: number[]): number {
+    bytes.forEach((b, i) => this.target.write((addr + i) & 0xffff, b & 0xff));
+    return bytes.length;
+  }
+
+  /** The debug tree's entries under `path` (names from earlier calls). */
+  debugTree(path: string[]): TreeEntry[] {
+    const tree = this.target.getDebugTree();
+    if (!tree) throw new Error('this platform has no debug tree');
+    return treeChildren(tree, path);
+  }
+
+  /** The build's symbols, by name, with the byte at each. */
+  symbols(): SymbolValue[] {
+    const syms = this.debug.context.symbols || {};
+    return Object.keys(syms)
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+      .map(name => ({ name, addr: syms[name], value: this.target.read(syms[name] & 0xffff) & 0xff }));
   }
 
   /**

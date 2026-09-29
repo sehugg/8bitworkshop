@@ -316,6 +316,23 @@ class EmuCore {
             return m.readConst ? m.readConst(addr) : m.read(addr);
         throw new Error(`platform '${this.id}' cannot read memory`);
     }
+    get supportsWrite() { var _a; return typeof ((_a = this.machine) === null || _a === void 0 ? void 0 : _a.write) === 'function'; }
+    /**
+     * Write a byte through the machine's bus, as the CPU would (so an I/O
+     * address does what a store there does). The recording can't replay
+     * this, so it starts over from here.
+     */
+    write(addr, value) {
+        const m = this.machine;
+        if (!m)
+            throw new Error(`platform '${this.id}' cannot write memory`);
+        m.write(addr, value);
+        this.recordingStale = true;
+    }
+    /** The platform's debug tree, or null if it has none. */
+    getDebugTree() {
+        return this.platform.getDebugTree ? this.platform.getDebugTree() : null;
+    }
     getCPUState() {
         try {
             return this.platform.getCPUState ? this.platform.getCPUState() : null;
@@ -333,6 +350,24 @@ class EmuCore {
         catch (e) { }
         const s = this.getCPUState();
         return s ? s.PC : null;
+    }
+    /**
+     * The CPU, as a DISASSEMBLERS key, or '' if we can't tell: from the
+     * machine's CPU, or else which base class the platform has (nes).
+     */
+    get arch() {
+        var _a;
+        const arch = archOf((_a = this.machine) === null || _a === void 0 ? void 0 : _a.cpu);
+        if (arch)
+            return arch;
+        const p = this.platform;
+        if (p instanceof baseplatform_1.Base6502Platform)
+            return '6502';
+        if (p instanceof baseplatform_1.Base6809Platform)
+            return '6809';
+        if (p instanceof baseplatform_1.BaseZ80Platform)
+            return 'z80';
+        return '';
     }
     disassemble(addr) {
         var _a;

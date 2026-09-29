@@ -3,18 +3,24 @@
 // tests) or behind an RPC (the VS Code extension's emulator worker); either
 // way it is reached through a DebugBackend, whose calls are all async.
 //
-// The machine has one thread. Its call stack is one frame: where the PC is.
+// The machine has one thread. Its call stack is the PC, then the calls a
+// scan of the stack finds (src/common/stackwalk.ts).
+// Where the build has no source line for the PC (a library, a ROM), the frame
+// shows a disassembly of the routine around it instead, so VS Code still has
+// something to open and focus. Breakpoints set in it are address breakpoints.
+// Its scopes are the CPU's registers, the platform's debug tree (browsed a
+// level at a time, by path), and the build's symbols with the byte at each.
 
 import {
-  Breakpoint as DapBreakpoint, CapabilitiesEvent, InitializedEvent, LoggingDebugSession, OutputEvent,
-  Scope, Source, StackFrame, StoppedEvent, TerminatedEvent, Thread,
+  Breakpoint as DapBreakpoint, CapabilitiesEvent, InitializedEvent, InvalidatedEvent, LoggingDebugSession,
+  MemoryEvent, OutputEvent, Scope, Source, StackFrame, StoppedEvent, TerminatedEvent, Thread,
 } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import * as path from 'path';
 import type { Breakpoint } from '../common/breakpoints';
 import type { StopEvent } from '../common/debugcontroller';
 import { hex } from '../common/util';
-import type { DebugCapabilities, DebugService } from './debugservice';
+import type { CallStackFrame, DebugCapabilities, DebugService, DisasmResult } from './debugservice';
 
 /** launch.json's arguments for a `8bitworkshop` debug session. */
 export interface LaunchArgs extends DebugProtocol.LaunchRequestArguments {
@@ -38,8 +44,8 @@ type Async<T> = { [K in keyof T]: T[K] extends (...args: infer A) => infer R ? (
 
 /** A DebugService, wherever it runs, plus loading a program into it. */
 export type DebugBackend = Async<Pick<DebugService,
-  'setBreakpoints' | 'continue' | 'step' | 'pause' | 'stepBack' | 'reverseContinue' | 'location' |
-  'registers' | 'readMemory' | 'disassemble' | 'evaluate'>> & {
+  'setBreakpoints' | 'continue' | 'step' | 'pause' | 'stepBack' | 'reverseContinue' | 'location' | 'callStack' |
+  'registers' | 'readMemory' | 'writeMemory' | 'disassemble' | 'evaluate' | 'debugTree' | 'symbols'>> & {
     /** Build or load the program, and leave it stopped at its start. */
     launch(args: LaunchArgs): Promise<LaunchResult>;
     terminate(): Promise<void>;
@@ -50,6 +56,24 @@ export type DebugBackend = Async<Pick<DebugService,
 
 const THREAD_ID = 1;
 const REGISTERS_REF = 1;
+const SYMBOLS_REF = 2;
+// debug tree nodes get references from here up, anew at each stop
+const FIRST_TREE_REF = 100;
+// a routine's listing starts at its symbol if the PC is at most this far in
+const MAX_ROUTINE_BYTES = 0x800;
+// instructions to list: at most, and past the PC when no symbol ends it
+const MAX_LISTING = 1024;
+const LISTING_AFTER_PC = 64;
+// instructions before the PC when there's no symbol to start from
+const LISTING_BEFORE_PC = 16;
+
+/** A disassembly shown as a source, with the address of each line. */
+interface Listing {
+  name: string;
+  text: string;
+  /** line (0-based) -> address, for the lines that are instructions */
+  lineAddrs: (number | null)[];
+}
 
 export class EmuDebugSession extends LoggingDebugSession {
   private root = '';
@@ -60,6 +84,15 @@ export class EmuDebugSession extends LoggingDebugSession {
   private nextBpId = 1;
   private launched: Promise<void>;
   private resolveLaunched: () => void;
+  private hasTree = false;
+  /** debug tree paths, by variablesReference; valid until the next stop */
+  private treeRefs: string[][] = [];
+  private treeRefByPath = new Map<string, number>();
+  /** disassembly listings by sourceReference, and each one's reference by its text */
+  private listings: Listing[] = [];
+  private listingRefs = new Map<string, number>();
+  private clientMemoryEvents = false;
+  private clientInvalidatedEvents = false;
 
   constructor(private backend: DebugBackend) {
     super();
@@ -70,7 +103,9 @@ export class EmuDebugSession extends LoggingDebugSession {
     backend.onOutput?.(text => this.sendEvent(new OutputEvent(text, 'console')));
   }
 
-  protected initializeRequest(response: DebugProtocol.InitializeResponse): void {
+  protected initializeRequest(response: DebugProtocol.InitializeResponse, args: DebugProtocol.InitializeRequestArguments): void {
+    this.clientMemoryEvents = !!args.supportsMemoryEvent;
+    this.clientInvalidatedEvents = !!args.supportsInvalidatedEvent;
     response.body = {
       supportsConfigurationDoneRequest: true,
       supportsConditionalBreakpoints: true,
@@ -83,6 +118,7 @@ export class EmuDebugSession extends LoggingDebugSession {
       supportsTerminateRequest: true,
       // until launch says whether this platform can
       supportsStepBack: false,
+      supportsWriteMemoryRequest: false,
     };
     this.sendResponse(response);
   }
@@ -92,7 +128,10 @@ export class EmuDebugSession extends LoggingDebugSession {
       const r = await this.backend.launch(args);
       this.root = r.root;
       this.stopOnEntry = !!args.stopOnEntry;
-      if (r.capabilities.rewind) this.sendEvent(new CapabilitiesEvent({ supportsStepBack: true }));
+      this.hasTree = r.capabilities.tree;
+      if (r.capabilities.rewind || r.capabilities.write) {
+        this.sendEvent(new CapabilitiesEvent({ supportsStepBack: r.capabilities.rewind, supportsWriteMemoryRequest: r.capabilities.write }));
+      }
       if (!r.capabilities.step) {
         this.sendEvent(new OutputEvent(`This platform stops only between frames: stepping and breakpoints are frame by frame.\n`, 'console'));
       }
@@ -114,6 +153,25 @@ export class EmuDebugSession extends LoggingDebugSession {
 
   protected async setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse, args: DebugProtocol.SetBreakpointsArguments) {
     await this.run(response, async () => {
+      const listing = args.source.sourceReference ? this.listings[args.source.sourceReference - 1] : null;
+      if (listing) {
+        const key = `listing:${args.source.sourceReference}`;
+        const lines = (args.breakpoints || []).map(b => ({ b, addr: listing.lineAddrs[b.line - 1] }));
+        const bps = lines.filter(l => l.addr != null).map(({ b, addr }) => this.newBreakpoint({ type: 'address', target: '$' + hex(addr, 4), condition: b.condition }));
+        this.sourceBps.set(key, bps);
+        const results = await this.sendBreakpoints(bps);
+        // report each on its own line of the listing
+        let i = 0;
+        response.body = {
+          breakpoints: lines.map(({ b, addr }) => {
+            if (addr == null) return new DapBreakpoint(false, b.line);
+            const r = results[i++];
+            r.line = b.line;
+            return r;
+          }),
+        };
+        return;
+      }
       const file = this.toProjectPath(args.source.path || args.source.name);
       const bps = (args.breakpoints || []).map(b => this.newBreakpoint({ type: 'source', file, line: b.line, condition: b.condition }));
       this.sourceBps.set(file, bps);
@@ -188,6 +246,8 @@ export class EmuDebugSession extends LoggingDebugSession {
   }
 
   private stopped(e: StopEvent) {
+    this.treeRefs = [];
+    this.treeRefByPath.clear();
     const reason = e.reason === 'halt' ? 'pause' : e.reason;
     const ev = new StoppedEvent(reason, THREAD_ID, e.reason === 'exception' ? e.message : undefined) as DebugProtocol.StoppedEvent;
     ev.body.allThreadsStopped = true;
@@ -195,6 +255,8 @@ export class EmuDebugSession extends LoggingDebugSession {
     else if (e.message) ev.body.description = e.message;
     if (e.breakpoints) ev.body.hitBreakpointIds = e.breakpoints;
     this.sendEvent(ev);
+    // anything showing memory reads it again
+    if (this.clientMemoryEvents) this.sendEvent(new MemoryEvent(addressRef(0), 0, 0x10000));
   }
 
   //// where it is
@@ -204,31 +266,135 @@ export class EmuDebugSession extends LoggingDebugSession {
     this.sendResponse(response);
   }
 
-  protected async stackTraceRequest(response: DebugProtocol.StackTraceResponse) {
+  protected async stackTraceRequest(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments) {
     await this.run(response, async () => {
-      const loc = await this.backend.location();
-      const pc = loc.pc ?? 0;
-      const name = loc.symbol ? loc.symbol.name + (loc.symbol.offset ? `+${loc.symbol.offset}` : '') : '$' + hex(pc, 4);
-      const frame: DebugProtocol.StackFrame = loc.source
-        ? new StackFrame(0, name, this.toSource(loc.source.path), loc.source.line, 1)
-        : new StackFrame(0, name);
-      frame.instructionPointerReference = addressRef(pc);
-      response.body = { stackFrames: [frame], totalFrames: 1 };
+      const all = await this.backend.callStack();
+      const start = args.startFrame || 0;
+      const want = all.slice(start, args.levels ? start + args.levels : undefined);
+      const stackFrames = await Promise.all(want.map((f, i) => this.stackFrame(start + i, f)));
+      response.body = { stackFrames, totalFrames: all.length };
     });
   }
 
+  private async stackFrame(id: number, f: CallStackFrame): Promise<DebugProtocol.StackFrame> {
+    const name = (f.symbol ? f.symbol.name + (f.symbol.offset ? `+${f.symbol.offset}` : '') : '$' + hex(f.pc, 4))
+      + (f.unsure ? ' ?' : '');
+    let frame: DebugProtocol.StackFrame;
+    if (f.source) {
+      frame = new StackFrame(id, name, this.toSource(f.source.path), f.source.line, 1);
+    } else {
+      const listing = await this.listingAt(f.pc, f.symbol);
+      const line = listing ? listing.lines.lineAddrs.indexOf(f.pc) + 1 : 0;
+      frame = listing && line > 0
+        ? new StackFrame(id, name, new Source(listing.lines.name, undefined, listing.ref, 'disassembly'), line, 1)
+        : new StackFrame(id, name);
+    }
+    frame.instructionPointerReference = addressRef(f.pc);
+    // a guess from the stack: show it, but don't make it look certain
+    if (f.unsure) frame.presentationHint = 'subtle';
+    return frame;
+  }
+
+  /** The disassembly listing for a PC with no source line. */
+  private async listingAt(pc: number, symbol?: { name: string, offset: number }): Promise<{ ref: number, lines: Listing } | null> {
+    const find = (lines: DisasmResult[]) => lines.findIndex(d => d.addr === pc);
+    let lines: DisasmResult[] = [];
+    let at = -1;
+    if (symbol && symbol.offset <= MAX_ROUTINE_BYTES) {
+      lines = await this.backend.disassemble(pc - symbol.offset, 0, MAX_LISTING);
+      at = find(lines);
+    }
+    if (at < 0) {
+      symbol = undefined;
+      lines = await this.backend.disassemble(pc, -LISTING_BEFORE_PC, LISTING_BEFORE_PC + LISTING_AFTER_PC);
+      at = find(lines);
+    }
+    if (at < 0) {
+      lines = await this.backend.disassemble(pc, 0, LISTING_AFTER_PC);
+      at = find(lines);
+    }
+    if (at < 0) return null;
+    // stop at the next routine, or a way past the PC
+    let end = lines.findIndex((d, i) => i > at && d.symbol);
+    if (end < 0) end = Math.min(lines.length, at + LISTING_AFTER_PC);
+    lines = lines.slice(0, end);
+
+    const text: string[] = [];
+    const lineAddrs: (number | null)[] = [];
+    for (const d of lines) {
+      if (d.symbol) {
+        text.push(`${d.symbol}:`);
+        lineAddrs.push(null);
+      }
+      text.push(`  $${hex(d.addr, 4)}  ${d.bytes.padEnd(12)}${d.text}`);
+      lineAddrs.push(d.addr);
+    }
+    const listing: Listing = {
+      name: `${symbol ? symbol.name : '$' + hex(lines[0].addr, 4)} (disassembly)`,
+      text: text.join('\n') + '\n',
+      lineAddrs,
+    };
+    // the same text keeps the same reference, so VS Code keeps the same editor
+    let ref = this.listingRefs.get(listing.text);
+    if (ref == null) {
+      ref = this.listings.push(listing);
+      this.listingRefs.set(listing.text, ref);
+    }
+    return { ref, lines: this.listings[ref - 1] };
+  }
+
+  protected sourceRequest(response: DebugProtocol.SourceResponse, args: DebugProtocol.SourceArguments): void {
+    const listing = this.listings[(args.source?.sourceReference ?? args.sourceReference) - 1];
+    if (!listing) {
+      this.sendErrorResponse(response, { id: 2, format: 'no such listing', showUser: false });
+      return;
+    }
+    response.body = { content: listing.text, mimeType: 'text/plain' };
+    this.sendResponse(response);
+  }
+
   protected scopesRequest(response: DebugProtocol.ScopesResponse): void {
-    response.body = { scopes: [new Scope('Registers', REGISTERS_REF, false)] };
+    const scopes = [new Scope('Registers', REGISTERS_REF, false)];
+    if (this.hasTree) scopes.push(new Scope('Machine', this.treeRef([]), true));
+    scopes.push(new Scope('Symbols', SYMBOLS_REF, true));
+    response.body = { scopes };
     this.sendResponse(response);
   }
 
   protected async variablesRequest(response: DebugProtocol.VariablesResponse, args: DebugProtocol.VariablesArguments) {
     await this.run(response, async () => {
-      const regs = args.variablesReference === REGISTERS_REF ? await this.backend.registers() : [];
-      response.body = {
-        variables: regs.map(r => ({ name: r.name, value: r.text, variablesReference: 0, memoryReference: addressRef(r.value) })),
-      };
+      response.body = { variables: await this.variables(args.variablesReference) };
     });
+  }
+
+  private async variables(ref: number): Promise<DebugProtocol.Variable[]> {
+    if (ref === REGISTERS_REF) {
+      const regs = await this.backend.registers();
+      return regs.map(r => ({ name: r.name, value: r.text, variablesReference: 0, memoryReference: addressRef(r.value) }));
+    }
+    if (ref === SYMBOLS_REF) {
+      const syms = await this.backend.symbols();
+      return syms.map(s => ({
+        name: s.name, value: `$${hex(s.addr, 4)}: $${hex(s.value, 2)}`, variablesReference: 0, memoryReference: addressRef(s.addr),
+      }));
+    }
+    const path = this.treeRefs[ref - FIRST_TREE_REF];
+    if (!path) return [];
+    const entries = await this.backend.debugTree(path);
+    return entries.map(e => ({
+      name: e.name, value: e.value, variablesReference: e.expandable ? this.treeRef([...path, e.name]) : 0,
+    }));
+  }
+
+  /** A reference for a debug tree path, until the next stop. */
+  private treeRef(path: string[]): number {
+    const key = path.join('\0');
+    let ref = this.treeRefByPath.get(key);
+    if (ref == null) {
+      ref = FIRST_TREE_REF + this.treeRefs.push(path) - 1;
+      this.treeRefByPath.set(key, ref);
+    }
+    return ref;
   }
 
   protected async readMemoryRequest(response: DebugProtocol.ReadMemoryResponse, args: DebugProtocol.ReadMemoryArguments) {
@@ -236,6 +402,16 @@ export class EmuDebugSession extends LoggingDebugSession {
       const addr = parseAddress(args.memoryReference) + (args.offset || 0);
       const bytes = await this.backend.readMemory(addr, Math.min(args.count, 0x10000));
       response.body = { address: addressRef(addr), data: Buffer.from(bytes).toString('base64') };
+    });
+  }
+
+  protected async writeMemoryRequest(response: DebugProtocol.WriteMemoryResponse, args: DebugProtocol.WriteMemoryArguments) {
+    await this.run(response, async () => {
+      const addr = parseAddress(args.memoryReference) + (args.offset || 0);
+      const bytes = [...Buffer.from(args.data, 'base64')];
+      response.body = { bytesWritten: await this.backend.writeMemory(addr, bytes) };
+      // the symbols and the machine may show what changed
+      if (this.clientInvalidatedEvents) this.sendEvent(new InvalidatedEvent(['variables']));
     });
   }
 

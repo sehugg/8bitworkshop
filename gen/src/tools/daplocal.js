@@ -40,8 +40,12 @@ class LocalDebugBackend {
     async stepBack(...a) { this.svc.stepBack(...a); }
     async reverseContinue() { this.svc.reverseContinue(); }
     async location() { return this.svc.location(); }
+    async callStack(...a) { return this.svc.callStack(...a); }
     async registers() { return this.svc.registers(); }
     async readMemory(...a) { return this.svc.readMemory(...a); }
+    async writeMemory(...a) { return this.svc.writeMemory(...a); }
+    async debugTree(...a) { return this.svc.debugTree(...a); }
+    async symbols() { return this.svc.symbols(); }
     async disassemble(...a) { return this.svc.disassemble(...a); }
     async evaluate(...a) { return this.svc.evaluate(...a); }
     get svc() {
