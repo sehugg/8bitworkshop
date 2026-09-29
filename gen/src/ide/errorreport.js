@@ -1,73 +1,47 @@
 "use strict";
-// Lightweight error reporting to our own server (replaces sentry).
-// POSTs a small JSON payload to /error.php, which logs it server-side.
-// See web/error.php. No dependencies and fire-and-forget: safe to call
-// from error handlers, never throws. Client-side limits below prevent
-// flooding.
+// Error reporting from the web IDE to our own server (replaces sentry).
+// POSTs a small JSON payload to /error.php (see web/error.php), which logs
+// it. Fire-and-forget: safe to call from error handlers, never throws.
+// ErrorReporter (common/telemetry) limits volume.
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reportErrorToServer = reportErrorToServer;
-const MAX_ERRORS_PER_SESSION = 10;
-const MIN_MS_BETWEEN_IDENTICAL = 10000;
+exports.reportInternalError = reportInternalError;
+const telemetry_1 = require("../common/telemetry");
 const SEND_URL = '/error.php';
-const MAX_FIELD = 2000;
-let errorsSent = 0;
-let lastMsgSent = '';
-let lastMsgTime = 0;
-function clamp(val, max) {
-    try {
-        if (val == null)
-            return '';
-        var s = typeof val === 'string' ? val : (typeof val === 'object' ? JSON.stringify(val) : val + '');
-        return s.substring(0, max);
+function send(payload) {
+    payload.url = window.location.href.substring(0, 500);
+    payload.userAgent = navigator.userAgent.substring(0, 500);
+    payload.language = navigator.language;
+    var body = JSON.stringify(payload);
+    // sendBeacon survives page unload; fall back to fetch with keepalive
+    if (navigator.sendBeacon) {
+        navigator.sendBeacon(SEND_URL, new Blob([body], { type: 'application/json' }));
     }
-    catch (e) {
-        return '';
+    else {
+        fetch(SEND_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: body,
+            keepalive: true,
+        }).catch(e => console.log('error report failed', e));
     }
 }
-function reportErrorToServer(msg, err, context) {
+const reporter = new telemetry_1.ErrorReporter('ide', send);
+function reportErrorToServer(msg, err, fields, source) {
     try {
-        if (errorsSent >= MAX_ERRORS_PER_SESSION)
-            return;
-        // don't repeat the same error more than once every 10 seconds
-        var now = Date.now();
-        if (msg === lastMsgSent && now - lastMsgTime < MIN_MS_BETWEEN_IDENTICAL)
-            return;
-        errorsSent++;
-        lastMsgSent = msg;
-        lastMsgTime = now;
-        var payload = {
-            msg: clamp(msg, 500),
-            stack: clamp(err && err.stack, 2000),
-            window: clamp(context && context.window, 200),
-            platform: clamp(context && context.platform, 200),
-            url: clamp(window.location.href, 500),
-            userAgent: clamp(navigator.userAgent, 500),
-            language: clamp(navigator.language, 50),
-            clientTime: new Date().toISOString(),
-        };
-        // copy any extra caller-supplied context fields
-        if (context) {
-            for (var k in context) {
-                if (!(k in payload))
-                    payload[k] = clamp(context[k], MAX_FIELD);
-            }
-        }
-        var body = JSON.stringify(payload);
-        // sendBeacon survives page unload; fall back to fetch with keepalive
-        if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-            navigator.sendBeacon(SEND_URL, new Blob([body], { type: 'application/json' }));
-        }
-        else if (typeof fetch !== 'undefined') {
-            fetch(SEND_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: body,
-                keepalive: true,
-            }).catch(function () { });
-        }
+        reporter.report(msg, err && err.stack, fields, source);
     }
     catch (e) {
-        // never let error reporting throw
+        console.log('error report failed', e);
+    }
+}
+/** A build tool crash that the worker returned as `internal` on its result. */
+function reportInternalError(source, ie, fields) {
+    try {
+        reporter.report(ie.msg, ie.stack, fields, source);
+    }
+    catch (e) {
+        console.log('error report failed', e);
     }
 }
 //# sourceMappingURL=errorreport.js.map

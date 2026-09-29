@@ -39,6 +39,8 @@ exports.PLATFORM_PARAMS = {
         asm_cfgfile: 'atari2600-asm.cfg',
         asm_libargs: [],
         asm_extra_link_files: ['atari2600-asm.cfg'],
+        // DASM's standard headers, which dasm programs include
+        extra_compile_files: ['vcs.h', 'macro.h', 'xmacro.h'],
         define: ['__ATARI2600__'],
     },
     'mw8080bw': {
@@ -207,6 +209,7 @@ exports.PLATFORM_PARAMS = {
             '-D', 'NES_MIRRORING=0', // horizontal mirroring
         ],
         extra_link_files: ['crt0.o', 'neslib2.lib', 'neslib2.cfg', 'nesbanked.cfg'],
+        extra_compile_files: ['neslib.h'],
         // source link symbol -> linker config (was hardcoded in fixParamsWithDefines)
         symbolConfigs: { NES_MAPPER: { '4': 'nesbanked.cfg' } },
         // iNES header and CHR data are not in CPU address space
@@ -398,7 +401,15 @@ exports.PLATFORM_PARAMS = {
         data_start: 0xc0a0,
         data_size: 0x1f60,
         stack_end: 0xe000,
-        extra_link_files: ['gbz80.lib', 'gb.lib'],
+        extra_link_files: ['gbz80.lib', 'gb.lib', 'sfr.rel', 'sfr.lst', 'crt0.rel', 'crt0.lst'],
+        // GBDK runtime, from crt0.sgb and sfr.sgb (see src/worker/lib/gb/Makefile)
+        startup_objs: ['sfr.rel', 'crt0.rel'],
+        // an assembly program (gingerbread.sgb) brings its own header and vectors
+        asm_startup_objs: [],
+        // GBDK 4.0.6 headers for gb.lib (#include "gb/gb.h")
+        extra_compile_files: ['gb/bgb_emu.h', 'gb/cgb.h', 'gb/crash_handler.h', 'gb/drawing.h',
+            'gb/emu_debug.h', 'gb/gb.h', 'gb/gbdecompress.h', 'gb/hardware.h', 'gb/isr.h',
+            'gb/metasprites.h', 'gb/sgb.h', 'gb/types.h'],
         extra_link_args: [
             '-l', 'gb',
             '-g', '_shadow_OAM=0xC000',

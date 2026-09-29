@@ -1,3 +1,4 @@
+import type { InternalError } from "./telemetry";
 
 export type FileData = string | Uint8Array;
 
@@ -128,6 +129,9 @@ export interface WorkerMessage {
   /** read a file from the preloaded filesystem package (path e.g. '/include/nes.h')
    *  requires preload_fs; result comes back as {output:Uint8Array} */
   readshared?:string
+  /** read a header from the platform's library (one of its extra_compile_files,
+   *  e.g. 'neslib.h'); requires platform; result comes back as {output:Uint8Array|null} */
+  readlib?:string
   /** list files under a directory of the preloaded filesystem package
    *  requires preload_fs; result comes back as {output:string[]} */
   listshared?:string
@@ -183,6 +187,8 @@ export interface WorkerErrorResult {
   errors: WorkerError[]
   listings?: CodeListingMap
   uppercaseOnly?: boolean
+  /** set when a tool crashed rather than rejected the program, for error reports */
+  internal?: InternalError & { tool: string, platform: string }
 }
 
 export interface WorkerOutputResult<T> {

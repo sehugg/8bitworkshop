@@ -1,7 +1,7 @@
 import { Worker } from "node:worker_threads";
 import { defineArgs, extraArgsFor, linkSymbolArgs } from "../../common/toolmeta";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, populateExtraFiles, anyTargetChanged, getWorkFileAsString, fixParamsWithDefines } from "../builder";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, populateExtraFiles, anyTargetChanged, getWorkFileAsString, fixParamsWithDefines, applyAsmProjectParams } from "../builder";
 import { parseListing, parseSourceLines, msvcErrorMatcher } from "../listingutils";
 import { EmscriptenModule, emglobal, execMain, loadNative, moduleInstFn, print_fn, setupFS, setupStdin } from "../wasmutils";
 import { preprocessMCPP } from "./mcpp";
@@ -135,6 +135,10 @@ async function assembleSDAS(step: BuildStep, tool: 'sdasz80' | 'sdasgb'): Promis
     gatherFiles(step, { mainFilePath: "main.asm" });
     var objpath = step.prefix + ".rel";
     var lstpath = step.prefix + ".lst";
+    // the link step reads these params, so settle them even when up to date
+    if (step.mainfile) {
+        applyAsmProjectParams(step.params);   // an asm project, not a C one
+    }
     if (staleFiles(step, [objpath, lstpath])) {
         const match_asm_fn = errorMatcherSDASZ80(step.path, errors);
         var AS: EmscriptenModule = emglobal[tool]({
@@ -240,6 +244,7 @@ export function linkSDLDZ80(step: BuildStep) {
             if (banked.length && rest.length)
                 objargs = rest.slice(0, -1).concat(banked, rest.slice(-1));
         }
+        objargs = withStartupObjects(params.startup_objs, objargs);
         args.push.apply(args, objargs);
         //console.log(args);
         execMain(step, LDZ80, args);
@@ -345,6 +350,17 @@ export function fixBankedCalls(asm: string): string {
         if (defs.length) asm += '\n' + defs.join('\n') + '\n';
     }
     return asm;
+}
+
+/**
+ * The platform's startup objects (crt0), from its lib directory, go first:
+ * they set the area order. A project that links its own (by file name, so
+ * gb/crt0.rel replaces crt0.rel) keeps it instead.
+ */
+export function withStartupObjects(startup: string[] | undefined, objargs: string[]): string[] {
+    if (!startup) return objargs;
+    var own = new Set(objargs.map((fn) => fn.split('/').pop()));
+    return startup.filter((fn) => !own.has(fn)).concat(objargs);
 }
 
 export function compileSDCC(step: BuildStep): BuildStepResult {

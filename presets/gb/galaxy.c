@@ -33,10 +33,6 @@ Also uses fixed-point (fixed) positions/speeds, vsync, and the
 interrupt enable/disable helpers.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
-
 #include <stdint.h>
 #include "gb/types.h"
 #include "gb/hardware.h"

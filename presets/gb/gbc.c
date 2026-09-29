@@ -15,10 +15,6 @@ _cpu to see which machine it is running on. On a CGB it:
 On a monochrome Game Boy it falls back to the four-shade DMG palettes.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
-
 #include <stdint.h>
 #include "gb/types.h"
 #include "gb/hardware.h"

@@ -230,6 +230,7 @@ function workerResultToCompileResult(result) {
         return {
             success: false,
             errors: result.errors,
+            internal: result.internal,
         };
     }
     if ('output' in result) {

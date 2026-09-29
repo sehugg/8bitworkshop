@@ -10,10 +10,6 @@ a row of icons with set_win_submap(), then slides the whole bar in from
 the left with scroll_win() while the background scrolls behind it.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
-
 #include <stdint.h>
 #include <string.h>
 #include "gb/types.h"

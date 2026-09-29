@@ -4,6 +4,7 @@
 import * as localforage from "localforage";
 import { BaseDebugPlatform, DebugEvalCondition, DebugSymbols, EmuState, isDebuggable, Platform, Preset } from "../common/baseplatform";
 import { EmuHalt, PLATFORMS, setHaltHandler } from "../common/emu";
+import { BOOKS, bookFor } from "../common/books";
 import { PLATFORM_CONTROLS } from "../common/controls";
 import { installHDLHost } from "./hdlhost";
 import { StateRecorderImpl } from "../common/recorder";
@@ -13,8 +14,8 @@ import {
 } from "../common/util";
 import { getSkeletonName, getPlatformToolHelpURL, getToolMeta, TOOL_META } from "../common/toolmeta";
 import { PLATFORM_PARAMS } from "../worker/platforms";
-import { CodeListingMap, FileData, WorkerError, WorkerResult } from "../common/workertypes";
-import { reportErrorToServer } from "./errorreport";
+import { CodeListingMap, FileData, WorkerError, WorkerResult, isErrorResult } from "../common/workertypes";
+import { reportErrorToServer, reportInternalError } from "./errorreport";
 import { importPlatform } from "../platform/_index";
 import { alertError, alertInfo, fatalError, setWaitDialog } from "./dialogs";
 import { openSettings, loadSettings } from "./settings";
@@ -252,6 +253,9 @@ async function initProject() {
   current_project.remoteTool = qs.tool || null;
   projectWindows = new ProjectWindows($("#workspace")[0] as HTMLElement, current_project);
   current_project.callbackBuildResult = (result: WorkerResult) => {
+    if (isErrorResult(result) && result.internal && isProductionHost()) {
+      reportInternalError('worker', result.internal, { tool: result.internal.tool, platform: result.internal.platform });
+    }
     setCompileOutput(result);
   };
   current_project.callbackBuildStatus = (busy: boolean) => {
@@ -2119,7 +2123,7 @@ async function showWelcomeMessage() {
         element: "#dropdownMenuButton",
         placement: 'right',
         title: "Developer Analytics",
-        content: 'BTW, we send stack traces to sentry.io when exceptions are thrown. Hope that\'s ok.'
+        content: 'BTW, we send stack traces to 8bitworkshop.com when exceptions are thrown. Hope that\'s ok.'
       });
       steps.unshift({
         element: "#dropdownMenuButton",
@@ -2389,11 +2393,15 @@ function hideControlsForEmbed() {
 }
 
 function updateBooksMenu() {
-  if (getRootBasePlatform(platform_id) == 'nes') $(".book-nes").addClass("book-active");
-  else if (getRootBasePlatform(platform_id) == 'vcs') $(".book-vcs").addClass("book-active");
-  else if (getRootBasePlatform(platform_id) == 'verilog') $(".book-verilog").addClass("book-active");
-  else if (getRootBasePlatform(platform_id) == 'c64') $(".book-c64").addClass("book-active");
-  else if (platform.getToolForFilename(getCurrentMainFilename()) == 'sdcc') $(".book-arcade").addClass("book-active");
+  var active = bookFor(platform_id);
+  for (var book of BOOKS) {
+    var link = $('<a class="dropdown-item dropdown-link">')
+      .attr({ href: book.url, target: '_book_' + book.id })
+      .toggleClass('book-active', book === active)
+      .append($('<img>').attr('src', 'images/' + book.image))
+      .append('&nbsp;&nbsp;', $('<span class="book-title">').text(book.title));
+    $('#booksMenuList').append($('<li>').append(link));
+  }
 }
 
 function revealTopBar() {

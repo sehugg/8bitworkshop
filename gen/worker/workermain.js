@@ -48,6 +48,10 @@ async function handleMessage(data) {
             : ((0, wasmutils_1.ensureFilesystem)(fs1.name), await (0, wasmutils_1.readSharedFile)(fs1.name, data.readshared));
         return { output: contents, qid: data.qid };
     }
+    // read a header from the platform's library (src/worker/lib)
+    if (data.readlib) {
+        return { output: (0, builder_1.readLibraryHeader)(data.platform, data.readlib), qid: data.qid };
+    }
     // list files in a filesystem package directory (shared code)
     if (data.listshared != null) {
         var fs2 = splitWasiFSName(data.preload_fs);
@@ -76,7 +80,15 @@ if (ENVIRONMENT_IS_WORKER) {
     var lastpromise = null;
     onmessage = async function (e) {
         await lastpromise; // wait for previous message to complete
-        lastpromise = handleMessage(e.data);
+        var data = e.data;
+        lastpromise = handleMessage(data).catch(err => {
+            // otherwise the IDE waits forever for a result
+            console.log(err);
+            var r = (0, builder_1.internalErrorResult)(err, 'worker', data.platform || '');
+            if (data.qid != null)
+                r.qid = data.qid;
+            return r;
+        });
         var result = await lastpromise;
         lastpromise = null;
         if (result) {
@@ -85,7 +97,7 @@ if (ENVIRONMENT_IS_WORKER) {
             }
             catch (e) {
                 console.log(e);
-                postMessage((0, builder_1.errorResult)(`${e}`));
+                postMessage((0, builder_1.internalErrorResult)(e, 'worker', ''));
             }
         }
     };

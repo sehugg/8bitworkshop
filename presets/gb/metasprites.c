@@ -9,10 +9,6 @@ The Game Boy OAM holds 40 sprites, so 10 actors of 4 sprites each
 fit on screen (the NES fits 16).
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
-
 #include <stdint.h>
 #include <stdlib.h>
 #include "gb/types.h"

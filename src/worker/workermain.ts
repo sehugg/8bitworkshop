@@ -1,7 +1,7 @@
 
 import type { WorkerResult, WorkerMessage, WorkerError, SourceLine } from "../common/workertypes";
 import { getSharedFileSystemName } from "../common/toolmeta";
-import { store, builder, errorResult, getWorkFileAsString } from "./builder";
+import { store, builder, internalErrorResult, getWorkFileAsString, readLibraryHeader } from "./builder";
 import { emglobal, fsMeta, loadFilesystem, listSharedFiles, readSharedFile, ensureFilesystem, readWasiSharedFile, listWasiSharedFiles, ensureWasiFilesystem } from "./wasmutils";
 
 // shared FS names starting with 'wasi:' refer to a WASI filesystem zip
@@ -48,6 +48,10 @@ export async function handleMessage(data: WorkerMessage): Promise<WorkerResult> 
       : (ensureFilesystem(fs1.name), await readSharedFile(fs1.name, data.readshared));
     return { output: contents, qid: data.qid } as WorkerResult;
   }
+  // read a header from the platform's library (src/worker/lib)
+  if (data.readlib) {
+    return { output: readLibraryHeader(data.platform, data.readlib), qid: data.qid } as WorkerResult;
+  }
   // list files in a filesystem package directory (shared code)
   if (data.listshared != null) {
     var fs2 = splitWasiFSName(data.preload_fs);
@@ -75,7 +79,14 @@ if (ENVIRONMENT_IS_WORKER) {
   var lastpromise = null;
   onmessage = async function (e) {
     await lastpromise; // wait for previous message to complete
-    lastpromise = handleMessage(e.data);
+    var data = e.data as WorkerMessage;
+    lastpromise = handleMessage(data).catch(err => {
+      // otherwise the IDE waits forever for a result
+      console.log(err);
+      var r: any = internalErrorResult(err, 'worker', data.platform || '');
+      if (data.qid != null) r.qid = data.qid;
+      return r as WorkerResult;
+    });
     var result = await lastpromise;
     lastpromise = null;
     if (result) {
@@ -83,7 +94,7 @@ if (ENVIRONMENT_IS_WORKER) {
         postMessage(result);
       } catch (e) {
         console.log(e);
-        postMessage(errorResult(`${e}`));
+        postMessage(internalErrorResult(e, 'worker', ''));
       }
     }
   }

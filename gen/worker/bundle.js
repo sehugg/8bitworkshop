@@ -3211,6 +3211,11 @@
     return meta && meta.wasiFSZip ? "wasi:" + meta.wasiFSZip : void 0;
   }
 
+  // src/common/telemetry.ts
+  function toInternalError(e) {
+    return { msg: String(e && e.message || e), stack: e && e.stack };
+  }
+
   // src/worker/platforms.ts
   var PLATFORM_PARAMS = {
     "vcs": {
@@ -3229,6 +3234,8 @@
       asm_cfgfile: "atari2600-asm.cfg",
       asm_libargs: [],
       asm_extra_link_files: ["atari2600-asm.cfg"],
+      // DASM's standard headers, which dasm programs include
+      extra_compile_files: ["vcs.h", "macro.h", "xmacro.h"],
       define: ["__ATARI2600__"]
     },
     "mw8080bw": {
@@ -3413,6 +3420,7 @@
         // horizontal mirroring
       ],
       extra_link_files: ["crt0.o", "neslib2.lib", "neslib2.cfg", "nesbanked.cfg"],
+      extra_compile_files: ["neslib.h"],
       // source link symbol -> linker config (was hardcoded in fixParamsWithDefines)
       symbolConfigs: { NES_MAPPER: { "4": "nesbanked.cfg" } },
       // iNES header and CHR data are not in CPU address space
@@ -3609,7 +3617,26 @@
       data_start: 49312,
       data_size: 8032,
       stack_end: 57344,
-      extra_link_files: ["gbz80.lib", "gb.lib"],
+      extra_link_files: ["gbz80.lib", "gb.lib", "sfr.rel", "sfr.lst", "crt0.rel", "crt0.lst"],
+      // GBDK runtime, from crt0.sgb and sfr.sgb (see src/worker/lib/gb/Makefile)
+      startup_objs: ["sfr.rel", "crt0.rel"],
+      // an assembly program (gingerbread.sgb) brings its own header and vectors
+      asm_startup_objs: [],
+      // GBDK 4.0.6 headers for gb.lib (#include "gb/gb.h")
+      extra_compile_files: [
+        "gb/bgb_emu.h",
+        "gb/cgb.h",
+        "gb/crash_handler.h",
+        "gb/drawing.h",
+        "gb/emu_debug.h",
+        "gb/gb.h",
+        "gb/gbdecompress.h",
+        "gb/hardware.h",
+        "gb/isr.h",
+        "gb/metasprites.h",
+        "gb/sgb.h",
+        "gb/types.h"
+      ],
       extra_link_args: [
         "-l",
         "gb",
@@ -7591,15 +7618,18 @@
       var customArgs = params.extra_compiler_args || ["-T", "-g", "-Oirs", "-Cl", "-W", "-pointer-sign,-no-effect"];
       args = args.concat(customArgs, args);
       args.push(step.path);
-      const { wasi, errno, stderr } = await runCC65Tool(step, "cc65", args, (fs) => populateFiles(step, fs, {
-        mainFilePath: step.path,
-        processFn: (path, code) => {
-          if (typeof code === "string") {
-            code = processEmbedDirective(code);
+      const { wasi, errno, stderr } = await runCC65Tool(step, "cc65", args, (fs) => {
+        populateFiles(step, fs, {
+          mainFilePath: step.path,
+          processFn: (path, code) => {
+            if (typeof code === "string") {
+              code = processEmbedDirective(code);
+            }
+            return code;
           }
-          return code;
-        }
-      }));
+        });
+        populateExtraFiles(step, fs, params.extra_compile_files);
+      });
       stderr.forEach(makeErrorMatcher(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
       checkExitCode("cc65", errno, stderr, errors);
       if (errors.length) return { errors };
@@ -7879,6 +7909,7 @@
     const sympath = step.prefix + ".sym";
     const wasi = new WASIRunner();
     wasi.initSync(wasiModule);
+    populateExtraFiles(step, wasiFSAdapter(wasi), step.params.extra_compile_files);
     populateWASIFiles(wasi, step);
     wasi.setArgs([
       "dasm",
@@ -8142,6 +8173,9 @@
     gatherFiles(step, { mainFilePath: "main.asm" });
     var objpath = step.prefix + ".rel";
     var lstpath = step.prefix + ".lst";
+    if (step.mainfile) {
+      applyAsmProjectParams(step.params);
+    }
     if (staleFiles(step, [objpath, lstpath])) {
       const match_asm_fn = errorMatcherSDASZ80(step.path, errors);
       var AS = emglobal[tool]({
@@ -8239,6 +8273,7 @@
         if (banked.length && rest.length)
           objargs = rest.slice(0, -1).concat(banked, rest.slice(-1));
       }
+      objargs = withStartupObjects(params.startup_objs, objargs);
       args.push.apply(args, objargs);
       execMain(step, LDZ80, args);
       if (errors.length) {
@@ -8328,6 +8363,11 @@ b${f[1]} == ${m[1]}`);
       if (defs.length) asm += "\n" + defs.join("\n") + "\n";
     }
     return asm;
+  }
+  function withStartupObjects(startup, objargs) {
+    if (!startup) return objargs;
+    var own = new Set(objargs.map((fn) => fn.split("/").pop()));
+    return startup.filter((fn) => !own.has(fn)).concat(objargs);
   }
   function compileSDCC(step) {
     gatherFiles(step, {
@@ -15392,6 +15432,17 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   function errorResult(msg) {
     return { errors: [{ line: 0, msg }] };
   }
+  function internalErrorResult(e, tool, platform) {
+    var result = errorResult(e + "");
+    result.internal = __spreadValues({ tool, platform }, toInternalError(e));
+    return result;
+  }
+  var BuildError = class _BuildError extends Error {
+    constructor(msg) {
+      super(msg);
+      Object.setPrototypeOf(this, _BuildError.prototype);
+    }
+  };
   var Builder = class {
     constructor() {
       this.steps = [];
@@ -15440,8 +15491,9 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
           applyPlatformAndStepParams(step);
           step.result = await toolfn(step);
         } catch (e) {
+          if (e instanceof BuildError) return errorResult(e.message);
           console.log("EXCEPTION", e, e.stack);
-          return errorResult(e + "");
+          return internalErrorResult(e, tool, platform);
         }
         if (step.result) {
           step.result.params = step.params;
@@ -15539,20 +15591,24 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   function getWorkFileAsString(path) {
     return store.getFileAsString(path);
   }
+  function makeParentDirs(fs, path) {
+    var toks = path.split("/");
+    for (var i = 1; i < toks.length; i++) {
+      var dir = toks.slice(0, i).join("/");
+      try {
+        fs.mkdir(dir);
+      } catch (e) {
+        if (!(fs.analyzePath && fs.analyzePath(dir).exists)) throw e;
+      }
+    }
+  }
   function populateEntry(fs, path, entry, options) {
     var data = entry.data;
     if (options && options.processFn) {
       data = options.processFn(path, data);
     }
     data = fixLineEndings(data);
-    var toks = path.split("/");
-    if (toks.length > 1) {
-      for (var i = 0; i < toks.length - 1; i++)
-        try {
-          fs.mkdir(toks[i]);
-        } catch (e) {
-        }
-    }
+    makeParentDirs(fs, path);
     fs.writeFile(path, data, { encoding: entry.encoding });
     var time = new Date(entry.ts);
     fs.utime(path, time, time);
@@ -15606,25 +15662,30 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     if (extrafiles) {
       for (var i = 0; i < extrafiles.length; i++) {
         var xfn = extrafiles[i];
+        makeParentDirs(fs, xfn);
         if (store.workfs[xfn]) {
-          fs.writeFile(xfn, store.workfs[xfn].data, { encoding: "binary" });
+          fs.writeFile(xfn, store.workfs[xfn].data, { encoding: store.workfs[xfn].encoding });
           continue;
         }
-        var xpath = "lib/" + getBasePlatform(step.platform) + "/" + xfn;
-        var xhr = new XMLHttpRequest();
-        xhr.responseType = "arraybuffer";
-        xhr.open("GET", PWORKER + xpath, false);
-        xhr.send(null);
-        if (xhr.response && xhr.status == 200) {
-          var data = new Uint8Array(xhr.response);
-          fs.writeFile(xfn, data, { encoding: "binary" });
-          putWorkFile(xfn, data);
-          console.log(":::", xfn, data.length);
-        } else {
-          throw Error("Could not load extra file " + xpath);
-        }
+        var data = fetchLibraryFile(step.platform, xfn);
+        if (!data) throw Error("Could not load extra file lib/" + getBasePlatform(step.platform) + "/" + xfn);
+        fs.writeFile(xfn, data, { encoding: "binary" });
+        putWorkFile(xfn, data);
+        console.log(":::", xfn, data.length);
       }
     }
+  }
+  function fetchLibraryFile(platform, name) {
+    var xhr = new XMLHttpRequest();
+    xhr.responseType = "arraybuffer";
+    xhr.open("GET", PWORKER + "lib/" + getBasePlatform(platform) + "/" + name, false);
+    xhr.send(null);
+    return xhr.response && xhr.status == 200 ? new Uint8Array(xhr.response) : null;
+  }
+  function readLibraryHeader(platform, name) {
+    var params = PLATFORM_PARAMS[platform] || PLATFORM_PARAMS[getBasePlatform(platform)];
+    var listed = params && params.extra_compile_files || [];
+    return listed.includes(name) ? fetchLibraryFile(platform, name) : null;
   }
   function targetCompare(step, targets, isNewer) {
     if (!step.maxts) throw Error("call populateFiles() first");
@@ -15722,7 +15783,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       mergeDirectives(dir, directivesFromOverrides(symbols, buildArgs));
     applyBuildDirectives(dir, params);
     if (dir.errors.length)
-      throw new Error("build config error: " + dir.errors.join("; "));
+      throw new BuildError("build config error: " + dir.errors.join("; "));
   }
   function splitDirectiveArgs(s) {
     let out = [];
@@ -15900,7 +15961,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     var dir = parseBuildDirectives(code);
     applyBuildDirectives(dir, params);
     if (dir.errors.length)
-      throw new Error("build directive error: " + dir.errors.join("; "));
+      throw new BuildError("build directive error: " + dir.errors.join("; "));
   }
   function processEmbedDirective(code) {
     if (!code.includes("#embed")) return code;
@@ -15911,7 +15972,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       let filename = m[1];
       let filedata = store.getFileData(filename);
       let bytes = convertDataToUint8Array(filedata);
-      if (!bytes) throw new Error('#embed: file not found: "' + filename + '"');
+      if (!bytes) throw new BuildError('#embed: file not found: "' + filename + '"');
       let out = "";
       for (let i = 0; i < bytes.length; i++) {
         out += bytes[i].toString() + ",";
@@ -15954,6 +16015,9 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       var contents = fs1.wasi ? await readWasiSharedFile(fs1.name, data.readshared) : (ensureFilesystem(fs1.name), await readSharedFile(fs1.name, data.readshared));
       return { output: contents, qid: data.qid };
     }
+    if (data.readlib) {
+      return { output: readLibraryHeader(data.platform, data.readlib), qid: data.qid };
+    }
     if (data.listshared != null) {
       var fs2 = splitWasiFSName(data.preload_fs);
       var files = fs2.wasi ? await listWasiSharedFiles(fs2.name, data.listshared) : (ensureFilesystem(fs2.name), listSharedFiles(fs2.name, data.listshared));
@@ -15976,7 +16040,13 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     lastpromise = null;
     onmessage = async function(e) {
       await lastpromise;
-      lastpromise = handleMessage(e.data);
+      var data = e.data;
+      lastpromise = handleMessage(data).catch((err) => {
+        console.log(err);
+        var r = internalErrorResult(err, "worker", data.platform || "");
+        if (data.qid != null) r.qid = data.qid;
+        return r;
+      });
       var result = await lastpromise;
       lastpromise = null;
       if (result) {
@@ -15984,7 +16054,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
           postMessage(result);
         } catch (e2) {
           console.log(e2);
-          postMessage(errorResult(`${e2}`));
+          postMessage(internalErrorResult(e2, "worker", ""));
         }
       }
     };

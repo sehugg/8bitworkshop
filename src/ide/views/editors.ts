@@ -1018,12 +1018,28 @@ export function getLanguageForFilename(fn: string): Extension | null {
   return null;
 }
 
-// Look up an include file inside the toolchain's preload filesystem
-// (e.g. /include/nes.h inside the cc65 package), via the worker.
-// Results are cached per filesystem+filename.
+// Look up an include file the build gets from outside the project, via the
+// worker: first the platform's library (src/worker/lib, e.g. neslib.h or
+// gb/gb.h), then the toolchain's preload filesystem (e.g. /include/nes.h
+// inside the cc65 package). Results are cached per source+filename.
 const sharedFileCache = new Map<string, Promise<string | null>>();
 
-export function lookupSharedFileText(fn: string): Promise<string | null> {
+async function queryWorkerText(msg: WorkerMessage): Promise<string | null> {
+  var result = await current_project.queryWorker(msg);
+  var output = result && (result as any).output;
+  return output instanceof Uint8Array && output.length > 0 ? new TextDecoder().decode(output) : null;
+}
+
+function lookupLibraryFileText(fn: string): Promise<string | null> {
+  const platform = current_project.platform_id;
+  const key = 'lib:' + platform + ':' + fn;
+  if (!sharedFileCache.has(key)) {
+    sharedFileCache.set(key, queryWorkerText({ platform, readlib: fn, updates: [], buildsteps: [] }));
+  }
+  return sharedFileCache.get(key);
+}
+
+function lookupToolchainFileText(fn: string): Promise<string | null> {
   const tool = current_project.getToolForFilename(current_project.mainPath);
   const fsName = getSharedFileSystemName(tool, current_project.platform_id);
   const dirs = getIncludeDirs(tool, current_project.platform_id);
@@ -1036,12 +1052,8 @@ export function lookupSharedFileText(fn: string): Promise<string | null> {
       // e.g. "headers/vcs.h")
       var candidates = [...dirs.map(dir => dir + '/' + fn), fn];
       for (var path of candidates) {
-        var msg = { preload_fs: fsName, readshared: path, updates: [], buildsteps: [] } as WorkerMessage;
-        var result = await current_project.queryWorker(msg);
-        var output = result && (result as any).output;
-        if (output instanceof Uint8Array && output.length > 0) {
-          return new TextDecoder().decode(output);
-        }
+        var text = await queryWorkerText({ preload_fs: fsName, readshared: path, updates: [], buildsteps: [] });
+        if (text != null) return text;
       }
       return null;
     })());
@@ -1049,8 +1061,13 @@ export function lookupSharedFileText(fn: string): Promise<string | null> {
   return sharedFileCache.get(key);
 }
 
-// Read-only viewer for toolchain include files (headers inside the tool's
-// preload filesystem), opened by clicking the badge next to an #include line.
+export async function lookupSharedFileText(fn: string): Promise<string | null> {
+  return (await lookupLibraryFileText(fn)) ?? lookupToolchainFileText(fn);
+}
+
+// Read-only viewer for include files from outside the project (the platform
+// library in src/worker/lib, or the tool's preload filesystem), opened by
+// clicking the badge next to an #include line.
 // Project files are linked to their own editor windows instead.
 // Each opened header gets its own window, id '#headerview/<filename>'.
 export class HeaderView implements ProjectView {
@@ -1125,7 +1142,7 @@ export class HeaderView implements ProjectView {
       this.setHeaderText(current_project.getFile(path) as string);
       return;
     }
-    // 2) toolchain preload filesystem (via worker)
+    // 2) platform library, then toolchain preload filesystem (via worker)
     var text = await lookupSharedFileText(fn);
     if (this.requestedFn !== fn) return; // a newer request superseded us
     if (text != null) {
@@ -1137,7 +1154,7 @@ export class HeaderView implements ProjectView {
     this.currentPath = fn;
     this.setHeaderText('// ' + fn + ' was not found.\n'
       + '// Project include files are loaded during a build -- try building first.\n'
-      + '// Toolchain headers are only available when the tool has a bundled filesystem.');
+      + '// Library and toolchain headers are only available when the platform or tool bundles them.');
   }
 
   /** Jump to a line in the header (after content loads). */

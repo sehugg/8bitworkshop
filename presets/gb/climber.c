@@ -25,10 +25,6 @@ Porting notes:
   beeps.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
-
 #include <stdint.h>
 #include <string.h>
 #include "gb/types.h"

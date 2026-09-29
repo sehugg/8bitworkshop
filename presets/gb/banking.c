@@ -10,11 +10,8 @@ the ROM size in the header. We pick an MBC5 mapper here;
 the build defaults to MBC5 when a ROM has banks.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
 //#link "bank1.c"
 //#link "bank2.c"
-//#resource "gb/global.sgb"
 //#symbol ld GB_MAPPER=0x19
 
 #include <stdint.h>

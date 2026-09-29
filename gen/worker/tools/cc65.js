@@ -366,15 +366,18 @@ async function compileCC65(step) {
         var customArgs = params.extra_compiler_args || ['-T', '-g', '-Oirs', '-Cl', '-W', '-pointer-sign,-no-effect'];
         args = args.concat(customArgs, args);
         args.push(step.path);
-        const { wasi, errno, stderr } = await runCC65Tool(step, 'cc65', args, (fs) => (0, builder_1.populateFiles)(step, fs, {
-            mainFilePath: step.path,
-            processFn: (path, code) => {
-                if (typeof code === 'string') {
-                    code = (0, builder_1.processEmbedDirective)(code);
+        const { wasi, errno, stderr } = await runCC65Tool(step, 'cc65', args, (fs) => {
+            (0, builder_1.populateFiles)(step, fs, {
+                mainFilePath: step.path,
+                processFn: (path, code) => {
+                    if (typeof code === 'string') {
+                        code = (0, builder_1.processEmbedDirective)(code);
+                    }
+                    return code;
                 }
-                return code;
-            }
-        }));
+            });
+            (0, builder_1.populateExtraFiles)(step, fs, params.extra_compile_files);
+        });
         stderr.forEach((0, listingutils_1.makeErrorMatcher)(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
         checkExitCode('cc65', errno, stderr, errors);
         if (errors.length)

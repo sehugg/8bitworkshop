@@ -11,10 +11,6 @@ switch_data(), which also saves the replaced tile so the menu can be
 restored when it closes.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
-
 #include <stdint.h>
 #include <stddef.h>
 #include "gb/types.h"

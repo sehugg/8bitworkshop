@@ -150,8 +150,13 @@ async function compileSource(args, source, platform) {
     }
     await preload(tool, platform);
     const result = await compileSourceFile(tool, platform, source, undefined, buildOverrides(args));
+    if (result.internal) {
+        (0, cliformat_1.warn)(`${result.internal.tool} crashed; the IDE would send an error report: ${result.internal.msg}`);
+        if (process.env.DEBUG)
+            console.error(result.internal.stack);
+    }
     if (!result.success) {
-        (0, cliformat_1.fail)('build', `${tool} failed on ${source}`, { errors: result.errors });
+        (0, cliformat_1.fail)('build', `${tool} failed on ${source}`, { errors: result.errors, internal: result.internal });
     }
     return { rom: (0, testlib_1.romBytes)(result), symbolmap: result.symbolmap || {}, tool, platform, source, result };
 }

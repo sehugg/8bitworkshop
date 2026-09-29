@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.builder = exports.Builder = exports.store = exports.FileWorkingStore = exports.PWORKER = void 0;
+exports.builder = exports.Builder = exports.BuildError = exports.store = exports.FileWorkingStore = exports.PWORKER = void 0;
 exports.fixLineEndings = fixLineEndings;
 exports.errorResult = errorResult;
+exports.internalErrorResult = internalErrorResult;
 exports.starttime = starttime;
 exports.endtime = endtime;
 exports.putWorkFile = putWorkFile;
@@ -12,6 +13,8 @@ exports.gatherFiles = gatherFiles;
 exports.getPrefix = getPrefix;
 exports.populateFiles = populateFiles;
 exports.populateExtraFiles = populateExtraFiles;
+exports.fetchLibraryFile = fetchLibraryFile;
+exports.readLibraryHeader = readLibraryHeader;
 exports.staleFiles = staleFiles;
 exports.anyTargetChanged = anyTargetChanged;
 exports.applyAsmProjectParams = applyAsmProjectParams;
@@ -21,6 +24,7 @@ exports.fixParamsWithDefines = fixParamsWithDefines;
 exports.processEmbedDirective = processEmbedDirective;
 const toolmeta_1 = require("../common/toolmeta");
 const util_1 = require("../common/util");
+const telemetry_1 = require("../common/telemetry");
 const platforms_1 = require("./platforms");
 const workertools_1 = require("./workertools");
 /// working file store and build steps
@@ -90,6 +94,21 @@ exports.store = new FileWorkingStore();
 function errorResult(msg) {
     return { errors: [{ line: 0, msg: msg }] };
 }
+/** A tool crash: shown like any build error, and flagged for error reports. */
+function internalErrorResult(e, tool, platform) {
+    var result = errorResult(e + "");
+    result.internal = Object.assign({ tool, platform }, (0, telemetry_1.toInternalError)(e));
+    return result;
+}
+/** A build failure caused by the user's project (a bad directive, a missing
+ * file), as opposed to a tool crash, which gets reported to us. */
+class BuildError extends Error {
+    constructor(msg) {
+        super(msg);
+        Object.setPrototypeOf(this, BuildError.prototype);
+    }
+}
+exports.BuildError = BuildError;
 class Builder {
     constructor() {
         this.steps = [];
@@ -139,8 +158,10 @@ class Builder {
                 step.result = await toolfn(step);
             }
             catch (e) {
+                if (e instanceof BuildError)
+                    return errorResult(e.message);
                 console.log("EXCEPTION", e, e.stack);
-                return errorResult(e + ""); // TODO: catch errors already generated?
+                return internalErrorResult(e, tool, platform);
             }
             if (step.result) {
                 step.result.params = step.params; // TODO: type check
@@ -253,21 +274,28 @@ function putWorkFile(path, data) {
 function getWorkFileAsString(path) {
     return exports.store.getFileAsString(path);
 }
+/** Create the directories above `path` (a/b/c.h -> a, a/b). */
+function makeParentDirs(fs, path) {
+    var toks = path.split('/');
+    for (var i = 1; i < toks.length; i++) {
+        var dir = toks.slice(0, i).join('/');
+        try {
+            fs.mkdir(dir);
+        }
+        catch (e) {
+            // emscripten's FS throws EEXIST, whose errno differs between builds
+            if (!(fs.analyzePath && fs.analyzePath(dir).exists))
+                throw e;
+        }
+    }
+}
 function populateEntry(fs, path, entry, options) {
     var data = entry.data;
     if (options && options.processFn) {
         data = options.processFn(path, data);
     }
     data = fixLineEndings(data);
-    // create subfolders
-    var toks = path.split('/');
-    if (toks.length > 1) {
-        for (var i = 0; i < toks.length - 1; i++)
-            try {
-                fs.mkdir(toks[i]);
-            }
-            catch (e) { }
-    }
+    makeParentDirs(fs, path);
     // write file
     fs.writeFile(path, data, { encoding: entry.encoding });
     var time = new Date(entry.ts);
@@ -328,28 +356,38 @@ function populateExtraFiles(step, fs, extrafiles) {
     if (extrafiles) {
         for (var i = 0; i < extrafiles.length; i++) {
             var xfn = extrafiles[i];
+            makeParentDirs(fs, xfn);
             // is this file cached?
             if (exports.store.workfs[xfn]) {
-                fs.writeFile(xfn, exports.store.workfs[xfn].data, { encoding: 'binary' });
+                // may be the project's own file of that name, as text
+                fs.writeFile(xfn, exports.store.workfs[xfn].data, { encoding: exports.store.workfs[xfn].encoding });
                 continue;
             }
-            // fetch from network
-            var xpath = "lib/" + (0, util_1.getBasePlatform)(step.platform) + "/" + xfn;
-            var xhr = new XMLHttpRequest();
-            xhr.responseType = 'arraybuffer';
-            xhr.open("GET", exports.PWORKER + xpath, false); // synchronous request
-            xhr.send(null);
-            if (xhr.response && xhr.status == 200) {
-                var data = new Uint8Array(xhr.response);
-                fs.writeFile(xfn, data, { encoding: 'binary' });
-                putWorkFile(xfn, data);
-                console.log(":::", xfn, data.length);
-            }
-            else {
-                throw Error("Could not load extra file " + xpath);
-            }
+            var data = fetchLibraryFile(step.platform, xfn);
+            if (!data)
+                throw Error("Could not load extra file lib/" + (0, util_1.getBasePlatform)(step.platform) + "/" + xfn);
+            fs.writeFile(xfn, data, { encoding: 'binary' });
+            putWorkFile(xfn, data);
+            console.log(":::", xfn, data.length);
         }
     }
+}
+/** A file from the platform's library, src/worker/lib/<base platform>/, or null. */
+function fetchLibraryFile(platform, name) {
+    var xhr = new XMLHttpRequest();
+    xhr.responseType = 'arraybuffer';
+    xhr.open("GET", exports.PWORKER + "lib/" + (0, util_1.getBasePlatform)(platform) + "/" + name, false); // synchronous request
+    xhr.send(null);
+    return xhr.response && xhr.status == 200 ? new Uint8Array(xhr.response) : null;
+}
+/**
+ * A header the platform's library provides (listed in extra_compile_files,
+ * which builds copy in), or null -- for the IDE's read-only header view.
+ */
+function readLibraryHeader(platform, name) {
+    var params = platforms_1.PLATFORM_PARAMS[platform] || platforms_1.PLATFORM_PARAMS[(0, util_1.getBasePlatform)(platform)];
+    var listed = (params && params.extra_compile_files) || [];
+    return listed.includes(name) ? fetchLibraryFile(platform, name) : null;
 }
 // see if any target file compares to the inputs in the given direction
 function targetCompare(step, targets, isNewer) {
@@ -377,9 +415,9 @@ function anyTargetChanged(step, targets) {
  * interrupt vectors, so linking it against crt0.o (which has vectors of its
  * own) and the bank-switched config its C programs use can only collide. A
  * platform spells the difference out with asm_-prefixed copies of the link
- * params -- asm_cfgfile, asm_libargs, asm_extra_link_files -- which the
- * assembler applies when the project's main file is its own source, and which
- * nothing else looks at. Runs before fixParamsWithDefines() so that a source
+ * params -- asm_cfgfile, asm_libargs, asm_extra_link_files, asm_startup_objs
+ * -- which the assembler (ca65, sdas) applies when the project's main file is
+ * its own source, and which nothing else looks at. Runs before fixParamsWithDefines() so that a source
  * file's own directive (//#tooldef ... cfgfile=, or a legacy CFGFILE define)
  * still has the last word.
  */
@@ -478,7 +516,7 @@ function applyPlatformAndStepParams(step) {
         mergeDirectives(dir, directivesFromOverrides(symbols, buildArgs));
     applyBuildDirectives(dir, params);
     if (dir.errors.length)
-        throw new Error('build config error: ' + dir.errors.join('; '));
+        throw new BuildError('build config error: ' + dir.errors.join('; '));
 }
 /** Split a directive body into argv, honoring single/double quotes. */
 function splitDirectiveArgs(s) {
@@ -711,7 +749,7 @@ function fixParamsWithDefines(path, params) {
     applyBuildDirectives(dir, params);
     // malformed directives are a build-config error, not a silent no-op
     if (dir.errors.length)
-        throw new Error('build directive error: ' + dir.errors.join('; '));
+        throw new BuildError('build directive error: ' + dir.errors.join('; '));
 }
 function processEmbedDirective(code) {
     if (!code.includes('#embed'))
@@ -729,7 +767,7 @@ function processEmbedDirective(code) {
         let filedata = exports.store.getFileData(filename);
         let bytes = (0, util_1.convertDataToUint8Array)(filedata);
         if (!bytes)
-            throw new Error('#embed: file not found: "' + filename + '"');
+            throw new BuildError('#embed: file not found: "' + filename + '"');
         let out = '';
         for (let i = 0; i < bytes.length; i++) {
             out += bytes[i].toString() + ',';

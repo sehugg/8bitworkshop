@@ -6,6 +6,7 @@ exports.assembleSDASZ80 = assembleSDASZ80;
 exports.assembleSDASGB = assembleSDASGB;
 exports.linkSDLDZ80 = linkSDLDZ80;
 exports.fixBankedCalls = fixBankedCalls;
+exports.withStartupObjects = withStartupObjects;
 exports.compileSDCC = compileSDCC;
 const toolmeta_1 = require("../../common/toolmeta");
 const builder_1 = require("../builder");
@@ -133,6 +134,10 @@ async function assembleSDAS(step, tool) {
     (0, builder_1.gatherFiles)(step, { mainFilePath: "main.asm" });
     var objpath = step.prefix + ".rel";
     var lstpath = step.prefix + ".lst";
+    // the link step reads these params, so settle them even when up to date
+    if (step.mainfile) {
+        (0, builder_1.applyAsmProjectParams)(step.params); // an asm project, not a C one
+    }
     if ((0, builder_1.staleFiles)(step, [objpath, lstpath])) {
         const match_asm_fn = errorMatcherSDASZ80(step.path, errors);
         var AS = wasmutils_1.emglobal[tool]({
@@ -236,6 +241,7 @@ function linkSDLDZ80(step) {
             if (banked.length && rest.length)
                 objargs = rest.slice(0, -1).concat(banked, rest.slice(-1));
         }
+        objargs = withStartupObjects(params.startup_objs, objargs);
         args.push.apply(args, objargs);
         //console.log(args);
         (0, wasmutils_1.execMain)(step, LDZ80, args);
@@ -344,6 +350,17 @@ function fixBankedCalls(asm) {
             asm += '\n' + defs.join('\n') + '\n';
     }
     return asm;
+}
+/**
+ * The platform's startup objects (crt0), from its lib directory, go first:
+ * they set the area order. A project that links its own (by file name, so
+ * gb/crt0.rel replaces crt0.rel) keeps it instead.
+ */
+function withStartupObjects(startup, objargs) {
+    if (!startup)
+        return objargs;
+    var own = new Set(objargs.map((fn) => fn.split('/').pop()));
+    return startup.filter((fn) => !own.has(fn)).concat(objargs);
 }
 function compileSDCC(step) {
     (0, builder_1.gatherFiles)(step, {

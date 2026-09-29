@@ -61,12 +61,14 @@ exports.reloadWorkspaceFile = reloadWorkspaceFile;
 const localforage = __importStar(require("localforage"));
 const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
+const books_1 = require("../common/books");
 const controls_1 = require("../common/controls");
 const hdlhost_1 = require("./hdlhost");
 const recorder_1 = require("../common/recorder");
 const util_1 = require("../common/util");
 const toolmeta_1 = require("../common/toolmeta");
 const platforms_1 = require("../worker/platforms");
+const workertypes_1 = require("../common/workertypes");
 const errorreport_1 = require("./errorreport");
 const _index_1 = require("../platform/_index");
 const dialogs_1 = require("./dialogs");
@@ -257,6 +259,9 @@ async function initProject() {
     exports.current_project.remoteTool = exports.qs.tool || null;
     exports.projectWindows = new windows_1.ProjectWindows($("#workspace")[0], exports.current_project);
     exports.current_project.callbackBuildResult = (result) => {
+        if ((0, workertypes_1.isErrorResult)(result) && result.internal && (0, util_1.isProductionHost)()) {
+            (0, errorreport_1.reportInternalError)('worker', result.internal, { tool: result.internal.tool, platform: result.internal.platform });
+        }
         setCompileOutput(result);
     };
     exports.current_project.callbackBuildStatus = (busy) => {
@@ -2120,7 +2125,7 @@ async function showWelcomeMessage() {
                 element: "#dropdownMenuButton",
                 placement: 'right',
                 title: "Developer Analytics",
-                content: 'BTW, we send stack traces to sentry.io when exceptions are thrown. Hope that\'s ok.'
+                content: 'BTW, we send stack traces to 8bitworkshop.com when exceptions are thrown. Hope that\'s ok.'
             });
             steps.unshift({
                 element: "#dropdownMenuButton",
@@ -2390,16 +2395,15 @@ function hideControlsForEmbed() {
     $('#booksMenuButton').hide();
 }
 function updateBooksMenu() {
-    if ((0, util_1.getRootBasePlatform)(exports.platform_id) == 'nes')
-        $(".book-nes").addClass("book-active");
-    else if ((0, util_1.getRootBasePlatform)(exports.platform_id) == 'vcs')
-        $(".book-vcs").addClass("book-active");
-    else if ((0, util_1.getRootBasePlatform)(exports.platform_id) == 'verilog')
-        $(".book-verilog").addClass("book-active");
-    else if ((0, util_1.getRootBasePlatform)(exports.platform_id) == 'c64')
-        $(".book-c64").addClass("book-active");
-    else if (exports.platform.getToolForFilename(getCurrentMainFilename()) == 'sdcc')
-        $(".book-arcade").addClass("book-active");
+    var active = (0, books_1.bookFor)(exports.platform_id);
+    for (var book of books_1.BOOKS) {
+        var link = $('<a class="dropdown-item dropdown-link">')
+            .attr({ href: book.url, target: '_book_' + book.id })
+            .toggleClass('book-active', book === active)
+            .append($('<img>').attr('src', 'images/' + book.image))
+            .append('&nbsp;&nbsp;', $('<span class="book-title">').text(book.title));
+        $('#booksMenuList').append($('<li>').append(link));
+    }
 }
 function revealTopBar() {
     setTimeout(() => { $("#controls_dynamic").css('visibility', 'inherit'); }, 250);

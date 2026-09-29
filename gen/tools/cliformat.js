@@ -11,6 +11,7 @@ exports.isJsonMode = isJsonMode;
 exports.setServerMode = setServerMode;
 exports.write = write;
 exports.note = note;
+exports.warn = warn;
 exports.hasOutput = hasOutput;
 exports.output = output;
 exports.fail = fail;
@@ -63,6 +64,10 @@ function write(s) {
 function note(msg) {
     if (!jsonMode || serving)
         process.stderr.write(`${exports.c.dim}${msg}${exports.c.reset}\n`);
+}
+/** A problem worth fixing that doesn't stop the command; stderr in any mode. */
+function warn(msg) {
+    process.stderr.write(`${exports.c.yellow}Warning: ${msg}${exports.c.reset}\n`);
 }
 let emitted = false;
 /** True once a CLIResult has been printed -- lets main() detect a silent exit. */

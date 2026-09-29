@@ -40,6 +40,7 @@ import { EmuTarget, VideoOutput, captureRejectionListeners, dropAbortHandlers, i
 import { EmuHalt, PLATFORMS } from '../common/emu';
 import { getSkeletonName, getToolMeta } from '../common/toolmeta';
 import { getBasePlatform } from '../common/util';
+import { PLATFORM_PARAMS } from '../worker/platforms';
 import { c } from './cliformat';
 
 const PRESETS_DIR = 'presets';
@@ -68,6 +69,7 @@ export interface PresetResult {
     size?: number;          // bytes of output, when it built
     ms: number;
     errors?: string[];
+    internal?: string;      // the tool crashed: the IDE would send an error report
     log?: string;           // what the tool printed, kept only when it failed
     run?: RunResult;        // present when built with --run
 }
@@ -181,6 +183,24 @@ function listSkeletons(dir: string, platform: string, skelTools: { [name: string
 // (.mame, .wasm, -defender) repeat their parent's list, so the same file can
 // be named several times; it is built once, under the first platform that
 // claims it.
+/**
+ * Preset files that shadow a platform library file: the worker stages
+ * `extra_compile_files` from src/worker/lib/<platform>, so a same-named file in
+ * presets/<base platform> would be copied into new projects and win over it.
+ * Library files go in src/worker/lib only (doc/notes/sysroot.md, Tiers).
+ */
+export function libraryCollisions(presetsDir: string, params: { [platform: string]: any }): string[] {
+    const found = new Set<string>();
+    for (const id of Object.keys(params).sort()) {
+        for (const file of params[id].extra_compile_files || []) {
+            const relpath = getBasePlatform(id) + '/' + file;
+            if (fs.existsSync(path.join(presetsDir, relpath)))
+                found.add(`${presetsDir}/${relpath} shadows library file src/worker/lib/${relpath}`);
+        }
+    }
+    return [...found];
+}
+
 export async function listPresets(
     filter?: string, platform?: string,
     warn: (s: string) => void = () => { },
@@ -252,6 +272,7 @@ export async function listPresets(
     for (const id of Object.keys(missing).sort()) {
         err(`platform ${id}: ${missing[id]} preset(s) not in presets/${getBasePlatform(id)}/`);
     }
+    for (const e of libraryCollisions(PRESETS_DIR, PLATFORM_PARAMS)) err(e);
     found.sort((a, b) => a.preset < b.preset ? -1 : a.preset > b.preset ? 1 : 0);
     return found;
 }
@@ -550,7 +571,8 @@ export async function buildPreset(
     }
 
     const ms = Date.now() - started;
-    if (errors.length) return { preset, platform, tool, ok: false, ms, errors, log: log || undefined };
+    const internal = result?.internal ? `${result.internal.tool}: ${result.internal.msg}` : undefined;
+    if (errors.length) return { preset, platform, tool, ok: false, ms, errors, internal, log: log || undefined };
     const built: PresetResult = { preset, platform, tool, ok: true, size: outputSize(result), ms };
     if (opts.run) built.run = await runPreset(result, preset, platform, opts);
     return built;
@@ -662,7 +684,7 @@ async function main() {
     for (const w of warnings) console.log(dim(`note: ${w}`));
     for (const e of errors) console.log(red(`error: ${e}`));
     if (errors.length) {
-        console.error(red(`aborting: ${errors.length} platform(s) list preset files that don't exist`));
+        console.error(red(`aborting: ${errors.length} problem(s) with the presets tree`));
     }
     console.log(bold(`${run ? 'building and running' : 'building'} ${presets.length} presets...`));
     const results = await buildAllPresets({
@@ -674,6 +696,7 @@ async function main() {
             const runText = r.run ? ' ' + runStatus(r.run) : '';
             console.log(`${status} ${r.preset} ${cyan(`[${r.tool}/${r.platform}]`)} ${dim(size)} ${dim(r.ms + 'ms')}${runText}`);
             for (const e of r.errors || []) console.log(`       ${yellow(e)}`);
+            if (r.internal) console.log(`       ${red(bold('CRASH'))} ${red(r.internal)} ${dim('(the IDE would report this)')}`);
             if (r.run?.png) console.log(`       ${dim(r.run.png)}`);
             // only a failure gets the tool's / platform's own output
             if (r.log) console.log(dim(r.log.split('\n').map((l) => '     | ' + l).join('\n')));
@@ -696,6 +719,11 @@ async function main() {
         }
         console.log('\nby tool: ' + Object.keys(byTool).sort()
             .map((t) => `${cyan(t)}=${byTool[t]}`).join(' '));
+    }
+    const crashed = results.filter((r) => r.internal);
+    if (crashed.length) {
+        console.log('\n' + bold(red(`${crashed.length} tool crash(es)`)) + dim(' -- would be sent as error reports:'));
+        for (const r of crashed) console.log(`  ${red(r.preset)} ${cyan(`[${r.tool}/${r.platform}]`)} ${r.internal}`);
     }
     // what the builds did when loaded, separately from whether they built
     const ran = results.filter((r) => r.run);

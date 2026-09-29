@@ -1,0 +1,1054 @@
+                                      1         .include        "global.sgb"
+                           000001     1         .NEAR_CALLS = 1         ; <near_calls> - tag so that sed can change this
+                                      2 
+                                      3         ;; Changed by astorgb.pl to 1
+                           000000     4         __RGBDS__       = 0
+                                      5 
+                           008000     6         _VRAM           = 0x8000 ; $8000->$9FFF
+                           008000     7         _VRAM8000       = 0x8000
+                           008800     8         _VRAM8800       = 0x8800
+                           009000     9         _VRAM9000       = 0x9000
+                           009800    10         _SCRN0          = 0x9800 ; $9800->$9BFF
+                           009C00    11         _SCRN1          = 0x9C00 ; $9C00->$9FFF
+                           00A000    12         _SRAM           = 0xA000 ; $A000->$BFFF
+                           00C000    13         _RAM            = 0xC000 ; $C000->$CFFF / $C000->$DFFF
+                           00D000    14         _RAMBANK        = 0xD000 ; $D000->$DFFF
+                           00FE00    15         _OAMRAM         = 0xFE00 ; $FE00->$FE9F
+                           00FF00    16         _IO             = 0xFF00 ; $FF00->$FF7F,$FFFF
+                           00FF30    17         _AUD3WAVERAM    = 0xFF30 ; $FF30->$FF3F
+                           00FF80    18         _HRAM           = 0xFF80 ; $FF80->$FFFE
+                                     19 
+                                     20         ;; MBC Equates
+                                     21 
+                           002000    22         .MBC1_ROM_PAGE  = 0x2000 ; Address to write to for MBC1 switching
+                           002000    23         .MBC_ROM_PAGE   = 0x2000 ; Default platform MBC rom switching address
+                                     24 
+                           000000    25         rRAMG           = 0x0000 ; $0000->$1fff
+                           002000    26         rROMB0          = 0x2000 ; $2000->$2fff
+                           003000    27         rROMB1          = 0x3000 ; $3000->$3fff - If more than 256 ROM banks are present.
+                           004000    28         rRAMB           = 0x4000 ; $4000->$5fff - Bit 3 enables rumble (if present)
+                                     29 
+                                     30         ;;  Keypad
+                           000004    31         .UP             = 0x04
+                           000008    32         .DOWN           = 0x08
+                           000002    33         .LEFT           = 0x02
+                           000001    34         .RIGHT          = 0x01
+                           000010    35         .A              = 0x10
+                           000020    36         .B              = 0x20
+                           000040    37         .SELECT         = 0x40
+                           000080    38         .START          = 0x80
+                                     39 
+                           000010    40         .P14            = 0x10
+                           000020    41         .P15            = 0x20
+                                     42 
+                                     43         ;;  Screen dimensions
+                           000013    44         .MAXCURSPOSX    = 0x13  ; In tiles
+                           000011    45         .MAXCURSPOSY    = 0x11
+                                     46 
+                           0000A0    47         .SCREENWIDTH    = 0xA0
+                           000090    48         .SCREENHEIGHT   = 0x90
+                           000007    49         .MINWNDPOSX     = 0x07
+                           000000    50         .MINWNDPOSY     = 0x00
+                           0000A6    51         .MAXWNDPOSX     = 0xA6
+                           00008F    52         .MAXWNDPOSY     = 0x8F
+                                     53 
+                                     54         ;; Hardware registers
+                                     55 
+                           000000    56         .P1             = 0x00  ; Joystick: 1.1.P15.P14.P13.P12.P11.P10
+                           00FF00    57         rP1             = 0xFF00
+                                     58 
+                           000020    59         P1F_5           = 0b00100000 ; P15 out port, set to 0 to get buttons
+                           000010    60         P1F_4           = 0b00010000 ; P14 out port, set to 0 to get dpad
+                           000008    61         P1F_3           = 0b00001000 ; P13 in port
+                           000004    62         P1F_2           = 0b00000100 ; P12 in port
+                           000002    63         P1F_1           = 0b00000010 ; P11 in port
+                           000001    64         P1F_0           = 0b00000001 ; P10 in port
+                                     65 
+                           000020    66         P1F_GET_DPAD    = 0b00100000
+                           000010    67         P1F_GET_BTN     = 0b00010000
+                           000030    68         P1F_GET_NONE    = 0b00110000
+                                     69 
+                           000001    70         .SB             = 0x01  ; Serial IO data buffer
+                           00FF01    71         rSB             = 0xFF01
+                                     72 
+                           000002    73         .SC             = 0x02  ; Serial IO control register
+                           00FF02    74         rSC             = 0xFF02
+                                     75 
+                           000004    76         .DIV            = 0x04  ; Divider register
+                           00FF04    77         rDIV            = 0xFF04
+                                     78 
+                           000005    79         .TIMA           = 0x05  ; Timer counter
+                           00FF05    80         rTIMA           = 0xFF05
+                                     81 
+                           000006    82         .TMA            = 0x06  ; Timer modulo
+                           00FF06    83         rTMA            = 0xFF06
+                                     84 
+                           000007    85         .TAC            = 0x07  ; Timer control
+                           00FF07    86         rTAC            = 0xFF07
+                                     87 
+                           000004    88         TACF_START      = 0b00000100
+                           000000    89         TACF_STOP       = 0b00000000
+                           000000    90         TACF_4KHZ       = 0b00000000
+                           000003    91         TACF_16KHZ      = 0b00000011
+                           000002    92         TACF_65KHZ      = 0b00000010
+                           000001    93         TACF_262KHZ     = 0b00000001
+                                     94 
+                           00000F    95         .IF             = 0x0F  ; Interrupt flags: 0.0.0.JST.SIO.TIM.LCD.VBL
+                           00FF0F    96         rIF             = 0xFF0F
+                                     97 
+                           000010    98         .NR10           = 0x10  ; Sound register
+                           00FF10    99         rNR10           = 0xFF10
+                           00FF10   100         rAUD1SWEEP      = 0xFF10
+                                    101 
+                           000000   102         AUD1SWEEP_UP    = 0b00000000
+                           000008   103         AUD1SWEEP_DOWN  = 0b00001000
+                                    104 
+                           000011   105         .NR11           = 0x11  ; Sound register
+                           00FF11   106         rNR11           = 0xFF11
+                           00FF11   107         rAUD1LEN        = 0xFF11
+                                    108 
+                           000012   109         .NR12           = 0x12  ; Sound register
+                           00FF12   110         rNR12           = 0xFF12
+                           00FF12   111         rAUD1ENV        = 0xFF12
+                                    112 
+                           000013   113         .NR13           = 0x13  ; Sound register
+                           00FF13   114         rNR13           = 0xFF13
+                           00FF13   115         rAUD1LOW        = 0xFF13
+                                    116 
+                           000014   117         .NR14           = 0x14  ; Sound register
+                           00FF14   118         rNR14           = 0xFF14
+                           00FF14   119         rAUD1HIGH       = 0xFF14
+                                    120 
+                           000016   121         .NR21           = 0x16  ; Sound register
+                           00FF16   122         rNR21           = 0xFF16
+                           00FF16   123         rAUD2LEN        = 0xFF16
+                                    124 
+                           000017   125         .NR22           = 0x17  ; Sound register
+                           00FF17   126         rNR22           = 0xFF17
+                           00FF17   127         rAUD2ENV        = 0xFF17
+                                    128 
+                           000018   129         .NR23           = 0x18  ; Sound register
+                           00FF18   130         rNR23           = 0xFF18
+                           00FF18   131         rAUD2LOW        = 0xFF18
+                                    132 
+                           000019   133         .NR24           = 0x19  ; Sound register
+                           00FF19   134         rNR24           = 0xFF19
+                           00FF19   135         rAUD2HIGH       = 0xFF19
+                                    136 
+                           00001A   137         .NR30           = 0x1A  ; Sound register
+                           00FF1A   138         rNR30           = 0xFF1A
+                           00FF1A   139         rAUD3ENA        = 0xFF1A
+                                    140 
+                           00001B   141         .NR31           = 0x1B  ; Sound register
+                           00FF1B   142         rNR31           = 0xFF1B
+                           00FF1B   143         rAUD3LEN        = 0xFF1B
+                                    144 
+                           00001C   145         .NR32           = 0x1C  ; Sound register
+                           00FF1C   146         rNR32           = 0xFF1C
+                           00FF1C   147         rAUD3LEVEL      = 0xFF1C
+                                    148 
+                           00001D   149         .NR33           = 0x1D  ; Sound register
+                           00FF1D   150         rNR33           = 0xFF1D
+                           00FF1D   151         rAUD3LOW        = 0xFF1D
+                                    152 
+                           00001E   153         .NR34           = 0x1E  ; Sound register
+                           00FF1E   154         rNR34           = 0xFF1E
+                           00FF1E   155         rAUD3HIGH       = 0xFF1E
+                                    156 
+                           000020   157         .NR41           = 0x20  ; Sound register
+                           00FF20   158         rNR41           = 0xFF20
+                           00FF20   159         rAUD4LEN        = 0xFF20
+                                    160 
+                           000021   161         .NR42           = 0x21  ; Sound register
+                           00FF21   162         rNR42           = 0xFF21
+                           00FF21   163         rAUD4ENV        = 0xFF21
+                                    164 
+                           000022   165         .NR43           = 0x22  ; Sound register
+                           00FF22   166         rNR43           = 0xFF22
+                           00FF22   167         rAUD4POLY       = 0xFF22
+                                    168 
+                           000023   169         .NR44           = 0x23  ; Sound register
+                           00FF23   170         rNR44           = 0xFF23
+                           00FF23   171         rAUD4GO         = 0xFF23
+                                    172 
+                           000024   173         .NR50           = 0x24  ; Sound register
+                           00FF24   174         rNR50           = 0xFF24
+                           00FF24   175         rAUDVOL         = 0xFF24
+                                    176 
+                           000080   177         AUDVOL_VIN_LEFT  = 0b10000000 ; SO2
+                           000008   178         AUDVOL_VIN_RIGHT = 0b00001000 ; SO1
+                                    179 
+                           000025   180         .NR51           = 0x25  ; Sound register
+                           00FF25   181         rNR51           = 0xFF25
+                           00FF25   182         rAUDTERM        = 0xFF25
+                                    183 
+                           000080   184         AUDTERM_4_LEFT  = 0b10000000
+                           000040   185         AUDTERM_3_LEFT  = 0b01000000
+                           000020   186         AUDTERM_2_LEFT  = 0b00100000
+                           000010   187         AUDTERM_1_LEFT  = 0b00010000
+                           000008   188         AUDTERM_4_RIGHT = 0b00001000
+                           000004   189         AUDTERM_3_RIGHT = 0b00000100
+                           000002   190         AUDTERM_2_RIGHT = 0b00000010
+                           000001   191         AUDTERM_1_RIGHT = 0b00000001
+                                    192 
+                           000026   193         .NR52           = 0x26  ; Sound register
+                           00FF26   194         rNR52           = 0xFF26
+                           00FF26   195         rAUDENA         = 0xFF26
+                                    196 
+                           000080   197         AUDENA_ON       = 0b10000000
+                           000000   198         AUDENA_OFF      = 0b00000000  ; sets all audio regs to 0!
+                                    199 
+                           000040   200         .LCDC           = 0x40  ; LCD control
+                           00FF40   201         rLCDC           = 0xFF40
+                                    202 
+                           000000   203         LCDCF_OFF       = 0b00000000 ; LCD Control Operation
+                           000080   204         LCDCF_ON        = 0b10000000 ; LCD Control Operation
+                           000000   205         LCDCF_WIN9800   = 0b00000000 ; Window Tile Map Display Select
+                           000040   206         LCDCF_WIN9C00   = 0b01000000 ; Window Tile Map Display Select
+                           000000   207         LCDCF_WINOFF    = 0b00000000 ; Window Display
+                           000020   208         LCDCF_WINON     = 0b00100000 ; Window Display
+                           000000   209         LCDCF_BG8800    = 0b00000000 ; BG & Window Tile Data Select
+                           000010   210         LCDCF_BG8000    = 0b00010000 ; BG & Window Tile Data Select
+                           000000   211         LCDCF_BG9800    = 0b00000000 ; BG Tile Map Display Select
+                           000008   212         LCDCF_BG9C00    = 0b00001000 ; BG Tile Map Display Select
+                           000000   213         LCDCF_OBJ8      = 0b00000000 ; OBJ Construction
+                           000004   214         LCDCF_OBJ16     = 0b00000100 ; OBJ Construction
+                           000000   215         LCDCF_OBJOFF    = 0b00000000 ; OBJ Display
+                           000002   216         LCDCF_OBJON     = 0b00000010 ; OBJ Display
+                           000000   217         LCDCF_BGOFF     = 0b00000000 ; BG Display
+                           000001   218         LCDCF_BGON      = 0b00000001 ; BG Display
+                           000007   219         LCDCF_B_ON      = 7
+                           000006   220         LCDCF_B_WIN9C00 = 6
+                           000005   221         LCDCF_B_WINON   = 5
+                           000004   222         LCDCF_B_BG8000  = 4
+                           000003   223         LCDCF_B_BG9C00  = 3
+                           000002   224         LCDCF_B_OBJ16   = 2
+                           000001   225         LCDCF_B_OBJON   = 1
+                           000000   226         LCDCF_B_BGON    = 0
+                                    227 
+                           000041   228         .STAT           = 0x41  ; LCD status
+                           00FF41   229         rSTAT           = 0xFF41
+                                    230 
+                           000040   231         STATF_LYC       = 0b01000000 ; LYC=LY Coincidence (Selectable)
+                           000020   232         STATF_MODE10    = 0b00100000 ; Mode 10
+                           000010   233         STATF_MODE01    = 0b00010000 ; Mode 01 (V-Blank)
+                           000008   234         STATF_MODE00    = 0b00001000 ; Mode 00 (H-Blank)
+                           000004   235         STATF_LYCF      = 0b00000100 ; Coincidence Flag
+                           000000   236         STATF_HBL       = 0b00000000 ; H-Blank
+                           000001   237         STATF_VBL       = 0b00000001 ; V-Blank
+                           000002   238         STATF_OAM       = 0b00000010 ; OAM-RAM is used by system
+                           000003   239         STATF_LCD       = 0b00000011 ; Both OAM and VRAM used by system
+                           000002   240         STATF_BUSY      = 0b00000010 ; When set, VRAM access is unsafe
+                           000006   241         STATF_B_LYC     = 6
+                           000005   242         STATF_B_MODE10  = 5
+                           000004   243         STATF_B_MODE01  = 4
+                           000003   244         STATF_B_MODE00  = 3
+                           000002   245         STATF_B_LYCF    = 2
+                           000000   246         STATF_B_VBL     = 0
+                           000001   247         STATF_B_OAM     = 1
+                           000001   248         STATF_B_BUSY    = 1
+                                    249 
+                           000042   250         .SCY            = 0x42  ; Scroll Y
+                           00FF42   251         rSCY            = 0xFF42
+                                    252 
+                           000043   253         .SCX            = 0x43  ; Scroll X
+                           00FF43   254         rSCX            = 0xFF43
+                                    255 
+                           000044   256         .LY             = 0x44  ; LCDC Y-coordinate
+                           00FF44   257         rLY             = 0xFF44
+                                    258 
+                           000045   259         .LYC            = 0x45  ; LY compare
+                           00FF45   260         rLYC            = 0xFF45
+                                    261 
+                           000046   262         .DMA            = 0x46  ; DMA transfer
+                           00FF46   263         rDMA            = 0xFF46
+                                    264 
+                           000047   265         .BGP            = 0x47  ; BG palette data
+                           00FF47   266         rBGP            = 0xFF47
+                                    267 
+                           000048   268         .OBP0           = 0x48  ; OBJ palette 0 data
+                           00FF48   269         rOBP0           = 0xFF48
+                                    270 
+                           000049   271         .OBP1           = 0x49  ; OBJ palette 1 data
+                           00FF49   272         rOBP1           = 0xFF49
+                                    273 
+                           00004A   274         .WY             = 0x4A  ; Window Y coordinate
+                           00FF4A   275         rWY             = 0xFF4A
+                                    276 
+                           00004B   277         .WX             = 0x4B  ; Window X coordinate
+                           00FF4B   278         rWX             = 0xFF4B
+                                    279 
+                           00004D   280         .KEY1           = 0x4D  ; CPU speed
+                           00FF4D   281         rKEY1           = 0xFF4D
+                           00FF4D   282         rSPD            = 0xFF4D
+                                    283 
+                           000080   284         KEY1F_DBLSPEED  = 0b10000000 ; 0=Normal Speed, 1=Double Speed (R)
+                           000001   285         KEY1F_PREPARE   = 0b00000001 ; 0=No, 1=Prepare (R/W)
+                                    286 
+                           00004F   287         .VBK            = 0x4F  ; VRAM bank
+                           00FF4F   288         rVBK            = 0xFF4F
+                                    289 
+                           000051   290         .HDMA1          = 0x51  ; DMA control 1
+                           00FF51   291         rHDMA1          = 0xFF51
+                                    292 
+                           000052   293         .HDMA2          = 0x52  ; DMA control 2
+                           00FF52   294         rHDMA2          = 0xFF52
+                                    295 
+                           000053   296         .HDMA3          = 0x53  ; DMA control 3
+                           00FF53   297         rHDMA3          = 0xFF53
+                                    298 
+                           000054   299         .HDMA4          = 0x54  ; DMA control 4
+                           00FF54   300         rHDMA4          = 0xFF54
+                                    301 
+                           000055   302         .HDMA5          = 0x55  ; DMA control 5
+                           00FF55   303         rHDMA5          = 0xFF55
+                                    304 
+                           000000   305         HDMA5F_MODE_GP  = 0b00000000 ; General Purpose DMA (W)
+                           000080   306         HDMA5F_MODE_HBL = 0b10000000 ; HBlank DMA (W)
+                                    307 
+                           000080   308         HDMA5F_BUSY     = 0b10000000 ; 0=Busy (DMA still in progress), 1=Transfer complete (R)
+                                    309 
+                           000056   310         .RP             = 0x56  ; IR port
+                           00FF56   311         rRP             = 0xFF56
+                                    312 
+                           0000C0   313         RPF_ENREAD      = 0b11000000
+                           000002   314         RPF_DATAIN      = 0b00000010 ; 0=Receiving IR Signal, 1=Normal
+                           000001   315         RPF_WRITE_HI    = 0b00000001
+                           000000   316         RPF_WRITE_LO    = 0b00000000
+                                    317 
+                           000068   318         .BCPS           = 0x68  ; BG color palette specification
+                           00FF68   319         rBCPS           = 0xFF68
+                                    320 
+                           000080   321         BCPSF_AUTOINC   = 0b10000000 ; Auto Increment (0=Disabled, 1=Increment after Writing)
+                                    322 
+                           000069   323         .BCPD           = 0x69  ; BG color palette data
+                           00FF69   324         rBCPD           = 0xFF69
+                                    325 
+                           00006A   326         .OCPS           = 0x6A  ; OBJ color palette specification
+                           00FF6A   327         rOCPS           = 0xFF6A
+                                    328 
+                           000080   329         OCPSF_AUTOINC   = 0b10000000 ; Auto Increment (0=Disabled, 1=Increment after Writing)
+                                    330 
+                           00006B   331         .OCPD           = 0x6B  ; OBJ color palette data
+                           00FF6B   332         rOCPD           = 0xFF6B
+                                    333 
+                           000070   334         .SVBK           = 0x70  ; WRAM bank
+                           00FF70   335         rSVBK           = 0xFF70
+                           00FF70   336         rSMBK           = 0xFF70
+                                    337 
+                           00FF76   338         rPCM12          = 0xFF76
+                                    339 
+                           00FF77   340         rPCM34          = 0xFF77
+                                    341 
+                           0000FF   342         .IE             = 0xFF  ; Interrupt enable
+                           00FFFF   343         rIE             = 0xFFFF
+                                    344 
+                           000001   345         .VBL_IFLAG      = 0x01
+                           000002   346         .LCD_IFLAG      = 0x02
+                           000004   347         .TIM_IFLAG      = 0x04
+                           000008   348         .SIO_IFLAG      = 0x08
+                           000010   349         .JOY_IFLAG      = 0x10
+                                    350 
+                           000010   351         IEF_HILO        = 0b00010000 ; Transition from High to Low of Pin number P10-P13
+                           000008   352         IEF_SERIAL      = 0b00001000 ; Serial I/O transfer end
+                           000004   353         IEF_TIMER       = 0b00000100 ; Timer Overflow
+                           000002   354         IEF_STAT        = 0b00000010 ; STAT
+                           000001   355         IEF_VBLANK      = 0b00000001 ; V-Blank
+                                    356 
+                                    357         ;; Flags common to multiple sound channels
+                                    358 
+                           000000   359         AUDLEN_DUTY_12_5 = 0b00000000 ; 12.5%
+                           000040   360         AUDLEN_DUTY_25   = 0b01000000 ; 25%
+                           000080   361         AUDLEN_DUTY_50   = 0b10000000 ; 50%
+                           0000C0   362         AUDLEN_DUTY_75   = 0b11000000 ; 75%
+                                    363 
+                           000008   364         AUDENV_UP       = 0b00001000
+                           000000   365         AUDENV_DOWN     = 0b00000000
+                                    366 
+                           000080   367         AUDHIGH_RESTART    = 0b10000000
+                           000040   368         AUDHIGH_LENGTH_ON  = 0b01000000
+                           000000   369         AUDHIGH_LENGTH_OFF = 0b00000000
+                                    370 
+                                    371         ;; OAM related constants
+                                    372 
+                           000028   373         OAM_COUNT       = 40  ; number of OAM entries in OAM RAM
+                                    374 
+                           000080   375         OAMF_PRI        = 0b10000000 ; Priority
+                           000040   376         OAMF_YFLIP      = 0b01000000 ; Y flip
+                           000020   377         OAMF_XFLIP      = 0b00100000 ; X flip
+                           000000   378         OAMF_PAL0       = 0b00000000 ; Palette number; 0,1 (DMG)
+                           000010   379         OAMF_PAL1       = 0b00010000 ; Palette number; 0,1 (DMG)
+                           000000   380         OAMF_BANK0      = 0b00000000 ; Bank number; 0,1 (GBC)
+                           000008   381         OAMF_BANK1      = 0b00001000 ; Bank number; 0,1 (GBC)
+                                    382 
+                           000007   383         OAMF_PALMASK    = 0b00000111 ; Palette (GBC)
+                                    384 
+                           000007   385         OAMB_PRI        = 7 ; Priority
+                           000006   386         OAMB_YFLIP      = 6 ; Y flip
+                           000005   387         OAMB_XFLIP      = 5 ; X flip
+                           000004   388         OAMB_PAL1       = 4 ; Palette number; 0,1 (DMG)
+                           000003   389         OAMB_BANK1      = 3 ; Bank number; 0,1 (GBC)
+                                    390 
+                                    391         ;; CPU detection
+                           000001   392         .DMG_TYPE       = 0x01 ; Original GB or Super GB
+                           0000FF   393         .MGB_TYPE       = 0xFF ; Pocket GB or Super GB 2
+                           000011   394         .CGB_TYPE       = 0x11 ; Color GB
+                                    395 
+                                    396         ;; GBDK library screen modes
+                                    397 
+                           000001   398         .G_MODE         = 0x01  ; Graphic mode
+                           000002   399         .T_MODE         = 0x02  ; Text mode (bit 2)
+                           000002   400         .T_MODE_OUT     = 0x02  ; Text mode output only
+                           000003   401         .T_MODE_INOUT   = 0x03  ; Text mode with input
+                           000004   402         .M_NO_SCROLL    = 0x04  ; Disables scrolling of the screen in text mode
+                           000008   403         .M_NO_INTERP    = 0x08  ; Disables special character interpretation
+                                    404 
+                                    405         ;; Status codes for IO
+                           000000   406         .IO_IDLE        = 0x00
+                           000001   407         .IO_SENDING     = 0x01
+                           000002   408         .IO_RECEIVING   = 0x02
+                           000004   409         .IO_ERROR       = 0x04
+                                    410 
+                                    411         ;; Type of IO data
+                           000066   412         .DT_IDLE        = 0x66
+                           000055   413         .DT_RECEIVING   = 0x55
+                                    414 
+                                    415         ;; Table of routines for modes
+                           0001E0   416         .MODE_TABLE     = 0x01E0
+                                    417 
+                                    418         ;; C related
+                                    419         ;; Overheap of a banked call.  Used for parameters
+                                    420         ;;  = ret + real ret + bank
+                                    421 
+                           000001   422         .if .NEAR_CALLS
+                           000002   423         .BANKOV         = 2
+                                    424 
+                           000000   425         .else
+                                    426         .BANKOV         = 6
+                                    427 
+                                    428         .endif
+                                    429 
+                                    430         .globl  __current_bank
+                                    431         .globl  __shadow_OAM_base
+                                    432 
+                                    433         ;; Global variables
+                                    434         .globl  .mode
+                                    435 
+                                    436         .globl  __cpu
+                                    437         .globl  __is_GBA
+                                    438 
+                                    439         ;; Global routines
+                                    440 ;       .globl  .set_mode       ;; don't link mode.o by default
+                                    441 
+                                    442         .globl  .reset
+                                    443 
+                                    444         .globl  .display_off
+                                    445 
+                                    446         .globl  .wait_vbl_done
+                                    447 
+                                    448         ;; Interrupt routines
+                                    449         .globl  .add_VBL
+                                    450 ;       .globl  .add_LCD        ;; don't link LCD.o by default
+                                    451 ;       .globl  .add_TIM        ;; don't link TIM.o by default
+                                    452 ;       .globl  .add_SIO        ;; don't link serial.o by default
+                                    453 ;       .globl  .add_JOY        ;; don't link JOY.o by default
+                                    454 
+                                    455         ;; Symbols defined at link time
+                                    456         .globl  .STACK
+                                    457         .globl  _shadow_OAM
+                                    458         .globl  .refresh_OAM
+                                    459 
+                                    460         ;; Main user routine
+                                    461         .globl  _main
+                                    462 
+                                    463         ;; Macro definitions
+                                    464 
+                                    465 .macro WAIT_STAT ?lbl
+                                    466 lbl:    LDH     A, (.STAT)
+                                    467         AND     #STATF_BUSY     ; Check if in LCD modes 0 or 1
+                                    468         JR      NZ, lbl
+                                    469 .endm
+                                    470 
+                                    471 .macro ADD_A_REG16 regH regL
+                                    472         ADD     regL
+                                    473         LD      regL, A
+                                    474         ADC     regH
+                                    475         SUB     regL
+                                    476         LD      regH, A
+                                    477 .endm
+                                    478 
+                                    479 .macro SIGNED_ADD_A_REG16 regH regL ?lbl
+                                    480         ; If A is negative, we need to subtract 1 from upper byte of 16-bit value
+                                    481         BIT     7, A            ; set z if a signed bit is 0
+                                    482         JR      Z, lbl          ; if z is set jump to positive
+                                    483         dec     regH            ; if negative decrement upper byte
+                                    484 lbl:
+                                    485         ADD_A_REG16     regH, regL
+                                    486 .endm
+                                    487 
+                                    488 .macro SIGNED_SUB_A_REG16 regH regL ?lbl
+                                    489         ; negate A then add to 16-bit value
+                                    490         CPL
+                                    491         INC     A
+                                    492         SIGNED_ADD_A_REG16      regH, regL
+                                    493 .endm
+                                    494 
+                                    495 .macro MUL_DE_BY_A_RET_HL ?lbl1 ?lbl2
+                                    496         ; Multiply DE by A, return result in HL; preserves: BC
+                                    497         LD      HL, #0
+                                    498 lbl1:
+                                    499         SRL     A
+                                    500         JR      NC, lbl2
+                                    501         ADD     HL, DE
+                                    502 lbl2:
+                                    503         SLA     E
+                                    504         RL      D
+                                    505         OR      A
+                                    506         JR      NZ, lbl1
+                                    507 .endm
+                                    508 
+                                      2 
+                                      3         ;; ****************************************
+                                      4         ;; Beginning of module
+                                      5         ;; BANKED: checked
+                                      6         .title  "Runtime"
+                                      7         .module Runtime
+                                      8         .area   _HEADER (ABS)
+                                      9 
+                                     10         ;; RST vectors
+                                     11 ;       .org    0x00            ; Trap, utilized by crash_handler.h
+                                     12 
+                                     13 ;       .org    0x08            ; --profile handler utilized by emu_debug.h
+                                     14 
+                                     15 ;       .org    0x10            ; empty
+                                     16 
+                                     17 ;       .org    0x18            ; empty
+                                     18 
+      000020                         19         .org    0x20            ; RST 0x20 == call HL
+      000020                         20 .call_hl::
+      000020 E9               [ 4]   21         JP      (HL)
+                                     22 
+      000028                         23         .org    0x28            ; zero up to 256 bytes in C pointed by HL
+      000028                         24 .MemsetSmall::
+      000028 22               [ 8]   25         LD      (HL+),A
+      000029 0D               [ 4]   26         DEC     C
+      00002A 20 FC            [12]   27         JR      NZ,.MemsetSmall
+      00002C C9               [16]   28         ret
+                                     29 
+      000030                         30         .org    0x30            ; copy up to 256 bytes in C from DE to HL
+      000030                         31 .MemcpySmall::
+      000030 1A               [ 8]   32         LD      A, (DE)
+      000031 22               [ 8]   33         LD      (HL+), A
+      000032 13               [ 8]   34         INC     DE
+      000033 0D               [ 4]   35         DEC     C
+      000034 20 FA            [12]   36         JR      NZ,.MemcpySmall
+      000036 C9               [16]   37         RET
+                                     38 
+                                     39 ;       .org    0x38            ; crash handler utilized by crash_handler.h
+                                     40 
+                                     41         ;; Hardware interrupt vectors
+      000040                         42         .org    0x40            ; VBL
+      000040                         43 .int_VBL:
+      000040 F5               [16]   44         PUSH    AF
+      000041 E5               [16]   45         PUSH    HL
+      000042 21 A5 C0         [12]   46         LD      HL,#.int_0x40
+      000045 C3 80 00         [16]   47         JP      .int
+                                     48 
+                                     49 ;       .org    0x48            ; LCD
+                                     50 
+                                     51 ;       .org    0x50            ; TIM
+                                     52 
+                                     53 ;       .org    0x58            ; SIO
+                                     54 
+                                     55 ;       .org    0x60            ; JOY
+                                     56 
+                                     57 ;       .org    0x70
+                                     58         ;; space for drawing.s bit table
+                                     59 
+      000080                         60         .org    0x80
+      000080                         61 .int::
+      000080 C5               [16]   62         PUSH    BC
+      000081 D5               [16]   63         PUSH    DE
+      000082                         64 1$:
+      000082 2A               [ 8]   65         LD      A,(HL+)
+      000083 B6               [ 8]   66         OR      (HL)
+      000084 28 0B            [12]   67         JR      Z,.int_tail
+      000086 E5               [16]   68         PUSH    HL
+      000087 3A               [ 8]   69         LD      A,(HL-)
+      000088 6E               [ 8]   70         LD      L,(HL)
+      000089 67               [ 4]   71         LD      H,A
+      00008A E7               [16]   72         RST     0x20            ; .call_hl
+      00008B E1               [12]   73         POP     HL
+      00008C 23               [ 8]   74         INC     HL
+      00008D 18 F3            [12]   75         JR      1$
+      00008F                         76 _wait_int_handler::    
+      00008F E8 04            [16]   77         ADD     SP,#4
+      000091                         78 .int_tail:
+      000091 D1               [12]   79         POP     DE
+      000092 C1               [12]   80         POP     BC
+      000093 E1               [12]   81         POP     HL
+                                     82 
+                                     83         ;; we return at least at the beginning of mode 2
+      000094                         84         WAIT_STAT
+      000094 F0 41            [12]    1 10000$:    LDH     A, (.STAT)
+      000096 E6 02            [ 8]    2         AND     #STATF_BUSY     ; Check if in LCD modes 0 or 1
+      000098 20 FA            [12]    3         JR      NZ, 10000$
+                                     85 
+      00009A F1               [12]   86         POP     AF
+      00009B D9               [16]   87         RETI
+                                     88 
+                                     89         ;; VBlank default interrupt routine
+      00009C                         90 __standard_VBL_handler::
+      00009C                         91 .std_vbl:
+      00009C 21 A3 C0         [12]   92         LD      HL,#.sys_time
+      00009F 34               [12]   93         INC     (HL)
+      0000A0 20 02            [12]   94         JR      NZ,2$
+      0000A2 23               [ 8]   95         INC     HL
+      0000A3 34               [12]   96         INC     (HL)
+      0000A4                         97 2$:
+      0000A4 CD 80 FF         [24]   98         CALL    .refresh_OAM
+                                     99         
+      0000A7 3E 01            [ 8]  100         LD      A, #1
+      0000A9 E0 91            [12]  101         LDH     (.vbl_done),A
+      0000AB C9               [16]  102         RET
+                                    103 
+      0000AC                        104 _refresh_OAM::
+      0000AC                        105         WAIT_STAT
+      0000AC F0 41            [12]    1 10001$:    LDH     A, (.STAT)
+      0000AE E6 02            [ 8]    2         AND     #STATF_BUSY     ; Check if in LCD modes 0 or 1
+      0000B0 20 FA            [12]    3         JR      NZ, 10001$
+      0000B2 3E C0            [ 8]  106         LD      A, #>_shadow_OAM
+      0000B4 C3 84 FF         [16]  107         JP      .refresh_OAM + (.refresh_OAM_DMA - .start_refresh_OAM)
+                                    108 
+      0000B7                        109 .clear_WRAM:
+      0000B7 D5               [16]  110         PUSH    DE
+      0000B8 AF               [ 4]  111         XOR     A
+      0000B9 01 19 00         [12]  112         LD      BC, #l__DATA
+      0000BC 21 A0 C0         [12]  113         LD      HL, #s__DATA
+      0000BF CD 01 02         [24]  114         CALL    .memset_simple
+                                    115 
+      0000C2 3E C0            [ 8]  116         LD      A, #>_shadow_OAM
+      0000C4 E0 92            [12]  117         LDH     (__shadow_OAM_base), A
+      0000C6 67               [ 4]  118         LD      H, A
+      0000C7 AF               [ 4]  119         XOR     A
+      0000C8 6F               [ 4]  120         LD      L, A
+      0000C9 0E A0            [ 8]  121         LD      C, #(40 << 2)   ; 40 entries 4 bytes each
+      0000CB EF               [16]  122         RST     0x28
+      0000CC D1               [12]  123         POP     DE
+      0000CD C9               [16]  124         RET
+                                    125         
+                                    126         ;; GameBoy Header
+                                    127 
+                                    128         ;; DO NOT CHANGE...
+      000100                        129         .org    0x100
+      000100                        130 .header:
+      000100 18 55            [12]  131         JR      .code_start
+                                    132 
+                                    133         ;; Nintendo logo
+      000104                        134         .org    0x104
+      000104 CE ED 66 66            135         .byte   0xCE,0xED,0x66,0x66
+      000108 CC 0D 00 0B            136         .byte   0xCC,0x0D,0x00,0x0B
+      00010C 03 73 00 83            137         .byte   0x03,0x73,0x00,0x83
+      000110 00 0C 00 0D            138         .byte   0x00,0x0C,0x00,0x0D
+      000114 00 08 11 1F            139         .byte   0x00,0x08,0x11,0x1F
+      000118 88 89 00 0E            140         .byte   0x88,0x89,0x00,0x0E
+      00011C DC CC 6E E6            141         .byte   0xDC,0xCC,0x6E,0xE6
+      000120 DD DD D9 99            142         .byte   0xDD,0xDD,0xD9,0x99
+      000124 BB BB 67 63            143         .byte   0xBB,0xBB,0x67,0x63
+      000128 6E 0E EC CC            144         .byte   0x6E,0x0E,0xEC,0xCC
+      00012C DD DC 99 9F            145         .byte   0xDD,0xDC,0x99,0x9F
+      000130 BB B9 33 3E            146         .byte   0xBB,0xB9,0x33,0x3E
+                                    147 
+                                    148         ;; Title of the game
+      000134                        149         .org    0x134
+      000134 54 69 74 6C 65 00      150         .asciz  "Title"
+                                    151 
+      000143                        152         .org    0x143
+      000143 00                     153         .byte   GB_CGB_FLAGS
+                                    154 
+      000144                        155         .org    0x144
+      000144 00 00 00               156         .byte   0,0,0
+                                    157 
+                                    158         ;; Cartridge type is ROM only
+      000147                        159         .org    0x147
+      000147 00                     160         .byte   GB_MAPPER
+                                    161 
+                                    162         ;; ROM size is 32kB
+      000148                        163         .org    0x148
+      000148 00                     164         .byte   GB_ROM_SIZE
+                                    165 
+                                    166         ;; RAM size is 0kB
+      000149                        167         .org    0x149
+      000149 00                     168         .byte   GB_RAM_SIZE
+                                    169 
+                                    170         ;; Maker ID
+      00014A                        171         .org    0x14A
+      00014A 00 00                  172         .byte   0x00,0x00
+                                    173 
+                                    174         ;; Version number
+      00014C                        175         .org    0x14C
+      00014C 01                     176         .byte   0x01
+                                    177 
+                                    178         ;; Complement check
+      00014D                        179         .org    0x14D
+      00014D 00                     180         .byte   0x00
+                                    181 
+                                    182         ;; Checksum
+      00014E                        183         .org    0x14E
+      00014E 00 00                  184         .byte   0x00,0x00
+                                    185 
+                                    186         ;; ****************************************
+      000150                        187         .org    0x150
+                                    188         
+                                    189         ;; soft reset: falldown to .code_start
+      000150                        190 .reset::
+      000150                        191 _reset::
+      000150 FA A1 C0         [16]  192         LD      A, (__is_GBA)
+      000153 47               [ 4]  193         LD      B, A
+      000154 FA A0 C0         [16]  194         LD      A, (__cpu)
+                                    195 
+                                    196         ;; Initialization code
+      000157                        197 .code_start::
+      000157 F3               [ 4]  198         DI                      ; Disable interrupts
+      000158 57               [ 4]  199         LD      D, A            ; Store CPU type in D
+      000159 58               [ 4]  200         LD      E, B            ; Store GBA flag in E 
+                                    201         ;; Initialize the stack
+      00015A 31 00 E0         [12]  202         LD      SP, #.STACK
+                                    203 
+      00015D CD B7 00         [24]  204         CALL    .clear_WRAM
+                                    205 
+                                    206 ;       LD      (.mode),A       ; Clearing (.mode) is performed when clearing RAM
+                                    207 
+                                    208         ;; Store CPU type
+      000160 7A               [ 4]  209         LD      A, D
+      000161 EA A0 C0         [16]  210         LD      (__cpu), A
+      000164 FE 11            [ 8]  211         CP      #.CGB_TYPE
+      000166 20 07            [12]  212         JR      NZ, 1$
+      000168 AF               [ 4]  213         XOR     A
+      000169 CB 3B            [ 8]  214         SRL     E
+      00016B 17               [ 4]  215         RLA
+      00016C EA A1 C0         [16]  216         LD      (__is_GBA), A
+      00016F                        217 1$:
+                                    218         ;; Turn the screen off
+      00016F CD 65 02         [24]  219         CALL    .display_off
+                                    220 
+      000172 AF               [ 4]  221         XOR     A
+                                    222         ;; Initialize the display
+      000173 E0 42            [12]  223         LDH     (.SCY),A
+      000175 E0 43            [12]  224         LDH     (.SCX),A
+      000177 E0 41            [12]  225         LDH     (.STAT),A
+      000179 E0 4A            [12]  226         LDH     (.WY),A
+      00017B 3E 07            [ 8]  227         LD      A,#0x07
+      00017D E0 4B            [12]  228         LDH     (.WX),A
+                                    229 
+                                    230         ;; Copy refresh_OAM routine to HRAM
+      00017F 11 C6 01         [12]  231         LD      DE,#.start_refresh_OAM                          ; source
+      000182 21 80 FF         [12]  232         LD      HL,#.refresh_OAM                                ; dest
+      000185 0E 0C            [ 8]  233         LD      C,#(.end_refresh_OAM - .start_refresh_OAM)      ; size
+      000187 F7               [16]  234         RST     0x30                                            ; call .MemcpySmall
+                                    235 
+                                    236         ;; Clear the OAM by calling refresh_OAM
+      000188 CD 80 FF         [24]  237         CALL    .refresh_OAM
+                                    238 
+                                    239         ;; Install interrupt routines
+      00018B 01 9C 00         [12]  240         LD      BC,#.std_vbl
+      00018E CD 47 02         [24]  241         CALL    .add_VBL
+                                    242 
+                                    243         ;; Standard color palettes
+      000191 3E E4            [ 8]  244         LD      A,#0b11100100   ; Grey 3 = 11 (Black)
+                                    245                                 ; Grey 2 = 10 (Dark grey)
+                                    246                                 ; Grey 1 = 01 (Light grey)
+                                    247                                 ; Grey 0 = 00 (Transparent)
+      000193 E0 47            [12]  248         LDH     (.BGP),A
+      000195 E0 48            [12]  249         LDH     (.OBP0),A
+      000197 3E 1B            [ 8]  250         LD      A,#0b00011011
+      000199 E0 49            [12]  251         LDH     (.OBP1),A
+                                    252 
+                                    253         ;; Turn the screen on
+      00019B 3E C0            [ 8]  254         LD      A,#(LCDCF_ON | LCDCF_WIN9C00 | LCDCF_WINOFF | LCDCF_BG8800 | LCDCF_BG9800 | LCDCF_OBJ8 | LCDCF_OBJOFF | LCDCF_BGOFF)
+      00019D E0 40            [12]  255         LDH     (.LCDC),A
+      00019F AF               [ 4]  256         XOR     A
+      0001A0 E0 0F            [12]  257         LDH     (.IF),A
+      0001A2 3E 01            [ 8]  258         LD      A,#.VBL_IFLAG   ; switch on VBlank interrupt only
+      0001A4 E0 FF            [12]  259         LDH     (.IE),A
+                                    260 
+      0001A6 E0 90            [12]  261         LDH     (__current_bank),A      ; current bank is 1 at startup
+                                    262 
+      0001A8 AF               [ 4]  263         XOR     A
+                                    264 
+      0001A9 21 A3 C0         [12]  265         LD      HL,#.sys_time
+      0001AC 22               [ 8]  266         LD      (HL+),A
+      0001AD 77               [ 8]  267         LD      (HL),A
+                                    268 
+      0001AE E0 26            [12]  269         LDH     (.NR52),A       ; Turn sound off
+                                    270 
+      0001B0 CD 93 02         [24]  271         CALL    gsinit
+                                    272 
+      0001B3 FB               [ 4]  273         EI                      ; Enable interrupts
+                                    274 
+                                    275         ;; Call the main function
+      0001B4 CD 00 02         [24]  276         CALL    _main
+      0001B7                        277 _exit:: 
+      0001B7                        278 99$:
+      0001B7 76               [ 4]  279         HALT
+      0001B8 00               [ 4]  280         NOP
+      0001B9 18 FC            [12]  281         JR      99$             ; Wait forever
+                                    282 
+      0001BB                        283 _set_interrupts::
+      0001BB F3               [ 4]  284         DI
+      0001BC F8 02            [12]  285         LDA     HL,2(SP)        ; Skip return address
+      0001BE AF               [ 4]  286         XOR     A
+      0001BF E0 0F            [12]  287         LDH     (.IF),A         ; Clear pending interrupts
+      0001C1 7E               [ 8]  288         LD      A,(HL)
+      0001C2 FB               [ 4]  289         EI                      ; Enable interrupts
+      0001C3 E0 FF            [12]  290         LDH     (.IE),A         ; interrupts are still disabled here
+      0001C5 C9               [16]  291         RET
+                                    292 
+                                    293         ;; Copy OAM data to OAM RAM
+      0001C6                        294 .start_refresh_OAM:
+      0001C6 F0 92            [12]  295         LDH     A,(__shadow_OAM_base)
+      0001C8 B7               [ 4]  296         OR      A
+      0001C9 C8               [20]  297         RET     Z
+      0001CA                        298 .refresh_OAM_DMA:
+      0001CA E0 46            [12]  299         LDH     (.DMA),A        ; Put A into DMA registers
+      0001CC 3E 28            [ 8]  300         LD      A,#0x28         ; We need to wait 160 ns
+      0001CE                        301 1$:
+      0001CE 3D               [ 4]  302         DEC     A
+      0001CF 20 FD            [12]  303         JR      NZ,1$
+      0001D1 C9               [16]  304         RET
+      0001D2                        305 .end_refresh_OAM:
+                                    306 
+      0001E0                        307         .org    .MODE_TABLE
+                                    308         ;; Jump table for modes
+      0001E0 C9               [16]  309         RET
+                                    310 
+                                    311         ;; ****************************************
+                                    312 
+                                    313         ;; Ordering of segments for the linker
+                                    314         ;; Code that really needs to be in bank 0
+                                    315         .area   _HOME
+                                    316         ;; Similar to _HOME
+                                    317         .area   _BASE
+                                    318         ;; Code
+                                    319         .area   _CODE
+                                    320         ;; #pragma bank 0 workaround
+                                    321         .area   _CODE_0
+                                    322         ;; Constant data
+                                    323         .area   _LIT
+                                    324 ;       ;; since _CODE_1 area base address is pre-defined in the linker from 0x4000, 
+                                    325 ;       ;; that moves initializer code and tables out of bank 0
+                                    326 ;       .area   _CODE_1
+                                    327         ;; Constant data, used to init _DATA
+                                    328         .area   _INITIALIZER
+                                    329         ;; Code, used to init _DATA
+                                    330         .area   _GSINIT 
+                                    331         .area   _GSFINAL
+                                    332         ;; Uninitialised ram data
+                                    333         .area   _DATA
+                                    334         .area   _BSS
+                                    335         ;; Initialised in ram data
+                                    336         .area   _INITIALIZED
+                                    337         ;; For malloc
+                                    338         .area   _HEAP
+                                    339 
+                                    340         .area   _DATA
+      00C0A0                        341 .start_crt_globals:
+                                    342 
+      00C0A0                        343 __cpu::
+      00C0A0                        344         .ds     0x01            ; GB type (GB, PGB, CGB)
+      00C0A1                        345 __is_GBA::
+      00C0A1                        346         .ds     0x01            ; detect GBA
+      00C0A2                        347 .mode::
+      00C0A2                        348         .ds     0x01            ; Current mode
+      00C0A3                        349 .sys_time::
+      00C0A3                        350 _sys_time::
+      00C0A3                        351         .ds     0x02            ; System time in VBL units
+      00C0A5                        352 .int_0x40::
+      00C0A5                        353         .blkw   0x0A            ; 4 interrupt handlers (built-in + user-defined)
+                                    354 
+      00C0B9                        355 .end_crt_globals:
+                                    356 
+                                    357         .area   _HRAM (ABS)
+                                    358 
+      00FF90                        359         .org    0xFF90  
+      00FF90                        360 __current_bank::        ; Current bank
+      00FF90                        361         .ds     0x01
+      00FF91                        362 .vbl_done:
+      00FF91                        363         .ds     0x01            ; Is VBL interrupt finished?
+      00FF92                        364 __shadow_OAM_base::
+      00FF92                        365         .ds     0x01
+                                    366 
+                                    367         ;; Runtime library
+                                    368         .area   _GSINIT
+      000293                        369 gsinit::
+                                    370         ;; initialize static storage variables
+      000293 01 00 00         [12]  371         LD      BC, #l__INITIALIZER
+      000296 21 93 02         [12]  372         LD      HL, #s__INITIALIZER
+      000299 11 B9 C0         [12]  373         LD      DE, #s__INITIALIZED
+      00029C CD 0A 02         [24]  374         call    .memcpy_simple         
+                                    375 
+                                    376         .area   _GSFINAL
+      00029F C9               [16]  377         ret
+                                    378 
+                                    379         .area   _HOME
+                                    380 
+                                    381         ;; fills memory at HL of length BC with A, clobbers DE
+      000201                        382 .memset_simple::
+      000201 5F               [ 4]  383         LD      E, A
+      000202 78               [ 4]  384         LD      A, B
+      000203 B1               [ 4]  385         OR      C
+      000204 C8               [20]  386         RET     Z
+      000205 73               [ 8]  387         LD      (HL), E
+      000206 0B               [ 8]  388         DEC     BC
+      000207 54               [ 4]  389         LD      D, H
+      000208 5D               [ 4]  390         LD      E, L
+      000209 13               [ 8]  391         INC     DE
+                                    392 
+                                    393         ;; copies BC bytes from HL into DE
+      00020A                        394 .memcpy_simple::
+      00020A 78               [ 4]  395         LD      A, B
+      00020B B1               [ 4]  396         OR      C
+      00020C C8               [20]  397         RET     Z
+                                    398 
+      00020D CB 38            [ 8]  399         SRL     B
+      00020F CB 19            [ 8]  400         RR      C
+      000211 30 03            [12]  401         JR      NC,3$
+      000213 2A               [ 8]  402         LD      A, (HL+)
+      000214 12               [ 8]  403         LD      (DE), A
+      000215 13               [ 8]  404         INC     DE
+      000216                        405 3$:
+      000216 04               [ 4]  406         INC     B
+      000217 0C               [ 4]  407         INC     C
+      000218 18 06            [12]  408         JR      2$
+      00021A                        409 1$:
+      00021A 2A               [ 8]  410         LD      A, (HL+)
+      00021B 12               [ 8]  411         LD      (DE), A
+      00021C 13               [ 8]  412         INC     DE
+      00021D 2A               [ 8]  413         LD      A, (HL+)
+      00021E 12               [ 8]  414         LD      (DE), A
+      00021F 13               [ 8]  415         INC     DE
+      000220                        416 2$:
+      000220 0D               [ 4]  417         DEC     C
+      000221 20 F7            [12]  418         JR      NZ,1$
+      000223 05               [ 4]  419         DEC     B
+      000224 20 F4            [12]  420         JR      NZ,1$   
+      000226                        421 4$:
+      000226 C9               [16]  422         RET
+                                    423 
+                                    424         ;; Remove interrupt routine in BC from the VBL interrupt list
+                                    425         ;; falldown to .remove_int
+      000227                        426 .remove_VBL::
+      000227 21 A5 C0         [12]  427         LD      HL,#.int_0x40
+                                    428 
+                                    429         ;; Remove interrupt BC from interrupt list HL if it exists
+                                    430         ;; Abort if a 0000 is found (end of list)
+      00022A                        431 .remove_int::
+      00022A                        432 1$:
+      00022A 2A               [ 8]  433         LD      A,(HL+)
+      00022B 5F               [ 4]  434         LD      E,A
+      00022C 56               [ 8]  435         LD      D,(HL)
+      00022D 23               [ 8]  436         INC     HL
+      00022E B2               [ 4]  437         OR      D
+      00022F C8               [20]  438         RET     Z               ; No interrupt found
+                                    439 
+      000230 7B               [ 4]  440         LD      A,E
+      000231 B9               [ 4]  441         CP      C
+      000232 20 F6            [12]  442         JR      NZ,1$
+      000234 7A               [ 4]  443         LD      A,D
+      000235 B8               [ 4]  444         CP      B
+      000236 20 F2            [12]  445         JR      NZ,1$
+                                    446 
+      000238 54               [ 4]  447         LD      D,H
+      000239 5D               [ 4]  448         LD      E,L
+      00023A 1B               [ 8]  449         DEC     DE
+      00023B 1B               [ 8]  450         DEC     DE
+                                    451 
+                                    452         ;; Now do a memcpy from here until the end of the list
+      00023C                        453 2$:
+      00023C 2A               [ 8]  454         LD      A,(HL+)
+      00023D 12               [ 8]  455         LD      (DE),A
+      00023E 47               [ 4]  456         LD      B,A
+      00023F 13               [ 8]  457         INC     DE
+      000240 2A               [ 8]  458         LD      A,(HL+)
+      000241 12               [ 8]  459         LD      (DE),A
+      000242 13               [ 8]  460         INC     DE
+      000243 B0               [ 4]  461         OR      B
+      000244 C8               [20]  462         RET     Z
+      000245 18 F5            [12]  463         JR      2$
+                                    464 
+                                    465         ;; Add interrupt routine in BC to the VBL interrupt list
+                                    466         ;; falldown to .add_int
+      000247                        467 .add_VBL::
+      000247 21 A5 C0         [12]  468         LD      HL,#.int_0x40
+                                    469 
+                                    470         ;; Add interrupt routine in BC to the interrupt list in HL
+      00024A                        471 .add_int::
+      00024A                        472 1$:
+      00024A 2A               [ 8]  473         LD      A,(HL+)
+      00024B B6               [ 8]  474         OR      (HL)
+      00024C 28 03            [12]  475         JR      Z,2$
+      00024E 23               [ 8]  476         INC     HL
+      00024F 18 F9            [12]  477         JR      1$
+      000251                        478 2$:
+      000251 78               [ 4]  479         LD      A,B
+      000252 32               [ 8]  480         LD      (HL-),A
+      000253 71               [ 8]  481         LD      (HL),C
+      000254 C9               [16]  482         RET
+                                    483 
+                                    484         ;; Wait for VBL interrupt to be finished
+      000255                        485 .wait_vbl_done::
+      000255                        486 _wait_vbl_done::
+                                    487         ;; Check if the screen is on
+      000255 F0 40            [12]  488         LDH     A,(.LCDC)
+      000257 E6 80            [ 8]  489         AND     #LCDCF_ON
+      000259 C8               [20]  490         RET     Z               ; Return if screen is off
+      00025A AF               [ 4]  491         XOR     A
+      00025B E0 91            [12]  492         LDH     (.vbl_done),A   ; Clear any previous sets of vbl_done
+      00025D                        493 1$:
+      00025D 76               [ 4]  494         HALT                    ; Wait for any interrupt
+      00025E 00               [ 4]  495         NOP                     ; HALT sometimes skips the next instruction
+      00025F F0 91            [12]  496         LDH     A,(.vbl_done)   ; Was it a VBlank interrupt?
+                                    497         ;; Warning: we may lose a VBlank interrupt, if it occurs now
+      000261 B7               [ 4]  498         OR      A
+      000262 28 F9            [12]  499         JR      Z,1$            ; No: back to sleep!
+      000264 C9               [16]  500         RET
+                                    501 
+      000265                        502 .display_off::
+      000265                        503 _display_off::
+                                    504         ;; Check if the screen is on
+      000265 F0 40            [12]  505         LDH     A,(.LCDC)
+      000267 E6 80            [ 8]  506         AND     #LCDCF_ON
+      000269 C8               [20]  507         RET     Z               ; Return if screen is off
+      00026A                        508 1$:                             ; We wait for the *NEXT* VBL 
+      00026A F0 44            [12]  509         LDH     A,(.LY)
+      00026C FE 92            [ 8]  510         CP      #0x92           ; Smaller than or equal to 0x91?
+      00026E 30 FA            [12]  511         JR      NC,1$           ; Loop until smaller than or equal to 0x91
+      000270                        512 2$:
+      000270 F0 44            [12]  513         LDH     A,(.LY)
+      000272 FE 91            [ 8]  514         CP      #0x91           ; Bigger than 0x90?
+      000274 38 FA            [12]  515         JR      C,2$            ; Loop until bigger than 0x90
+                                    516 
+      000276 F0 40            [12]  517         LDH     A,(.LCDC)
+      000278 E6 7F            [ 8]  518         AND     #~LCDCF_ON
+      00027A E0 40            [12]  519         LDH     (.LCDC),A       ; Turn off screen
+      00027C C9               [16]  520         RET
+                                    521 
+      00027D                        522 _remove_VBL::
+      00027D C5               [16]  523         PUSH    BC
+      00027E F8 04            [12]  524         LDA     HL,4(SP)        ; Skip return address and registers
+      000280 2A               [ 8]  525         LD      A,(HL+)
+      000281 4F               [ 4]  526         LD      C,A
+      000282 46               [ 8]  527         LD      B,(HL)
+      000283 CD 27 02         [24]  528         CALL    .remove_VBL
+      000286 C1               [12]  529         POP     BC
+      000287 C9               [16]  530         RET
+                                    531         
+      000288                        532 _add_VBL::
+      000288 C5               [16]  533         PUSH    BC
+      000289 F8 04            [12]  534         LDA     HL, 4(SP)       ; Skip return address and registers
+      00028B 2A               [ 8]  535         LD      A,(HL+)
+      00028C 4F               [ 4]  536         LD      C,A
+      00028D 46               [ 8]  537         LD      B,(HL)
+      00028E CD 47 02         [24]  538         CALL    .add_VBL
+      000291 C1               [12]  539         POP     BC
+      000292 C9               [16]  540         RET

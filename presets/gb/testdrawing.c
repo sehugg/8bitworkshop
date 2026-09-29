@@ -15,9 +15,6 @@ pixel one row up at a time. This is slow, since each call to
 plot_point() reads and writes a byte of pixel memory.
 */
 
-//#link "gb/sfr.sgb"
-//#link "gb/crt0.sgb"
-//#resource "gb/global.sgb"
 #include <stdint.h>
 #include <string.h>
 #include "gb/types.h"

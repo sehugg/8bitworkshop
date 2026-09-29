@@ -353,6 +353,7 @@ function assembleDASM(step) {
     const sympath = step.prefix + '.sym';
     const wasi = new wasishim_1.WASIRunner();
     wasi.initSync(wasiModule);
+    (0, builder_1.populateExtraFiles)(step, (0, wasiutils_1.wasiFSAdapter)(wasi), step.params.extra_compile_files);
     (0, wasiutils_1.populateWASIFiles)(wasi, step);
     wasi.setArgs(['dasm', step.path, '-f3',
         "-l" + lstpath,
