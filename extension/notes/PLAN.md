@@ -1828,14 +1828,60 @@ session when the user sets a breakpoint or issues **Start Debugging**.
 
 ### Debug views
 
-Reuse the build's `listings`, `symbolmap`, `segments`, and `getDebugInfo()`
-sections. VS Code-native equivalents of the IDE sidebar windows:
+Two layers. What fits the Debug Adapter Protocol uses VS Code's own debug
+UI and needs no webview. The rest are webviews (next section). DAP views
+refresh only when the program stops, so anything worth watching while it
+runs has to be a webview too.
 
-- Memory / Disassembly → tree views or the Debug Console.
-- Memory map / segments → a custom read-only editor or webview (later).
-- Registers/CPU state → the **Variables** view via DAP.
-- Probe/heatmap/callstack views → optional custom webviews; not required for
-  v1.
+| IDE window | VS Code |
+| --- | --- |
+| Disassembler | DAP `disassemble` → the built-in Disassembly View (done) |
+| CPU registers | Variables → "Registers" scope (done) |
+| Debug Tree (`getDebugTree()`) | Variables → "Machine" scope (done) |
+| Symbols | Variables → "Symbols" scope (done) |
+| Memory (hex) | "View Binary Data" on a variable → Hex Editor, via `readMemory`/`writeMemory` (done) |
+| Debug info panel (`getDebugInfo()` text) | webview ("Machine" view) |
+| Memory with symbols, memory map | webviews |
+| Probe log, scanline I/O, heatmaps, stack map, frame calls | webviews |
+| Call stack | webview; could also feed DAP `stackTrace` real frames |
+| Waveform | webview |
+
+**Done (2026-09-29): the DAP layer.**
+- **Disassembly.** `DebugService.disassemble()` returns bytes, the symbol at
+  each address and its source line, so the Disassembly View shows mixed
+  source and assembly. `instructionPointerReference` on the frame opens it.
+  Instruction breakpoints and instruction-granularity stepping work.
+  Limits: only in a debug session (not Run), the address space is what's
+  mapped in now (`& 0xffff`, no banks), and there's no whole-ROM static
+  listing. That could be a read-only virtual document (`8bws-disasm:`)
+  over the same call.
+- **Machine scope.** `src/common/debugtree.ts` (no DOM) walks the
+  platform's debug tree one level at a time by path, the way the IDE's
+  `DebugBrowserView` shows it: `$$` names hidden, `{$$: fn}` nodes expanded
+  by calling `fn`, big arrays and objects in chunks, typed arrays as
+  `$offset` chunks of 16-element hex rows, Maps as their entries. The worker
+  holds no tree state: `DebugService.debugTree(path)` calls
+  `getDebugTree()` again each time. `EmuDebugSession` gives each path a
+  `variablesReference`, cleared at every stop. The scope is marked
+  expensive (collapsed), and is shown only when the platform has
+  `getDebugTree` (`DebugCapabilities.tree`).
+- **Symbols scope.** Every build symbol by name, with its address and the
+  byte there, and a `memoryReference` so "View Binary Data" opens it.
+  Collapsed by default.
+- **Memory writes.** `EmuCore.write()` goes through the machine's bus, so
+  writing an I/O address does what a store there does. It restarts the
+  timeline (the past can't be replayed into the edited state). It needs a
+  `Machine`, so NES (JSNES), VCS and the MAME platforms
+  can't write; `DebugCapabilities.write` says so and the adapter turns on
+  `supportsWriteMemoryRequest` only when it can. After a write the adapter
+  sends `invalidated` (variables); after every stop it sends a `memory`
+  event for the whole space so the Hex Editor reads again.
+- Tests: `test/unit/testdebugtree.ts`, and a case in
+  `test/unit/testdapsession.ts`.
+
+**Next, still DAP:** `setVariable` on Symbols (write the byte), and a real
+call stack from the probe's call tracking (see `CallStackView`) instead of
+the single PC frame.
 
 ### Plan: dedicated debug views (waveform first)
 
@@ -1846,8 +1892,16 @@ debug views.
 
 **Where they live.** A `8bitworkshop` view container in the bottom panel
 (`contributes.viewsContainers.panel`) holding one `WebviewView` per view:
-Waveform first, then Memory, Probe log, Scanline I/O, Heatmaps, Call stack,
-Memory map. Each view's `when` clause uses a context key set from the
+Waveform first, then Machine (the `getDebugInfo()` text, a tab per
+category, refreshed on stop and a few times a second while running; the
+simplest client of the plumbing below, so a good one to build it with),
+Memory, Probe log, Scanline I/O, Heatmaps, Call stack, Memory map.
+
+**Probe views.** The worker connects a `ProbeRecorder`
+(`EmuCore.connectProbe()`) only while some probe view is subscribed, and
+posts its buffer as a transferable typed array (throttled while running,
+and on pause). The view keeps a copy, so `ProbeViewBaseBase` subclasses run
+unchanged over it. Each view's `when` clause uses a context key set from the
 running target's capabilities (`8bitworkshop.hasWaveform`,
 `8bitworkshop.hasProbe`, ...), so only the views that apply show up. Users
 can drag a view into the sidebar or an editor group; a view that needs more

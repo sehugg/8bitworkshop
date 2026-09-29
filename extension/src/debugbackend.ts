@@ -52,6 +52,9 @@ export class WorkerDebugBackend implements DebugBackend {
   location() { return this.call('location'); }
   registers() { return this.call('registers'); }
   readMemory(...a: Parameters<DebugService['readMemory']>) { return this.call('readMemory', ...a); }
+  writeMemory(...a: Parameters<DebugService['writeMemory']>) { return this.call('writeMemory', ...a); }
+  debugTree(...a: Parameters<DebugService['debugTree']>) { return this.call('debugTree', ...a); }
+  symbols() { return this.call('symbols'); }
   disassemble(...a: Parameters<DebugService['disassemble']>) { return this.call('disassemble', ...a); }
   evaluate(...a: Parameters<DebugService['evaluate']>) { return this.call('evaluate', ...a); }
 }

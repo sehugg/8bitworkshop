@@ -68,9 +68,18 @@ In a folder with a launch configuration, <kbd>F5</kbd> does the same, and
   Disassembly view they go by instruction.
 - **Step Back** and **Reverse Continue** run backwards through the
   recording, to the previous line or the previous breakpoint hit.
-- **Variables** shows the CPU registers. **Watch** and hovers take the
+- **Variables** shows the CPU registers, **Machine** (the platform's
+  internal state, as in the IDE's Debug Tree), and **Symbols** (each
+  symbol's address and the byte there). **Watch** and hovers take the
   same expressions as conditions: registers, symbols, `[addr]` for a byte
   of memory, `#mem16[addr]` for a word.
+- **Memory:** the binary-data icon next to a register or symbol opens
+  memory at that address in the Hex Editor (VS Code offers to install
+  it). On most platforms you can edit it there; NES, VCS and MAME-based
+  platforms are read-only.
+- **Disassembly:** right-click in the Call Stack and choose **Open
+  Disassembly View**. It shows instructions with their symbols and source
+  lines.
 - The **Debug Console** takes the commands of `8bws run -e`, such as
   `mem $0200 32`, `hist 10`, `back 5` and `rbreak main`. Type `help` to
   list them.

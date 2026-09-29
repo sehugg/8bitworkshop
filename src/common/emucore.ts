@@ -305,6 +305,25 @@ export class EmuCore {
     throw new Error(`platform '${this.id}' cannot read memory`);
   }
 
+  get supportsWrite(): boolean { return !!this.machine; }
+
+  /**
+   * Write a byte through the machine's bus, as the CPU would (so an I/O
+   * address does what a store there does). The recording can't replay
+   * this, so it starts over from here.
+   */
+  write(addr: number, value: number) {
+    const m = this.machine;
+    if (!m) throw new Error(`platform '${this.id}' cannot write memory`);
+    m.write(addr, value);
+    this.recordingStale = true;
+  }
+
+  /** The platform's debug tree, or null if it has none. */
+  getDebugTree(): {} | null {
+    return this.platform.getDebugTree ? this.platform.getDebugTree() : null;
+  }
+
   getCPUState(): CpuState | null {
     try { return this.platform.getCPUState ? this.platform.getCPUState() : null; }
     catch (e) { return null; }

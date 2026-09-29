@@ -20,11 +20,13 @@ async function launch(): Promise<DapClient> {
     return { target, root: ROOT, debugInfo: { listings: build.listings, symbols: build.symbolmap, mainPath: 'game2.c' } };
   });
   const c = new DapClient(new EmuDebugSession(backend));
-  const caps = await c.request('initialize', { adapterID: '8bitworkshop', linesStartAt1: true, columnsStartAt1: true, pathFormat: 'path' });
+  const caps = await c.request('initialize', { adapterID: '8bitworkshop', linesStartAt1: true, columnsStartAt1: true, pathFormat: 'path', supportsMemoryEvent: true, supportsInvalidatedEvent: true });
   assert.ok(caps.supportsDisassembleRequest);
   await c.request('launch', { program: 'game2.c' });
   await c.event('initialized');
-  assert.strictEqual((await c.event('capabilities')).capabilities.supportsStepBack, true);
+  const { capabilities } = await c.event('capabilities');
+  assert.strictEqual(capabilities.supportsStepBack, true);
+  assert.strictEqual(capabilities.supportsWriteMemoryRequest, true);
   return c;
 }
 
@@ -83,6 +85,35 @@ describe('Debug adapter', function () {
     assert.strictEqual(instructions.length, 6);
     assert.strictEqual(parseInt(instructions[3].address, 16), pc);
     assert.strictEqual(instructions[3].symbol, '_draw_char');
+  });
+
+  it('shows the machine tree and symbols, and writes memory', async function () {
+    const c = await launch();
+    await c.request('setFunctionBreakpoints', { breakpoints: [{ name: 'draw_char' }] });
+    await c.request('configurationDone');
+    await c.event('stopped');
+    await c.event('memory');
+    const frame = await c.where();
+    const { scopes } = await c.request('scopes', { frameId: frame.id });
+    assert.deepStrictEqual(scopes.map((s: any) => s.name), ['Registers', 'Machine', 'Symbols']);
+
+    const machine = await c.request('variables', { variablesReference: scopes[1].variablesReference });
+    const state = machine.variables.find((v: any) => v.name === 'state');
+    assert.ok(state.variablesReference);
+    const stateVars = await c.request('variables', { variablesReference: state.variablesReference });
+    assert.ok(stateVars.variables.find((v: any) => v.name === 'c'), 'CPU state under state');
+
+    const addr = build.symbolmap['_draw_char'];
+    const syms = await c.request('variables', { variablesReference: scopes[2].variablesReference });
+    const sym = syms.variables.find((v: any) => v.name === '_draw_char');
+    assert.strictEqual(parseInt(sym.memoryReference, 16), addr);
+
+    // video RAM
+    const { bytesWritten } = await c.request('writeMemory', { memoryReference: '0x2400', data: Buffer.from([0x12, 0x34]).toString('base64') });
+    assert.strictEqual(bytesWritten, 2);
+    await c.event('invalidated');
+    const mem = await c.request('readMemory', { memoryReference: '0x2400', count: 2 });
+    assert.deepStrictEqual([...Buffer.from(mem.data, 'base64')], [0x12, 0x34]);
   });
 
   it('runs run-script commands in the Debug Console, and expressions in watches', async function () {

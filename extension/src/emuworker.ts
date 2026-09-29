@@ -78,7 +78,8 @@ export interface LoadOptions {
 /** DebugService methods the host may call through `debug`. */
 const DEBUG_METHODS = new Set([
   'capabilities', 'setBuild', 'setBreakpoints', 'continue', 'step', 'pause', 'stepBack', 'reverseContinue',
-  'seekFrame', 'location', 'timeline', 'registers', 'readMemory', 'disassemble', 'evaluate',
+  'seekFrame', 'location', 'timeline', 'registers', 'readMemory', 'writeMemory', 'disassemble', 'evaluate',
+  'debugTree', 'symbols',
 ]);
 // the ones that start the machine running toward a goal
 const FORWARD_METHODS = new Set(['continue', 'step']);

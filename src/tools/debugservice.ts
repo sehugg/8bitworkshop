@@ -8,6 +8,7 @@
 
 import { Breakpoint, makeCondContext } from '../common/breakpoints';
 import { compileExpression } from '../common/breakcond';
+import { TreeEntry, treeChildren } from '../common/debugtree';
 import { buildDebugContext, DebugController, DebugLocation, StepGranularity, StopEvent } from '../common/debugcontroller';
 import { lookupSymbol } from '../common/symbols/symbolfile';
 import { Granularity, Timestamp } from '../common/timeline';
@@ -25,6 +26,10 @@ export interface DebugCapabilities {
   rewind: boolean;
   /** what a step is: a clock, an instruction, or a whole frame */
   granularity: Granularity | 'frame';
+  /** can write memory */
+  write: boolean;
+  /** has a debug tree (getDebugTree) */
+  tree: boolean;
 }
 
 export interface BreakpointResult {
@@ -40,6 +45,13 @@ export interface RegisterValue {
   name: string;
   value: number;
   text: string;
+}
+
+export interface SymbolValue {
+  name: string;
+  addr: number;
+  /** the byte there */
+  value: number;
 }
 
 export interface DisasmResult {
@@ -96,6 +108,8 @@ export class DebugService {
       step: t.supportsStep,
       rewind: t.supportsRewind,
       granularity: t.history ? t.history.core.granularity : (t.supportsStep ? 'insn' : 'frame'),
+      write: t.supportsWrite,
+      tree: !!t.platform.getDebugTree,
     };
   }
 
@@ -167,6 +181,27 @@ export class DebugService {
     const bytes: number[] = [];
     for (let i = 0; i < count; i++) bytes.push(this.target.read((addr + i) & 0xffff) & 0xff);
     return bytes;
+  }
+
+  /** Write bytes; returns how many. */
+  writeMemory(addr: number, bytes: number[]): number {
+    bytes.forEach((b, i) => this.target.write((addr + i) & 0xffff, b & 0xff));
+    return bytes.length;
+  }
+
+  /** The debug tree's entries under `path` (names from earlier calls). */
+  debugTree(path: string[]): TreeEntry[] {
+    const tree = this.target.getDebugTree();
+    if (!tree) throw new Error('this platform has no debug tree');
+    return treeChildren(tree, path);
+  }
+
+  /** The build's symbols, by name, with the byte at each. */
+  symbols(): SymbolValue[] {
+    const syms = this.debug.context.symbols || {};
+    return Object.keys(syms)
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+      .map(name => ({ name, addr: syms[name], value: this.target.read(syms[name] & 0xffff) & 0xff }));
   }
 
   /**
