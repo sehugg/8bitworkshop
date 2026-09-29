@@ -590,7 +590,7 @@
     "build": "node scripts/build.mjs && node out/presetindex.js && node out/syntaxes.js",
     "watch": "node scripts/build.mjs --watch",
     "typecheck": "tsc --noEmit -p .",
-    "assets": "node scripts/build.mjs && node out/assetpack.js",
+    "assets": "node scripts/build.mjs && node out/assetpack.js --quality 9",
     "assets-quick": "node scripts/build.mjs && node out/assetpack.js --quality 8",
     "test": "npm run build && mocha --timeout 60000 out/test/*.test.js",
     "vscode:prepublish": "npm run build",

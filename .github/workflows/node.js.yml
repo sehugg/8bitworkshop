@@ -43,7 +43,7 @@ jobs:
     # install it from the artifact with no other setup.
     - name: Package VS Code extension
       if: github.event_name != 'pull_request'
-      run: npm run package --prefix extension
+      run: npm run package:release --prefix extension
     - name: Upload VS Code extension
       if: github.event_name != 'pull_request'
       uses: actions/upload-artifact@v4
