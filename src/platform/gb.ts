@@ -41,6 +41,49 @@ class GameBoyPlatform extends BaseMachinePlatform<GameBoyMachine> implements Pla
   readAddress(a)        { return this.machine.read(a); }
   readVRAMAddress(a)    { return this.machine.readVRAMAddress(a); }
 
+  // DMG LCD response is slow; blend each frame with the last one shown.
+  // Fraction of the previous frame retained (0 = off).
+  lcdPersistence = 0.5;
+  lcdPrevFrame: Uint32Array;
+
+  async start() {
+    await super.start();
+    // only the browser canvas (headless stand-ins keep raw frames)
+    if (typeof HTMLCanvasElement !== 'undefined' && this.video?.canvas instanceof HTMLCanvasElement) {
+      const updateFrame = this.video.updateFrame.bind(this.video);
+      this.video.updateFrame = (...args) => {
+        this.applyLCDPersistence();
+        updateFrame(...args);
+      };
+    }
+  }
+
+  applyLCDPersistence() {
+    if (!(this.lcdPersistence > 0) || this.machine.cgbMode) {
+      this.lcdPrevFrame = null;
+      return;
+    }
+    const pixels = this.video.getFrameData();
+    let prev = this.lcdPrevFrame;
+    if (!prev || prev.length != pixels.length) {
+      this.lcdPrevFrame = new Uint32Array(pixels);
+      return;
+    }
+    // blend in place; lines the PPU redraws next frame get fresh values,
+    // lines it doesn't (LCD off, breakpoint mid-frame) are already == prev
+    const a = Math.round(this.lcdPersistence * 256);
+    const b = 256 - a;
+    for (let i = 0; i < pixels.length; i++) {
+      const c = pixels[i];
+      const p = prev[i];
+      if (c === p) continue;
+      const r = (((p & 0xff) * a + (c & 0xff) * b) >> 8);
+      const g = ((((p >> 8) & 0xff) * a + ((c >> 8) & 0xff) * b) >> 8);
+      const bl = ((((p >> 16) & 0xff) * a + ((c >> 16) & 0xff) * b) >> 8);
+      prev[i] = pixels[i] = 0xff000000 | (bl << 16) | (g << 8) | r;
+    }
+  }
+
   getOriginPC() {
     return 0x100;
   }
@@ -95,6 +138,8 @@ class GameBoyPlatform extends BaseMachinePlatform<GameBoyMachine> implements Pla
 }
 
 class GameBoyColorPlatform extends GameBoyPlatform {
+
+  lcdPersistence = 0;
 
   newMachine() {
     var m = new GameBoyMachine();
