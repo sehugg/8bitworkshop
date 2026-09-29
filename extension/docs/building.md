@@ -77,7 +77,8 @@ Agents in the terminal use the `8bws` command below.
 
 ## Building from the terminal
 
-VS Code's integrated terminal has an `8bws` command that builds and runs
+With `8bitworkshop.terminalCommand` turned on (it's off by default), VS
+Code's integrated terminal has an `8bws` command that builds and runs
 programs with the same toolchains and emulators as the extension. It
 needs no Node.js install. Scripts and AI agents that run in the
 terminal, such as Claude Code, can use it to check their work:
@@ -98,8 +99,7 @@ the examples, as they do in the editor.
 
 The command is a launcher script in the extension's storage folder, which
 the extension adds to `PATH` for each new terminal. Terminals opened
-before the extension started don't have it; open a new one. To turn it
-off, set `8bitworkshop.terminalCommand` to `false`. The first run in a
+before it was turned on don't have it; open a new one. The first run in a
 while may take a few seconds while it unpacks the toolchains.
 
 ## Where included files come from

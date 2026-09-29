@@ -53,7 +53,8 @@ To use code you already have, open its folder: the extension detects the appropr
 AI agents can build and test your program too. Agents that use VS Code's
 tools, such as Copilot's agent mode, get **Build 8bitworkshop Program** and
 **Run 8bitworkshop Program**, which returns a screenshot. Agents in the
-terminal, such as Claude Code, use the `8bws` command. See
+terminal, such as Claude Code, use the `8bws` command, once you turn on
+`8bitworkshop.terminalCommand`. See
 [AI agents and the terminal](docs/building.md#ai-agents).
 
 ## Settings
@@ -77,7 +78,7 @@ Your local user settings:
 | `8bitworkshop.exportRom` | Write each successful build's ROM to the export folder |
 | `8bitworkshop.toolchainPath` | Use a local 8bitworkshop checkout instead of the included toolchains |
 | `8bitworkshop.assetUrl` | Server or local directory to download toolchains from, tried before the default servers |
-| `8bitworkshop.terminalCommand` | Add the `8bws` command to the integrated terminal (on by default) |
+| `8bitworkshop.terminalCommand` | Add the `8bws` command to the integrated terminal (off by default) |
 
 ## Commands
 

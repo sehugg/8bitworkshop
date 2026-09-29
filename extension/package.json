@@ -334,7 +334,7 @@
         },
         "8bitworkshop.terminalCommand": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "markdownDescription": "Add the `8bws` command to the integrated terminal, to build and run programs from the command line or an AI agent. Open a new terminal after changing this."
         },
         "8bitworkshop.exportRom": {

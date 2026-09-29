@@ -72,7 +72,8 @@ A ${platform.name} program made with [8bitworkshop](${link}).
 
 In VS Code with the 8bitworkshop extension, open \`${mainFile}\` and click **Run**.
 
-From VS Code's integrated terminal, in this folder:
+From VS Code's integrated terminal, in this folder (turn on the
+\`8bitworkshop.terminalCommand\` setting first):
 
 \`\`\`sh
 # compile to a ROM
