@@ -16,7 +16,7 @@ import { Granularity, Timestamp } from '../common/timeline';
 import { hex } from '../common/util';
 import type { CodeListingMap } from '../common/workertypes';
 import type { EmuTarget } from './emutarget';
-import { RUN_SCRIPT_HELP, RunScript } from './runscript';
+import { cpuRegisters, RUN_SCRIPT_HELP, RunScript } from './runscript';
 
 export type StepKind = 'in' | 'over' | 'out';
 
@@ -205,13 +205,10 @@ export class DebugService {
   registers(): RegisterValue[] {
     const state: any = this.target.getCPUState();
     if (!state) return [];
-    const regs: RegisterValue[] = [];
-    for (const [name, value] of Object.entries(state)) {
-      if (typeof value !== 'number') continue;
-      const wide = /^(E?PC|SP|[A-Z]{2}|IX|IY)$/.test(name) || value > 0xff;
-      regs.push({ name, value, text: '$' + hex(value, wide ? 4 : 2) });
-    }
-    return regs;
+    return cpuRegisters(state).map(({ name, value }) => {
+      const wide = /^(E?PC|SP|AF|BC|DE|HL|IX|IY)$/.test(name) || value > 0xff;
+      return { name, value, text: '$' + hex(value, wide ? 4 : 2) };
+    });
   }
 
   readMemory(addr: number, count: number): number[] {

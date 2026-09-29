@@ -93,25 +93,55 @@ function screenCodeToChar(code: number): string {
  * happens to save, including internals, so pick the set that matches.
  */
 const REG_SETS: { when: string[], show: string[], flags?: string }[] = [
-  { when: ['A', 'X', 'Y'], show: ['A', 'X', 'Y', 'SP'], flags: 'NVDIZC' },   // 6502
+  // More specific sets first: the 6809 shares A/X/Y with the 6502.
+  { when: ['A', 'B', 'DP'], show: ['A', 'B', 'X', 'Y', 'U', 'SP', 'DP', 'CC'] }, // 6809
   { when: ['AF', 'HL'], show: ['AF', 'BC', 'DE', 'HL', 'IX', 'IY', 'SP'] },  // Z80 / SM83
-  { when: ['A', 'B', 'DP'], show: ['A', 'B', 'X', 'Y', 'U', 'S', 'DP', 'CC'] }, // 6809
+  { when: ['A', 'X', 'Y'], show: ['A', 'X', 'Y', 'SP'], flags: 'NVDIZC' },   // 6502
 ];
 
-export function formatRegs(state: any): string {
-  if (!state) return '';
-  const set = REG_SETS.find((s) => s.when.every((f) => state[f] != null));
+function findRegSet(state: any) {
+  return REG_SETS.find((s) => s.when.every((f) => state[f] != null));
+}
+
+export interface CpuRegister {
+  name: string;
+  value: number;
+  /** a status flag: shown as 0/1, grouped at the end of a line */
+  flag?: boolean;
+}
+
+/**
+ * The registers a CPU state carries, in display order (PC first). Recognized
+ * CPUs show only their register set; others fall back to the leading
+ * uppercase state fields. Non-register state (opcodes, cycle counts, IRQ
+ * bookkeeping) is left out. This is the single source of truth for what
+ * counts as a register.
+ */
+export function cpuRegisters(state: any): CpuRegister[] {
+  if (!state) return [];
+  const set = findRegSet(state);
   const names = set ? set.show : Object.keys(state).filter((k) => /^[A-Z]/.test(k) && k !== 'PC').slice(0, 6);
-  const parts: string[] = [];
-  for (const name of names) {
-    const value = state[name];
-    if (typeof value === 'number') parts.push(`${name}=$${hex(value, value > 0xff ? 4 : 2)}`);
-  }
-  if (set?.flags) {
-    // set flags uppercase, clear flags lowercase
-    const flags = [...set.flags].map((f) => (state[f] ? f : f.toLowerCase())).join('');
-    parts.push(flags);
-  }
+  const out: CpuRegister[] = [];
+  const add = (name: string, flag = false) => {
+    const v = state[name];
+    if (typeof v !== 'number' && typeof v !== 'boolean') return;
+    out.push({ name, value: flag || typeof v === 'boolean' ? (v ? 1 : 0) : v, flag: flag || undefined });
+  };
+  add('PC');
+  names.forEach((name) => add(name));
+  if (set?.flags) for (const flag of set.flags) add(flag, true);
+  return out;
+}
+
+export function formatRegs(state: any): string {
+  const regs = cpuRegisters(state);
+  // the disassembly line already shows the address, so omit PC
+  const parts = regs
+    .filter((r) => r.name !== 'PC' && !r.flag)
+    .map((r) => `${r.name}=$${hex(r.value, r.value > 0xff ? 4 : 2)}`);
+  // set flags uppercase, clear flags lowercase
+  const flags = regs.filter((r) => r.flag).map((r) => (r.value ? r.name : r.name.toLowerCase())).join('');
+  if (flags) parts.push(flags);
   return parts.join(' ');
 }
 
