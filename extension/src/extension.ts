@@ -973,6 +973,22 @@ async function writeFolderSettings(dir: vscode.Uri, s: { platform: string, mainF
   if (s.tool) json[CONFIG + '.tool'] = s.tool;
   await vscode.workspace.fs.createDirectory(vscode.Uri.joinPath(dir, '.vscode'));
   await vscode.workspace.fs.writeFile(file, new TextEncoder().encode(JSON.stringify(json, null, 2) + '\n'));
+  await writeExtensionRecommendations(dir);
+}
+
+/**
+ * VS Code offers the C/C++ extension for every .c file, but its IntelliSense
+ * can't find cc65/SDCC headers and only adds false errors. Declining it in
+ * .vscode/extensions.json is the only way to stop the prompt for a folder.
+ */
+async function writeExtensionRecommendations(dir: vscode.Uri) {
+  var file = vscode.Uri.joinPath(dir, '.vscode', 'extensions.json');
+  try { await vscode.workspace.fs.stat(file); return; } catch (e) { }  // leave the user's alone
+  var json = {
+    recommendations: ['8bitworkshop.8bitworkshop'],
+    unwantedRecommendations: ['ms-vscode.cpptools', 'ms-vscode.cpptools-extension-pack'],
+  };
+  await vscode.workspace.fs.writeFile(file, new TextEncoder().encode(JSON.stringify(json, null, 2) + '\n'));
 }
 
 async function changeMainFile() {

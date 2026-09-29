@@ -48,6 +48,11 @@ version that built keeps running until you fix them.
 
 To use code you already have, open its folder: the extension detects the appropriate platform and main file.
 
+You don't need Microsoft's C/C++ extension: this extension builds your C code
+and reports its errors. VS Code suggests C/C++ whenever you open a `.c` file,
+so new projects include a `.vscode/extensions.json` that turns the suggestion
+off for that folder. Elsewhere, you can safely dismiss it.
+
 ## Settings
 
 Project settings, saved in `.vscode/settings.json`:
