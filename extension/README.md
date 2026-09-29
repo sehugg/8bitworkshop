@@ -4,7 +4,7 @@
 
 The original online 8-bit IDE, now in VS Code!
 
-Write programs for classic consoles and computers, then build and play
+Write programs for classic consoles and computers, then compile and play
 them without leaving VS Code.
 
 This extension bundles the assemblers,
@@ -33,9 +33,9 @@ extra component the first time you use them.
 
 ## Get started
 
-1. Open an empty window. In the Explorer, click **New 8bitworkshop
-   Project**, or run **8bitworkshop: New Project...** from the Command
-   Palette.
+1. Open an empty window. The Explorer sidebar shows a **New 8bitworkshop
+   Project** button below **Open Folder**; click it. Or run
+   **8bitworkshop: New Project...** from the Command Palette.
 2. Choose a platform, such as **NES** or **Atari 2600 (VCS)**.
 3. Choose a blank program or an example, then a folder to copy it to.
 4. Click **Run** (▷) at the top right of the editor. The emulator opens
