@@ -63,6 +63,8 @@ export class Builder {
   private queue: Promise<any> = Promise.resolve();
   private initialized = false;
   private preloaded = new Set<string>();
+  /** the platform the worker store was last built for */
+  private storePlatform: string | null = null;
   /** the last successful outcome per main file, for unchanged builds */
   private last = new Map<string, BuildOutcome>();
 
@@ -98,6 +100,12 @@ export class Builder {
     var key = `${req.platform}/${tool}/${req.mainPath}`;
     var result: WorkerResult;
     try {
+      // The store only tracks file contents, so a shared source (e.g. a
+      // symlinked common.c) would keep its .rel from another platform's defines.
+      if (this.storePlatform !== req.platform) {
+        await handleMessage({ reset: true } as any);
+        this.storePlatform = req.platform;
+      }
       for (var t of preloads) {
         if (!this.preloaded.has(t + "/" + req.platform)) {
           await handleMessage({ preload: t, platform: req.platform } as any);

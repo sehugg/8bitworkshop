@@ -142,4 +142,23 @@ describe('extension buildcore', function () {
     assert.deepEqual(reverted.diagnostics, []);
     assert.deepEqual(reverted.output, first.output);
   });
+
+  // sms-sms-libcv/common.c is a symlink to coleco/common.c: identical source
+  // built with different defines must not reuse the other platform's .rel.
+  it('rebuilds shared sources when the platform changes', async function () {
+    var fs = require('fs');
+    var build = async (platform: string, dir: string) => {
+      var read = async (rel: string) => {
+        var p = path.join(ROOT, 'presets', dir, rel);
+        return fs.existsSync(p) ? new Uint8Array(fs.readFileSync(p)) : null;
+      };
+      var mainText = new TextDecoder().decode(await read('hello.c'));
+      return builder.build({ platform, mainPath: 'hello.c', mainText, files: new ProjectFileProvider(read, ROOT, platform) });
+    };
+    var sms = await build('sms-sms-libcv', 'sms-sms-libcv');
+    assert.deepEqual(sms.diagnostics, []);
+    var coleco = await build('coleco', 'coleco');
+    assert.deepEqual(coleco.diagnostics, []);
+    assert.ok(coleco.success);
+  });
 });
