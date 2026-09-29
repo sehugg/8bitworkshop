@@ -1,34 +1,61 @@
 {
-  src_folders : ["test/web"],
-  
-  test_settings: {
-    default: {
-      launch_url: 'https://sehugg.github.io/8bitworkshop/'
-    },
+  "src_folders": ["test/web"],
 
-    safari: {
-      desiredCapabilities : {
-        browserName : 'safari',
-        alwaysMatch: {
-          acceptInsecureCerts: false
-        }
+  "test_settings": {
+    "default": {
+      "launch_url": "http://localhost:8000/",
+      "desiredCapabilities": {
+        "browserName": "chrome"
       },
-      webdriver: {
-        port: 4445,
-        start_process: true,
-        server_path: '/usr/bin/safaridriver-doesntwork'
+      "webdriver": {
+        "start_process": true,
+        "server_path": "node_modules/.bin/chromedriver",
+        "port": 9515
+      },
+      "screenshots": {
+        "enabled": true,
+        "path": "",
+        "on_failure": true,
+        "on_error": true
       }
     },
 
-    firefox: {
-      desiredCapabilities : {
-        browserName : 'firefox'
+    "chrome": {
+      "desiredCapabilities": {
+        "browserName": "chrome",
+        "chromeOptions": {
+          "args": ["--headless=new", "--no-sandbox", "--disable-gpu", "--window-size=1280,1024"]
+        }
       },
+      "webdriver": {
+        "start_process": true,
+        "server_path": "node_modules/.bin/chromedriver",
+        "port": 9515
+      }
+    },
 
-      webdriver: {
-        start_process: true,
-        port: 4444,
-        server_path: require('geckodriver').path
+    "safari": {
+      "desiredCapabilities": {
+        "browserName": "safari",
+        "alwaysMatch": {
+          "acceptInsecureCerts": false
+        }
+      },
+      "webdriver": {
+        "port": 4445,
+        "start_process": true,
+        "server_path": "/usr/bin/safaridriver-doesntwork"
+      }
+    },
+
+    "firefox": {
+      "desiredCapabilities": {
+        "browserName": "firefox"
+      },
+      "webdriver": {
+        "start_process": true,
+        "port": 4444,
+        "server_path": "node_modules/.bin/geckodriver"
       }
     }
   }

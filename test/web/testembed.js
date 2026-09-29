@@ -64,6 +64,29 @@ exports['test embed IDE in iframe'] = function(browser) {
   */
 }
 
+exports['test narrow tab layout'] = function(browser) {
+
+  // below the 760px breakpoint the panes become tabs (see ide/layout.ts)
+  browser.windowSize('current', 600, 900)
+    .url(IDEURL + QS)
+    .waitForElementNotVisible('#compile_spinner', time=10000)
+    .waitForElementNotVisible('#error_alert')
+    .waitForElementVisible('#mobiletabs')
+    .click('.mobiletab[data-tab="emulator"]')
+    .waitForElementVisible('#emuscreen')
+    .waitForElementVisible('.emuvideo')
+    .click('.mobiletab[data-tab="editor"]')
+    .waitForElementVisible('#workspace')
+    .waitForElementNotVisible('#emuscreen')
+
+  // widening the window should restore the side-by-side panes
+  browser.windowSize('current', 1280, 1024)
+    .waitForElementNotVisible('#mobiletabs')
+    .waitForElementVisible('#workspace')
+    .waitForElementVisible('#emuscreen')
+    .waitForElementVisible('.emuvideo')
+}
+
 exports['test standalone player'] = function(browser) {
 
   browser.url(PLAY_C64)
