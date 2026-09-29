@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as path from 'path';
-import { FolderInfo, Project, asmLanguageFor, isOwnExtension, projectFor, resolveRunTarget } from '../src/projectinfo';
+import { FolderInfo, Project, asmLanguageFor, isOwnExtension, projectFor, resolveRunTarget, withoutProject } from '../src/projectinfo';
 import { BuildReason, BuildScheduler, Clock } from '../src/autobuild';
 
 const WS = path.resolve('/work/game');
@@ -80,6 +80,37 @@ describe('projectFor', function () {
     assert.ok(!isOwnExtension('game.c'));
     assert.ok(!isOwnExtension('game.s'));
     assert.ok(!isOwnExtension('notes.txt'));
+  });
+});
+
+describe('withoutProject', function () {
+  var folder: FolderInfo = {
+    path: WS,
+    settings: { platform: 'nes', mainFile: 'src/main.c', tool: 'cc65' },
+    folders: {
+      'tests': { platform: 'nes' },
+      'tests/c64': { platform: 'c64', mainFile: 'demo.c', tool: 'cc65' },
+    },
+  };
+  var project = (over: Partial<Project>): Project => ({ scope: WS, root: WS, platform: 'nes', origin: 'settings', folder: WS, ...over });
+
+  it('clears a top-level project but keeps subproject entries', function () {
+    var next = withoutProject(folder, project({ origin: 'settings' }));
+    assert.deepEqual(next.settings, {});
+    assert.deepEqual(next.folders, folder.folders);
+  });
+
+  it('drops only a subproject entry, keeping the rest and the settings', function () {
+    var next = withoutProject(folder, project({ scope: at('tests/c64'), origin: 'folders', folderKey: 'tests/c64' }));
+    assert.deepEqual(next.settings, folder.settings);
+    assert.deepEqual(Object.keys(next.folders), ['tests']);
+    assert.deepEqual(next.folders.tests, { platform: 'nes' });
+  });
+
+  it('leaves a project it does not store (README, window, another folder)', function () {
+    assert.equal(withoutProject(folder, project({ origin: 'readme' })), undefined);
+    assert.equal(withoutProject(folder, project({ origin: 'window', folder: undefined })), undefined);
+    assert.equal(withoutProject(folder, project({ origin: 'settings', folder: '/elsewhere' })), undefined);
   });
 });
 

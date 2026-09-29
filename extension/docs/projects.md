@@ -74,6 +74,25 @@ folder already has a project, you choose one of these:
 
 Or click the status bar and choose **Change Main File...**.
 
+## Remove a project
+
+Click the status bar and choose **Remove Project...**. It clears the
+project's settings, so the files stop being built, and detection can
+offer the project again the next time you open the folder.
+
+- A top-level project clears the folder's `platform`, `mainFile`, and
+  `tool` settings. Other projects in `8bitworkshop.folders` stay.
+- A project in a subfolder removes just its `8bitworkshop.folders`
+  entry.
+- A project that comes from a README badge isn't in settings, so the
+  command offers to open the README instead.
+
+Editing `.vscode/settings.json` by hand does the same thing: when the
+last of a project's settings goes away, its errors in **Problems**
+clear, its language highlighting ends, and a running program for it
+stops. There's no **Undo**; set a main file or accept a detection prompt
+to make the project again.
+
 ## Keep a list of programs to run
 
 To switch between programs with <kbd>F5</kbd>:

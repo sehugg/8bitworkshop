@@ -5,7 +5,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { parseReadmeBadge } from '../../src/common/detect';
-import { FolderInfo, Project, ProjectContext, ProjectSettings, RunTargetChoice, isInside, listProjects, projectFor, resolveRunTarget } from './projectinfo';
+import { FolderInfo, Project, ProjectContext, ProjectSettings, RunTargetChoice, isInside, listProjects, projectFor, resolveRunTarget, withoutProject } from './projectinfo';
 
 export const CONFIG = '8bitworkshop';
 const RECENT_BUILDS = 6;
@@ -70,8 +70,8 @@ export class ProjectScope implements vscode.Disposable {
     this.emitter.fire();
   }
 
-  context(): ProjectContext {
-    var folders: FolderInfo[] = (vscode.workspace.workspaceFolders || [])
+  private folderInfos(): FolderInfo[] {
+    return (vscode.workspace.workspaceFolders || [])
       .filter(f => f.uri.scheme === 'file')
       .map(f => {
         var cfg = vscode.workspace.getConfiguration(CONFIG, f.uri);
@@ -86,6 +86,15 @@ export class ProjectScope implements vscode.Disposable {
           readme: this.readmes.get(f.uri.fsPath),
         };
       });
+  }
+
+  context(): ProjectContext {
+    var folders = this.folderInfos();
+    // a build record outlives a project edited out of settings.json; drop it,
+    // so removing the settings really removes the project
+    var known = new Set(listProjects({ folders }).map(p => p.scope));
+    for (var w of this.windowProjects) known.add(w.scope);
+    this.builds = this.builds.filter(b => known.has(b.project.scope));
     return { folders, window: this.windowProjects, builds: this.builds };
   }
 
@@ -185,6 +194,41 @@ export class ProjectScope implements vscode.Disposable {
     this.windowProjects = this.windowProjects.filter(w => !isInside(w.scope, dir));
     this.emitter.fire();
     return true;
+  }
+
+  /**
+   * Forget a project: clear its settings, so detection can offer it again.
+   * A project from a README badge or with no folder can't be cleared here.
+   * Returns true if the project is gone.
+   */
+  async removeProject(p: Project): Promise<boolean> {
+    if (p.origin === 'window') {
+      this.windowProjects = this.windowProjects.filter(w => !(w.origin === 'window' && w.scope === p.scope));
+      this.memoryTargets.delete(p.scope);
+      this.emitter.fire();
+      return true;
+    }
+    var folder = this.folderInfos().find(f => f.path === p.folder);
+    if (!folder) return false;
+    var next = withoutProject(folder, p);
+    if (!next) return false;
+    var wsFolder = (vscode.workspace.workspaceFolders || []).find(f => f.uri.fsPath === p.folder);
+    if (!wsFolder) return false;
+    var cfg = vscode.workspace.getConfiguration(CONFIG, wsFolder.uri);
+    var target = (vscode.workspace.workspaceFolders || []).length > 1 ? vscode.ConfigurationTarget.WorkspaceFolder : vscode.ConfigurationTarget.Workspace;
+    await cfg.update('platform', next.settings.platform || undefined, target);
+    await cfg.update('mainFile', next.settings.mainFile || undefined, target);
+    await cfg.update('tool', next.settings.tool || undefined, target);
+    await cfg.update('folders', Object.keys(next.folders).length ? next.folders : undefined, target);
+    await this.forgetTarget(p);
+    this.emitter.fire();
+    return true;
+  }
+
+  /** Drop the run target stored for a project that no longer exists. */
+  private async forgetTarget(p: Project) {
+    if (p.origin === 'window' || !p.folder) this.memoryTargets.delete(p.scope);
+    else await this.state.update(this.targetKey(p), undefined);
   }
 
   /** Change one setting of an existing project, where it came from. */

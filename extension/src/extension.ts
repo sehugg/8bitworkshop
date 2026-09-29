@@ -94,6 +94,7 @@ export function activate(ctx: vscode.ExtensionContext) {
   command('setMainFile', (uri?: vscode.Uri) => setMainFile(uri));
   command('changeMainFile', () => changeMainFile());
   command('selectPlatform', () => changePlatform());
+  command('removeProject', () => removeProject());
   command('newProject', (platformId?: string) => newProject(platformId));
   command('openExample', () => openExample());
   command('copyToWorkspace', (uri?: vscode.Uri) => copyToWorkspace(uri));
@@ -135,7 +136,7 @@ export function activate(ctx: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeTextDocument(e => onChange(e)),
     vscode.window.onDidChangeActiveTextEditor(() => { updateStatus(); detectForActiveFile(); }),
     vscode.workspace.onDidOpenTextDocument(doc => assignLanguage(doc)),
-    scope.onDidChange(() => { updateStatus(); vscode.workspace.textDocuments.forEach(assignLanguage); }),
+    scope.onDidChange(() => onProjectsChanged()),
     vscode.workspace.onDidChangeWorkspaceFolders(() => detectProjects(false)),
     { dispose: () => { builds?.dispose(); emu?.dispose(); } },
   );
@@ -370,6 +371,26 @@ function lastTool(t: Target): string | undefined {
   return scope.lastBuildOf(t.main.fsPath)?.tool;
 }
 
+/** Settings changed, in the editor or by us: re-read, and drop what's stale. */
+function onProjectsChanged() {
+  // a project removed through settings.json shouldn't leave errors behind
+  releaseHeldDiagnostics(false);
+  clearOrphanDiagnostics();
+  // a project that no longer exists can't keep running
+  if (running?.project && !scope.projectFor(running.main)) panel?.dispose();
+  updateStatus();
+  vscode.workspace.textDocuments.forEach(assignLanguage);
+}
+
+/** Delete diagnostics for files no project owns any more. */
+function clearOrphanDiagnostics() {
+  var orphans: vscode.Uri[] = [];
+  diagnostics.forEach(uri => {
+    if (uri.scheme === 'file' && !scope.projectFor(uri)) orphans.push(uri);
+  });
+  for (var uri of orphans) diagnostics.delete(uri);
+}
+
 async function projectMenu() {
   var target = currentTarget();
   var project = target?.project;
@@ -400,6 +421,7 @@ async function projectMenu() {
     if (project.mainFile && target.main.fsPath !== project.mainFile)
       items.push({ label: '$(debug-alt) Add Launch Configuration', description: `for ${describeTarget(target)}`, run: () => addLaunchConfiguration() });
     items.push({ label: '$(search) Detect Again', run: () => detectAgain(project) });
+    items.push({ label: '$(trash) Remove Project...', run: () => removeProject() });
   }
   var picked = await vscode.window.showQuickPick(items, { title: '8bitworkshop' });
   await picked?.run?.();
@@ -887,6 +909,35 @@ async function detectAgain(project: Project) {
   if (!main) return;
   var choice = await chooseForFile(templates, vscode.Uri.file(main));
   if (choice) await scope.updateProject(project, { platform: choice.platform, tool: choice.tool || null });
+}
+
+/**
+ * Remove a project's settings, so it stops building and detection can offer
+ * it again. A project that comes from a README badge lives in the README.
+ */
+async function removeProject() {
+  var uri = activeUri();
+  var project = currentTarget()?.project || scope.projectFor(uri);
+  if (!project) {
+    vscode.window.showInformationMessage("8bitworkshop: this file isn't part of a project.");
+    return;
+  }
+  if (project.origin === 'readme') {
+    var readme = vscode.Uri.joinPath(vscode.Uri.file(project.folder || project.scope), 'README.md');
+    var open = await vscode.window.showInformationMessage(
+      'This project comes from the 8bitworkshop link in README.md, not from settings.', 'Open README.md');
+    if (open === 'Open README.md') vscode.window.showTextDocument(readme).then(undefined, e => output.appendLine(`readme: ${e}`));
+    return;
+  }
+  var where = project.origin === 'settings' ? 'this folder'
+    : project.folder ? path.relative(project.folder, project.scope) : project.scope;
+  var answer = await vscode.window.showWarningMessage(
+    `Remove the ${platformName(templates, project.platform)} project for ${where}?`,
+    { modal: true, detail: 'Build and Run stop treating these files as 8bitworkshop. Detection may offer the project again when the folder reopens.' },
+    'Remove Project');
+  if (answer !== 'Remove Project') return;
+  if (await scope.removeProject(project)) vscode.window.showInformationMessage('8bitworkshop: project removed.');
+  else vscode.window.showWarningMessage("8bitworkshop: couldn't remove this project from settings.");
 }
 
 ////// templates

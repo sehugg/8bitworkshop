@@ -142,6 +142,23 @@ export function listProjects(ctx: ProjectContext): Project[] {
 }
 
 /**
+ * A folder's settings with project `p` removed: the settings and folders to
+ * persist. Undefined when `p` isn't stored in this folder -- it comes from a
+ * README badge, a window with no folder, or another folder. A top-level
+ * project clears the folder's settings; a subproject drops its `folders` entry.
+ */
+export function withoutProject(folder: FolderInfo, p: Project): { settings: ProjectSettings, folders: { [dir: string]: ProjectSettings } } | undefined {
+  if (p.folder !== folder.path) return undefined;
+  if (p.origin === 'settings') return { settings: {}, folders: folder.folders || {} };
+  if (p.origin === 'folders' && p.folderKey) {
+    var folders = { ...(folder.folders || {}) };
+    delete folders[p.folderKey];
+    return { settings: folder.settings, folders };
+  }
+  return undefined;
+}
+
+/**
  * The project that owns `file`, or undefined if it isn't ours. In order: the
  * most specific 8bitworkshop.folders entry, the folder's settings, its README
  * badge, a choice made in a window with no folder, then the last build that

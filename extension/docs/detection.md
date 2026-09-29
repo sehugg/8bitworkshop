@@ -80,6 +80,8 @@ Click the status bar, then choose one of these:
 
 - **Change Platform...** to pick another platform.
 - **Detect Again** to look at the clues again.
+- **Remove Project...** to clear its settings, so it isn't a project at
+  all. See [Remove a project](projects.md#remove-a-project).
 
 ## From the command line
 

@@ -142,6 +142,11 @@
         "category": "8bitworkshop"
       },
       {
+        "command": "8bitworkshop.removeProject",
+        "title": "Remove Project...",
+        "category": "8bitworkshop"
+      },
+      {
         "command": "8bitworkshop.addLaunchConfiguration",
         "title": "Add Launch Configuration",
         "category": "8bitworkshop"
@@ -423,6 +428,10 @@
         {
           "command": "8bitworkshop.copyToWorkspace",
           "when": "resourceScheme == 8bws-preset"
+        },
+        {
+          "command": "8bitworkshop.removeProject",
+          "when": "8bitworkshop.canRun"
         },
         {
           "command": "8bitworkshop.pause",
