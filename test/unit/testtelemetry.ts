@@ -3,10 +3,47 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { after, before, describe, it } from "mocha";
-import { ErrorPayload, ErrorReporter, MAX_REPORTS_PER_SESSION } from "../../src/common/telemetry";
+import { ErrorPayload, ErrorReporter, MAX_REPORTS_PER_SESSION, isBotUserAgent } from "../../src/common/telemetry";
 import { fixParamsWithDefines, gatherFiles } from "../../src/worker/builder";
 import { TOOLS } from "../../src/worker/workertools";
 import { compileSourceFile } from "../../src/tools/testlib";
+
+// Crawlers load IDE URLs and report errors (e.g. bingbot hitting a 403 on a
+// header file). These UAs must be filtered; real browsers must not be.
+// web/error.php has the same regex -- this list is also checked against it.
+export const BOT_UAS = [
+  "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm) Chrome/136.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+  "Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)",
+  "Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)",
+  "DuckDuckBot-Https/1.1; (+https://duckduckgo.com/duckduckbot)",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Linux; Android 11; moto g power (2022)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36 Chrome-Lighthouse",
+  "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+  "Mozilla/5.0 (compatible; Google-InspectionTool/1.0)",
+  "python-requests/2.31.0",
+  "curl/8.4.0",
+];
+export const BROWSER_UAS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+  "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0",
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0",
+  "Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Mobile Safari/537.36",
+];
+
+describe("isBotUserAgent", function () {
+  it("flags crawlers and headless browsers", function () {
+    for (const ua of BOT_UAS) assert.ok(isBotUserAgent(ua), ua);
+  });
+  it("passes real browsers", function () {
+    for (const ua of BROWSER_UAS) assert.ok(!isBotUserAgent(ua), ua);
+    // no UA at all isn't evidence of a bot
+    assert.ok(!isBotUserAgent(""));
+  });
+});
 
 describe("ErrorReporter", function () {
   function reporter() {

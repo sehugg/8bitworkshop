@@ -482,32 +482,30 @@ export function rle_unpack(src : Uint8Array) : Uint8Array {
   return new Uint8Array(dest);
 }
 
-// firefox doesn't do GET with binary files
-// TODO: replace with fetch()?
+// Fetch a file as text or bytes. Resolves null when the file is missing:
+// 404, or 403 from static hosts that deny access to missing objects.
+// Rejects on other HTTP errors and network failures.
+export async function fetchWithBinary(url:string, datatype:'text'|'arraybuffer') : Promise<string|Uint8Array|null> {
+  const response = await fetch(url);
+  if (response.status == 404 || response.status == 403) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error("Error " + response.status + " loading " + url);
+  }
+  if (datatype == 'arraybuffer') {
+    return new Uint8Array(await response.arrayBuffer());
+  } else {
+    return await response.text();
+  }
+}
+
+// Callback form of fetchWithBinary(). Logs errors and passes null to success().
 export function getWithBinary(url:string, success:(text:string|Uint8Array)=>void, datatype:'text'|'arraybuffer') {
-  var oReq = new XMLHttpRequest();
-  oReq.open("GET", url, true);
-  oReq.responseType = datatype;
-  oReq.onload = function (oEvent) {
-    if (oReq.status == 200) {
-      var data = oReq.response;
-      if (data instanceof ArrayBuffer) {
-        data = new Uint8Array(data);
-      }
-      success(data);
-    } else if (oReq.status == 404) {
-      success(null);
-    } else {
-      throw Error("Error " + oReq.status + " loading " + url);
-    }
-  }
-  oReq.onerror = function (oEvent) {
+  fetchWithBinary(url, datatype).then(success, (e) => {
+    console.error(e);
     success(null);
-  }
-  oReq.ontimeout = function (oEvent) {
-    throw Error("Timeout loading " + url);
-  }
-  oReq.send(null);
+  });
 }
 
 // get platform ID without . emulator

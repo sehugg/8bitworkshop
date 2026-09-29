@@ -1,7 +1,7 @@
 
 import localforage from "localforage";
 import { Platform } from "../common/baseplatform";
-import { getBasePlatform, getWithBinary, isProbablyBinary } from "../common/util";
+import { fetchWithBinary, getBasePlatform, isProbablyBinary } from "../common/util";
 import { FileProvider, buildWorkerMessage, getListingForFile, mergeSegments, processListings, resolveDependencies, stripLocalPath } from "../common/projectcore";
 import { BuildArgLists, BuildSymbolLists, CodeListing, CodeListingMap, Dependency, FileData, Segment, WorkerErrorResult, WorkerItemUpdate, WorkerMessage, WorkerOutputResult, WorkerResult, isErrorResult, isOutputResult } from "../common/workertypes";
 
@@ -17,9 +17,7 @@ export class WebPresetsFileSystem implements ProjectFilesystem {
     this.preset_id = getBasePlatform(platform_id); // remove .suffix from preset name
   }
   async getRemoteFile(path: string): Promise<FileData> {
-    return new Promise((yes, no) => {
-      return getWithBinary(path, yes, isProbablyBinary(path) ? 'arraybuffer' : 'text');
-    });
+    return fetchWithBinary(path, isProbablyBinary(path) ? 'arraybuffer' : 'text');
   }
   async getFileData(path: string): Promise<FileData> {
     // found on remote fetch?

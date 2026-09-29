@@ -3,11 +3,15 @@
 // it. Fire-and-forget: safe to call from error handlers, never throws.
 // ErrorReporter (common/telemetry) limits volume.
 
-import { ErrorReporter, ErrorPayload, ErrorReportFields, ErrorSource, InternalError } from "../common/telemetry";
+import { ErrorReporter, ErrorPayload, ErrorReportFields, ErrorSource, InternalError, isBotUserAgent } from "../common/telemetry";
 
 const SEND_URL = '/error.php';
 
+// crawlers and automated browsers hit odd URLs; their errors are noise
+const isBot = typeof navigator !== 'undefined' && (navigator.webdriver || isBotUserAgent(navigator.userAgent));
+
 function send(payload: ErrorPayload) {
+  if (isBot) return;
   payload.url = window.location.href.substring(0, 500);
   payload.userAgent = navigator.userAgent.substring(0, 500);
   payload.language = navigator.language;
