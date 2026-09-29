@@ -121,10 +121,14 @@ and Open Example lists show which platforms have one.
 ## Error reports
 
 When a compiler or the emulator crashes, the extension sends an error report
-to 8bitworkshop.com: the error message, stack trace, platform, tool, and
-VS Code and extension versions. It doesn't send your source files. Errors in your
-program, like a syntax error or a crash in the emulated machine, aren't
-reported.
+to 8bitworkshop.com: the error message, stack trace, platform, and tool, plus
+VS Code and extension versions. It doesn't send your source files, and VS Code
+removes file paths from the report before it leaves. Errors in your program,
+like a syntax error or a crash in the emulated machine, aren't reported.
+
+VS Code attaches identifiers to every report: a machine id (stable for your
+VS Code install, not tied to your identity), a session id, and a device id.
+These group reports from one install together.
 
 The reports follow VS Code's `telemetry.telemetryLevel` setting: set it to
 `off` to stop them.

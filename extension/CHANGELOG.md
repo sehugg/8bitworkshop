@@ -1,17 +1,5 @@
 # Changelog
 
-## Unreleased
-
-- Compiler and emulator crashes send an error report to 8bitworkshop.com,
-  following VS Code's `telemetry.telemetryLevel` setting. See the README.
-
-- The Atari 2600 now stops at breakpoints and steps by instruction, not by
-  frame, and can step back.
-- `.s`, `.asm`, `.inc` and `.a` files in a project get the highlighting
-  for the platform's CPU. `.acme` files get 6502 highlighting.
-- The platform list shows the 8bitworkshop book for each platform that
-  has one, with a button to open it.
-
 ## 0.1.0
 
 First preview.
@@ -23,3 +11,11 @@ First preview.
 - Emulator panel with pause, reset, and mute.
 - Syntax highlighting for 6502, Z80, and 6809 assembly.
 - Toolchains download on first use, checked against built-in hashes.
+- Compiler and emulator crashes send an error report to 8bitworkshop.com,
+  following VS Code's `telemetry.telemetryLevel` setting. See the README.
+- The Atari 2600 now stops at breakpoints and steps by instruction, not by
+  frame, and can step back.
+- `.s`, `.asm`, `.inc` and `.a` files in a project get the highlighting
+  for the platform's CPU. `.acme` files get 6502 highlighting.
+- The platform list shows the 8bitworkshop book for each platform that
+  has one, with a button to open it.

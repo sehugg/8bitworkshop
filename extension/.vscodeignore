@@ -3,6 +3,7 @@
 # downloads from the servers on first use (ASSET_URLS in src/extension.ts).
 **
 !package.json
+!telemetry.json
 !README.md
 !CHANGELOG.md
 !LICENSE

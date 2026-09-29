@@ -1,0 +1,44 @@
+{
+  "commonProperties": {},
+  "events": {
+    "error": {
+      "owner": "sehugg",
+      "comment": "A build tool, emulator, or extension failure, sent to 8bitworkshop.com/error.php. Gated on VS Code's telemetry.telemetryLevel through env.createTelemetryLogger; nothing is sent when telemetry is off. Uncaught errors from this extension use the same sender.",
+      "source": {
+        "classification": "SystemMetaData",
+        "purpose": "FeatureInsight",
+        "comment": "Where the failure came from: vscode, worker, emu, or ide."
+      },
+      "msg": {
+        "classification": "CallstackOrException",
+        "purpose": "PerformanceAndHealth",
+        "comment": "Error message, cleaned by VS Code and truncated to 2000 characters."
+      },
+      "stack": {
+        "classification": "CallstackOrException",
+        "purpose": "PerformanceAndHealth",
+        "comment": "Stack trace, with user paths scrubbed by VS Code, truncated to 2000 characters."
+      },
+      "clientTime": {
+        "classification": "SystemMetaData",
+        "purpose": "PerformanceAndHealth",
+        "comment": "ISO 8601 timestamp from the client."
+      },
+      "platform": {
+        "classification": "SystemMetaData",
+        "purpose": "FeatureInsight",
+        "comment": "Platform id, for example nes or c64."
+      },
+      "tool": {
+        "classification": "SystemMetaData",
+        "purpose": "FeatureInsight",
+        "comment": "Build tool id, for example cc65 or dasm."
+      },
+      "window": {
+        "classification": "SystemMetaData",
+        "purpose": "FeatureInsight",
+        "comment": "Window or workspace identifier, when provided."
+      }
+    }
+  }
+}
