@@ -7,12 +7,14 @@
 // capability the target lacks report that instead of failing silently.
 
 import { KeyFlags } from '../common/emu';
+import type { InsnKind } from '../common/callgraph';
+import { CallProfiler } from '../common/callprofile';
 import { ProbeFlags, ProbeRecorder } from '../common/probe';
 import { hex } from '../common/util';
 import type { SymbolMap } from '../common/baseplatform';
 import { lookupSymbol } from '../common/symbols/symbolfile';
 import { formatTimestamp, timestamp, Timestamp } from '../common/timeline';
-import { DebugContext, DebugController, StopEvent } from '../common/debugcontroller';
+import { DebugContext, DebugController, StopEvent, isCallInsn, isReturnInsn } from '../common/debugcontroller';
 import { hexdump, write } from './cliformat';
 import { DEFAULT_MAX_FRAMES, EmuTarget } from './emutarget';
 
@@ -27,6 +29,8 @@ export const RUN_SCRIPT_HELP = [
   '  trace [MAXLINES] ADDR       - run until PC==ADDR, then log every',
   '                                instruction until the routine returns',
   '  hist [MAXLINES]             - last N instructions from the trace buffer',
+  '  profile N [ADDR [DEPTH]]    - run N frames, print a call tree with clocks per',
+  '                                subtree (rooted at routine ADDR if given)',
   'Time travel (replays the recording; output is labeled [frame:step]):',
   '  back [N]                    - step back N instructions (default 1)',
   '  rewind [N]                  - back to the start of the Nth frame before (default 1)',
@@ -348,6 +352,28 @@ export class RunScript {
     this.log(`--- trace OFF: ${done} ---`);
   }
 
+  cmdProfile(tokens: string[]) {
+    const n = tokens[1] ? parseNum(tokens[1]) : 1;
+    const start = tokens[2] ? this.addr(tokens[2]) : null;
+    const depth = tokens[3] ? parseNum(tokens[3]) : 8;
+    const name = (a: number) => this.addr2symbol[a] || '$' + hex(a, 4);
+    const kinds = new Map<number, InsnKind>(); // code rarely changes, so classify once
+    const classify = (pc: number): InsnKind => {
+      let k = kinds.get(pc);
+      if (k == null) {
+        const d = this.target.disassemble(pc);
+        k = !d ? 'unknown' : isCallInsn(d.line) ? 'call' : isReturnInsn(d.line) ? 'return' : 'other';
+        kinds.set(pc, k);
+      }
+      return k;
+    };
+    const prof = new CallProfiler(classify, name);
+    if (!this.target.connectProbe(prof)) throw new Error(`'${this.target.id}' does not support probing`);
+    try { this.advance(n); }
+    finally { this.target.connectProbe(this.probe); } // put the trace recorder back
+    this.out(prof.report(start, depth));
+  }
+
   cmdHist(tokens: string[]) {
     const p = this.probe;
     if (!p) throw new Error(`'${this.target.id}' has no trace buffer (needs Probeable)`);
@@ -500,6 +526,8 @@ const COMMANDS: { [name: string]: Command } = {
   'runto': RunScript.prototype.cmdBreak,
   'trace': RunScript.prototype.cmdTrace,
   'hist': RunScript.prototype.cmdHist,
+  'profile': RunScript.prototype.cmdProfile,
+  'prof': RunScript.prototype.cmdProfile,
   'key': RunScript.prototype.cmdKey,
   'press': RunScript.prototype.cmdKey,
   'keydown': RunScript.prototype.cmdKeyDown,
