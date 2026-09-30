@@ -9,8 +9,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RunScript = exports.RUN_SCRIPT_HELP = void 0;
 exports.parseNum = parseNum;
+exports.cpuRegisters = cpuRegisters;
 exports.formatRegs = formatRegs;
 const emu_1 = require("../common/emu");
+const callprofile_1 = require("../common/callprofile");
 const probe_1 = require("../common/probe");
 const util_1 = require("../common/util");
 const symbolfile_1 = require("../common/symbols/symbolfile");
@@ -29,6 +31,8 @@ exports.RUN_SCRIPT_HELP = [
     '  trace [MAXLINES] ADDR       - run until PC==ADDR, then log every',
     '                                instruction until the routine returns',
     '  hist [MAXLINES]             - last N instructions from the trace buffer',
+    '  profile N [ADDR [DEPTH]]    - run N frames, print a call tree with clocks per',
+    '                                subtree (rooted at routine ADDR if given)',
     'Time travel (replays the recording; output is labeled [frame:step]):',
     '  back [N]                    - step back N instructions (default 1)',
     '  rewind [N]                  - back to the start of the Nth frame before (default 1)',
@@ -106,26 +110,50 @@ function screenCodeToChar(code) {
  * happens to save, including internals, so pick the set that matches.
  */
 const REG_SETS = [
-    { when: ['A', 'X', 'Y'], show: ['A', 'X', 'Y', 'SP'], flags: 'NVDIZC' }, // 6502
+    // More specific sets first: the 6809 shares A/X/Y with the 6502.
+    { when: ['A', 'B', 'DP'], show: ['A', 'B', 'X', 'Y', 'U', 'SP', 'DP', 'CC'] }, // 6809
     { when: ['AF', 'HL'], show: ['AF', 'BC', 'DE', 'HL', 'IX', 'IY', 'SP'] }, // Z80 / SM83
-    { when: ['A', 'B', 'DP'], show: ['A', 'B', 'X', 'Y', 'U', 'S', 'DP', 'CC'] }, // 6809
+    { when: ['A', 'X', 'Y'], show: ['A', 'X', 'Y', 'SP'], flags: 'NVDIZC' }, // 6502
 ];
-function formatRegs(state) {
+function findRegSet(state) {
+    return REG_SETS.find((s) => s.when.every((f) => state[f] != null));
+}
+/**
+ * The registers a CPU state carries, in display order (PC first). Recognized
+ * CPUs show only their register set; others fall back to the leading
+ * uppercase state fields. Non-register state (opcodes, cycle counts, IRQ
+ * bookkeeping) is left out. This is the single source of truth for what
+ * counts as a register.
+ */
+function cpuRegisters(state) {
     if (!state)
-        return '';
-    const set = REG_SETS.find((s) => s.when.every((f) => state[f] != null));
+        return [];
+    const set = findRegSet(state);
     const names = set ? set.show : Object.keys(state).filter((k) => /^[A-Z]/.test(k) && k !== 'PC').slice(0, 6);
-    const parts = [];
-    for (const name of names) {
-        const value = state[name];
-        if (typeof value === 'number')
-            parts.push(`${name}=$${(0, util_1.hex)(value, value > 0xff ? 4 : 2)}`);
-    }
-    if (set === null || set === void 0 ? void 0 : set.flags) {
-        // set flags uppercase, clear flags lowercase
-        const flags = [...set.flags].map((f) => (state[f] ? f : f.toLowerCase())).join('');
+    const out = [];
+    const add = (name, flag = false) => {
+        const v = state[name];
+        if (typeof v !== 'number' && typeof v !== 'boolean')
+            return;
+        out.push({ name, value: flag || typeof v === 'boolean' ? (v ? 1 : 0) : v, flag: flag || undefined });
+    };
+    add('PC');
+    names.forEach((name) => add(name));
+    if (set === null || set === void 0 ? void 0 : set.flags)
+        for (const flag of set.flags)
+            add(flag, true);
+    return out;
+}
+function formatRegs(state) {
+    const regs = cpuRegisters(state);
+    // the disassembly line already shows the address, so omit PC
+    const parts = regs
+        .filter((r) => r.name !== 'PC' && !r.flag)
+        .map((r) => `${r.name}=$${(0, util_1.hex)(r.value, r.value > 0xff ? 4 : 2)}`);
+    // set flags uppercase, clear flags lowercase
+    const flags = regs.filter((r) => r.flag).map((r) => (r.value ? r.name : r.name.toLowerCase())).join('');
+    if (flags)
         parts.push(flags);
-    }
     return parts.join(' ');
 }
 // Trace buffer size; the most recent half is kept once it fills up.
@@ -335,6 +363,32 @@ class RunScript {
         });
         this.log(`--- trace OFF: ${done} ---`);
     }
+    cmdProfile(tokens) {
+        const n = tokens[1] ? parseNum(tokens[1]) : 1;
+        const start = tokens[2] ? this.addr(tokens[2]) : null;
+        const depth = tokens[3] ? parseNum(tokens[3]) : 8;
+        const name = (a) => this.addr2symbol[a] || '$' + (0, util_1.hex)(a, 4);
+        const kinds = new Map(); // code rarely changes, so classify once
+        const classify = (pc) => {
+            let k = kinds.get(pc);
+            if (k == null) {
+                const d = this.target.disassemble(pc);
+                k = !d ? 'unknown' : (0, debugcontroller_1.isCallInsn)(d.line) ? 'call' : (0, debugcontroller_1.isReturnInsn)(d.line) ? 'return' : 'other';
+                kinds.set(pc, k);
+            }
+            return k;
+        };
+        const prof = new callprofile_1.CallProfiler(classify, name);
+        if (!this.target.connectProbe(prof))
+            throw new Error(`'${this.target.id}' does not support probing`);
+        try {
+            this.advance(n);
+        }
+        finally {
+            this.target.connectProbe(this.probe);
+        } // put the trace recorder back
+        this.out(prof.report(start, depth));
+    }
     cmdHist(tokens) {
         const p = this.probe;
         if (!p)
@@ -492,6 +546,8 @@ const COMMANDS = {
     'runto': RunScript.prototype.cmdBreak,
     'trace': RunScript.prototype.cmdTrace,
     'hist': RunScript.prototype.cmdHist,
+    'profile': RunScript.prototype.cmdProfile,
+    'prof': RunScript.prototype.cmdProfile,
     'key': RunScript.prototype.cmdKey,
     'press': RunScript.prototype.cmdKey,
     'keydown': RunScript.prototype.cmdKeyDown,

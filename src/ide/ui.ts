@@ -35,7 +35,7 @@ import { AddressHeatMapView, BinaryFileView, BreakpointsView, MemoryMapView, Mem
 import { DisassemblerView, HeaderView, ListingView, PC_LINE_LOOKAHEAD, SourceEditor, setUppercaseOnly } from "./views/editors";
 import { HELP_TOPICS, HelpView, helpTopicForView } from "./views/helpview";
 import { elementHelpTopicForFocus } from "./helptopics";
-import { CallStackView, DebugBrowserView } from "./views/treeviews";
+import { CallGraphView, DebugBrowserView } from "./views/treeviews";
 import { ProjectWindows } from "./windows";
 import { setupSplits, showTab } from "./layout";
 export { setupSplits, showTab };
@@ -437,8 +437,8 @@ function refreshWindowList() {
     addWindowItem("#symbols", "Symbol Profiler", () => {
       return new ProbeSymbolView();
     });
-    addWindowItem("#callstack", "Call Stack", () => {
-      return new CallStackView();
+    addWindowItem("#callgraph", "Call Graph", () => {
+      return new CallGraphView();
     });
     /*
     addWindowItem("#framecalls", "Frame Profiler", () => {

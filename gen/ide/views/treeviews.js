@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FrameCallsView = exports.CallStackView = exports.DebugBrowserView = exports.StateBrowserView = exports.TreeViewBase = void 0;
+exports.FrameCallsView = exports.CallGraphView = exports.DebugBrowserView = exports.StateBrowserView = exports.TreeViewBase = void 0;
 const callgraph_1 = require("../../common/callgraph");
 const debugcontroller_1 = require("../../common/debugcontroller");
 const emu_1 = require("../../common/emu");
@@ -92,6 +92,8 @@ class TreeNode {
         }
         else if (typeof obj == 'object' || typeof obj == 'function') {
             // only if expanded
+            if (typeof obj.$$text === 'string')
+                text = obj.$$text; // summary shown beside the name
             if (this._content != null) {
                 // split big arrays
                 if (obj.slice && obj.length > MAX_CHILDREN) {
@@ -201,7 +203,7 @@ class DebugBrowserView extends TreeViewBase {
 }
 exports.DebugBrowserView = DebugBrowserView;
 // TODO: clear stack data when reset?
-class CallStackView extends debugviews_1.ProbeViewBaseBase {
+class CallGraphView extends debugviews_1.ProbeViewBaseBase {
     constructor() {
         super(...arguments);
         this.builder = new callgraph_1.CallGraphBuilder(pc => this.classify(pc), pc => this.addr2str(pc));
@@ -244,14 +246,33 @@ class CallStackView extends debugviews_1.ProbeViewBaseBase {
     }
     getRootObject() {
         // TODO: we don't capture every frame, so if we don't start @ the top frame we may have problems
-        this.redraw((op, addr, col, row, clk, value) => this.builder.event(op, addr, row));
+        // redraw() folds CLOCKS events into clk rather than passing them on, so
+        // charge the clocks since the last event to whatever was running
+        let last = 0;
+        const clocks = this.redraw((op, addr, col, row, clk, value) => {
+            this.builder.clocks(clk - last);
+            last = clk;
+            this.builder.event(op, addr, row);
+        });
+        this.builder.clocks(clocks - last);
         const graph = this.builder.graph;
-        if (graph)
-            graph['$$Stack'] = this.builder.stack;
-        return TREE_SHOW_DOLLAR_IDENTS ? graph : graph && graph.calls;
+        return graph && this.callees(graph, graph.total || 1);
+    }
+    /** A node's callees as the tree shows them: a summary beside each name, its callees below. */
+    callees(node, base) {
+        const out = {};
+        for (const [name, c] of Object.entries(node.calls)) {
+            let text = c.count + "x  " + c.total + " clk (" + (100 * c.total / base).toFixed(1) + "%)";
+            if (c.self != c.total)
+                text += "  self " + c.self;
+            if (c.startLine != null)
+                text += "  line " + c.startLine + (c.endLine != null ? "-" + c.endLine : "");
+            out[name] = Object.assign({ $$text: text }, this.callees(c, base));
+        }
+        return out;
     }
 }
-exports.CallStackView = CallStackView;
+exports.CallGraphView = CallGraphView;
 class FrameCallsView extends debugviews_1.ProbeViewBaseBase {
     createDiv(parent) {
         this.treeroot = createTreeRootNode(parent, this);

@@ -40,7 +40,7 @@ exports.PLATFORM_PARAMS = {
         asm_libargs: [],
         asm_extra_link_files: ['atari2600-asm.cfg'],
         // DASM's standard headers, which dasm programs include
-        extra_compile_files: ['vcs.h', 'macro.h', 'xmacro.h'],
+        extra_compile_files: ['vcs.h', 'macro.h'],
         define: ['__ATARI2600__'],
     },
     'mw8080bw': {

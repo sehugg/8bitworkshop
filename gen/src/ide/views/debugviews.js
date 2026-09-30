@@ -396,10 +396,11 @@ class ProbeViewBaseBase {
             this.probe = null;
         }
     }
+    /** Replays the probe buffer through eventfn; returns the clocks it covered. */
     redraw(eventfn) {
         var p = this.probe;
         if (!p || !p.idx)
-            return; // if no probe, or if empty
+            return 0; // if no probe, or if empty
         var row = 0;
         var col = 0;
         var clk = 0;
@@ -430,6 +431,7 @@ class ProbeViewBaseBase {
                     break;
             }
         }
+        return clk;
     }
     opToString(op, addr, value) {
         var s = "";

@@ -1,9 +1,15 @@
 "use strict";
-// The call graph behind the IDE's Call Stack window, built from probe events
+// The call graph behind the IDE's Call Graph window, built from probe events
 // (see probe.ts). A call is a call instruction (or an interrupt) after which
 // the stack pointer went down; a return is a return instruction after which
 // it went up. Conditional calls and returns that aren't taken leave SP alone,
 // so they don't count, and neither do pushes and pops of data.
+//
+// Clocks (CLOCKS events) are charged to the routine running: `self` to it
+// alone, `total` to it and everything above it on the stack. A call or
+// return instruction's own clocks count in the routine it started in.
+//
+// An interrupt is a call too, whether or not the machine reports it.
 //
 // Where the instruction can't be told (no disassembler), it falls back to
 // guessing from how far SP moved and how far the PC jumped.
@@ -46,7 +52,7 @@ class CallGraphBuilder {
         this.rts = false;
     }
     newNode(pc, sp) {
-        return { $$SP: sp, $$PC: pc, count: 0, startLine: null, endLine: null, calls: {} };
+        return { $$SP: sp, $$PC: pc, count: 0, self: 0, total: 0, startLine: null, endLine: null, calls: {} };
     }
     enter(pc, row) {
         const top = this.stack[this.stack.length - 1];
@@ -69,14 +75,27 @@ class CallGraphBuilder {
             // didn't see call, which becomes the new root
             const old = this.stack[0];
             this.graph = this.newNode(null, this.lastsp);
+            this.graph.total = old.total;
             this.graph.calls[this.name(this.lastpc)] = old;
             this.stack = [this.graph];
         }
     }
-    /** One probe event. */
+    /** Charge `n` clocks to the routine running now. */
+    clocks(n) {
+        const stack = this.stack;
+        if (!stack.length)
+            return;
+        stack[stack.length - 1].self += n;
+        for (const node of stack)
+            node.total += n;
+    }
+    /** One probe event (for CLOCKS, `addr` is the number of clocks). */
     event(op, addr, row) {
         var _a;
         switch (op) {
+            case probe_1.ProbeFlags.CLOCKS:
+                this.clocks(addr);
+                break;
             case probe_1.ProbeFlags.INTERRUPT:
                 this.interrupted = true;
                 break;
@@ -104,7 +123,10 @@ class CallGraphBuilder {
                 else {
                     const pushed = this.lastsp < this.spAtLastExec;
                     const popped = this.lastsp > this.spAtLastExec;
-                    if ((kind === 'call' || this.interrupted) && pushed)
+                    // A push that ends in a jump can only be an interrupt or BRK, since
+                    // a PUSH falls through. Many machines don't log their interrupts.
+                    const implicitIrq = kind === 'other' && pushed && Math.abs(addr - this.lastpc) >= 4;
+                    if ((kind === 'call' || this.interrupted || implicitIrq) && pushed)
                         this.enter(addr, row);
                     else if (kind === 'return' && popped)
                         this.leave(row);

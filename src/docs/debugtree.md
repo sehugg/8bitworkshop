@@ -4,7 +4,7 @@ The Debug Tree shows a hierarchical view of platform debug information.
 It is available on platforms that implement `getDebugTree`.
 
 The tree's shape is defined by the platform. Where the
-[Call Stack](callstack.md) reconstructs call flow from observed
+[Call Graph](callgraph.md) reconstructs call flow from observed
 execution, the Debug Tree exposes whatever structured state the machine
 implements — device registers, internal tables, subsystem state — as an
 expandable tree.

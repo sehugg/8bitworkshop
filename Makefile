@@ -33,8 +33,9 @@ submodules:
 		git submodule update --init --recursive; \
 	fi
 
-buildtsc: submodules buildgrammars
+buildtsc: submodules
 	npm run esbuild-clean
+	$(MAKE) buildgrammars
 	npm run tsbuild
 	npm run doctools
 	npm run esbuild

@@ -124,14 +124,10 @@ class DebugService {
         const state = this.target.getCPUState();
         if (!state)
             return [];
-        const regs = [];
-        for (const [name, value] of Object.entries(state)) {
-            if (typeof value !== 'number')
-                continue;
-            const wide = /^(E?PC|SP|[A-Z]{2}|IX|IY)$/.test(name) || value > 0xff;
-            regs.push({ name, value, text: '$' + (0, util_1.hex)(value, wide ? 4 : 2) });
-        }
-        return regs;
+        return (0, runscript_1.cpuRegisters)(state).map(({ name, value }) => {
+            const wide = /^(E?PC|SP|AF|BC|DE|HL|IX|IY)$/.test(name) || value > 0xff;
+            return { name, value, text: '$' + (0, util_1.hex)(value, wide ? 4 : 2) };
+        });
     }
     readMemory(addr, count) {
         const bytes = [];

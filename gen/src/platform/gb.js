@@ -36,12 +36,53 @@ class GameBoyPlatform extends baseplatform_1.BaseMachinePlatform {
     constructor() {
         super(...arguments);
         this.getToolForFilename = baseplatform_1.getToolForFilename_z80;
+        // DMG LCD response is slow; blend each frame with the last one shown.
+        // Fraction of the previous frame retained (0 = off).
+        this.lcdPersistence = 0.5;
     }
     newMachine() { return new gb_1.GameBoyMachine(); }
     getPresets() { return GB_PRESETS; }
     getDefaultExtensions() { return [".c", ".ns", ".s", ".scc", ".sgb", ".z", ".wiz"]; }
     readAddress(a) { return this.machine.read(a); }
     readVRAMAddress(a) { return this.machine.readVRAMAddress(a); }
+    async start() {
+        var _a;
+        await super.start();
+        // only the browser canvas (headless stand-ins keep raw frames)
+        if (typeof HTMLCanvasElement !== 'undefined' && ((_a = this.video) === null || _a === void 0 ? void 0 : _a.canvas) instanceof HTMLCanvasElement) {
+            const updateFrame = this.video.updateFrame.bind(this.video);
+            this.video.updateFrame = (...args) => {
+                this.applyLCDPersistence();
+                updateFrame(...args);
+            };
+        }
+    }
+    applyLCDPersistence() {
+        if (!(this.lcdPersistence > 0) || this.machine.cgbMode) {
+            this.lcdPrevFrame = null;
+            return;
+        }
+        const pixels = this.video.getFrameData();
+        let prev = this.lcdPrevFrame;
+        if (!prev || prev.length != pixels.length) {
+            this.lcdPrevFrame = new Uint32Array(pixels);
+            return;
+        }
+        // blend in place; lines the PPU redraws next frame get fresh values,
+        // lines it doesn't (LCD off, breakpoint mid-frame) are already == prev
+        const a = Math.round(this.lcdPersistence * 256);
+        const b = 256 - a;
+        for (let i = 0; i < pixels.length; i++) {
+            const c = pixels[i];
+            const p = prev[i];
+            if (c === p)
+                continue;
+            const r = (((p & 0xff) * a + (c & 0xff) * b) >> 8);
+            const g = ((((p >> 8) & 0xff) * a + ((c >> 8) & 0xff) * b) >> 8);
+            const bl = ((((p >> 16) & 0xff) * a + ((c >> 16) & 0xff) * b) >> 8);
+            prev[i] = pixels[i] = 0xff000000 | (bl << 16) | (g << 8) | r;
+        }
+    }
     getOriginPC() {
         return 0x100;
     }
@@ -90,6 +131,10 @@ class GameBoyPlatform extends baseplatform_1.BaseMachinePlatform {
     }
 }
 class GameBoyColorPlatform extends GameBoyPlatform {
+    constructor() {
+        super(...arguments);
+        this.lcdPersistence = 0;
+    }
     newMachine() {
         var m = new gb_1.GameBoyMachine();
         // not needed, gb.color sets the CGB header byte to 0x80

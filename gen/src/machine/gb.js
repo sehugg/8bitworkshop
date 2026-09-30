@@ -1453,6 +1453,7 @@ class GameBoyMachine extends devices_1.BasicScanlineMachine {
             this.performSpeedSwitch();
         // Sync back any interrupt handling
         if (this.cpu.interruptFlags !== oldFlags) {
+            this.probe.logInterrupt(oldFlags & ~this.cpu.interruptFlags); // the bit(s) the CPU serviced
             this.syncInterruptsBack();
         }
         // Update timer

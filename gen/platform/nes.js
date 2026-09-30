@@ -269,6 +269,12 @@ class JSNESPlatform extends baseplatform_1.Base6502Platform {
                 this.probe.logClocks(cycles);
                 return cycles > 0 ? cycles : 1;
             };
+            // NMI fires at the end of emulate(), so log it there; the next execute is the handler
+            var old_nmi = cpu.doNonMaskableInterrupt.bind(cpu);
+            cpu.doNonMaskableInterrupt = (status) => {
+                this.probe.logInterrupt(1);
+                return old_nmi(status);
+            };
             cpu.haveProxied = true;
         }
         // intercept bus calls, unless we did it already

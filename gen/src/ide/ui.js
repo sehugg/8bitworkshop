@@ -434,8 +434,8 @@ function refreshWindowList() {
         addWindowItem("#symbols", "Symbol Profiler", () => {
             return new debugviews_1.ProbeSymbolView();
         });
-        addWindowItem("#callstack", "Call Stack", () => {
-            return new treeviews_1.CallStackView();
+        addWindowItem("#callgraph", "Call Graph", () => {
+            return new treeviews_1.CallGraphView();
         });
         /*
         addWindowItem("#framecalls", "Frame Profiler", () => {

@@ -25,7 +25,7 @@ const crtprobe_md_1 = __importDefault(require("../../docs/crtprobe.md"));
 const probelog_md_1 = __importDefault(require("../../docs/probelog.md"));
 const scanlineio_md_1 = __importDefault(require("../../docs/scanlineio.md"));
 const symbols_md_1 = __importDefault(require("../../docs/symbols.md"));
-const callstack_md_1 = __importDefault(require("../../docs/callstack.md"));
+const callgraph_md_1 = __importDefault(require("../../docs/callgraph.md"));
 const debugtree_md_1 = __importDefault(require("../../docs/debugtree.md"));
 const breakpoints_md_1 = __importDefault(require("../../docs/breakpoints.md"));
 const asseteditor_md_1 = __importDefault(require("../../docs/asseteditor.md"));
@@ -48,7 +48,7 @@ exports.HELP_TOPICS = [
     { id: "probelog", title: "Probe Log", html: probelog_md_1.default },
     { id: "scanlineio", title: "Scanline I/O", html: scanlineio_md_1.default },
     { id: "symbols", title: "Symbol Profiler", html: symbols_md_1.default },
-    { id: "callstack", title: "Call Stack", html: callstack_md_1.default },
+    { id: "callgraph", title: "Call Graph", html: callgraph_md_1.default },
     { id: "debugtree", title: "Debug Tree", html: debugtree_md_1.default },
     { id: "breakpoints", title: "Breakpoints", html: breakpoints_md_1.default },
     { id: "asseteditor", title: "Asset Editor", html: asseteditor_md_1.default },
@@ -94,7 +94,7 @@ const VIEW_HELP = {
     "#probelog": "probelog",
     "#scanlineio": "scanlineio",
     "#symbols": "symbols",
-    "#callstack": "callstack",
+    "#callgraph": "callgraph",
     "#debugtree": "debugtree",
     "#breakpoints": "breakpoints",
     "#asseteditor": "asseteditor",
