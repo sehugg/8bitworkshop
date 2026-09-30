@@ -201,7 +201,8 @@ describe('DASM listing parser', function () {
         const files = {};
         files['fullgame.a'] = fs.readFileSync('./presets/vcs/examples/fullgame.a', 'utf8');
         for (const inc of ['vcs.h', 'macro.h', 'xmacro.h']) {
-            files[inc] = fs.readFileSync('./src/worker/lib/vcs/' + inc, 'utf8');
+            const dir = inc === 'xmacro.h' ? './presets/vcs/' : './src/worker/lib/vcs/';
+            files[inc] = fs.readFileSync(dir + inc, 'utf8');
         }
         const run = runDASM(files, 'fullgame.a');
         assert.strictEqual(run.errno, 0, run.stdout);
