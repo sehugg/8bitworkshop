@@ -86,7 +86,7 @@
     "tsbuild": "tsc --build tsconfig.json test/tsconfig.json",
     "tslint": "tsc --build -noEmit tsconfig.json test/tsconfig.json",
     "esbuild": "node scripts/build.mjs",
-    "esbuild-clean": "rm -f ./gen/*.*",
+    "esbuild-clean": "rm -rf ./gen",
     "server": "npm run esbuild -- server && rm -fr ./server-root/sessions && node gen/server/server.js",
     "test-one": "NODE_PATH=$(pwd) mocha --recursive --timeout 60000",
     "test-node": "NODE_PATH=$(pwd) mocha --parallel --require mocha-suppress-logs --recursive --timeout 60000 test/cli gen/test",
