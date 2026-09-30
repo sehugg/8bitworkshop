@@ -216,7 +216,7 @@ unless a different license is explicitly stated within the specific code sample.
 ### Assemblers/Linkers
 
 * https://dasm-assembler.github.io/ (GPL-2)
-* http://atjs.mbnet.fi/mc6809/Assembler/xasm-990104.tar.gz
+* https://web.archive.org/web/20221010235026/http://atjs.mbnet.fi/mc6809/Assembler/xasm.tar.gz
 * http://48k.ca/zmac.html (public domain)
 * https://github.com/apple2accumulator/merlin32
 * https://github.com/camsaul/nesasm

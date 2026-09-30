@@ -9,7 +9,7 @@ import * as path from 'path';
 import type { BuildOutcome } from './buildcore';
 import type { BuildArgs } from './buildworker';
 import type { AudioChunk, EmuStatus, ScriptResult } from './emuworker';
-import { WorkerHandle } from './engine';
+import { WorkerHandle, WorkerDisposedError } from './engine';
 import { EmulatorPanel } from './emulatorpanel';
 import { WorkerDebugBackend } from './debugbackend';
 import { EmuDebugSession, LaunchArgs } from '../../src/tools/dapsession';
@@ -657,6 +657,7 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
     output.appendLine(`Running ${title} on ${target.platform}`);
     return true;
   } catch (e) {
+    if (e instanceof WorkerDisposedError) return false; // replaced or closed mid-start
     telemetry.reportError('emu', e, { platform: target.platform });
     output.appendLine(`Emulator failed to start: ${e && e.stack || e}`);
     output.show(true);
@@ -775,6 +776,7 @@ async function runBuild(target: Target, reason: BuildReason): Promise<BuildOutco
   try {
     result = await (await getBuilds(target.platform)).call<BuildOutcome>('build', args);
   } catch (e) {
+    if (e instanceof WorkerDisposedError) return;
     telemetry.reportError('worker', e, { platform: target.platform, tool: target.tool });
     output.appendLine(`Build crashed: ${e && e.stack || e}`);
     output.show(true);

@@ -66,6 +66,11 @@ export function assembleXASM6809(step: BuildStep): BuildStepResult {
 }
 
 export function compileCMOC(step: BuildStep): BuildStepResult {
+    // cmoc hands .asm/.s files to lwasm through system(), which can't work here
+    if (/\.(asm|s)$/i.test(step.path)) {
+        return { errors: [{ line: 0, path: step.path,
+            msg: "cmoc compiles C; name assembly files .xasm (xasm6809) or .lwasm (lwasm)" }] };
+    }
     loadNative("cmoc");
     var params = step.params;
     // stderr

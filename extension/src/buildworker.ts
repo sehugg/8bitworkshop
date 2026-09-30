@@ -16,6 +16,10 @@ export interface BuildArgs {
   tool?: string;
 }
 
+// Emscripten tools call process.exit() on a fatal error when they see node.
+// In a worker that ends the whole thread, so make it a catchable error.
+process.exit = ((code?: number) => { throw new Error(`tool called exit(${code})`); }) as any;
+
 const builder = new Builder(workerData.rootDir);
 
 const rpc = new Rpc(parentPort, {
