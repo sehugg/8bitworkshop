@@ -33,13 +33,11 @@ function mergeInto(a: ProfileNode, b: ProfileNode) {
 }
 
 /**
- * Probe that charges clocks to the routine on top of a CallGraphBuilder's
- * stack, which is the same call detection the IDE's Call Stack window uses.
- * A call or return instruction's own clocks land in the frame it started in.
+ * Probe that feeds a CallGraphBuilder (the IDE's Call Graph window uses the
+ * same one) and prints its call tree with clocks for the CLI.
  */
 export class CallProfiler extends NullProbe {
   readonly builder: CallGraphBuilder;
-  private self = new Map<CallGraphNode, number>();
   private sp = -1;
   frames = 0;
   clocks = 0;
@@ -61,16 +59,12 @@ export class CallProfiler extends NullProbe {
   }
   logClocks(n?: number) {
     this.clocks += n!;
-    const stack = this.builder.stack;
-    if (n! > 0 && stack.length) {
-      const top = stack[stack.length - 1];
-      this.self.set(top, (this.self.get(top) || 0) + n!);
-    }
+    this.builder.clocks(n!);
   }
 
   private toTree(name: string, n: CallGraphNode): ProfileNode {
     const out = newNode(name, n.count);
-    out.self = this.self.get(n) || 0;
+    out.self = n.self;
     for (const [cname, c] of Object.entries(n.calls)) {
       const t = this.toTree(cname, c);
       const prev = out.children.get(cname);

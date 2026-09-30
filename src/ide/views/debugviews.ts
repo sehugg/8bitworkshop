@@ -420,9 +420,10 @@ export abstract class ProbeViewBaseBase {
     }
   }
 
-  redraw(eventfn: (op, addr, col, row, clk, value) => void) {
+  /** Replays the probe buffer through eventfn; returns the clocks it covered. */
+  redraw(eventfn: (op, addr, col, row, clk, value) => void): number {
     var p = this.probe;
-    if (!p || !p.idx) return; // if no probe, or if empty
+    if (!p || !p.idx) return 0; // if no probe, or if empty
     var row = 0;
     var col = 0;
     var clk = 0;
@@ -444,6 +445,7 @@ export abstract class ProbeViewBaseBase {
           break;
       }
     }
+    return clk;
   }
 
   opToString(op: number, addr?: number, value?: number) {

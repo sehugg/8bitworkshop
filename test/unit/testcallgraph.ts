@@ -25,6 +25,7 @@ describe('Call graph', function () {
       [0x102, 0xf004],  // CALL $200
       [0x200, 0xf002],
       [0x201, 0xf002],  // PUSH HL, then a jump: not a call
+      [0x202, 0xf000],
       [0x300, 0xf000],
       [0x204, 0xf002],  // POP HL
       [0x205, 0xf002],  // RET
@@ -49,6 +50,19 @@ describe('Call graph', function () {
     assert.deepStrictEqual(Object.keys(b.graph.calls), ['$9000']);
   });
 
+  it('counts an unreported interrupt as a call, so its return is not a new root', function () {
+    // an NMI: the interrupted instruction is not a call, SP drops by 3 and the PC jumps
+    const b = run({ 0x9002: 'return' }, [
+      [0x100, 0x1ff], [0x101, 0x1ff],
+      [0x9000, 0x1fc], [0x9001, 0x1fc], [0x9002, 0x1fc],  // NMI handler, ends in RTI
+      [0x102, 0x1ff], [0x103, 0x1ff],
+    ]);
+    assert.deepStrictEqual(Object.keys(b.graph.calls), ['$9000']);
+    assert.strictEqual(b.graph.calls['$9000'].count, 1);
+    assert.strictEqual(b.stack.length, 1);
+    assert.strictEqual(b.graph.$$PC, null);  // the root was not re-parented
+  });
+
   it('returns past where it started into a new root', function () {
     const b = run({ 0x205: 'return' }, [[0x204, 0xf000], [0x205, 0xf000], [0x103, 0xf002]]);
     assert.deepStrictEqual(Object.keys(b.graph.calls), ['$205']);
@@ -59,5 +73,26 @@ describe('Call graph', function () {
     const kinds = new Proxy({}, { get: () => 'unknown' }) as any;
     const b = run(kinds, [[0x100, 0x1ff], [0x101, 0x1ff], [0x200, 0x1fd]]);
     assert.deepStrictEqual(Object.keys(b.graph.calls), ['$200']);
+  });
+
+  it('charges clocks to the routine running and to its callers', function () {
+    const b = new CallGraphBuilder(pc => pc === 0x102 ? 'call' : pc === 0x201 ? 'return' : 'other', pc => '$' + pc.toString(16));
+    const step = (pc: number, sp: number, clocks: number) => {
+      if (sp !== (step as any).sp) b.event(sp < (step as any).sp ? ProbeFlags.SP_PUSH : ProbeFlags.SP_POP, sp, 0);
+      (step as any).sp = sp;
+      b.event(ProbeFlags.EXECUTE, pc, 0);
+      b.event(ProbeFlags.CLOCKS, clocks, 0);
+    };
+    (step as any).sp = -1;
+    step(0x100, 0xf004, 4);
+    step(0x102, 0xf004, 6);  // CALL $200
+    step(0x200, 0xf002, 10);
+    step(0x201, 0xf002, 6);  // RET
+    step(0x103, 0xf004, 4);
+    const call = b.graph.calls['$200'];
+    assert.strictEqual(call.self, 16);
+    assert.strictEqual(call.total, 16);
+    assert.strictEqual(b.graph.self, 4 + 6 + 4);  // the CALL counts where it started; so does the RET, in $200
+    assert.strictEqual(b.graph.total, 30);
   });
 });

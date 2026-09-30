@@ -105,7 +105,7 @@ tools appear:
 | [Probe Log](probelog.md) | Textual log of CPU/memory activity |
 | [Scanline I/O](scanlineio.md) | I/O and VRAM access per scanline |
 | [Symbol Profiler](symbols.md) | Read/write counts per symbol |
-| [Call Stack](callstack.md) | Call graph reconstructed from the stack |
+| [Call Graph](callgraph.md) | Call tree with clocks per routine, reconstructed from the stack |
 | [Debug Tree](debugtree.md) | Hierarchical view of platform debug info |
 | [Breakpoints](breakpoints.md) | Add and edit breakpoints |
 | [Asset Editor](asseteditor.md) | Edit bitmaps, tilemaps, and palettes embedded in source |

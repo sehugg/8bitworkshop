@@ -16,7 +16,7 @@ import crtprobeMd from "../../docs/crtprobe.md";
 import probelogMd from "../../docs/probelog.md";
 import scanlineioMd from "../../docs/scanlineio.md";
 import symbolsMd from "../../docs/symbols.md";
-import callstackMd from "../../docs/callstack.md";
+import callgraphMd from "../../docs/callgraph.md";
 import debugtreeMd from "../../docs/debugtree.md";
 import breakpointsMd from "../../docs/breakpoints.md";
 import asseteditorMd from "../../docs/asseteditor.md";
@@ -51,7 +51,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   { id: "probelog", title: "Probe Log", html: probelogMd },
   { id: "scanlineio", title: "Scanline I/O", html: scanlineioMd },
   { id: "symbols", title: "Symbol Profiler", html: symbolsMd },
-  { id: "callstack", title: "Call Stack", html: callstackMd },
+  { id: "callgraph", title: "Call Graph", html: callgraphMd },
   { id: "debugtree", title: "Debug Tree", html: debugtreeMd },
   { id: "breakpoints", title: "Breakpoints", html: breakpointsMd },
   { id: "asseteditor", title: "Asset Editor", html: asseteditorMd },
@@ -97,7 +97,7 @@ const VIEW_HELP: { [viewId: string]: string } = {
   "#probelog": "probelog",
   "#scanlineio": "scanlineio",
   "#symbols": "symbols",
-  "#callstack": "callstack",
+  "#callgraph": "callgraph",
   "#debugtree": "debugtree",
   "#breakpoints": "breakpoints",
   "#asseteditor": "asseteditor",
