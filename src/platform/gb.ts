@@ -23,6 +23,7 @@ const GB_PRESETS: Preset[] = [
   { id: 'gbdecompress.c', name: 'Decompression' },
   { id: 'music.c', name: 'Music Player' },
   { id: 'aputest.c', name: 'Sound Tester' },
+  { id: 'demo_vgr3.c', name: 'Compressed VGM Music' },
   { id: 'clock.c', name: 'MBC3 Real-Time Clock' },
   { id: 'savegame.c', name: 'Battery Save RAM' },
   { id: 'banking.c', name: 'ROM Bank Switching' },

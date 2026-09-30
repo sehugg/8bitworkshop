@@ -328,7 +328,7 @@ export function removeBOM(s:string) {
 }
 
 // File extensions that are always treated as binary, regardless of content.
-const BINARY_EXTS = ['.CHR', '.BIN', '.DAT', '.PAL', '.NAM', '.RLE', '.LZ4', '.LZH', '.LZSA', '.NSF'];
+const BINARY_EXTS = ['.CHR', '.BIN', '.DAT', '.PAL', '.NAM', '.RLE', '.LZ4', '.LZH', '.LZSA', '.NSF', '.VGR3'];
 
 /**
  * Strict RFC 3629 UTF-8 validation. Unlike decoding with replacement, this
