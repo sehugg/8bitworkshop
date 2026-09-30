@@ -36,7 +36,8 @@
     "mousetrap": "^1.6.5",
     "octokat": "^0.10.0",
     "pako": "^2.2.0",
-    "split.js": "^1.6.2"
+    "split.js": "^1.6.2",
+    "trystero": "^0.25.4"
   },
   "devDependencies": {
     "@lezer/generator": "^1.8.0",

@@ -17,6 +17,7 @@ const GB_PRESETS: Preset[] = [
   { id: 'window.c', name: 'Window Status Bar' },
   { id: 'galaxy.c', name: 'Window + Sprites' },
   { id: 'interrupts.c', name: 'VBlank + Timer Interrupts' },
+  { id: 'serial.c', name: 'Serial Link Port' },
   { id: 'vram.c', name: 'VRAM/OAM Access' },
   { id: 'detect.c', name: 'Detect Hardware' },
   { id: 'gbc.c', name: 'Game Boy Color' },

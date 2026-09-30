@@ -46,6 +46,18 @@ const excludeVectrex = {
   },
 };
 
+// The link cable UI and its WebRTC transport (Trystero) are web-IDE only: the
+// emulator panel's CSP blocks all network access. They aren't reachable from the
+// extension today; this keeps a future import from bundling them. The core in
+// src/common/link/link.ts stays, since baseplatform.ts and the Game Boy machine use it.
+const excludeLinkTransport = {
+  name: 'exclude-link-transport',
+  setup(build) {
+    build.onResolve({ filter: /(^trystero$|[\\/]link[\\/]trystero$|[\\/]linkdialog$)/ }, () => ({ path: 'link-transport', namespace: 'exclude-link-transport' }));
+    build.onLoad({ filter: /.*/, namespace: 'exclude-link-transport' }, () => ({ contents: 'module.exports = {};', loader: 'js' }));
+  },
+};
+
 const ctx = await esbuild.context({
   absWorkingDir: root,
   entryPoints: {
@@ -69,7 +81,7 @@ const ctx = await esbuild.context({
   // canvas is jsdom's optional native renderer (nodemock stubs the 2D
   // context instead). The TextMate packages are for tests only.
   external: ['vscode', 'canvas', 'vscode-textmate', 'vscode-oniguruma'],
-  plugins: [jsdomNoSyncXHR, excludeVectrex],
+  plugins: [jsdomNoSyncXHR, excludeVectrex, excludeLinkTransport],
   // binaryen (Verilog only, 7MB) loads from the asset root: see binaryen.js
   alias: { binaryen: './src/binaryen.js' },
   logLevel: 'warning',

@@ -16,6 +16,7 @@ import { CPU6809 } from "./cpu/6809";
 import { _MOS6502 } from "./cpu/MOS6502";
 import { AcceptsBIOS, AcceptsJoyInput, AcceptsKeyInput, AcceptsPaddleInput, AcceptsROM, Bus, FrameBased, HasCPU, HasSerialIO, Probeable, RasterFrameBased, Resettable, SampledAudioSource, SavesInputState, SavesState, SerialIOInterface, VideoSource } from "./devices";
 import { ProbeRecorder } from "./probe";
+import { hasLinkPort, LinkSession, LinkTransport } from "./link/link";
 import { BaseWASMMachine } from "./wasmplatform";
 
 ///
@@ -250,6 +251,7 @@ export abstract class BasePlatform {
 }
 
 export abstract class BaseDebugPlatform extends BasePlatform {
+  linkSession: LinkSession | null = null; // link cable peer, if connected
   onBreakpointHit: BreakpointCallback;
   debugCallback: DebugCondition;
   debugSavedState: EmuState = null;
@@ -343,6 +345,8 @@ export abstract class BaseDebugPlatform extends BasePlatform {
   pollControls() {
   }
   nextFrame(novideo: boolean): number {
+    // link cable in lockstep: wait until the peer's data for this frame is here
+    if (this.linkSession && !this.linkSession.canAdvance()) return 0;
     this.pollControls();
     this.updateRecorder();
     this.preFrame();
@@ -927,10 +931,21 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
     }
   }
 
+  // Plug a link cable (see common/link/link.ts) into the machine, or pass null to unplug.
+  connectLinkTransport(transport: LinkTransport | null, delay = 2) {
+    if (!hasLinkPort(this.machine)) throw new Error("This platform has no link port.");
+    this.linkSession?.close();
+    this.linkSession = transport ? new LinkSession(transport, delay) : null;
+    this.machine.connectLink(this.linkSession);
+  }
+
   advance(novideo: boolean) {
     let trap = this.getDebugCallback();
+    const link = this.linkSession;
     try {
+      link?.beginFrame();
       var steps = this.machine.advanceFrame(trap);
+      link?.endFrame();
       return steps;
     } finally {
       // in case EmuHalt is thrown...

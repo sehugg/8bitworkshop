@@ -4,6 +4,7 @@ import { BasicScanlineMachine, Bus } from "../common/devices";
 import { newAddressDecoder, padBytes, Keys, makeKeycodeMap, newKeyboardHandler, EmuHalt } from "../common/emu";
 import { DMG_PALETTE } from "../common/gbpalette";
 import { hex } from "../common/util";
+import { HasLinkPort, LinkEndpoint } from "../common/link/link";
 
 // Convert GBC 15-bit RGB (xBBBBBGGGGGRRRRR) to 32-bit ARGB
 function cgbColorToARGB(lo: number, hi: number): number {
@@ -671,7 +672,7 @@ class GameBoyAPU {
   }
 }
 
-export class GameBoyMachine extends BasicScanlineMachine {
+export class GameBoyMachine extends BasicScanlineMachine implements HasLinkPort {
 
   cpuFrequency = 4194304;       // 4.19 MHz
   canvasWidth = 160;
@@ -716,6 +717,9 @@ export class GameBoyMachine extends BasicScanlineMachine {
   joyp: number = 0xCF;         // FF00 - Joypad
   sb: number = 0;              // FF01 - Serial transfer data
   sc: number = 0;              // FF02 - Serial transfer control
+  serialCycles: number = 0;    // T-cycles left in a master (internal clock) transfer
+  serialWaiting: boolean = false; // master transfer done shifting, waiting on peer's byte
+  link: LinkEndpoint | null = null; // link cable (ch 0: master->slave, ch 1: slave->master)
   divCounter: number = 0;      // Internal 16-bit DIV counter
   tima: number = 0;            // FF05 - Timer counter
   tma: number = 0;             // FF06 - Timer modulo
@@ -975,7 +979,7 @@ export class GameBoyMachine extends BasicScanlineMachine {
     switch (a) {
       case 0x00: return this.readJoypad();
       case 0x01: return this.sb;
-      case 0x02: return this.sc;
+      case 0x02: return this.sc | (this.cgbMode ? 0x7C : 0x7E);
       case 0x04: return (this.divCounter >> 8) & 0xFF; // DIV
       case 0x05: return this.tima;
       case 0x06: return this.tma;
@@ -1023,7 +1027,7 @@ export class GameBoyMachine extends BasicScanlineMachine {
     switch (a) {
       case 0x00: this.joyp = v; break;
       case 0x01: this.sb = v; break;
-      case 0x02: this.sc = v; break;
+      case 0x02: this.writeSC(v); break;
       case 0x04: this.divCounter = 0; break; // Writing any value resets DIV
       case 0x05: this.tima = v; break;
       case 0x06: this.tma = v; break;
@@ -1170,6 +1174,58 @@ export class GameBoyMachine extends BasicScanlineMachine {
     }
   }
 
+  connectLink(link: LinkEndpoint | null): void {
+    this.link = link;
+  }
+
+  writeSC(v: number): void {
+    this.sc = v & 0x83;
+    this.serialWaiting = false;
+    this.serialCycles = 0;
+    if ((this.sc & 0x81) == 0x81) {
+      // start master transfer: 8 bits at 8192 Hz (262144 Hz if CGB fast bit set)
+      var bitCycles = (this.cgbMode && (this.sc & 0x02)) ? 16 : 512;
+      this.serialCycles = bitCycles * 8;
+      if (this.link && this.link.isConnected()) this.link.send(0, this.sb);
+    }
+  }
+
+  private completeSerial(inbyte: number): void {
+    this.sb = inbyte;
+    this.sc &= 0x7F;
+    this.serialCycles = 0;
+    this.serialWaiting = false;
+    this.iflag |= 0x08; // serial interrupt
+  }
+
+  // Advance serial port by hardware T-cycles
+  updateSerial(tCycles: number): void {
+    if (!(this.sc & 0x80)) return;
+    var link = this.link && this.link.isConnected() ? this.link : null;
+    if (this.sc & 0x01) {
+      // master: shifts on internal clock, then needs the slave's byte
+      if (this.serialCycles > 0) {
+        this.serialCycles -= tCycles;
+        if (this.serialCycles > 0) return;
+        this.serialCycles = 0;
+        this.serialWaiting = true;
+      }
+      if (this.serialWaiting) {
+        // no cable: real hardware shifts in 1s. With a peer, stall until its byte arrives.
+        if (!link) return this.completeSerial(0xFF);
+        var r = link.recv(1);
+        if (r !== undefined) this.completeSerial(r);
+      }
+    } else if (link) {
+      // slave: transfer happens when the master's clock arrives
+      var m = link.recv(0);
+      if (m !== undefined) {
+        link.send(1, this.sb);
+        this.completeSerial(m);
+      }
+    }
+  }
+
   // CGB speed switch (executed during STOP instruction)
   //
   // Double speed runs the CPU at 8 MHz while the PPU/timer/APU stay at
@@ -1259,6 +1315,7 @@ export class GameBoyMachine extends BasicScanlineMachine {
     }
     // Update timer
     this.updateTimerCycles(tCycles);
+    this.updateSerial(tCycles);
     // Update PPU mode based on dot position within scanline
     this.updatePPUMode(tCycles);
     // Clock APU and generate audio samples
@@ -1670,6 +1727,10 @@ export class GameBoyMachine extends BasicScanlineMachine {
     this.ramEnabled = false;
     this.mbcMode = 0;
     this.timerSubCycles = 0;
+    this.sb = 0;
+    this.sc = 0;
+    this.serialCycles = 0;
+    this.serialWaiting = false;
     this.apuCycleAccum = 0;
     this.apu.reset();
     // GBC state
@@ -1734,6 +1795,7 @@ export class GameBoyMachine extends BasicScanlineMachine {
       romBank: this.romBank, ramBank: this.ramBank,
       ramEnabled: this.ramEnabled, mbcMode: this.mbcMode,
       timerSubCycles: this.timerSubCycles,
+      serialCycles: this.serialCycles, serialWaiting: this.serialWaiting,
     };
     state['apu'] = this.apu.saveState();
     state['apuCycleAccum'] = this.apuCycleAccum;
@@ -1781,6 +1843,8 @@ export class GameBoyMachine extends BasicScanlineMachine {
     this.romBank = io.romBank; this.ramBank = io.ramBank;
     this.ramEnabled = io.ramEnabled; this.mbcMode = io.mbcMode;
     this.timerSubCycles = io.timerSubCycles;
+    this.serialCycles = io.serialCycles || 0;
+    this.serialWaiting = !!io.serialWaiting;
     if (state.apu) this.apu.loadState(state.apu);
     this.apuCycleAccum = state.apuCycleAccum || 0;
     if (state.rtc) {

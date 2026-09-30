@@ -22,6 +22,7 @@ import { openSettings, loadSettings } from "./settings";
 import { getPersistStatusMessage, getQuotaExceededMessage, requestPersistentStorage } from "./storage";
 import { CodeProject, createNewPersistentStore, LocalForageFilesystem, OverlayFilesystem, ProjectFilesystem, WebPresetsFileSystem } from "./project";
 import { getRepos, parseGithubURL } from "./services";
+import { _linkCable, platformHasLink } from "./linkdialog";
 import { _downloadAllFilesZipFile, _downloadCassetteFile, _downloadProjectZipFile, _downloadROMImage, _downloadSourceFile, _downloadSymFile, _getCassetteFunction, _recordVideo, _shareEmbedLink } from "./shareexport";
 import { _importProjectFromGithub, _loginToGithub, _logoutOfGithub, _publishProjectToGithub, _pullProjectFromGithub, _pushProjectToGithub, _removeRepository, importProjectFromGithub } from "./sync";
 import { Toolbar } from "./toolbar";
@@ -1820,6 +1821,9 @@ function setupDebugControls() {
   }
   $("#item_download_allzip").click(_downloadAllFilesZipFile);
   $("#item_record_video").click(_recordVideo);
+  if (platformHasLink()) {
+    $("#item_link_cable").show().click(_linkCable);
+  }
   if (_getCassetteFunction())
     $("#item_export_cassette").click(_downloadCassetteFile);
   else
