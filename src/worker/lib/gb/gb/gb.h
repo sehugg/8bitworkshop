@@ -1718,4 +1718,47 @@ void fill_bkg_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t tile) OLD
 */
 void fill_win_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t tile) OLDCALL PRESERVES_REGS(b, c);
 
+/* ---- Compatibility aliases for newer GBDK-2020 (4.1+) names ---- */
+#include "hardware.h"
+
+#define vsync wait_vbl_done
+
+#define S_PAL(n)        (n)
+#define S_BANK          0x08U
+#define BKGF_PRIORITY   0x80U
+#define BKGF_YFLIP      0x40U
+#define BKGF_XFLIP      0x20U
+#define BKGF_BANK0      0x00U
+#define BKGF_BANK1      0x08U
+#define BKGF_CGB_PAL0   0x00U
+#define BKGF_CGB_PAL1   0x01U
+#define BKGF_CGB_PAL2   0x02U
+#define BKGF_CGB_PAL3   0x03U
+#define BKGF_CGB_PAL4   0x04U
+#define BKGF_CGB_PAL5   0x05U
+#define BKGF_CGB_PAL6   0x06U
+#define BKGF_CGB_PAL7   0x07U
+#define VBK_TILES       0
+#define VBK_ATTRIBUTES  1
+#define VBK_BANK_0      0
+#define VBK_BANK_1      1
+
+/** The IDE cannot detect 50Hz systems; always reports 60Hz. */
+#define SYSTEM_60HZ 0x00
+#define SYSTEM_50HZ 0x01
+#define get_system() SYSTEM_60HZ
+
+/** Sets CGB attribute bytes for a background rectangle (via VBK_REG). */
+inline void set_bkg_attributes(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint8_t *attrs) {
+    VBK_REG = VBK_ATTRIBUTES;
+    set_bkg_tiles(x, y, w, h, attrs);
+    VBK_REG = VBK_TILES;
+}
+
+inline void set_bkg_attribute_xy(uint8_t x, uint8_t y, uint8_t a) {
+    VBK_REG = VBK_ATTRIBUTES;
+    set_bkg_tile_xy(x, y, a);
+    VBK_REG = VBK_TILES;
+}
+
 #endif /* _GB_H */

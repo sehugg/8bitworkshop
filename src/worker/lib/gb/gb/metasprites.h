@@ -242,4 +242,28 @@ inline void hide_metasprite(const metasprite_t * metasprite, uint8_t base_sprite
     __hide_metasprite(base_sprite);
 }
 
+/* ---- Compatibility aliases for newer GBDK-2020 (4.1+) names ----
+   The new functions take an extra base_prop argument, OR'd into each
+   sprite's attributes after drawing. */
+inline uint8_t __apply_base_prop(uint8_t base_sprite, uint8_t n, uint8_t base_prop) {
+    if (base_prop) {
+        uint8_t i;
+        for (i = 0; i < n; i++)
+            shadow_OAM[base_sprite + i].prop |= base_prop;
+    }
+    return n;
+}
+inline uint8_t move_metasprite_ex(const metasprite_t * metasprite, uint8_t base_tile, uint8_t base_prop, uint8_t base_sprite, uint8_t x, uint8_t y) {
+    return __apply_base_prop(base_sprite, move_metasprite(metasprite, base_tile, base_sprite, x, y), base_prop);
+}
+inline uint8_t move_metasprite_flipx(const metasprite_t * metasprite, uint8_t base_tile, uint8_t base_prop, uint8_t base_sprite, uint8_t x, uint8_t y) {
+    return __apply_base_prop(base_sprite, move_metasprite_hflip(metasprite, base_tile, base_sprite, x, y), base_prop);
+}
+inline uint8_t move_metasprite_flipy(const metasprite_t * metasprite, uint8_t base_tile, uint8_t base_prop, uint8_t base_sprite, uint8_t x, uint8_t y) {
+    return __apply_base_prop(base_sprite, move_metasprite_vflip(metasprite, base_tile, base_sprite, x, y), base_prop);
+}
+inline uint8_t move_metasprite_flipxy(const metasprite_t * metasprite, uint8_t base_tile, uint8_t base_prop, uint8_t base_sprite, uint8_t x, uint8_t y) {
+    return __apply_base_prop(base_sprite, move_metasprite_hvflip(metasprite, base_tile, base_sprite, x, y), base_prop);
+}
+
 #endif
