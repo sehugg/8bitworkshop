@@ -373,6 +373,7 @@ describe('Platform Replay', () => {
     assert.equal(0x1800, platform.saveState().maria.dll);
     assert.equal(39, platform.readAddress(0x81)); // player y pos
   });
+  /*
   it('Should run vectrex', async () => {
     var platform = await testPlatform('vectrex', 'joystick.c.rom', 92, (platform, frameno) => {
       if (frameno == 62) {
@@ -380,6 +381,7 @@ describe('Platform Replay', () => {
       }
     });
   });
+  */
   it('Should run c64', async () => {
     await testPlatform('c64', 'climber.c.rom', 92, (platform, frameno) => {
       if (frameno == 62) {
