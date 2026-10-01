@@ -126,6 +126,12 @@ export class ProjectWindows {
       this.activewnd.refresh(moveCursor);
   }
 
+  /** Tells every window (not just the visible one) that the machine was reset. */
+  resetViews(): void {
+    for (const wnd of Object.values(this.id2window)) wnd.reset && wnd.reset();
+    this.refresh(false);
+  }
+
   tick(): void {
     if (this.activewnd && this.activewnd.tick)
       this.activewnd.tick();

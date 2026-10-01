@@ -8,6 +8,7 @@ export interface ProjectView {
     setVisible?(showing: boolean): void;
     refresh(moveCursor: boolean): void;
     tick?(): void;
+    reset?(): void; // machine was reset: drop accumulated run data
     getPath?(): string;
     getValue?(): string;
     getSelectionText?(): string;

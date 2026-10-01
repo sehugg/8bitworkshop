@@ -7,14 +7,14 @@ platforms that implement `startProbing`.
 Each node represents a routine, and its children are the routines it
 called. Beside each name is a summary:
 
-    12x  3400 clk (45.2%)  self 800  line 20-31
+    12x 45.2% 3400/800 @20-31
 
 - `12x` is how many times the routine was called.
-- `3400 clk` is the clocks spent in the routine *and* its callees, and the
-  percentage is its share of all clocks the graph has seen.
-- `self` is the clocks in the routine alone, not counting callees. It is
-  left out when the routine calls nothing.
-- `line` is the scanline range where it last ran (raster platforms).
+- `45.2%` is its share of all clocks the graph has seen.
+- `3400/800` is the clocks spent in the routine *and* its callees,
+  then the clocks in the routine alone (`self`), not counting callees. The
+  `/self` part is left out when the routine calls nothing.
+- `@20-31` is the scanline range where it last ran (raster platforms).
 
 Interrupt handlers appear as calls from whatever was running when the
 interrupt fired. A call or return instruction's own clocks are counted in
