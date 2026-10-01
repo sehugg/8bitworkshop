@@ -6,6 +6,7 @@
 // No vscode import; scripts/syntaxes.ts writes the files.
 
 import * as K from '../../src/parser/asmkeywords';
+import { VERILOG_LANGUAGE } from './verilogsyntax';
 
 export interface AsmLanguage {
   id: string;             // language ID, e.g. '8bws-6502'
@@ -268,16 +269,25 @@ export function makeLanguageConfiguration(lang: AsmLanguage): object {
 /** contributes.languages / contributes.grammars entries for package.json */
 export function makeContributions(dir = './out/syntaxes') {
   return {
-    languages: ASM_LANGUAGES.map((l) => ({
+    languages: [...ASM_LANGUAGES.map((l) => ({
       id: l.id,
       aliases: l.aliases,
       extensions: l.extensions,
       configuration: `${dir}/${l.id}.language-configuration.json`,
-    })),
-    grammars: ASM_LANGUAGES.map((l) => ({
+    })), {
+      // no extensions: .v is shared, assigned per project
+      id: VERILOG_LANGUAGE.id,
+      aliases: VERILOG_LANGUAGE.aliases,
+      configuration: `${dir}/${VERILOG_LANGUAGE.id}.language-configuration.json`,
+    }],
+    grammars: [...ASM_LANGUAGES.map((l) => ({
       language: l.id,
       scopeName: `source.asm.${l.cpu}`,
       path: `${dir}/${l.id}.tmLanguage.json`,
-    })),
+    })), {
+      language: VERILOG_LANGUAGE.id,
+      scopeName: VERILOG_LANGUAGE.scopeName,
+      path: `${dir}/${VERILOG_LANGUAGE.id}.tmLanguage.json`,
+    }],
   };
 }

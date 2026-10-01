@@ -9,7 +9,7 @@ Features:
 - See your code changes in the emulator immediately
 - Single-step debugging with breakpoints, disassembly, call stack, symbols
 - Sample code for each platform
-- Syntax highlighting for 8-bit assembly language
+- Syntax highlighting for 8-bit assembly language and Verilog (`.v` files in Verilog projects, including inline `__asm` blocks)
 
 Platforms include 6502, Z80, and 6809 CPUs:
 

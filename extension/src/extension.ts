@@ -13,7 +13,7 @@ import { WorkerHandle, WorkerDisposedError } from './engine';
 import { EmulatorPanel } from './emulatorpanel';
 import { WorkerDebugBackend } from './debugbackend';
 import { EmuDebugSession, LaunchArgs } from '../../src/tools/dapsession';
-import { ASM_LANGUAGE_CPUS, Project, asmLanguageFor, findRootDir, isHeaderFile, isInside, isOwnExtension, isSourceFile } from './projectinfo';
+import { ASM_LANGUAGE_CPUS, Project, findRootDir, isHeaderFile, isInside, isOwnExtension, isSourceFile, languageFor } from './projectinfo';
 import { CONFIG, ProjectScope } from './projectscope';
 import { BuildReason, BuildScheduler } from './autobuild';
 import { PRESET_SCHEME, PresetFileSystem, Templates } from './templates';
@@ -412,18 +412,18 @@ async function runScriptHeadless(target: Target, build: BuildOutcome, script: st
 
 ////// languages
 
-const ASM_LANGUAGES = ASM_LANGUAGE_CPUS.map(cpu => '8bws-' + cpu);
+const OWN_LANGUAGES = [...ASM_LANGUAGE_CPUS.map(cpu => '8bws-' + cpu), '8bws-verilog'];
 
 /**
- * Give a .s/.asm/.inc/.a file its project's assembler language. Files no
+ * Give a .s/.asm/.inc/.a/.v file its project's language. Files no
  * other extension claimed open as plaintext; we leave the rest alone.
  */
 function assignLanguage(doc: vscode.TextDocument) {
-  if (doc.languageId !== 'plaintext' && !ASM_LANGUAGES.includes(doc.languageId)) return;
+  if (doc.languageId !== 'plaintext' && !OWN_LANGUAGES.includes(doc.languageId)) return;
   var platform = doc.uri.scheme === PRESET_SCHEME
     ? templates.fromUri(doc.uri)?.platform.id
     : scope.projectFor(doc.uri)?.platform;
-  var lang = platform && asmLanguageFor(doc.uri.path, platform);
+  var lang = platform && languageFor(doc.uri.path, platform);
   if (lang && lang !== doc.languageId)
     vscode.languages.setTextDocumentLanguage(doc, lang).then(undefined, e => output.appendLine(`language: ${e}`));
 }

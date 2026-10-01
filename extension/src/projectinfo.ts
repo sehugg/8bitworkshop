@@ -47,6 +47,17 @@ export function asmLanguageFor(fn: string, platform: string): string | undefined
   return ASM_LANGUAGE_CPUS.includes(style) ? '8bws-' + style : undefined;
 }
 
+/** The 8bws-verilog language for a .v file on a Verilog platform. */
+export function verilogLanguageFor(fn: string, platform: string): string | undefined {
+  if (path.extname(fn).toLowerCase() !== '.v') return undefined;
+  return TOOL_META[getToolForPlatform(platform, fn)]?.editorStyle === 'verilog' ? '8bws-verilog' : undefined;
+}
+
+/** The language to assign a shared-extension file in a project on `platform`, if any. */
+export function languageFor(fn: string, platform: string): string | undefined {
+  return asmLanguageFor(fn, platform) ?? verilogLanguageFor(fn, platform);
+}
+
 /** Headers and include files: never a main file. */
 export function isHeaderFile(fn: string): boolean {
   return /\.(h|inc|i)$/i.test(fn);

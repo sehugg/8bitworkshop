@@ -9,7 +9,8 @@ First preview.
 - Platform and main-file detection for existing folders.
 - Builds as you type, with errors in the Problems panel.
 - Emulator panel with pause, reset, and mute.
-- Syntax highlighting for 6502, Z80, and 6809 assembly.
+- Syntax highlighting for 6502, Z80, and 6809 assembly, and for Verilog
+  (including inline `__asm` blocks).
 - Toolchains download on first use, checked against built-in hashes.
 - Compiler and emulator crashes send an error report to 8bitworkshop.com,
   following VS Code's `telemetry.telemetryLevel` setting. See the README.

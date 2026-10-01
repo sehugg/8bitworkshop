@@ -116,6 +116,50 @@ describe('6809 grammar', function () {
   });
 });
 
+describe('verilog grammar', function () {
+  let g: IGrammar;
+  before(async () => { g = await loadGrammar('verilog'); });
+
+  it('reads Verilog-2005', function () {
+    assert.equal(scopeOf(g, 'module top(input clk);', 'module'), 'keyword.control');
+    assert.equal(scopeOf(g, 'module top(input clk);', 'top'), 'entity.name.type.module');
+    assert.equal(scopeOf(g, 'module top(input clk);', 'input'), 'storage.type');
+    assert.equal(scopeOf(g, '  always @(posedge clk) q <= 8\'hFF;', 'always'), 'keyword.control');
+    assert.equal(scopeOf(g, '  always @(posedge clk) q <= 8\'hFF;', "8'hFF"), 'constant.numeric.hex');
+    assert.equal(scopeOf(g, '  x = 4\'b10zx;', "4'b10zx"), 'constant.numeric.binary');
+    assert.equal(scopeOf(g, '  $display("a %d", x);', '$display'), 'support.function');
+    assert.equal(scopeOf(g, '`define FOO 1', '`define'), 'keyword.control.directive');
+    assert.equal(scopeOf(g, '  y = `FOO;', '`FOO'), 'entity.name.function.macro');
+    assert.equal(scopeOf(g, '  // note', '// note'), 'comment.line.double-slash');
+    assert.equal(scopeOf(g, '  alu u0 (.a(a));', 'alu'), 'entity.name.type.module');
+    assert.equal(scopeOf(g, '  alu u0 (.a(a));', '.a'), 'variable.parameter.port');
+  });
+
+  it('reads inline assembly between __asm and __endasm', async function () {
+    const { INITIAL } = await import('vscode-textmate');
+    let st = INITIAL;
+    const scopes: Record<string, string> = {};
+    for (const line of ["    rom = '{", '      __asm', '.org 0x8000', 'Loop: ; go', '      mov ax,$6fff', '      __endasm', '  module']) {
+      const r = g.tokenizeLine(line, st);
+      st = r.ruleStack;
+      for (const t of r.tokens) scopes[line.slice(t.startIndex, t.endIndex).trim()] = t.scopes[t.scopes.length - 1];
+    }
+    assert.equal(scopes['__asm'], 'keyword.control.verilog');
+    assert.equal(scopes['.org'], 'keyword.control.directive.verilog');
+    assert.equal(scopes['0x8000'], 'constant.numeric.verilog');
+    assert.equal(scopes['Loop'], 'entity.name.function.label.verilog');
+    assert.equal(scopes['; go'], 'comment.line.semicolon.verilog');
+    assert.equal(scopes['$6fff'], 'constant.numeric.verilog');
+    assert.equal(scopes['mov ax,'], 'meta.embedded.asm.verilog');
+    assert.equal(scopes['__endasm'], 'keyword.control.verilog');
+    assert.equal(scopes['module'], 'keyword.control.verilog');
+  });
+
+  it('leaves SystemVerilog words alone', function () {
+    assert.equal(scopeOf(g, '  logic x;', '  logic x;'), '');
+  });
+});
+
 describe('assembler languages', function () {
   it('match package.json', function () {
     const pkg = JSON.parse(fs.readFileSync(path.join(EXT_ROOT, 'package.json'), 'utf8'));

@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as path from 'path';
-import { FolderInfo, Project, asmLanguageFor, isOwnExtension, projectFor, resolveRunTarget, withoutProject } from '../src/projectinfo';
+import { FolderInfo, Project, asmLanguageFor, languageFor, isOwnExtension, projectFor, resolveRunTarget, withoutProject } from '../src/projectinfo';
 import { BuildReason, BuildScheduler, Clock } from '../src/autobuild';
 
 const WS = path.resolve('/work/game');
@@ -229,5 +229,14 @@ describe('BuildScheduler', function () {
     assert.deepEqual(builds, ['save']);
     await clock.advance(1000);
     assert.deepEqual(builds, ['save', 'type']);
+  });
+});
+
+describe('languageFor', function () {
+  it('assigns Verilog to .v files on the verilog platform only', function () {
+    assert.equal(languageFor('top.v', 'verilog'), '8bws-verilog');
+    assert.equal(languageFor('TOP.V', 'verilog'), '8bws-verilog');
+    assert.equal(languageFor('top.v', 'nes'), undefined);
+    assert.equal(languageFor('main.s', 'nes'), '8bws-6502');
   });
 });

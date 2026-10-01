@@ -1,6 +1,6 @@
 {
   "name": "8bitworkshop",
-  "displayName": "8bitworkshop — Retro 8-bit Dev",
+  "displayName": "8bitworkshop",
   "description": "Build, run, and debug 8-bit programs — NES, Atari, C-64, and more — with 8bitworkshop's 6502/Z80/6809 assemblers, compilers, and emulators",
   "keywords": [
     "retro",
@@ -37,7 +37,7 @@
     "hardware design",
     "retrogaming"
   ],
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "8bitworkshop",
   "icon": "images/icon.png",
   "galleryBanner": {
@@ -396,6 +396,13 @@
           ".lwasm"
         ],
         "configuration": "./out/syntaxes/8bws-6809.language-configuration.json"
+      },
+      {
+        "id": "8bws-verilog",
+        "aliases": [
+          "Verilog (8bitworkshop)"
+        ],
+        "configuration": "./out/syntaxes/8bws-verilog.language-configuration.json"
       }
     ],
     "grammars": [
@@ -413,6 +420,11 @@
         "language": "8bws-6809",
         "scopeName": "source.asm.6809",
         "path": "./out/syntaxes/8bws-6809.tmLanguage.json"
+      },
+      {
+        "language": "8bws-verilog",
+        "scopeName": "source.verilog.8bws",
+        "path": "./out/syntaxes/8bws-verilog.tmLanguage.json"
       }
     ],
     "menus": {
