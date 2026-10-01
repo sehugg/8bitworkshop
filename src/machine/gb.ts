@@ -38,8 +38,6 @@ var GB_KEYCODE_MAP = makeKeycodeMap([
   [Keys.GP_B,    0, 0x20],
   [Keys.SELECT,  0, 0x40],
   [Keys.START,   0, 0x80],
-  [Keys.VK_ENTER, 0, 0x80], // Start
-  [Keys.VK_SHIFT, 0, 0x40], // Select
 ]);
 
 // Duty cycle waveforms for square wave channels (8 steps each)
