@@ -5,31 +5,31 @@
 The original online 8-bit IDE, now in VS Code!
 
 Features:
-- Built-in emulators, compilers, and libraries from [8bitworkshop.com](https://8bitworkshop.com).
-- Compile as you type
+- Built-in emulators, compilers, and libraries from [8bitworkshop.com](https://8bitworkshop.com)
+- See your code changes in the emulator immediately
 - Single-step debugging with breakpoints, disassembly, call stack, symbols
 - Sample code for each platform
-- Syntax highlighting for C and assembly
+- Syntax highlighting for 8-bit assembly language
 
-Supported platforms include 6502, Z80, and 6809 CPUs:
+Platforms include 6502, Z80, and 6809 CPUs:
 
-- **NES / Famicom**
 - **Atari 2600 (VCS)**, **Atari 7800**, and **Atari 8-bit** computers
 - **Commodore 64** and **VIC-20**
-- **ColecoVision**, **MSX**, **ZX Spectrum**, **Amstrad CPC**
-- **Apple II**, **Game Boy**, **Sega Master System**, **PC Engine**
+- **NES / Famicom** and **Game Boy**
+- **ColecoVision**, **MSX**, **Sega Master System**
+- **ZX Spectrum**, **Amstrad CPC**, **Apple II**, , **PC Engine**
 - **Arcade hardware**
 
-Supported programming languages include:
+Programming languages include:
 
 - **Assembler** with DASM, ca65, zmac, and more
 - **C** with CC65, SDCC, and more
 - **BASIC** with batariBASIC and FastBASIC
-- **Verilog** for hardware design
+- **Verilog** for hardware design and simulation
 - ...and more! There's a lot going on in here!
 
-All building and emulation runs on your computer. The toolchains and
-examples are included in the extension.
+All building and emulation runs on your computer.
+The toolchains and examples are included in the extension.
 
 ## Get started
 

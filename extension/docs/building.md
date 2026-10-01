@@ -19,15 +19,11 @@ after you stop typing.
 
 ## Toolchains
 
-The compilers, assemblers, emulators, and examples are included, Verilog's
-WASM toolchain too, so 8bitworkshop builds offline.
+The compilers, assemblers, emulators, and examples are included so 8bitworkshop builds offline.
 
-If a later version adds a toolchain that isn't bundled, **8bitworkshop:
-Prepare Toolchains** unpacks or downloads every one at once.
 For toolchain development, set `8bitworkshop.toolchainPath` to a built
 8bitworkshop checkout (a directory containing `src/worker`) to use it
-instead of the included toolchains. Running the extension from the repo
-does this automatically.
+instead of the included toolchains.
 
 ## Errors
 
