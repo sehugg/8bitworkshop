@@ -78,7 +78,7 @@ export function activate(ctx: vscode.ExtensionContext) {
   setupTerminalCommand();
   ctx.subscriptions.push(...registerTools({ target: toolTarget, build: t => runBuild(t, 'command'), run: runScriptHeadless }));
   ctx.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
-    if (['terminalCommand', 'toolchainPath', 'assetUrl'].some(k => e.affectsConfiguration(`${CONFIG}.${k}`))) setupTerminalCommand();
+    if (['terminalCommand', 'toolchainPath'].some(k => e.affectsConfiguration(`${CONFIG}.${k}`))) setupTerminalCommand();
   }));
 
   ctx.subscriptions.push(vscode.workspace.registerFileSystemProvider(PRESET_SCHEME, new PresetFileSystem(templates),
@@ -206,12 +206,10 @@ function getAssets(): AssetStore {
     } catch (e) {
       throw new Error(`Cannot find toolchains: no ${file}. Set 8bitworkshop.toolchainPath.`);
     }
-    var custom = config().get<string>('assetUrl');
     // The bundled packs first, so a common platform needs no network; then the
-    // user's server, then the 8bitworkshop servers (for packs not bundled).
+    // 8bitworkshop servers (for packs not bundled).
     var urls: string[] = [];
     if (Object.keys(manifest.packs).some(p => hasBundledPack(manifest, p))) urls.push(bundledAssetsDir());
-    if (custom) urls.push(custom);
     urls.push(...ASSET_URLS);
     assets = new AssetStore(toolchainCacheDir(), manifest,
       urls, msg => output.appendLine(msg));
@@ -256,8 +254,6 @@ function setupTerminalCommand() {
   var local = localRoot();
   if (local) vars.EIGHTBITWORKSHOP_ROOT = local;
   else vars.EIGHTBITWORKSHOP_TOOLCHAINS = toolchainCacheDir();
-  var custom = config().get<string>('assetUrl');
-  if (custom) vars.EIGHTBITWORKSHOP_ASSET_URL = custom;
   var bin = path.join(context.globalStorageUri.fsPath, 'bin');
   try {
     writeLauncher(bin, { node: process.execPath, script, env: vars });

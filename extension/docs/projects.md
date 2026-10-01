@@ -130,8 +130,8 @@ runs it without the debugger. See [Debug](emulator.md#debug).
 
 Commit `.vscode/settings.json` to pin an ambiguous answer or a folder
 with several projects; detection normally fills these in from your
-README and source. Your own settings — `autoBuild`, `reloadOnBuild`,
-`toolchainPath` — stay in your user settings and aren't committed.
+README and source. Your own settings — `autoBuild` and `reloadOnBuild` —
+stay in your user settings and aren't committed.
 
 A file opened with no folder has nowhere to save, so its platform lasts
 until you close the window. Choose **Open Containing Folder** in the

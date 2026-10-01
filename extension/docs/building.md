@@ -24,7 +24,10 @@ WASM toolchain too, so 8bitworkshop builds offline.
 
 If a later version adds a toolchain that isn't bundled, **8bitworkshop:
 Prepare Toolchains** unpacks or downloads every one at once.
-To use a local copy instead, such as an 8bitworkshop checkout, set `8bitworkshop.toolchainPath`.
+For toolchain development, set `8bitworkshop.toolchainPath` to a built
+8bitworkshop checkout (a directory containing `src/worker`) to use it
+instead of the included toolchains. Running the extension from the repo
+does this automatically.
 
 ## Errors
 

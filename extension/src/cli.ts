@@ -14,7 +14,6 @@ async function toolchainRoot(): Promise<string> {
   if (!cache) throw new Error('Set EIGHTBITWORKSHOP_ROOT or EIGHTBITWORKSHOP_TOOLCHAINS; the 8bws launcher from VS Code sets them.');
   var manifest: AssetManifest = JSON.parse(fs.readFileSync(path.join(__dirname, 'assets.json'), 'utf-8'));
   var urls = [path.join(__dirname, 'assets')];
-  if (process.env.EIGHTBITWORKSHOP_ASSET_URL) urls.push(process.env.EIGHTBITWORKSHOP_ASSET_URL);
   urls.push(...ASSET_URLS);
   // stderr, so --json output stays clean
   var store = new AssetStore(cache, manifest, urls, msg => process.stderr.write(msg + '\n'));

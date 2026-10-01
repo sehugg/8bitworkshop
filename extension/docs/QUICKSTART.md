@@ -115,8 +115,7 @@ file to pin an ambiguous answer or a folder with several projects;
 detection normally fills these in from your README and source.
 
 Your own settings stay in your user settings instead: `autoBuild` and
-`reloadOnBuild` (window settings) and `toolchainPath` (a path on your
-machine, which VS Code keeps out of the workspace file).
+`reloadOnBuild` (window settings).
 
 **Run This File** is just for you: VS Code remembers it on this
 computer, and it never changes a file. **Add Launch Configuration**

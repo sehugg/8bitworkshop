@@ -354,12 +354,6 @@
           "default": "",
           "description": "Directory containing src/worker (toolchain assets), such as an 8bitworkshop checkout. When empty, toolchains download on first use.",
           "scope": "machine"
-        },
-        "8bitworkshop.assetUrl": {
-          "type": "string",
-          "default": "",
-          "description": "Server (or local directory) to download toolchains from, tried before the default servers. Downloads are checked against hashes built into the extension.",
-          "scope": "machine"
         }
       }
     },

@@ -73,7 +73,6 @@ Your local user settings:
 | `8bitworkshop.reloadOnBuild` | `always` (default), `onSave`, or `never` |
 | `8bitworkshop.exportRom` | Write each successful build's ROM to the export folder |
 | `8bitworkshop.terminalCommand` | Add the `8bws` command to the integrated terminal (off by default) |
-| `8bitworkshop.toolchainPath` | Use a local 8bitworkshop checkout instead of the included toolchains |
 
 ## Commands
 
