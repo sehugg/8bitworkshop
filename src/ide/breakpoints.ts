@@ -107,7 +107,12 @@ class BreakpointStore {
             let bps = blob[this.contextFn()];
             this.breakpoints = Array.isArray(bps) ? bps : [];
             this.nextId = 1;
-            for (let bp of this.breakpoints) this.nextId = Math.max(this.nextId, bp.id + 1);
+            for (let bp of this.breakpoints) {
+                this.nextId = Math.max(this.nextId, bp.id + 1);
+                // saved breakpoints start disabled, so a reload doesn't stop
+                // unexpectedly; the user re-enables them as needed
+                bp.enabled = false;
+            }
         } catch (e) {
             this.breakpoints = [];
         }
