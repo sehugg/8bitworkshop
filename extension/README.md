@@ -4,11 +4,12 @@
 
 The original online 8-bit IDE, now in VS Code!
 
-Write programs for classic consoles and computers, then compile and play
-them without leaving VS Code.
-
-This extension bundles the assemblers,
-compilers, and emulators from [8bitworkshop.com](https://8bitworkshop.com).
+Features:
+- Built-in emulators, compilers, and libraries from [8bitworkshop.com](https://8bitworkshop.com).
+- Compile as you type
+- Single-step debugging with breakpoints, disassembly, call stack, symbols
+- Sample code for each platform
+- Syntax highlighting for C and assembly
 
 Supported platforms include 6502, Z80, and 6809 CPUs:
 
@@ -71,9 +72,8 @@ Your local user settings:
 | `8bitworkshop.autoBuild` | `onType` (default), `onSave`, or `off` |
 | `8bitworkshop.reloadOnBuild` | `always` (default), `onSave`, or `never` |
 | `8bitworkshop.exportRom` | Write each successful build's ROM to the export folder |
-| `8bitworkshop.toolchainPath` | Use a local 8bitworkshop checkout instead of the included toolchains |
-| `8bitworkshop.assetUrl` | Server or local directory to download toolchains from, tried before the default servers |
 | `8bitworkshop.terminalCommand` | Add the `8bws` command to the integrated terminal (off by default) |
+| `8bitworkshop.toolchainPath` | Use a local 8bitworkshop checkout instead of the included toolchains |
 
 ## Commands
 

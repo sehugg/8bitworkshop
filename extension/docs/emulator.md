@@ -73,10 +73,6 @@ In a folder with a launch configuration, <kbd>F5</kbd> does the same, and
   symbol's address and the byte there). **Watch** and hovers take the
   same expressions as conditions: registers, symbols, `[addr]` for a byte
   of memory, `#mem16[addr]` for a word.
-- **Memory:** the binary-data icon next to a register or symbol opens
-  memory at that address in the Hex Editor (VS Code offers to install
-  it). On most platforms you can edit it there; VCS and MAME-based
-  platforms are read-only.
 - **Call Stack** shows the routines that called the current one, found
   from return addresses on the stack. A caller marked `?` (dimmed) is a
   guess: its call went through a pointer or a jump table.

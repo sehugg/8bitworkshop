@@ -1845,7 +1845,7 @@ runs has to be a webview too.
 | CPU registers | Variables → "Registers" scope (done) |
 | Debug Tree (`getDebugTree()`) | Variables → "Machine" scope (done) |
 | Symbols | Variables → "Symbols" scope (done) |
-| Memory (hex) | "View Binary Data" on a variable → Hex Editor, via `readMemory`/`writeMemory` (done) |
+| Memory (hex) | own webview editor (not started; the DAP Hex Editor integration was removed: it opened at the variable, not `$0`) |
 | Debug info panel (`getDebugInfo()` text) | webview ("Machine" view) |
 | Memory with symbols, memory map | webviews |
 | Probe log, scanline I/O, heatmaps, stack map, frame calls | webviews |
@@ -1873,17 +1873,16 @@ runs has to be a webview too.
   expensive (collapsed), and is shown only when the platform has
   `getDebugTree` (`DebugCapabilities.tree`).
 - **Symbols scope.** Every build symbol by name, with its address and the
-  byte there, and a `memoryReference` so "View Binary Data" opens it.
-  Collapsed by default.
+  byte there. Collapsed by default.
 - **Memory writes.** `EmuCore.write()` goes through the machine's bus, so
   writing an I/O address does what a store there does. It restarts the
   timeline (the past can't be replayed into the edited state). It needs a
   `Machine` with `write()`, so VCS and the MAME platforms can't write
   (NES's `JSNESMachine` writes RAM or the mapper directly, skipping
-  `cpu.write()`'s bus cycle); `DebugCapabilities.write` says so and the adapter turns on
-  `supportsWriteMemoryRequest` only when it can. After a write the adapter
-  sends `invalidated` (variables); after every stop it sends a `memory`
-  event for the whole space so the Hex Editor reads again.
+  `cpu.write()`'s bus cycle); `DebugCapabilities.write` says so. The DAP `readMemory`/`writeMemory`
+  requests, `memoryReference`s and `memory` events were removed (the Hex
+  Editor opened at the variable, not `$0`); `DebugService` still has
+  `readMemory`/`writeMemory` for a future editor of our own.
 - Tests: `test/unit/testdebugtree.ts`, and a case in
   `test/unit/testdapsession.ts`.
 

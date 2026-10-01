@@ -18,7 +18,7 @@ First preview.
   a timeline to scrub through the recording while paused.
 - Debug views: registers, the machine's internal state (the IDE's Debug
   Tree), symbols, a call stack walked from return addresses, and
-  disassembly. Memory opens in VS Code's Hex Editor.
+  disassembly.
 - `.s`, `.asm`, `.inc` and `.a` files in a project get the highlighting
   for the platform's CPU. `.acme` files get 6502 highlighting.
 - An `8bws` command in the integrated terminal builds and runs programs
