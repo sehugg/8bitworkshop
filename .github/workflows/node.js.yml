@@ -35,6 +35,7 @@ jobs:
     - run: npm test
       env:
         TEST8BIT_GITHUB_TOKEN: ${{ secrets.TEST8BIT_GITHUB_TOKEN }}
+    - run: npm run test-verilog
     - run: npm run buildpresets
     - run: make distro
     - name: Build and test VS Code extension

@@ -233,8 +233,8 @@ export class HDLModuleWASM implements HDLModuleRunner {
         this.setInitialValues();
         (this.instance.exports as any)._ctor_var_reset(GLOBALOFS);
         (this.instance.exports as any)._eval_initial(GLOBALOFS);
+        (this.instance.exports as any)._eval_settle(GLOBALOFS); // settle once, like Verilator's eval()
         for (var i=0; i<100; i++) {
-            (this.instance.exports as any)._eval_settle(GLOBALOFS);
             (this.instance.exports as any)._eval(GLOBALOFS);
             var Vchange = (this.instance.exports as any)._change_request(GLOBALOFS);
             if (!Vchange) {

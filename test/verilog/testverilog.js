@@ -8,8 +8,8 @@ var wtu = require('../cli/workertestutils.js');
 //var heapdump = require("heapdump");
 var commandExists = require('command-exists');
 
-var has_yosys = commandExists('yosys');
-var has_iverilog = commandExists('iverilog');
+var has_yosys = commandExists.sync('yosys');
+var has_iverilog = commandExists.sync('iverilog');
 
 createTestDOM();
 
@@ -69,10 +69,10 @@ function compileVerilator(filename, code, callback, nerrors, depends) {
           }
           platform.dispose();
         }
-        if (loadfail) e = new Error('should have failed');
+        if (loadfail) throw new Error('should have failed');
         callback(null, msg);
       } catch (e) {
-        if (loadfail) e = null;
+        if (loadfail && /did not converge/.test(e && e.message)) e = null; // expected failure
         //console.log('rm', filename);
         callback(e, null);
       }
