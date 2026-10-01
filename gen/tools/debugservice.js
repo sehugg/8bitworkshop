@@ -14,6 +14,7 @@ const debugtree_1 = require("../common/debugtree");
 const stackwalk_1 = require("../common/stackwalk");
 const debugcontroller_1 = require("../common/debugcontroller");
 const symbolfile_1 = require("../common/symbols/symbolfile");
+const symbolvalue_1 = require("../common/symbols/symbolvalue");
 const util_1 = require("../common/util");
 const runscript_1 = require("./runscript");
 // how far before an address to start disassembling, per instruction wanted
@@ -147,12 +148,19 @@ class DebugService {
             throw new Error('this platform has no debug tree');
         return (0, debugtree_1.treeChildren)(tree, path);
     }
-    /** The build's symbols, by name, with the byte at each. */
+    /** One symbol with the bytes at it (the first byte if its size is unknown). */
+    symbolValue(name) {
+        var _a;
+        const addr = this.debug.context.symbols[name];
+        const size = ((_a = this.debug.context.symbolsizes) === null || _a === void 0 ? void 0 : _a[name]) > 0 ? this.debug.context.symbolsizes[name] : undefined;
+        const bytes = this.readMemory(addr, Math.min(size || 1, symbolvalue_1.MAX_SYMBOL_BYTES));
+        return { name, addr, value: bytes[0], size, bytes };
+    }
+    /** The build's symbols, by name. */
     symbols() {
-        const syms = this.debug.context.symbols || {};
-        return Object.keys(syms)
+        return Object.keys(this.debug.context.symbols || {})
             .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-            .map(name => ({ name, addr: syms[name], value: this.target.read(syms[name] & 0xffff) & 0xff }));
+            .map(name => this.symbolValue(name));
     }
     /**
      * `count` instructions starting `insnOffset` instructions from `addr`
@@ -210,19 +218,20 @@ class DebugService {
     /**
      * `repl`: a run-script command line (`mem $200 16`, `back 3`, `help`).
      * Anything else: an expression, as in a breakpoint condition (`[score]`,
-     * `A`, `#mem16[ptr]`), or a symbol.
+     * `A`, `#mem16[ptr]`), or a symbol (shown with its contents).
      */
     evaluate(expr, context) {
         expr = expr.trim();
         if (context === 'repl')
             return this.runScript(expr);
+        // a symbol shows what is stored there, with `value` its address
+        const name = (0, symbolfile_1.resolveSymbolName)(this.debug.context.symbols, expr);
+        if (name != null) {
+            const sym = this.symbolValue(name);
+            return { result: (0, symbolvalue_1.formatSymbolValue)(sym), value: sym.addr };
+        }
         const ctx = (0, breakpoints_1.makeCondContext)(this.debug.context);
-        let value;
-        const sym = (0, symbolfile_1.lookupSymbol)(this.debug.context.symbols, expr);
-        if (sym != null)
-            value = sym;
-        else
-            value = (0, breakcond_1.compileExpression)(expr, ctx)(this.target.getCPUState());
+        const value = (0, breakcond_1.compileExpression)(expr, ctx)(this.target.getCPUState());
         if (typeof value !== 'number' || isNaN(value))
             throw new Error(`'${expr}' has no value`);
         return { result: `$${(0, util_1.hex)(value, value > 0xff ? 4 : 2)} (${value})`, value };

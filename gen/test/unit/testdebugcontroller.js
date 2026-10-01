@@ -18,7 +18,7 @@ async function open() {
     const t = await (0, emutarget_1.loadPlatform)('mw8080bw');
     await t.start();
     await t.loadROM(build.output);
-    const dc = new debugcontroller_1.DebugController(t, (0, debugcontroller_1.buildDebugContext)({ listings: build.listings, symbols: build.symbolmap, mainPath: 'game2.c' }));
+    const dc = new debugcontroller_1.DebugController(t, (0, debugcontroller_1.buildDebugContext)({ listings: build.listings, symbolmap: build.symbolmap, mainPath: 'game2.c' }));
     return { t, dc };
 }
 function bp(id, target, condition) {

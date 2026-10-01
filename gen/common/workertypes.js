@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SourceFile = void 0;
+exports.buildProducts = buildProducts;
 exports.isUnchanged = isUnchanged;
 exports.isErrorResult = isErrorResult;
 exports.isOutputResult = isOutputResult;
@@ -52,6 +53,10 @@ exports.SourceFile = SourceFile;
 ;
 ;
 ;
+function buildProducts(r) {
+    const { listings, symbolmap, symbolsizes, segments } = r;
+    return { listings, symbolmap, symbolsizes, segments };
+}
 function isUnchanged(result) {
     return ('unchanged' in result);
 }

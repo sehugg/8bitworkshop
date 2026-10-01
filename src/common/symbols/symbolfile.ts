@@ -19,10 +19,16 @@ export function parseSymbolFile(text: string): SymbolMap {
  * '.' (VICE labels).
  */
 export function lookupSymbol(symbols: SymbolMap | null | undefined, name: string): number | undefined {
+  const key = resolveSymbolName(symbols, name);
+  return key == null ? undefined : symbols[key];
+}
+
+/** The key of `symbols` that `lookupSymbol` finds for `name`, if any. */
+export function resolveSymbolName(symbols: SymbolMap | null | undefined, name: string): string | undefined {
   if (!symbols) return undefined;
-  if (name in symbols) return symbols[name];
-  if ('_' + name in symbols) return symbols['_' + name];
+  if (name in symbols) return name;
+  if ('_' + name in symbols) return '_' + name;
   const bare = name.replace(/^\./, '');
-  if (bare !== name && bare in symbols) return symbols[bare];
+  if (bare !== name && bare in symbols) return bare;
   return undefined;
 }

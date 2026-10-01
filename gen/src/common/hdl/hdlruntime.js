@@ -101,8 +101,8 @@ class HDLModuleJS {
         this.stopped = false;
         this.basefuncs._ctor_var_reset(this.state);
         this.basefuncs._eval_initial(this.state);
+        this.basefuncs._eval_settle(this.state); // settle once, like Verilator's eval()
         for (var i = 0; i < 100; i++) {
-            this.basefuncs._eval_settle(this.state);
             this.basefuncs._eval(this.state);
             var Vchange = this.basefuncs._change_request(this.state);
             if (!Vchange) {

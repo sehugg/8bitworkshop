@@ -1243,14 +1243,30 @@ function findListingLocation(pc: number): { wndid: string, line: number } | null
   }, PC_LINE_LOOKAHEAD);
 }
 
+// true while the active stop request is a breakpoint run (see armBreakpoints)
+var stoppingAtBreakpoint = false;
+
 function openRelevantListing(state: EmuState) {
-  // if we clicked on a specific tool, don't switch windows
-  if (lastViewClicked && lastViewClicked.startsWith('#')) return;
-  // don't switch windows for specific debug commands
-  if (['toline', 'restart', 'tovsync', 'stepover'].includes(lastDebugCommand)) return;
+  // a breakpoint hit always shows its location, whatever view is open
+  if (!stoppingAtBreakpoint) {
+    // if we clicked on a specific tool, don't switch windows
+    if (lastViewClicked && lastViewClicked.startsWith('#')) return;
+    // don't switch windows for specific debug commands
+    if (['toline', 'restart', 'tovsync', 'stepover'].includes(lastDebugCommand)) return;
+  }
   // has to support disassembly, at least
   if (!platform.disassemble) return;
   let pc = state.c ? (state.c.EPC || state.c.PC) : 0;
+  // a hit on a source breakpoint goes to the file/line it was set on (window
+  // ids for source files are plain paths, e.g. the main file has no '#')
+  if (stoppingAtBreakpoint) {
+    let hit = resolveBreakpoints().find(r => r.bp.enabled && r.bp.type == 'source' && r.pc == pc && projectWindows.isWindow(r.bp.file));
+    if (hit) {
+      let wnd = projectWindows.createOrShow(hit.bp.file, true);
+      if (wnd instanceof SourceEditor) wnd.highlightLines(hit.bp.line - 1, hit.bp.line - 1);
+      return;
+    }
+  }
   let best = findListingLocation(pc);
   // if no appropriate listing found, use disassembly view
   projectWindows.createOrShow(best ? best.wndid : "#disasm", true);
@@ -1292,6 +1308,7 @@ function setupDebugCallback(btnid?: DebugCommandType) {
 
 export function setupBreakpoint(btnid?: DebugCommandType) {
   if (!checkRunReady()) return;
+  stoppingAtBreakpoint = false;
   debugSessionActive = true;
   _disableRecording();
   setupDebugCallback(btnid);
@@ -1457,6 +1474,7 @@ export function armBreakpoints(): boolean {
   hideDebugInfo();
   projectWindows.refresh(false); // clear any "stopped here" highlight (e.g. Breakpoints window)
   setupBreakpoint("toline");
+  stoppingAtBreakpoint = true;
   const targets = new Map<number, CondFn | null>();
   for (const r of rbps) targets.set(r.pc, r.condFn || null);
   if (platform.runEvalAtPC) {
@@ -2587,51 +2605,6 @@ async function loadAndStartPlatform() {
   }
 }
 
-// HTTPS REDIRECT
-
-const useHTTPSCookieName = "__use_https";
-
-function setHTTPSCookie(val: number) {
-  document.cookie = useHTTPSCookieName + "=" + val + ";domain=8bitworkshop.com;path=/;max-age=315360000";
-}
-
-function shouldRedirectHTTPS(): boolean {
-  // cookie set? either true or false
-  var shouldRedir = getCookie(useHTTPSCookieName);
-  if (typeof shouldRedir === 'string') {
-    return !!shouldRedir; // convert to bool
-  }
-  // set a 10yr cookie, value depends on if it's our first time here
-  var val = hasLocalStorage && !localStorage.getItem("__lastplatform") ? 1 : 0;
-  setHTTPSCookie(val);
-  return !!val;
-}
-
-function _switchToHTTPS() {
-  bootbox.confirm('<p>Do you want to force the browser to use HTTPS from now on?</p>' +
-    '<p>WARNING: This will make all of your local files unavailable, so you should "Download All Changes" first for each platform where you have done work.</p>' +
-    '<p>You can go back to HTTP by setting the "' + useHTTPSCookieName + '" cookie to 0.</p>', (ok) => {
-      if (ok) {
-        setHTTPSCookie(1);
-        redirectToHTTPS();
-      }
-    });
-}
-
-function redirectToHTTPS() {
-  if (window.location.protocol == 'http:' && isProductionHost()) {
-    if (shouldRedirectHTTPS()) {
-      uninstallErrorHandler();
-      window.location.replace(window.location.href.replace(/^http:/, 'https:'));
-    } else {
-      $("#item_switch_https").click(_switchToHTTPS).show();
-    }
-  }
-}
-
-// redirect to HTTPS after script loads?
-redirectToHTTPS();
-
 //// ELECTRON (and other external) STUFF
 
 export function setTestInput(path: string, data: FileData) {
@@ -2678,6 +2651,8 @@ function writeOutputROMFile() {
     alternateLocalFilesystem.setFileData(`bin/${prefix}${suffix}`, current_output);
   }
 }
+
+// Start UI
 
 function startUIWhenVisible() {
   let started = false;

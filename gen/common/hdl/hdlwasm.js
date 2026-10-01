@@ -219,8 +219,8 @@ class HDLModuleWASM {
         this.setInitialValues();
         this.instance.exports._ctor_var_reset(GLOBALOFS);
         this.instance.exports._eval_initial(GLOBALOFS);
+        this.instance.exports._eval_settle(GLOBALOFS); // settle once, like Verilator's eval()
         for (var i = 0; i < 100; i++) {
-            this.instance.exports._eval_settle(GLOBALOFS);
             this.instance.exports._eval(GLOBALOFS);
             var Vchange = this.instance.exports._change_request(GLOBALOFS);
             if (!Vchange) {

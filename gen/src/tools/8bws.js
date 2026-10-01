@@ -52,6 +52,7 @@ const emutarget_1 = require("./emutarget");
 const runscript_1 = require("./runscript");
 const verifyreplay_1 = require("./verifyreplay");
 const debugcontroller_1 = require("../common/debugcontroller");
+const workertypes_1 = require("../common/workertypes");
 const symbolfile_1 = require("../common/symbols/symbolfile");
 const testlib_1 = require("./testlib");
 const detect_1 = require("../common/detect");
@@ -306,7 +307,7 @@ async function openProgram(command, args, input) {
     let debugInfo;
     if (built) {
         const mainPath = path.basename(input);
-        debugInfo = { listings: built.result.listings, symbols, mainPath, paths: [mainPath] };
+        debugInfo = Object.assign(Object.assign({}, (0, workertypes_1.buildProducts)(built.result)), { mainPath, paths: [mainPath] });
     }
     return { target, source: input, romFile, built, symbols, debugInfo };
 }

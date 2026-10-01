@@ -19,6 +19,7 @@ import { EmuTarget, loadPlatform } from './emutarget';
 import { RUN_SCRIPT_HELP, RunScript, parseNum } from './runscript';
 import { verifyReplay } from './verifyreplay';
 import { buildDebugContext } from '../common/debugcontroller';
+import { buildProducts } from '../common/workertypes';
 import type { BuildInfo } from './debugservice';
 import { parseSymbolFile } from '../common/symbols/symbolfile';
 import { romBytes, type CompileResult } from './testlib';
@@ -297,7 +298,7 @@ async function openProgram(command: string, args: Args, input: string): Promise<
   let debugInfo: BuildInfo | undefined;
   if (built) {
     const mainPath = path.basename(input);
-    debugInfo = { listings: built.result.listings, symbols, mainPath, paths: [mainPath] };
+    debugInfo = { ...buildProducts(built.result), mainPath, paths: [mainPath] };
   }
   return { target, source: input, romFile, built, symbols, debugInfo };
 }

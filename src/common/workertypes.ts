@@ -203,6 +203,18 @@ export interface WorkerOutputResult<T> {
   origin?: number
 }
 
+/**
+ * What a build produces for the debugger and the memory map, besides the ROM.
+ * Types that carry a build's products extend this, and `buildProducts` copies
+ * them, so a new field is added here and in that function only.
+ */
+export type BuildProducts = Pick<WorkerOutputResult<unknown>, 'listings' | 'symbolmap' | 'symbolsizes' | 'segments'>;
+
+export function buildProducts(r: BuildProducts): BuildProducts {
+  const { listings, symbolmap, symbolsizes, segments } = r;
+  return { listings, symbolmap, symbolsizes, segments };
+}
+
 export function isUnchanged(result: WorkerResult) : result is WorkerUnchangedResult {
   return ('unchanged' in result);
 }

@@ -5,7 +5,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { WorkerResult, WorkerErrorResult, WorkerMessage, BuildArgLists, BuildSymbolLists, FileData } from "../common/workertypes";
+import type { WorkerResult, WorkerErrorResult, WorkerMessage, BuildArgLists, BuildSymbolLists, FileData, BuildProducts } from "../common/workertypes";
+import { buildProducts } from "../common/workertypes";
 import { isProbablyBinary, getBasePlatform } from "../common/util";
 import { getToolForPlatform } from "../common/toolselect";
 import { FileProvider, buildWorkerMessage, resolveDependencies } from "../common/projectcore";
@@ -30,13 +31,10 @@ export interface CompileOptions {
   buildArgs?: BuildArgLists;
 }
 
-export interface CompileResult {
+export interface CompileResult extends BuildProducts {
   success: boolean;
   output?: Uint8Array | any;
   errors?: { line: number; msg: string; path?: string }[];
-  listings?: any;
-  symbolmap?: any;
-  segments?: any;
   params?: any;
   unchanged?: boolean;
   /** every file the build read, by worker filename (verilog's $readmem reads them at load time) */
@@ -223,10 +221,8 @@ function workerResultToCompileResult(result: WorkerResult): CompileResult {
     return {
       success: true,
       output: result.output,
-      listings: (result as any).listings,
-      symbolmap: (result as any).symbolmap,
-      segments: (result as any).segments,
       params: (result as any).params,
+      ...buildProducts(result),
     };
   }
   return { success: false, errors: [{ line: 0, msg: 'Unknown result format' }] };

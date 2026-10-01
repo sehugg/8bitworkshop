@@ -49,6 +49,7 @@ exports.EmuDebugSession = void 0;
 const debugadapter_1 = require("@vscode/debugadapter");
 const path = __importStar(require("path"));
 const util_1 = require("../common/util");
+const symbolvalue_1 = require("../common/symbols/symbolvalue");
 const THREAD_ID = 1;
 const REGISTERS_REF = 1;
 const SYMBOLS_REF = 2;
@@ -79,8 +80,6 @@ class EmuDebugSession extends debugadapter_1.LoggingDebugSession {
         /** disassembly listings by sourceReference, and each one's reference by its text */
         this.listings = [];
         this.listingRefs = new Map();
-        this.clientMemoryEvents = false;
-        this.clientInvalidatedEvents = false;
         this.setDebuggerLinesStartAt1(true);
         this.setDebuggerColumnsStartAt1(true);
         this.launched = new Promise(resolve => this.resolveLaunched = resolve);
@@ -88,21 +87,17 @@ class EmuDebugSession extends debugadapter_1.LoggingDebugSession {
         (_a = backend.onOutput) === null || _a === void 0 ? void 0 : _a.call(backend, text => this.sendEvent(new debugadapter_1.OutputEvent(text, 'console')));
     }
     initializeRequest(response, args) {
-        this.clientMemoryEvents = !!args.supportsMemoryEvent;
-        this.clientInvalidatedEvents = !!args.supportsInvalidatedEvent;
         response.body = {
             supportsConfigurationDoneRequest: true,
             supportsConditionalBreakpoints: true,
             supportsFunctionBreakpoints: true,
             supportsInstructionBreakpoints: true,
             supportsSteppingGranularity: true,
-            supportsReadMemoryRequest: true,
             supportsDisassembleRequest: true,
             supportsEvaluateForHovers: true,
             supportsTerminateRequest: true,
             // until launch says whether this platform can
             supportsStepBack: false,
-            supportsWriteMemoryRequest: false,
         };
         this.sendResponse(response);
     }
@@ -112,8 +107,8 @@ class EmuDebugSession extends debugadapter_1.LoggingDebugSession {
             this.root = r.root;
             this.stopOnEntry = !!args.stopOnEntry;
             this.hasTree = r.capabilities.tree;
-            if (r.capabilities.rewind || r.capabilities.write) {
-                this.sendEvent(new debugadapter_1.CapabilitiesEvent({ supportsStepBack: r.capabilities.rewind, supportsWriteMemoryRequest: r.capabilities.write }));
+            if (r.capabilities.rewind) {
+                this.sendEvent(new debugadapter_1.CapabilitiesEvent({ supportsStepBack: r.capabilities.rewind }));
             }
             if (!r.capabilities.step) {
                 this.sendEvent(new debugadapter_1.OutputEvent(`This platform stops only between frames: stepping and breakpoints are frame by frame.\n`, 'console'));
@@ -231,9 +226,6 @@ class EmuDebugSession extends debugadapter_1.LoggingDebugSession {
         if (e.breakpoints)
             ev.body.hitBreakpointIds = e.breakpoints;
         this.sendEvent(ev);
-        // anything showing memory reads it again
-        if (this.clientMemoryEvents)
-            this.sendEvent(new debugadapter_1.MemoryEvent(addressRef(0), 0, 0x10000));
     }
     //// where it is
     threadsRequest(response) {
@@ -343,13 +335,11 @@ class EmuDebugSession extends debugadapter_1.LoggingDebugSession {
     async variables(ref) {
         if (ref === REGISTERS_REF) {
             const regs = await this.backend.registers();
-            return regs.map(r => ({ name: r.name, value: r.text, variablesReference: 0, memoryReference: addressRef(r.value) }));
+            return regs.map(r => ({ name: r.name, value: r.text, variablesReference: 0 }));
         }
         if (ref === SYMBOLS_REF) {
             const syms = await this.backend.symbols();
-            return syms.map(s => ({
-                name: s.name, value: `$${(0, util_1.hex)(s.addr, 4)}: $${(0, util_1.hex)(s.value, 2)}`, variablesReference: 0, memoryReference: addressRef(s.addr),
-            }));
+            return syms.map(s => ({ name: s.name, value: (0, symbolvalue_1.formatSymbolValue)(s), variablesReference: 0 }));
         }
         const path = this.treeRefs[ref - FIRST_TREE_REF];
         if (!path)
@@ -368,23 +358,6 @@ class EmuDebugSession extends debugadapter_1.LoggingDebugSession {
             this.treeRefByPath.set(key, ref);
         }
         return ref;
-    }
-    async readMemoryRequest(response, args) {
-        await this.run(response, async () => {
-            const addr = parseAddress(args.memoryReference) + (args.offset || 0);
-            const bytes = await this.backend.readMemory(addr, Math.min(args.count, 0x10000));
-            response.body = { address: addressRef(addr), data: Buffer.from(bytes).toString('base64') };
-        });
-    }
-    async writeMemoryRequest(response, args) {
-        await this.run(response, async () => {
-            const addr = parseAddress(args.memoryReference) + (args.offset || 0);
-            const bytes = [...Buffer.from(args.data, 'base64')];
-            response.body = { bytesWritten: await this.backend.writeMemory(addr, bytes) };
-            // the symbols and the machine may show what changed
-            if (this.clientInvalidatedEvents)
-                this.sendEvent(new debugadapter_1.InvalidatedEvent(['variables']));
-        });
     }
     async disassembleRequest(response, args) {
         await this.run(response, async () => {
@@ -411,8 +384,6 @@ class EmuDebugSession extends debugadapter_1.LoggingDebugSession {
         await this.run(response, async () => {
             const r = await this.backend.evaluate(args.expression, args.context || 'repl');
             response.body = { result: r.result, variablesReference: 0 };
-            if (r.value != null)
-                response.body.memoryReference = addressRef(r.value);
             if (r.moved)
                 this.stopped(Object.assign(Object.assign({}, (await this.backend.location())), { reason: 'goto' }));
         });

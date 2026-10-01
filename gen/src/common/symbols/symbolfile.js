@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseSymbolFile = parseSymbolFile;
 exports.lookupSymbol = lookupSymbol;
+exports.resolveSymbolName = resolveSymbolName;
 /** Parse a cc65/ca65 or VICE label file into a symbol map. */
 function parseSymbolFile(text) {
     const symbols = {};
@@ -21,15 +22,20 @@ function parseSymbolFile(text) {
  * '.' (VICE labels).
  */
 function lookupSymbol(symbols, name) {
+    const key = resolveSymbolName(symbols, name);
+    return key == null ? undefined : symbols[key];
+}
+/** The key of `symbols` that `lookupSymbol` finds for `name`, if any. */
+function resolveSymbolName(symbols, name) {
     if (!symbols)
         return undefined;
     if (name in symbols)
-        return symbols[name];
+        return name;
     if ('_' + name in symbols)
-        return symbols['_' + name];
+        return '_' + name;
     const bare = name.replace(/^\./, '');
     if (bare !== name && bare in symbols)
-        return symbols[bare];
+        return bare;
     return undefined;
 }
 //# sourceMappingURL=symbolfile.js.map

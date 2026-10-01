@@ -51,6 +51,7 @@ exports.ab2str = ab2str;
 exports.createMockLocalStorage = createMockLocalStorage;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const workertypes_1 = require("../common/workertypes");
 const util_1 = require("../common/util");
 const toolselect_1 = require("../common/toolselect");
 const projectcore_1 = require("../common/projectcore");
@@ -235,14 +236,7 @@ function workerResultToCompileResult(result) {
         };
     }
     if ('output' in result) {
-        return {
-            success: true,
-            output: result.output,
-            listings: result.listings,
-            symbolmap: result.symbolmap,
-            segments: result.segments,
-            params: result.params,
-        };
+        return Object.assign({ success: true, output: result.output, params: result.params }, (0, workertypes_1.buildProducts)(result));
     }
     return { success: false, errors: [{ line: 0, msg: 'Unknown result format' }] };
 }

@@ -13,7 +13,7 @@ import { DEFAULT_MAX_FRAMES, EmuCore } from "./emucore";
 import { getListingForFile, processListings, stripLocalPath } from "./projectcore";
 import { Timestamp, timestamp, timestampsEqual } from "./timeline";
 import { getFilenameForPath, getFilenamePrefix } from "./util";
-import { CodeListingMap, SourceFile, SourceLine, SourceLocation } from "./workertypes";
+import { BuildProducts, CodeListingMap, SourceFile, SourceLine, SourceLocation } from "./workertypes";
 
 export type StopReason = 'breakpoint' | 'step' | 'pause' | 'goto' | 'entry' | 'halt' | 'exception';
 
@@ -40,6 +40,8 @@ export interface DebugLocation {
 export interface DebugContext extends BreakpointContext {
   /** the source line a PC belongs to */
   sourceAt?(pc: number): (SourceLocation & { path: string }) | null;
+  /** name -> size in bytes, for the symbols the toolchain sized */
+  symbolsizes?: { [name: string]: number };
 }
 
 export type StepGranularity = 'line' | 'instruction';
@@ -369,16 +371,18 @@ function sameLine(a: SourceLocation, b: SourceLocation): boolean {
   return a.line === b.line && a.path === b.path;
 }
 
+/** A build's products, and the project files they came from. */
+export interface BuildInfo extends BuildProducts {
+  mainPath: string;
+  /** the project files, which name the source a listing came from */
+  paths?: string[];
+}
+
 /**
  * A DebugContext from a build: source lines from its listings, and symbols.
  * `paths` are the project files, which name the source a listing came from.
  */
-export function buildDebugContext(build: {
-  listings?: CodeListingMap,
-  symbols?: { [name: string]: number },
-  mainPath: string,
-  paths?: string[],
-}): DebugContext {
+export function buildDebugContext(build: BuildInfo): DebugContext {
   const listings = build.listings || {};
   // listings that came over an RPC have lost their SourceFile methods
   if (Object.values(listings).some(l => l.lines && !(l.sourcefile instanceof SourceFile))) processListings(listings);
@@ -387,9 +391,10 @@ export function buildDebugContext(build: {
     const want = getFilenamePrefix(getFilenameForPath(stripLocalPath(name, build.mainPath)));
     return paths.find(p => getFilenamePrefix(getFilenameForPath(p)) === want) || name;
   };
-  const symbolAddrs = [...new Set(Object.values(build.symbols || {}))].sort((a, b) => a - b);
+  const symbolAddrs = [...new Set(Object.values(build.symbolmap || {}))].sort((a, b) => a - b);
   return {
-    symbols: build.symbols,
+    symbols: build.symbolmap,
+    symbolsizes: build.symbolsizes,
     getListingForFile: path => getListingForFile(listings, path, build.mainPath),
     sourceAt(pc: number) {
       const fnStart = lastAtOrBefore(symbolAddrs, pc);

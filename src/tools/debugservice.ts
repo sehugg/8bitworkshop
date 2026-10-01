@@ -10,8 +10,9 @@ import { Breakpoint, makeCondContext } from '../common/breakpoints';
 import { compileExpression } from '../common/breakcond';
 import { TreeEntry, treeChildren } from '../common/debugtree';
 import { walkStack } from '../common/stackwalk';
-import { buildDebugContext, DebugController, DebugLocation, StepGranularity, StopEvent } from '../common/debugcontroller';
-import { lookupSymbol } from '../common/symbols/symbolfile';
+import { buildDebugContext, BuildInfo, DebugController, DebugLocation, StepGranularity, StopEvent } from '../common/debugcontroller';
+import { resolveSymbolName } from '../common/symbols/symbolfile';
+import { formatSymbolValue, MAX_SYMBOL_BYTES, SymbolValue } from '../common/symbols/symbolvalue';
 import { Granularity, Timestamp } from '../common/timeline';
 import { hex } from '../common/util';
 import type { CodeListingMap } from '../common/workertypes';
@@ -48,13 +49,6 @@ export interface RegisterValue {
   text: string;
 }
 
-export interface SymbolValue {
-  name: string;
-  addr: number;
-  /** the byte there */
-  value: number;
-}
-
 export interface CallStackFrame {
   /** the PC, or for callers, the address of the call */
   pc: number;
@@ -80,18 +74,13 @@ export interface EvalResult {
   moved?: boolean;
 }
 
+export type { BuildInfo };
+
 export interface TimelineInfo {
   first: number;
   last: number;
   now: Timestamp;
   past: boolean;
-}
-
-export interface BuildInfo {
-  listings?: CodeListingMap;
-  symbols?: { [name: string]: number };
-  mainPath: string;
-  paths?: string[];
 }
 
 // how far before an address to start disassembling, per instruction wanted
@@ -230,12 +219,19 @@ export class DebugService {
     return treeChildren(tree, path);
   }
 
-  /** The build's symbols, by name, with the byte at each. */
+  /** One symbol with the bytes at it (the first byte if its size is unknown). */
+  private symbolValue(name: string): SymbolValue {
+    const addr = this.debug.context.symbols[name];
+    const size = this.debug.context.symbolsizes?.[name] > 0 ? this.debug.context.symbolsizes[name] : undefined;
+    const bytes = this.readMemory(addr, Math.min(size || 1, MAX_SYMBOL_BYTES));
+    return { name, addr, value: bytes[0], size, bytes };
+  }
+
+  /** The build's symbols, by name. */
   symbols(): SymbolValue[] {
-    const syms = this.debug.context.symbols || {};
-    return Object.keys(syms)
+    return Object.keys(this.debug.context.symbols || {})
       .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
-      .map(name => ({ name, addr: syms[name], value: this.target.read(syms[name] & 0xffff) & 0xff }));
+      .map(name => this.symbolValue(name));
   }
 
   /**
@@ -287,16 +283,19 @@ export class DebugService {
   /**
    * `repl`: a run-script command line (`mem $200 16`, `back 3`, `help`).
    * Anything else: an expression, as in a breakpoint condition (`[score]`,
-   * `A`, `#mem16[ptr]`), or a symbol.
+   * `A`, `#mem16[ptr]`), or a symbol (shown with its contents).
    */
   evaluate(expr: string, context: string): EvalResult {
     expr = expr.trim();
     if (context === 'repl') return this.runScript(expr);
+    // a symbol shows what is stored there, with `value` its address
+    const name = resolveSymbolName(this.debug.context.symbols, expr);
+    if (name != null) {
+      const sym = this.symbolValue(name);
+      return { result: formatSymbolValue(sym), value: sym.addr };
+    }
     const ctx = makeCondContext(this.debug.context);
-    let value: number;
-    const sym = lookupSymbol(this.debug.context.symbols, expr);
-    if (sym != null) value = sym;
-    else value = compileExpression(expr, ctx)(this.target.getCPUState());
+    const value = compileExpression(expr, ctx)(this.target.getCPUState());
     if (typeof value !== 'number' || isNaN(value)) throw new Error(`'${expr}' has no value`);
     return { result: `$${hex(value, value > 0xff ? 4 : 2)} (${value})`, value };
   }

@@ -19,16 +19,15 @@ async function launch(args = {}) {
         const target = await (0, emutarget_1.loadPlatform)('mw8080bw');
         await target.start();
         await target.loadROM(build.output);
-        return { target, root: ROOT, debugInfo: { listings: build.listings, symbols: build.symbolmap, mainPath: 'game2.c' } };
+        return { target, root: ROOT, debugInfo: { listings: build.listings, symbolmap: build.symbolmap, symbolsizes: { _draw_char: 4, _main: 100 }, mainPath: 'game2.c' } };
     });
     const c = new dapclient_1.DapClient(new dapsession_1.EmuDebugSession(backend));
-    const caps = await c.request('initialize', { adapterID: '8bitworkshop', linesStartAt1: true, columnsStartAt1: true, pathFormat: 'path', supportsMemoryEvent: true, supportsInvalidatedEvent: true });
+    const caps = await c.request('initialize', { adapterID: '8bitworkshop', linesStartAt1: true, columnsStartAt1: true, pathFormat: 'path' });
     assert_1.default.ok(caps.supportsDisassembleRequest);
     await c.request('launch', Object.assign({ program: 'game2.c' }, args));
     await c.event('initialized');
     const { capabilities } = await c.event('capabilities');
     assert_1.default.strictEqual(capabilities.supportsStepBack, true);
-    assert_1.default.strictEqual(capabilities.supportsWriteMemoryRequest, true);
     return c;
 }
 (0, mocha_1.describe)('Debug adapter', function () {
@@ -79,19 +78,16 @@ async function launch(args = {}) {
         const { variables } = await c.request('variables', { variablesReference: scopes[0].variablesReference });
         const reg = variables.find((v) => v.name === 'PC');
         assert_1.default.strictEqual(parseInt(reg.value.slice(1), 16), pc);
-        const mem = await c.request('readMemory', { memoryReference: frame.instructionPointerReference, count: 4 });
-        assert_1.default.strictEqual(Buffer.from(mem.data, 'base64').length, 4);
         const { instructions } = await c.request('disassemble', { memoryReference: frame.instructionPointerReference, instructionOffset: -3, instructionCount: 6 });
         assert_1.default.strictEqual(instructions.length, 6);
         assert_1.default.strictEqual(parseInt(instructions[3].address, 16), pc);
         assert_1.default.strictEqual(instructions[3].symbol, '_draw_char');
     });
-    (0, mocha_1.it)('shows the machine tree and symbols, and writes memory', async function () {
+    (0, mocha_1.it)('shows the machine tree and symbols', async function () {
         const c = await launch();
         await c.request('setFunctionBreakpoints', { breakpoints: [{ name: 'draw_char' }] });
         await c.request('configurationDone');
         await c.event('stopped');
-        await c.event('memory');
         const frame = await c.where();
         const { scopes } = await c.request('scopes', { frameId: frame.id });
         assert_1.default.deepStrictEqual(scopes.map((s) => s.name), ['Registers', 'Machine', 'Symbols']);
@@ -100,16 +96,12 @@ async function launch(args = {}) {
         assert_1.default.ok(state.variablesReference);
         const stateVars = await c.request('variables', { variablesReference: state.variablesReference });
         assert_1.default.ok(stateVars.variables.find((v) => v.name === 'c'), 'CPU state under state');
-        const addr = build.symbolmap['_draw_char'];
         const syms = await c.request('variables', { variablesReference: scopes[2].variablesReference });
         const sym = syms.variables.find((v) => v.name === '_draw_char');
-        assert_1.default.strictEqual(parseInt(sym.memoryReference, 16), addr);
-        // video RAM
-        const { bytesWritten } = await c.request('writeMemory', { memoryReference: '0x2400', data: Buffer.from([0x12, 0x34]).toString('base64') });
-        assert_1.default.strictEqual(bytesWritten, 2);
-        await c.event('invalidated');
-        const mem = await c.request('readMemory', { memoryReference: '0x2400', count: 2 });
-        assert_1.default.deepStrictEqual([...Buffer.from(mem.data, 'base64')], [0x12, 0x34]);
+        assert_1.default.ok(sym.value.includes('$' + build.symbolmap['_draw_char'].toString(16).padStart(4, '0').toUpperCase()), 'symbol shows its address');
+        assert_1.default.match(sym.value, /\[4\]: ([0-9A-F]{2} ){3}[0-9A-F]{2}$/, 'a sized symbol shows all its bytes');
+        const big = syms.variables.find((v) => v.name === '_main');
+        assert_1.default.match(big.value, /\[100\]: ([0-9A-F]{2} ){31}[0-9A-F]{2} \.\.\.$/, 'a big symbol shows a prefix');
     });
     (0, mocha_1.it)('runs run-script commands in the Debug Console, and expressions in watches', async function () {
         const c = await launch();
@@ -118,6 +110,8 @@ async function launch(args = {}) {
         await c.event('stopped');
         const hover = await c.request('evaluate', { expression: 'SP', context: 'hover' });
         assert_1.default.match(hover.result, /^\$[0-9A-F]{4} \(\d+\)$/);
+        const symHover = await c.request('evaluate', { expression: 'draw_char', context: 'hover' });
+        assert_1.default.match(symHover.result, /^\$[0-9A-F]{4}\[4\]: ([0-9A-F]{2} ){3}[0-9A-F]{2}$/, 'a symbol hovers as its contents');
         const back = await c.request('evaluate', { expression: 'back 3', context: 'repl' });
         assert_1.default.match(back.result, /back 3: PC=/);
         assert_1.default.strictEqual((await c.event('stopped')).reason, 'goto');

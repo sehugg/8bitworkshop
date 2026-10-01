@@ -8095,6 +8095,21 @@
       args.push("-b", `_CODE_${n}=0x${(n << 16 | banking.window).toString(16)}`);
     return args;
   }
+  function inferSymbolSizes(symbolmap, segments) {
+    var _a;
+    const names = Object.keys(symbolmap).filter((n) => !/^[sl]__/.test(n) && !n.includes("$"));
+    const sizes = {};
+    for (const seg of segments) {
+      const end = seg.start + seg.size;
+      const inseg = names.filter((n) => symbolmap[n] >= seg.start && symbolmap[n] < end);
+      const addrs = [...new Set(inseg.map((n) => symbolmap[n]))].sort((a, b) => a - b);
+      for (const n of inseg) {
+        const next = (_a = addrs[addrs.indexOf(symbolmap[n]) + 1]) != null ? _a : end;
+        sizes[n] = next - symbolmap[n];
+      }
+    }
+    return sizes;
+  }
   function parseIHX(ihx, rom_start, rom_size, errors, banking) {
     var output = new Uint8Array(new ArrayBuffer(rom_size));
     var upper = 0;
@@ -8344,6 +8359,7 @@
         listings,
         errors,
         symbolmap,
+        symbolsizes: inferSymbolSizes(symbolmap, segments),
         segments
       };
     }
@@ -9874,6 +9890,13 @@ b${f[1]} == ${m[1]}`);
     };
   }
   function compileCMOC(step) {
+    if (/\.(asm|s)$/i.test(step.path)) {
+      return { errors: [{
+        line: 0,
+        path: step.path,
+        msg: "cmoc compiles C; name assembly files .xasm (xasm6809) or .lwasm (lwasm)"
+      }] };
+    }
     loadNative("cmoc");
     var params = step.params;
     var re_err1 = /^[/]*([^:]*):(\d+): (.+)$/;

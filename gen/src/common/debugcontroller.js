@@ -345,9 +345,10 @@ function buildDebugContext(build) {
         const want = (0, util_1.getFilenamePrefix)((0, util_1.getFilenameForPath)((0, projectcore_1.stripLocalPath)(name, build.mainPath)));
         return paths.find(p => (0, util_1.getFilenamePrefix)((0, util_1.getFilenameForPath)(p)) === want) || name;
     };
-    const symbolAddrs = [...new Set(Object.values(build.symbols || {}))].sort((a, b) => a - b);
+    const symbolAddrs = [...new Set(Object.values(build.symbolmap || {}))].sort((a, b) => a - b);
     return {
-        symbols: build.symbols,
+        symbols: build.symbolmap,
+        symbolsizes: build.symbolsizes,
         getListingForFile: path => (0, projectcore_1.getListingForFile)(listings, path, build.mainPath),
         sourceAt(pc) {
             const fnStart = lastAtOrBefore(symbolAddrs, pc);
