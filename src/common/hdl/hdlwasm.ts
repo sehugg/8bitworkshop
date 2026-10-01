@@ -185,7 +185,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
     getFileData = null;
     maxMemoryMB: number;
     optimize: boolean = false;
-    maxEvalIterations: number = 8;
+    maxEvalIterations: number = 100; // same as HDLModuleJS and Verilator
 
     state: any;
     statebytes: number;
@@ -245,7 +245,9 @@ export class HDLModuleWASM implements HDLModuleRunner {
     }
 
     eval() {
-        (this.instance.exports as any).eval(GLOBALOFS);
+        if ((this.instance.exports as any).eval(GLOBALOFS)) {
+            throw new HDLError(null, `model did not converge on eval()`);
+        }
     }
 
     tick() {
@@ -254,7 +256,9 @@ export class HDLModuleWASM implements HDLModuleRunner {
     }
 
     tick2(iters: number) {
-        (this.instance.exports as any).tick2(GLOBALOFS, iters);
+        if ((this.instance.exports as any).tick2(GLOBALOFS, iters)) {
+            throw new HDLError(null, `model did not converge on eval()`);
+        }
     }
 
     isFinished() { return this.finished; }
@@ -680,13 +684,13 @@ export class HDLModuleWASM implements HDLModuleRunner {
             //var v_count = m.local.get(1, binaryen.i32);
             m.addFunction("tick2",
                 binaryen.createType([binaryen.i32, binaryen.i32]),
-                binaryen.none,
-                [],
-                m.loop(l_loop, m.block(null, [
+                binaryen.i32, // nonzero if eval() failed to converge
+                [binaryen.i32], // $2 = accumulated eval() result
+                m.block(null, [m.loop(l_loop, m.block(null, [
                     this.makeSetVariableFunction("clk", 0),
-                    m.drop(m.call("eval", [v_dseg], binaryen.i32)),
+                    m.local.set(2, m.i32.or(m.local.get(2, binaryen.i32), m.call("eval", [v_dseg], binaryen.i32))),
                     this.makeSetVariableFunction("clk", 1),
-                    m.drop(m.call("eval", [v_dseg], binaryen.i32)),
+                    m.local.set(2, m.i32.or(m.local.get(2, binaryen.i32), m.call("eval", [v_dseg], binaryen.i32))),
                     // call copyTraceRec
                     m.call("copyTraceRec", [], binaryen.none),
                     // goto @loop if ($1 = $1 - 1)
@@ -696,7 +700,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
                                 m.local.get(1, binaryen.i32),
                                 m.i32.const(1)
                             ), binaryen.i32))
-                ]))
+                ])), m.local.get(2, binaryen.i32)], binaryen.i32)
             );
             m.addFunctionExport("tick2", "tick2");
         } else {
@@ -730,13 +734,13 @@ export class HDLModuleWASM implements HDLModuleRunner {
     private makeTickFuncBody(count: number) {
         var dseg = this.bmod.local.get(0, binaryen.i32);
         if (count > this.maxEvalIterations)
-            return this.bmod.i32.const(count);
+            return this.bmod.i32.const(1); // did not converge
         return this.bmod.block(null, [
             this.bmod.call("_eval", [dseg], binaryen.none),
             this.bmod.if(
                 this.bmod.call("_change_request", [dseg], binaryen.i32),
                 this.makeTickFuncBody(count+1),
-                this.bmod.return(this.bmod.local.get(0, binaryen.i32))
+                this.bmod.return(this.bmod.i32.const(0))
             )
         ], binaryen.i32)
     }

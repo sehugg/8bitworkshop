@@ -102,6 +102,7 @@ const SKIP_PLATFORMS = [
     'williams-defender',
     'astrocade-arcade',
     'mcr',
+    'vectrex',
 ];
 
 // Load every platform module so it registers itself in PLATFORMS. A couple of

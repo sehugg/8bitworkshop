@@ -202,7 +202,6 @@ class DebugBrowserView extends TreeViewBase {
     getRootObject() { return ui_1.platform.getDebugTree(); }
 }
 exports.DebugBrowserView = DebugBrowserView;
-// TODO: clear stack data when reset?
 class CallGraphView extends debugviews_1.ProbeViewBaseBase {
     constructor() {
         super(...arguments);
@@ -226,6 +225,12 @@ class CallGraphView extends debugviews_1.ProbeViewBaseBase {
     clear() {
         this.builder.clear();
         this.kinds.clear();
+    }
+    /** Machine reset: the old call stack and profile no longer apply. */
+    reset() {
+        this.builder.clear();
+        if (this.probe)
+            this.probe.clear();
     }
     /** Call, return or neither, from the disassembly (cached: code rarely changes). */
     classify(pc) {
@@ -262,11 +267,10 @@ class CallGraphView extends debugviews_1.ProbeViewBaseBase {
     callees(node, base) {
         const out = {};
         for (const [name, c] of Object.entries(node.calls)) {
-            let text = c.count + "x  " + c.total + " clk (" + (100 * c.total / base).toFixed(1) + "%)";
-            if (c.self != c.total)
-                text += "  self " + c.self;
+            // count, share of total, clocks (total/self), scanlines
+            let text = c.count + "x " + (100 * c.total / base).toFixed(1) + "% " + c.total + (c.self != c.total ? "/" + c.self : "");
             if (c.startLine != null)
-                text += "  line " + c.startLine + (c.endLine != null ? "-" + c.endLine : "");
+                text += " @" + c.startLine + (c.endLine != null && c.endLine != c.startLine ? "-" + c.endLine : "");
             out[name] = Object.assign({ $$text: text }, this.callees(c, base));
         }
         return out;

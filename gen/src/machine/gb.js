@@ -37,8 +37,6 @@ var GB_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
     [emu_1.Keys.GP_B, 0, 0x20],
     [emu_1.Keys.SELECT, 0, 0x40],
     [emu_1.Keys.START, 0, 0x80],
-    [emu_1.Keys.VK_ENTER, 0, 0x80], // Start
-    [emu_1.Keys.VK_SHIFT, 0, 0x40], // Select
 ]);
 // Duty cycle waveforms for square wave channels (8 steps each)
 const DUTY_TABLE = [

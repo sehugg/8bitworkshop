@@ -105,6 +105,7 @@ const SKIP_PLATFORMS = [
     'williams-defender',
     'astrocade-arcade',
     'mcr',
+    'vectrex',
 ];
 // Load every platform module so it registers itself in PLATFORMS. A couple of
 // them touch the DOM at import time and can't run here; they're reported

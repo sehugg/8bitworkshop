@@ -1574,6 +1574,7 @@ function clearBreakpoint() {
 function resetPlatform() {
     exports.platform.reset();
     _resetRecording();
+    exports.projectWindows.resetViews();
 }
 function resetAndRun() {
     if (!checkRunReady())
