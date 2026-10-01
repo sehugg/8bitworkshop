@@ -17,7 +17,7 @@ async function open(): Promise<{ t: EmuTarget, dc: DebugController }> {
   const t = await loadPlatform('mw8080bw');
   await t.start();
   await t.loadROM(build.output);
-  const dc = new DebugController(t, buildDebugContext({ listings: build.listings, symbols: build.symbolmap, mainPath: 'game2.c' }));
+  const dc = new DebugController(t, buildDebugContext({ listings: build.listings, symbolmap: build.symbolmap, mainPath: 'game2.c' }));
   return { t, dc };
 }
 

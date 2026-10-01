@@ -19,6 +19,7 @@ import { BuildReason, BuildScheduler } from './autobuild';
 import { PRESET_SCHEME, PresetFileSystem, Templates } from './templates';
 import { chooseForFile, detectDirectoryAt, detectionSummary, describeDetection, describeFinding, dontAskKey, FolderFinding, platformName, scanFolder } from './detection';
 import { Detection, classifyFinding, isBuildableSource } from '../../src/common/detect';
+import { buildProducts } from '../../src/common/workertypes';
 import { TOOL_META } from '../../src/common/toolmeta';
 import { ASSET_URLS, AssetStore } from './assets';
 import { projectReadme, writeLauncher } from './terminalcli';
@@ -398,7 +399,7 @@ async function runScriptHeadless(target: Target, build: BuildOutcome, script: st
     var run = async () => {
       await worker.call('start', target.platform, build.output, build.files, { paused: true });
       var mainPath = path.posix.basename(target.main.path);
-      return worker.call<ScriptResult>('script', script, { listings: build.listings, symbols: build.symbolmap, mainPath, paths: build.paths });
+      return worker.call<ScriptResult>('script', script, { ...buildProducts(build), mainPath, paths: build.paths });
     };
     return await Promise.race([run(), stop]);
   } finally {
@@ -1426,6 +1427,6 @@ async function launchForDebug(folder: vscode.WorkspaceFolder | undefined, args: 
   if (!result.output) throw new Error('the build produced no ROM to run');
   if (!await startEmulator(target, result, { paused: true })) throw new Error('the emulator failed to start; see Output');
   var mainPath = path.posix.basename(target.main.path);
-  await emu!.call('debug', 'setBuild', { listings: result.listings, symbols: result.symbolmap, symbolsizes: result.symbolsizes, mainPath, paths: result.paths });
+  await emu!.call('debug', 'setBuild', { ...buildProducts(result), mainPath, paths: result.paths });
   return { root: path.dirname(target.main.fsPath) };
 }

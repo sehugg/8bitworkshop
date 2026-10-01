@@ -10,7 +10,7 @@ import { Breakpoint, makeCondContext } from '../common/breakpoints';
 import { compileExpression } from '../common/breakcond';
 import { TreeEntry, treeChildren } from '../common/debugtree';
 import { walkStack } from '../common/stackwalk';
-import { buildDebugContext, DebugController, DebugLocation, StepGranularity, StopEvent } from '../common/debugcontroller';
+import { buildDebugContext, BuildInfo, DebugController, DebugLocation, StepGranularity, StopEvent } from '../common/debugcontroller';
 import { resolveSymbolName } from '../common/symbols/symbolfile';
 import { formatSymbolValue, MAX_SYMBOL_BYTES, SymbolValue } from '../common/symbols/symbolvalue';
 import { Granularity, Timestamp } from '../common/timeline';
@@ -74,19 +74,13 @@ export interface EvalResult {
   moved?: boolean;
 }
 
+export type { BuildInfo };
+
 export interface TimelineInfo {
   first: number;
   last: number;
   now: Timestamp;
   past: boolean;
-}
-
-export interface BuildInfo {
-  listings?: CodeListingMap;
-  symbols?: { [name: string]: number };
-  symbolsizes?: { [name: string]: number };
-  mainPath: string;
-  paths?: string[];
 }
 
 // how far before an address to start disassembling, per instruction wanted

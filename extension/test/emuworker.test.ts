@@ -160,7 +160,7 @@ describe('extension emuworker', function () {
       files: new ProjectFileProvider(read, ROOT, 'nes'),
     });
     await rpc.call('start', 'nes', nes.output, nes.files, { paused: true });
-    var build = { listings: nes.listings, symbols: nes.symbolmap, mainPath: 'attributes.c', paths: nes.paths };
+    var build = { listings: nes.listings, symbolmap: nes.symbolmap, mainPath: 'attributes.c', paths: nes.paths };
     var r = await rpc.call<ScriptResult>('script', 'run 30; mem main 4', build);
     assert.equal(r.error, undefined);
     assert.equal(r.frame, 30);
@@ -251,7 +251,7 @@ describe('extension emuworker', function () {
     it('starts stopped, then stops at a source breakpoint, steps, and steps back', async function () {
       var s = await rpc.call<EmuStatus>('start', 'mw8080bw', built.output, built.files, { paused: true });
       assert.equal(s.state, 'paused');
-      await debug('setBuild', { listings: built.listings, symbols: built.symbolmap, mainPath: 'game2.c', paths: built.paths });
+      await debug('setBuild', { listings: built.listings, symbolmap: built.symbolmap, mainPath: 'game2.c', paths: built.paths });
       var [bp] = await debug('setBreakpoints', [{ id: 1, type: 'source', file: 'game2.c', line: 166, enabled: true }]);
       assert.ok(bp.verified, bp.message);
       await debug('continue');
@@ -280,7 +280,7 @@ describe('extension emuworker', function () {
       });
       assert.deepEqual(nes.diagnostics, []);
       await rpc.call('start', 'nes', nes.output, nes.files, { paused: true });
-      await debug('setBuild', { listings: nes.listings, symbols: nes.symbolmap, mainPath: 'hello.c', paths: nes.paths });
+      await debug('setBuild', { listings: nes.listings, symbolmap: nes.symbolmap, mainPath: 'hello.c', paths: nes.paths });
       var [bp] = await debug('setBreakpoints', [{ id: 1, type: 'source', file: 'hello.c', line: 19, enabled: true }]);
       assert.ok(bp.verified, bp.message);
       await debug('continue');
@@ -306,7 +306,7 @@ describe('extension emuworker', function () {
         files: new ProjectFileProvider(read, ROOT, 'nes'),
       });
       await rpc.call('start', 'nes', nes.output, nes.files, { paused: true });
-      await debug('setBuild', { listings: nes.listings, symbols: nes.symbolmap, mainPath: 'scroll.c', paths: nes.paths });
+      await debug('setBuild', { listings: nes.listings, symbolmap: nes.symbolmap, mainPath: 'scroll.c', paths: nes.paths });
       var caps = await debug('capabilities');
       assert.equal(caps.tree, true);
       assert.equal(caps.write, true);
@@ -333,7 +333,7 @@ describe('extension emuworker', function () {
     it('drives the debug adapter through the worker, as the extension does', async function () {
       var backend = new WorkerDebugBackend((method, ...args) => rpc.call('debug', method, ...args), async () => {
         await rpc.call('start', 'mw8080bw', built.output, built.files, { paused: true });
-        await rpc.call('debug', 'setBuild', { listings: built.listings, symbols: built.symbolmap, mainPath: 'game2.c', paths: built.paths });
+        await rpc.call('debug', 'setBuild', { listings: built.listings, symbolmap: built.symbolmap, mainPath: 'game2.c', paths: built.paths });
         return { root: '/proj' };
       }, async () => { });
       rpc.on('stopped', e => backend.handleStop(e));

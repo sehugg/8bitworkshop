@@ -4,7 +4,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { CodeListingMap, FileData, Segment, WorkerError, WorkerErrorResult, WorkerResult } from "../../src/common/workertypes";
+import type { BuildProducts, FileData, WorkerError, WorkerErrorResult, WorkerResult } from "../../src/common/workertypes";
+import { buildProducts } from "../../src/common/workertypes";
 import { toInternalError } from "../../src/common/telemetry";
 import { getBasePlatform, isProbablyBinary } from "../../src/common/util";
 import { getToolForPlatform } from "../../src/common/toolselect";
@@ -33,16 +34,11 @@ export interface BuildDiagnostic {
   msg: string;
 }
 
-export interface BuildOutcome {
+export interface BuildOutcome extends BuildProducts {
   success: boolean;
   tool: string;
   output?: Uint8Array;
   diagnostics: BuildDiagnostic[];
-  listings?: CodeListingMap;
-  symbolmap?: { [sym: string]: number };
-  /** symbol -> size in bytes, for the toolchains that report it */
-  symbolsizes?: { [sym: string]: number };
-  segments?: Segment[];
   /** every project path the build read */
   paths: string[];
   /**
@@ -142,7 +138,7 @@ export class Builder {
       var r = result as any;
       var outcome: BuildOutcome = {
         success: true, tool, paths, files, diagnostics: [],
-        output: r.output, listings: r.listings, symbolmap: r.symbolmap, symbolsizes: r.symbolsizes, segments: r.segments,
+        output: r.output, ...buildProducts(r),
       };
       this.last.set(key, outcome);
       return outcome;

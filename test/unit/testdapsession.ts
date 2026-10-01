@@ -19,7 +19,7 @@ async function launch(args: any = {}): Promise<DapClient> {
     const target = await loadPlatform('mw8080bw');
     await target.start();
     await target.loadROM(build.output);
-    return { target, root: ROOT, debugInfo: { listings: build.listings, symbols: build.symbolmap, symbolsizes: { _draw_char: 4, _main: 100 }, mainPath: 'game2.c' } };
+    return { target, root: ROOT, debugInfo: { listings: build.listings, symbolmap: build.symbolmap, symbolsizes: { _draw_char: 4, _main: 100 }, mainPath: 'game2.c' } };
   });
   const c = new DapClient(new EmuDebugSession(backend));
   const caps = await c.request('initialize', { adapterID: '8bitworkshop', linesStartAt1: true, columnsStartAt1: true, pathFormat: 'path' });
