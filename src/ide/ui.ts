@@ -2587,51 +2587,6 @@ async function loadAndStartPlatform() {
   }
 }
 
-// HTTPS REDIRECT
-
-const useHTTPSCookieName = "__use_https";
-
-function setHTTPSCookie(val: number) {
-  document.cookie = useHTTPSCookieName + "=" + val + ";domain=8bitworkshop.com;path=/;max-age=315360000";
-}
-
-function shouldRedirectHTTPS(): boolean {
-  // cookie set? either true or false
-  var shouldRedir = getCookie(useHTTPSCookieName);
-  if (typeof shouldRedir === 'string') {
-    return !!shouldRedir; // convert to bool
-  }
-  // set a 10yr cookie, value depends on if it's our first time here
-  var val = hasLocalStorage && !localStorage.getItem("__lastplatform") ? 1 : 0;
-  setHTTPSCookie(val);
-  return !!val;
-}
-
-function _switchToHTTPS() {
-  bootbox.confirm('<p>Do you want to force the browser to use HTTPS from now on?</p>' +
-    '<p>WARNING: This will make all of your local files unavailable, so you should "Download All Changes" first for each platform where you have done work.</p>' +
-    '<p>You can go back to HTTP by setting the "' + useHTTPSCookieName + '" cookie to 0.</p>', (ok) => {
-      if (ok) {
-        setHTTPSCookie(1);
-        redirectToHTTPS();
-      }
-    });
-}
-
-function redirectToHTTPS() {
-  if (window.location.protocol == 'http:' && isProductionHost()) {
-    if (shouldRedirectHTTPS()) {
-      uninstallErrorHandler();
-      window.location.replace(window.location.href.replace(/^http:/, 'https:'));
-    } else {
-      $("#item_switch_https").click(_switchToHTTPS).show();
-    }
-  }
-}
-
-// redirect to HTTPS after script loads?
-redirectToHTTPS();
-
 //// ELECTRON (and other external) STUFF
 
 export function setTestInput(path: string, data: FileData) {
@@ -2678,6 +2633,8 @@ function writeOutputROMFile() {
     alternateLocalFilesystem.setFileData(`bin/${prefix}${suffix}`, current_output);
   }
 }
+
+// Start UI
 
 function startUIWhenVisible() {
   let started = false;
