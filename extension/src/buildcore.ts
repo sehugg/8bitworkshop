@@ -40,6 +40,8 @@ export interface BuildOutcome {
   diagnostics: BuildDiagnostic[];
   listings?: CodeListingMap;
   symbolmap?: { [sym: string]: number };
+  /** symbol -> size in bytes, for the toolchains that report it */
+  symbolsizes?: { [sym: string]: number };
   segments?: Segment[];
   /** every project path the build read */
   paths: string[];
@@ -140,7 +142,7 @@ export class Builder {
       var r = result as any;
       var outcome: BuildOutcome = {
         success: true, tool, paths, files, diagnostics: [],
-        output: r.output, listings: r.listings, symbolmap: r.symbolmap, segments: r.segments,
+        output: r.output, listings: r.listings, symbolmap: r.symbolmap, symbolsizes: r.symbolsizes, segments: r.segments,
       };
       this.last.set(key, outcome);
       return outcome;

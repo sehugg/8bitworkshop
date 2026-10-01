@@ -36,6 +36,7 @@ export interface CompileResult {
   errors?: { line: number; msg: string; path?: string }[];
   listings?: any;
   symbolmap?: any;
+  symbolsizes?: { [sym: string]: number };
   segments?: any;
   params?: any;
   unchanged?: boolean;
@@ -225,6 +226,7 @@ function workerResultToCompileResult(result: WorkerResult): CompileResult {
       output: result.output,
       listings: (result as any).listings,
       symbolmap: (result as any).symbolmap,
+      symbolsizes: (result as any).symbolsizes,
       segments: (result as any).segments,
       params: (result as any).params,
     };

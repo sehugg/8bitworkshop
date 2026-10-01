@@ -21,6 +21,7 @@ import type { Breakpoint } from '../common/breakpoints';
 import type { StopEvent } from '../common/debugcontroller';
 import { hex } from '../common/util';
 import type { CallStackFrame, DebugCapabilities, DebugService, DisasmResult } from './debugservice';
+import { formatSymbolValue } from '../common/symbols/symbolvalue';
 
 /** launch.json's arguments for a `8bitworkshop` debug session. */
 export interface LaunchArgs extends DebugProtocol.LaunchRequestArguments {
@@ -366,9 +367,7 @@ export class EmuDebugSession extends LoggingDebugSession {
     }
     if (ref === SYMBOLS_REF) {
       const syms = await this.backend.symbols();
-      return syms.map(s => ({
-        name: s.name, value: `$${hex(s.addr, 4)}: $${hex(s.value, 2)}`, variablesReference: 0,
-      }));
+      return syms.map(s => ({ name: s.name, value: formatSymbolValue(s), variablesReference: 0 }));
     }
     const path = this.treeRefs[ref - FIRST_TREE_REF];
     if (!path) return [];

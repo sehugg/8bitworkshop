@@ -297,7 +297,7 @@ async function openProgram(command: string, args: Args, input: string): Promise<
   let debugInfo: BuildInfo | undefined;
   if (built) {
     const mainPath = path.basename(input);
-    debugInfo = { listings: built.result.listings, symbols, mainPath, paths: [mainPath] };
+    debugInfo = { listings: built.result.listings, symbols, symbolsizes: built.result.symbolsizes, mainPath, paths: [mainPath] };
   }
   return { target, source: input, romFile, built, symbols, debugInfo };
 }

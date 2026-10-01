@@ -46,6 +46,34 @@ export function bankedAreaArgs(rels: string[], banking: ROMBanking): string[] {
  * above 64 KB are placed by bank, and the image grows to the next power of 2
  * that holds the highest bank.
  */
+/**
+ * Guesses each symbol's size as the distance to the next symbol in its
+ * segment (the last one runs to the segment's end). The linker map only has
+ * addresses, so this is a heuristic and errs on the big side:
+ *  - alignment padding, or a variable with no symbol of its own (a local
+ *    static, a string literal), is counted into the symbol before it
+ *  - a segment's last symbol also takes any unused space at its end
+ *  - symbols sharing an address (aliases) all get the same size
+ *  - a label inside a function or data blob ends the symbol before it, so
+ *    that one comes out too small
+ * Symbols outside every segment get no size.
+ */
+export function inferSymbolSizes(symbolmap: { [sym: string]: number }, segments: { start: number, size: number }[]) {
+    // s__SEG / l__SEG are segment bounds, and the linker's '$' names are debug labels
+    const names = Object.keys(symbolmap).filter(n => !/^[sl]__/.test(n) && !n.includes('$'));
+    const sizes: { [sym: string]: number } = {};
+    for (const seg of segments) {
+        const end = seg.start + seg.size;
+        const inseg = names.filter(n => symbolmap[n] >= seg.start && symbolmap[n] < end);
+        const addrs = [...new Set(inseg.map(n => symbolmap[n]))].sort((a, b) => a - b);
+        for (const n of inseg) {
+            const next = addrs[addrs.indexOf(symbolmap[n]) + 1] ?? end;
+            sizes[n] = next - symbolmap[n];
+        }
+    }
+    return sizes;
+}
+
 export function parseIHX(ihx: string, rom_start: number, rom_size: number, errors: WorkerError[], banking?: ROMBanking) {
     var output = new Uint8Array(new ArrayBuffer(rom_size));
     var upper = 0; // from type 04 (extended linear address) records
@@ -327,6 +355,7 @@ export function linkSDLDZ80(step: BuildStep) {
             listings: listings,
             errors: errors,
             symbolmap: symbolmap,
+            symbolsizes: inferSymbolSizes(symbolmap, segments),
             segments: segments
         };
     }

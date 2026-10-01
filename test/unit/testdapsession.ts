@@ -19,7 +19,7 @@ async function launch(args: any = {}): Promise<DapClient> {
     const target = await loadPlatform('mw8080bw');
     await target.start();
     await target.loadROM(build.output);
-    return { target, root: ROOT, debugInfo: { listings: build.listings, symbols: build.symbolmap, mainPath: 'game2.c' } };
+    return { target, root: ROOT, debugInfo: { listings: build.listings, symbols: build.symbolmap, symbolsizes: { _draw_char: 4, _main: 100 }, mainPath: 'game2.c' } };
   });
   const c = new DapClient(new EmuDebugSession(backend));
   const caps = await c.request('initialize', { adapterID: '8bitworkshop', linesStartAt1: true, columnsStartAt1: true, pathFormat: 'path' });
@@ -111,6 +111,9 @@ describe('Debug adapter', function () {
     const syms = await c.request('variables', { variablesReference: scopes[2].variablesReference });
     const sym = syms.variables.find((v: any) => v.name === '_draw_char');
     assert.ok(sym.value.includes('$' + build.symbolmap['_draw_char'].toString(16).padStart(4, '0').toUpperCase()), 'symbol shows its address');
+    assert.match(sym.value, /\[4\]: ([0-9A-F]{2} ){3}[0-9A-F]{2}$/, 'a sized symbol shows all its bytes');
+    const big = syms.variables.find((v: any) => v.name === '_main');
+    assert.match(big.value, /\[100\]: ([0-9A-F]{2} ){31}[0-9A-F]{2} \.\.\.$/, 'a big symbol shows a prefix');
   });
 
   it('runs run-script commands in the Debug Console, and expressions in watches', async function () {
@@ -120,6 +123,8 @@ describe('Debug adapter', function () {
     await c.event('stopped');
     const hover = await c.request('evaluate', { expression: 'SP', context: 'hover' });
     assert.match(hover.result, /^\$[0-9A-F]{4} \(\d+\)$/);
+    const symHover = await c.request('evaluate', { expression: 'draw_char', context: 'hover' });
+    assert.match(symHover.result, /^\$[0-9A-F]{4}\[4\]: ([0-9A-F]{2} ){3}[0-9A-F]{2}$/, 'a symbol hovers as its contents');
     const back = await c.request('evaluate', { expression: 'back 3', context: 'repl' });
     assert.match(back.result, /back 3: PC=/);
     assert.strictEqual((await c.event('stopped')).reason, 'goto');

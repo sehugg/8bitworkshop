@@ -1426,6 +1426,6 @@ async function launchForDebug(folder: vscode.WorkspaceFolder | undefined, args: 
   if (!result.output) throw new Error('the build produced no ROM to run');
   if (!await startEmulator(target, result, { paused: true })) throw new Error('the emulator failed to start; see Output');
   var mainPath = path.posix.basename(target.main.path);
-  await emu!.call('debug', 'setBuild', { listings: result.listings, symbols: result.symbolmap, mainPath, paths: result.paths });
+  await emu!.call('debug', 'setBuild', { listings: result.listings, symbols: result.symbolmap, symbolsizes: result.symbolsizes, mainPath, paths: result.paths });
   return { root: path.dirname(target.main.fsPath) };
 }

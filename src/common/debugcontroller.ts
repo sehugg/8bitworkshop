@@ -40,6 +40,8 @@ export interface DebugLocation {
 export interface DebugContext extends BreakpointContext {
   /** the source line a PC belongs to */
   sourceAt?(pc: number): (SourceLocation & { path: string }) | null;
+  /** name -> size in bytes, for the symbols the toolchain sized */
+  symbolsizes?: { [name: string]: number };
 }
 
 export type StepGranularity = 'line' | 'instruction';
@@ -376,6 +378,7 @@ function sameLine(a: SourceLocation, b: SourceLocation): boolean {
 export function buildDebugContext(build: {
   listings?: CodeListingMap,
   symbols?: { [name: string]: number },
+  symbolsizes?: { [name: string]: number },
   mainPath: string,
   paths?: string[],
 }): DebugContext {
@@ -390,6 +393,7 @@ export function buildDebugContext(build: {
   const symbolAddrs = [...new Set(Object.values(build.symbols || {}))].sort((a, b) => a - b);
   return {
     symbols: build.symbols,
+    symbolsizes: build.symbolsizes,
     getListingForFile: path => getListingForFile(listings, path, build.mainPath),
     sourceAt(pc: number) {
       const fnStart = lastAtOrBefore(symbolAddrs, pc);
