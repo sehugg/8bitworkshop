@@ -52,8 +52,10 @@ async function loadPlatform(msg) {
 }
 
 function compileVerilator(filename, code, callback, nerrors, depends) {
-    var loadfail = false;
-    if (filename.indexOf('t_unopt_converge') >= 0) loadfail = true;
+    // the initial-block loop must fail in powercycle(); the always @* loop may or may not
+    // be caught there (eval() doesn't check convergence), so accept either outcome
+    var loadfail = filename.indexOf('t_unopt_converge_initial') >= 0;
+    var maybefail = filename.indexOf('t_unopt_converge.v') >= 0;
     // files come back from worker
     global.postMessage = async function(msg) {
       try {
@@ -72,7 +74,7 @@ function compileVerilator(filename, code, callback, nerrors, depends) {
         if (loadfail) throw new Error('should have failed');
         callback(null, msg);
       } catch (e) {
-        if (loadfail && /did not converge/.test(e && e.message)) e = null; // expected failure
+        if ((loadfail || maybefail) && /did not converge/.test(e && e.message)) e = null; // expected failure
         //console.log('rm', filename);
         callback(e, null);
       }
