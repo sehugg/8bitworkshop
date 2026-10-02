@@ -155,6 +155,7 @@ Major contributors:
 * [Fred Sauer](https://github.com/fredsa) - CodeMirror 6 editor migration, Apple II enhancements, and general IDE work.
 * [Mike DX](https://github.com/MikeDX) - PC Engine / Game Boy / Williams 6809 enhancements, library code, and examples.
 * [Micah Cowan](https://github.com/micahcowan) - Apple II enhancements.
+- NotExactlySiev: NES debug symbols in Mesen format (3.10.0).
 
 The emulators, compilers, assemblers, and libraries that this project
 builds on are credited in [Dependencies](#dependencies) and retain their
