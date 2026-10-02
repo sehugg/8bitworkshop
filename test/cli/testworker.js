@@ -162,6 +162,9 @@ describe('Worker', function() {
   it('should compile CC65', function(done) {
     compile('cc65', '#if defined(__8BITWORKSHOP__) && defined(__MAIN__)\nint main() {\nint x=1;\nreturn x+2;\n}\n#endif', 'nes.mame', done, 40976, 3);
   });
+  it('should compile CC65 with a warning (warnings are not errors)', function(done) {
+    compile('cc65', '#if defined(__8BITWORKSHOP__) && defined(__MAIN__)\nint main() {\nconst const int x=1;\nreturn x+2;\n}\n#endif', 'nes.mame', done, 40976, 3, 0);
+  });
   it('should NOT compile CC65 (compile error)', function(done) {
     compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes', done, 0, 0, 1);
   });
@@ -388,7 +391,7 @@ describe('Worker', function() {
   });
   it('should compile apple2 skeleton with CC65', function(done) {
     var csource = ab2str(fs.readFileSync('presets/apple2/skeleton.cc65'));
-    compile('cc65', csource, 'apple2', done, 3023+58, 4, 0);
+    compile('cc65', csource, 'apple2', done, 3382, 4, 0);
   });
   // TODO: test if compile, errors, then compile same file
   it('should compile CC65 banked', function(done) {
@@ -402,7 +405,7 @@ describe('Worker', function() {
   it('should compile C64 cc65 skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/c64/skeleton.cc65'));
     csource = csource.replace('#include "','//');
-    compile('cc65', csource, 'c64.wasm', done, 3112, 3, 0);
+    compile('cc65', csource, 'c64.wasm', done, 3026, 3, 0);
   });
   it('should compile zmachine inform6 skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/zmachine/skeleton.inform6'));
@@ -420,7 +423,7 @@ describe('Worker', function() {
     doBuild(msgs, done2, 205, 0, 0);
   });
   it('should compile CC65 flags', function(done) {
-    compile('cc65', '#define CC65_FLAGS -Or,-g,-j\nint main() {\nint x=1;\nreturn x+2;\n}', 'apple2', done, 416+58, 3);
+    compile('cc65', '#define CC65_FLAGS -Or,-g,-j\nint main() {\nint x=1;\nreturn x+2;\n}', 'apple2', done, 489, 2);
   });
   /*
   it('should compile gameboy', function(done) {

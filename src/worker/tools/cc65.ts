@@ -12,6 +12,11 @@ import { wasiFSAdapter } from "../wasiutils";
 // cc65-fs-<platform>.zip, preopened at '.'
 const CC65_SHARE = 'share/cc65';
 
+// cc65/ca65/ld65 report both errors and non-fatal warnings as
+// "<file>:<line>: <Warning|Error>: <msg>" on stderr; skip the warnings so a
+// clean build with only style/deprecation warnings doesn't fail.
+const re_cc65_warning = /:\s*Warning:/;
+
 const wasiModules: { [tool: string]: WebAssembly.Module } = {};
 
 /**
@@ -187,7 +192,7 @@ export async function assembleCA65(step: BuildStep): Promise<BuildStepResult> {
             .concat(extraArgsFor('ca65', step.params.buildArgs));
         args.splice(args.length - 1, 0, ...extra);
         const { wasi, errno, stderr } = await runCC65Tool(step, 'ca65', args, (fs) => populateFiles(step, fs));
-        stderr.forEach(makeErrorMatcher(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1));
+        stderr.filter(s => !re_cc65_warning.test(s)).forEach(makeErrorMatcher(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1));
         checkExitCode('ca65', errno, stderr, errors);
         if (errors.length) {
             let listings : CodeListingMap = {};
@@ -231,8 +236,13 @@ export async function linkLD65(step: BuildStep): Promise<BuildStepResult> {
                 populateEntry(fs, params.cfgfile, store.getFileEntry(params.cfgfile), null);
             }
         });
-        // any ld65 message (even a warning) fails the build
-        for (let s of stderr) errors.push({ msg: s, line: 0 });
+        // any non-warning ld65 message fails the build; again, "Warning:"-severity
+        // output (e.g. the sp->c_sp deprecation from our prebuilt crt0.o/neslib2.lib)
+        // is non-fatal noise the user can't act on.
+        for (let s of stderr) {
+            if (re_cc65_warning.test(s)) continue;
+            errors.push({ msg: s, line: 0 });
+        }
         checkExitCode('ld65', errno, stderr, errors);
         if (errors.length)
             return { errors: errors };
@@ -356,8 +366,13 @@ export async function compileCC65(step: BuildStep): Promise<BuildStepResult> {
         // //#symbol c / //#flag c
         args.push.apply(args, defineArgs('cc65', params.symbols && params.symbols.compiler));
         args.push.apply(args, extraArgsFor('cc65', params.buildArgs));
-        var customArgs = params.extra_compiler_args || ['-T', '-g', '-Oirs', '-Cl', '-W', '-pointer-sign,-no-effect'];
-        args = args.concat(customArgs, args);
+        var customArgs = params.extra_compiler_args || ['-T', '-g', '-Oirs', '-Cl', '-W', '-pointer-sign,-no-effect,-unreachable-code'];
+        // cc65 V2.19-3867 parses inline asm into code entries and a new
+        // optimizer step (OptLoadStore1) removes a store that follows a load
+        // from the same address -- wrong for hardware registers and
+        // self-modifying code. The old cc65 never touched inline asm; keep
+        // that behavior by disabling just this new step.
+        args = args.concat(customArgs, ['--disable-opt', 'OptLoadStore1'], args);
         args.push(step.path);
         const { wasi, errno, stderr } = await runCC65Tool(step, 'cc65', args, (fs) => {
             populateFiles(step, fs, {
@@ -371,7 +386,7 @@ export async function compileCC65(step: BuildStep): Promise<BuildStepResult> {
             });
             populateExtraFiles(step, fs, params.extra_compile_files);
         });
-        stderr.forEach(makeErrorMatcher(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
+        stderr.filter(s => !re_cc65_warning.test(s)).forEach(makeErrorMatcher(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
         checkExitCode('cc65', errno, stderr, errors);
         if (errors.length) return { errors };
         putWorkFile(destpath, readWASIOutputString(wasi, destpath));

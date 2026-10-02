@@ -9,6 +9,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 ### Debugging and the `8bws` CLI
 
 - New `8bws` command-line tool (`npm run cli`) to build and run programs headlessly: `build`, `run`, `verify-replay`, `profile`, `detect`, `list-platforms`, `list-tools`; scripted emulator control; `--png`, `--json`, `--symbols`, `--memdump`, `--info`; platform and main file detected from a project directory.
+- Platform detection no longer confuses the Atari 8-bit targets: `atari.h` means the 800 (it is guarded by `__ATARI__`), `atari5200.h` means the 5200, and a folder named for a platform breaks a near-tie.
 - Emulators now run on a timeline: step back, seek, reverse run, `rbreak`, and deterministic replay with a replay-verification test that found determinism bugs in several platforms.
 - Step Over for C and assembly sources, a Breakpoints pane, and more breakpoint conditions.
 - Call Stack view renamed Call Graph, with clocks and more detail per line.
@@ -16,6 +17,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Click the hex offset in the gutter to run to that line.
 - Waveform viewer for Verilog, with help and shortcuts.
 - Faster line lookups in listings.
+- Atari 8-bit: the XEX loader now calls each INIT vector before loading the next chunk (cc65's system-check chunk overlaps the main program), fixing a crash on startup of `tgidemo.c`.
 
 ### Editor and UI
 
@@ -41,7 +43,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - **Game Boy**: native emulator with GBC double speed, RTC and banking; C via a partial gbdk-2020 header set; presets ported from GBDK, plus Chase and Paku Paku; ghosting on the LCD.
 - **Atari 8-bit**: `.atr` disk images, 5th player, ANTIC and POKEY fixes, a8lib common library, scrolling and libdemo examples, oscar64 support.
 - **Atari 2600**: a Javatari-derived `vcs.jt4` machine that also runs headlessly; updated `vcs.h`/`macro.h`.
-- **Apple II**: paddle/joystick and SW0-2 support, dynamic origin, DOS 3.3 and AppleSingle samples.
+- **Apple II**: paddle/joystick and SW0-2 support, dynamic origin, DOS 3.3 and AppleSingle samples. New self-contained hi-res TGI driver (`a2hires.s`, 280x192, 8 colors, no ROM calls) used by the TGI demos.
 - **NES**: updated jsnes and a fix for a write bug.
 - **SMS/Game Gear/ColecoVision**: shared code, SMS Solarian port, more presets.
 - **Arcade**: Pac-Man hardware, Williams, Galaxian and Astrocade accuracy updates; early Exidy, MCR and Channel F work.
@@ -57,6 +59,10 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - New build directives replace the legacy CFGFILE-style ones; build parameters no longer leak between builds.
 - `#pragma compile("...")` and oscar64 symbol/listing parsing.
 - Tool metadata centralized in `src/common/toolmeta.ts`; `npm run toolversions` checks tool versions.
+- cc65/ca65/ld65 warnings no longer fail the build; only errors are reported (the WASI tools print non-fatal `Warning:` lines such as duplicate `const` qualifiers).
+- cc65 toolchain (cc65/ca65/ld65 WASI builds and the per-platform include/lib zips) updated from the 2021 build (`6ac4aa4`) to cc65 `d8a486a` (V2.19-3867, 2026-09-26). The compiler runs with `--disable-opt OptLoadStore1` (the new step drops stores after loads of the same address, which breaks hardware registers and inline asm) and `-unreachable-code`.
+- cc65 `a2.lo.s` (Apple II lo-res TGI) patched in `8bitworkshop-compilers/patches/cc65-apple2-lo-tgi.patch`: a stray `bpl :+` in `INSTALL` made `tgi_install(a2_lo_tgi)` crash on a non-enhanced Apple II.
+- Presets adjusted for the newer cc65: NES `chase` closes its zero-page `#pragma` region, C64 `side_scroller` uses an unsigned fixed-point constant, and the Atari vector presets no longer recurse into `main()`. `neslib.h` no longer redefines `NULL` if `stddef.h` already did.
 - Build is now only `esbuild` through `scripts/build.mjs`; code split into a headless `src/common/projectcore.ts` / `toolselect.ts`.
 - New `buildpresets` script that builds and runs every preset.
 

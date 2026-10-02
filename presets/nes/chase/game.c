@@ -287,6 +287,12 @@ static unsigned char bright;
 
 static unsigned char update_list[7*3+1];
 
+// close the zero-page region. (Without the matching pop, cc65 V2.19-3867 also
+// moves the map[] declared above into ZEROPAGE, overflowing the 256-byte area.)
+
+#pragma bss-name(pop)
+#pragma data-name(pop)
+
 
 
 //smoothly fade current bright to the given value

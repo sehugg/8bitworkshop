@@ -284,6 +284,39 @@ describe('8bws CLI', function () {
         });
     });
 
+    describe('apple2 TGI drivers', function () {
+        // build a one-file program next to the preset driver, run it, return the script output
+        function runTGI(body, headers, script) {
+            var dir = fs.mkdtempSync(path.join(os.tmpdir(), '8bws-tgi-'));
+            for (var f of ['a2hires.s', 'a2hires.h']) {
+                fs.copyFileSync(path.join('presets/apple2', f), path.join(dir, f));
+            }
+            var src = path.join(dir, 'main.c');
+            fs.writeFileSync(src, headers + '\nint main(void) {\n' + body + '\nfor(;;);\n}\n');
+            return cli('run', '--platform', 'apple2', src, '-e', script);
+        }
+        it('hires driver should draw pixels and lines on page 2', function () {
+            var out = runTGI(
+                'tgi_install(a2hires_tgi); tgi_init(); tgi_clear();' +
+                'tgi_setcolor(3); tgi_setpixel(0, 0); tgi_setpixel(279, 191);' +
+                'tgi_setcolor(5); tgi_line(0, 8, 13, 8);',
+                '#include <tgi.h>\n#include "a2hires.h"\n//#link "a2hires.s"',
+                'run 20; mem $4000 2; mem $4080 2; mem $5FF0 8');
+            assert.ok(/^4000: 01 00/m.test(out), out);       // white pixel at 0,0
+            assert.ok(/^4080: AA D5/m.test(out), out);       // orange line: odd columns + palette bit
+            assert.ok(/^5FF0: 00 00 00 00 00 00 00 40/m.test(out), out); // last pixel
+        });
+        it('lores driver should install and draw (stray branch in cc65 a2.lo.s)', function () {
+            var out = runTGI(
+                'tgi_install(a2_lo_tgi); tgi_init(); tgi_clear();' +
+                'tgi_setcolor(15); tgi_bar(0, 0, 39, 9);',
+                '#include <tgi.h>',
+                'run 30; pc 1; mem $400 4');
+            assert.ok(!/PC=\$0000/.test(out), out);        // not crashed into zero page
+            assert.ok(/^0400: (?!00 00 00 00)/m.test(out), out); // lo-res memory was written
+        });
+    });
+
     describe('legacy aliases', function () {
         it('should accept compile, check and compilerun', function () {
             assert.equal(cliJSON('compile', '--platform', 'gb', 'presets/gb/hello.c', '--check').command, 'check');
