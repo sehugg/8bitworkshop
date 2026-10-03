@@ -628,6 +628,7 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
   if (!panel) {
     panel = new EmulatorPanel({
       onKey: (key, code, flags) => { emu?.call('key', key, code, flags); },
+      onPaddle: (x, y, buttons) => { emu?.call('paddle', x, y, buttons); },
       onControlsVisible: visible => context.globalState.update('controlsVisible', visible),
       // don't burn CPU on a hidden screen
       onVisible: visible => { emu?.call('setVisible', visible); },

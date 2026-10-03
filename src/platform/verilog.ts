@@ -733,6 +733,17 @@ var VerilogPlatform = function(mainElement, options) {
     }
   }
 
+  // only if the design has paddle inputs (see setGenInputs)
+  acceptsPaddles() {
+    return !!top && (top.state.hpaddle != null || top.state.vpaddle != null);
+  }
+
+  setPaddles(x: number, y: number, buttons: boolean[]) {
+    video.paddle_x = x;
+    video.paddle_y = y;
+    buttons.forEach((b, i) => video.paddle_buttons[i] = b);
+  }
+
   getClockCount() {
     return top && top.cycles;
   }

@@ -54,6 +54,8 @@ export interface EmuStatus {
   message?: string;
   /** the platform's controls, hand-written or from its key map */
   controls?: ControlHint[];
+  /** the program reads paddles, so the panel sends the mouse */
+  paddles?: boolean;
   /** the platform's audio output rate, if it makes sound */
   audio?: { sampleRate: number };
   timeline?: TimelineInfo;
@@ -195,6 +197,9 @@ const rpc: Rpc = new Rpc(parentPort, {
       // platforms without keyboard input ignore keys
     }
   },
+  paddle(x: number, y: number, buttons: boolean[]) {
+    target?.setPaddles(x, y, buttons);
+  },
   stop() {
     stop();
   },
@@ -232,7 +237,7 @@ function status(): EmuStatus | null {
   const audio = target.getAudioParams();
   return {
     state: running ? 'running' : 'paused', platform: target.id, frame: target.frameCount,
-    controls, audio: audio ? { sampleRate: audio.sampleRate } : undefined,
+    controls, paddles: target.acceptsPaddles(), audio: audio ? { sampleRate: audio.sampleRate } : undefined,
     timeline: service?.timeline() ?? undefined,
   };
 }

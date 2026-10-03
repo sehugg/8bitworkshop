@@ -47,6 +47,7 @@ export const RUN_SCRIPT_HELP = [
   '  serial                      - print what the program sent to its serial port (devel-6502)',
   '  pc [N]                      - print PC + disassembly of N instructions',
   '  info                        - platform/machine debug info',
+  '  paddle X Y [BUTTONS]        - move the paddle to X,Y (0-255); BUTTONS is a list of 0/1, like 1 0 0',
   '  signals [PATH]              - HDL signals under PATH (modules separated by dots; default the top)',
   '  reset                       - reset the emulator',
   '  echo TEXT                   - print message',
@@ -517,6 +518,13 @@ export class RunScript {
     }
   }
 
+  cmdPaddle(tokens: string[]) {
+    if (!this.target.acceptsPaddles()) throw new Error(`'${this.target.id}' has no paddles`);
+    const [x, y] = [tokens[1], tokens[2]].map(t => parseInt(t));
+    if (isNaN(x) || isNaN(y)) throw new Error('usage: paddle X Y [BUTTONS]');
+    this.target.setPaddles(x, y, tokens.slice(3).map(t => t === '1'));
+  }
+
   cmdSignals(tokens: string[]) {
     this.target.settle();
     const root = this.target.getSignals();
@@ -558,6 +566,7 @@ const COMMANDS: { [name: string]: Command } = {
   'pc': RunScript.prototype.cmdPC,
   'info': RunScript.prototype.cmdInfo,
   'signals': RunScript.prototype.cmdSignals,
+  'paddle': RunScript.prototype.cmdPaddle,
   'reset': RunScript.prototype.cmdReset,
   'back': RunScript.prototype.cmdBack,
   'seek': RunScript.prototype.cmdSeek,

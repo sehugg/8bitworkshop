@@ -9,6 +9,8 @@ export const VIEW_TYPE = '8bitworkshop.emulator';
 
 export interface PanelEvents {
   onKey(key: number, code: number, flags: number): void;
+  /** the mouse over the screen, 0..255 each way, and the buttons down */
+  onPaddle(x: number, y: number, buttons: boolean[]): void;
   /** the user showed or hid the controls bar */
   onControlsVisible(visible: boolean): void;
   /** the user dragged the timeline to a recorded frame */
@@ -29,6 +31,7 @@ export class EmulatorPanel {
     this.panel.webview.html = getHtml(controlsVisible);
     this.panel.webview.onDidReceiveMessage(msg => {
       if (msg.type === 'key') this.events.onKey(msg.key, msg.code, msg.flags);
+      else if (msg.type === 'paddle') this.events.onPaddle(msg.x, msg.y, msg.buttons);
       else if (msg.type === 'frameDone') this.frameInFlight = false;
       else if (msg.type === 'controlsVisible') this.events.onControlsVisible(!!msg.visible);
       else if (msg.type === 'seek') this.events.onSeek?.(msg.frame);
@@ -147,6 +150,25 @@ function getHtml(controlsVisible: boolean) {
   canvas.addEventListener('keyup', e => {
     vscode.postMessage({ type: 'key', key: e.which, code: charCode(e), flags: KeyUp | modFlags(e) });
   });
+  // the mouse as a paddle, only for programs that read one (status.paddles)
+  let paddles = false;
+  const buttons = [false, false, false];
+  function sendPaddle(e) {
+    const r = canvas.getBoundingClientRect();
+    const clamp = v => Math.max(0, Math.min(255, Math.round(v)));
+    vscode.postMessage({ type: 'paddle', x: clamp((e.clientX - r.left) * 255 / r.width),
+      y: clamp((e.clientY - r.top) * 255 / r.height), buttons });
+  }
+  canvas.addEventListener('mousemove', e => { if (paddles) sendPaddle(e); });
+  canvas.addEventListener('mousedown', e => {
+    if (!paddles) return;
+    // same mapping as the web IDE (RasterVideo.setupMouseEvents)
+    buttons[0] = !e.shiftKey && !e.altKey;
+    buttons[1] = e.shiftKey && !e.altKey;
+    buttons[2] = e.altKey && !e.shiftKey;
+    sendPaddle(e);
+  });
+  canvas.addEventListener('mouseup', e => { buttons.fill(false); if (paddles) sendPaddle(e); });
   document.addEventListener('mousedown', e => { if (!(e.target instanceof HTMLButtonElement)) { canvas.focus(); ensureAudio(); } });
   window.addEventListener('focus', () => canvas.focus());
 
@@ -298,6 +320,7 @@ function getHtml(controlsVisible: boolean) {
       seekDone();
     } else if (msg.type === 'status') {
       const s = msg.status;
+      paddles = !!(s && s.paddles);
       if (s && JSON.stringify(s.controls) !== lastControls) {
         lastControls = JSON.stringify(s.controls);
         showControls(s.controls);

@@ -252,6 +252,26 @@ describe('8bws CLI', function () {
         });
     });
 
+    describe('run --platform verilog: signals and paddles', function () {
+        it('should list signals with the clock count, and descend into modules', function () {
+            var out = cli('run', 'presets/verilog/ball_paddle.v', '-e', 'run 1; signals; signals ball_paddle_top');
+            assert.ok(/\(clock [1-9]\d*\)/.test(out), out);
+            assert.ok(/^ball_paddle_top\/ /m.test(out), out);
+            assert.ok(/^lives 3 /m.test(out), out);
+            assert.ok(!/__V/.test(out), 'no Verilator internals');
+        });
+        it('should move the paddle only if the design has paddle inputs', function () {
+            var shot = (x) => {
+                var png = path.join(fs.mkdtempSync(path.join(os.tmpdir(), '8bws-paddle-')), 'shot.png');
+                cli('run', 'presets/verilog/ball_paddle.v', '-e', `paddle ${x} 128; run 4`, '--png', png);
+                return fs.readFileSync(png);
+            };
+            assert.ok(!shot(40).equals(shot(200)), 'the screen follows the paddle');
+            var e = cliFails('run', 'presets/verilog/hvsync_generator.v', '-e', 'paddle 1 1');
+            assert.ok(/has no paddles/.test(e.stdout + e.stderr), e.stdout + e.stderr);
+        });
+    });
+
     describe('run: emulator control', function () {
         // these all reach through the Platform to its Machine (common/devices.ts)
         it('should reject an unknown platform', function () {

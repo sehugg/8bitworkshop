@@ -5,6 +5,8 @@
 - The Verilog and Verilog (VGA) platforms now appear in New Project and Open
   Example.
 - Verilog syntax highlighting.
+- The mouse is a paddle in the emulator panel, for programs that read one
+  (Verilog designs with `hpaddle`/`vpaddle` inputs, and platforms with paddles).
 - Reloading the window closes the emulator tab instead of restoring it blank.
 - Debugging a Verilog program shows its signals in Variables, nested by module,
   under a stack frame named for the frame and clock cycle.

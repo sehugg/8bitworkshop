@@ -330,6 +330,16 @@ export class EmuCore {
     return this.platform.getSignals ? this.platform.getSignals() : null;
   }
 
+  /** Does the program read paddles? */
+  acceptsPaddles(): boolean {
+    return !!this.platform.acceptsPaddles?.();
+  }
+
+  /** Move the paddles (x, y in 0..255) and press buttons; ignored if the platform has none. */
+  setPaddles(x: number, y: number, buttons: boolean[]) {
+    if (this.acceptsPaddles()) this.platform.setPaddles(x, y, buttons);
+  }
+
   /** Clock cycles since power-up, for platforms that count them (HDL). */
   getClockCount(): number | undefined {
     return this.platform.getClockCount ? this.platform.getClockCount() : undefined;
