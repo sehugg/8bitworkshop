@@ -12,18 +12,41 @@ import { preprocessMCPP } from "./mcpp";
 const SDCC4_INCLUDE = 'share/sdcc/include';
 const SDCC4_LIB = 'share/sdcc/lib';
 
+/**
+ * The SDCC port a build targets. `arch` is the platform param: z80 (the
+ * default), gbz80, or 6502 for the mos6502 backend, which exists only in 4.x.
+ */
+export interface SDCCTarget {
+    mflag: string;      // sdcc -m<port>
+    as: 'sdasz80' | 'sdasgb' | 'sdas6500';
+    lib: string;        // lib/<lib> in sdcc-fs.zip, and the sdld -l name
+    sdcccall: number;   // default calling convention (__SDCCCALL)
+    only4?: boolean;    // no 3.x build
+}
+
+export function sdccTarget(arch: string | undefined): SDCCTarget {
+    switch (arch) {
+        case 'gbz80': return { mflag: '-mgbz80', as: 'sdasgb', lib: 'gbz80', sdcccall: 1 };
+        case '6502': return { mflag: '-mmos6502', as: 'sdas6500', lib: 'mos6502', sdcccall: 0, only4: true };
+        default: return { mflag: '-mz80', as: 'sdasz80', lib: arch || 'z80', sdcccall: 1 };
+    }
+}
+
 // what the sdcc driver predefines when it runs sdcpp; mcpp must supply them
-const SDCC4_DEFINES = [
+function sdcc4Defines(target: SDCCTarget) {
+    return [
     '-D', '__SDCC=4_6_3',
     '-D', '__SDCC_VERSION_MAJOR=4',
     '-D', '__SDCC_VERSION_MINOR=6',
     '-D', '__SDCC_VERSION_PATCH=3',
-    '-D', '__SDCCCALL=1',
+    '-D', `__SDCCCALL=${target.sdcccall}`,
+    ...(target.mflag === '-mmos6502' ? ['-D', '__SDCC_mos6502=1'] : []),
     '-D', '__STDC_NO_COMPLEX__=1',
     '-D', '__STDC_NO_THREADS__=1',
     '-D', '__STDC_NO_ATOMICS__=1',
     '-D', '__STDC_NO_VLA__=1',
-];
+    ];
+}
 
 /**
  * The SDCC 4.x filesystem zip for this build, or null for SDCC 3.6.5. The
@@ -33,7 +56,9 @@ const SDCC4_DEFINES = [
  */
 function sdcc4FS(step: BuildStep): string | null {
     const requested = step.params.sdcc_version;
-    if ((requested ?? SDCC_DEFAULT_VERSION) !== 4) return null;
+    const only4 = sdccTarget(step.params.arch).only4;
+    if (requested === 3 && only4) throw new Error(`SDCC 3 has no ${step.params.arch} backend. Remove "//#tooldef c sdcc=3".`);
+    if ((requested ?? (only4 ? 4 : SDCC_DEFAULT_VERSION)) !== 4) return null;
     const zip = getPlatformToolConfig('sdcc', step.platform)?.wasiFSZip;
     if (!zip && requested === 4) {
         throw new Error(`SDCC 4 can't build for ${step.platform}: its libraries were compiled by SDCC 3. Remove "//#tooldef c sdcc=4".`);
@@ -212,7 +237,7 @@ function errorMatcherSDASZ80(path: string, errors: WorkerError[]) {
     return match_asm_fn;
 }
 
-async function assembleSDAS(step: BuildStep, tool: 'sdasz80' | 'sdasgb'): Promise<BuildStepResult> {
+async function assembleSDAS(step: BuildStep, tool: SDCCTarget['as']): Promise<BuildStepResult> {
     var errors = [];
     gatherFiles(step, { mainFilePath: "main.asm" });
     var objpath = step.prefix + ".rel";
@@ -225,9 +250,9 @@ async function assembleSDAS(step: BuildStep, tool: 'sdasz80' | 'sdasgb'): Promis
         const match_asm_fn = errorMatcherSDASZ80(step.path, errors);
         const args = ['-plosgffwy', step.path];
         var objout, lstout;
-        if (tool == 'sdasz80' && sdcc4FS(step)) {
+        if (tool == 'sdas6500' || (tool == 'sdasz80' && sdcc4FS(step))) {
             const { wasi, errno, stdout, stderr } = await runWASITool(tool, args, {
-                module: 'sdasz80-4',
+                module: tool == 'sdasz80' ? 'sdasz80-4' : tool,
                 populate: (fs) => populateFiles(step, fs),
             });
             stdout.concat(stderr).forEach(match_asm_fn);
@@ -262,7 +287,7 @@ async function assembleSDAS(step: BuildStep, tool: 'sdasz80' | 'sdasgb'): Promis
         putWorkFile(lstpath, lstout);
     }
     return {
-        linktool: "sdldz80",
+        linktool: tool == 'sdas6500' ? 'sdld6808' : 'sdldz80',
         files: [objpath, lstpath],
         args: [objpath]
     };
@@ -276,8 +301,20 @@ export function assembleSDASGB(step: BuildStep): Promise<BuildStepResult> {
     return assembleSDAS(step, 'sdasgb');
 }
 
-export async function linkSDLDZ80(step: BuildStep) {
-    const arch = step.params.arch || 'z80';
+export function assembleSDAS6500(step: BuildStep): Promise<BuildStepResult> {
+    return assembleSDAS(step, 'sdas6500');
+}
+
+export function linkSDLDZ80(step: BuildStep) {
+    return linkSDLD(step, 'sdldz80');
+}
+
+export function linkSDLD6808(step: BuildStep) {
+    return linkSDLD(step, 'sdld6808');
+}
+
+async function linkSDLD(step: BuildStep, ld: 'sdldz80' | 'sdld6808') {
+    const arch = sdccTarget(step.params.arch).lib;
     const fs4 = sdcc4FS(step);
     var errors = [];
     gatherFiles(step);
@@ -299,17 +336,23 @@ export async function linkSDLDZ80(step: BuildStep) {
         var args = ['-mjwxyu', '-i', 'main.ihx'];
         // sdld 4.x fails on -b for an area no module defines (an asm-only
         // program may have no _DATA)
-        var bases = { _CODE: params.codeseg_start || params.code_start, _DATA: params.data_start };
+        // the mos6502 library's crt0 sets the area order and the vectors
+        const startup = params.startup_objs || (ld == 'sdld6808' ? [`${libdir}/crt0.rel`] : undefined);
+        var bases: { [area: string]: number } = { _CODE: params.codeseg_start || params.code_start, _DATA: params.data_start };
+        // mos6502's crt0 starts with an empty _CODE, so the code group begins at
+        // GSINIT; ZP would otherwise follow the first -b
+        if (ld == 'sdld6808')
+            bases = { ZP: params.zp_start ?? 0, GSINIT: bases._CODE, _DATA: bases._DATA };
         for (let area in bases) {
-            if (!fs4 || objectsDefineArea(step.args.concat(params.extra_link_args || []), area))
+            if (!fs4 || objectsDefineArea(step.args.concat(startup || [], params.extra_link_args || []), area))
                 args.push('-b', `${area}=0x${bases[area].toString(16)}`);
         }
         args.push('-k', libdir, '-l', arch);
         if (params.extra_link_args)
             args.push.apply(args, params.extra_link_args);
         // //#symbol ld (sdldz80 uses -g sym=expr) and //#flag ld
-        args.push.apply(args, linkSymbolArgs('sdldz80', params.symbols && params.symbols.linker));
-        args.push.apply(args, extraArgsFor('sdldz80', params.buildArgs));
+        args.push.apply(args, linkSymbolArgs(ld, params.symbols && params.symbols.linker));
+        args.push.apply(args, extraArgsFor(ld, params.buildArgs));
         var objargs = step.args;
         if (params.rom_banking) {
             // place each #pragma bank N area, unless a //#flag ld already did
@@ -330,21 +373,24 @@ export async function linkSDLDZ80(step: BuildStep) {
             if (banked.length && rest.length)
                 objargs = rest.slice(0, -1).concat(banked, rest.slice(-1));
         }
-        objargs = withStartupObjects(params.startup_objs, objargs);
+        objargs = withStartupObjects(startup, objargs);
         args.push.apply(args, objargs);
         var readText: (path: string) => string;
         if (fs4) {
-            // one sdld binary for all targets: it picks z80 from argv[0]
-            const { wasi, errno, stdout, stderr } = await runWASITool('sdldz80', args, {
+            // one sdld binary for all targets: it picks the target from argv[0]
+            const { wasi, errno, stdout, stderr } = await runWASITool(ld, args, {
                 module: 'sdld4',
                 sharedFS: fs4,
                 populate: (fs) => {
                     populateFiles(step, fs);
-                    populateExtraFiles(step, fs, params.extra_link_files);
+                    // a platform shared with cc65 lists cc65's crt0 and .cfg here
+                    if (ld == 'sdldz80') populateExtraFiles(step, fs, params.extra_link_files);
+                    // -u updates the listing beside each object; the library's crt0 has none
+                    else for (const fn of startup) if (fn.endsWith('.rel')) fs.writeFile(fn.replace(/\.rel$/, '.lst'), '\n');
                 },
             });
             stdout.concat(stderr).forEach(match_aslink_fn);
-            checkExitCode('sdldz80', errno, stderr, errors);
+            checkExitCode(ld, errno, stderr, errors);
             if (errors.length) {
                 return { errors: errors };
             }
@@ -507,6 +553,7 @@ export async function compileSDCC(step: BuildStep): Promise<BuildStepResult> {
     });
     var params = step.params;
     var isGBZ80 = params.arch === 'gbz80';
+    const target = sdccTarget(params.arch);
     var outpath = step.prefix + ".asm";
     fixParamsWithDefines(step.path, params); // //#symbol, //#flag, //#tooldef
     const fs4 = sdcc4FS(step); // after the directives: //#tooldef c sdcc=3|4
@@ -518,7 +565,7 @@ export async function compileSDCC(step: BuildStep): Promise<BuildStepResult> {
         if (fs4) {
             const sharefs = await ensureWasiFilesystem(fs4);
             if (!sharefs) throw new Error("Could not load SDCC filesystem " + fs4);
-            preproc = preprocessMCPP(step, { fs: sharefs, dir: SDCC4_INCLUDE }, SDCC4_DEFINES);
+            preproc = preprocessMCPP(step, { fs: sharefs, dir: SDCC4_INCLUDE }, sdcc4Defines(target));
         } else {
             ensureFilesystem('sdcc');
             preproc = preprocessMCPP(step, 'sdcc');
@@ -528,8 +575,7 @@ export async function compileSDCC(step: BuildStep): Promise<BuildStepResult> {
         }
         // mcpp keeps a UTF-8 byte order mark, which 4.x rejects
         else code = preproc.code.replace(/\uFEFF/g, '');
-        const machineFlags = isGBZ80 ? '-mgbz80' : '-mz80';
-        var args = ['--vc', '--std-sdcc99', machineFlags, //'-Wall',
+        var args = ['--vc', '--std-sdcc99', target.mflag, //'-Wall',
             '--c1mode',
             //'--debug',
             //'-S', 'main.c',
@@ -606,12 +652,14 @@ export async function compileSDCC(step: BuildStep): Promise<BuildStepResult> {
             asmout = FS.readFile(outpath, { encoding: 'utf8' });
         }
         // massage the asm output
-        asmout = " .area _HOME\n .area _CODE\n .area _INITIALIZER\n .area _DATA\n .area _INITIALIZED\n .area _BSEG\n .area _BSS\n .area _HEAP\n" + asmout;
+        // (mos6502's crt0 declares its own area order)
+        if (target.as != 'sdas6500')
+            asmout = " .area _HOME\n .area _CODE\n .area _INITIALIZER\n .area _DATA\n .area _INITIALIZED\n .area _BSEG\n .area _BSS\n .area _HEAP\n" + asmout;
         if (isGBZ80) asmout = fixBankedCalls(asmout);
         putWorkFile(outpath, asmout);
     }
     return {
-        nexttool: isGBZ80 ? 'sdasgb' : 'sdasz80',
+        nexttool: target.as,
         path: outpath,
         args: [outpath],
         files: [outpath],

@@ -224,6 +224,27 @@ describe('Worker', function() {
   it('should compile SDCC w/ include', function(done) {
     compile('sdcc', '#include <string.h>\nvoid main() {\nstrlen(0);\n}\n', 'mw8080bw', done, 8192, sdccLines(2, 3), 0);
   });
+  it('should compile SDCC 4 mos6502 and run it on devel-6502', function(done) {
+    var {Devel6502} = require('../../gen/machine/devel.js');
+    var csource = ab2str(fs.readFileSync('presets/devel-6502/hello-sdcc.c'));
+    compile('sdcc', csource, 'devel-6502', function(err, msg) {
+      var rom = msg.output;
+      assert.equal(rom[0x7ffa] | rom[0x7ffb] << 8, 0x8000); // vectors -> crt0
+      assert.ok(msg.symbolmap._main >= 0x8000);
+      assert.equal(msg.symbolmap._counter, 0x200);
+      var out = '';
+      var m = new Devel6502();
+      m.connectSerialIO({byteAvailable:()=>false, recvByte:()=>0, clearToSend:()=>true,
+        sendByte:(b)=>{ out += String.fromCharCode(b); }, advance(){}, reset(){}});
+      m.loadROM(rom);
+      m.reset();
+      for (var i=0; i<10 && !m.isHalted(); i++) m.advanceFrame(()=>false);
+      assert.ok(m.isHalted());
+      // the initialized global (counter = 3) was copied to RAM by crt0
+      assert.equal(out, 'Hello, SDCC 6502!\nagain\nagain\nagain\n');
+      done();
+    }, 32768, 0, 0);
+  });
   it('should compile oscar64 and return listings/symbols/segments', async function() {
     var msgs = [{code:'#include <stdio.h>\nint main() { printf("FOO"); return 0; }', platform:'c64', tool:'oscar64', path:'main.c', mainfile:true}];
     var result = await new Promise(function(resolve, reject) {

@@ -453,6 +453,24 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     linkSymbolFlag: '-g', linkSymbolInline: false,
   },
 
+  // SDCC 4.x mos6502 backend (compile with `-sdcc.c`); sdld6808 is the
+  // 6502 personality of the sdld4 binary
+  sdas6500: {
+    id: 'sdas6500', name: 'sdas6500', kind: 'assembler', arch: '6502',
+    extensions: [],
+    wasmModule: 'sdas6500',
+    version: '02.00',
+    platforms: SDCC_FS,
+  },
+
+  sdld6808: {
+    id: 'sdld6808', name: 'sdld6808', kind: 'linker', arch: '6502',
+    extensions: [],
+    wasmModule: 'sdld4',
+    version: '03.00',
+    linkSymbolFlag: '-g', linkSymbolInline: false,
+  },
+
   sccz80: {
     id: 'sccz80', name: 'sccz80', kind: 'compiler', arch: 'z80',
     extensions: ['.scc'],

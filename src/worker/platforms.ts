@@ -345,6 +345,10 @@ export var PLATFORM_PARAMS = {
       cfgfile: 'devel-6502.cfg',
       libargs: ['crt0.o', 'none.lib'],
       extra_link_files: ['crt0.o', 'devel-6502.cfg'],
+      // for SDCC (-sdcc.c): ROM at $8000 with vectors at $FFFA, data above zero page
+      code_start: 0x8000,
+      rom_size: 0x8000,
+      data_start: 0x200,
     },
     // https://github.com/cpcitor/cpc-dev-tool-chain
     'cpc.rslib': {

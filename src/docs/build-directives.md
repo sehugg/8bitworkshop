@@ -309,6 +309,7 @@ cases:
 | Extension | File type | Tool (platform) |
 | --- | --- | --- |
 | `.c` | C source file | cc65 (6502), sdcc (Z80), cmoc (6809) |
+| `-sdcc.c` | C source file on a 6502 platform | sdcc, mos6502 backend (SDCC 4 only; experimental, `devel-6502`) |
 | `.cpp` | C source file | Oscar64 (6502) |
 | `.s` `.ca65` | Assembler file | ca65 (6502) |
 | `.s` | Assembler file | sdasz80 (Z80) |

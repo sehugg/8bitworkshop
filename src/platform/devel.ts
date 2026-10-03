@@ -9,6 +9,7 @@ import { TeleType } from "../common/teletype";
 
 var DEVEL_6502_PRESETS = [
   {id:'hello.dasm', name:'Hello World (ASM)'},
+  {id:'hello-sdcc.c', name:'Hello World (SDCC C)'},
 ];
 
 class SerialInOutViewer {
