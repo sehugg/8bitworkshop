@@ -29,6 +29,7 @@ describe('extension emuworker', function () {
   var audios: AudioChunk[];
   var viewEvents: ViewEvent[];
   var vcdEvents: VcdEvent[];
+  var reveals: string[];
 
   beforeEach(function () {
     worker = new Worker(path.join(__dirname, '..', 'emuworker.js'), { workerData: { rootDir: ROOT } });
@@ -38,6 +39,8 @@ describe('extension emuworker', function () {
     audios = [];
     viewEvents = [];
     vcdEvents = [];
+    reveals = [];
+    rpc.on('reveal', (id: string) => reveals.push(id));
     rpc.on('vcd', v => vcdEvents.push(v));
     rpc.on('view', v => viewEvents.push(v));
     rpc.on('frame', f => frames.push(f));
@@ -247,6 +250,123 @@ describe('extension emuworker', function () {
       await new Promise(r => setTimeout(r, 200));
       assert.ok(!exited, 'worker exited');
       await rpc.call('status');
+    });
+  });
+
+  describe('verilog waveform view', function () {
+    const MAIN = [
+      'module top(clk, reset, hsync, vsync, rgb, sw);',
+      '  input clk, reset;',
+      '  input [3:0] sw;',
+      '  output hsync, vsync;',
+      '  output [3:0] rgb;',
+      '  reg [7:0] n;',
+      '  always @(posedge clk) n <= reset ? 0 : n + 1;',
+      '  assign hsync = n[7];',
+      '  assign vsync = 0;',
+      '  assign rgb = n[3:0];',
+      'endmodule',
+      '',
+    ].join('\n');
+
+    it('sends the signal trace only while the view is showing, and takes writes', async function () {
+      var read = async (rel: string) => null;
+      var built = await new Builder(ROOT).build({
+        platform: 'verilog', mainPath: 'main.v', mainText: MAIN,
+        files: new ProjectFileProvider(read, ROOT, 'verilog'),
+      });
+      assert.deepEqual(built.diagnostics, []);
+      var s = await rpc.call<EmuStatus>('start', 'verilog', built.output, built.files);
+      assert.ok(s.waveform, 'verilog has a waveform');
+      await waitForFrames(5);
+      assert.equal(viewEvents.length, 0, 'nothing is sent to a hidden view');
+      await rpc.call('setViews', ['waveform']);
+      await waitForFrames(40); // the view refreshes a few times a second
+      var ev = viewEvents.filter(e => e.id === 'waveform').pop();
+      assert.ok(ev && ev.waveform, 'no waveform event');
+      var w = ev!.waveform!;
+      var labels = w.meta.map(m => m.label);
+      assert.ok(labels.indexOf('n') >= 0 && labels.indexOf('sw') >= 0, labels.join());
+      assert.equal(w.data.length % w.meta.length, 0);
+      // the counter counts up one a clock
+      var n = labels.indexOf('n');
+      var vals = Array.from({ length: 10 }, (_, i) => w.data[(i + 20) * w.meta.length + n]);
+      for (var i = 1; i < vals.length; i++) assert.equal(vals[i], (vals[i - 1] + 1) & 255, vals.join());
+      // a write to an input shows in the next trace
+      var sw = labels.indexOf('sw');
+      assert.ok(w.meta[sw].input);
+      await rpc.call('setSignal', sw, 5);
+      await waitForFrames(40);
+      w = viewEvents.filter(e => e.id === 'waveform').pop()!.waveform!;
+      assert.equal(w.data[10 * w.meta.length + sw], 5);
+    });
+  });
+
+  describe('verilog waveform view, while paused and with no video', function () {
+    async function build(main: string) {
+      var read = async (rel: string) => null;
+      var built = await new Builder(ROOT).build({
+        platform: 'verilog', mainPath: 'main.v', mainText: main,
+        files: new ProjectFileProvider(read, ROOT, 'verilog'),
+      });
+      assert.deepEqual(built.diagnostics, []);
+      return built;
+    }
+    const COUNTER = [
+      'module top(clk, reset, n);',
+      '  input clk, reset;',
+      '  output reg [7:0] n;',
+      '  always @(posedge clk) n <= reset ? 0 : n + 1;',
+      'endmodule',
+      '',
+    ].join('\n');
+    const WITH_VIDEO = [
+      'module top(clk, reset, hsync, vsync, rgb);',
+      '  input clk, reset;',
+      '  output hsync, vsync;',
+      '  output [3:0] rgb;',
+      '  reg [7:0] n;',
+      '  always @(posedge clk) n <= reset ? 0 : n + 1;',
+      '  assign hsync = n[7];',
+      '  assign vsync = 0;',
+      '  assign rgb = n[3:0];',
+      'endmodule',
+      '',
+    ].join('\n');
+
+    async function lastWaveform() {
+      for (var i = 0; i < 100 && !viewEvents.some(e => e.waveform); i++) await new Promise(r => setTimeout(r, 20));
+      return viewEvents.filter(e => e.waveform).pop()!.waveform!;
+    }
+
+    it('asks the host to open the view for a design with no video, once', async function () {
+      var built = await build(COUNTER);
+      await rpc.call('start', 'verilog', built.output, built.files);
+      await waitForFrames(1).catch(() => { }); // no video: there may be no frames
+      for (var i = 0; i < 100 && !reveals.length; i++) await new Promise(r => setTimeout(r, 20));
+      assert.deepEqual(reveals, ['waveform']);
+      // it traces once the view is showing
+      await rpc.call('setViews', ['waveform']);
+      var w: any;
+      for (i = 0; i < 100; i++) {
+        await new Promise(r => setTimeout(r, 20));
+        w = viewEvents.filter(e => e.waveform).pop()?.waveform;
+        if (w && w.data.some((v: number) => v > 3)) break;
+      }
+      assert.ok(w && w.data.some((v: number) => v > 3), 'no trace');
+      assert.deepEqual(reveals, ['waveform'], 'asked once');
+    });
+
+    it('shows the last frame of a paused design when the view opens', async function () {
+      var built = await build(WITH_VIDEO);
+      await rpc.call('start', 'verilog', built.output, built.files);
+      await waitForFrames(10);
+      await rpc.call('pause');
+      viewEvents.length = 0;
+      await rpc.call('setViews', ['waveform']);
+      var w = await lastWaveform();
+      var n = w.meta.map(m => m.label).indexOf('n');
+      assert.ok(Array.from({ length: 50 }, (_, i) => w.data[i * w.meta.length + n]).some(v => v > 0), 'trace is empty');
     });
   });
 

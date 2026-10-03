@@ -14,6 +14,7 @@
 !out/extension.js
 !out/buildworker.js
 !out/emuworker.js
+!out/waveformview.js
 !out/8bws.js
 !out/presets.json
 !out/assets.json

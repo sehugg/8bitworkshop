@@ -15,6 +15,8 @@ import { toInternalError } from '../../src/common/telemetry';
 import type { FileData } from '../../src/common/workertypes';
 import type { StopEvent } from '../../src/common/debugcontroller';
 import type { DebugSection } from '../../src/common/emucore';
+import type { WaveformSnapshot } from '../../src/common/waveform';
+import { setHDLHost } from '../../src/common/hdl/hdlhost';
 import { BuildInfo, DebugService, TimelineInfo } from '../../src/tools/debugservice';
 import { RunScript } from '../../src/tools/runscript';
 import { openVcdFile, VcdFile } from '../../src/tools/vcdfile';
@@ -63,6 +65,8 @@ export interface EmuStatus {
   timeline?: TimelineInfo;
   /** the platform has debug info text for the Machine view */
   debugInfo?: boolean;
+  /** the platform records signal traces (verilog), for the Waveform view */
+  waveform?: boolean;
   /** the program has signals that can be recorded as a VCD (startVcd) */
   vcd?: boolean;
 }
@@ -84,6 +88,8 @@ export interface ViewEvent {
   frame: number;
   /** the Machine view: the platform's debug info, a text section per category */
   sections?: DebugSection[];
+  /** the Waveform view: the signal trace so far */
+  waveform?: WaveformSnapshot;
 }
 
 /** How the host wants a program loaded. */
@@ -134,9 +140,30 @@ let nextTime = 0;
 let controls: ControlHint[] = [];
 let started = false;
 let muted = false;
+// Verilog records signal traces only while a scope is showing; the Waveform
+// view is the scope here (see HDLHost). The view's data goes out in pushViews.
+setHDLHost({
+  createScope: () => ({
+    isVisible: () => views.has('waveform'),
+    // a design with no video: open the view, once
+    show() {
+      if (!views.has('waveform') && !revealed) {
+        revealed = true;
+        rpc.emit('reveal', 'waveform');
+      }
+    },
+    setCurrentTime() { },
+    update() { },
+    resize() { },
+  }),
+  showVideoControls() { },
+  showSettleCount() { },
+});
 /** the views the host has showing: only these get data */
 let views = new Set<string>();
 let lastViewPush = 0;
+/** the host was asked to open the Waveform view for this program */
+let revealed = false;
 /** the VCD file being written, and the frame to stop at (if it has a length) */
 let vcdFile: { file: VcdFile, path: string, end: number | null } | null = null;
 
@@ -165,6 +192,7 @@ const rpc: Rpc = new Rpc(parentPort, {
     // so a worker runs one emulator; the host starts a new worker per run
     if (started) throw new Error('This emulator worker already ran a platform; start a new worker.');
     started = true;
+    revealed = false;
     stop();
     clearLastKeycodeMap();
     target = await loadPlatform(EMULATOR_FOR[platform] || platform);
@@ -181,6 +209,7 @@ const rpc: Rpc = new Rpc(parentPort, {
   async loadROM(rom: any, files?: { [path: string]: FileData }, opts: LoadOptions = {}) {
     if (!target) throw new Error('emulator not started');
     stopVcd();
+    revealed = false;
     target.setFileData(files || {});
     await target.loadROM(rom);
     if (!opts.paused) resume();
@@ -248,7 +277,17 @@ const rpc: Rpc = new Rpc(parentPort, {
   },
   /** The debug views now showing (ids from views.ts); hidden ones cost nothing. */
   setViews(ids: string[]) {
+    const opened = ids.indexOf('waveform') >= 0 && !views.has('waveform');
     views = new Set(ids);
+    // paused, nothing runs to be traced: run the last frame again
+    if (opened && target && !running) {
+      try { target.replayFrame(); } catch (e) { /* the view shows what it has */ }
+    }
+    pushViews(true);
+  },
+  /** A click on an input in the Waveform view. */
+  setSignal(index: number, value: number) {
+    target?.setSignalValue(index, value);
     pushViews(true);
   },
   setVisible(visible: boolean) {
@@ -303,7 +342,7 @@ function status(): EmuStatus | null {
   const audio = target.getAudioParams();
   return {
     state: running ? 'running' : 'paused', platform: target.id, frame: target.frameCount,
-    controls, paddles: target.acceptsPaddles(), debugInfo: target.hasDebugInfo, vcd: target.supportsVcd, audio: audio ? { sampleRate: audio.sampleRate } : undefined,
+    controls, paddles: target.acceptsPaddles(), debugInfo: target.hasDebugInfo, waveform: target.hasWaveform, vcd: target.supportsVcd, audio: audio ? { sampleRate: audio.sampleRate } : undefined,
     timeline: service?.timeline() ?? undefined,
   };
 }
@@ -411,7 +450,10 @@ function tick() {
   if (!running) return;  // stopped during the frame
   if (vcdFile && ((vcdFile.end != null && target.frameCount >= vcdFile.end) || !target.vcdRunning)) stopVcd();
   if (now - nextTime > interval * MAX_CATCHUP_FRAMES) nextTime = now;  // too far behind
-  if (frames) sendFrame();
+  if (frames) {
+    sendFrame();
+    pushViews(false); // (a design with no video sends no frames)
+  }
   timer = setTimeout(tick, Math.max(0, nextTime - performance.now()));
 }
 
@@ -425,7 +467,6 @@ function sendFrame() {
     timeline: service?.timeline() ?? undefined,
   };
   rpc.emit('frame', frame, [pixels]);
-  pushViews(false);
 }
 
 /** Send each showing view its data, at most every VIEW_INTERVAL_MS unless `force`. */
@@ -443,5 +484,12 @@ function pushViews(force: boolean) {
     }
     const ev: ViewEvent = { id: 'machine', frame: target.frameCount, sections };
     rpc.emit('view', ev);
+  }
+  if (views.has('waveform')) {
+    const waveform = target.getWaveform();
+    if (waveform) {
+      const ev: ViewEvent = { id: 'waveform', frame: target.frameCount, waveform };
+      rpc.emit('view', ev, [waveform.data.buffer as ArrayBuffer]);
+    }
   }
 }

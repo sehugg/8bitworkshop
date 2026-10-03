@@ -224,6 +224,12 @@
           "id": "8bitworkshop.machine",
           "name": "Machine",
           "when": "8bitworkshop.hasDebugInfo"
+        },
+        {
+          "type": "webview",
+          "id": "8bitworkshop.waveform",
+          "name": "Waveform",
+          "when": "8bitworkshop.hasWaveform"
         }
       ]
     },

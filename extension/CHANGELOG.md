@@ -12,6 +12,11 @@
   under a stack frame named for the frame and clock cycle.
 - A Machine view in a new 8bitworkshop panel shows the platform's debug info,
   live while the program runs, for platforms that have it.
+- A Waveform view in the 8bitworkshop panel shows a Verilog design's signals
+  as it runs: zoom, move the cursor, switch hex/decimal, and click an input to
+  change it. It shares its drawing and keys with the IDE's waveform pane.
+  It records only while it is showing, so opening it while paused runs the
+  last frame again to fill it. A design with no video opens it by itself.
 - **Record Signals to VCD...** writes a Verilog design's signal changes to a
   `.vcd` file as it runs, without holding them in memory, up to
   1 GB. `8bws run` has a

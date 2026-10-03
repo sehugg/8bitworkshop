@@ -74,10 +74,25 @@ const ctx = await esbuild.context({
   alias: { binaryen: './src/binaryen.js' },
   logLevel: 'warning',
 });
+// the debug views' page scripts run in webviews, not node
+const webviewCtx = await esbuild.context({
+  absWorkingDir: root,
+  entryPoints: { waveformview: 'src/webview/waveformview.ts' },
+  outdir: 'out',
+  bundle: true,
+  platform: 'browser',
+  format: 'iife',
+  target: 'es2020',
+  sourcemap: true,
+  logLevel: 'warning',
+});
 if (watch) {
   await ctx.watch();
+  await webviewCtx.watch();
   console.error('[esbuild] watching extension');
 } else {
   await ctx.rebuild();
+  await webviewCtx.rebuild();
   await ctx.dispose();
+  await webviewCtx.dispose();
 }

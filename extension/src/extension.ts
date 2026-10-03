@@ -44,7 +44,24 @@ let assets: AssetStore | undefined;
 let panel: EmulatorPanel | undefined;
 let emuStatus: EmuStatus | null = null;
 /** The debug views in the panel container; the worker feeds the ones showing. */
-const views = new DebugViews(ids => { if (emu?.started) emu.call('setViews', ids); });
+const views = new DebugViews(ids => { if (emu?.started) emu.call('setViews', ids); },
+  (index, value) => { if (emu?.started) emu.call('setSignal', index, value); });
+
+/** A view the worker asked to open (a design with no video), once its view exists. */
+let pendingReveal: string | undefined;
+function flushReveal() {
+  if (pendingReveal === 'waveform' && emuStatus?.waveform) {
+    pendingReveal = undefined;
+    vscode.commands.executeCommand('8bitworkshop.waveform.focus');
+  }
+}
+
+/** Context keys for what the running program supports: which views and commands show. */
+function setCapabilityContexts(s: EmuStatus | null | undefined) {
+  vscode.commands.executeCommand('setContext', '8bitworkshop.hasDebugInfo', !!s?.debugInfo);
+  vscode.commands.executeCommand('setContext', '8bitworkshop.hasWaveform', !!s?.waveform);
+  vscode.commands.executeCommand('setContext', '8bitworkshop.canRecordVcd', !!s?.vcd);
+}
 let nextBuildId = 1;
 const readers = new Map<number, (rel: string) => Promise<Uint8Array | null>>();
 
@@ -124,7 +141,7 @@ export function activate(ctx: vscode.ExtensionContext) {
   command('recordVcd', () => recordVcd());
   command('stopVcd', () => emu?.started && emu.call('stopVcd'));
   command('showMachine', () => vscode.commands.executeCommand('8bitworkshop.machine.focus'));
-  ctx.subscriptions.push(...views.register());
+  ctx.subscriptions.push(...views.register(ctx.extensionUri));
   muted = ctx.globalState.get<boolean>('muted', false);
   vscode.commands.executeCommand('setContext', '8bitworkshop.muted', muted);
   vscode.commands.executeCommand('setContext', '8bitworkshop.canDownloadToolchains', hasDownloadablePacks());
@@ -315,12 +332,12 @@ async function getEmu(platform: string): Promise<WorkerHandle> {
     emu.on('audioReset', () => panel?.resetAudio());
     emu.on('stopped', e => debugging?.backend.handleStop(e));
     emu.on('view', ev => views.show(ev));
+    emu.on('reveal', (id: string) => { pendingReveal = id; flushReveal(); });
     emu.on('vcd', (ev: VcdEvent) => vcdEvent(ev));
     emu.on('status', (s: EmuStatus | null) => {
       emuStatus = s;
       panel?.showStatus(s);
-      vscode.commands.executeCommand('setContext', '8bitworkshop.hasDebugInfo', !!s?.debugInfo);
-      vscode.commands.executeCommand('setContext', '8bitworkshop.canRecordVcd', !!s?.vcd);
+      setCapabilityContexts(s);
       vscode.commands.executeCommand('setContext', '8bitworkshop.emuRunning', s?.state === 'running');
       if (s?.state === 'halted') output.appendLine(`Emulator halted at frame ${s.frame}: ${s.message}`);
     });
@@ -656,8 +673,7 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
         emu?.dispose();
         emu = undefined;
         views.clear();
-        vscode.commands.executeCommand('setContext', '8bitworkshop.hasDebugInfo', false);
-        vscode.commands.executeCommand('setContext', '8bitworkshop.canRecordVcd', false);
+        setCapabilityContexts(null);
         vscode.commands.executeCommand('setContext', '8bitworkshop.recordingVcd', false);
         vscode.commands.executeCommand('setContext', '8bitworkshop.emuRunning', false);
         vscode.commands.executeCommand('setContext', '8bitworkshop.emuOpen', false);
@@ -674,8 +690,8 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
     emuStatus = await worker.call<EmuStatus>('start', target.platform, build.output, build.files, opts);
     worker.call('setMuted', muted);
     worker.call('setViews', views.subscriptions());
-    vscode.commands.executeCommand('setContext', '8bitworkshop.hasDebugInfo', !!emuStatus?.debugInfo);
-    vscode.commands.executeCommand('setContext', '8bitworkshop.canRecordVcd', !!emuStatus?.vcd);
+    setCapabilityContexts(emuStatus);
+    flushReveal();
     panel.showStatus(emuStatus);
     running = target;
     runningBuild = build;

@@ -13,6 +13,7 @@ import type { ViewEvent } from './emuworker';
 /** view id (as the worker knows it) -> the viewType in package.json */
 const VIEW_TYPES: { [id: string]: string } = {
   machine: '8bitworkshop.machine',
+  waveform: '8bitworkshop.waveform',
 };
 
 interface Shown {
@@ -27,13 +28,17 @@ export class DebugViews {
   /** the latest data per view, replayed when a view is shown again */
   private last = new Map<string, ViewEvent>();
 
-  /** `onChange` gets the ids of the visible views whenever they change. */
-  constructor(private onChange: (ids: string[]) => void) { }
+  /**
+   * `onChange` gets the ids of the visible views whenever they change;
+   * `onSetSignal` gets a value the user set in the Waveform view.
+   */
+  constructor(private onChange: (ids: string[]) => void,
+              private onSetSignal: (index: number, value: number) => void) { }
 
-  register(): vscode.Disposable[] {
+  register(extensionUri: vscode.Uri): vscode.Disposable[] {
     return Object.keys(VIEW_TYPES).map(id =>
       vscode.window.registerWebviewViewProvider(VIEW_TYPES[id], {
-        resolveWebviewView: view => this.resolve(id, view),
+        resolveWebviewView: view => this.resolve(id, view, extensionUri),
       }, { webviewOptions: { retainContextWhenHidden: true } }));
   }
 
@@ -58,15 +63,20 @@ export class DebugViews {
     }
   }
 
-  private resolve(id: string, view: vscode.WebviewView) {
+  private resolve(id: string, view: vscode.WebviewView, extensionUri: vscode.Uri) {
     const s: Shown = { view, inFlight: false };
     this.shown.set(id, s);
-    view.webview.options = { enableScripts: true, localResourceRoots: [] };
-    view.webview.html = machineHtml();
+    const out = vscode.Uri.joinPath(extensionUri, 'out');
+    view.webview.options = { enableScripts: true, localResourceRoots: [out] };
+    view.webview.html = id === 'waveform'
+      ? waveformHtml(view.webview, vscode.Uri.joinPath(out, 'waveformview.js'))
+      : machineHtml();
     view.webview.onDidReceiveMessage(msg => {
       if (msg.type === 'ack') {
         s.inFlight = false;
         if (s.pending) { const p = s.pending; s.pending = undefined; this.send(s, p); }
+      } else if (msg.type === 'setSignal') {
+        this.onSetSignal(Number(msg.index), Number(msg.value));
       }
     });
     view.onDidChangeVisibility(() => {
@@ -94,13 +104,58 @@ export class DebugViews {
   }
 }
 
+function makeNonce() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+/**
+ * The Waveform view: the page is a shell for src/webview/waveformview.ts
+ * (bundled to out/waveformview.js), which draws with the IDE's waveform code.
+ */
+function waveformHtml(webview: vscode.Webview, script: vscode.Uri) {
+  const n = makeNonce();
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${n}'; script-src 'nonce-${n}' ${webview.cspSource};">
+<style nonce="${n}">
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body { display: flex; flex-direction: column; color: var(--vscode-foreground); overflow: hidden;
+         background: var(--vscode-panel-background); font: var(--vscode-font-size) var(--vscode-font-family); }
+  #bar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 2px 6px; flex: none; }
+  #bar button { border: 0; background: none; cursor: pointer; color: var(--vscode-foreground);
+                padding: 2px 6px; font: inherit; border-radius: 3px; }
+  #bar button:hover { background: var(--vscode-toolbar-hoverBackground); }
+  #clk { margin-left: 8px; opacity: 0.8; }
+  #rows { flex: 1; overflow-y: auto; overflow-x: hidden; background: #333; outline: none; }
+  .waverow { height: 40px; }
+  .waverow.editable { cursor: pointer; }
+  .waverow.editable:hover { background: #363; }
+  #empty { padding: 8px; opacity: 0.7; }
+  #prompt { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); padding: 8px;
+            background: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-focusBorder); }
+  #prompt input { width: 12em; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div id="rows" tabindex="0"></div>
+<div id="empty">Run a Verilog program to see its signals.</div>
+<div id="prompt" hidden><label></label> <input type="number"></div>
+<script nonce="${n}" src="${webview.asWebviewUri(script)}"></script>
+</body>
+</html>`;
+}
+
 /**
  * The Machine view: the platform's debug info as text, a tab per category,
  * like the IDE's debug info window. The selected tab is kept as the text
  * updates.
  */
 function machineHtml() {
-  const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const nonce = makeNonce();
   return `<!DOCTYPE html>
 <html>
 <head>

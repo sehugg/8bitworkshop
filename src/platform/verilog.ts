@@ -3,7 +3,7 @@ import { Platform, BasePlatform } from "../common/baseplatform";
 import { getToolForFilename_verilog } from "../common/toolselect";
 import { PLATFORMS, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap, getMousePos, KeyFlags } from "../common/emu";
 import { SampleAudio } from "../common/audio";
-import { WaveformProvider, WaveformMeta, WaveformScope } from "../common/waveform";
+import { WaveformProvider, WaveformMeta, WaveformScope, WaveformSnapshot, readTraceSignal } from "../common/waveform";
 import { getHDLHost } from "../common/hdl/hdlhost";
 import { HDLModuleRunner, HDLModuleTrace, HDLUnit, isLogicType } from "../common/hdl/hdltypes";
 import { HDLModuleJS } from "../common/hdl/hdlruntime";
@@ -193,6 +193,9 @@ var VerilogPlatform = function(mainElement, options) {
  
   scope : WaveformScope | null; // null when the host has no scope UI
   hasvideo : boolean;
+  traceNow = 0;
+  /** a design with no video ran until its trace buffer was full */
+  traceFull = false;
 
   sourceFileFetch : (path:string) => FileData;
 
@@ -264,9 +267,14 @@ var VerilogPlatform = function(mainElement, options) {
     }
     //this.restartDebugState();
     this.refreshVideoFrame();
-    // set scope offset
+    this.updateScopeTime(trace);
+  }
+
+  // set scope offset
+  updateScopeTime(trace:boolean) {
     if (trace) {
-      this.scope.setCurrentTime(Math.floor(trace_index/trace_signals.length));
+      this.traceNow = Math.floor(trace_index/trace_signals.length);
+      this.scope.setCurrentTime(this.traceNow);
     }
   }
   
@@ -277,7 +285,16 @@ var VerilogPlatform = function(mainElement, options) {
   // TODO: merge with prev func  
   advance(novideo : boolean) : number {
     this.setGenInputs();
-    this.updateVideoFrameCycles(cyclesPerFrame, true, false);
+    if (!this.hasvideo) {
+      // no video: the scope is all there is to show, and it is what runs the
+      // design, until the trace buffer is full (as in the IDE, which pauses)
+      if (this.scope) this.scope.show();
+      if (!this.traceFull) this.traceFull = this.fillTraceBuffer(CYCLES_PER_FILL * trace_signals.length);
+      return cyclesPerFrame;
+    }
+    var trace = this.isScopeVisible();
+    this.updateVideoFrameCycles(cyclesPerFrame, true, trace);
+    this.updateScopeTime(trace);
     if (!novideo) {
       this.refreshVideoFrame();
     }
@@ -525,19 +542,22 @@ var VerilogPlatform = function(mainElement, options) {
   }
   
   getSignalData(index:number, start:number, len:number) : number[] {
-    // TODO: not efficient
-    var skip = this.getSignalMetadata().length;
     var last = trace_buffer.length - trace_signals.length; // TODO: refactor, and not correct
-    var wrap = this.hasvideo; // TODO?
-    var a = [];
-    index += skip * start;
-    while (index < last && a.length < len) {
-      a.push(trace_buffer[index]);
-      index += skip;
-      if (wrap && index >= last) // TODO: what if starts with index==last
-        index = 0;
-    }
-    return a;
+    return readTraceSignal(trace_buffer, trace_signals.length, last, this.hasvideo, index, start, len);
+  }
+
+  /** The trace so far, for a view that shows it elsewhere (see TraceMirror). */
+  getTraceSnapshot() : WaveformSnapshot | null {
+    if (!top || !trace_signals) return null;
+    var nsig = trace_signals.length;
+    // whole clocks only
+    var last = Math.floor((trace_buffer.length - nsig) / nsig) * nsig;
+    return {
+      meta: trace_signals.map(s => ({ label: s.label, len: s.len, input: s.input, output: s.output })),
+      data: trace_buffer.slice(0, last),
+      wrap: this.hasvideo,
+      now: this.hasvideo ? this.traceNow : this.traceFull ? last / nsig : Math.floor(trace_index / nsig),
+    };
   }
 
   setSignalValue(index:number, value:number) {
@@ -687,6 +707,7 @@ var VerilogPlatform = function(mainElement, options) {
     if (!top) return;
     // TODO: how do we avoid clobbering user-modified signals?
     trace_index = 0;
+    this.traceFull = false;
     if (trace_buffer) trace_buffer.fill(0);
     if (video) video.setRotate(top.state.rotate ? -90 : 0);
     getHDLHost()?.showSettleCount(null);

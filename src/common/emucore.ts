@@ -28,7 +28,7 @@ import {
 import { ProbeAll, SampledAudioParams, TrapCondition } from "./devices";
 import { History } from "./history";
 import { VCDWriter } from "./vcd";
-import type { WaveformMeta } from "./waveform";
+import type { WaveformMeta, WaveformSnapshot } from "./waveform";
 import { createCore, isRewindable, PlatformFrameInput } from "./platformcore";
 import { compareTimestamps, Timestamp, timestamp } from "./timeline";
 import { FileData } from "./workertypes";
@@ -515,6 +515,21 @@ export class EmuCore {
     return isDebuggable(p) && !!p.getDebugCategories && p.getDebugInfo != null;
   }
 
+  /** True if the platform records signal traces for a waveform view (verilog). */
+  get hasWaveform(): boolean {
+    return typeof (this.platform as any)?.getTraceSnapshot === 'function';
+  }
+
+  /** The signal trace so far; the platform records one only while a view shows it. */
+  getWaveform(): WaveformSnapshot | null {
+    return this.hasWaveform ? (this.platform as any).getTraceSnapshot() : null;
+  }
+
+  /** Set a signal (an index into the waveform's signals), as the view does on a click. */
+  setSignalValue(index: number, value: number) {
+    if (this.hasWaveform) (this.platform as any).setSignalValue(index, value);
+  }
+
   getDebugInfo(): DebugSection[] {
     const state = this.saveState();
     const p: any = this.platform;
@@ -654,6 +669,22 @@ export class EmuCore {
     if (h.findLast(test, h.first(), t)) return true;
     h.seek(t);
     return false;
+  }
+
+  /**
+   * Run the current frame again from the recording, to the same state. A view
+   * that opens while the machine is paused uses it to see that frame happen.
+   * Returns false if the recording doesn't reach back a frame.
+   */
+  replayFrame(): boolean {
+    const h = this.timeline;
+    if (!h) return false;
+    const t = h.now();
+    const prev = timestamp(t.frame - 1, 0);
+    if (t.frame < 1 || compareTimestamps(prev, h.first()) < 0) return false;
+    this.seek(prev);
+    this.seek(t);
+    return true;
   }
 
   /** Move to a recorded moment, past or present. Throws if it isn't recorded. */

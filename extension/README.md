@@ -98,6 +98,7 @@ also appear in the editor title bar, the Explorer, or **Project Options**.
 | **Follow Active Editor** | Run whichever program is in the editor |
 | **Reset / Pause / Resume / Stop / Mute / Unmute Emulator** | Control the emulator panel (shown while it is open) |
 | **Show Machine View** | Open the Machine view in the 8bitworkshop panel: the platform's debug info (registers, video chip state), updated while the program runs |
+| **Waveform** (a tab in the 8bitworkshop panel, not a command) | Verilog: the signals as they run; click an input to change it. It records only while it is showing |
 | **Record Signals to VCD...** | Verilog: write the design's signal changes for a few frames to a `.vcd` file, for a waveform viewer. About 3 MB per frame for a design with video; name the file `.vcd.gz` to compress it about 4x. A recording stops at 1 GB |
 | **Stop Recording VCD** | End a recording before its frames are up |
 
