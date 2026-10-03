@@ -336,6 +336,18 @@ export class WASIMemoryFilesystem implements WASIFilesystem {
         if (this.dirs.has(name)) return WASIErrors.ISDIR;
         return this.files.delete(name) ? WASIErrors.SUCCESS : WASIErrors.NOENT;
     }
+    // Rename a file within this (writable) layer, replacing any file at newName.
+    renameFile(oldName: string, newName: string) {
+        oldName = normalizeWASIPath(oldName);
+        newName = normalizeWASIPath(newName);
+        if (this.dirs.has(oldName) || this.dirs.has(newName)) return WASIErrors.ISDIR;
+        const file = this.files.get(oldName);
+        if (!file) return WASIErrors.NOENT;
+        this.files.delete(oldName);
+        file.name = newName;
+        this.files.set(newName, file);
+        return WASIErrors.SUCCESS;
+    }
     removeDirectory(name: string) {
         name = normalizeWASIPath(name);
         if (name === '/') return WASIErrors.BUSY; // can't remove the root
@@ -732,6 +744,17 @@ export class WASIRunner {
         debug("path_unlink_file", dir+"", path);
         return this.fs.removeFile(path);
     }
+    path_rename(old_dirfd: number, old_path_ptr: number, old_path_len: number,
+        new_dirfd: number, new_path_ptr: number, new_path_len: number) {
+        const olddir = this.fds[old_dirfd];
+        const newdir = this.fds[new_dirfd];
+        if (olddir == null || newdir == null) return WASIErrors.BADF;
+        if (olddir.type !== FDType.DIRECTORY || newdir.type !== FDType.DIRECTORY) return WASIErrors.NOTDIR;
+        const oldpath = olddir.name + '/' + this.peekUTF8(old_path_ptr, old_path_len);
+        const newpath = newdir.name + '/' + this.peekUTF8(new_path_ptr, new_path_len);
+        debug("path_rename", oldpath, newpath);
+        return this.fs.renameFile(oldpath, newpath);
+    }
     path_remove_directory(dirfd: number, path_ptr: number, path_len: number) {
         const dir = this.fds[dirfd];
         if (dir == null) return WASIErrors.BADF;
@@ -778,6 +801,7 @@ export class WASIRunner {
             path_readlink: this.path_readlink.bind(this),
             path_unlink_file: this.path_unlink_file.bind(this),
             path_remove_directory: this.path_remove_directory.bind(this),
+            path_rename: this.path_rename.bind(this),
             path_create_directory: this.path_create_directory.bind(this),
             clock_time_get: this.clock_time_get.bind(this),
             fd_fdstat_set_flags() { warning("TODO: fd_fdstat_set_flags"); return WASIErrors.NOTSUP; },

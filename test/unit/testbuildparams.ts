@@ -248,6 +248,15 @@ describe("explicit build directives (//#symbol, //#flag, //#tooldef)", function 
     assert.deepStrictEqual(params.libargs, ["a.lib", "b.lib"]);
   });
 
+  it("#tooldef c sdcc picks the SDCC version", function () {
+    const params: any = {};
+    applyDirectives("//#tooldef c sdcc=3\n", params);
+    assert.strictEqual(params.sdcc_version, 3);
+    const dir = applyDirectives("//#tooldef c sdcc=5\n", params);
+    assert.strictEqual(dir.errors.length, 1);
+    assert.strictEqual(params.sdcc_version, 3);
+  });
+
   it("#tooldef rejects unknown knobs", function () {
     const params = c64Params();
     const dir = applyDirectives("//#tooldef ld nonsense=1\n", params);
@@ -298,7 +307,8 @@ describe("platform tool config resolution", function () {
   it("resolves per-platform, root-base, and default configs", function () {
     assert.strictEqual(getPlatformToolConfig('cc65', 'nes').wasiFSZip, 'cc65-fs-nes.zip');
     assert.strictEqual(getPlatformToolConfig('cc65', 'atari8-800').wasiFSZip, 'cc65-fs-atari8.zip');
-    assert.strictEqual(getPlatformToolConfig('sdcc').preloadFS, 'sdcc');
+    assert.strictEqual(getPlatformToolConfig('sdcc').wasiFSZip, 'sdcc-fs.zip');
+    assert.strictEqual(getPlatformToolConfig('sdcc', 'sms-sms-libcv').preloadFS, 'sdcc'); // root base 'sms'
     assert.strictEqual(getPlatformToolConfig('dasm', 'nes'), undefined);
   });
 

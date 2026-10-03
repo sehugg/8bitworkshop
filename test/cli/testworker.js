@@ -18,6 +18,7 @@ global.onmessage({data:{preload:'ca65', platform:'atari2600'}});
 global.onmessage({data:{preload:'cc65', platform:'pce'}});
 global.onmessage({data:{preload:'ca65', platform:'pce'}});
 global.onmessage({data:{preload:'sdcc'}});
+global.onmessage({data:{preload:'sdcc', platform:'coleco'}}); // SDCC 3.6.5 (Emscripten) filesystem
 global.onmessage({data:{preload:'inform6'}});
 
 // TODO: check msg against spec
@@ -183,11 +184,45 @@ describe('Worker', function() {
   it('should NOT link SDASZ80', function(done) {
     compile('sdasz80', '\tcall divxxx\n', 'mw8080bw', done, 0, 0, 1, {ignoreErrorPath:true});
   });
-  it('should compile SDCC', function(done) {
-    compile('sdcc', 'int foo=0; // comment\n#if defined(__8BITWORKSHOP__) && defined(__MAIN__)\nint main(int argc) {\nint x=1;\nint y=2+argc;\nreturn x+y+argc;\n}\n#endif\n', 'mw8080bw', done, 8192, 3, 0);
+  // 3.6.5 marks fewer source lines than 4.x (3 here, vs 4)
+  const SDCC_TEST_SRC = 'int foo=0; // comment\n#if defined(__8BITWORKSHOP__) && defined(__MAIN__)\nint main(int argc) {\nint x=1;\nint y=2+argc;\nreturn x+y+argc;\n}\n#endif\n';
+  const SDCC_DEFAULT = +/SDCC_DEFAULT_VERSION[^=]*= *(\d)/.exec(fs.readFileSync('src/common/toolmeta.ts', 'utf8'))[1];
+  const sdccLines = (n3, n4) => SDCC_DEFAULT == 4 ? n4 : n3; // listing line counts differ by version
+  it('should compile SDCC with the default version', function(done) {
+    compile('sdcc', SDCC_TEST_SRC, 'mw8080bw', done, 8192, sdccLines(3, 4), 0);
+  });
+  it('should compile SDCC 3 with //#tooldef c sdcc=3', function(done) {
+    compile('sdcc', '//#tooldef c sdcc=3\n' + SDCC_TEST_SRC, 'mw8080bw', done, 8192, 3, 0);
+  });
+  it('should compile SDCC 4 with //#tooldef c sdcc=4', function(done) {
+    compile('sdcc', '//#tooldef c sdcc=4\n' + SDCC_TEST_SRC, 'mw8080bw', done, 8192, 4, 0);
+  });
+  it('should pass --max-allocs-per-node unless #pragma opt_code', async function() {
+    for (const platform of ['mw8080bw', 'gb']) {
+      for (const ver of platform == 'gb' ? [3] : [3, 4]) {
+        for (const pragma of ['', '#pragma opt_code_speed\n']) {
+          var result;
+          global.postMessage = (msg) => { result = msg; };
+          await global.onmessage({data:{reset:true}});
+          const logs = []; const ol = console.log; console.log = (...a) => logs.push(a.join(' '));
+          try {
+            await global.onmessage({data:{code:'//#tooldef c sdcc=' + ver + '\n' + pragma + 'void main() {\n}\n',
+              platform:platform, tool:'sdcc', path:'src.sdcc', mainfile:true}});
+          } finally { console.log = ol; }
+          const what = [platform, 'sdcc', ver, JSON.stringify(pragma)].join(' ');
+          // the test worker has no gb filesystem package, so only the compile command is checked there
+          if (platform != 'gb') assert.ok(!result.errors || !result.errors.length, what + ': ' + JSON.stringify(result.errors));
+          const cmd = logs.find(l => /^exec sdcc --vc/.test(l)) || '';
+          assert.equal(/--no-peep --nolospre --max-allocs-per-node 500/.test(cmd), !pragma, what + ': ' + cmd);
+        }
+      }
+    }
+  });
+  it('should NOT compile SDCC 4 for a 3.x-library platform', function(done) {
+    compile('sdcc', '//#tooldef c sdcc=4\nvoid main() {\n}\n', 'coleco', done, 0, 0, 1, {ignoreErrorPath:true});
   });
   it('should compile SDCC w/ include', function(done) {
-    compile('sdcc', '#include <string.h>\nvoid main() {\nstrlen(0);\n}\n', 'mw8080bw', done, 8192, 2, 0);
+    compile('sdcc', '#include <string.h>\nvoid main() {\nstrlen(0);\n}\n', 'mw8080bw', done, 8192, sdccLines(2, 3), 0);
   });
   it('should compile oscar64 and return listings/symbols/segments', async function() {
     var msgs = [{code:'#include <stdio.h>\nint main() { printf("FOO"); return 0; }', platform:'c64', tool:'oscar64', path:'main.c', mainfile:true}];
@@ -276,23 +311,23 @@ describe('Worker', function() {
 
   it('should compile mw8080 skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/mw8080bw/skeleton.sdcc'));
-    compile('sdcc', csource, 'mw8080bw', done, 8192, 84, 0);
+    compile('sdcc', csource, 'mw8080bw', done, 8192, sdccLines(84, 97), 0);
   });
   it('should compile galaxian skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/galaxian-scramble/skeleton.sdcc'));
-    compile('sdcc', csource, 'galaxian-scramble', done, 20512, 28, 0);
+    compile('sdcc', csource, 'galaxian-scramble', done, 20512, sdccLines(28, 36), 0);
   });
   it('should compile vector skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/vector-z80color/skeleton.sdcc'));
-    compile('sdcc', csource, 'vector-z80color', done, 32768, 23, 0);
+    compile('sdcc', csource, 'vector-z80color', done, 32768, sdccLines(23, 26), 0);
   });
   it('should compile williams skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/williams-z80/skeleton.sdcc'));
-    compile('sdcc', csource, 'williams-z80', done, 38912, 40, 0);
+    compile('sdcc', csource, 'williams-z80', done, 38912, sdccLines(40, 43), 0);
   });
   it('should compile williams_sound skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/sound_williams-z80/skeleton.sdcc'));
-    compile('sdcc', csource, 'sound_williams-z80', done, 16384, 6, 0);
+    compile('sdcc', csource, 'sound_williams-z80', done, 16384, sdccLines(6, 7), 0);
   });
   it('should compile coleco skeleton', function(done) {
     var csource = ab2str(fs.readFileSync('presets/coleco/cursorsmooth.c'));
@@ -370,6 +405,29 @@ describe('Worker', function() {
     var msgs = [m, m, m2];
     doBuild(msgs, done, 8192, [1,1], 0);
   });
+  it('should rebuild unchanged files when //#tooldef c sdcc changes', async function() {
+    var build = (main) => ({
+        "updates":[
+            {"path":"main.c", "data":main + "extern int mul2(int x);\nint main() { return mul2(2); }\n"},
+            {"path":"fn.c", "data":"int mul2(int x) { return x*x; }\n"}
+        ],
+        "buildsteps":[
+            {"path":"main.c", "platform":"mw8080bw", "tool":"sdcc"},
+            {"path":"fn.c", "platform":"mw8080bw", "tool":"sdcc"}
+        ]
+    });
+    // fn.c has no directive, and doesn't change: its asm banner shows which SDCC built it
+    var fnVersion = async (main) => {
+      var result;
+      global.postMessage = (msg) => { result = msg; };
+      await global.onmessage({data:build(main)});
+      assert.ok(!result.errors || !result.errors.length, JSON.stringify(result.errors));
+      return /; Version (\d+)\./.exec(result.listings['fn.lst'].text)[1];
+    };
+    await global.onmessage({data:{reset:true}});
+    assert.equal(await fnVersion("//#tooldef c sdcc=4\n"), '4');
+    assert.equal(await fnVersion("//#tooldef c sdcc=3\n"), '3');
+  });
   it('should include filename in compile errors', function(done) {
     var m = {
         "updates":[
@@ -387,7 +445,7 @@ describe('Worker', function() {
   });
   it('should compile vicdual skeleton', function(done) {
     var files = ['skeleton.sdcc', 'cp437.c'];
-    compileFiles('sdcc', files, 'vicdual', done, 16416, [0,45], 0); // TODO?
+    compileFiles('sdcc', files, 'vicdual', done, 16416, [0, sdccLines(45, 55)], 0); // TODO?
   });
   it('should compile apple2 skeleton with CC65', function(done) {
     var csource = ab2str(fs.readFileSync('presets/apple2/skeleton.cc65'));

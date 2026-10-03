@@ -51,7 +51,12 @@ describe('Tool metadata registry', function () {
     assert.strictEqual(getSharedFileSystemName('cc65', 'nes'), 'wasi:cc65-fs-nes.zip');
     assert.strictEqual(getSharedFileSystemName('cc65', 'c64'), 'wasi:cc65-fs-c64.zip');
     assert.strictEqual(getSharedFileSystemName('cc65', 'nonexistent'), undefined);
-    assert.strictEqual(getPreloadFSName('sdcc'), 'sdcc'); // default config
+    // SDCC 4.x (WASI zip) by default; 3.x-library platforms keep the 3.6.5 preloadFS
+    assert.strictEqual(getPreloadFSName('sdcc'), undefined);
+    assert.strictEqual(getSharedFileSystemName('sdcc', 'mw8080bw'), 'wasi:sdcc-fs.zip');
+    assert.strictEqual(getPreloadFSName('sdcc', 'gb'), 'sdcc');
+    assert.strictEqual(getPreloadFSName('sdcc', 'msx-libcv'), 'sdcc');
+    assert.strictEqual(getSharedFileSystemName('sdcc', 'msx'), 'wasi:sdcc-fs.zip');
     assert.strictEqual(getPreloadFSName('dasm'), undefined);
   });
 

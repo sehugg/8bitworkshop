@@ -1,10 +1,53 @@
-import { Worker } from "node:worker_threads";
-import { defineArgs, extraArgsFor, linkSymbolArgs } from "../../common/toolmeta";
+import { defineArgs, extraArgsFor, linkSymbolArgs, getPlatformToolConfig, SDCC_DEFAULT_VERSION } from "../../common/toolmeta";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
 import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, populateExtraFiles, anyTargetChanged, getWorkFileAsString, fixParamsWithDefines, applyAsmProjectParams } from "../builder";
 import { parseListing, parseSourceLines, msvcErrorMatcher } from "../listingutils";
-import { EmscriptenModule, emglobal, execMain, loadNative, moduleInstFn, print_fn, setupFS, setupStdin } from "../wasmutils";
+import { EmscriptenModule, emglobal, ensureFilesystem, ensureWasiFilesystem, execMain, loadNative, moduleInstFn, print_fn, setupFS, setupStdin } from "../wasmutils";
+import { runWASITool, checkExitCode, readWASIOutputString } from "../wasiutils";
 import { preprocessMCPP } from "./mcpp";
+
+// SDCC 4.x runs as WASI over sdcc-fs.zip, which holds share/sdcc/{include,lib/<port>}.
+// Platforms with libraries built by SDCC 3.x stay on the 3.6.5 Emscripten build
+// (see SDCC_FS in toolmeta).
+const SDCC4_INCLUDE = 'share/sdcc/include';
+const SDCC4_LIB = 'share/sdcc/lib';
+
+// what the sdcc driver predefines when it runs sdcpp; mcpp must supply them
+const SDCC4_DEFINES = [
+    '-D', '__SDCC=4_6_3',
+    '-D', '__SDCC_VERSION_MAJOR=4',
+    '-D', '__SDCC_VERSION_MINOR=6',
+    '-D', '__SDCC_VERSION_PATCH=3',
+    '-D', '__SDCCCALL=1',
+    '-D', '__STDC_NO_COMPLEX__=1',
+    '-D', '__STDC_NO_THREADS__=1',
+    '-D', '__STDC_NO_ATOMICS__=1',
+    '-D', '__STDC_NO_VLA__=1',
+];
+
+/**
+ * The SDCC 4.x filesystem zip for this build, or null for SDCC 3.6.5. The
+ * version is `//#tooldef c sdcc=3|4` (params.sdcc_version) or else
+ * SDCC_DEFAULT_VERSION. Platforms with 3.x-only libraries always get 3.x,
+ * and asking for 4.x there is an error.
+ */
+function sdcc4FS(step: BuildStep): string | null {
+    const requested = step.params.sdcc_version;
+    if ((requested ?? SDCC_DEFAULT_VERSION) !== 4) return null;
+    const zip = getPlatformToolConfig('sdcc', step.platform)?.wasiFSZip;
+    if (!zip && requested === 4) {
+        throw new Error(`SDCC 4 can't build for ${step.platform}: its libraries were compiled by SDCC 3. Remove "//#tooldef c sdcc=4".`);
+    }
+    return zip || null;
+}
+
+/** True if the step's cached asm output came from the other SDCC version. */
+function builtByOtherSDCC(outpath: string, fs4: string | null): boolean {
+    const asm = getWorkFileAsString(outpath);
+    if (typeof asm !== 'string') return false;
+    const m = /^; Version (\d+)\./m.exec(asm);
+    return !!m && (m[1] === '4') !== !!fs4;
+}
 
 function hexToArray(s, ofs) {
     var buf = new ArrayBuffer(s.length / 2);
@@ -39,6 +82,19 @@ export function bankedAreaArgs(rels: string[], banking: ROMBanking): string[] {
     for (let n of Array.from(banks).sort((a, b) => a - b))
         args.push('-b', `_CODE_${n}=0x${((n << 16) | banking.window).toString(16)}`);
     return args;
+}
+
+/**
+ * True if any of the object files declares the area, or if one of them can't
+ * be read (so the caller keeps its default).
+ */
+export function objectsDefineArea(objfiles: string[], area: string): boolean {
+    for (let fn of objfiles) {
+        if (!fn.endsWith('.rel')) continue;
+        let rel = getWorkFileAsString(fn);
+        if (typeof rel !== 'string' || new RegExp(`^A ${area} `, 'm').test(rel)) return true;
+    }
+    return false;
 }
 
 /**
@@ -157,8 +213,6 @@ function errorMatcherSDASZ80(path: string, errors: WorkerError[]) {
 }
 
 async function assembleSDAS(step: BuildStep, tool: 'sdasz80' | 'sdasgb'): Promise<BuildStepResult> {
-    loadNative(tool);
-    var objout, lstout, symout;
     var errors = [];
     gatherFiles(step, { mainFilePath: "main.asm" });
     var objpath = step.prefix + ".rel";
@@ -169,24 +223,41 @@ async function assembleSDAS(step: BuildStep, tool: 'sdasz80' | 'sdasgb'): Promis
     }
     if (staleFiles(step, [objpath, lstpath])) {
         const match_asm_fn = errorMatcherSDASZ80(step.path, errors);
-        var AS: EmscriptenModule = emglobal[tool]({
-            instantiateWasm: moduleInstFn(tool),
-            noInitialRun: true,
-            //logReadFiles:true,
-            print: match_asm_fn,
-            printErr: match_asm_fn,
-        });
-        // old-style Emscripten modules return the Module object, whose .then()
-        // only resolves after main() runs; newer MODULARIZE factories return a Promise
-        if (AS instanceof Promise) AS = await AS;
-        var FS = AS.FS;
-        populateFiles(step, FS);
-        execMain(step, AS, ['-plosgffwy', step.path]);
-        if (errors.length) {
-            return { errors: errors };
+        const args = ['-plosgffwy', step.path];
+        var objout, lstout;
+        if (tool == 'sdasz80' && sdcc4FS(step)) {
+            const { wasi, errno, stdout, stderr } = await runWASITool(tool, args, {
+                module: 'sdasz80-4',
+                populate: (fs) => populateFiles(step, fs),
+            });
+            stdout.concat(stderr).forEach(match_asm_fn);
+            checkExitCode(tool, errno, stderr, errors);
+            if (errors.length) {
+                return { errors: errors };
+            }
+            objout = readWASIOutputString(wasi, objpath);
+            lstout = readWASIOutputString(wasi, lstpath);
+        } else {
+            loadNative(tool);
+            var AS: EmscriptenModule = emglobal[tool]({
+                instantiateWasm: moduleInstFn(tool),
+                noInitialRun: true,
+                //logReadFiles:true,
+                print: match_asm_fn,
+                printErr: match_asm_fn,
+            });
+            // old-style Emscripten modules return the Module object, whose .then()
+            // only resolves after main() runs; newer MODULARIZE factories return a Promise
+            if (AS instanceof Promise) AS = await AS;
+            var FS = AS.FS;
+            populateFiles(step, FS);
+            execMain(step, AS, args);
+            if (errors.length) {
+                return { errors: errors };
+            }
+            objout = FS.readFile(objpath, { encoding: 'utf8' });
+            lstout = FS.readFile(lstpath, { encoding: 'utf8' });
         }
-        objout = FS.readFile(objpath, { encoding: 'utf8' });
-        lstout = FS.readFile(lstpath, { encoding: 'utf8' });
         putWorkFile(objpath, objout);
         putWorkFile(lstpath, lstout);
     }
@@ -195,7 +266,6 @@ async function assembleSDAS(step: BuildStep, tool: 'sdasz80' | 'sdasgb'): Promis
         files: [objpath, lstpath],
         args: [objpath]
     };
-    //symout = FS.readFile("main.sym", {encoding:'utf8'});
 }
 
 export function assembleSDASZ80(step: BuildStep): Promise<BuildStepResult> {
@@ -206,9 +276,9 @@ export function assembleSDASGB(step: BuildStep): Promise<BuildStepResult> {
     return assembleSDAS(step, 'sdasgb');
 }
 
-export function linkSDLDZ80(step: BuildStep) {
-    loadNative("sdldz80");
+export async function linkSDLDZ80(step: BuildStep) {
     const arch = step.params.arch || 'z80';
+    const fs4 = sdcc4FS(step);
     var errors = [];
     gatherFiles(step);
     var binpath = "main.ihx";
@@ -225,28 +295,16 @@ export function linkSDLDZ80(step: BuildStep) {
             }
         }
         var params = step.params;
-        var LDZ80: EmscriptenModule = emglobal.sdldz80({
-            instantiateWasm: moduleInstFn('sdldz80'),
-            noInitialRun: true,
-            //logReadFiles:true,
-            print: match_aslink_fn,
-            printErr: match_aslink_fn,
-        });
-        var FS = LDZ80.FS;
-        setupFS(FS, 'sdcc');
-        populateFiles(step, FS);
-        populateExtraFiles(step, FS, params.extra_link_files);
-        // TODO: coleco hack so that -u flag works
-        if (step.platform.startsWith("coleco")) {
-            FS.writeFile('crt0.rel', FS.readFile('/share/lib/coleco/crt0.rel', { encoding: 'utf8' }));
-            FS.writeFile('crt0.lst', '\n'); // TODO: needed so -u flag works
+        var libdir = fs4 ? `${SDCC4_LIB}/${arch}` : arch === 'z80' ? '/share/lib/z80' : '.'; // sm83.lib copied to current (.) directory
+        var args = ['-mjwxyu', '-i', 'main.ihx'];
+        // sdld 4.x fails on -b for an area no module defines (an asm-only
+        // program may have no _DATA)
+        var bases = { _CODE: params.codeseg_start || params.code_start, _DATA: params.data_start };
+        for (let area in bases) {
+            if (!fs4 || objectsDefineArea(step.args.concat(params.extra_link_args || []), area))
+                args.push('-b', `${area}=0x${bases[area].toString(16)}`);
         }
-        var args = ['-mjwxyu',
-            '-i', 'main.ihx',
-            '-b', '_CODE=0x' + (params.codeseg_start||params.code_start).toString(16),
-            '-b', '_DATA=0x' + params.data_start.toString(16),
-            '-k', arch === 'z80' ? '/share/lib/z80' : '.', // sm83.lib copied to current (.) directory
-            '-l', arch];
+        args.push('-k', libdir, '-l', arch);
         if (params.extra_link_args)
             args.push.apply(args, params.extra_link_args);
         // //#symbol ld (sdldz80 uses -g sym=expr) and //#flag ld
@@ -274,13 +332,50 @@ export function linkSDLDZ80(step: BuildStep) {
         }
         objargs = withStartupObjects(params.startup_objs, objargs);
         args.push.apply(args, objargs);
-        //console.log(args);
-        execMain(step, LDZ80, args);
-        if (errors.length) {
-            return { errors: errors };
+        var readText: (path: string) => string;
+        if (fs4) {
+            // one sdld binary for all targets: it picks z80 from argv[0]
+            const { wasi, errno, stdout, stderr } = await runWASITool('sdldz80', args, {
+                module: 'sdld4',
+                sharedFS: fs4,
+                populate: (fs) => {
+                    populateFiles(step, fs);
+                    populateExtraFiles(step, fs, params.extra_link_files);
+                },
+            });
+            stdout.concat(stderr).forEach(match_aslink_fn);
+            checkExitCode('sdldz80', errno, stderr, errors);
+            if (errors.length) {
+                return { errors: errors };
+            }
+            readText = (path) => readWASIOutputString(wasi, path);
+        } else {
+            loadNative("sdldz80");
+            var LDZ80: EmscriptenModule = emglobal.sdldz80({
+                instantiateWasm: moduleInstFn('sdldz80'),
+                noInitialRun: true,
+                //logReadFiles:true,
+                print: match_aslink_fn,
+                printErr: match_aslink_fn,
+            });
+            var FS = LDZ80.FS;
+            ensureFilesystem('sdcc');
+            setupFS(FS, 'sdcc');
+            populateFiles(step, FS);
+            populateExtraFiles(step, FS, params.extra_link_files);
+            // TODO: coleco hack so that -u flag works
+            if (step.platform.startsWith("coleco")) {
+                FS.writeFile('crt0.rel', FS.readFile('/share/lib/coleco/crt0.rel', { encoding: 'utf8' }));
+                FS.writeFile('crt0.lst', '\n'); // TODO: needed so -u flag works
+            }
+            execMain(step, LDZ80, args);
+            if (errors.length) {
+                return { errors: errors };
+            }
+            readText = (path) => FS.readFile(path, { encoding: 'utf8' });
         }
-        var hexout = FS.readFile("main.ihx", { encoding: 'utf8' });
-        var noiout = FS.readFile("main.noi", { encoding: 'utf8' });
+        var hexout = readText("main.ihx");
+        var noiout = readText("main.noi");
         putWorkFile("main.ihx", hexout);
         putWorkFile("main.noi", noiout);
         // return unchanged if no files changed
@@ -295,17 +390,9 @@ export function linkSDLDZ80(step: BuildStep) {
         var listings: CodeListingMap = {};
         for (var fn of step.files) {
             if (fn.endsWith('.lst')) {
-                var rstout = FS.readFile(fn.replace('.lst', '.rst'), { encoding: 'utf8' });
-                //   0000 21 02 00      [10]   52 	ld	hl, #2
-                var asmlines = parseListing(rstout, /^\s*([0-9A-F]{4,6})\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]?\s+(\d+) (.*)/i, 4, 1, 2, 3);
-                var srclines = parseSourceLines(rstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4,6})/i);
+                var rstout = readText(fn.replace('.lst', '.rst'));
                 putWorkFile(fn, rstout);
-                // TODO: you have to get rid of all source lines to get asm listing
-                listings[fn] = {
-                    asmlines: srclines.length ? asmlines : null,
-                    lines: srclines.length ? srclines : asmlines,
-                    text: rstout
-                };
+                listings[fn] = parseRSTListing(rstout, fn.replace(/\.lst$/, ''));
             }
         }
         // parse symbol map
@@ -362,6 +449,27 @@ export function linkSDLDZ80(step: BuildStep) {
 }
 
 /**
+ * Parse a linked (.rst) listing into asm lines and, when the compiler left
+ * source comments, source lines. `srcprefix` is the source file name without
+ * its extension: SDCC 3.6.5 writes `;<stdin>:N:` comments, SDCC 4.x writes
+ * `;file.c:N: <source>` (with mcpp's `//` path prefix), and 4.x addresses
+ * have 8 hex digits instead of 4.
+ */
+export function parseRSTListing(rstout: string, srcprefix: string) {
+    //   0000 21 02 00      [10]   52 	ld	hl, #2
+    var asmlines = parseListing(rstout, /^\s*([0-9A-F]{4,8})\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]?\s+(\d+) (.*)/i, 4, 1, 2, 3);
+    const name = srcprefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const srcre = new RegExp(`^\\s+\\d+ ;(?:<stdin>|/*${name}\\.[^:\\s]+):(\\d+):`, 'i');
+    var srclines = parseSourceLines(rstout, srcre, /^\s*([0-9A-F]{4,8})/i);
+    // TODO: you have to get rid of all source lines to get asm listing
+    return {
+        asmlines: srclines.length ? asmlines : null,
+        lines: srclines.length ? srclines : asmlines,
+        text: rstout
+    };
+}
+
+/**
  * sdcc 3.6.5 compiles a __banked call to `call banked_call; .dw _fn; .dw 0`,
  * with a "PENDING: bank support" comment where the bank number belongs. Supply
  * it the way later sdcc versions do: a file with `#pragma bank N` defines
@@ -392,7 +500,7 @@ export function withStartupObjects(startup: string[] | undefined, objargs: strin
     return startup.filter((fn) => !own.has(fn)).concat(objargs);
 }
 
-export function compileSDCC(step: BuildStep): BuildStepResult {
+export async function compileSDCC(step: BuildStep): Promise<BuildStepResult> {
 
     gatherFiles(step, {
         mainFilePath: "main.c" // not used
@@ -401,29 +509,25 @@ export function compileSDCC(step: BuildStep): BuildStepResult {
     var isGBZ80 = params.arch === 'gbz80';
     var outpath = step.prefix + ".asm";
     fixParamsWithDefines(step.path, params); // //#symbol, //#flag, //#tooldef
-    if (staleFiles(step, [outpath])) {
+    const fs4 = sdcc4FS(step); // after the directives: //#tooldef c sdcc=3|4
+    if (staleFiles(step, [outpath]) || builtByOtherSDCC(outpath, fs4)) {
         var errors = [];
-        loadNative('sdcc');
-        var SDCC: EmscriptenModule = emglobal.sdcc({
-            instantiateWasm: moduleInstFn('sdcc'),
-            noInitialRun: true,
-            noFSInit: true,
-            print: print_fn,
-            printErr: msvcErrorMatcher(errors),
-            //TOTAL_MEMORY:256*1024*1024,
-        });
-        var FS = SDCC.FS;
-        populateFiles(step, FS);
         // load source file and preprocess
         var code = getWorkFileAsString(step.path);
-        var preproc = preprocessMCPP(step, 'sdcc');
+        var preproc;
+        if (fs4) {
+            const sharefs = await ensureWasiFilesystem(fs4);
+            if (!sharefs) throw new Error("Could not load SDCC filesystem " + fs4);
+            preproc = preprocessMCPP(step, { fs: sharefs, dir: SDCC4_INCLUDE }, SDCC4_DEFINES);
+        } else {
+            ensureFilesystem('sdcc');
+            preproc = preprocessMCPP(step, 'sdcc');
+        }
         if (preproc.errors) {
             return { errors: preproc.errors };
         }
-        else code = preproc.code;
-        // pipe file to stdin
-        setupStdin(FS, code);
-        setupFS(FS, 'sdcc');
+        // mcpp keeps a UTF-8 byte order mark, which 4.x rejects
+        else code = preproc.code.replace(/\uFEFF/g, '');
         const machineFlags = isGBZ80 ? '-mgbz80' : '-mz80';
         var args = ['--vc', '--std-sdcc99', machineFlags, //'-Wall',
             '--c1mode',
@@ -458,13 +562,50 @@ export function compileSDCC(step: BuildStep): BuildStepResult {
         // //#symbol c and //#flag c
         args.push.apply(args, defineArgs('sdcc', params.symbols && params.symbols.compiler));
         args.push.apply(args, extraArgsFor('sdcc', params.buildArgs));
-        execMain(step, SDCC, args);
-        // TODO: preprocessor errors w/ correct file
-        if (errors.length /* && nwarnings < msvc_errors.length*/) {
-            return { errors: errors };
+        var asmout: string;
+        if (fs4) {
+            // --c1mode reads the preprocessed source from stdin
+            const { wasi, errno, stdout, stderr } = await runWASITool('sdcc', args, {
+                module: 'sdcc4',
+                stdin: code,
+                populate: (fs) => populateFiles(step, fs),
+            });
+            // 4.x warns more than 3.6.5 did (e.g. `int main(int argc)`), and
+            // WorkerError has no severity: only a failed run reports them
+            stderr.forEach(msvcErrorMatcher(errors));
+            if (!errno) {
+                errors.forEach((e) => console.log('sdcc warning:', e.path + ':' + e.line, e.msg));
+                errors = [];
+            }
+            checkExitCode('sdcc', errno, stderr, errors);
+            if (errors.length) {
+                return { errors: errors };
+            }
+            asmout = readWASIOutputString(wasi, outpath);
+        } else {
+            loadNative('sdcc');
+            var SDCC: EmscriptenModule = emglobal.sdcc({
+                instantiateWasm: moduleInstFn('sdcc'),
+                noInitialRun: true,
+                noFSInit: true,
+                print: print_fn,
+                printErr: msvcErrorMatcher(errors),
+                //TOTAL_MEMORY:256*1024*1024,
+            });
+            var FS = SDCC.FS;
+            populateFiles(step, FS);
+            // pipe file to stdin
+            setupStdin(FS, code);
+            ensureFilesystem('sdcc'); // not preloaded on a 4.x platform built with sdcc=3
+            setupFS(FS, 'sdcc');
+            execMain(step, SDCC, args);
+            // TODO: preprocessor errors w/ correct file
+            if (errors.length /* && nwarnings < msvc_errors.length*/) {
+                return { errors: errors };
+            }
+            asmout = FS.readFile(outpath, { encoding: 'utf8' });
         }
         // massage the asm output
-        var asmout = FS.readFile(outpath, { encoding: 'utf8' });
         asmout = " .area _HOME\n .area _CODE\n .area _INITIALIZER\n .area _DATA\n .area _INITIALIZED\n .area _BSEG\n .area _BSS\n .area _HEAP\n" + asmout;
         if (isGBZ80) asmout = fixBankedCalls(asmout);
         putWorkFile(outpath, asmout);

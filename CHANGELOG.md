@@ -63,6 +63,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - cc65 toolchain (cc65/ca65/ld65 WASI builds and the per-platform include/lib zips) updated from the 2021 build (`6ac4aa4`) to cc65 `d8a486a` (V2.19-3867, 2026-09-26). The compiler runs with `--disable-opt OptLoadStore1` (the new step drops stores after loads of the same address, which breaks hardware registers and inline asm) and `-unreachable-code`.
 - cc65 `a2.lo.s` (Apple II lo-res TGI) patched in `8bitworkshop-compilers/patches/cc65-apple2-lo-tgi.patch`: a stray `bpl :+` in `INSTALL` made `tgi_install(a2_lo_tgi)` crash on a non-enhanced Apple II.
 - Presets adjusted for the newer cc65: NES `chase` closes its zero-page `#pragma` region, C64 `side_scroller` uses an unsigned fixed-point constant, and the Atari vector presets no longer recurse into `main()`. `neslib.h` no longer redefines `NULL` if `stddef.h` already did.
+- SDCC: both 3.6.5 and 4.x are bundled; 3.6.5 is the default (several times faster to build) and `//#tooldef c sdcc=4` opts in to 4.x (the default is `SDCC_DEFAULT_VERSION` in `toolmeta.ts`). Programs without an `opt_code*` pragma now build with `--no-peep --nolospre --max-allocs-per-node 500`, including Game Boy, which previously always got the full optimizer. See *SDCC versions* in the build directives docs.
 - Build is now only `esbuild` through `scripts/build.mjs`; code split into a headless `src/common/projectcore.ts` / `toolselect.ts`.
 - New `buildpresets` script that builds and runs every preset.
 

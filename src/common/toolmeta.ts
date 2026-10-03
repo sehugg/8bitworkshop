@@ -268,6 +268,31 @@ const TOOL_PLATFORM_HELPURL: { [tool: string]: { [platform: string]: string } } 
   },
 };
 
+/**
+ * Which SDCC a program gets unless it says `//#tooldef c sdcc=3|4`. To make
+ * 4.x the default, change this to 4: nothing else needs editing.
+ *   3 = 3.6.5, Emscripten, preloadFS 'sdcc' (builds several times faster)
+ *   4 = 4.x, WASI, sdcc-fs.zip (smaller code)
+ */
+export const SDCC_DEFAULT_VERSION: 3 | 4 = 3;
+
+/**
+ * 'default' lists both filesystems; the one for SDCC_DEFAULT_VERSION leads
+ * (getSharedFileSystemName prefers preloadFS). Platforms whose prebuilt
+ * libraries were compiled by SDCC 3.x (libcv, gb.lib, cpctelera) have only
+ * preloadFS: 4.x's default calling convention, sdcccall(1), can't call them.
+ */
+const SDCC_FS: { [platform: string]: PlatformToolConfig } = {
+  'default': SDCC_DEFAULT_VERSION === 3
+    ? { preloadFS: 'sdcc', wasiFSZip: 'sdcc-fs.zip' }
+    : { wasiFSZip: 'sdcc-fs.zip' },
+  'coleco': { preloadFS: 'sdcc' },
+  'msx-libcv': { preloadFS: 'sdcc' },
+  'sms': { preloadFS: 'sdcc' },
+  'gb': { preloadFS: 'sdcc' },
+  'cpc': { preloadFS: 'sdcc' },
+};
+
 const CC65_WASIFS: { [platform: string]: PlatformToolConfig } = {
   'apple2': { wasiFSZip: 'cc65-fs-apple2.zip' },
   'c64': { wasiFSZip: 'cc65-fs-c64.zip' },
@@ -386,13 +411,13 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   sdcc: {
     id: 'sdcc', name: 'SDCC', kind: 'compiler', arch: 'z80',
     extensions: ['.c', '.h'],
-    includeDirs: ['/include'],
+    includeDirs: ['/share/sdcc/include', '/include'],
     editorStyle: 'text/x-csrc',
     helpURL: 'http://sdcc.sourceforge.net/doc/sdccman.pdf',
-    wasmModule: 'sdcc',
-    version: '3.6.5',
+    wasmModule: 'sdcc4',
+    version: SDCC_DEFAULT_VERSION === 3 ? '3.6.5' : '4.6.0',
     defineFlag: '-D', defineInline: true,
-    platforms: { default: { preloadFS: 'sdcc' } },
+    platforms: SDCC_FS,
     includePatterns: SHARED_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
   },
@@ -400,11 +425,11 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   sdasz80: {
     id: 'sdasz80', name: 'sdasz80', kind: 'assembler', arch: 'z80',
     extensions: ['.s'],
-    includeDirs: ['/include'],
+    includeDirs: ['/share/sdcc/include', '/include'],
     editorStyle: 'z80',
-    wasmModule: 'sdasz80',
+    wasmModule: 'sdasz80-4',
     version: '02.00',
-    platforms: { default: { preloadFS: 'sdcc' } },
+    platforms: SDCC_FS,
     includePatterns: SHARED_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
   },
@@ -423,7 +448,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
   sdldz80: {
     id: 'sdldz80', name: 'sdldz80', kind: 'linker', arch: 'z80',
     extensions: [],
-    wasmModule: 'sdldz80',
+    wasmModule: 'sdld4',
     version: '03.00',
     linkSymbolFlag: '-g', linkSymbolInline: false,
   },

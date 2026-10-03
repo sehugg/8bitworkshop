@@ -466,7 +466,8 @@ export function applyAsmProjectParams(params) {
  *
  *   //#symbol [<phase>] NAME[=VALUE]   phase in c|as|ld (default c)
  *   //#flag   <phase> <args...>        raw argv for one phase
- *   //#tooldef <phase> NAME=VALUE      typed knob (linker: cfgfile, libargs)
+ *   //#tooldef <phase> NAME=VALUE      typed knob (linker: cfgfile, libargs;
+ *                                      compiler: sdcc=3|4)
  *
  * Symbols are phase-scoped because they are different things: a preprocessor
  * macro (`c`) takes text, while an assembler/linker global (`as`/`ld`) is an
@@ -732,6 +733,10 @@ export function applyBuildDirectives(dir: SourceDirectives, params) {
       params.cfgfile = td.value;
     } else if (td.phase === 'linker' && td.name === 'libargs') {
       params.libargs = td.value.split(',').filter((s) => s !== '');
+    } else if (td.phase === 'compiler' && td.name === 'sdcc') {
+      // SDCC major version; every sdcc/sdas/sdld step of the build reads it
+      if (td.value === '3' || td.value === '4') params.sdcc_version = parseInt(td.value);
+      else dir.errors.push(`#tooldef c sdcc: expected 3 or 4, got '${td.value}'`);
     } else {
       dir.errors.push(`#tooldef: unknown ${td.phase} param '${td.name}'`);
     }

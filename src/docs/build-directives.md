@@ -129,16 +129,18 @@ Sets a named build parameter that the build system understands:
 //#tooldef <phase> NAME=VALUE
 ~~~
 
-For the linker phase, the supported parameters are:
+The supported parameters are:
 
-| Name | Meaning |
-| --- | --- |
-| `cfgfile` | linker configuration file to use (e.g. for CC65's ld65) |
-| `libargs` | comma-separated list of library/symbol arguments |
+| Phase | Name | Meaning |
+| --- | --- | --- |
+| `ld` | `cfgfile` | linker configuration file to use (e.g. for CC65's ld65) |
+| `ld` | `libargs` | comma-separated list of library/symbol arguments |
+| `c` | `sdcc` | SDCC version, `3` or `4` (see *SDCC versions* below) |
 
 ~~~c
 //#tooldef ld cfgfile=apple2-hgr2.cfg
 //#tooldef ld libargs=,nes.lib
+//#tooldef c sdcc=3
 ~~~
 
 ### Commenting out a directive
@@ -202,6 +204,63 @@ of the binary file.
 
 The `#embed` directive is also supported in Oscar64 and Wiz files.
 
+## SDCC versions
+
+Z80 C files build with SDCC 3.6.5 by default, which compiles several times
+faster. SDCC 4 produces smaller code (roughly 10-20% on the samples we
+tried) but compiles more slowly, mostly in the register allocator. To build
+a project with SDCC 4, add this line to the main file:
+
+~~~c
+//#tooldef c sdcc=4
+~~~
+
+The whole project then compiles, assembles, and links with SDCC 4.
+Platforms whose libraries were compiled with SDCC 3.6.5 can't use SDCC 4,
+and `//#tooldef c sdcc=4` on one of them is a build error:
+
+| Platform | Library |
+| --- | --- |
+| `coleco`, `msx-libcv`, `sms-*` | libcv / libcvu |
+| `gb` | gb.lib |
+| `cpc.*` | cpctelera, cpcrslib |
+
+`//#tooldef c sdcc=3` selects SDCC 3.6.5 explicitly, which keeps working if
+the default changes. The default is `SDCC_DEFAULT_VERSION` in
+`src/common/toolmeta.ts`.
+
+Unless the source has a `#pragma opt_code_size`, `opt_code_speed` or
+`opt_code_balanced`, SDCC runs with `--no-peep --nolospre
+--max-allocs-per-node 500` for fast builds. Adding one of those pragmas
+turns the full optimizer back on.
+
+### Calling convention
+
+SDCC 4 passes function arguments in registers; SDCC 3 passed them on the
+stack. C code works either way, but an assembly function that reads its
+arguments from the stack breaks under SDCC 4. Mark such a function
+`__sdcccall(0)`, in its prototype too, to keep the old convention:
+
+~~~c
+void set_color(byte c) __sdcccall(0) __naked {
+  __asm
+    ld hl, #2
+    add hl, sp
+    ld a, (hl)   ; c is on the stack
+    out (0x40), a
+    ret
+  __endasm;
+}
+~~~
+
+Without `__sdcccall(0)`, SDCC 4 passes `c` in register `A`.
+
+### Warnings
+
+SDCC 4 warns about more code than SDCC 3, e.g. `int main(int argc)`.
+Warnings don't stop an SDCC 4 build and aren't marked in the editor. When
+a build fails, the IDE marks its warnings along with its errors.
+
 ## SDCC `#pragma`
 
 With SDCC, enable additional optimization by adding one of these lines to
@@ -212,11 +271,13 @@ the top of the file:
 #pragma opt_code_speed // for faster code
 ~~~
 
-Either pragma slows builds but produces faster and smaller code.
+Without a pragma, the IDE turns off some optimizations to keep builds
+fast. Either pragma slows builds but produces faster and smaller code.
 
 ### Game Boy ROM banks
 
-On the Game Boy, `#pragma bank N` at the top of a file puts its code and
+The Game Boy builds with SDCC 3.6.5 (see *SDCC versions* above).
+`#pragma bank N` at the top of a file puts its code and
 constant data in ROM bank *N*, which the CPU sees at `$4000-$7FFF`. Link
 the file from your main file, and call its functions through `__banked`
 prototypes. Each call switches to the function's bank and back again:
