@@ -52,7 +52,7 @@ describe('Debug adapter', function () {
     let frame = await c.where();
     assert.strictEqual(frame.source.path, `${ROOT}/game2.c`);
     assert.strictEqual(frame.line, 166);
-    assert.strictEqual(frame.name, '_draw_string+18');
+    assert.strictEqual(frame.name, '_draw_string+31');
 
     await c.request('next', { threadId: 1 });
     assert.strictEqual((await c.event('stopped')).reason, 'step');
@@ -62,7 +62,7 @@ describe('Debug adapter', function () {
     assert.strictEqual((await c.event('stopped')).reason, 'step');
     frame = await c.where();
     assert.strictEqual(frame.line, 166);
-    assert.strictEqual(frame.name, '_draw_string+18');
+    assert.strictEqual(frame.name, '_draw_string+31');
   });
 
   it('shows registers, memory and disassembly around the PC', async function () {

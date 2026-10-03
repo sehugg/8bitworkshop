@@ -32,9 +32,15 @@ describe('buildpresets screen check', function () {
   });
 
   it('flags a nearly single-color screen as solid', function () {
-    const px = fill(BLUE, 1000);
-    px[0] = RED;  // one stray pixel out of 1000
+    const px = fill(BLUE, 10000);
+    px[0] = RED;  // one stray pixel out of 10000, below the solid threshold
     assert.strictEqual(screenStats(px).verdict, 'solid');
+  });
+
+  it('passes a screen with a few stray pixels (stars on a solid field)', function () {
+    const px = fill(BLUE, 1000);
+    px[0] = RED;  // 0.1% off-color, above what the solid threshold allows
+    assert.strictEqual(screenStats(px).verdict, 'ok');
   });
 
   it('passes a screen with a real background and foreground', function () {
