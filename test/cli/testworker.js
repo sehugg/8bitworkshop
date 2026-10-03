@@ -169,6 +169,9 @@ describe('Worker', function() {
   it('should NOT compile CC65 (compile error)', function(done) {
     compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes', done, 0, 0, 1);
   });
+  it('should report CC65 warnings along with errors', function(done) {
+    compile('cc65', 'int main() {\nconst const int x=1;\nreturn y;\n}', 'nes', done, 0, 0, 2);
+  });
   it('should NOT compile CC65 (link error)', function(done) {
     compile('cc65', 'extern void bad();\nint main() {\nbad();\nreturn 0;\n}', 'nes', done, 0, 0, 1, {ignoreErrorPath:true});
   });

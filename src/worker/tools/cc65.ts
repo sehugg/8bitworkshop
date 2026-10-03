@@ -11,9 +11,18 @@ import { wasiFSAdapter, runWASITool, checkExitCode, readWASIOutput, readWASIOutp
 const CC65_SHARE = 'share/cc65';
 
 // cc65/ca65/ld65 report both errors and non-fatal warnings as
-// "<file>:<line>: <Warning|Error>: <msg>" on stderr; skip the warnings so a
-// clean build with only style/deprecation warnings doesn't fail.
+// "<file>:<line>: <Warning|Error>: <msg>" on stderr; warnings don't fail a
+// build, and are only reported when the build fails (see matchCC65Errors).
 const re_cc65_warning = /:\s*Warning:/;
+
+// collect errors from stderr; if the tool failed, append its warnings as context
+function matchCC65Errors(tool: string, errno: number, stderr: string[], errors: WorkerError[],
+    regex: RegExp, iline: number, imsg: number, path: string) {
+    const match = makeErrorMatcher(errors, regex, iline, imsg, path, 1);
+    stderr.filter(s => !re_cc65_warning.test(s)).forEach(match);
+    checkExitCode(tool, errno, stderr, errors);
+    if (errors.length) stderr.filter(s => re_cc65_warning.test(s)).forEach(match);
+}
 
 const wasiModules: { [tool: string]: WebAssembly.Module } = {};
 
@@ -155,8 +164,7 @@ export async function assembleCA65(step: BuildStep): Promise<BuildStepResult> {
             .concat(extraArgsFor('ca65', step.params.buildArgs));
         args.splice(args.length - 1, 0, ...extra);
         const { wasi, errno, stderr } = await runCC65Tool(step, 'ca65', args, (fs) => populateFiles(step, fs));
-        stderr.filter(s => !re_cc65_warning.test(s)).forEach(makeErrorMatcher(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1));
-        checkExitCode('ca65', errno, stderr, errors);
+        matchCC65Errors('ca65', errno, stderr, errors, /(.+?):(\d+): (.+)/, 2, 3, step.path);
         if (errors.length) {
             let listings : CodeListingMap = {};
             // TODO? change extension to .lst
@@ -199,14 +207,18 @@ export async function linkLD65(step: BuildStep): Promise<BuildStepResult> {
                 populateEntry(fs, params.cfgfile, store.getFileEntry(params.cfgfile), null);
             }
         });
-        // any non-warning ld65 message fails the build; again, "Warning:"-severity
+        // any non-warning ld65 message fails the build; "Warning:"-severity
         // output (e.g. the sp->c_sp deprecation from our prebuilt crt0.o/neslib2.lib)
-        // is non-fatal noise the user can't act on.
+        // is non-fatal noise, shown only if the link fails.
         for (let s of stderr) {
-            if (re_cc65_warning.test(s)) continue;
-            errors.push({ msg: s, line: 0 });
+            if (!re_cc65_warning.test(s)) errors.push({ msg: s, line: 0 });
         }
         checkExitCode('ld65', errno, stderr, errors);
+        if (errors.length) {
+            for (let s of stderr) {
+                if (re_cc65_warning.test(s)) errors.push({ msg: s, line: 0 });
+            }
+        }
         if (errors.length)
             return { errors: errors };
         var aout = readWASIOutput(wasi, "main");
@@ -349,8 +361,7 @@ export async function compileCC65(step: BuildStep): Promise<BuildStepResult> {
             });
             populateExtraFiles(step, fs, params.extra_compile_files);
         });
-        stderr.filter(s => !re_cc65_warning.test(s)).forEach(makeErrorMatcher(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
-        checkExitCode('cc65', errno, stderr, errors);
+        matchCC65Errors('cc65', errno, stderr, errors, /(.*?):(\d+): (.+)/, 2, 3, step.path);
         if (errors.length) return { errors };
         putWorkFile(destpath, readWASIOutputString(wasi, destpath));
     }
