@@ -14,6 +14,7 @@ import { getRootBasePlatform } from '../../src/common/util';
 import { toInternalError } from '../../src/common/telemetry';
 import type { FileData } from '../../src/common/workertypes';
 import type { StopEvent } from '../../src/common/debugcontroller';
+import type { DebugSection } from '../../src/common/emucore';
 import { BuildInfo, DebugService, TimelineInfo } from '../../src/tools/debugservice';
 import { RunScript } from '../../src/tools/runscript';
 import { buildDebugContext } from '../../src/common/debugcontroller';
@@ -59,6 +60,16 @@ export interface EmuStatus {
   /** the platform's audio output rate, if it makes sound */
   audio?: { sampleRate: number };
   timeline?: TimelineInfo;
+  /** the platform has debug info text for the Machine view */
+  debugInfo?: boolean;
+}
+
+/** What a debug view gets (see DebugViews in views.ts). */
+export interface ViewEvent {
+  id: string;
+  frame: number;
+  /** the Machine view: the platform's debug info, a text section per category */
+  sections?: DebugSection[];
 }
 
 /** How the host wants a program loaded. */
@@ -86,6 +97,9 @@ const DEBUG_METHODS = new Set([
 // the ones that start the machine running toward a goal
 const FORWARD_METHODS = new Set(['continue', 'step']);
 
+// how often a visible view refreshes while the program runs; a stop always does
+const VIEW_INTERVAL_MS = 250;
+
 // frames to run at once when catching up, before giving up and resyncing
 const MAX_CATCHUP_FRAMES = 4;
 
@@ -104,6 +118,9 @@ let nextTime = 0;
 let controls: ControlHint[] = [];
 let started = false;
 let muted = false;
+/** the views the host has showing: only these get data */
+let views = new Set<string>();
+let lastViewPush = 0;
 
 /**
  * The headless stand-in for the platform's Web Audio sink: SampleAudio hands
@@ -185,6 +202,11 @@ const rpc: Rpc = new Rpc(parentPort, {
   setMuted(m: boolean) {
     muted = !!m;
   },
+  /** The debug views now showing (ids from views.ts); hidden ones cost nothing. */
+  setViews(ids: string[]) {
+    views = new Set(ids);
+    pushViews(true);
+  },
   setVisible(visible: boolean) {
     hidden = !visible;
     if (hidden) stopTimer();
@@ -237,7 +259,7 @@ function status(): EmuStatus | null {
   const audio = target.getAudioParams();
   return {
     state: running ? 'running' : 'paused', platform: target.id, frame: target.frameCount,
-    controls, paddles: target.acceptsPaddles(), audio: audio ? { sampleRate: audio.sampleRate } : undefined,
+    controls, paddles: target.acceptsPaddles(), debugInfo: target.hasDebugInfo, audio: audio ? { sampleRate: audio.sampleRate } : undefined,
     timeline: service?.timeline() ?? undefined,
   };
 }
@@ -268,6 +290,7 @@ function stopped(e: StopEvent) {
   running = false;
   stopTimer();
   sendFrame();
+  pushViews(true);
   rpc.emit('stopped', e);
   if (e.reason === 'halt' || e.reason === 'exception') {
     rpc.emit('status', { ...status(), state: 'halted', message: e.message });
@@ -343,4 +366,23 @@ function sendFrame() {
     timeline: service?.timeline() ?? undefined,
   };
   rpc.emit('frame', frame, [pixels]);
+  pushViews(false);
+}
+
+/** Send each showing view its data, at most every VIEW_INTERVAL_MS unless `force`. */
+function pushViews(force: boolean) {
+  if (!target || !views.size) return;
+  const now = performance.now();
+  if (!force && now - lastViewPush < VIEW_INTERVAL_MS) return;
+  lastViewPush = now;
+  if (views.has('machine')) {
+    let sections: DebugSection[] = [];
+    try {
+      sections = target.getDebugInfo();
+    } catch (e) {
+      // a platform that can't describe itself in this state shows nothing
+    }
+    const ev: ViewEvent = { id: 'machine', frame: target.frameCount, sections };
+    rpc.emit('view', ev);
+  }
 }

@@ -9,6 +9,7 @@
 !LICENSE
 !THIRD-PARTY-NOTICES.md
 !images/icon.png
+!images/panel.svg
 !images/demo.gif
 !out/extension.js
 !out/buildworker.js

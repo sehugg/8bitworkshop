@@ -97,6 +97,7 @@ also appear in the editor title bar, the Explorer, or **Project Options**.
 | **Run Main File** | Run the project's main file |
 | **Follow Active Editor** | Run whichever program is in the editor |
 | **Reset / Pause / Resume / Stop / Mute / Unmute Emulator** | Control the emulator panel (shown while it is open) |
+| **Show Machine View** | Open the Machine view in the 8bitworkshop panel: the platform's debug info (registers, video chip state), updated while the program runs |
 
 ## Books
 

@@ -191,8 +191,32 @@
         "title": "Unmute Emulator",
         "category": "8bitworkshop",
         "icon": "$(unmute)"
+      },
+      {
+        "command": "8bitworkshop.showMachine",
+        "title": "Show Machine View",
+        "category": "8bitworkshop"
       }
     ],
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "8bitworkshop",
+          "title": "8bitworkshop",
+          "icon": "images/panel.svg"
+        }
+      ]
+    },
+    "views": {
+      "8bitworkshop": [
+        {
+          "type": "webview",
+          "id": "8bitworkshop.machine",
+          "name": "Machine",
+          "when": "8bitworkshop.hasDebugInfo"
+        }
+      ]
+    },
     "languageModelTools": [
       {
         "name": "8bitworkshop_build",
@@ -530,6 +554,10 @@
         {
           "command": "8bitworkshop.unmute",
           "when": "8bitworkshop.emuOpen && 8bitworkshop.muted"
+        },
+        {
+          "command": "8bitworkshop.showMachine",
+          "when": "8bitworkshop.hasDebugInfo"
         }
       ]
     },

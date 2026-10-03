@@ -122,6 +122,10 @@ function installHeadlessVideo() {
     this.create = function () { this.width = width; this.height = height; };
     // verilog rotates at reset, when the design asks for it
     this.setRotate = function (rotate: number) { if (isScreen) params.rotate = rotate || undefined; };
+    // where the host's mouse is, as the real RasterVideo keeps it (Platform.setPaddles)
+    this.paddle_x = 128;
+    this.paddle_y = 128;
+    this.paddle_buttons = [false, false, false];
     this.setKeyboardEvents = setKeyboardEvents;
     this.getFrameData = function () { return datau32; };
     this.getImageData = function () { return { data: datau8, width, height }; };
@@ -445,6 +449,12 @@ export class EmuCore {
   getSerialOutput(): string | null {
     const p: any = this.platform;
     return typeof p.getSerialOutput === 'function' ? p.getSerialOutput() : null;
+  }
+
+  /** True if the platform has debug info text to show (see getDebugInfo). */
+  get hasDebugInfo(): boolean {
+    const p: any = this.platform;
+    return isDebuggable(p) && !!p.getDebugCategories && p.getDebugInfo != null;
   }
 
   getDebugInfo(): DebugSection[] {

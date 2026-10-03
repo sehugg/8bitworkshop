@@ -263,7 +263,7 @@ describe('8bws CLI', function () {
         it('should move the paddle only if the design has paddle inputs', function () {
             var shot = (x) => {
                 var png = path.join(fs.mkdtempSync(path.join(os.tmpdir(), '8bws-paddle-')), 'shot.png');
-                cli('run', 'presets/verilog/ball_paddle.v', '-e', `paddle ${x} 128; run 4`, '--png', png);
+                cli('run', 'presets/verilog/ball_paddle.v', '-e', `paddle ${x} 128 1 0 0; run 4`, '--png', png);
                 return fs.readFileSync(png);
             };
             assert.ok(!shot(40).equals(shot(200)), 'the screen follows the paddle');

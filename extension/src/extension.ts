@@ -11,6 +11,7 @@ import type { BuildArgs } from './buildworker';
 import type { AudioChunk, EmuStatus, ScriptResult } from './emuworker';
 import { WorkerHandle, WorkerDisposedError } from './engine';
 import { EmulatorPanel, VIEW_TYPE } from './emulatorpanel';
+import { DebugViews } from './views';
 import { WorkerDebugBackend } from './debugbackend';
 import { EmuDebugSession, LaunchArgs } from '../../src/tools/dapsession';
 import { ASM_LANGUAGE_CPUS, Project, findRootDir, isHeaderFile, isInside, isOwnExtension, isSourceFile, languageFor } from './projectinfo';
@@ -42,6 +43,8 @@ let emu: WorkerHandle | undefined;
 let assets: AssetStore | undefined;
 let panel: EmulatorPanel | undefined;
 let emuStatus: EmuStatus | null = null;
+/** The debug views in the panel container; the worker feeds the ones showing. */
+const views = new DebugViews(ids => { if (emu?.started) emu.call('setViews', ids); });
 let nextBuildId = 1;
 const readers = new Map<number, (rel: string) => Promise<Uint8Array | null>>();
 
@@ -118,6 +121,8 @@ export function activate(ctx: vscode.ExtensionContext) {
   command('downloadToolchains', () => prepareToolchains());
   command('mute', () => setMuted(true));
   command('unmute', () => setMuted(false));
+  command('showMachine', () => vscode.commands.executeCommand('8bitworkshop.machine.focus'));
+  ctx.subscriptions.push(...views.register());
   muted = ctx.globalState.get<boolean>('muted', false);
   vscode.commands.executeCommand('setContext', '8bitworkshop.muted', muted);
   vscode.commands.executeCommand('setContext', '8bitworkshop.canDownloadToolchains', hasDownloadablePacks());
@@ -307,9 +312,11 @@ async function getEmu(platform: string): Promise<WorkerHandle> {
     emu.on('audio', (chunk: AudioChunk) => panel?.showAudio(chunk));
     emu.on('audioReset', () => panel?.resetAudio());
     emu.on('stopped', e => debugging?.backend.handleStop(e));
+    emu.on('view', ev => views.show(ev));
     emu.on('status', (s: EmuStatus | null) => {
       emuStatus = s;
       panel?.showStatus(s);
+      vscode.commands.executeCommand('setContext', '8bitworkshop.hasDebugInfo', !!s?.debugInfo);
       vscode.commands.executeCommand('setContext', '8bitworkshop.emuRunning', s?.state === 'running');
       if (s?.state === 'halted') output.appendLine(`Emulator halted at frame ${s.frame}: ${s.message}`);
     });
@@ -624,6 +631,7 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
   emu?.dispose();
   emu = undefined;
   emuStatus = null;
+  views.clear();
   var worker = await getEmu(target.platform);
   if (!panel) {
     panel = new EmulatorPanel({
@@ -642,6 +650,8 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
         // the next run starts a new worker anyway
         emu?.dispose();
         emu = undefined;
+        views.clear();
+        vscode.commands.executeCommand('setContext', '8bitworkshop.hasDebugInfo', false);
         vscode.commands.executeCommand('setContext', '8bitworkshop.emuRunning', false);
         vscode.commands.executeCommand('setContext', '8bitworkshop.emuOpen', false);
       },
@@ -656,6 +666,8 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
   try {
     emuStatus = await worker.call<EmuStatus>('start', target.platform, build.output, build.files, opts);
     worker.call('setMuted', muted);
+    worker.call('setViews', views.subscriptions());
+    vscode.commands.executeCommand('setContext', '8bitworkshop.hasDebugInfo', !!emuStatus?.debugInfo);
     panel.showStatus(emuStatus);
     running = target;
     runningBuild = build;

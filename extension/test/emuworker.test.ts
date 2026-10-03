@@ -6,7 +6,7 @@ import { Worker } from 'worker_threads';
 import { Rpc } from '../src/rpc';
 import { findRootDir } from '../src/projectinfo';
 import { Builder, ProjectFileProvider } from '../src/buildcore';
-import type { AudioChunk, EmuStatus, FrameEvent, ScriptResult } from '../src/emuworker';
+import type { AudioChunk, EmuStatus, FrameEvent, ScriptResult, ViewEvent } from '../src/emuworker';
 import { WorkerDebugBackend } from '../src/debugbackend';
 import { EmuDebugSession } from '../../src/tools/dapsession';
 import { DapClient } from '../../test/unit/dapclient';
@@ -26,6 +26,7 @@ describe('extension emuworker', function () {
   var frames: FrameEvent[];
   var statuses: EmuStatus[];
   var audios: AudioChunk[];
+  var viewEvents: ViewEvent[];
 
   beforeEach(function () {
     worker = new Worker(path.join(__dirname, '..', 'emuworker.js'), { workerData: { rootDir: ROOT } });
@@ -33,6 +34,8 @@ describe('extension emuworker', function () {
     frames = [];
     statuses = [];
     audios = [];
+    viewEvents = [];
+    rpc.on('view', v => viewEvents.push(v));
     rpc.on('frame', f => frames.push(f));
     rpc.on('status', s => statuses.push(s));
     rpc.on('audio', c => audios.push(c));
@@ -64,6 +67,29 @@ describe('extension emuworker', function () {
     var px = new Uint32Array(f.pixels);
     assert.equal(px.length, 256 * 224);
     assert.ok(px.some(p => p !== px[0]), 'screen is blank');
+  });
+
+  it('sends the Machine view its debug info only while it is showing', async function () {
+    var s = await rpc.call<EmuStatus>('start', 'nes', rom('nes/shoot2.c.rom'));
+    assert.ok(s.debugInfo, 'nes has debug info');
+    await waitForFrames(10);
+    assert.equal(viewEvents.length, 0, 'nothing is sent to a hidden view');
+    await rpc.call('setViews', ['machine']);
+    await waitForFrames(30);
+    assert.ok(viewEvents.length > 0);
+    var ev = viewEvents[viewEvents.length - 1];
+    assert.equal(ev.id, 'machine');
+    assert.ok(ev.sections && ev.sections.length > 0 && ev.sections[0].text.length > 0);
+    // a stop sends the state it stopped in, whatever the throttle
+    var n = viewEvents.length;
+    await rpc.call('pause');
+    assert.ok(viewEvents.length > n);
+    // hiding it stops the data
+    await rpc.call('setViews', []);
+    n = viewEvents.length;
+    await rpc.call('resume');
+    await waitForFrames(30);
+    assert.equal(viewEvents.length, n);
   });
 
   it('pauses, resumes, resets, and takes keys', async function () {
