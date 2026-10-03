@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.1
+
+- The Verilog and Verilog (VGA) platforms now appear in New Project and Open
+  Example.
+- Verilog syntax highlighting.
+- Infer symbol sizes from build output, instead of one byte per variable.
+- Removed Hex Editor extension integration, we'll come up with a better one.
+- Removed the assetUrl setting.
+
 ## 0.1.0
 
 First preview.

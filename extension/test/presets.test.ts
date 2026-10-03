@@ -20,4 +20,14 @@ describe('preset index', function () {
   it('defaults to .bin for platforms without one', function () {
     assert.equal(romext('astrocade'), '.bin');
   });
+
+  // presetindex builds each platform on the main thread; the Verilog platform
+  // pulls in binaryen, which used to fail there and skip these platforms
+  it('offers the Verilog platforms and their templates', function () {
+    for (var id of ['verilog', 'verilog-vga']) {
+      var p = index.platforms.find((p: any) => p.id === id);
+      assert.ok(p, `${id} missing from the preset index`);
+      assert.ok(p.templates.length > 0, `${id} has no templates`);
+    }
+  });
 });
