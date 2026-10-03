@@ -158,6 +158,11 @@ export interface Platform {
   setPaddles?(x: number, y: number, buttons: boolean[]): void;
   /** HDL platforms: clock cycles since power-up */
   getClockCount?(): number | undefined;
+  /**
+   * HDL platforms: call `sink` with the design's state before every clock
+   * (null stops). Costs the fast frame path, so only while recording.
+   */
+  setTraceSink?(sink: ((state: {[name: string]: any}) => void) | null): void;
 
   startProbing?(): ProbeRecorder;
   stopProbing?(): void;

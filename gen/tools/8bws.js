@@ -51,6 +51,7 @@ const cliformat_1 = require("./cliformat");
 const emutarget_1 = require("./emutarget");
 const runscript_1 = require("./runscript");
 const verifyreplay_1 = require("./verifyreplay");
+const vcdfile_1 = require("./vcdfile");
 const debugcontroller_1 = require("../common/debugcontroller");
 const workertypes_1 = require("../common/workertypes");
 const symbolfile_1 = require("../common/symbols/symbolfile");
@@ -231,6 +232,9 @@ function looksLikeROM(file) {
 }
 async function openTarget(args, platformId) {
     const target = await (0, emutarget_1.loadPlatform)(platformId);
+    const vectorSize = str(args, 'vector-size');
+    if (vectorSize)
+        target.vectorSize = parseInt(vectorSize);
     await target.start();
     const bios = str(args, 'bios');
     if (bios && !target.loadBIOS(new Uint8Array(fs.readFileSync(bios)))) {
@@ -330,7 +334,14 @@ async function doRun(args, positional) {
     if (symbolFile)
         script.addSymbols((0, symbolfile_1.parseSymbolFile)(fs.readFileSync(symbolFile, 'utf8')));
     script.startTracing();
-    script.run(buildScript(args));
+    // `vcd FILE` writes as it goes, so a long recording doesn't sit in memory
+    script.openFile = vcdfile_1.openVcdFile;
+    try {
+        script.run(buildScript(args));
+    }
+    finally {
+        script.finish();
+    }
     const video = target.getVideo();
     (0, cliformat_1.output)({
         success: true,
@@ -602,6 +613,7 @@ function usage(error) {
                     '--png <file>': 'write a screenshot of the last frame',
                     '--symbols <file>': 'load a .lbl/.sym file for symbolic addresses',
                     '--bios <file>': 'load a BIOS image',
+                    '--vector-size <px>': 'long side of a vector platform\'s screen (default 512)',
                     '--info': 'dump debug info and disassembly when done',
                     '--no-warnings': 'don\'t print compiler warnings',
                     '--memdump <a,b>': 'hexdump a hex address range',

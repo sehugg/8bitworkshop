@@ -4,6 +4,7 @@ const baseplatform_1 = require("../common/baseplatform");
 const toolselect_1 = require("../common/toolselect");
 const emu_1 = require("../common/emu");
 const audio_1 = require("../common/audio");
+const waveform_1 = require("../common/waveform");
 const hdlhost_1 = require("../common/hdl/hdlhost");
 const hdltypes_1 = require("../common/hdl/hdltypes");
 const hdlruntime_1 = require("../common/hdl/hdlruntime");
@@ -83,6 +84,8 @@ var VERILOG_KEYCODE_MAP = (0, emu_1.makeKeycodeMap)([
 ]);
 const TRACE_BUFFER_DWORDS = 0x40000;
 const CYCLES_PER_FILL = 20;
+// sound and controls a design can have besides video: what the CRT takes and gives
+const CRT_PORTS = ['spkr', 'switches', 'switches_p1', 'switches_p2', 'switches_gen', 'keycode', 'hpaddle', 'vpaddle'];
 const SHOW_INTERNAL_SIGNALS = false; // TODO: make this a config value
 // PLATFORM
 var VerilogPlatform = function (mainElement, options) {
@@ -112,6 +115,7 @@ var VerilogPlatform = function (mainElement, options) {
     var trace_signals;
     var trace_buffer;
     var trace_index;
+    var trace_sink = null;
     // for virtual CRT
     var framex = 0;
     var framey = 0;
@@ -168,8 +172,15 @@ var VerilogPlatform = function (mainElement, options) {
     class _VerilogPlatform extends baseplatform_1.BasePlatform {
         constructor() {
             super(...arguments);
+            this.traceNow = 0;
+            /** the design declares sound or control ports (see usesCrt) */
+            this.crtPorts = false;
+            /** a design with no video ran until its trace buffer was full */
+            this.traceFull = false;
             this.getToolForFilename = toolselect_1.getToolForFilename_verilog;
         }
+        // for hosts that stream the sound (see EmuCore.getAudioParams)
+        get audio() { return audio; }
         getPresets() { return VERILOG_PRESETS; }
         setVideoParams(width, height, clock) {
             videoWidth = width;
@@ -235,10 +246,21 @@ var VerilogPlatform = function (mainElement, options) {
             }
             //this.restartDebugState();
             this.refreshVideoFrame();
-            // set scope offset
+            this.updateScopeTime(trace);
+        }
+        // set scope offset
+        updateScopeTime(trace) {
             if (trace) {
-                this.scope.setCurrentTime(Math.floor(trace_index / trace_signals.length));
+                this.traceNow = Math.floor(trace_index / trace_signals.length);
+                this.scope.setCurrentTime(this.traceNow);
             }
+        }
+        /**
+         * True if the design uses what the CRT stands for: a picture, sound, or
+         * the controls (keys, switches, paddles). One that doesn't has only signals.
+         */
+        usesCrt() {
+            return this.hasvideo || this.crtPorts;
         }
         isScopeVisible() {
             return this.scope != null && this.scope.isVisible();
@@ -246,7 +268,26 @@ var VerilogPlatform = function (mainElement, options) {
         // TODO: merge with prev func  
         advance(novideo) {
             this.setGenInputs();
-            this.updateVideoFrameCycles(cyclesPerFrame, true, false);
+            if (!this.hasvideo) {
+                if (!this.usesCrt()) {
+                    // nothing but signals: the scope is all there is to show, and it is
+                    // what runs the design, until the trace buffer is full (as in the IDE,
+                    // which pauses)
+                    if (this.scope)
+                        this.scope.show();
+                    if (!this.traceFull)
+                        this.traceFull = this.fillTraceBuffer(CYCLES_PER_FILL * trace_signals.length);
+                    return cyclesPerFrame;
+                }
+                // sound or controls but no picture: run it like one with video
+                if (top.state.reset) {
+                    top.tick2(100);
+                    top.state.reset = 0;
+                }
+            }
+            var trace = this.isScopeVisible();
+            this.updateVideoFrameCycles(cyclesPerFrame, true, trace);
+            this.updateScopeTime(trace);
             if (!novideo) {
                 this.refreshVideoFrame();
             }
@@ -313,7 +354,7 @@ var VerilogPlatform = function (mainElement, options) {
             ncycles |= 0;
             var inspect = inspect_obj != null && inspect_sym != null;
             // use fast trace buffer-based update?
-            if (sync && !trace && !inspect && top.trace != null && scanlineCycles > 0) {
+            if (sync && !trace && !inspect && !trace_sink && top.trace != null && scanlineCycles > 0) {
                 this.updateVideoFrameFast(top);
                 this.updateRecorder();
                 return;
@@ -328,6 +369,8 @@ var VerilogPlatform = function (mainElement, options) {
                     if (trace_index == trace0)
                         trace = false; // kill trace when wraps around
                 }
+                if (trace_sink)
+                    trace_sink(top.state);
                 vidtick();
                 if (framex++ < videoWidth) {
                     if (framey < videoHeight) {
@@ -488,23 +531,29 @@ var VerilogPlatform = function (mainElement, options) {
             top.state.reset = 0; // need to de-assert reset when using no-video mode
             return (trace_index == 0);
         }
+        setTraceSink(sink) {
+            trace_sink = sink;
+        }
         getSignalMetadata() {
             return trace_signals;
         }
         getSignalData(index, start, len) {
-            // TODO: not efficient
-            var skip = this.getSignalMetadata().length;
             var last = trace_buffer.length - trace_signals.length; // TODO: refactor, and not correct
-            var wrap = this.hasvideo; // TODO?
-            var a = [];
-            index += skip * start;
-            while (index < last && a.length < len) {
-                a.push(trace_buffer[index]);
-                index += skip;
-                if (wrap && index >= last) // TODO: what if starts with index==last
-                    index = 0;
-            }
-            return a;
+            return (0, waveform_1.readTraceSignal)(trace_buffer, trace_signals.length, last, this.hasvideo, index, start, len);
+        }
+        /** The trace so far, for a view that shows it elsewhere (see TraceMirror). */
+        getTraceSnapshot() {
+            if (!top || !trace_signals)
+                return null;
+            var nsig = trace_signals.length;
+            // whole clocks only
+            var last = Math.floor((trace_buffer.length - nsig) / nsig) * nsig;
+            return {
+                meta: trace_signals.map(s => ({ label: s.label, len: s.len, input: s.input, output: s.output })),
+                data: trace_buffer.slice(0, last),
+                wrap: this.hasvideo,
+                now: this.hasvideo ? this.traceNow : this.traceFull ? last / nsig : Math.floor(trace_index / nsig),
+            };
         }
         setSignalValue(index, value) {
             var meta = this.getSignalMetadata()[index];
@@ -557,6 +606,8 @@ var VerilogPlatform = function (mainElement, options) {
                             });
                         }
                     }
+                    // (not looked up in top.state: setGenInputs adds the controls there)
+                    this.crtPorts = Object.keys(topmod.vardefs).some(k => CRT_PORTS.indexOf(topmod.vardefs[k].origName) >= 0);
                     trace_signals = signals;
                     if (!SHOW_INTERNAL_SIGNALS) {
                         trace_signals = trace_signals.filter((v) => { return !v.label.startsWith("__V"); }); // remove __Vclklast etc
@@ -654,6 +705,7 @@ var VerilogPlatform = function (mainElement, options) {
                 return;
             // TODO: how do we avoid clobbering user-modified signals?
             trace_index = 0;
+            this.traceFull = false;
             if (trace_buffer)
                 trace_buffer.fill(0);
             if (video)

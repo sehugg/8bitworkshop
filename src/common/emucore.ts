@@ -27,6 +27,8 @@ import {
 } from "./baseplatform";
 import { ProbeAll, SampledAudioParams, TrapCondition } from "./devices";
 import { History } from "./history";
+import { VCDWriter } from "./vcd";
+import type { WaveformMeta, WaveformSnapshot } from "./waveform";
 import { createCore, isRewindable, PlatformFrameInput } from "./platformcore";
 import { compareTimestamps, Timestamp, timestamp } from "./timeline";
 import { FileData } from "./workertypes";
@@ -37,6 +39,7 @@ import { disassembleF8 } from "./cpu/disasmF8";
 import { disassembleHuC6280 } from "./cpu/disasmHuC6280";
 import { CPU6809 } from "./cpu/6809";
 import * as emu from "./emu";
+import { VectorRaster, DEFAULT_VECTOR_SIZE } from "./vectorraster";
 
 export interface VideoOutput {
   pixels: Uint32Array;
@@ -96,7 +99,7 @@ export const DEFAULT_MAX_FRAMES = 1000;
  * Headless stand-ins for RasterVideo/VectorVideo/AnimationTimer. Platform
  * modules pick these up because Platform.start() reads them off the emu module.
  */
-function installHeadlessVideo() {
+function installHeadlessVideo(vectorSize: number) {
   // Platform.start() builds its video/timer by reading these classes off the
   // emu module, so we swap in headless stand-ins for the duration of start()
   // and put the real ones back afterwards. Leaving the stubs installed would
@@ -122,6 +125,10 @@ function installHeadlessVideo() {
     this.create = function () { this.width = width; this.height = height; };
     // verilog rotates at reset, when the design asks for it
     this.setRotate = function (rotate: number) { if (isScreen) params.rotate = rotate || undefined; };
+    // where the host's mouse is, as the real RasterVideo keeps it (Platform.setPaddles)
+    this.paddle_x = 128;
+    this.paddle_y = 128;
+    this.paddle_buttons = [false, false, false];
     this.setKeyboardEvents = setKeyboardEvents;
     this.getFrameData = function () { return datau32; };
     this.getImageData = function () { return { data: datau8, width, height }; };
@@ -141,11 +148,24 @@ function installHeadlessVideo() {
     this.putImageData = function () { };
     this.style = {};
   };
-  const VectorVideo: any = function () {
+  // the first one is the screen, like RasterVideo; the platform draws in its own
+  // (w x h) coordinates and the raster is scaled so its long side is `vectorSize`
+  const VectorVideo: any = function (_el: any, w: number, h: number) {
+    const raster = new VectorRaster(w, h, vectorSize);
+    if (!pixels) {
+      params = { width: raster.width, height: raster.height };
+      pixels = raster.pixels;
+    }
+    this.width = w;
+    this.height = h;
+    this.persistenceAlpha = raster.persistenceAlpha;
     this.create = function () { this.drawops = 0; };
     this.setKeyboardEvents = setKeyboardEvents;
-    this.clear = function () { };
-    this.drawLine = function () { this.drawops++; };
+    this.clear = function () { raster.persistenceAlpha = this.persistenceAlpha; raster.clear(); };
+    this.drawLine = function (x1: number, y1: number, x2: number, y2: number, intensity: number, color: number) {
+      this.drawops++;
+      raster.drawLine(x1, y1, x2, y2, intensity, color);
+    };
   };
   const AnimationTimer: any = function (fps: number) {
     if (fps > 0) frameRate = fps;
@@ -173,10 +193,17 @@ export class EmuCore {
   private recording: History | null = null;
   // the machine's state was changed from outside the recording
   private recordingStale = true;
+  /** the VCD recording in progress (see startVcd) */
+  private vcd: VCDWriter | null = null;
+  /** the clocks in a recording that stopped itself (full), until stopVcd collects them */
+  private vcdFinished = 0;
   private input: PlatformFrameInput | null = null;
   private probe: ProbeAll | null = null;
   // frames run on a platform without a timeline
   private untimedFrames = 0;
+
+  /** pixels along the longer side of a vector platform's screen (set before start()) */
+  vectorSize = DEFAULT_VECTOR_SIZE;
 
   constructor(readonly id: string, readonly platform: Platform) {
   }
@@ -244,7 +271,7 @@ export class EmuCore {
   async start() {
     // start() is where platforms construct their video and timer, so install
     // the headless stand-ins just for that call, then restore the real classes.
-    const headless = installHeadlessVideo();
+    const headless = installHeadlessVideo(this.vectorSize);
     this.video = headless;
     try {
       await this.platform.start();
@@ -280,6 +307,8 @@ export class EmuCore {
    * to see their errors.
    */
   async loadROM(data: Uint8Array | object, title = 'ROM') {
+    // a new design has other signals
+    this.stopVcd();
     await this.platform.loadROM(title, data);
     this.recordingStale = true;
   }
@@ -420,10 +449,27 @@ export class EmuCore {
     return true;
   }
 
+  /**
+   * False if the platform says its program has no video: a verilog design
+   * with no vsync/hsync/rgb (known once loaded). Platforms with other kinds
+   * of output (text, serial) still count as having video.
+   */
+  get hasVideo(): boolean {
+    return (this.platform as any).hasvideo !== false;
+  }
+
+  /**
+   * True unless the program has nothing for a screen to show or take: a
+   * verilog design with no video, sound or controls, just signals.
+   */
+  get usesScreen(): boolean {
+    const p: any = this.platform;
+    return typeof p.usesCrt === 'function' ? p.usesCrt() : true;
+  }
+
   getVideo(): VideoOutput | null {
-    // verilog sets hasvideo on ROM load; a design with no vsync/hsync/rgb
-    // leaves the headless raster blank, which isn't a failure to draw
-    if ((this.platform as any).hasvideo === false) return null;
+    // the headless raster stays blank for a design with no video, which isn't a failure to draw
+    if (!this.hasVideo) return null;
     return this.captured?.() ?? this.video?.get() ?? null;
   }
 
@@ -445,6 +491,77 @@ export class EmuCore {
   getSerialOutput(): string | null {
     const p: any = this.platform;
     return typeof p.getSerialOutput === 'function' ? p.getSerialOutput() : null;
+  }
+
+  /** True if the platform can record its signals as a VCD (HDL platforms, once loaded). */
+  get supportsVcd(): boolean {
+    const p: any = this.platform;
+    return typeof p.setTraceSink === 'function' && typeof p.getSignalMetadata === 'function'
+      && (p.getSignalMetadata() || []).length > 0;
+  }
+
+  /**
+   * Record every clock's signal changes as a VCD, handing the text to `write`
+   * in chunks as it goes (nothing is kept, so a recording can be as long as
+   * the disk allows). Recording slows the simulation. Stops any recording
+   * already going; returns false if the platform has no signals to record.
+   * If `isFull` is given it is asked before every clock, and the recording
+   * ends itself when it says so (see vcdRunning).
+   */
+  startVcd(write: (chunk: string) => void, isFull?: () => boolean): boolean {
+    this.stopVcd();
+    if (!this.supportsVcd) return false;
+    const p: any = this.platform;
+    const signals = (p.getSignalMetadata() as WaveformMeta[]).filter(s => s.name).map(s => ({ name: s.name!, len: s.len }));
+    const writer = new VCDWriter(signals, write);
+    this.vcdFinished = 0;
+    p.setTraceSink((state: any) => {
+      // between clocks, so the writer isn't in the middle of a write
+      if (isFull && isFull()) this.vcdFinished = this.finishVcd();
+      else writer.sample(state);
+    });
+    this.vcd = writer;
+    return true;
+  }
+
+  /** True while a VCD recording is going (it ends itself if its `isFull` says so). */
+  get vcdRunning(): boolean { return this.vcd != null; }
+
+  /** Finish the recording, if there is one. Returns the number of clocks it holds. */
+  stopVcd(): number {
+    if (this.vcd) return this.finishVcd();
+    const clocks = this.vcdFinished;
+    this.vcdFinished = 0;
+    return clocks;
+  }
+
+  private finishVcd(): number {
+    const writer = this.vcd!;
+    this.vcd = null;
+    (this.platform as any).setTraceSink(null);
+    writer.finish();
+    return writer.samples;
+  }
+
+  /** True if the platform has debug info text to show (see getDebugInfo). */
+  get hasDebugInfo(): boolean {
+    const p: any = this.platform;
+    return isDebuggable(p) && !!p.getDebugCategories && p.getDebugInfo != null;
+  }
+
+  /** True if the platform records signal traces for a waveform view (verilog). */
+  get hasWaveform(): boolean {
+    return typeof (this.platform as any)?.getTraceSnapshot === 'function';
+  }
+
+  /** The signal trace so far; the platform records one only while a view shows it. */
+  getWaveform(): WaveformSnapshot | null {
+    return this.hasWaveform ? (this.platform as any).getTraceSnapshot() : null;
+  }
+
+  /** Set a signal (an index into the waveform's signals), as the view does on a click. */
+  setSignalValue(index: number, value: number) {
+    if (this.hasWaveform) (this.platform as any).setSignalValue(index, value);
   }
 
   getDebugInfo(): DebugSection[] {
@@ -586,6 +703,22 @@ export class EmuCore {
     if (h.findLast(test, h.first(), t)) return true;
     h.seek(t);
     return false;
+  }
+
+  /**
+   * Run the current frame again from the recording, to the same state. A view
+   * that opens while the machine is paused uses it to see that frame happen.
+   * Returns false if the recording doesn't reach back a frame.
+   */
+  replayFrame(): boolean {
+    const h = this.timeline;
+    if (!h) return false;
+    const t = h.now();
+    const prev = timestamp(t.frame - 1, 0);
+    if (t.frame < 1 || compareTimestamps(prev, h.first()) < 0) return false;
+    this.seek(prev);
+    this.seek(t);
+    return true;
   }
 
   /** Move to a recorded moment, past or present. Throws if it isn't recorded. */

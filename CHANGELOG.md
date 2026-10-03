@@ -8,11 +8,14 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 
 ### Debugging and the `8bws` CLI
 
+- Vector platforms (`vector-*`, `vectrex`) render headlessly: a software rasterizer with phosphor fade draws their lines into the frame buffer, so `--png` and the VS Code emulator panel show them. The size is `--vector-size <px>` (long side, default 512), `EmuCore.vectorSize`, or the extension's `8bitworkshop.vectorSize`.
 - New `8bws` command-line tool (`npm run cli`) to build and run programs headlessly: `build`, `run`, `verify-replay`, `profile`, `detect`, `list-platforms`, `list-tools`; scripted emulator control; `--png`, `--json`, `--symbols`, `--memdump`, `--info`; platform and main file detected from a project directory.
 - Platform detection no longer confuses the Atari 8-bit targets: `atari.h` means the 800 (it is guarded by `__ATARI__`), `atari5200.h` means the 5200, and a folder named for a platform breaks a near-tie.
 - Emulators now run on a timeline: step back, seek, reverse run, `rbreak`, and deterministic replay with a replay-verification test that found determinism bugs in several platforms.
 - Step Over for C and assembly sources, a Breakpoints pane, and more breakpoint conditions.
 - `8bws run` script `paddle X Y [BUTTONS]` moves the paddle on platforms and Verilog designs that have one.
+- `8bws run` script `vcd FILE [MAXMB]` / `vcd off` records a Verilog design's signal changes to a VCD file as it runs, streamed so the recording's length isn't limited by memory (a `.gz` name compresses it; about 3 MB per frame of a design with video, 4x less gzipped), stopping at 1 GB unless told otherwise.
+- The waveform view's state, keys and drawing moved to `src/common/waveformcore.ts`, shared by the IDE pane and the VS Code Waveform view (a webview in the 8bitworkshop panel).
 - Debug adapter: Verilog designs get a Signals scope (nested by module), and the `8bws` run script a `signals` command.
 - Verilator warnings (width mismatches, etc.) no longer fail the build and show as warnings; a Verilator error no longer also reports "tool called exit(1)".
 - Call Stack view renamed Call Graph, with clocks and more detail per line.
