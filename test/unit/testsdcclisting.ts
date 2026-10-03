@@ -28,7 +28,22 @@ const RST_MOS6502 = [
   "    00000869 20 4E 08         [ 6]  138 \tjsr\t_putstr",
 ].join("\n");
 
+// a main file that only #includes the others (e.g. fullscrollgame-sdcc.c)
+const RST_MOS6502_INCLUDES = [
+  "    00000865                        126 _main:",
+  "                                    128 ;\tgame.c: 18: putstr(message);",
+  "    00000865 A2 08            [ 2]  136 \tldx\t#>_message",
+  "                                    140 ;\tlib.c: 4: x++;",
+  "    00000869 E6 02            [ 5]  142 \tinc\t*_x",
+].join("\n");
+
 describe("sdcc listings", function () {
+
+  it("tags mos6502 lines with the included file they came from", function () {
+    const l = parseRSTListing(RST_MOS6502_INCLUDES, "game-sdcc");
+    assert.deepStrictEqual(l.lines.map((x) => [x.path, x.line, x.offset]),
+      [["game.c", 18, 0x865], ["lib.c", 4, 0x869]]);
+  });
 
   it("maps mos6502 source comments", function () {
     const l = parseRSTListing(RST_MOS6502, "hello");

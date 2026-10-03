@@ -1,4 +1,5 @@
 
+#ifndef __SDCC
 #include <stdio.h>
 #include <conio.h>
 #include <c64.h>
@@ -7,6 +8,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <joystick.h>
+#endif
 
 //#resource "c64-sid.cfg"
 #define CFGFILE c64-sid.cfg
@@ -20,7 +22,7 @@
 #include "sprites.h"
 //#link "sprites.c"
 
-//#link "level2.s"
+//#link "level2-data.c"
 
 #define CAMERA_OFFSET_X 158
 #define CAMERA_OFFSET_Y 120

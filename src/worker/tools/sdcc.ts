@@ -559,6 +559,13 @@ export function parseRSTListing(rstout: string, srcprefix: string) {
     // the mos6502 backend writes `;<tab>file.c: 17: source`, with a space after the colon
     const srcre = new RegExp(`^\\s+\\d+ ;\\s*(?:<stdin>|/*${name}\\.[^:\\s]+):\\s*(\\d+):`, 'i');
     var srclines = parseSourceLines(rstout, srcre, /^\s*([0-9A-F]{4,8})/i);
+    if (!srclines.length) {
+        // the mos6502 backend names the file of every line, so a main file
+        // that #includes the others (the -sdcc.c wrappers) still gets a
+        // listing: tag each line with its file (see processListings);
+        // the pattern captures the line number first, then the file name
+        srclines = parseSourceLines(rstout, /^\s+\d+ ;\t(?=[^\s:]+: (\d+):)([^\s:]+)/, /^\s*([0-9A-F]{4,8})/i);
+    }
     // TODO: you have to get rid of all source lines to get asm listing
     return {
         asmlines: srclines.length ? asmlines : null,

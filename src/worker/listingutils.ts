@@ -102,6 +102,7 @@ export function parseListing(code: string,
 export function parseSourceLines(code: string, lineMatch, offsetMatch, funcMatch?, segMatch?) {
     var lines = [];
     var lastlinenum = 0;
+    var lastpath: string;
     var state = { segment: '', func: '', funcbase: 0 };
     for (var line of code.split(re_crlf)) {
         parseSegFunc(line, segMatch, funcMatch, state);
@@ -109,6 +110,7 @@ export function parseSourceLines(code: string, lineMatch, offsetMatch, funcMatch
         var linem = lineMatch.exec(line);
         if (linem && linem[1]) {
             lastlinenum = parseInt(linem[1]);
+            lastpath = linem[2]; // optional source file, for listings that mix files
         } else if (lastlinenum) {
             var linem = offsetMatch.exec(line);
             if (linem && linem[1]) {
@@ -117,7 +119,8 @@ export function parseSourceLines(code: string, lineMatch, offsetMatch, funcMatch
                     line: lastlinenum,
                     offset: offset - state.funcbase,
                     segment: state.segment,
-                    func: state.func
+                    func: state.func,
+                    ...(lastpath ? { path: lastpath } : {})
                 });
                 lastlinenum = 0;
             }

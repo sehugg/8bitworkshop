@@ -55,7 +55,8 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 ### Build tools
 
 - Many toolchains are now WASI builds: cc65 (pinned to 2021 6ac4aa4), DASM 2.20.17, acme, zmac, yasm and merlin32.
-- SDCC 4 mos6502 backend: C64 presets (`hello-sdcc.c`, `screen_ram-sdcc.c`, `joymove-sdcc.c`, `siegegame-sdcc.c`, `sprite_collision-sdcc.c`); `load_header` platform param wraps the image as a DOS 3.3 binary (apple2) or a PRG with a `SYS` stub (c64).
+- SDCC 4 mos6502 backend: C64 presets (`hello-sdcc.c`, `screen_ram-sdcc.c`, `joymove-sdcc.c`, `siegegame-sdcc.c`, `sprite_collision-sdcc.c`, `fullscrollgame-sdcc.c`); `load_header` platform param wraps the image as a DOS 3.3 binary (apple2) or a PRG with a `SYS` stub (c64).
+- C64 `fullscrollgame.c` now takes its level data from `level2-data.c` (the same data as `level2.s`, in C) so the SDCC build can link it; `scrolling2.c` uses plain C copies under SDCC.
 - Updated batari BASIC; sdcc now parses `#symbol` directives and fixes lost link errors.
 - New build directives replace the legacy CFGFILE-style ones; build parameters no longer leak between builds.
 - `#pragma compile("...")` and oscar64 symbol/listing parsing.

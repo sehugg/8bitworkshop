@@ -48,6 +48,7 @@ const C64_PRESETS : Preset[] = [
   {id:'lander.cpp', name:'Lunar Lander'},
   {id:'hello-sdcc.c', name:'Hello World (SDCC)', category:'C (SDCC)'},
   {id:'sprite_collision-sdcc.c', name:'Sprite Collision (SDCC)'},
+  {id:'fullscrollgame-sdcc.c', name:'Full-Scrolling Game (SDCC)'},
 ];
 
 const C64_MEMORY_MAP = { main:[

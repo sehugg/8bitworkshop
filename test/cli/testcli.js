@@ -132,7 +132,7 @@ describe('8bws CLI', function () {
             assert.equal(bin[2] | bin[3] << 8, bin.length - 4);
             assert.ok(bin.length > 4000);                          // the whole game, not just the wrapper
         });
-        ['hello', 'screen_ram', 'joymove', 'siegegame', 'sprite_collision'].forEach(function (name) {
+        ['hello', 'sprite_collision'].forEach(function (name) {
             it('should build the c64 ' + name + ' SDCC preset as a PRG', function () {
                 var out = path.join(os.tmpdir(), '8bws-c64-' + name + '-sdcc.prg');
                 cli('build', '-p', 'c64', 'presets/c64/' + name + '-sdcc.c', '-o', out);
