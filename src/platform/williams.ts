@@ -303,14 +303,17 @@ var WilliamsPlatform = function(mainElement, proto, options) {
     cpu = self.newCPU(membus, iobus);
 
     audio = new MasterAudio();
-    worker = new Worker("./src/common/audio/z80worker.js");
-    workerchannel = new WorkerSoundChannel(worker);
-    audio.master.addChannel(workerchannel);
+    // the sound board runs in a web worker; headless (node) has no sound
+    if (typeof Worker !== 'undefined') {
+      worker = new Worker("./src/common/audio/z80worker.js");
+      workerchannel = new WorkerSoundChannel(worker);
+      audio.master.addChannel(workerchannel);
+    }
 
     let rotate = options?.rotate == null ? -90 : parseFloat(options.rotate);
     video = new RasterVideo(mainElement, SCREEN_WIDTH, SCREEN_HEIGHT, { rotate });
     video.create();
-    $(video.canvas).click(function(e) {
+    if (typeof $ !== 'undefined') $(video.canvas).click(function(e) {
       var x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width());
       var y = Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height());
       var addr = (x >> 3) + (y * 32) + 0x400;
@@ -359,7 +362,7 @@ var WilliamsPlatform = function(mainElement, proto, options) {
   this.loadSoundROM = function(data) {
     console.log("loading sound ROM " + data.length + " bytes");
     var soundrom = padBytes(data, 0x4000);
-    worker.postMessage({ rom: soundrom });
+    if (worker) worker.postMessage({ rom: soundrom });
   }
 
   this.loadROM = function(title, data) {
