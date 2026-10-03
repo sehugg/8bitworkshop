@@ -10,6 +10,20 @@ import { HDLModuleJS } from "../common/hdl/hdlruntime";
 import { HDLModuleWASM } from "../common/hdl/hdlwasm";
 import { FileData } from "../common/workertypes";
 
+// Verilator's own bookkeeping (__Vclklast__..., __Vdly__...), and any module left empty without it
+function withoutInternals(obj: {}): {} {
+  var out = {};
+  for (var [k, v] of Object.entries(obj)) {
+    if (k.startsWith('__V')) continue;
+    if (v != null && typeof v === 'object' && v.constructor === Object) {
+      v = withoutInternals(v);
+      if (!Object.keys(v).length) continue;
+    }
+    out[k] = v;
+  }
+  return out;
+}
+
 interface WaveformSignal extends WaveformMeta {
   name: string;
 }
@@ -717,6 +731,14 @@ var VerilogPlatform = function(mainElement, options) {
       runtime: top,
       state: top && top.getGlobals()
     }
+  }
+
+  getClockCount() {
+    return top && top.cycles;
+  }
+
+  getSignals() {
+    return top && withoutInternals(top.getGlobals());
   }
 
   saveState() {

@@ -10,7 +10,7 @@ import type { BuildOutcome } from './buildcore';
 import type { BuildArgs } from './buildworker';
 import type { AudioChunk, EmuStatus, ScriptResult } from './emuworker';
 import { WorkerHandle, WorkerDisposedError } from './engine';
-import { EmulatorPanel } from './emulatorpanel';
+import { EmulatorPanel, VIEW_TYPE } from './emulatorpanel';
 import { WorkerDebugBackend } from './debugbackend';
 import { EmuDebugSession, LaunchArgs } from '../../src/tools/dapsession';
 import { ASM_LANGUAGE_CPUS, Project, findRootDir, isHeaderFile, isInside, isOwnExtension, isSourceFile, languageFor } from './projectinfo';
@@ -121,6 +121,12 @@ export function activate(ctx: vscode.ExtensionContext) {
   muted = ctx.globalState.get<boolean>('muted', false);
   vscode.commands.executeCommand('setContext', '8bitworkshop.muted', muted);
   vscode.commands.executeCommand('setContext', '8bitworkshop.canDownloadToolchains', hasDownloadablePacks());
+
+  // VS Code restores the emulator tab after a window reload, but the program
+  // it showed is gone, so close it instead of leaving it blank
+  ctx.subscriptions.push(vscode.window.registerWebviewPanelSerializer(VIEW_TYPE, {
+    deserializeWebviewPanel: async restored => restored.dispose(),
+  }));
 
   // F5 on an 8bitworkshop launch configuration debugs it; Ctrl+F5 (Run
   // Without Debugging) just runs it in the emulator panel

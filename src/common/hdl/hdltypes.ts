@@ -2,6 +2,8 @@ import { SourceLocation } from "../workertypes";
 
 export interface HDLModuleRunner {
     state: any; // live state or proxy object
+    /** clock cycles since power-up, if the runtime counts them */
+    cycles?: number;
     eval() : void;
     tick() : void;
     tick2(iters: number) : void;

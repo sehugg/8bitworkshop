@@ -164,7 +164,7 @@ describe('Debug adapter, where there is no source', function () {
   const PC = 0x1003;
   let bpsSent: Breakpoint[] = [];
   const backend: DebugBackend = {
-    launch: async () => ({ capabilities: { step: true, rewind: false, granularity: 'insn', write: false, tree: false }, root: ROOT }),
+    launch: async () => ({ capabilities: { step: true, rewind: false, granularity: 'insn', write: false, tree: false, signals: false }, root: ROOT }),
     terminate: async () => { },
     onStop: () => { },
     setBreakpoints: async (bps) => { bpsSent = bps; return bps.map(b => ({ id: b.id, verified: true, pc: parseInt(b.target.slice(1), 16) })); },
@@ -172,7 +172,7 @@ describe('Debug adapter, where there is no source', function () {
     location: async () => ({ at: { frame: 0, step: 0 }, pc: PC, symbol: { name: 'lib', offset: PC - 0x1000 } }),
     callStack: async () => [{ pc: PC, symbol: { name: 'lib', offset: PC - 0x1000 } }],
     registers: async () => [], readMemory: async () => [], writeMemory: async () => 0,
-    debugTree: async () => [], symbols: async () => [],
+    debugTree: async () => [], signalTree: async () => [], symbols: async () => [],
     evaluate: async () => ({ result: '' }),
     disassemble: async (addr, insnOffset, count) => Array.from({ length: count }, (_, i) => {
       const a = addr + insnOffset + i;
@@ -207,3 +207,40 @@ describe('Debug adapter, where there is no source', function () {
   });
 });
 
+
+describe('Debug adapter, for a design with signals', function () {
+  const PC = 0;
+  const signals: { [path: string]: { name: string, value: string, expandable: boolean }[] } = {
+    '': [{ name: 'clk', value: '1', expandable: false }, { name: 'cpu', value: '', expandable: true }],
+    'cpu': [{ name: 'A', value: '5 ($05)', expandable: false }],
+  };
+  const backend: DebugBackend = {
+    launch: async () => ({ capabilities: { step: false, rewind: false, granularity: 'frame', write: false, tree: true, signals: true }, root: ROOT }),
+    terminate: async () => { },
+    onStop: () => { },
+    setBreakpoints: async () => [],
+    continue: async () => { }, step: async () => { }, pause: async () => { }, stepBack: async () => { }, reverseContinue: async () => { },
+    location: async () => ({ at: { frame: 3, step: 0 }, clock: 1234, pc: PC }),
+    callStack: async () => [],
+    registers: async () => [], readMemory: async () => [], writeMemory: async () => 0,
+    debugTree: async () => [{ name: 'runtime', value: '', expandable: true }],
+    signalTree: async (path) => signals[path.join('.')],
+    symbols: async () => [], evaluate: async () => ({ result: '' }), disassemble: async () => [],
+  };
+
+  it('shows the signals, nested by module, instead of registers', async function () {
+    const c = new DapClient(new EmuDebugSession(backend));
+    await c.request('initialize', { adapterID: '8bitworkshop', linesStartAt1: true, columnsStartAt1: true, pathFormat: 'path' });
+    await c.request('launch', { program: 'x.v' });
+    // no PC, so one made-up frame for VS Code to show Variables under
+    const { stackFrames } = await c.request('stackTrace', { threadId: 1 });
+    assert.deepStrictEqual(stackFrames.map((f: any) => f.name), ['frame 3, clock 1234']);
+    const { scopes } = await c.request('scopes', { frameId: 0 });
+    assert.deepStrictEqual(scopes.map((s: any) => s.name), ['Signals']);
+    const top = await c.request('variables', { variablesReference: scopes[0].variablesReference });
+    assert.deepStrictEqual(top.variables.map((v: any) => `${v.name}=${v.value}`), ['clk=1', 'cpu=']);
+    assert.strictEqual(top.variables[0].variablesReference, 0);
+    const cpu = await c.request('variables', { variablesReference: top.variables[1].variablesReference });
+    assert.deepStrictEqual(cpu.variables.map((v: any) => `${v.name}=${v.value}`), ['A=5 ($05)']);
+  });
+});

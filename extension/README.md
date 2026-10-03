@@ -7,7 +7,7 @@ The original online 8-bit IDE, now in VS Code!
 Features:
 - Built-in emulators, compilers, and libraries from [8bitworkshop.com](https://8bitworkshop.com)
 - See your code changes in the emulator immediately
-- Single-step debugging with breakpoints, disassembly, call stack, symbols
+- Single-step debugging with breakpoints, disassembly, call stack, symbols (signals for Verilog)
 - Sample code for each platform
 - Syntax highlighting for 8-bit assembly language and Verilog (`.v` files in Verilog projects, including inline `__asm` blocks)
 

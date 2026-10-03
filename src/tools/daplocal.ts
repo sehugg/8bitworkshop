@@ -56,6 +56,7 @@ export class LocalDebugBackend implements DebugBackend {
   async readMemory(...a: Parameters<DebugService['readMemory']>) { return this.svc.readMemory(...a); }
   async writeMemory(...a: Parameters<DebugService['writeMemory']>) { return this.svc.writeMemory(...a); }
   async debugTree(...a: Parameters<DebugService['debugTree']>) { return this.svc.debugTree(...a); }
+  async signalTree(...a: Parameters<DebugService['signalTree']>) { return this.svc.signalTree(...a); }
   async symbols() { return this.svc.symbols(); }
   async disassemble(...a: Parameters<DebugService['disassemble']>) { return this.svc.disassemble(...a); }
   async evaluate(...a: Parameters<DebugService['evaluate']>) { return this.svc.evaluate(...a); }

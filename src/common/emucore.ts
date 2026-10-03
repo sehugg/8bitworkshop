@@ -325,6 +325,16 @@ export class EmuCore {
     return this.platform.getDebugTree ? this.platform.getDebugTree() : null;
   }
 
+  /** The platform's HDL signals, or null if it has none. */
+  getSignals(): {} | null {
+    return this.platform.getSignals ? this.platform.getSignals() : null;
+  }
+
+  /** Clock cycles since power-up, for platforms that count them (HDL). */
+  getClockCount(): number | undefined {
+    return this.platform.getClockCount ? this.platform.getClockCount() : undefined;
+  }
+
   getCPUState(): CpuState | null {
     try { return this.platform.getCPUState ? this.platform.getCPUState() : null; }
     catch (e) { return null; }

@@ -150,6 +150,10 @@ export interface Platform {
 
   debugSymbols?: DebugSymbols;
   getDebugTree?(): {};
+  /** HDL platforms: the design's signals as a tree of values, nested by module (see debugtree.ts) */
+  getSignals?(): {};
+  /** HDL platforms: clock cycles since power-up */
+  getClockCount?(): number | undefined;
 
   startProbing?(): ProbeRecorder;
   stopProbing?(): void;

@@ -5,6 +5,9 @@
 - The Verilog and Verilog (VGA) platforms now appear in New Project and Open
   Example.
 - Verilog syntax highlighting.
+- Reloading the window closes the emulator tab instead of restoring it blank.
+- Debugging a Verilog program shows its signals in Variables, nested by module,
+  under a stack frame named for the frame and clock cycle.
 - Infer symbol sizes from build output, instead of one byte per variable.
 - Removed Hex Editor extension integration, we'll come up with a better one.
 - Removed the assetUrl setting.
