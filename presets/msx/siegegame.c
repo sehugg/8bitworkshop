@@ -27,7 +27,7 @@ void putstring(byte x, byte y, const char* str) {
     CHPUT(*str++);
   }
 }
-byte getchar(byte x, byte y) {
+byte getchar_at(byte x, byte y) {
   word addr = 0x1800 | (x+1) | y*32; // TODO: use variable for base address
   byte result;
   result = RDVRM(addr);
@@ -130,7 +130,7 @@ void move_player(Player* p) {
   cputcxy(p->x, p->y, p->tail_attr);
   p->x += DIR_X[p->dir];
   p->y += DIR_Y[p->dir];
-  if (getchar(p->x, p->y) != CHAR(' '))
+  if (getchar_at(p->x, p->y) != CHAR(' '))
     p->collided = 1;
   draw_player(p);
 }
@@ -154,7 +154,7 @@ byte ai_try_dir(Player* p, dir_t dir, byte shift) {
   dir &= 3;
   x = p->x + (DIR_X[dir] << shift);
   y = p->y + (DIR_Y[dir] << shift);
-  if (x < 29 && y < 27 && getchar(x, y) == CHAR(' ')) {
+  if (x < 29 && y < 27 && getchar_at(x, y) == CHAR(' ')) {
     p->dir = dir;
     return 1;
   } else {

@@ -46,6 +46,9 @@ const C64_PRESETS : Preset[] = [
   {id:'hello.cpp', name:'Hello Oscar64', category:'C++ (Oscar64)'},
   {id:'particles.cpp', name:'Fireworks'},
   {id:'lander.cpp', name:'Lunar Lander'},
+  {id:'hello-sdcc.c', name:'Hello World (SDCC)', category:'C (SDCC)'},
+  {id:'sprite_collision-sdcc.c', name:'Sprite Collision (SDCC)'},
+  {id:'fullscrollgame-sdcc.c', name:'Full-Scrolling Game (SDCC)'},
 ];
 
 const C64_MEMORY_MAP = { main:[

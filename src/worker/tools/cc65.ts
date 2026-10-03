@@ -1,12 +1,10 @@
 
 import { defineArgs, extraArgsFor, linkSymbolArgs, getSharedFileSystemName } from "../../common/toolmeta";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
-import { WASIRunner } from "../../common/wasi/wasishim";
 import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, fixParamsWithDefines, applyAsmProjectParams, putWorkFile, populateExtraFiles, store, populateEntry, anyTargetChanged, processEmbedDirective } from "../builder";
 import { re_crlf, makeErrorMatcher } from "../listingutils";
 import { parseCC65DbgSizes } from "./cc65dbg";
-import { loadWASMBinary, ensureWasiFilesystem } from "../wasmutils";
-import { wasiFSAdapter } from "../wasiutils";
+import { wasiFSAdapter, runWASITool, checkExitCode, readWASIOutput, readWASIOutputString } from "../wasiutils";
 
 // the WASI builds look for their data under share/cc65 in the per-platform
 // cc65-fs-<platform>.zip, preopened at '.'
@@ -29,43 +27,8 @@ async function runCC65Tool(step: BuildStep, tool: string, args: string[],
     const fsname = getSharedFileSystemName('cc65', step.platform);
     if (!fsname || !fsname.startsWith('wasi:'))
         throw new Error("No cc65 filesystem for platform " + step.platform);
-    const sharefs = await ensureWasiFilesystem(fsname.substring(5));
-    if (!sharefs)
-        throw new Error("Could not load cc65 filesystem " + fsname);
-    if (!wasiModules[tool]) {
-        wasiModules[tool] = new WebAssembly.Module(loadWASMBinary(tool));
-    }
-    const wasi = new WASIRunner();
-    wasi.initSync(wasiModules[tool]);
-    wasi.fs.setParent(sharefs);
-    populate(wasiFSAdapter(wasi));
-    wasi.addPreopenDirectory(".");
-    wasi.setArgs([tool, ...args]);
-    const errno = wasi.run();
-    console.log('exec', tool, args.join(' '));
-    const stdout = wasi.fds[1].getBytesAsString();
-    if (stdout) console.log(stdout);
-    const stderr = wasi.fds[2].getBytesAsString().split(re_crlf).filter(s => s != '');
-    return { wasi, errno, stderr };
+    return runWASITool(tool, args, { sharedFS: fsname.substring(5), populate });
 }
-
-/** Report a failed tool run that printed no parseable error message. */
-function checkExitCode(tool: string, errno: number, stderr: string[], errors: WorkerError[]) {
-    if (errno && !errors.length) {
-        errors.push({ line: 0, msg: tool + " exited with code " + errno + (stderr.length ? ": " + stderr.join('\n') : '') });
-    }
-}
-
-function readWASIOutput(wasi: WASIRunner, path: string): Uint8Array {
-    const fd = wasi.fs.getFile(path);
-    if (!fd) throw new Error("Missing output file " + path);
-    return fd.getBytes().slice();
-}
-
-function readWASIOutputString(wasi: WASIRunner, path: string): string {
-    return new TextDecoder().decode(readWASIOutput(wasi, path));
-}
-
 
 /*
 000000r 1               .segment        "CODE"

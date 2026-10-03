@@ -12,6 +12,7 @@ export type ToolSelector = (fn: string) => string;
 
 export function getToolForFilename_6502(fn: string): string {
   if (fn.endsWith("-llvm.c")) return "remote:llvm-mos";
+  if (fn.endsWith("-sdcc.c") || fn.endsWith(".sdcc")) return "sdcc";   // SDCC 4.x mos6502 backend
   if (fn.endsWith(".c")) return "cc65";
   if (fn.endsWith(".h")) return "cc65";
   if (fn.endsWith(".s")) return "ca65";
@@ -29,7 +30,7 @@ export function getToolForFilename_6502(fn: string): string {
 }
 
 export function getToolForFilename_z80(fn: string): string {
-  if (fn.endsWith(".c")) return "sdcc";
+  if (fn.endsWith(".c") || fn.endsWith(".sdcc")) return "sdcc";
   if (fn.endsWith(".h")) return "sdcc";
   if (fn.endsWith(".s")) return "sdasz80";
   if (fn.endsWith(".sgb")) return "sdasgb";

@@ -683,6 +683,21 @@ function applyBuildDirectives(dir, params) {
         else if (td.phase === 'linker' && td.name === 'libargs') {
             params.libargs = td.value.split(',').filter((s) => s !== '');
         }
+        else if (td.phase === 'linker' && (td.name === 'code_start' || td.name === 'data_start')) {
+            // where sdld puts the code (and the DOS 3.3 header's load address) and the RAM data
+            const addr = Number(td.value);
+            if (Number.isInteger(addr) && addr >= 0 && addr < 0x10000)
+                params[td.name] = addr;
+            else
+                dir.errors.push(`#tooldef ld ${td.name}: expected an address, got '${td.value}'`);
+        }
+        else if (td.phase === 'compiler' && td.name === 'sdcc') {
+            // SDCC major version; every sdcc/sdas/sdld step of the build reads it
+            if (td.value === '3' || td.value === '4')
+                params.sdcc_version = parseInt(td.value);
+            else
+                dir.errors.push(`#tooldef c sdcc: expected 3 or 4, got '${td.value}'`);
+        }
         else {
             dir.errors.push(`#tooldef: unknown ${td.phase} param '${td.name}'`);
         }

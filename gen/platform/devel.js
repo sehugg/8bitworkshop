@@ -8,7 +8,18 @@ const util_1 = require("../common/util");
 const teletype_1 = require("../common/teletype");
 var DEVEL_6502_PRESETS = [
     { id: 'hello.dasm', name: 'Hello World (ASM)' },
+    { id: 'hello-sdcc.c', name: 'Hello World (SDCC C)' },
 ];
+/** For the CLI and tests, which have no DOM: the output is kept by the harness. */
+class HeadlessSerialViewer {
+    constructor() {
+        this.tty = { addtext() { }, newline() { }, clear() { }, saveState() { return {}; }, loadState() { } };
+    }
+    start() { }
+    reset() { }
+    saveState() { return {}; }
+    loadState() { }
+}
 class SerialInOutViewer {
     constructor(div) {
         div.style.overflowY = 'auto';
@@ -108,7 +119,8 @@ class Devel6502Platform extends baseplatform_1.Base6502MachinePlatform {
                     { name: 'ROM', start: 0x8000, size: 0x8000, type: 'rom' },
                 ] };
         };
-        this.serview = new SerialInOutViewer(mainElement);
+        // no element: running headless (the 8bws CLI)
+        this.serview = mainElement ? new SerialInOutViewer(mainElement) : new HeadlessSerialViewer();
     }
     async start() {
         super.start();
@@ -145,6 +157,8 @@ class Devel6502Platform extends baseplatform_1.Base6502MachinePlatform {
         this.serview.loadState(state.serview);
         // TODO: reload tty UI
     }
+    /** Everything the program has sent to the serial port (for the CLI's `serial` command). */
+    getSerialOutput() { return (0, util_1.byteArrayToString)(this.serial.outputBytes); }
     newMachine() { return new devel_1.Devel6502(); }
     getPresets() { return DEVEL_6502_PRESETS; }
     readAddress(a) { return this.machine.readConst(a); }

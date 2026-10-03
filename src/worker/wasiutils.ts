@@ -2,6 +2,8 @@ import JSZip from 'jszip';
 import { WASIRunner, WASIMemoryFilesystem } from "../common/wasi/wasishim";
 import { WorkerError } from "../common/workertypes";
 import { BuildStep, store } from "./builder";
+import { re_crlf } from "./listingutils";
+import { ensureWasiFilesystem, loadWASMBinary } from "./wasmutils";
 
 export function loadBlobSync(path: string) {
     var xhr = new XMLHttpRequest();
@@ -72,4 +74,64 @@ export function wasiFSAdapter(wasi: WASIRunner) {
         writeFile: (path: string, data: string | Uint8Array) => wasi.fs.putFile(path, data),
         utime: () => { },
     };
+}
+
+const wasiModules: { [module: string]: WebAssembly.Module } = {};
+
+export interface WASIToolOptions {
+    module?: string;    // wasm module name, if not the same as argv[0]
+    sharedFS?: string;  // filesystem zip layered under the runner (parent layer)
+    stdin?: string;     // text fed to the tool's stdin
+    populate?: (fs: ReturnType<typeof wasiFSAdapter>) => void; // copy inputs in
+}
+
+/**
+ * Run a WASI tool on a fresh runner with '.' preopened, optionally layered over
+ * a shared filesystem zip. argv[0] is `tool` (some tools, like sdld, pick
+ * their target from it). Returns the runner (for reading outputs), its exit
+ * code and its stdout and stderr lines.
+ */
+export async function runWASITool(tool: string, args: string[], opts: WASIToolOptions = {}) {
+    const module = opts.module || tool;
+    const wasi = new WASIRunner();
+    if (opts.sharedFS) {
+        const sharefs = await ensureWasiFilesystem(opts.sharedFS);
+        if (!sharefs)
+            throw new Error("Could not load filesystem " + opts.sharedFS);
+        wasi.fs.setParent(sharefs);
+    }
+    if (!wasiModules[module]) {
+        wasiModules[module] = new WebAssembly.Module(loadWASMBinary(module) as Uint8Array<ArrayBuffer>);
+    }
+    wasi.initSync(wasiModules[module]);
+    if (opts.populate) opts.populate(wasiFSAdapter(wasi));
+    if (opts.stdin != null) {
+        wasi.stdin.write(new TextEncoder().encode(opts.stdin));
+        wasi.stdin.offset = 0; // so fd_read starts at the beginning
+    }
+    wasi.addPreopenDirectory(".");
+    wasi.setArgs([tool, ...args]);
+    const errno = wasi.run();
+    console.log('exec', tool, args.join(' '));
+    const stdout = wasi.fds[1].getBytesAsString().split(re_crlf).filter(s => s != '');
+    if (stdout.length) console.log(stdout.join('\n'));
+    const stderr = wasi.fds[2].getBytesAsString().split(re_crlf).filter(s => s != '');
+    return { wasi, errno, stdout, stderr };
+}
+
+/** Report a failed tool run that printed no parseable error message. */
+export function checkExitCode(tool: string, errno: number, stderr: string[], errors: WorkerError[]) {
+    if (errno && !errors.length) {
+        errors.push({ line: 0, msg: tool + " exited with code " + errno + (stderr.length ? ": " + stderr.join('\n') : '') });
+    }
+}
+
+export function readWASIOutput(wasi: WASIRunner, path: string): Uint8Array {
+    const fd = wasi.fs.getFile(path);
+    if (!fd) throw new Error("Missing output file " + path);
+    return fd.getBytes().slice();
+}
+
+export function readWASIOutputString(wasi: WASIRunner, path: string): string {
+    return new TextDecoder().decode(readWASIOutput(wasi, path));
 }

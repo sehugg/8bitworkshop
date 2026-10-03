@@ -4,12 +4,46 @@ import { BuildStep, populateFiles, populateExtraFiles, errorResult, processEmbed
 import { makeErrorMatcher, extractErrors } from "../listingutils";
 import { PLATFORM_PARAMS } from "../platforms";
 import { load, print_fn, setupFS, execMain, emglobal, EmscriptenModule } from "../wasmutils";
+import type { WASIMemoryFilesystem } from "../../common/wasi/wasishim";
 
 function makeCPPSafe(s: string): string {
     return s.replace(/[^A-Za-z0-9_]/g, '_');
 }
 
-export function preprocessMCPP(step: BuildStep, filesys: string) {
+/** Headers in a WASI filesystem zip, under `dir`, for mcpp's /share/include. */
+export interface MCPPIncludeSource {
+    fs: WASIMemoryFilesystem;
+    dir: string;
+}
+
+/** Copy the headers under src.dir into an Emscripten FS at /share/include. */
+function copyWASIIncludes(FS, src: MCPPIncludeSource) {
+    const prefix = src.dir + '/';
+    const made = new Set<string>();
+    const mkdirs = (path: string) => {
+        let parts = path.split('/');
+        for (let i = 2; i < parts.length; i++) {
+            let dir = parts.slice(0, i).join('/');
+            if (!made.has(dir)) {
+                if (!FS.analyzePath(dir).exists) FS.mkdir(dir);
+                made.add(dir);
+            }
+        }
+    };
+    for (let file of src.fs.getFiles()) {
+        if (file.name.startsWith(prefix)) {
+            let path = '/share/include/' + file.name.substring(prefix.length);
+            mkdirs(path);
+            FS.writeFile(path, file.getBytes(), { encoding: 'binary' });
+        }
+    }
+}
+
+/**
+ * Preprocess the step's main source. `filesys` names the Emscripten FS
+ * package mounted at /share, or gives headers to copy into /share/include.
+ */
+export function preprocessMCPP(step: BuildStep, filesys: string | MCPPIncludeSource, extraArgs: string[] = []) {
     load("mcpp");
     var platform = step.platform;
     var params = PLATFORM_PARAMS[platform] || PLATFORM_PARAMS[getBasePlatform(platform)];
@@ -24,7 +58,8 @@ export function preprocessMCPP(step: BuildStep, filesys: string) {
         printErr: match_fn,
     });
     var FS = MCPP.FS;
-    if (filesys) setupFS(FS, filesys);
+    if (typeof filesys === 'string') setupFS(FS, filesys);
+    else if (filesys) copyWASIIncludes(FS, filesys);
     populateFiles(step, FS, {
         mainFilePath: step.path,
         processFn: (path, code) => {
@@ -49,6 +84,7 @@ export function preprocessMCPP(step: BuildStep, filesys: string) {
     }
     let platform_def = (platform.toUpperCase() as any).replaceAll(/[^a-zA-Z0-9]/g, '_');
     args.unshift.apply(args, ["-D", `__PLATFORM_${platform_def}__`]);
+    args.unshift(...extraArgs);
     if (params.extra_preproc_args) {
         args.push.apply(args, params.extra_preproc_args);
     }

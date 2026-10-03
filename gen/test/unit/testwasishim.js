@@ -223,6 +223,17 @@ describe('WASIMemoryFilesystem path handling', function () {
         assert_1.default.strictEqual(fsys.removeDirectory('./sub'), wasishim_1.WASIErrors.SUCCESS);
         assert_1.default.strictEqual(fsys.removeDirectory('/'), wasishim_1.WASIErrors.BUSY);
     });
+    it('renames files, replacing the target', function () {
+        const fsys = new wasishim_1.WASIMemoryFilesystem();
+        fsys.putFile('./a.tmp', 'new');
+        fsys.putFile('./a.s', 'old');
+        fsys.putDirectory('./sub');
+        assert_1.default.strictEqual(fsys.renameFile('./a.tmp', './a.s'), wasishim_1.WASIErrors.SUCCESS);
+        assert_1.default.strictEqual(fsys.getFile('./a.s').getBytesAsString(), 'new');
+        assert_1.default.strictEqual(fsys.getFile('./a.tmp'), undefined);
+        assert_1.default.strictEqual(fsys.renameFile('./a.tmp', './b.s'), wasishim_1.WASIErrors.NOENT);
+        assert_1.default.strictEqual(fsys.renameFile('./a.s', './sub'), wasishim_1.WASIErrors.ISDIR);
+    });
     it('deletes only from the writable layer, not the parent', function () {
         const parent = new wasishim_1.WASIMemoryFilesystem();
         parent.putFile('./shared.h', 'shared');

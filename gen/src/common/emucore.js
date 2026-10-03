@@ -448,6 +448,11 @@ class EmuCore {
     /** Frames per second the platform's timer asked for (60 if unknown). */
     get frameRate() { return this.video ? this.video.frameRate : 60; }
     saveState() { return this.platform.saveState ? this.platform.saveState() : null; }
+    /** Text a platform's program has sent to a serial port, or null if it has none. */
+    getSerialOutput() {
+        const p = this.platform;
+        return typeof p.getSerialOutput === 'function' ? p.getSerialOutput() : null;
+    }
     getDebugInfo() {
         const state = this.saveState();
         const p = this.platform;

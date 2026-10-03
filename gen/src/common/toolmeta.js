@@ -23,7 +23,7 @@
  * (unless noWorkerBuild) and vice versa.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TOOL_META = exports.DIALOG_INCLUDE_PATTERNS = exports.ECS_INCLUDE_PATTERNS = exports.WIZ_INCLUDE_PATTERNS = exports.ACME_INCLUDE_PATTERNS = exports.USE_ASM_INCLUDE_PATTERNS = exports.SYSTEM_INCLUDE_PATTERNS = exports.VERILOG_INCLUDE_PATTERNS = exports.SHARED_LINK_PATTERNS = exports.OSCAR64_INCLUDE_PATTERNS = exports.DASM_INCLUDE_PATTERNS = exports.SHARED_INCLUDE_PATTERNS = void 0;
+exports.TOOL_META = exports.SDCC_DEFAULT_VERSION = exports.DIALOG_INCLUDE_PATTERNS = exports.ECS_INCLUDE_PATTERNS = exports.WIZ_INCLUDE_PATTERNS = exports.ACME_INCLUDE_PATTERNS = exports.USE_ASM_INCLUDE_PATTERNS = exports.SYSTEM_INCLUDE_PATTERNS = exports.VERILOG_INCLUDE_PATTERNS = exports.SHARED_LINK_PATTERNS = exports.OSCAR64_INCLUDE_PATTERNS = exports.DASM_INCLUDE_PATTERNS = exports.SHARED_INCLUDE_PATTERNS = void 0;
 exports.getSystemIncludePatterns = getSystemIncludePatterns;
 exports.getToolMeta = getToolMeta;
 exports.getPlatformToolHelpURL = getPlatformToolHelpURL;
@@ -130,6 +130,29 @@ const TOOL_PLATFORM_HELPURL = {
         lynx: 'https://cc65.github.io/doc/lynx.html',
     },
 };
+/**
+ * Which SDCC a program gets unless it says `//#tooldef c sdcc=3|4`. To make
+ * 4.x the default, change this to 4: nothing else needs editing.
+ *   3 = 3.6.5, Emscripten, preloadFS 'sdcc' (builds several times faster)
+ *   4 = 4.x, WASI, sdcc-fs.zip (smaller code)
+ */
+exports.SDCC_DEFAULT_VERSION = 3;
+/**
+ * 'default' lists both filesystems; the one for SDCC_DEFAULT_VERSION leads
+ * (getSharedFileSystemName prefers preloadFS). Platforms whose prebuilt
+ * libraries were compiled by SDCC 3.x (libcv, gb.lib, cpctelera) have only
+ * preloadFS: 4.x's default calling convention, sdcccall(1), can't call them.
+ */
+const SDCC_FS = {
+    'default': exports.SDCC_DEFAULT_VERSION === 3
+        ? { preloadFS: 'sdcc', wasiFSZip: 'sdcc-fs.zip' }
+        : { wasiFSZip: 'sdcc-fs.zip' },
+    'coleco': { preloadFS: 'sdcc' },
+    'msx-libcv': { preloadFS: 'sdcc' },
+    'sms': { preloadFS: 'sdcc' },
+    'gb': { preloadFS: 'sdcc' },
+    'cpc': { preloadFS: 'sdcc' },
+};
 const CC65_WASIFS = {
     'apple2': { wasiFSZip: 'cc65-fs-apple2.zip' },
     'c64': { wasiFSZip: 'cc65-fs-c64.zip' },
@@ -233,25 +256,25 @@ exports.TOOL_META = {
     // ---- SDCC toolchain (z80) ----
     sdcc: {
         id: 'sdcc', name: 'SDCC', kind: 'compiler', arch: 'z80',
-        extensions: ['.c', '.h'],
-        includeDirs: ['/include'],
+        extensions: ['.c', '.h', '.sdcc'],
+        includeDirs: ['/share/sdcc/include', '/include'],
         editorStyle: 'text/x-csrc',
         helpURL: 'http://sdcc.sourceforge.net/doc/sdccman.pdf',
-        wasmModule: 'sdcc',
-        version: '3.6.5',
+        wasmModule: 'sdcc4',
+        version: exports.SDCC_DEFAULT_VERSION === 3 ? '3.6.5' : '4.6.0',
         defineFlag: '-D', defineInline: true,
-        platforms: { default: { preloadFS: 'sdcc' } },
+        platforms: SDCC_FS,
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
     },
     sdasz80: {
         id: 'sdasz80', name: 'sdasz80', kind: 'assembler', arch: 'z80',
         extensions: ['.s'],
-        includeDirs: ['/include'],
+        includeDirs: ['/share/sdcc/include', '/include'],
         editorStyle: 'z80',
-        wasmModule: 'sdasz80',
+        wasmModule: 'sdasz80-4',
         version: '02.00',
-        platforms: { default: { preloadFS: 'sdcc' } },
+        platforms: SDCC_FS,
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
     },
@@ -268,7 +291,23 @@ exports.TOOL_META = {
     sdldz80: {
         id: 'sdldz80', name: 'sdldz80', kind: 'linker', arch: 'z80',
         extensions: [],
-        wasmModule: 'sdldz80',
+        wasmModule: 'sdld4',
+        version: '03.00',
+        linkSymbolFlag: '-g', linkSymbolInline: false,
+    },
+    // SDCC 4.x mos6502 backend (compile with `-sdcc.c`); sdld6808 is the
+    // 6502 personality of the sdld4 binary
+    sdas6500: {
+        id: 'sdas6500', name: 'sdas6500', kind: 'assembler', arch: '6502',
+        extensions: [],
+        wasmModule: 'sdas6500',
+        version: '02.00',
+        platforms: SDCC_FS,
+    },
+    sdld6808: {
+        id: 'sdld6808', name: 'sdld6808', kind: 'linker', arch: '6502',
+        extensions: [],
+        wasmModule: 'sdld4',
         version: '03.00',
         linkSymbolFlag: '-g', linkSymbolInline: false,
     },

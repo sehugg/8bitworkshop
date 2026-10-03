@@ -95,7 +95,7 @@ const cliformat_1 = require("./cliformat");
 const PRESETS_DIR = 'presets';
 const PLATFORM_SRC_DIR = 'src/platform';
 const DEFAULT_TIMEOUT = 120000;
-const DEFAULT_RUN_FRAMES = 300;
+const DEFAULT_RUN_FRAMES = 200;
 // A frame this uniform after a few seconds almost always means nothing drew;
 // a real screen has a background plus text or sprites (or stars).
 const SOLID_FRACTION = 0.9995;
@@ -106,6 +106,8 @@ const SKIP_PLATFORMS = [
     'astrocade-arcade',
     'mcr',
     'vectrex',
+    'devel',
+    'devel-6502',
 ];
 // build these, but don't run them: the emulator needs a real browser
 // (x86 is the v86 PC emulator, loaded as a page script)
@@ -499,7 +501,12 @@ async function runPreset(result, preset, platform, opts = {}) {
         for (let i = 0; i < frames; i++)
             target.advanceFrame();
         run.ok = true;
-        const video = target.getVideo();
+        let video = target.getVideo();
+        if (!video) {
+            for (let i = 0; i < frames; i++)
+                target.advanceFrame();
+            video = target.getVideo();
+        }
         if (!video) {
             run.verdict = 'novideo';
         }

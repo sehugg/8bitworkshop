@@ -104,23 +104,20 @@ function parseListing(code, lineMatch, iline, ioffset, iinsns, icycles, funcMatc
 function parseSourceLines(code, lineMatch, offsetMatch, funcMatch, segMatch) {
     var lines = [];
     var lastlinenum = 0;
+    var lastpath;
     var state = { segment: '', func: '', funcbase: 0 };
     for (var line of code.split(exports.re_crlf)) {
         parseSegFunc(line, segMatch, funcMatch, state);
         var linem = lineMatch.exec(line);
         if (linem && linem[1]) {
             lastlinenum = parseInt(linem[1]);
+            lastpath = linem[2]; // optional source file, for listings that mix files
         }
         else if (lastlinenum) {
             var linem = offsetMatch.exec(line);
             if (linem && linem[1]) {
                 var offset = parseInt(linem[1], 16);
-                lines.push({
-                    line: lastlinenum,
-                    offset: offset - state.funcbase,
-                    segment: state.segment,
-                    func: state.func
-                });
+                lines.push(Object.assign({ line: lastlinenum, offset: offset - state.funcbase, segment: state.segment, func: state.func }, (lastpath ? { path: lastpath } : {})));
                 lastlinenum = 0;
             }
         }

@@ -221,6 +221,11 @@ export var PLATFORM_PARAMS = {
       libargs: [ '--lib-path', '/share/target/apple2/drv', 'apple2.lib'],
       __CODE_RUN__: 16384,
       code_start: 0x803,
+      // for SDCC (-sdcc.c): a DOS 3.3 binary at $803 with data above the program
+      rom_size: 0x9400 - 0x803,
+      data_start: 0x9400,
+      zp_start: 0x60,
+      load_header: 'dos33',
       acmeargs: ['-f', 'apple'],
     },
     'apple2-e': {
@@ -301,6 +306,12 @@ export var PLATFORM_PARAMS = {
       cfgfile: 'c64.cfg', // SYS 2061
       libargs: ['openroms-compat.o', 'c64.lib'],
       extra_link_files: ['openroms-compat.o'],
+      // for SDCC (-sdcc.c): a PRG with a BASIC SYS stub, code at $80D, data in upper RAM
+      code_start: 0x80d,
+      rom_size: 0xa000 - 0x80d,
+      data_start: 0xc000,
+      zp_start: 0x2,
+      load_header: 'prg',
       acmeargs: ['-f', 'cbm'],
       //extra_link_files: ['c64-cart.cfg'],
     },
@@ -345,6 +356,10 @@ export var PLATFORM_PARAMS = {
       cfgfile: 'devel-6502.cfg',
       libargs: ['crt0.o', 'none.lib'],
       extra_link_files: ['crt0.o', 'devel-6502.cfg'],
+      // for SDCC (-sdcc.c): ROM at $8000 with vectors at $FFFA, data above zero page
+      code_start: 0x8000,
+      rom_size: 0x8000,
+      data_start: 0x200,
     },
     // https://github.com/cpcitor/cpc-dev-tool-chain
     'cpc.rslib': {

@@ -20,6 +20,9 @@ void main(void) {
   byte bgcoll;	// sprite background collision flags
   byte joy;	// joystick flags
 
+#ifdef __SDCC
+  clrscr();	// (cc65's startup code clears the screen, SDCC's does not)
+#endif
   // copy sprite pattern to RAM address 0x3800
   memcpy((char*)0x3800, SPRITE_DATA, sizeof(SPRITE_DATA));
   // set sprite #0 shape entry (224)

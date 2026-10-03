@@ -386,7 +386,7 @@ class Base6502Platform extends BaseDebugPlatform {
     disassemble(pc, read) {
         return (0, disasm6502_1.disassemble6502)(pc, read(pc), read(pc + 1), read(pc + 2));
     }
-    getDefaultExtensions() { return [".c", ".cpp", ".o64", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
+    getDefaultExtensions() { return [".c", ".sdcc", ".cpp", ".o64", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
     ;
     getDebugCategories() {
         return ['CPU', 'ZPRAM', 'Stack'];
@@ -495,7 +495,7 @@ class BaseZ80Platform extends BaseDebugPlatform {
         }
         return n;
     }
-    getDefaultExtensions() { return [".c", ".ns", ".s", ".scc", ".sgb", ".z", ".wiz"]; }
+    getDefaultExtensions() { return [".c", ".sdcc", ".ns", ".s", ".scc", ".sgb", ".z", ".wiz"]; }
     ;
     // TODO: Z80 opcode metadata
     //this.getOpcodeMetadata = function() { }

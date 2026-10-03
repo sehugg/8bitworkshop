@@ -25,6 +25,8 @@ const util_1 = require("./util");
 function getToolForFilename_6502(fn) {
     if (fn.endsWith("-llvm.c"))
         return "remote:llvm-mos";
+    if (fn.endsWith("-sdcc.c") || fn.endsWith(".sdcc"))
+        return "sdcc"; // SDCC 4.x mos6502 backend
     if (fn.endsWith(".c"))
         return "cc65";
     if (fn.endsWith(".h"))
@@ -54,7 +56,7 @@ function getToolForFilename_6502(fn) {
     return "dasm"; // .a
 }
 function getToolForFilename_z80(fn) {
-    if (fn.endsWith(".c"))
+    if (fn.endsWith(".c") || fn.endsWith(".sdcc"))
         return "sdcc";
     if (fn.endsWith(".h"))
         return "sdcc";

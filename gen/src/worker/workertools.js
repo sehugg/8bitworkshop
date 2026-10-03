@@ -64,6 +64,8 @@ exports.TOOLS = {
     'sdasz80': sdcc.assembleSDASZ80,
     'sdasgb': sdcc.assembleSDASGB,
     'sdldz80': sdcc.linkSDLDZ80,
+    'sdas6500': sdcc.assembleSDAS6500,
+    'sdld6808': sdcc.linkSDLD6808,
     'sdcc': sdcc.compileSDCC,
     'xasm6809': m6809.assembleXASM6809,
     'cmoc': m6809.compileCMOC,

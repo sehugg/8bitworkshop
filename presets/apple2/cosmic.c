@@ -1,8 +1,10 @@
 
 // reserve space for the HGR1 screen buffer
 //#tooldef ld cfgfile=apple2-hgr.cfg
+#ifndef __SDCC
 #pragma data-name(push,"HGR")
 #pragma data-name(pop)
+#endif
 
 /*
  * An Apple ][ port of the Cosmic Impalas game 
@@ -11,9 +13,11 @@
  */
 
 #include <string.h>
+#ifndef __SDCC
 #include <conio.h>
 #include <apple2.h>
 #include <peekpoke.h>
+#endif
 
 // type aliases for byte/signed byte/unsigned 16-bit
 typedef unsigned char byte;
@@ -21,7 +25,18 @@ typedef signed char sbyte;
 typedef unsigned short word;
 
 // peeks, pokes, and strobes
+#ifdef __SDCC
+// (building with sdcc, see cosmic-sdcc.c: no conio, so read the keyboard directly)
+#define STROBE(addr)       ((void)*(volatile byte*)(addr))
+byte kbhit(void) { return *(volatile byte*)0xc000 & 0x80; }
+char cgetc(void) {
+  char key = *(volatile byte*)0xc000 & 0x7f;
+  STROBE(0xc010);	// clear the keyboard strobe
+  return key;
+}
+#else
 #define STROBE(addr)       __asm__ ("sta %w", addr)
+#endif
 
 // speaker click
 #define CLICK		   STROBE(0xc030)
@@ -232,11 +247,24 @@ void draw_bcd_word(word bcd, byte col, byte row, byte vert) {
 
 // add two 4-digit BCD words
 word bcd_add(word a, word b) {
+#ifdef __SDCC
+  // add one digit at a time, in plain C
+  word result = 0;
+  byte shift, carry = 0;
+  for (shift = 0; shift < 16; shift += 4) {
+    byte d = ((a >> shift) & 0xf) + ((b >> shift) & 0xf) + carry;
+    carry = d > 9;
+    if (carry) d -= 10;
+    result |= (word)d << shift;
+  }
+  return result;
+#else
   word result;
   __asm__ ("sed"); // set decimal (BCD) mode
   result = a+b;
   __asm__ ("cld"); // clear BCD mode
   return result;
+#endif
 }
 
 //

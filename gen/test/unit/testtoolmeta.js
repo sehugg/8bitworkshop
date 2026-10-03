@@ -47,7 +47,16 @@ const workerlib_1 = require("../../src/worker/workerlib");
         assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('cc65', 'nes'), 'wasi:cc65-fs-nes.zip');
         assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('cc65', 'c64'), 'wasi:cc65-fs-c64.zip');
         assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('cc65', 'nonexistent'), undefined);
-        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('sdcc'), 'sdcc'); // default config
+        // the 'default' config leads with whichever SDCC the project defaults to
+        // (getSharedFileSystemName prefers preloadFS); platforms whose libraries
+        // were built by 3.x always keep the 3.6.5 preloadFS.
+        const defaultPreload = toolmeta_1.SDCC_DEFAULT_VERSION === 3 ? 'sdcc' : undefined;
+        const defaultShared = toolmeta_1.SDCC_DEFAULT_VERSION === 3 ? 'sdcc' : 'wasi:sdcc-fs.zip';
+        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('sdcc'), defaultPreload);
+        assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('sdcc', 'mw8080bw'), defaultShared);
+        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('sdcc', 'gb'), 'sdcc');
+        assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('sdcc', 'msx-libcv'), 'sdcc');
+        assert_1.default.strictEqual((0, toolmeta_1.getSharedFileSystemName)('sdcc', 'msx'), defaultShared);
         assert_1.default.strictEqual((0, toolmeta_1.getPreloadFSName)('dasm'), undefined);
     });
     (0, mocha_1.it)('getSharedFileSystemName resolves suffixed platform ids to their root base', function () {

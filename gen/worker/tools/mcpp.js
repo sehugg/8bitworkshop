@@ -11,7 +11,34 @@ const wasmutils_1 = require("../wasmutils");
 function makeCPPSafe(s) {
     return s.replace(/[^A-Za-z0-9_]/g, '_');
 }
-function preprocessMCPP(step, filesys) {
+/** Copy the headers under src.dir into an Emscripten FS at /share/include. */
+function copyWASIIncludes(FS, src) {
+    const prefix = src.dir + '/';
+    const made = new Set();
+    const mkdirs = (path) => {
+        let parts = path.split('/');
+        for (let i = 2; i < parts.length; i++) {
+            let dir = parts.slice(0, i).join('/');
+            if (!made.has(dir)) {
+                if (!FS.analyzePath(dir).exists)
+                    FS.mkdir(dir);
+                made.add(dir);
+            }
+        }
+    };
+    for (let file of src.fs.getFiles()) {
+        if (file.name.startsWith(prefix)) {
+            let path = '/share/include/' + file.name.substring(prefix.length);
+            mkdirs(path);
+            FS.writeFile(path, file.getBytes(), { encoding: 'binary' });
+        }
+    }
+}
+/**
+ * Preprocess the step's main source. `filesys` names the Emscripten FS
+ * package mounted at /share, or gives headers to copy into /share/include.
+ */
+function preprocessMCPP(step, filesys, extraArgs = []) {
     (0, wasmutils_1.load)("mcpp");
     var platform = step.platform;
     var params = platforms_1.PLATFORM_PARAMS[platform] || platforms_1.PLATFORM_PARAMS[(0, util_1.getBasePlatform)(platform)];
@@ -27,8 +54,10 @@ function preprocessMCPP(step, filesys) {
         printErr: match_fn,
     });
     var FS = MCPP.FS;
-    if (filesys)
+    if (typeof filesys === 'string')
         (0, wasmutils_1.setupFS)(FS, filesys);
+    else if (filesys)
+        copyWASIIncludes(FS, filesys);
     (0, builder_1.populateFiles)(step, FS, {
         mainFilePath: step.path,
         processFn: (path, code) => {
@@ -54,6 +83,7 @@ function preprocessMCPP(step, filesys) {
     }
     let platform_def = platform.toUpperCase().replaceAll(/[^a-zA-Z0-9]/g, '_');
     args.unshift.apply(args, ["-D", `__PLATFORM_${platform_def}__`]);
+    args.unshift(...extraArgs);
     if (params.extra_preproc_args) {
         args.push.apply(args, params.extra_preproc_args);
     }

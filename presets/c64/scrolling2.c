@@ -43,6 +43,15 @@ void copy_color_ram_slow() {
   memcpy(COLOR_RAM, colorbuf, COLS*ROWS);
 }
 
+void copy_to_hidden_buffer_slow() {
+  memcpy(hidbuf, visbuf, COLS*ROWS);
+}
+
+#ifdef __SDCC
+// (SDCC build: no cc65 inline assembly, so use the plain C copies)
+void copy_color_ram_fast() { copy_color_ram_slow(); }
+void copy_to_hidden_buffer_fast() { copy_to_hidden_buffer_slow(); }
+#else
 void copy_color_ram_fast() {
   // fast copy loop for upper 1/2 of color ram
   asm("ldy #0");
@@ -61,10 +70,6 @@ void copy_color_ram_fast() {
   asm("sta $db00,y");
   asm("@skip: iny");
   asm("bne @loop2");
-}
-
-void copy_to_hidden_buffer_slow() {
-  memcpy(hidbuf, visbuf, COLS*ROWS);
 }
 
 void copy_to_hidden_buffer_fast() {
@@ -101,6 +106,7 @@ void copy_to_hidden_buffer_fast() {
   asm("@skip: iny");
   asm("bne @loop");
 }
+#endif
 
 void scroll_start(byte dir) {
   if (scroll_seq == 0 && dir) {

@@ -28,6 +28,8 @@ const APPLE2_PRESETS: Preset[] = [
   //  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
   { id: 'dos33bin.a', name: "DOS 3.3 Binary" },
   { id: 'applesinglebin.a', name: "AppleSingle Binary" },
+  { id: 'hello-sdcc.c', name: 'Hello World (SDCC)', category: "C (SDCC)" },
+  { id: 'cosmic-sdcc.c', name: 'Cosmic Impalas (SDCC)' },
 ];
 
 /// MAME support
@@ -51,7 +53,7 @@ class Apple2MAMEPlatform extends BaseMAME6502Platform implements Platform {
   }
 
   getOpcodeMetadata = getOpcodeMetadata_6502;
-  getDefaultExtensions() { return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
+  getDefaultExtensions() { return [".c", ".sdcc", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
   getToolForFilename = getToolForFilename_apple2;
 
   getPresets() { return APPLE2_PRESETS; }

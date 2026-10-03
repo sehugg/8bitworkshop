@@ -2,7 +2,9 @@
 #include "common.h"
 //#link "common.c"
  
+#ifndef __SDCC
 #include <cbm_screen_charmap.h>
+#endif
 
 void main(void) {
   unsigned int i;

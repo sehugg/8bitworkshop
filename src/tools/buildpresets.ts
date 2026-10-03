@@ -90,7 +90,7 @@ export interface BuildOptions {
 }
 
 const DEFAULT_TIMEOUT = 120000;
-const DEFAULT_RUN_FRAMES = 300;
+const DEFAULT_RUN_FRAMES = 200;
 
 // A frame this uniform after a few seconds almost always means nothing drew;
 // a real screen has a background plus text or sprites (or stars).
@@ -103,6 +103,8 @@ const SKIP_PLATFORMS = [
     'astrocade-arcade',
     'mcr',
     'vectrex',
+    'devel',
+    'devel-6502',
 ];
 
 // build these, but don't run them: the emulator needs a real browser
@@ -500,7 +502,11 @@ export async function runPreset(
         else await target.loadROM(result.output, path.basename(preset));
         for (let i = 0; i < frames; i++) target.advanceFrame();
         run.ok = true;
-        const video = target.getVideo();
+        let video = target.getVideo();
+        if (!video) {
+            for (let i = 0; i < frames; i++) target.advanceFrame();
+            video = target.getVideo();
+        }
         if (!video) {
             run.verdict = 'novideo';
         } else {

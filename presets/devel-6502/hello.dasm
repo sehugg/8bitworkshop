@@ -1,0 +1,22 @@
+ processor 6502
+ org $8000
+
+Start
+; ADD YOUR CODE HERE
+ rts
+ 
+ org $ffe0
+NMIVec
+RESVec
+BRKVec
+ sei
+ cld
+ ldx #$ff
+ txs
+ jsr Start
+ jmp .
+ 
+ org $fffa
+ word NMIVec	; NMI
+ word RESVec	; reset
+ word BRKVec	; BRK

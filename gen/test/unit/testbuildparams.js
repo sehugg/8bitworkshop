@@ -220,6 +220,23 @@ function c64Params() {
         applyDirectives("//#tooldef ld libargs=a.lib,b.lib\n", params);
         assert_1.default.deepStrictEqual(params.libargs, ["a.lib", "b.lib"]);
     });
+    (0, mocha_1.it)("#tooldef c sdcc picks the SDCC version", function () {
+        const params = {};
+        applyDirectives("//#tooldef c sdcc=3\n", params);
+        assert_1.default.strictEqual(params.sdcc_version, 3);
+        const dir = applyDirectives("//#tooldef c sdcc=5\n", params);
+        assert_1.default.strictEqual(dir.errors.length, 1);
+        assert_1.default.strictEqual(params.sdcc_version, 3);
+    });
+    (0, mocha_1.it)("#tooldef ld code_start and data_start take addresses", function () {
+        const params = {};
+        applyDirectives("//#tooldef ld code_start=0x4000\n//#tooldef ld data_start=36864\n", params);
+        assert_1.default.strictEqual(params.code_start, 0x4000);
+        assert_1.default.strictEqual(params.data_start, 0x9000);
+        const dir = applyDirectives("//#tooldef ld code_start=nowhere\n//#tooldef ld data_start=0x10000\n", params);
+        assert_1.default.strictEqual(dir.errors.length, 2);
+        assert_1.default.strictEqual(params.code_start, 0x4000);
+    });
     (0, mocha_1.it)("#tooldef rejects unknown knobs", function () {
         const params = c64Params();
         const dir = applyDirectives("//#tooldef ld nonsense=1\n", params);
@@ -262,7 +279,8 @@ function c64Params() {
     (0, mocha_1.it)("resolves per-platform, root-base, and default configs", function () {
         assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolConfig)('cc65', 'nes').wasiFSZip, 'cc65-fs-nes.zip');
         assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolConfig)('cc65', 'atari8-800').wasiFSZip, 'cc65-fs-atari8.zip');
-        assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolConfig)('sdcc').preloadFS, 'sdcc');
+        assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolConfig)('sdcc').wasiFSZip, 'sdcc-fs.zip');
+        assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolConfig)('sdcc', 'sms-sms-libcv').preloadFS, 'sdcc'); // root base 'sms'
         assert_1.default.strictEqual((0, toolmeta_1.getPlatformToolConfig)('dasm', 'nes'), undefined);
     });
     (0, mocha_1.it)("routes oscar64 to the target machine for each platform", function () {

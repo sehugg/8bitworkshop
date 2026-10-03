@@ -4,11 +4,9 @@ exports.assembleCA65 = assembleCA65;
 exports.linkLD65 = linkLD65;
 exports.compileCC65 = compileCC65;
 const toolmeta_1 = require("../../common/toolmeta");
-const wasishim_1 = require("../../common/wasi/wasishim");
 const builder_1 = require("../builder");
 const listingutils_1 = require("../listingutils");
 const cc65dbg_1 = require("./cc65dbg");
-const wasmutils_1 = require("../wasmutils");
 const wasiutils_1 = require("../wasiutils");
 // the WASI builds look for their data under share/cc65 in the per-platform
 // cc65-fs-<platform>.zip, preopened at '.'
@@ -27,40 +25,7 @@ async function runCC65Tool(step, tool, args, populate) {
     const fsname = (0, toolmeta_1.getSharedFileSystemName)('cc65', step.platform);
     if (!fsname || !fsname.startsWith('wasi:'))
         throw new Error("No cc65 filesystem for platform " + step.platform);
-    const sharefs = await (0, wasmutils_1.ensureWasiFilesystem)(fsname.substring(5));
-    if (!sharefs)
-        throw new Error("Could not load cc65 filesystem " + fsname);
-    if (!wasiModules[tool]) {
-        wasiModules[tool] = new WebAssembly.Module((0, wasmutils_1.loadWASMBinary)(tool));
-    }
-    const wasi = new wasishim_1.WASIRunner();
-    wasi.initSync(wasiModules[tool]);
-    wasi.fs.setParent(sharefs);
-    populate((0, wasiutils_1.wasiFSAdapter)(wasi));
-    wasi.addPreopenDirectory(".");
-    wasi.setArgs([tool, ...args]);
-    const errno = wasi.run();
-    console.log('exec', tool, args.join(' '));
-    const stdout = wasi.fds[1].getBytesAsString();
-    if (stdout)
-        console.log(stdout);
-    const stderr = wasi.fds[2].getBytesAsString().split(listingutils_1.re_crlf).filter(s => s != '');
-    return { wasi, errno, stderr };
-}
-/** Report a failed tool run that printed no parseable error message. */
-function checkExitCode(tool, errno, stderr, errors) {
-    if (errno && !errors.length) {
-        errors.push({ line: 0, msg: tool + " exited with code " + errno + (stderr.length ? ": " + stderr.join('\n') : '') });
-    }
-}
-function readWASIOutput(wasi, path) {
-    const fd = wasi.fs.getFile(path);
-    if (!fd)
-        throw new Error("Missing output file " + path);
-    return fd.getBytes().slice();
-}
-function readWASIOutputString(wasi, path) {
-    return new TextDecoder().decode(readWASIOutput(wasi, path));
+    return (0, wasiutils_1.runWASITool)(tool, args, { sharedFS: fsname.substring(5), populate });
 }
 /*
 000000r 1               .segment        "CODE"
@@ -191,15 +156,15 @@ async function assembleCA65(step) {
         args.splice(args.length - 1, 0, ...extra);
         const { wasi, errno, stderr } = await runCC65Tool(step, 'ca65', args, (fs) => (0, builder_1.populateFiles)(step, fs));
         stderr.filter(s => !re_cc65_warning.test(s)).forEach((0, listingutils_1.makeErrorMatcher)(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1));
-        checkExitCode('ca65', errno, stderr, errors);
+        (0, wasiutils_1.checkExitCode)('ca65', errno, stderr, errors);
         if (errors.length) {
             let listings = {};
             // TODO? change extension to .lst
             //listings[step.path] = { lines:[], text:getWorkFileAsString(step.path) };
             return { errors, listings };
         }
-        (0, builder_1.putWorkFile)(objpath, readWASIOutput(wasi, objpath));
-        (0, builder_1.putWorkFile)(lstpath, readWASIOutputString(wasi, lstpath));
+        (0, builder_1.putWorkFile)(objpath, (0, wasiutils_1.readWASIOutput)(wasi, objpath));
+        (0, builder_1.putWorkFile)(lstpath, (0, wasiutils_1.readWASIOutputString)(wasi, lstpath));
     }
     return {
         linktool: "ld65",
@@ -242,12 +207,12 @@ async function linkLD65(step) {
                 continue;
             errors.push({ msg: s, line: 0 });
         }
-        checkExitCode('ld65', errno, stderr, errors);
+        (0, wasiutils_1.checkExitCode)('ld65', errno, stderr, errors);
         if (errors.length)
             return { errors: errors };
-        var aout = readWASIOutput(wasi, "main");
-        var mapout = readWASIOutputString(wasi, "main.map");
-        var viceout = readWASIOutputString(wasi, "main.vice");
+        var aout = (0, wasiutils_1.readWASIOutput)(wasi, "main");
+        var mapout = (0, wasiutils_1.readWASIOutputString)(wasi, "main.map");
+        var viceout = (0, wasiutils_1.readWASIOutputString)(wasi, "main.vice");
         // correct binary for PCEngine
         if (step.platform == 'pce' && aout.length > 0x2000) {
             // move 8 KB from end to front
@@ -277,7 +242,7 @@ async function linkLD65(step) {
         // symbol sizes from the linker debug file
         var symbolsizes = {};
         try {
-            let dbgsyms = (0, cc65dbg_1.parseCC65DbgSizes)(readWASIOutputString(wasi, "main.dbg"), params.ignore_segments);
+            let dbgsyms = (0, cc65dbg_1.parseCC65DbgSizes)((0, wasiutils_1.readWASIOutputString)(wasi, "main.dbg"), params.ignore_segments);
             symbolsizes = dbgsyms.sizes;
             // labels outside CPU address space (e.g. NES CHR) would alias real addresses
             for (let name of dbgsyms.ignored)
@@ -315,7 +280,7 @@ async function linkLD65(step) {
         var listings = {};
         for (var fn of step.files) {
             if (fn.endsWith('.lst')) {
-                var lstout = readWASIOutputString(wasi, fn);
+                var lstout = (0, wasiutils_1.readWASIOutputString)(wasi, fn);
                 lstout = lstout.split('\n\n')[1] || lstout; // remove header
                 (0, builder_1.putWorkFile)(fn, lstout);
                 //const asmpath = fn.replace(/\.lst$/, '.ca65'); // TODO! could be .s
@@ -393,10 +358,10 @@ async function compileCC65(step) {
             (0, builder_1.populateExtraFiles)(step, fs, params.extra_compile_files);
         });
         stderr.filter(s => !re_cc65_warning.test(s)).forEach((0, listingutils_1.makeErrorMatcher)(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
-        checkExitCode('cc65', errno, stderr, errors);
+        (0, wasiutils_1.checkExitCode)('cc65', errno, stderr, errors);
         if (errors.length)
             return { errors };
-        (0, builder_1.putWorkFile)(destpath, readWASIOutputString(wasi, destpath));
+        (0, builder_1.putWorkFile)(destpath, (0, wasiutils_1.readWASIOutputString)(wasi, destpath));
     }
     return {
         nexttool: "ca65",

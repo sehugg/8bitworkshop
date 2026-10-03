@@ -27,6 +27,8 @@ const APPLE2_PRESETS = [
     //  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
     { id: 'dos33bin.a', name: "DOS 3.3 Binary" },
     { id: 'applesinglebin.a', name: "AppleSingle Binary" },
+    { id: 'hello-sdcc.c', name: 'Hello World (SDCC)', category: "C (SDCC)" },
+    { id: 'cosmic-sdcc.c', name: 'Cosmic Impalas (SDCC)' },
 ];
 /// MAME support
 class Apple2MAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
@@ -50,7 +52,7 @@ class Apple2MAMEPlatform extends mameplatform_1.BaseMAME6502Platform {
             },
         });
     }
-    getDefaultExtensions() { return [".c", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
+    getDefaultExtensions() { return [".c", ".sdcc", ".cpp", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; }
     getPresets() { return APPLE2_PRESETS; }
     loadROM(title, data) {
         this.loadROMFile(data);

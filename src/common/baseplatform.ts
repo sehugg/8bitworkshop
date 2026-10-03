@@ -523,7 +523,7 @@ export abstract class Base6502Platform extends BaseDebugPlatform {
     return disassemble6502(pc, read(pc), read(pc + 1), read(pc + 2));
   }
   getToolForFilename = getToolForFilename_6502;
-  getDefaultExtensions() { return [".c", ".cpp", ".o64", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; };
+  getDefaultExtensions() { return [".c", ".sdcc", ".cpp", ".o64", ".acme", ".xa", ".ca65", ".dasm", ".ecs", ".wiz"]; };
 
   getDebugCategories() {
     return ['CPU', 'ZPRAM', 'Stack'];
@@ -643,7 +643,7 @@ export abstract class BaseZ80Platform extends BaseDebugPlatform {
   }
 
   getToolForFilename = getToolForFilename_z80;
-  getDefaultExtensions() { return [".c", ".ns", ".s", ".scc", ".sgb", ".z", ".wiz"]; };
+  getDefaultExtensions() { return [".c", ".sdcc", ".ns", ".s", ".scc", ".sgb", ".z", ".wiz"]; };
   // TODO: Z80 opcode metadata
   //this.getOpcodeMetadata = function() { }
 

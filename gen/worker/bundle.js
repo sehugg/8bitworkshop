@@ -2575,6 +2575,15 @@
   var DIALOG_INCLUDE_PATTERNS = [
     /^\s*%%\s*#include\s+"(.+?)"/gm
   ];
+  var SDCC_DEFAULT_VERSION = 3;
+  var SDCC_FS = {
+    "default": SDCC_DEFAULT_VERSION === 3 ? { preloadFS: "sdcc", wasiFSZip: "sdcc-fs.zip" } : { wasiFSZip: "sdcc-fs.zip" },
+    "coleco": { preloadFS: "sdcc" },
+    "msx-libcv": { preloadFS: "sdcc" },
+    "sms": { preloadFS: "sdcc" },
+    "gb": { preloadFS: "sdcc" },
+    "cpc": { preloadFS: "sdcc" }
+  };
   var CC65_WASIFS = {
     "apple2": { wasiFSZip: "cc65-fs-apple2.zip" },
     "c64": { wasiFSZip: "cc65-fs-c64.zip" },
@@ -2707,15 +2716,15 @@
       name: "SDCC",
       kind: "compiler",
       arch: "z80",
-      extensions: [".c", ".h"],
-      includeDirs: ["/include"],
+      extensions: [".c", ".h", ".sdcc"],
+      includeDirs: ["/share/sdcc/include", "/include"],
       editorStyle: "text/x-csrc",
       helpURL: "http://sdcc.sourceforge.net/doc/sdccman.pdf",
-      wasmModule: "sdcc",
-      version: "3.6.5",
+      wasmModule: "sdcc4",
+      version: SDCC_DEFAULT_VERSION === 3 ? "3.6.5" : "4.6.0",
       defineFlag: "-D",
       defineInline: true,
-      platforms: { default: { preloadFS: "sdcc" } },
+      platforms: SDCC_FS,
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2725,11 +2734,11 @@
       kind: "assembler",
       arch: "z80",
       extensions: [".s"],
-      includeDirs: ["/include"],
+      includeDirs: ["/share/sdcc/include", "/include"],
       editorStyle: "z80",
-      wasmModule: "sdasz80",
+      wasmModule: "sdasz80-4",
       version: "02.00",
-      platforms: { default: { preloadFS: "sdcc" } },
+      platforms: SDCC_FS,
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2752,7 +2761,30 @@
       kind: "linker",
       arch: "z80",
       extensions: [],
-      wasmModule: "sdldz80",
+      wasmModule: "sdld4",
+      version: "03.00",
+      linkSymbolFlag: "-g",
+      linkSymbolInline: false
+    },
+    // SDCC 4.x mos6502 backend (compile with `-sdcc.c`); sdld6808 is the
+    // 6502 personality of the sdld4 binary
+    sdas6500: {
+      id: "sdas6500",
+      name: "sdas6500",
+      kind: "assembler",
+      arch: "6502",
+      extensions: [],
+      wasmModule: "sdas6500",
+      version: "02.00",
+      platforms: SDCC_FS
+    },
+    sdld6808: {
+      id: "sdld6808",
+      name: "sdld6808",
+      kind: "linker",
+      arch: "6502",
+      extensions: [],
+      wasmModule: "sdld4",
       version: "03.00",
       linkSymbolFlag: "-g",
       linkSymbolInline: false
@@ -3434,6 +3466,11 @@
       libargs: ["--lib-path", "/share/target/apple2/drv", "apple2.lib"],
       __CODE_RUN__: 16384,
       code_start: 2051,
+      // for SDCC (-sdcc.c): a DOS 3.3 binary at $803 with data above the program
+      rom_size: 37888 - 2051,
+      data_start: 37888,
+      zp_start: 96,
+      load_header: "dos33",
       acmeargs: ["-f", "apple"]
     },
     "apple2-e": {
@@ -3515,6 +3552,12 @@
       // SYS 2061
       libargs: ["openroms-compat.o", "c64.lib"],
       extra_link_files: ["openroms-compat.o"],
+      // for SDCC (-sdcc.c): a PRG with a BASIC SYS stub, code at $80D, data in upper RAM
+      code_start: 2061,
+      rom_size: 40960 - 2061,
+      data_start: 49152,
+      zp_start: 2,
+      load_header: "prg",
       acmeargs: ["-f", "cbm"]
       //extra_link_files: ['c64-cart.cfg'],
     },
@@ -3558,7 +3601,11 @@
       arch: "6502",
       cfgfile: "devel-6502.cfg",
       libargs: ["crt0.o", "none.lib"],
-      extra_link_files: ["crt0.o", "devel-6502.cfg"]
+      extra_link_files: ["crt0.o", "devel-6502.cfg"],
+      // for SDCC (-sdcc.c): ROM at $8000 with vectors at $FFFA, data above zero page
+      code_start: 32768,
+      rom_size: 32768,
+      data_start: 512
     },
     // https://github.com/cpcitor/cpc-dev-tool-chain
     "cpc.rslib": {
@@ -6153,6 +6200,18 @@
       if (this.dirs.has(name)) return 31 /* ISDIR */;
       return this.files.delete(name) ? 0 /* SUCCESS */ : 44 /* NOENT */;
     }
+    // Rename a file within this (writable) layer, replacing any file at newName.
+    renameFile(oldName, newName) {
+      oldName = normalizeWASIPath(oldName);
+      newName = normalizeWASIPath(newName);
+      if (this.dirs.has(oldName) || this.dirs.has(newName)) return 31 /* ISDIR */;
+      const file = this.files.get(oldName);
+      if (!file) return 44 /* NOENT */;
+      this.files.delete(oldName);
+      file.name = newName;
+      this.files.set(newName, file);
+      return 0 /* SUCCESS */;
+    }
     removeDirectory(name) {
       name = normalizeWASIPath(name);
       if (name === "/") return 10 /* BUSY */;
@@ -6548,6 +6607,16 @@
       debug("path_unlink_file", dir + "", path);
       return this.fs.removeFile(path);
     }
+    path_rename(old_dirfd, old_path_ptr, old_path_len, new_dirfd, new_path_ptr, new_path_len) {
+      const olddir = this.fds[old_dirfd];
+      const newdir = this.fds[new_dirfd];
+      if (olddir == null || newdir == null) return 8 /* BADF */;
+      if (olddir.type !== 3 /* DIRECTORY */ || newdir.type !== 3 /* DIRECTORY */) return 54 /* NOTDIR */;
+      const oldpath = olddir.name + "/" + this.peekUTF8(old_path_ptr, old_path_len);
+      const newpath = newdir.name + "/" + this.peekUTF8(new_path_ptr, new_path_len);
+      debug("path_rename", oldpath, newpath);
+      return this.fs.renameFile(oldpath, newpath);
+    }
     path_remove_directory(dirfd, path_ptr, path_len) {
       const dir = this.fds[dirfd];
       if (dir == null) return 8 /* BADF */;
@@ -6594,6 +6663,7 @@
         path_readlink: this.path_readlink.bind(this),
         path_unlink_file: this.path_unlink_file.bind(this),
         path_remove_directory: this.path_remove_directory.bind(this),
+        path_rename: this.path_rename.bind(this),
         path_create_directory: this.path_create_directory.bind(this),
         clock_time_get: this.clock_time_get.bind(this),
         fd_fdstat_set_flags() {
@@ -6649,6 +6719,121 @@
   _memarr32 = new WeakMap();
   _args = new WeakMap();
   _envvars = new WeakMap();
+
+  // src/worker/listingutils.ts
+  var re_msvc = /[/]*([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+?):\s*(.*)/;
+  var re_msvc2 = /\s*(at)\s+(\d+)\s*(:)\s*(.*)/;
+  function msvcErrorMatcher(errors) {
+    return function(s) {
+      var matches = re_msvc.exec(s) || re_msvc2.exec(s);
+      if (matches) {
+        var errline = parseInt(matches[2]);
+        errors.push({
+          line: errline,
+          path: matches[1],
+          //type:matches[3],
+          msg: matches[4]
+        });
+      } else {
+        console.log(s);
+      }
+    };
+  }
+  function makeErrorMatcher(errors, regex, iline, imsg, mainpath, ifilename) {
+    return function(s) {
+      var matches = regex.exec(s);
+      if (matches) {
+        errors.push({
+          line: parseInt(matches[iline]) || 1,
+          msg: matches[imsg],
+          path: ifilename ? matches[ifilename] : mainpath
+        });
+      } else {
+        console.log("??? " + s);
+      }
+    };
+  }
+  function extractErrors(regex, strings, path, iline, imsg, ifilename) {
+    var errors = [];
+    var matcher = makeErrorMatcher(errors, regex, iline, imsg, path, ifilename);
+    for (var i = 0; i < strings.length; i++) {
+      matcher(strings[i]);
+    }
+    return errors;
+  }
+  var re_crlf = /\r?\n/;
+  var re_lineoffset = /\s*(\d+)\s+[%]line\s+(\d+)\+(\d+)\s+(.+)/;
+  function parseSegFunc(line, segMatch, funcMatch, state) {
+    let segm = segMatch && segMatch.exec(line);
+    if (segm) {
+      state.segment = segm[1];
+    }
+    let funcm = funcMatch && funcMatch.exec(line);
+    if (funcm) {
+      state.funcbase = parseInt(funcm[1], 16);
+      state.func = funcm[2];
+    }
+  }
+  function parseListing(code, lineMatch, iline, ioffset, iinsns, icycles, funcMatch, segMatch) {
+    var lines = [];
+    var lineofs = 0;
+    var state = { segment: "", func: "", funcbase: 0 };
+    code.split(re_crlf).forEach((line, lineindex) => {
+      parseSegFunc(line, segMatch, funcMatch, state);
+      var linem = lineMatch.exec(line);
+      if (linem && linem[1]) {
+        var linenum = iline < 0 ? lineindex : parseInt(linem[iline]);
+        var offset = parseInt(linem[ioffset], 16);
+        var insns = linem[iinsns];
+        var cycles = icycles ? parseInt(linem[icycles]) : null;
+        var iscode = cycles > 0;
+        if (insns) {
+          lines.push({
+            line: linenum + lineofs,
+            offset: offset - state.funcbase,
+            insns,
+            cycles,
+            iscode,
+            segment: state.segment,
+            func: state.func
+          });
+        }
+      } else {
+        let m = re_lineoffset.exec(line);
+        if (m) {
+          lineofs = parseInt(m[2]) - parseInt(m[1]) - parseInt(m[3]);
+        }
+      }
+    });
+    return lines;
+  }
+  function parseSourceLines(code, lineMatch, offsetMatch, funcMatch, segMatch) {
+    var lines = [];
+    var lastlinenum = 0;
+    var lastpath;
+    var state = { segment: "", func: "", funcbase: 0 };
+    for (var line of code.split(re_crlf)) {
+      parseSegFunc(line, segMatch, funcMatch, state);
+      var linem = lineMatch.exec(line);
+      if (linem && linem[1]) {
+        lastlinenum = parseInt(linem[1]);
+        lastpath = linem[2];
+      } else if (lastlinenum) {
+        var linem = offsetMatch.exec(line);
+        if (linem && linem[1]) {
+          var offset = parseInt(linem[1], 16);
+          lines.push(__spreadValues({
+            line: lastlinenum,
+            offset: offset - state.funcbase,
+            segment: state.segment,
+            func: state.func
+          }, lastpath ? { path: lastpath } : {}));
+          lastlinenum = 0;
+        }
+      }
+    }
+    return lines;
+  }
 
   // src/worker/wasiutils.ts
   function loadBlobSync(path) {
@@ -6708,6 +6893,47 @@
       utime: () => {
       }
     };
+  }
+  var wasiModules = {};
+  async function runWASITool(tool, args, opts = {}) {
+    const module = opts.module || tool;
+    const wasi = new WASIRunner();
+    if (opts.sharedFS) {
+      const sharefs = await ensureWasiFilesystem(opts.sharedFS);
+      if (!sharefs)
+        throw new Error("Could not load filesystem " + opts.sharedFS);
+      wasi.fs.setParent(sharefs);
+    }
+    if (!wasiModules[module]) {
+      wasiModules[module] = new WebAssembly.Module(loadWASMBinary(module));
+    }
+    wasi.initSync(wasiModules[module]);
+    if (opts.populate) opts.populate(wasiFSAdapter(wasi));
+    if (opts.stdin != null) {
+      wasi.stdin.write(new TextEncoder().encode(opts.stdin));
+      wasi.stdin.offset = 0;
+    }
+    wasi.addPreopenDirectory(".");
+    wasi.setArgs([tool, ...args]);
+    const errno = wasi.run();
+    console.log("exec", tool, args.join(" "));
+    const stdout = wasi.fds[1].getBytesAsString().split(re_crlf).filter((s) => s != "");
+    if (stdout.length) console.log(stdout.join("\n"));
+    const stderr = wasi.fds[2].getBytesAsString().split(re_crlf).filter((s) => s != "");
+    return { wasi, errno, stdout, stderr };
+  }
+  function checkExitCode(tool, errno, stderr, errors) {
+    if (errno && !errors.length) {
+      errors.push({ line: 0, msg: tool + " exited with code " + errno + (stderr.length ? ": " + stderr.join("\n") : "") });
+    }
+  }
+  function readWASIOutput(wasi, path) {
+    const fd = wasi.fs.getFile(path);
+    if (!fd) throw new Error("Missing output file " + path);
+    return fd.getBytes().slice();
+  }
+  function readWASIOutputString(wasi, path) {
+    return new TextDecoder().decode(readWASIOutput(wasi, path));
   }
 
   // src/worker/wasmutils.ts
@@ -6945,119 +7171,6 @@
         return i < code.length ? code.charCodeAt(i++) : null;
       }
     );
-  }
-
-  // src/worker/listingutils.ts
-  var re_msvc = /[/]*([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+?):\s*(.*)/;
-  var re_msvc2 = /\s*(at)\s+(\d+)\s*(:)\s*(.*)/;
-  function msvcErrorMatcher(errors) {
-    return function(s) {
-      var matches = re_msvc.exec(s) || re_msvc2.exec(s);
-      if (matches) {
-        var errline = parseInt(matches[2]);
-        errors.push({
-          line: errline,
-          path: matches[1],
-          //type:matches[3],
-          msg: matches[4]
-        });
-      } else {
-        console.log(s);
-      }
-    };
-  }
-  function makeErrorMatcher(errors, regex, iline, imsg, mainpath, ifilename) {
-    return function(s) {
-      var matches = regex.exec(s);
-      if (matches) {
-        errors.push({
-          line: parseInt(matches[iline]) || 1,
-          msg: matches[imsg],
-          path: ifilename ? matches[ifilename] : mainpath
-        });
-      } else {
-        console.log("??? " + s);
-      }
-    };
-  }
-  function extractErrors(regex, strings, path, iline, imsg, ifilename) {
-    var errors = [];
-    var matcher = makeErrorMatcher(errors, regex, iline, imsg, path, ifilename);
-    for (var i = 0; i < strings.length; i++) {
-      matcher(strings[i]);
-    }
-    return errors;
-  }
-  var re_crlf = /\r?\n/;
-  var re_lineoffset = /\s*(\d+)\s+[%]line\s+(\d+)\+(\d+)\s+(.+)/;
-  function parseSegFunc(line, segMatch, funcMatch, state) {
-    let segm = segMatch && segMatch.exec(line);
-    if (segm) {
-      state.segment = segm[1];
-    }
-    let funcm = funcMatch && funcMatch.exec(line);
-    if (funcm) {
-      state.funcbase = parseInt(funcm[1], 16);
-      state.func = funcm[2];
-    }
-  }
-  function parseListing(code, lineMatch, iline, ioffset, iinsns, icycles, funcMatch, segMatch) {
-    var lines = [];
-    var lineofs = 0;
-    var state = { segment: "", func: "", funcbase: 0 };
-    code.split(re_crlf).forEach((line, lineindex) => {
-      parseSegFunc(line, segMatch, funcMatch, state);
-      var linem = lineMatch.exec(line);
-      if (linem && linem[1]) {
-        var linenum = iline < 0 ? lineindex : parseInt(linem[iline]);
-        var offset = parseInt(linem[ioffset], 16);
-        var insns = linem[iinsns];
-        var cycles = icycles ? parseInt(linem[icycles]) : null;
-        var iscode = cycles > 0;
-        if (insns) {
-          lines.push({
-            line: linenum + lineofs,
-            offset: offset - state.funcbase,
-            insns,
-            cycles,
-            iscode,
-            segment: state.segment,
-            func: state.func
-          });
-        }
-      } else {
-        let m = re_lineoffset.exec(line);
-        if (m) {
-          lineofs = parseInt(m[2]) - parseInt(m[1]) - parseInt(m[3]);
-        }
-      }
-    });
-    return lines;
-  }
-  function parseSourceLines(code, lineMatch, offsetMatch, funcMatch, segMatch) {
-    var lines = [];
-    var lastlinenum = 0;
-    var state = { segment: "", func: "", funcbase: 0 };
-    for (var line of code.split(re_crlf)) {
-      parseSegFunc(line, segMatch, funcMatch, state);
-      var linem = lineMatch.exec(line);
-      if (linem && linem[1]) {
-        lastlinenum = parseInt(linem[1]);
-      } else if (lastlinenum) {
-        var linem = offsetMatch.exec(line);
-        if (linem && linem[1]) {
-          var offset = parseInt(linem[1], 16);
-          lines.push({
-            line: lastlinenum,
-            offset: offset - state.funcbase,
-            segment: state.segment,
-            func: state.func
-          });
-          lastlinenum = 0;
-        }
-      }
-    }
-    return lines;
   }
 
   // src/worker/tools/misc.ts
@@ -7317,42 +7430,11 @@
   // src/worker/tools/cc65.ts
   var CC65_SHARE = "share/cc65";
   var re_cc65_warning = /:\s*Warning:/;
-  var wasiModules = {};
   async function runCC65Tool(step, tool, args, populate) {
     const fsname = getSharedFileSystemName("cc65", step.platform);
     if (!fsname || !fsname.startsWith("wasi:"))
       throw new Error("No cc65 filesystem for platform " + step.platform);
-    const sharefs = await ensureWasiFilesystem(fsname.substring(5));
-    if (!sharefs)
-      throw new Error("Could not load cc65 filesystem " + fsname);
-    if (!wasiModules[tool]) {
-      wasiModules[tool] = new WebAssembly.Module(loadWASMBinary(tool));
-    }
-    const wasi = new WASIRunner();
-    wasi.initSync(wasiModules[tool]);
-    wasi.fs.setParent(sharefs);
-    populate(wasiFSAdapter(wasi));
-    wasi.addPreopenDirectory(".");
-    wasi.setArgs([tool, ...args]);
-    const errno = wasi.run();
-    console.log("exec", tool, args.join(" "));
-    const stdout = wasi.fds[1].getBytesAsString();
-    if (stdout) console.log(stdout);
-    const stderr = wasi.fds[2].getBytesAsString().split(re_crlf).filter((s) => s != "");
-    return { wasi, errno, stderr };
-  }
-  function checkExitCode(tool, errno, stderr, errors) {
-    if (errno && !errors.length) {
-      errors.push({ line: 0, msg: tool + " exited with code " + errno + (stderr.length ? ": " + stderr.join("\n") : "") });
-    }
-  }
-  function readWASIOutput(wasi, path) {
-    const fd = wasi.fs.getFile(path);
-    if (!fd) throw new Error("Missing output file " + path);
-    return fd.getBytes().slice();
-  }
-  function readWASIOutputString(wasi, path) {
-    return new TextDecoder().decode(readWASIOutput(wasi, path));
+    return runWASITool(tool, args, { sharedFS: fsname.substring(5), populate });
   }
   function parseCA65Listing(asmfn, code, symbols, segments, params, dbg, listings) {
     var _a;
@@ -7998,7 +8080,28 @@
   function makeCPPSafe(s) {
     return s.replace(/[^A-Za-z0-9_]/g, "_");
   }
-  function preprocessMCPP(step, filesys) {
+  function copyWASIIncludes(FS, src) {
+    const prefix = src.dir + "/";
+    const made = /* @__PURE__ */ new Set();
+    const mkdirs = (path) => {
+      let parts = path.split("/");
+      for (let i = 2; i < parts.length; i++) {
+        let dir = parts.slice(0, i).join("/");
+        if (!made.has(dir)) {
+          if (!FS.analyzePath(dir).exists) FS.mkdir(dir);
+          made.add(dir);
+        }
+      }
+    };
+    for (let file of src.fs.getFiles()) {
+      if (file.name.startsWith(prefix)) {
+        let path = "/share/include/" + file.name.substring(prefix.length);
+        mkdirs(path);
+        FS.writeFile(path, file.getBytes(), { encoding: "binary" });
+      }
+    }
+  }
+  function preprocessMCPP(step, filesys, extraArgs = []) {
     load("mcpp");
     var platform = step.platform;
     var params = PLATFORM_PARAMS[platform] || PLATFORM_PARAMS[getBasePlatform(platform)];
@@ -8012,7 +8115,8 @@
       printErr: match_fn
     });
     var FS = MCPP.FS;
-    if (filesys) setupFS(FS, filesys);
+    if (typeof filesys === "string") setupFS(FS, filesys);
+    else if (filesys) copyWASIIncludes(FS, filesys);
     populateFiles(step, FS, {
       mainFilePath: step.path,
       processFn: (path, code) => {
@@ -8042,6 +8146,7 @@
     }
     let platform_def = platform.toUpperCase().replaceAll(/[^a-zA-Z0-9]/g, "_");
     args.unshift.apply(args, ["-D", `__PLATFORM_${platform_def}__`]);
+    args.unshift(...extraArgs);
     if (params.extra_preproc_args) {
       args.push.apply(args, params.extra_preproc_args);
     }
@@ -8077,6 +8182,59 @@
   }
 
   // src/worker/tools/sdcc.ts
+  var SDCC4_INCLUDE = "share/sdcc/include";
+  var SDCC4_LIB = "share/sdcc/lib";
+  function sdccTarget(arch) {
+    switch (arch) {
+      case "gbz80":
+        return { mflag: "-mgbz80", as: "sdasgb", lib: "gbz80", sdcccall: 1 };
+      case "6502":
+        return { mflag: "-mmos6502", as: "sdas6500", lib: "mos6502", sdcccall: 0, only4: true };
+      default:
+        return { mflag: "-mz80", as: "sdasz80", lib: arch || "z80", sdcccall: 1 };
+    }
+  }
+  function sdcc4Defines(target) {
+    return [
+      "-D",
+      "__SDCC=4_6_3",
+      "-D",
+      "__SDCC_VERSION_MAJOR=4",
+      "-D",
+      "__SDCC_VERSION_MINOR=6",
+      "-D",
+      "__SDCC_VERSION_PATCH=3",
+      "-D",
+      `__SDCCCALL=${target.sdcccall}`,
+      ...target.mflag === "-mmos6502" ? ["-D", "__SDCC_mos6502=1"] : [],
+      "-D",
+      "__STDC_NO_COMPLEX__=1",
+      "-D",
+      "__STDC_NO_THREADS__=1",
+      "-D",
+      "__STDC_NO_ATOMICS__=1",
+      "-D",
+      "__STDC_NO_VLA__=1"
+    ];
+  }
+  function sdcc4FS(step) {
+    var _a;
+    const requested = step.params.sdcc_version;
+    const only4 = sdccTarget(step.params.arch).only4;
+    if (requested === 3 && only4) throw new Error(`SDCC 3 has no ${step.params.arch} backend. Remove "//#tooldef c sdcc=3".`);
+    if ((requested != null ? requested : only4 ? 4 : SDCC_DEFAULT_VERSION) !== 4) return null;
+    const zip = (_a = getPlatformToolConfig("sdcc", step.platform)) == null ? void 0 : _a.wasiFSZip;
+    if (!zip && requested === 4) {
+      throw new Error(`SDCC 4 can't build for ${step.platform}: its libraries were compiled by SDCC 3. Remove "//#tooldef c sdcc=4".`);
+    }
+    return zip || null;
+  }
+  function builtByOtherSDCC(outpath, fs4) {
+    const asm = getWorkFileAsString(outpath);
+    if (typeof asm !== "string") return false;
+    const m = /^; Version (\d+)\./m.exec(asm);
+    return !!m && m[1] === "4" !== !!fs4;
+  }
   function hexToArray(s, ofs) {
     var buf = new ArrayBuffer(s.length / 2);
     var arr = new Uint8Array(buf);
@@ -8098,6 +8256,14 @@
     for (let n of Array.from(banks).sort((a, b) => a - b))
       args.push("-b", `_CODE_${n}=0x${(n << 16 | banking.window).toString(16)}`);
     return args;
+  }
+  function objectsDefineArea(objfiles, area) {
+    for (let fn of objfiles) {
+      if (!fn.endsWith(".rel")) continue;
+      let rel = getWorkFileAsString(fn);
+      if (typeof rel !== "string" || new RegExp(`^A ${area} `, "m").test(rel)) return true;
+    }
+    return false;
   }
   function inferSymbolSizes(symbolmap, segments) {
     var _a;
@@ -8162,6 +8328,41 @@
     }
     return output;
   }
+  function ihxExtent(ihx, rom_start, rom_size) {
+    let end = 0, upper = 0;
+    for (const s of ihx.split("\n")) {
+      if (s[0] != ":") continue;
+      const arr = hexToArray(s, 1);
+      if (arr[3] == 0) {
+        const offset = upper + (arr[1] << 8) + arr[2] - rom_start;
+        if (offset >= 0 && offset + arr[0] <= rom_size) end = Math.max(end, offset + arr[0]);
+      } else if (arr[3] == 4) {
+        upper = (arr[4] << 8 | arr[5]) << 16;
+      }
+    }
+    return end;
+  }
+  function loadHeader(kind, image, start, length) {
+    var header;
+    switch (kind) {
+      case "dos33":
+        header = [start & 255, start >> 8, length & 255, length >> 8];
+        break;
+      case "prg": {
+        const sys = [...String(start)].map((c) => c.charCodeAt(0));
+        const end = 2049 + 4 + 1 + sys.length + 1;
+        header = [1, 8, end & 255, end >> 8, 10, 0, 158, ...sys, 0, 0, 0];
+        if (2049 + header.length - 2 !== start) throw new Error(`load_header prg: code must start at $${(2049 + header.length - 2).toString(16)}, not $${start.toString(16)}`);
+        break;
+      }
+      default:
+        throw new Error(`unknown load_header '${kind}'`);
+    }
+    const out = new Uint8Array(new ArrayBuffer(header.length + length));
+    out.set(header);
+    out.set(image.subarray(0, length), header.length);
+    return out;
+  }
   function errorMatcherSDASZ80(path, errors) {
     var match_asm_re1 = / in line (\d+) of (\S+)/;
     var match_asm_re2 = / <\w> (.+)/;
@@ -8186,8 +8387,6 @@
     return match_asm_fn;
   }
   async function assembleSDAS(step, tool) {
-    loadNative(tool);
-    var objout, lstout, symout;
     var errors = [];
     gatherFiles(step, { mainFilePath: "main.asm" });
     var objpath = step.prefix + ".rel";
@@ -8197,27 +8396,44 @@
     }
     if (staleFiles(step, [objpath, lstpath])) {
       const match_asm_fn = errorMatcherSDASZ80(step.path, errors);
-      var AS = emglobal[tool]({
-        instantiateWasm: moduleInstFn(tool),
-        noInitialRun: true,
-        //logReadFiles:true,
-        print: match_asm_fn,
-        printErr: match_asm_fn
-      });
-      if (AS instanceof Promise) AS = await AS;
-      var FS = AS.FS;
-      populateFiles(step, FS);
-      execMain(step, AS, ["-plosgffwy", step.path]);
-      if (errors.length) {
-        return { errors };
+      const args = ["-plosgffwy", step.path];
+      var objout, lstout;
+      if (tool == "sdas6500" || tool == "sdasz80" && sdcc4FS(step)) {
+        const { wasi, errno, stdout, stderr } = await runWASITool(tool, args, {
+          module: tool == "sdasz80" ? "sdasz80-4" : tool,
+          populate: (fs) => populateFiles(step, fs)
+        });
+        stdout.concat(stderr).forEach(match_asm_fn);
+        checkExitCode(tool, errno, stderr, errors);
+        if (errors.length) {
+          return { errors };
+        }
+        objout = readWASIOutputString(wasi, objpath);
+        lstout = readWASIOutputString(wasi, lstpath);
+      } else {
+        loadNative(tool);
+        var AS = emglobal[tool]({
+          instantiateWasm: moduleInstFn(tool),
+          noInitialRun: true,
+          //logReadFiles:true,
+          print: match_asm_fn,
+          printErr: match_asm_fn
+        });
+        if (AS instanceof Promise) AS = await AS;
+        var FS = AS.FS;
+        populateFiles(step, FS);
+        execMain(step, AS, args);
+        if (errors.length) {
+          return { errors };
+        }
+        objout = FS.readFile(objpath, { encoding: "utf8" });
+        lstout = FS.readFile(lstpath, { encoding: "utf8" });
       }
-      objout = FS.readFile(objpath, { encoding: "utf8" });
-      lstout = FS.readFile(lstpath, { encoding: "utf8" });
       putWorkFile(objpath, objout);
       putWorkFile(lstpath, lstout);
     }
     return {
-      linktool: "sdldz80",
+      linktool: tool == "sdas6500" ? "sdld6808" : "sdldz80",
       files: [objpath, lstpath],
       args: [objpath]
     };
@@ -8228,9 +8444,19 @@
   function assembleSDASGB(step) {
     return assembleSDAS(step, "sdasgb");
   }
+  function assembleSDAS6500(step) {
+    return assembleSDAS(step, "sdas6500");
+  }
   function linkSDLDZ80(step) {
-    loadNative("sdldz80");
-    const arch = step.params.arch || "z80";
+    return linkSDLD(step, "sdldz80");
+  }
+  function linkSDLD6808(step) {
+    return linkSDLD(step, "sdld6808");
+  }
+  async function linkSDLD(step, ld) {
+    var _a;
+    const arch = sdccTarget(step.params.arch).lib;
+    const fs4 = sdcc4FS(step);
     var errors = [];
     gatherFiles(step);
     var binpath = "main.ihx";
@@ -8246,39 +8472,21 @@
         }
       };
       var params = step.params;
-      var LDZ80 = emglobal.sdldz80({
-        instantiateWasm: moduleInstFn("sdldz80"),
-        noInitialRun: true,
-        //logReadFiles:true,
-        print: match_aslink_fn,
-        printErr: match_aslink_fn
-      });
-      var FS = LDZ80.FS;
-      setupFS(FS, "sdcc");
-      populateFiles(step, FS);
-      populateExtraFiles(step, FS, params.extra_link_files);
-      if (step.platform.startsWith("coleco")) {
-        FS.writeFile("crt0.rel", FS.readFile("/share/lib/coleco/crt0.rel", { encoding: "utf8" }));
-        FS.writeFile("crt0.lst", "\n");
+      var libdir = fs4 ? `${SDCC4_LIB}/${arch}` : arch === "z80" ? "/share/lib/z80" : ".";
+      var args = ["-mjwxyu", "-i", "main.ihx"];
+      const startup = params.startup_objs || (ld == "sdld6808" ? [`${libdir}/crt0.rel`] : void 0);
+      var bases = { _CODE: params.codeseg_start || params.code_start, _DATA: params.data_start };
+      if (ld == "sdld6808")
+        bases = { ZP: (_a = params.zp_start) != null ? _a : 0, GSINIT: bases._CODE, _DATA: bases._DATA };
+      for (let area in bases) {
+        if (!fs4 || objectsDefineArea(step.args.concat(startup || [], params.extra_link_args || []), area))
+          args.push("-b", `${area}=0x${bases[area].toString(16)}`);
       }
-      var args = [
-        "-mjwxyu",
-        "-i",
-        "main.ihx",
-        "-b",
-        "_CODE=0x" + (params.codeseg_start || params.code_start).toString(16),
-        "-b",
-        "_DATA=0x" + params.data_start.toString(16),
-        "-k",
-        arch === "z80" ? "/share/lib/z80" : ".",
-        // sm83.lib copied to current (.) directory
-        "-l",
-        arch
-      ];
+      args.push("-k", libdir, "-l", arch);
       if (params.extra_link_args)
         args.push.apply(args, params.extra_link_args);
-      args.push.apply(args, linkSymbolArgs("sdldz80", params.symbols && params.symbols.linker));
-      args.push.apply(args, extraArgsFor("sdldz80", params.buildArgs));
+      args.push.apply(args, linkSymbolArgs(ld, params.symbols && params.symbols.linker));
+      args.push.apply(args, extraArgsFor(ld, params.buildArgs));
       var objargs = step.args;
       if (params.rom_banking) {
         let banked = objargs.filter((fn2) => fn2.endsWith(".rel") && bankedAreaArgs([getWorkFileAsString(fn2)], params.rom_banking).length);
@@ -8292,14 +8500,51 @@
         if (banked.length && rest.length)
           objargs = rest.slice(0, -1).concat(banked, rest.slice(-1));
       }
-      objargs = withStartupObjects(params.startup_objs, objargs);
+      objargs = withStartupObjects(startup, objargs);
       args.push.apply(args, objargs);
-      execMain(step, LDZ80, args);
-      if (errors.length) {
-        return { errors };
+      var readText;
+      if (fs4) {
+        const { wasi, errno, stdout, stderr } = await runWASITool(ld, args, {
+          module: "sdld4",
+          sharedFS: fs4,
+          populate: (fs) => {
+            populateFiles(step, fs);
+            if (ld == "sdldz80") populateExtraFiles(step, fs, params.extra_link_files);
+            else for (const fn2 of startup) if (fn2.endsWith(".rel")) fs.writeFile(fn2.replace(/\.rel$/, ".lst"), "\n");
+          }
+        });
+        stdout.concat(stderr).forEach(match_aslink_fn);
+        checkExitCode(ld, errno, stderr, errors);
+        if (errors.length) {
+          return { errors };
+        }
+        readText = (path) => readWASIOutputString(wasi, path);
+      } else {
+        loadNative("sdldz80");
+        var LDZ80 = emglobal.sdldz80({
+          instantiateWasm: moduleInstFn("sdldz80"),
+          noInitialRun: true,
+          //logReadFiles:true,
+          print: match_aslink_fn,
+          printErr: match_aslink_fn
+        });
+        var FS = LDZ80.FS;
+        ensureFilesystem("sdcc");
+        setupFS(FS, "sdcc");
+        populateFiles(step, FS);
+        populateExtraFiles(step, FS, params.extra_link_files);
+        if (step.platform.startsWith("coleco")) {
+          FS.writeFile("crt0.rel", FS.readFile("/share/lib/coleco/crt0.rel", { encoding: "utf8" }));
+          FS.writeFile("crt0.lst", "\n");
+        }
+        execMain(step, LDZ80, args);
+        if (errors.length) {
+          return { errors };
+        }
+        readText = (path) => FS.readFile(path, { encoding: "utf8" });
       }
-      var hexout = FS.readFile("main.ihx", { encoding: "utf8" });
-      var noiout = FS.readFile("main.noi", { encoding: "utf8" });
+      var hexout = readText("main.ihx");
+      var noiout = readText("main.noi");
       putWorkFile("main.ihx", hexout);
       putWorkFile("main.noi", noiout);
       if (!anyTargetChanged(step, ["main.ihx", "main.noi"]))
@@ -8308,18 +8553,16 @@
       if (errors.length) {
         return { errors };
       }
+      if (params.load_header) {
+        const start = params.rom_start !== void 0 ? params.rom_start : params.code_start;
+        binout = loadHeader(params.load_header, binout, start, ihxExtent(hexout, start, params.rom_size));
+      }
       var listings = {};
       for (var fn of step.files) {
         if (fn.endsWith(".lst")) {
-          var rstout = FS.readFile(fn.replace(".lst", ".rst"), { encoding: "utf8" });
-          var asmlines = parseListing(rstout, /^\s*([0-9A-F]{4,6})\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]?\s+(\d+) (.*)/i, 4, 1, 2, 3);
-          var srclines = parseSourceLines(rstout, /^\s+\d+ ;<stdin>:(\d+):/i, /^\s*([0-9A-F]{4,6})/i);
+          var rstout = readText(fn.replace(".lst", ".rst"));
           putWorkFile(fn, rstout);
-          listings[fn] = {
-            asmlines: srclines.length ? asmlines : null,
-            lines: srclines.length ? srclines : asmlines,
-            text: rstout
-          };
+          listings[fn] = parseRSTListing(rstout, fn.replace(/\.lst$/, ""));
         }
       }
       var symbolmap = {};
@@ -8368,6 +8611,20 @@
       };
     }
   }
+  function parseRSTListing(rstout, srcprefix) {
+    var asmlines = parseListing(rstout, /^\s*([0-9A-F]{4,8})\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]?\s+(\d+) (.*)/i, 4, 1, 2, 3);
+    const name = srcprefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const srcre = new RegExp(`^\\s+\\d+ ;\\s*(?:<stdin>|/*${name}\\.[^:\\s]+):\\s*(\\d+):`, "i");
+    var srclines = parseSourceLines(rstout, srcre, /^\s*([0-9A-F]{4,8})/i);
+    if (!srclines.length) {
+      srclines = parseSourceLines(rstout, /^\s+\d+ ;\t(?=[^\s:]+: (\d+):)([^\s:]+)/, /^\s*([0-9A-F]{4,8})/i);
+    }
+    return {
+      asmlines: srclines.length ? asmlines : null,
+      lines: srclines.length ? srclines : asmlines,
+      text: rstout
+    };
+  }
   function fixBankedCalls(asm) {
     asm = asm.replace(
       /^(\s*\.dw\s+(_\w+)\s*\n\s*\.dw\s+)0\s*; PENDING: bank support/gm,
@@ -8389,40 +8646,36 @@ b${f[1]} == ${m[1]}`);
     var own = new Set(objargs.map((fn) => fn.split("/").pop()));
     return startup.filter((fn) => !own.has(fn)).concat(objargs);
   }
-  function compileSDCC(step) {
+  async function compileSDCC(step) {
     gatherFiles(step, {
       mainFilePath: "main.c"
       // not used
     });
     var params = step.params;
     var isGBZ80 = params.arch === "gbz80";
+    const target = sdccTarget(params.arch);
     var outpath = step.prefix + ".asm";
     fixParamsWithDefines(step.path, params);
-    if (staleFiles(step, [outpath])) {
+    const fs4 = sdcc4FS(step);
+    if (staleFiles(step, [outpath]) || builtByOtherSDCC(outpath, fs4)) {
       var errors = [];
-      loadNative("sdcc");
-      var SDCC = emglobal.sdcc({
-        instantiateWasm: moduleInstFn("sdcc"),
-        noInitialRun: true,
-        noFSInit: true,
-        print: print_fn,
-        printErr: msvcErrorMatcher(errors)
-        //TOTAL_MEMORY:256*1024*1024,
-      });
-      var FS = SDCC.FS;
-      populateFiles(step, FS);
       var code = getWorkFileAsString(step.path);
-      var preproc = preprocessMCPP(step, "sdcc");
+      var preproc;
+      if (fs4) {
+        const sharefs = await ensureWasiFilesystem(fs4);
+        if (!sharefs) throw new Error("Could not load SDCC filesystem " + fs4);
+        preproc = preprocessMCPP(step, { fs: sharefs, dir: SDCC4_INCLUDE }, sdcc4Defines(target));
+      } else {
+        ensureFilesystem("sdcc");
+        preproc = preprocessMCPP(step, "sdcc");
+      }
       if (preproc.errors) {
         return { errors: preproc.errors };
-      } else code = preproc.code;
-      setupStdin(FS, code);
-      setupFS(FS, "sdcc");
-      const machineFlags = isGBZ80 ? "-mgbz80" : "-mz80";
+      } else code = preproc.code.replace(/\uFEFF/g, "");
       var args = [
         "--vc",
         "--std-sdcc99",
-        machineFlags,
+        target.mflag,
         //'-Wall',
         "--c1mode",
         //'--debug',
@@ -8446,10 +8699,10 @@ b${f[1]} == ${m[1]}`);
       ];
       if (!/^\s*#pragma\s+opt_code/m.exec(code)) {
         args.push.apply(args, [
-          "--max-allocs-per-node",
-          "500",
           "--no-peep",
-          "--nolospre"
+          "--nolospre",
+          "--max-allocs-per-node",
+          "500"
         ]);
       }
       if (params.extra_compile_args) {
@@ -8457,17 +8710,51 @@ b${f[1]} == ${m[1]}`);
       }
       args.push.apply(args, defineArgs("sdcc", params.symbols && params.symbols.compiler));
       args.push.apply(args, extraArgsFor("sdcc", params.buildArgs));
-      execMain(step, SDCC, args);
-      if (errors.length) {
-        return { errors };
+      var asmout;
+      if (fs4) {
+        const { wasi, errno, stdout, stderr } = await runWASITool("sdcc", args, {
+          module: "sdcc4",
+          stdin: code,
+          populate: (fs) => populateFiles(step, fs)
+        });
+        stderr.forEach(msvcErrorMatcher(errors));
+        if (!errno) {
+          errors.forEach((e) => console.log("sdcc warning:", e.path + ":" + e.line, e.msg));
+          errors = [];
+        }
+        checkExitCode("sdcc", errno, stderr, errors);
+        if (errors.length) {
+          return { errors };
+        }
+        asmout = readWASIOutputString(wasi, outpath);
+      } else {
+        loadNative("sdcc");
+        var SDCC = emglobal.sdcc({
+          instantiateWasm: moduleInstFn("sdcc"),
+          noInitialRun: true,
+          noFSInit: true,
+          print: print_fn,
+          printErr: msvcErrorMatcher(errors)
+          //TOTAL_MEMORY:256*1024*1024,
+        });
+        var FS = SDCC.FS;
+        populateFiles(step, FS);
+        setupStdin(FS, code);
+        ensureFilesystem("sdcc");
+        setupFS(FS, "sdcc");
+        execMain(step, SDCC, args);
+        if (errors.length) {
+          return { errors };
+        }
+        asmout = FS.readFile(outpath, { encoding: "utf8" });
       }
-      var asmout = FS.readFile(outpath, { encoding: "utf8" });
-      asmout = " .area _HOME\n .area _CODE\n .area _INITIALIZER\n .area _DATA\n .area _INITIALIZED\n .area _BSEG\n .area _BSS\n .area _HEAP\n" + asmout;
+      if (target.as != "sdas6500")
+        asmout = " .area _HOME\n .area _CODE\n .area _INITIALIZER\n .area _DATA\n .area _INITIALIZED\n .area _BSEG\n .area _BSS\n .area _HEAP\n" + asmout;
       if (isGBZ80) asmout = fixBankedCalls(asmout);
       putWorkFile(outpath, asmout);
     }
     return {
-      nexttool: isGBZ80 ? "sdasgb" : "sdasz80",
+      nexttool: target.as,
       path: outpath,
       args: [outpath],
       files: [outpath]
@@ -15366,6 +15653,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     "sdasz80": assembleSDASZ80,
     "sdasgb": assembleSDASGB,
     "sdldz80": linkSDLDZ80,
+    "sdas6500": assembleSDAS6500,
+    "sdld6808": linkSDLD6808,
     "sdcc": compileSDCC,
     "xasm6809": assembleXASM6809,
     "cmoc": compileCMOC,
@@ -15941,6 +16230,13 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
         params.cfgfile = td.value;
       } else if (td.phase === "linker" && td.name === "libargs") {
         params.libargs = td.value.split(",").filter((s) => s !== "");
+      } else if (td.phase === "linker" && (td.name === "code_start" || td.name === "data_start")) {
+        const addr = Number(td.value);
+        if (Number.isInteger(addr) && addr >= 0 && addr < 65536) params[td.name] = addr;
+        else dir.errors.push(`#tooldef ld ${td.name}: expected an address, got '${td.value}'`);
+      } else if (td.phase === "compiler" && td.name === "sdcc") {
+        if (td.value === "3" || td.value === "4") params.sdcc_version = parseInt(td.value);
+        else dir.errors.push(`#tooldef c sdcc: expected 3 or 4, got '${td.value}'`);
       } else {
         dir.errors.push(`#tooldef: unknown ${td.phase} param '${td.name}'`);
       }
