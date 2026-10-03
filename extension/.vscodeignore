@@ -1,5 +1,5 @@
-# Ship only what the extension loads at runtime. The base and Verilog toolchain
-# packs are bundled (out/assets, see out/assets.json). Any pack not listed here
+# Ship only what the extension loads at runtime. All the toolchain packs are
+# bundled (out/assets, see out/assets.json). Any pack not listed here
 # downloads from the servers on first use (ASSET_URLS in src/assets.ts).
 **
 !package.json
@@ -18,4 +18,5 @@
 !out/assets.json
 !out/assets/8bitworkshop-base-*.tar.br
 !out/assets/8bitworkshop-verilog-*.tar.br
+!out/assets/8bitworkshop-extra-*.tar.br
 !out/syntaxes/*.json

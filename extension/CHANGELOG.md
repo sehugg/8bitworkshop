@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.1
+## 0.1.1 (unreleased)
 
 - The Verilog and Verilog (VGA) platforms now appear in New Project and Open
   Example.
@@ -8,6 +8,8 @@
 - Infer symbol sizes from build output, instead of one byte per variable.
 - Removed Hex Editor extension integration, we'll come up with a better one.
 - Removed the assetUrl setting.
+- Dialog, Inform 6, armips, YASM, arm-tcc and smlrc, which no extension
+  platform uses, are no longer packed.
 
 ## 0.1.0
 

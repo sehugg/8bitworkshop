@@ -8,7 +8,7 @@ import { Worker } from 'worker_threads';
 import * as zlib from 'zlib';
 import { execFileSync } from 'child_process';
 import { AssetStore } from '../src/assets';
-import { AssetManifest, PackInfo, isUnreviewedFile, makePack, packForFile, packsForPlatform, readPack } from '../src/assetpacks';
+import { needsSdcc4, AssetManifest, PackInfo, isUnreviewedFile, makePack, packForFile, packsForPlatform, readPack } from '../src/assetpacks';
 import { listPackFiles } from '../scripts/assetpack';
 import { findRootDir } from '../src/projectinfo';
 import { Rpc } from '../src/rpc';
@@ -39,6 +39,31 @@ describe('extension asset packs', function () {
     assert.deepEqual(packsForPlatform('verilog-vga'), ['base', 'verilog']);
     assert.deepEqual(packsForPlatform('nes'), ['base']);
     assert.deepEqual(packsForPlatform(undefined), ['base']);
+  });
+
+  it('puts the lesser-used toolchains in the extra pack, fetched by tool', function () {
+    for (var f of ['src/worker/wasm/oscar64.wasm', 'src/worker/fs/cc7800-fs.zip']) {
+      assert.equal(packForFile(f), 'extra', f);
+    }
+    assert.equal(packForFile('src/worker/wasm/cc65.wasm'), 'base');
+    assert.equal(packForFile('src/worker/wasm/cmoc.wasm'), 'base');
+    var all = Object.values(listPackFiles(ROOT)).flat();
+    assert.ok(!all.some(f => /^src\/worker\/.*(dialogc|armips|inform|yasm|dialog-fs|arm-tcc|smlrc|arm32)/.test(f)), 'unused toolchains are not packed');
+    assert.equal(packForFile('src/worker/wasm/sdcc4.wasm'), 'extra');
+    assert.equal(packForFile('src/worker/fs/sdcc-fs.zip'), 'extra');
+    assert.equal(packForFile('src/worker/wasm/sdcc.wasm'), 'base');
+    assert.equal(packForFile('src/worker/fs/fssdcc.data'), 'base');
+    assert.deepEqual(packsForPlatform('c64', 'oscar64'), ['base', 'extra']);
+    assert.deepEqual(packsForPlatform('verilog', 'cc2600'), ['base', 'verilog', 'extra']);
+    assert.deepEqual(packsForPlatform('nes', 'cc65'), ['base']);
+    // SDCC 4.x: by directive, or the 6502 backend; 3.x stays in base
+    assert.deepEqual(packsForPlatform('gb', 'sdcc', 'int x;'), ['base']);
+    assert.deepEqual(packsForPlatform('gb', 'sdcc', '//#tooldef c sdcc=4\nint x;'), ['base', 'extra']);
+    assert.ok(needsSdcc4('coleco', 'sdcc', '//#tooldef sdcc=4'));
+    assert.ok(!needsSdcc4('coleco', 'sdcc', '//#tooldef c sdcc=3'));
+    assert.ok(!needsSdcc4('coleco', 'cc65', '//#tooldef c sdcc=4'));
+    assert.ok(needsSdcc4('c64', 'sdcc', 'int x;'), 'mos6502 is 4.x only');
+    assert.ok(!needsSdcc4('c64', 'cc65', 'int x;'));
   });
 
   it('lists the tracked toolchain files, with symlinked directories copied', function () {

@@ -21,6 +21,7 @@ import { chooseForFile, detectDirectoryAt, detectionSummary, describeDetection, 
 import { Detection, classifyFinding, isBuildableSource } from '../../src/common/detect';
 import { buildProducts } from '../../src/common/workertypes';
 import { TOOL_META } from '../../src/common/toolmeta';
+import { getToolForPlatform } from '../../src/common/toolselect';
 import { ASSET_URLS, AssetStore } from './assets';
 import { projectReadme, writeLauncher } from './terminalcli';
 import type { PlatformInfo } from './presettypes';
@@ -218,11 +219,11 @@ function getAssets(): AssetStore {
   return assets;
 }
 
-/** The asset root, after installing any packs `platform` needs. */
-async function toolchainRoot(platform?: string): Promise<string> {
+/** The asset root, after installing any packs `platform` and build `tool` need. */
+async function toolchainRoot(platform?: string, tool?: string, source?: string): Promise<string> {
   var local = localRoot();
   if (local) return local;
-  return installPacks(packsForPlatform(platform));
+  return installPacks(packsForPlatform(platform, tool, source));
 }
 
 async function installPacks(packs: string[]): Promise<string> {
@@ -279,8 +280,8 @@ function mb(n: number): string {
   return (n / 1048576).toFixed(1) + ' MB';
 }
 
-async function getBuilds(platform: string): Promise<WorkerHandle> {
-  var root = await toolchainRoot(platform);
+async function getBuilds(platform: string, tool?: string, source?: string): Promise<WorkerHandle> {
+  var root = await toolchainRoot(platform, tool, source);
   if (!builds) {
     output.appendLine(`Toolchain root: ${root}`);
     builds = new WorkerHandle('buildworker.js', root, {
@@ -771,7 +772,8 @@ async function runBuild(target: Target, reason: BuildReason): Promise<BuildOutco
   var result: BuildOutcome;
   if (reason !== 'type') status.text = '$(sync~spin) ' + platformName(templates, target.platform);
   try {
-    result = await (await getBuilds(target.platform)).call<BuildOutcome>('build', args);
+    var tool = target.tool || getToolForPlatform(target.platform, mainPath);
+    result = await (await getBuilds(target.platform, tool, args.mainText)).call<BuildOutcome>('build', args);
   } catch (e) {
     if (e instanceof WorkerDisposedError) return;
     telemetry.reportError('worker', e, { platform: target.platform, tool: target.tool });

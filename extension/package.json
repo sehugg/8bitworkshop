@@ -86,7 +86,7 @@
       },
       {
         "command": "8bitworkshop.downloadToolchains",
-        "title": "Prepare Toolchains",
+        "title": "Download All Toolchains",
         "category": "8bitworkshop"
       },
       {

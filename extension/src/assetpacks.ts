@@ -4,16 +4,26 @@
 
 import * as zlib from 'zlib';
 import { promisify } from 'util';
+import { SDCC_DEFAULT_VERSION } from '../../src/common/toolmeta';
+import { getBasePlatform } from '../../src/common/util';
+import { PLATFORM_PARAMS } from '../../src/worker/platforms';
 
 /** Repo directories the packs are made from (git-tracked files only). */
 export const ASSET_DIRS = ['src/worker/wasm', 'src/worker/fs', 'src/worker/asmjs', 'src/worker/lib', 'presets', 'res'];
 
 /**
- * Tracked res files the extension never loads: Altirra debug listings, and the
- * x86 BIOSes (x86 isn't offered in the extension). Everything else under res/
- * (kernels, BIOSes, wasm cores) goes in the base pack.
+ * Tracked files the extension never loads. res/: Altirra debug listings, and
+ * the x86 BIOSes (x86 isn't offered in the extension). Everything else under
+ * res/ (kernels, BIOSes, wasm cores) goes in the base pack. src/worker/: the
+ * Dialog, Inform 6, armips, YASM, arm-tcc and smlrc toolchains, whose
+ * platforms (Z-machine, MIPS, x86, ARM) the extension doesn't offer.
  */
-export const ASSET_EXCLUDE = /^res\/(altirra\/.*\.(lab|lst)|freedos722\.img|seabios\.bin|vgabios\.bin)$/;
+export const ASSET_EXCLUDE = new RegExp('^(' + [
+  'res/(altirra/.*\\.(lab|lst)|freedos722\\.img|seabios\\.bin|vgabios\\.bin)',
+  'src/worker/wasm/(dialogc|armips|inform|yasm|arm-tcc|smlrc)\\.(js|wasm)',
+  'src/worker/lib/arm32/.*',
+  'src/worker/fs/(dialog-fs\\.zip|arm32-fs\\.zip|fsinform\\.|fssmlrc\\.)[^/]*',
+].join('|') + ')$');
 
 /**
  * Toolchain components left out of the packs because their license has not
@@ -63,17 +73,47 @@ export const EXTRA_FILES: { [pack: string]: string[] } = {
 // verilator, silice and silice's preload package are only used by Verilog
 const VERILOG_FILES = /^src\/worker\/(wasm\/(verilator_bin|silice)\.|fs\/fsSilice\.)/;
 
-export type PackName = 'base' | 'verilog';
-export const PACKS: PackName[] = ['base', 'verilog'];
+/**
+ * Lesser-used toolchains, in a pack that isn't bundled in the VSIX: it
+ * downloads the first time a build needs one of them. EXTRA_TOOLS are tool ids
+ * (src/common/toolmeta.ts); SDCC 4.x is the same tool id as 3.x, so
+ * needsSdcc4 decides.
+ */
+export const EXTRA_TOOLS = ['oscar64', 'cc2600', 'cc7800'];
+const SDCC_TOOLS = ['sdcc', 'sdasz80', 'sdasgb', 'sdas6500', 'sdldz80'];
+
+/**
+ * True if a build with `tool` on `platform` runs SDCC 4.x: the program says
+ * `//#tooldef c sdcc=4` (see parseBuildDirectives in src/worker/builder.ts),
+ * the 6502 backend (4.x only), or 4.x is the default. A 3.x-only platform
+ * with no directive is the one case this over-fetches.
+ */
+export function needsSdcc4(platform: string | undefined, tool: string | undefined, source = ''): boolean {
+  if (!tool || !SDCC_TOOLS.includes(tool)) return false;
+  var m = /^[ \t]*(?:\/\/|;)#tooldef\b[ \t]+(?:(?:c|cc|compiler)[ \t]+)?sdcc[ \t]*=[ \t]*([34])\b/mi.exec(source);
+  if (m) return m[1] === '4';
+  var arch = platform && (PLATFORM_PARAMS[platform] || PLATFORM_PARAMS[getBasePlatform(platform)])?.arch;
+  return arch === '6502' || SDCC_DEFAULT_VERSION === 4;
+}
+const EXTRA_FILES_RE = new RegExp('^src/worker/(' + [
+  'wasm/(oscar64|cc2600|cc7800|sdcc4|sdld4|sdasz80-4|sdas6500)\\.(js|wasm)',
+  'fs/(oscar64-fs|cc2600-fs|cc7800-fs|sdcc-fs)\\.zip',
+].join('|') + ')');
+
+export type PackName = 'base' | 'verilog' | 'extra';
+export const PACKS: PackName[] = ['base', 'verilog', 'extra'];
 
 /** The pack a file under ASSET_DIRS belongs to. */
 export function packForFile(file: string): PackName {
-  return VERILOG_FILES.test(file) ? 'verilog' : 'base';
+  return VERILOG_FILES.test(file) ? 'verilog' : EXTRA_FILES_RE.test(file) ? 'extra' : 'base';
 }
 
-/** The packs a platform needs to build and run. */
-export function packsForPlatform(platform?: string): PackName[] {
-  return platform && platform.startsWith('verilog') ? ['base', 'verilog'] : ['base'];
+/** The packs a platform, and a build tool (tool id) on it, need to build and run. `source` is the main file's text. */
+export function packsForPlatform(platform?: string, tool?: string, source?: string): PackName[] {
+  var packs: PackName[] = ['base'];
+  if (platform && platform.startsWith('verilog')) packs.push('verilog');
+  if ((tool && EXTRA_TOOLS.includes(tool)) || needsSdcc4(platform, tool, source)) packs.push('extra');
+  return packs;
 }
 
 /** One pack, as listed in out/assets.json. */
