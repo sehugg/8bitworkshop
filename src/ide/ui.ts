@@ -14,6 +14,7 @@ import {
 } from "../common/util";
 import { getSkeletonName, getPlatformToolHelpURL, getToolMeta, TOOL_META } from "../common/toolmeta";
 import { PLATFORM_PARAMS } from "../worker/platforms";
+import { hasErrors } from "../worker/listingutils";
 import { CodeListingMap, FileData, WorkerError, WorkerResult, isErrorResult } from "../common/workertypes";
 import { reportErrorToServer, reportInternalError } from "./errorreport";
 import { importPlatform } from "../platform/_index";
@@ -1005,6 +1006,9 @@ function showExceptionAsError(err, msg: string) {
   }
 }
 
+// warnings of the build that made the current output, kept for unchanged rebuilds
+var lastWarnings: WorkerError[] | null = null;
+
 async function setCompileOutput(data: WorkerResult) {
   if ('uppercaseOnly' in data) {
     setUppercaseOnly(data.uppercaseOnly);
@@ -1014,15 +1018,22 @@ async function setCompileOutput(data: WorkerResult) {
     toolbar.addClass("has-errors");
     projectWindows.setErrors(data.errors);
     refreshWindowList(); // to make sure windows are created for showErrorAlert()
-    showErrorAlert(data.errors, false);
+    // warnings only get gutter markers; a tool that failed with nothing but warnings still shows them
+    showErrorAlert(hasErrors(data.errors) ? data.errors.filter((e) => e.severity !== 'warning') : data.errors, false);
   } else {
     toolbar.removeClass("has-errors"); // may be added in next callback
     projectWindows.setErrors(null);
     hideErrorAlerts();
-    // exit if compile output unchanged
-    if (data == null || ('unchanged' in data && data.unchanged)) return;
+    // exit if compile output unchanged; its warnings still apply
+    if (data == null || ('unchanged' in data && data.unchanged)) {
+      if (lastWarnings) projectWindows.setErrors(lastWarnings);
+      return;
+    }
     // make sure it's a WorkerOutputResult
     if (!('output' in data)) return;
+    // warnings don't fail the build: mark them in the editor, without the alert
+    lastWarnings = data.warnings && data.warnings.length > 0 ? data.warnings : null;
+    if (lastWarnings) projectWindows.setErrors(lastWarnings);
     // process symbol map
     platform.debugSymbols = new DebugSymbols(data.symbolmap, data.debuginfo, data.symbolsizes);
     compparams = data.params;
@@ -1057,6 +1068,8 @@ async function setCompileOutput(data: WorkerResult) {
     // update all windows (listings)
     refreshWindowList();
     projectWindows.refresh(false);
+    // updating a listing clears the editor's markers, so mark the warnings again
+    projectWindows.refreshErrors();
   }
 }
 

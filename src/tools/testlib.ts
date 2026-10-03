@@ -5,7 +5,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { WorkerResult, WorkerErrorResult, WorkerMessage, BuildArgLists, BuildSymbolLists, FileData, BuildProducts } from "../common/workertypes";
+import type { WorkerResult, WorkerError, WorkerErrorResult, WorkerMessage, BuildArgLists, BuildSymbolLists, FileData, BuildProducts } from "../common/workertypes";
 import { buildProducts } from "../common/workertypes";
 import { isProbablyBinary, getBasePlatform } from "../common/util";
 import { getToolForPlatform } from "../common/toolselect";
@@ -34,7 +34,9 @@ export interface CompileOptions {
 export interface CompileResult extends BuildProducts {
   success: boolean;
   output?: Uint8Array | any;
-  errors?: { line: number; msg: string; path?: string }[];
+  errors?: WorkerError[];
+  /** non-fatal diagnostics of a successful build */
+  warnings?: WorkerError[];
   params?: any;
   unchanged?: boolean;
   /** every file the build read, by worker filename (verilog's $readmem reads them at load time) */
@@ -221,6 +223,7 @@ function workerResultToCompileResult(result: WorkerResult): CompileResult {
     return {
       success: true,
       output: result.output,
+      warnings: result.warnings,
       params: (result as any).params,
       ...buildProducts(result),
     };

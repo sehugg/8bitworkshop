@@ -69,8 +69,8 @@ const SHORT_FLAGS = {
 // Flags that never take a value, per command. Everything else consumes the
 // next argument unless that argument is another flag.
 const BOOLEAN_FLAGS = {
-    build: ['check', 'symbols', 'save'],
-    run: ['info'],
+    build: ['check', 'symbols', 'save', 'no-warnings'],
+    run: ['info', 'no-warnings'],
     'verify-replay': ['verbose'],
 };
 const ALIASES = {
@@ -160,9 +160,14 @@ async function compileSource(args, source, platform) {
     if (!result.success) {
         (0, cliformat_1.fail)('build', `${tool} failed on ${source}`, { errors: result.errors, internal: result.internal });
     }
+    if (result.warnings && result.warnings.length && !args['no-warnings']) {
+        for (const w of result.warnings)
+            (0, cliformat_1.warn)(`${w.path || source}:${w.line}: ${w.msg}`);
+    }
     return { rom: (0, testlib_1.romBytes)(result), symbolmap: result.symbolmap || {}, tool, platform, source, result };
 }
 async function doBuild(args, positional) {
+    var _a;
     let source = positional[0];
     const checkOnly = !!args['check'];
     if (!source) {
@@ -190,6 +195,8 @@ async function doBuild(args, positional) {
         outputSize: built.rom ? built.rom.length : null,
         outputFile: outputFile || null,
     };
+    if ((_a = built.result.warnings) === null || _a === void 0 ? void 0 : _a.length)
+        data.warnings = built.result.warnings;
     if (args['symbols']) {
         if (built.result.symbolmap)
             data.symbolmap = built.result.symbolmap;
@@ -579,6 +586,7 @@ function usage(error) {
                     '--check': 'compile without writing anything',
                     '--symbols': 'dump the symbol table and segments',
                     '--save': 'save all intermediate build files to a temp dir',
+                    '--no-warnings': 'don\'t print compiler warnings',
                     '--define <N[=V]>': 'preprocessor define for the compiler (repeatable)',
                     '--as-define <N[=V]>': 'symbol for the assembler (repeatable)',
                     '--ld-define <N=INT>': 'linker symbol, integer expression (repeatable)',
@@ -595,6 +603,7 @@ function usage(error) {
                     '--symbols <file>': 'load a .lbl/.sym file for symbolic addresses',
                     '--bios <file>': 'load a BIOS image',
                     '--info': 'dump debug info and disassembly when done',
+                    '--no-warnings': 'don\'t print compiler warnings',
                     '--memdump <a,b>': 'hexdump a hex address range',
                 },
                 'verify-replay options': {

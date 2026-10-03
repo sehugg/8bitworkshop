@@ -68,6 +68,7 @@ const recorder_1 = require("../common/recorder");
 const util_1 = require("../common/util");
 const toolmeta_1 = require("../common/toolmeta");
 const platforms_1 = require("../worker/platforms");
+const listingutils_1 = require("../worker/listingutils");
 const workertypes_1 = require("../common/workertypes");
 const errorreport_1 = require("./errorreport");
 const _index_1 = require("../platform/_index");
@@ -991,6 +992,8 @@ function showExceptionAsError(err, msg) {
         showErrorAlert([werr], true);
     }
 }
+// warnings of the build that made the current output, kept for unchanged rebuilds
+var lastWarnings = null;
 async function setCompileOutput(data) {
     if ('uppercaseOnly' in data) {
         (0, editors_1.setUppercaseOnly)(data.uppercaseOnly);
@@ -1000,18 +1003,26 @@ async function setCompileOutput(data) {
         toolbar.addClass("has-errors");
         exports.projectWindows.setErrors(data.errors);
         refreshWindowList(); // to make sure windows are created for showErrorAlert()
-        showErrorAlert(data.errors, false);
+        // warnings only get gutter markers; a tool that failed with nothing but warnings still shows them
+        showErrorAlert((0, listingutils_1.hasErrors)(data.errors) ? data.errors.filter((e) => e.severity !== 'warning') : data.errors, false);
     }
     else {
         toolbar.removeClass("has-errors"); // may be added in next callback
         exports.projectWindows.setErrors(null);
         hideErrorAlerts();
-        // exit if compile output unchanged
-        if (data == null || ('unchanged' in data && data.unchanged))
+        // exit if compile output unchanged; its warnings still apply
+        if (data == null || ('unchanged' in data && data.unchanged)) {
+            if (lastWarnings)
+                exports.projectWindows.setErrors(lastWarnings);
             return;
+        }
         // make sure it's a WorkerOutputResult
         if (!('output' in data))
             return;
+        // warnings don't fail the build: mark them in the editor, without the alert
+        lastWarnings = data.warnings && data.warnings.length > 0 ? data.warnings : null;
+        if (lastWarnings)
+            exports.projectWindows.setErrors(lastWarnings);
         // process symbol map
         exports.platform.debugSymbols = new baseplatform_1.DebugSymbols(data.symbolmap, data.debuginfo, data.symbolsizes);
         compparams = data.params;
@@ -1049,6 +1060,8 @@ async function setCompileOutput(data) {
         // update all windows (listings)
         refreshWindowList();
         exports.projectWindows.refresh(false);
+        // updating a listing clears the editor's markers, so mark the warnings again
+        exports.projectWindows.refreshErrors();
     }
 }
 async function loadBIOSFromProject() {

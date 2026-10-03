@@ -1424,6 +1424,10 @@ div.scripting-cell button.scripting-enabled {
   font-weight: bold;
   cursor: pointer;
 }
+.gutter-warning {
+  color: #ffcc44;
+  cursor: pointer;
+}
 .gutter-currentpc {
   color: #ff66ee;
   cursor: pointer;

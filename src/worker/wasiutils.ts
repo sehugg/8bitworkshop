@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import { WASIRunner, WASIMemoryFilesystem } from "../common/wasi/wasishim";
 import { WorkerError } from "../common/workertypes";
 import { BuildStep, store } from "./builder";
-import { re_crlf } from "./listingutils";
+import { hasErrors, re_crlf } from "./listingutils";
 import { ensureWasiFilesystem, loadWASMBinary } from "./wasmutils";
 
 export function loadBlobSync(path: string) {
@@ -121,7 +121,7 @@ export async function runWASITool(tool: string, args: string[], opts: WASIToolOp
 
 /** Report a failed tool run that printed no parseable error message. */
 export function checkExitCode(tool: string, errno: number, stderr: string[], errors: WorkerError[]) {
-    if (errno && !errors.length) {
+    if (errno && !hasErrors(errors)) {
         errors.push({ line: 0, msg: tool + " exited with code " + errno + (stderr.length ? ": " + stderr.join('\n') : '') });
     }
 }

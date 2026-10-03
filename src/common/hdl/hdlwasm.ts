@@ -188,6 +188,8 @@ export class HDLModuleWASM implements HDLModuleRunner {
     maxEvalIterations: number = 100; // same as HDLModuleJS and Verilator
 
     state: any;
+    /** clock cycles run since power-up (tick2 iterations, and rising edges of tick) */
+    cycles = 0;
     statebytes: number;
     outputbytes: number;
 
@@ -229,6 +231,7 @@ export class HDLModuleWASM implements HDLModuleRunner {
         this.resetStartTimeMsec = new Date().getTime() - 1;
         this.finished = false;
         this.stopped = false;
+        this.cycles = 0;
         this.clearMutableState();
         this.setInitialValues();
         (this.instance.exports as any)._ctor_var_reset(GLOBALOFS);
@@ -252,10 +255,12 @@ export class HDLModuleWASM implements HDLModuleRunner {
 
     tick() {
         this.state.clk ^= 1;
+        if (this.state.clk) this.cycles++;
         this.eval();
     }
 
     tick2(iters: number) {
+        this.cycles += iters;
         if ((this.instance.exports as any).tick2(GLOBALOFS, iters)) {
             throw new HDLError(null, `model did not converge on eval()`);
         }
@@ -266,11 +271,12 @@ export class HDLModuleWASM implements HDLModuleRunner {
     isStopped() { return this.stopped; }
 
     saveState() {
-        return { o: this.data8.slice(0, this.statebytes) };
+        return { o: this.data8.slice(0, this.statebytes), c: this.cycles };
     }
 
     loadState(state) {
         this.data8.set(state.o as Uint8Array);
+        this.cycles = (state as any).c || 0;
     }
 
     // get tree of global variables for debugging

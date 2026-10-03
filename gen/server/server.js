@@ -23141,15 +23141,21 @@ function parseOscar64Listing(asmout, asmfn) {
 }
 
 // src/worker/listingutils.ts
+var re_warning = /^\s*warning\b/i;
 function makeErrorMatcher(errors, regex, iline, imsg, mainpath, ifilename) {
   return function(s) {
     var matches = regex.exec(s);
     if (matches) {
-      errors.push({
+      var err = {
         line: parseInt(matches[iline]) || 1,
         msg: matches[imsg],
         path: ifilename ? matches[ifilename] : mainpath
-      });
+      };
+      if (re_warning.test(err.msg)) {
+        err.severity = "warning";
+        err.msg = err.msg.replace(/^\s*warning:\s*/i, "");
+      }
+      errors.push(err);
     } else {
       console.log("??? " + s);
     }

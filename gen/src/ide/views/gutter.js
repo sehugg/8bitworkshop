@@ -104,10 +104,10 @@ const errorField = state_1.StateField.define({
             if (e.is(setErrors)) {
                 const map = e.value;
                 const ranges = [];
-                for (let [line, msg] of map.entries()) {
+                for (let [line, info] of map.entries()) {
                     if (line >= 1 && line <= tr.state.doc.lines) {
                         const pos = tr.state.doc.line(line).from;
-                        ranges.push(new ErrorMarker(line, msg).range(pos));
+                        ranges.push(new ErrorMarker(line, info.msg, info.warning).range(pos));
                     }
                 }
                 value = state_1.RangeSet.of(ranges, true);
@@ -192,19 +192,20 @@ class BreakpointMarker extends view_1.GutterMarker {
 const BREAKPOINT_MARKER = new BreakpointMarker(true);
 const DISABLED_BREAKPOINT_MARKER = new BreakpointMarker(false);
 class ErrorMarker extends view_1.GutterMarker {
-    constructor(line, msg) {
+    constructor(line, msg, warning) {
         super();
         this.line = line;
         this.msg = msg;
+        this.warning = warning;
     }
     toDOM() {
         const span = document.createElement("span");
-        span.className = "gutter-error";
-        span.innerHTML = "ⓧ";
+        span.className = this.warning ? "gutter-warning" : "gutter-error";
+        span.innerHTML = this.warning ? "⚠" : "ⓧ";
         span.title = this.msg;
         return span;
     }
-    eq(other) { return this.line == other.line && this.msg == other.msg; }
+    eq(other) { return this.line == other.line && this.msg == other.msg && this.warning == other.warning; }
 }
 const CURRENT_PC_PLACEHOLDER_MARKER = new class extends view_1.GutterMarker {
     toDOM() {

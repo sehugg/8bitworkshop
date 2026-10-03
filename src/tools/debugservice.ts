@@ -32,6 +32,8 @@ export interface DebugCapabilities {
   write: boolean;
   /** has a debug tree (getDebugTree) */
   tree: boolean;
+  /** has HDL signals (getSignals) */
+  signals: boolean;
 }
 
 export interface BreakpointResult {
@@ -109,6 +111,7 @@ export class DebugService {
       granularity: t.history ? t.history.core.granularity : (t.supportsStep ? 'insn' : 'frame'),
       write: t.supportsWrite,
       tree: !!t.platform.getDebugTree,
+      signals: !!t.platform.getSignals,
     };
   }
 
@@ -156,7 +159,12 @@ export class DebugService {
 
   seekFrame(frame: number) { this.onStop(this.debug.seekFrame(frame)); }
 
-  location(): DebugLocation { return this.debug.location(); }
+  location(): DebugLocation {
+    const loc = this.debug.location();
+    const clock = this.target.getClockCount();
+    if (clock != null) loc.clock = clock;
+    return loc;
+  }
 
   /**
    * Where it is and how it got there: the PC, then each call found on the
@@ -216,6 +224,13 @@ export class DebugService {
   debugTree(path: string[]): TreeEntry[] {
     const tree = this.target.getDebugTree();
     if (!tree) throw new Error('this platform has no debug tree');
+    return treeChildren(tree, path);
+  }
+
+  /** The signal tree's entries under `path` (names from earlier calls). */
+  signalTree(path: string[]): TreeEntry[] {
+    const tree = this.target.getSignals();
+    if (!tree) throw new Error('this platform has no signals');
     return treeChildren(tree, path);
   }
 

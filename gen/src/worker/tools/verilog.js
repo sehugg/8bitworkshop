@@ -162,7 +162,14 @@ function compileVerilator(step) {
     if ((0, builder_1.staleFiles)(step, [xmlPath])) {
         // TODO: %Error: Specified --top-module 'ALU' isn't at the top level, it's under another cell 'cpu'
         // TODO: ... Use "/* verilator lint_off BLKSEQ */" and lint_on around source to disable this message.
-        var match_fn = (0, listingutils_1.makeErrorMatcher)(errors, /%(.+?): (.+?):(\d+)?[:]?\s*(.+)/i, 3, 4, step.path, 2);
+        var match_errs = (0, listingutils_1.makeErrorMatcher)(errors, /%(.+?): (.+?):(\d+)?[:]?\s*(.+)/i, 3, 4, step.path, 2);
+        // verilator prefixes warnings with "%Warning-<TYPE>:"
+        var match_fn = (s) => {
+            var n = errors.length;
+            match_errs(s);
+            if (errors.length > n && /^%Warning/.test(s))
+                errors[n].severity = 'warning';
+        };
         var verilator_mod = wasmutils_1.emglobal.verilator_bin({
             instantiateWasm: (0, wasmutils_1.moduleInstFn)('verilator_bin'),
             noInitialRun: true,
@@ -196,7 +203,7 @@ function compileVerilator(step) {
             var args = ["--cc", "-O3",
                 "-DEXT_INLINE_ASM", "-DTOPMOD__" + topmod, "-D__8BITWORKSHOP__",
                 "-Wall",
-                "-Wno-DECLFILENAME", "-Wno-UNUSED", "-Wno-EOFNEWLINE", "-Wno-PROCASSWIRE",
+                "-Wno-fatal", "-Wno-DECLFILENAME", "-Wno-UNUSED", "-Wno-EOFNEWLINE", "-Wno-PROCASSWIRE",
                 "--x-assign", "fast", "--noassert", "--pins-sc-biguint",
                 "--debug-check", // for XML output
                 "--top-module", topmod, step.path];
@@ -204,13 +211,16 @@ function compileVerilator(step) {
         }
         catch (e) {
             console.log(e);
-            errors.push({ line: 0, msg: "Compiler internal error: " + e });
+            // exit(1) is just the symptom if verilator already reported errors
+            if (!(0, listingutils_1.hasErrors)(errors)) {
+                errors.push({ line: 0, msg: "Compiler internal error: " + e });
+            }
         }
         (0, builder_1.endtime)("compile");
         // remove boring errors
         errors = errors.filter(function (e) { return !/Exiting due to \d+/.exec(e.msg); }, errors);
         errors = errors.filter(function (e) { return !/Use ["][/][*]/.exec(e.msg); }, errors);
-        if (errors.length) {
+        if ((0, listingutils_1.hasErrors)(errors)) {
             return { errors: errors };
         }
         (0, builder_1.starttime)();
@@ -241,7 +251,7 @@ function compileVerilator(step) {
         }
         return {
             output: xmlParser,
-            errors: errors,
+            warnings: errors,
             listings: listings,
         };
     }

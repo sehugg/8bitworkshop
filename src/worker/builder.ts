@@ -28,6 +28,8 @@ export type BuildOptions = {
 export type BuildStepResult = WorkerResult | WorkerNextToolResult;
 
 export interface WorkerNextToolResult {
+  /** non-fatal diagnostics, carried to the final result */
+  warnings?: WorkerError[]
   nexttool?: string
   linktool?: string
   path?: string
@@ -140,6 +142,8 @@ export class Builder {
   startseq: number = 0;
   // platform params for the build in progress -- see paramsForBuild()
   buildParams: { [platform: string]: {} } = {};
+  // warnings from the steps so far; a failed step's errors get them as context
+  warnings: WorkerError[] = [];
 
   // returns true if file changed during this build step
   wasChanged(entry: FileEntry): boolean {
@@ -167,6 +171,7 @@ export class Builder {
   async executeBuildSteps(): Promise<WorkerResult> {
     this.startseq = store.currentVersion();
     this.buildParams = {};
+    this.warnings = [];
     var linkstep: BuildStep = null;
     while (this.steps.length) {
       var step = this.steps.shift(); // get top of array
@@ -198,10 +203,17 @@ export class Builder {
         // errors? return them
         if ('errors' in step.result && step.result.errors.length) {
           applyDefaultErrorPath(step.result.errors, step.path);
+          step.result.errors = this.warnings.concat(step.result.errors);
           return step.result;
+        }
+        // keep the step's warnings for the final result
+        if ('warnings' in step.result && step.result.warnings) {
+          applyDefaultErrorPath(step.result.warnings, step.path);
+          this.warnings = this.warnings.concat(step.result.warnings);
         }
         // if we got some output, return it immediately
         if ('output' in step.result && step.result.output) {
+          if (this.warnings.length) step.result.warnings = this.warnings;
           return step.result;
         }
         // combine files with a link tool?

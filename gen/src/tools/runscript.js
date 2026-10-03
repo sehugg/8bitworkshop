@@ -15,6 +15,7 @@ const emu_1 = require("../common/emu");
 const callprofile_1 = require("../common/callprofile");
 const probe_1 = require("../common/probe");
 const util_1 = require("../common/util");
+const debugtree_1 = require("../common/debugtree");
 const symbolfile_1 = require("../common/symbols/symbolfile");
 const timeline_1 = require("../common/timeline");
 const debugcontroller_1 = require("../common/debugcontroller");
@@ -48,6 +49,8 @@ exports.RUN_SCRIPT_HELP = [
     '  serial                      - print what the program sent to its serial port (devel-6502)',
     '  pc [N]                      - print PC + disassembly of N instructions',
     '  info                        - platform/machine debug info',
+    '  paddle X Y [BUTTONS]        - move the paddle to X,Y (0-255); BUTTONS is a list of 0/1, like 1 0 0',
+    '  signals [PATH]              - HDL signals under PATH (modules separated by dots; default the top)',
     '  reset                       - reset the emulator',
     '  echo TEXT                   - print message',
     '(ADDR: number or symbol name; KEY: char, ENTER/SPACE/arrows/F1.., $hex;',
@@ -537,6 +540,26 @@ class RunScript {
             this.disasmBlock(pc, 16);
         }
     }
+    cmdPaddle(tokens) {
+        if (!this.target.acceptsPaddles())
+            throw new Error(`'${this.target.id}' has no paddles`);
+        const [x, y] = [tokens[1], tokens[2]].map(t => parseInt(t));
+        if (isNaN(x) || isNaN(y))
+            throw new Error('usage: paddle X Y [BUTTONS]');
+        this.target.setPaddles(x, y, tokens.slice(3).map(t => t === '1'));
+    }
+    cmdSignals(tokens) {
+        this.target.settle();
+        const root = this.target.getSignals();
+        if (!root)
+            throw new Error(`'${this.target.id}' has no signals`);
+        const path = tokens[1] ? tokens[1].split('.') : [];
+        const clock = this.target.getClockCount();
+        if (!path.length && clock != null)
+            this.out(`(clock ${clock})\n`);
+        for (const e of (0, debugtree_1.treeChildren)(root, path))
+            this.out(`${e.name}${e.expandable ? '/' : ''} ${e.value}\n`);
+    }
     cmdReset() { this.target.reset(); this.log('reset'); }
     cmdEcho(tokens, line) { this.out(line.substring(tokens[0].length).trim() + '\n'); }
 }
@@ -565,6 +588,8 @@ const COMMANDS = {
     'serial': RunScript.prototype.cmdSerial,
     'pc': RunScript.prototype.cmdPC,
     'info': RunScript.prototype.cmdInfo,
+    'signals': RunScript.prototype.cmdSignals,
+    'paddle': RunScript.prototype.cmdPaddle,
     'reset': RunScript.prototype.cmdReset,
     'back': RunScript.prototype.cmdBack,
     'seek': RunScript.prototype.cmdSeek,

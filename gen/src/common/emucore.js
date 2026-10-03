@@ -333,6 +333,24 @@ class EmuCore {
     getDebugTree() {
         return this.platform.getDebugTree ? this.platform.getDebugTree() : null;
     }
+    /** The platform's HDL signals, or null if it has none. */
+    getSignals() {
+        return this.platform.getSignals ? this.platform.getSignals() : null;
+    }
+    /** Does the program read paddles? */
+    acceptsPaddles() {
+        var _a, _b;
+        return !!((_b = (_a = this.platform).acceptsPaddles) === null || _b === void 0 ? void 0 : _b.call(_a));
+    }
+    /** Move the paddles (x, y in 0..255) and press buttons; ignored if the platform has none. */
+    setPaddles(x, y, buttons) {
+        if (this.acceptsPaddles())
+            this.platform.setPaddles(x, y, buttons);
+    }
+    /** Clock cycles since power-up, for platforms that count them (HDL). */
+    getClockCount() {
+        return this.platform.getClockCount ? this.platform.getClockCount() : undefined;
+    }
     getCPUState() {
         try {
             return this.platform.getCPUState ? this.platform.getCPUState() : null;

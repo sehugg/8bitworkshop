@@ -346,7 +346,7 @@ void draw_score() {
 }
 
 void draw_bunker(byte x, byte y, byte y2, byte h, byte w) {
-  byte i,a,b;
+  byte i, a=0, b=0; // the last a,b are reused by the second loop
   for (i=0; i<h; i++) {
     a = y-y2-i*2;
     b = y-i;

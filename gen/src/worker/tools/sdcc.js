@@ -678,15 +678,10 @@ async function compileSDCC(step) {
                 stdin: code,
                 populate: (fs) => (0, builder_1.populateFiles)(step, fs),
             });
-            // 4.x warns more than 3.6.5 did (e.g. `int main(int argc)`), and
-            // WorkerError has no severity: only a failed run reports them
+            // 4.x warns more than 3.6.5 did (e.g. `int main(int argc)`)
             stderr.forEach((0, listingutils_1.msvcErrorMatcher)(errors));
-            if (!errno) {
-                errors.forEach((e) => console.log('sdcc warning:', e.path + ':' + e.line, e.msg));
-                errors = [];
-            }
             (0, wasiutils_1.checkExitCode)('sdcc', errno, stderr, errors);
-            if (errors.length) {
+            if ((0, listingutils_1.hasErrors)(errors)) {
                 return { errors: errors };
             }
             asmout = (0, wasiutils_1.readWASIOutputString)(wasi, outpath);
@@ -709,7 +704,7 @@ async function compileSDCC(step) {
             (0, wasmutils_1.setupFS)(FS, 'sdcc');
             (0, wasmutils_1.execMain)(step, SDCC, args);
             // TODO: preprocessor errors w/ correct file
-            if (errors.length /* && nwarnings < msvc_errors.length*/) {
+            if ((0, listingutils_1.hasErrors)(errors)) {
                 return { errors: errors };
             }
             asmout = FS.readFile(outpath, { encoding: 'utf8' });
@@ -727,6 +722,7 @@ async function compileSDCC(step) {
         path: outpath,
         args: [outpath],
         files: [outpath],
+        warnings: errors,
     };
 }
 //# sourceMappingURL=sdcc.js.map

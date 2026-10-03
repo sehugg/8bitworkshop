@@ -8,17 +8,31 @@ import { SourceLine, WorkerError } from "../common/workertypes";
 export const re_msvc = /[/]*([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+?):\s*(.*)/;
 export const re_msvc2 = /\s*(at)\s+(\d+)\s*(:)\s*(.*)/;
 
+export function isWarning(e: WorkerError) {
+    return e.severity === 'warning';
+}
+
+/** True if the list has any diagnostic that fails the build (warnings don't). */
+export function hasErrors(errors: WorkerError[]) {
+    return errors.some(e => !isWarning(e));
+}
+
+const re_warning = /^\s*warning\b/i;
+
 export function msvcErrorMatcher(errors: WorkerError[]) {
     return function (s: string) {
         var matches = re_msvc.exec(s) || re_msvc2.exec(s);
         if (matches) {
             var errline = parseInt(matches[2]);
-            errors.push({
+            // "(6) : warning 85: ..." has the type in [3]; "at 2: warning 190: ..." in [4]
+            var iswarn = re_warning.test(matches[3]) || re_warning.test(matches[4]);
+            var err: WorkerError = {
                 line: errline,
                 path: matches[1],
-                //type:matches[3],
                 msg: matches[4]
-            });
+            };
+            if (iswarn) err.severity = 'warning';
+            errors.push(err);
         } else {
             console.log(s);
         }
@@ -29,11 +43,17 @@ export function makeErrorMatcher(errors: WorkerError[], regex, iline: number, im
     return function (s) {
         var matches = regex.exec(s);
         if (matches) {
-            errors.push({
+            var err: WorkerError = {
                 line: parseInt(matches[iline]) || 1,
                 msg: matches[imsg],
                 path: ifilename ? matches[ifilename] : mainpath
-            });
+            };
+            // cc65/ca65 messages: "Warning: ..."
+            if (re_warning.test(err.msg)) {
+                err.severity = 'warning';
+                err.msg = err.msg.replace(/^\s*warning:\s*/i, '');
+            }
+            errors.push(err);
         } else {
             console.log("??? " + s);
         }

@@ -744,6 +744,15 @@ class BaseMachinePlatform extends BaseDebugPlatform {
         this.machine.loadROM(data, title, origin);
         this.reset();
     }
+    acceptsPaddles() {
+        return hasPaddleInput(this.machine);
+    }
+    setPaddles(x, y, buttons) {
+        // pollControls() passes these on to the machine at the next frame
+        this.video.paddle_x = x;
+        this.video.paddle_y = y;
+        buttons.forEach((b, i) => this.video.paddle_buttons[i] = b);
+    }
     pollControls() {
         this.poller && this.poller.poll();
         if (hasPaddleInput(this.machine)) {

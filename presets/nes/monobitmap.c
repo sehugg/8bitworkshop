@@ -26,7 +26,7 @@ bool ppu_is_on = false;
 void monobitmap_split() {
   // split screen at line 128
   split(0,0);
-  DELAYLOOP(15); // delay until end of line
+  DELAYLOOP(22); // delay until end of line
   PPU.control = PPU.control ^ 0x10; // bg bank 1
 }
 

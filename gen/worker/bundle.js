@@ -6723,17 +6723,26 @@
   // src/worker/listingutils.ts
   var re_msvc = /[/]*([^( ]+)\s*[(](\d+)[)]\s*:\s*(.+?):\s*(.*)/;
   var re_msvc2 = /\s*(at)\s+(\d+)\s*(:)\s*(.*)/;
+  function isWarning(e) {
+    return e.severity === "warning";
+  }
+  function hasErrors(errors) {
+    return errors.some((e) => !isWarning(e));
+  }
+  var re_warning = /^\s*warning\b/i;
   function msvcErrorMatcher(errors) {
     return function(s) {
       var matches = re_msvc.exec(s) || re_msvc2.exec(s);
       if (matches) {
         var errline = parseInt(matches[2]);
-        errors.push({
+        var iswarn = re_warning.test(matches[3]) || re_warning.test(matches[4]);
+        var err = {
           line: errline,
           path: matches[1],
-          //type:matches[3],
           msg: matches[4]
-        });
+        };
+        if (iswarn) err.severity = "warning";
+        errors.push(err);
       } else {
         console.log(s);
       }
@@ -6743,11 +6752,16 @@
     return function(s) {
       var matches = regex.exec(s);
       if (matches) {
-        errors.push({
+        var err = {
           line: parseInt(matches[iline]) || 1,
           msg: matches[imsg],
           path: ifilename ? matches[ifilename] : mainpath
-        });
+        };
+        if (re_warning.test(err.msg)) {
+          err.severity = "warning";
+          err.msg = err.msg.replace(/^\s*warning:\s*/i, "");
+        }
+        errors.push(err);
       } else {
         console.log("??? " + s);
       }
@@ -6923,7 +6937,7 @@
     return { wasi, errno, stdout, stderr };
   }
   function checkExitCode(tool, errno, stderr, errors) {
-    if (errno && !errors.length) {
+    if (errno && !hasErrors(errors)) {
       errors.push({ line: 0, msg: tool + " exited with code " + errno + (stderr.length ? ": " + stderr.join("\n") : "") });
     }
   }
@@ -7430,6 +7444,7 @@
   // src/worker/tools/cc65.ts
   var CC65_SHARE = "share/cc65";
   var re_cc65_warning = /:\s*Warning:/;
+  var re_ld65_ignored = /Symbol 'sp' is deprecated/;
   async function runCC65Tool(step, tool, args, populate) {
     const fsname = getSharedFileSystemName("cc65", step.platform);
     if (!fsname || !fsname.startsWith("wasi:"))
@@ -7535,9 +7550,9 @@
       var extra = defineArgs("ca65", step.params.define).concat(defineArgs("ca65", step.params.symbols && step.params.symbols.assembler)).concat(extraArgsFor("ca65", step.params.buildArgs));
       args.splice(args.length - 1, 0, ...extra);
       const { wasi, errno, stderr } = await runCC65Tool(step, "ca65", args, (fs) => populateFiles(step, fs));
-      stderr.filter((s) => !re_cc65_warning.test(s)).forEach(makeErrorMatcher(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1));
+      stderr.forEach(makeErrorMatcher(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1));
       checkExitCode("ca65", errno, stderr, errors);
-      if (errors.length) {
+      if (hasErrors(errors)) {
         let listings = {};
         return { errors, listings };
       }
@@ -7547,7 +7562,8 @@
     return {
       linktool: "ld65",
       files: [objpath, lstpath],
-      args: [objpath]
+      args: [objpath],
+      warnings: errors
     };
   }
   async function linkLD65(step) {
@@ -7585,11 +7601,11 @@
         }
       });
       for (let s2 of stderr) {
-        if (re_cc65_warning.test(s2)) continue;
-        errors.push({ msg: s2, line: 0 });
+        if (re_ld65_ignored.test(s2)) continue;
+        errors.push(__spreadValues({ msg: s2, line: 0 }, re_cc65_warning.test(s2) && { severity: "warning" }));
       }
       checkExitCode("ld65", errno, stderr, errors);
-      if (errors.length)
+      if (hasErrors(errors))
         return { errors };
       var aout = readWASIOutput(wasi, "main");
       var mapout = readWASIOutputString(wasi, "main.map");
@@ -7671,7 +7687,7 @@
         output: aout,
         //.slice(0),
         listings,
-        errors,
+        warnings: errors,
         symbolmap,
         symbolsizes,
         segments
@@ -7716,16 +7732,17 @@
         });
         populateExtraFiles(step, fs, params.extra_compile_files);
       });
-      stderr.filter((s) => !re_cc65_warning.test(s)).forEach(makeErrorMatcher(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
+      stderr.forEach(makeErrorMatcher(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
       checkExitCode("cc65", errno, stderr, errors);
-      if (errors.length) return { errors };
+      if (hasErrors(errors)) return { errors };
       putWorkFile(destpath, readWASIOutputString(wasi, destpath));
     }
     return {
       nexttool: "ca65",
       path: destpath,
       args: [destpath],
-      files: [destpath]
+      files: [destpath],
+      warnings: errors
     };
   }
 
@@ -8718,12 +8735,8 @@ b${f[1]} == ${m[1]}`);
           populate: (fs) => populateFiles(step, fs)
         });
         stderr.forEach(msvcErrorMatcher(errors));
-        if (!errno) {
-          errors.forEach((e) => console.log("sdcc warning:", e.path + ":" + e.line, e.msg));
-          errors = [];
-        }
         checkExitCode("sdcc", errno, stderr, errors);
-        if (errors.length) {
+        if (hasErrors(errors)) {
           return { errors };
         }
         asmout = readWASIOutputString(wasi, outpath);
@@ -8743,7 +8756,7 @@ b${f[1]} == ${m[1]}`);
         ensureFilesystem("sdcc");
         setupFS(FS, "sdcc");
         execMain(step, SDCC, args);
-        if (errors.length) {
+        if (hasErrors(errors)) {
           return { errors };
         }
         asmout = FS.readFile(outpath, { encoding: "utf8" });
@@ -8757,7 +8770,8 @@ b${f[1]} == ${m[1]}`);
       nexttool: target.as,
       path: outpath,
       args: [outpath],
-      files: [outpath]
+      files: [outpath],
+      warnings: errors
     };
   }
 
@@ -9934,7 +9948,12 @@ b${f[1]} == ${m[1]}`);
     var errors = [];
     gatherFiles(step);
     if (staleFiles(step, [xmlPath])) {
-      var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?):(\d+)?[:]?\s*(.+)/i, 3, 4, step.path, 2);
+      var match_errs = makeErrorMatcher(errors, /%(.+?): (.+?):(\d+)?[:]?\s*(.+)/i, 3, 4, step.path, 2);
+      var match_fn = (s) => {
+        var n = errors.length;
+        match_errs(s);
+        if (errors.length > n && /^%Warning/.test(s)) errors[n].severity = "warning";
+      };
       var verilator_mod = emglobal.verilator_bin({
         instantiateWasm: moduleInstFn("verilator_bin"),
         noInitialRun: true,
@@ -9972,6 +9991,7 @@ b${f[1]} == ${m[1]}`);
           "-DTOPMOD__" + topmod,
           "-D__8BITWORKSHOP__",
           "-Wall",
+          "-Wno-fatal",
           "-Wno-DECLFILENAME",
           "-Wno-UNUSED",
           "-Wno-EOFNEWLINE",
@@ -9989,7 +10009,9 @@ b${f[1]} == ${m[1]}`);
         execMain(step, verilator_mod, args);
       } catch (e) {
         console.log(e);
-        errors.push({ line: 0, msg: "Compiler internal error: " + e });
+        if (!hasErrors(errors)) {
+          errors.push({ line: 0, msg: "Compiler internal error: " + e });
+        }
       }
       endtime("compile");
       errors = errors.filter(function(e) {
@@ -9998,7 +10020,7 @@ b${f[1]} == ${m[1]}`);
       errors = errors.filter(function(e) {
         return !/Use ["][/][*]/.exec(e.msg);
       }, errors);
-      if (errors.length) {
+      if (hasErrors(errors)) {
         return { errors };
       }
       starttime();
@@ -10024,7 +10046,7 @@ b${f[1]} == ${m[1]}`);
       }
       return {
         output: xmlParser,
-        errors,
+        warnings: errors,
         listings
       };
     }
@@ -15766,6 +15788,8 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       this.startseq = 0;
       // platform params for the build in progress -- see paramsForBuild()
       this.buildParams = {};
+      // warnings from the steps so far; a failed step's errors get them as context
+      this.warnings = [];
     }
     // returns true if file changed during this build step
     wasChanged(entry) {
@@ -15791,6 +15815,7 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
     async executeBuildSteps() {
       this.startseq = store.currentVersion();
       this.buildParams = {};
+      this.warnings = [];
       var linkstep = null;
       while (this.steps.length) {
         var step = this.steps.shift();
@@ -15821,9 +15846,15 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
           }
           if ("errors" in step.result && step.result.errors.length) {
             applyDefaultErrorPath(step.result.errors, step.path);
+            step.result.errors = this.warnings.concat(step.result.errors);
             return step.result;
           }
+          if ("warnings" in step.result && step.result.warnings) {
+            applyDefaultErrorPath(step.result.warnings, step.path);
+            this.warnings = this.warnings.concat(step.result.warnings);
+          }
           if ("output" in step.result && step.result.output) {
+            if (this.warnings.length) step.result.warnings = this.warnings;
             return step.result;
           }
           if ("linktool" in step.result) {

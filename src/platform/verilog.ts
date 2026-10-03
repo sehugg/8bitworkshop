@@ -10,6 +10,20 @@ import { HDLModuleJS } from "../common/hdl/hdlruntime";
 import { HDLModuleWASM } from "../common/hdl/hdlwasm";
 import { FileData } from "../common/workertypes";
 
+// Verilator's own bookkeeping (__Vclklast__..., __Vdly__...), and any module left empty without it
+function withoutInternals(obj: {}): {} {
+  var out = {};
+  for (var [k, v] of Object.entries(obj)) {
+    if (k.startsWith('__V')) continue;
+    if (v != null && typeof v === 'object' && v.constructor === Object) {
+      v = withoutInternals(v);
+      if (!Object.keys(v).length) continue;
+    }
+    out[k] = v;
+  }
+  return out;
+}
+
 interface WaveformSignal extends WaveformMeta {
   name: string;
 }
@@ -717,6 +731,25 @@ var VerilogPlatform = function(mainElement, options) {
       runtime: top,
       state: top && top.getGlobals()
     }
+  }
+
+  // only if the design has paddle inputs (see setGenInputs)
+  acceptsPaddles() {
+    return !!top && (top.state.hpaddle != null || top.state.vpaddle != null);
+  }
+
+  setPaddles(x: number, y: number, buttons: boolean[]) {
+    video.paddle_x = x;
+    video.paddle_y = y;
+    buttons.forEach((b, i) => video.paddle_buttons[i] = b);
+  }
+
+  getClockCount() {
+    return top && top.cycles;
+  }
+
+  getSignals() {
+    return top && withoutInternals(top.getGlobals());
   }
 
   saveState() {

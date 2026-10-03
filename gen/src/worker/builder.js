@@ -115,6 +115,8 @@ class Builder {
         this.startseq = 0;
         // platform params for the build in progress -- see paramsForBuild()
         this.buildParams = {};
+        // warnings from the steps so far; a failed step's errors get them as context
+        this.warnings = [];
     }
     // returns true if file changed during this build step
     wasChanged(entry) {
@@ -140,6 +142,7 @@ class Builder {
     async executeBuildSteps() {
         this.startseq = exports.store.currentVersion();
         this.buildParams = {};
+        this.warnings = [];
         var linkstep = null;
         while (this.steps.length) {
             var step = this.steps.shift(); // get top of array
@@ -174,10 +177,18 @@ class Builder {
                 // errors? return them
                 if ('errors' in step.result && step.result.errors.length) {
                     applyDefaultErrorPath(step.result.errors, step.path);
+                    step.result.errors = this.warnings.concat(step.result.errors);
                     return step.result;
+                }
+                // keep the step's warnings for the final result
+                if ('warnings' in step.result && step.result.warnings) {
+                    applyDefaultErrorPath(step.result.warnings, step.path);
+                    this.warnings = this.warnings.concat(step.result.warnings);
                 }
                 // if we got some output, return it immediately
                 if ('output' in step.result && step.result.output) {
+                    if (this.warnings.length)
+                        step.result.warnings = this.warnings;
                     return step.result;
                 }
                 // combine files with a link tool?

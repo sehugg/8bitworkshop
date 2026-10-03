@@ -29,6 +29,8 @@ export interface StopEvent {
 /** Where the machine is, for a host to show. */
 export interface DebugLocation {
   at: Timestamp;
+  /** clock cycles since power-up, for HDL platforms */
+  clock?: number;
   pc: number | null;
   /** the source line the PC is on, if the build has one */
   source?: SourceLocation & { path: string };

@@ -148,6 +148,8 @@ export interface WorkerMessage {
 
 export interface WorkerError extends SourceLocation {
   msg:string,
+  /** a missing severity means 'error'; only warnings leave a build successful */
+  severity?:'error'|'warning',
 }
 
 export interface CodeListing {
@@ -193,6 +195,8 @@ export interface WorkerErrorResult {
 
 export interface WorkerOutputResult<T> {
   output: T
+  /** non-fatal diagnostics from every step of the build */
+  warnings?: WorkerError[]
   listings?: CodeListingMap
   symbolmap?: {[sym:string]:number}
   symbolsizes?: {[sym:string]:number} // object sizes in bytes, if the toolchain reports them

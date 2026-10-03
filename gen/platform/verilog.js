@@ -8,6 +8,21 @@ const hdlhost_1 = require("../common/hdl/hdlhost");
 const hdltypes_1 = require("../common/hdl/hdltypes");
 const hdlruntime_1 = require("../common/hdl/hdlruntime");
 const hdlwasm_1 = require("../common/hdl/hdlwasm");
+// Verilator's own bookkeeping (__Vclklast__..., __Vdly__...), and any module left empty without it
+function withoutInternals(obj) {
+    var out = {};
+    for (var [k, v] of Object.entries(obj)) {
+        if (k.startsWith('__V'))
+            continue;
+        if (v != null && typeof v === 'object' && v.constructor === Object) {
+            v = withoutInternals(v);
+            if (!Object.keys(v).length)
+                continue;
+        }
+        out[k] = v;
+    }
+    return out;
+}
 var VERILOG_PRESETS = [
     { id: 'clock_divider.v', name: 'Clock Divider' },
     { id: 'binary_counter.v', name: 'Binary Counter' },
@@ -691,6 +706,21 @@ var VerilogPlatform = function (mainElement, options) {
                 runtime: top,
                 state: top && top.getGlobals()
             };
+        }
+        // only if the design has paddle inputs (see setGenInputs)
+        acceptsPaddles() {
+            return !!top && (top.state.hpaddle != null || top.state.vpaddle != null);
+        }
+        setPaddles(x, y, buttons) {
+            video.paddle_x = x;
+            video.paddle_y = y;
+            buttons.forEach((b, i) => video.paddle_buttons[i] = b);
+        }
+        getClockCount() {
+            return top && top.cycles;
+        }
+        getSignals() {
+            return top && withoutInternals(top.getGlobals());
         }
         saveState() {
             return { o: top && top.saveState() };

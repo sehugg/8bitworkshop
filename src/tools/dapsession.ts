@@ -46,7 +46,7 @@ type Async<T> = { [K in keyof T]: T[K] extends (...args: infer A) => infer R ? (
 /** A DebugService, wherever it runs, plus loading a program into it. */
 export type DebugBackend = Async<Pick<DebugService,
   'setBreakpoints' | 'continue' | 'step' | 'pause' | 'stepBack' | 'reverseContinue' | 'location' | 'callStack' |
-  'registers' | 'readMemory' | 'writeMemory' | 'disassemble' | 'evaluate' | 'debugTree' | 'symbols'>> & {
+  'registers' | 'readMemory' | 'writeMemory' | 'disassemble' | 'evaluate' | 'debugTree' | 'signalTree' | 'symbols'>> & {
     /** Build or load the program, and leave it stopped at its start. */
     launch(args: LaunchArgs): Promise<LaunchResult>;
     terminate(): Promise<void>;
@@ -56,6 +56,9 @@ export type DebugBackend = Async<Pick<DebugService,
   };
 
 const THREAD_ID = 1;
+/** a node in the debug tree, or in the signal tree */
+interface TreePath { signals: boolean; path: string[] }
+
 const REGISTERS_REF = 1;
 const SYMBOLS_REF = 2;
 // debug tree nodes get references from here up, anew at each stop
@@ -86,8 +89,9 @@ export class EmuDebugSession extends LoggingDebugSession {
   private launched: Promise<void>;
   private resolveLaunched: () => void;
   private hasTree = false;
-  /** debug tree paths, by variablesReference; valid until the next stop */
-  private treeRefs: string[][] = [];
+  private hasSignals = false;
+  /** debug tree (or signal tree) paths, by variablesReference; valid until the next stop */
+  private treeRefs: TreePath[] = [];
   private treeRefByPath = new Map<string, number>();
   /** disassembly listings by sourceReference, and each one's reference by its text */
   private listings: Listing[] = [];
@@ -124,6 +128,7 @@ export class EmuDebugSession extends LoggingDebugSession {
       this.root = r.root;
       this.stopOnEntry = !!args.stopOnEntry;
       this.hasTree = r.capabilities.tree;
+      this.hasSignals = r.capabilities.signals;
       if (r.capabilities.rewind) {
         this.sendEvent(new CapabilitiesEvent({ supportsStepBack: r.capabilities.rewind }));
       }
@@ -255,13 +260,20 @@ export class EmuDebugSession extends LoggingDebugSession {
   //// where it is
 
   protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
-    response.body = { threads: [new Thread(THREAD_ID, 'CPU')] };
+    response.body = { threads: [new Thread(THREAD_ID, this.hasSignals ? 'Design' : 'CPU')] };
     this.sendResponse(response);
   }
 
   protected async stackTraceRequest(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments) {
     await this.run(response, async () => {
       const all = await this.backend.callStack();
+      if (!all.length && this.hasSignals) {
+        // no PC, but VS Code only shows Variables for a selected frame
+        const { at, clock } = await this.backend.location();
+        const name = `frame ${at.frame}` + (clock != null ? `, clock ${clock}` : '');
+        response.body = { stackFrames: [new StackFrame(0, name)], totalFrames: 1 };
+        return;
+      }
       const start = args.startFrame || 0;
       const want = all.slice(start, args.levels ? start + args.levels : undefined);
       const stackFrames = await Promise.all(want.map((f, i) => this.stackFrame(start + i, f)));
@@ -347,9 +359,12 @@ export class EmuDebugSession extends LoggingDebugSession {
   }
 
   protected scopesRequest(response: DebugProtocol.ScopesResponse): void {
-    const scopes = [new Scope('Registers', REGISTERS_REF, false)];
-    if (this.hasTree) scopes.push(new Scope('Machine', this.treeRef([]), true));
-    scopes.push(new Scope('Symbols', SYMBOLS_REF, true));
+    // a design has signals where a CPU has registers and symbols
+    const scopes = this.hasSignals ? [new Scope('Signals', this.treeRef({ signals: true, path: [] }), false)] : [
+      new Scope('Registers', REGISTERS_REF, false),
+      ...(this.hasTree ? [new Scope('Machine', this.treeRef({ signals: false, path: [] }), true)] : []),
+      new Scope('Symbols', SYMBOLS_REF, true),
+    ];
     response.body = { scopes };
     this.sendResponse(response);
   }
@@ -369,20 +384,21 @@ export class EmuDebugSession extends LoggingDebugSession {
       const syms = await this.backend.symbols();
       return syms.map(s => ({ name: s.name, value: formatSymbolValue(s), variablesReference: 0 }));
     }
-    const path = this.treeRefs[ref - FIRST_TREE_REF];
-    if (!path) return [];
-    const entries = await this.backend.debugTree(path);
+    const node = this.treeRefs[ref - FIRST_TREE_REF];
+    if (!node) return [];
+    const entries = await (node.signals ? this.backend.signalTree(node.path) : this.backend.debugTree(node.path));
     return entries.map(e => ({
-      name: e.name, value: e.value, variablesReference: e.expandable ? this.treeRef([...path, e.name]) : 0,
+      name: e.name, value: e.value,
+      variablesReference: e.expandable ? this.treeRef({ signals: node.signals, path: [...node.path, e.name] }) : 0,
     }));
   }
 
   /** A reference for a debug tree path, until the next stop. */
-  private treeRef(path: string[]): number {
-    const key = path.join('\0');
+  private treeRef(node: TreePath): number {
+    const key = (node.signals ? 's' : 'm') + node.path.join('\0');
     let ref = this.treeRefByPath.get(key);
     if (ref == null) {
-      ref = FIRST_TREE_REF + this.treeRefs.push(path) - 1;
+      ref = FIRST_TREE_REF + this.treeRefs.push(node) - 1;
       this.treeRefByPath.set(key, ref);
     }
     return ref;

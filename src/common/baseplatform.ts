@@ -150,6 +150,14 @@ export interface Platform {
 
   debugSymbols?: DebugSymbols;
   getDebugTree?(): {};
+  /** HDL platforms: the design's signals as a tree of values, nested by module (see debugtree.ts) */
+  getSignals?(): {};
+  /** can the program read paddles (or a mouse)? A host only sends them if so. */
+  acceptsPaddles?(): boolean;
+  /** x and y in 0..255, and the buttons held */
+  setPaddles?(x: number, y: number, buttons: boolean[]): void;
+  /** HDL platforms: clock cycles since power-up */
+  getClockCount?(): number | undefined;
 
   startProbing?(): ProbeRecorder;
   stopProbing?(): void;
@@ -909,6 +917,17 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   }
 
   loadBIOS: (title, data) => void; // only set if hasBIOS() is true
+
+  acceptsPaddles() {
+    return hasPaddleInput(this.machine);
+  }
+
+  setPaddles(x: number, y: number, buttons: boolean[]) {
+    // pollControls() passes these on to the machine at the next frame
+    this.video.paddle_x = x;
+    this.video.paddle_y = y;
+    buttons.forEach((b, i) => this.video.paddle_buttons[i] = b);
+  }
 
   pollControls() {
     this.poller && this.poller.poll();

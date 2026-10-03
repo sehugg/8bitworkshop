@@ -12,9 +12,11 @@ const wasiutils_1 = require("../wasiutils");
 // cc65-fs-<platform>.zip, preopened at '.'
 const CC65_SHARE = 'share/cc65';
 // cc65/ca65/ld65 report both errors and non-fatal warnings as
-// "<file>:<line>: <Warning|Error>: <msg>" on stderr; skip the warnings so a
-// clean build with only style/deprecation warnings doesn't fail.
+// "<file>:<line>: <Warning|Error>: <msg>" on stderr; makeErrorMatcher marks the
+// warnings, which don't fail a build.
 const re_cc65_warning = /:\s*Warning:/;
+// warnings from our prebuilt libraries (crt0.o, neslib2.lib) that the user can't act on
+const re_ld65_ignored = /Symbol 'sp' is deprecated/;
 const wasiModules = {};
 /**
  * Run cc65, ca65 or ld65 on a fresh WASI runner layered over the platform's
@@ -155,9 +157,9 @@ async function assembleCA65(step) {
             .concat((0, toolmeta_1.extraArgsFor)('ca65', step.params.buildArgs));
         args.splice(args.length - 1, 0, ...extra);
         const { wasi, errno, stderr } = await runCC65Tool(step, 'ca65', args, (fs) => (0, builder_1.populateFiles)(step, fs));
-        stderr.filter(s => !re_cc65_warning.test(s)).forEach((0, listingutils_1.makeErrorMatcher)(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1));
+        stderr.forEach((0, listingutils_1.makeErrorMatcher)(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1));
         (0, wasiutils_1.checkExitCode)('ca65', errno, stderr, errors);
-        if (errors.length) {
+        if ((0, listingutils_1.hasErrors)(errors)) {
             let listings = {};
             // TODO? change extension to .lst
             //listings[step.path] = { lines:[], text:getWorkFileAsString(step.path) };
@@ -169,7 +171,8 @@ async function assembleCA65(step) {
     return {
         linktool: "ld65",
         files: [objpath, lstpath],
-        args: [objpath]
+        args: [objpath],
+        warnings: errors
     };
 }
 async function linkLD65(step) {
@@ -199,16 +202,14 @@ async function linkLD65(step) {
                 (0, builder_1.populateEntry)(fs, params.cfgfile, builder_1.store.getFileEntry(params.cfgfile), null);
             }
         });
-        // any non-warning ld65 message fails the build; again, "Warning:"-severity
-        // output (e.g. the sp->c_sp deprecation from our prebuilt crt0.o/neslib2.lib)
-        // is non-fatal noise the user can't act on.
+        // any non-warning ld65 message fails the build
         for (let s of stderr) {
-            if (re_cc65_warning.test(s))
+            if (re_ld65_ignored.test(s))
                 continue;
-            errors.push({ msg: s, line: 0 });
+            errors.push(Object.assign({ msg: s, line: 0 }, (re_cc65_warning.test(s) && { severity: 'warning' })));
         }
         (0, wasiutils_1.checkExitCode)('ld65', errno, stderr, errors);
-        if (errors.length)
+        if ((0, listingutils_1.hasErrors)(errors))
             return { errors: errors };
         var aout = (0, wasiutils_1.readWASIOutput)(wasi, "main");
         var mapout = (0, wasiutils_1.readWASIOutputString)(wasi, "main.map");
@@ -307,7 +308,7 @@ async function linkLD65(step) {
         return {
             output: aout, //.slice(0),
             listings: listings,
-            errors: errors,
+            warnings: errors,
             symbolmap: symbolmap,
             symbolsizes: symbolsizes,
             segments: segments
@@ -357,9 +358,9 @@ async function compileCC65(step) {
             });
             (0, builder_1.populateExtraFiles)(step, fs, params.extra_compile_files);
         });
-        stderr.filter(s => !re_cc65_warning.test(s)).forEach((0, listingutils_1.makeErrorMatcher)(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
+        stderr.forEach((0, listingutils_1.makeErrorMatcher)(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
         (0, wasiutils_1.checkExitCode)('cc65', errno, stderr, errors);
-        if (errors.length)
+        if ((0, listingutils_1.hasErrors)(errors))
             return { errors };
         (0, builder_1.putWorkFile)(destpath, (0, wasiutils_1.readWASIOutputString)(wasi, destpath));
     }
@@ -368,6 +369,7 @@ async function compileCC65(step) {
         path: destpath,
         args: [destpath],
         files: [destpath],
+        warnings: errors,
     };
 }
 //# sourceMappingURL=cc65.js.map

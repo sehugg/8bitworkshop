@@ -10,7 +10,10 @@ const setClock = StateEffect.define<Map<number, string>>();
 // (breakpoints.ts) decides the new state and syncs it back via setAll
 const requestToggleBreakpoint = StateEffect.define<number>();
 const setAllBreakpoints = StateEffect.define<{ line: number, enabled: boolean }[]>();
-const setErrors = StateEffect.define<Map<number, string>>();
+/** the message for a line; a warning is marked differently but doesn't fail the build */
+export interface ErrorInfo { msg: string, warning?: boolean }
+
+const setErrors = StateEffect.define<Map<number, ErrorInfo>>();
 const setCurrentPc = StateEffect.define<number | null>();
 const runToLineEffect = StateEffect.define<number>();
 
@@ -108,10 +111,10 @@ const errorField = StateField.define<RangeSet<GutterMarker>>({
             if (e.is(setErrors)) {
                 const map = e.value;
                 const ranges = [];
-                for (let [line, msg] of map.entries()) {
+                for (let [line, info] of map.entries()) {
                     if (line >= 1 && line <= tr.state.doc.lines) {
                         const pos = tr.state.doc.line(line).from;
-                        ranges.push(new ErrorMarker(line, msg).range(pos));
+                        ranges.push(new ErrorMarker(line, info.msg, info.warning).range(pos));
                     }
                 }
                 value = RangeSet.of(ranges, true);
@@ -191,16 +194,16 @@ const BREAKPOINT_MARKER = new BreakpointMarker(true);
 const DISABLED_BREAKPOINT_MARKER = new BreakpointMarker(false);
 
 class ErrorMarker extends GutterMarker {
-    constructor(readonly line: number, readonly msg: string) { super(); }
+    constructor(readonly line: number, readonly msg: string, readonly warning?: boolean) { super(); }
 
     toDOM() {
         const span = document.createElement("span");
-        span.className = "gutter-error";
-        span.innerHTML = "ⓧ";
+        span.className = this.warning ? "gutter-warning" : "gutter-error";
+        span.innerHTML = this.warning ? "⚠" : "ⓧ";
         span.title = this.msg;
         return span;
     }
-    eq(other: ErrorMarker) { return this.line == other.line && this.msg == other.msg; }
+    eq(other: ErrorMarker) { return this.line == other.line && this.msg == other.msg && this.warning == other.warning; }
 }
 
 const CURRENT_PC_PLACEHOLDER_MARKER = new class extends GutterMarker {

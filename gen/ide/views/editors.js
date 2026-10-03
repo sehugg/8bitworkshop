@@ -462,7 +462,10 @@ class SourceEditor {
                 var line = info.line;
                 if (isNaN(line) || line < 1 || line > numLines)
                     line = 1;
-                newErrors.set(line, info.msg);
+                // an error on the line wins over a warning
+                if (!(info.severity === 'warning' && newErrors.has(line))) {
+                    newErrors.set(line, { msg: info.msg, warning: info.severity === 'warning' });
+                }
                 // collect column-level spans
                 if (info.start != null && info.end != null && info.end > info.start) {
                     spans.push({ line, start: info.start, end: info.end });

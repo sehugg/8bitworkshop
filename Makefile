@@ -99,3 +99,6 @@ syncprod: distro
 
 testsync:
 	rsync --dry-run --verbose --stats --del -riltz --chmod=a+rx -e "ssh" index.html $(RSYNC_PATH)/
+
+run-jscpd:
+	jscpd src extension/src --cross-formats js-ts --similarity 0.85 -i "src/worker/wasm/**" -i "src/worker/fs/**" -r console

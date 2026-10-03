@@ -39,6 +39,7 @@ class DebugService {
             granularity: t.history ? t.history.core.granularity : (t.supportsStep ? 'insn' : 'frame'),
             write: t.supportsWrite,
             tree: !!t.platform.getDebugTree,
+            signals: !!t.platform.getSignals,
         };
     }
     setBreakpoints(bps) {
@@ -83,7 +84,13 @@ class DebugService {
     }
     reverseContinue() { this.onStop(this.debug.reverseContinue()); }
     seekFrame(frame) { this.onStop(this.debug.seekFrame(frame)); }
-    location() { return this.debug.location(); }
+    location() {
+        const loc = this.debug.location();
+        const clock = this.target.getClockCount();
+        if (clock != null)
+            loc.clock = clock;
+        return loc;
+    }
     /**
      * Where it is and how it got there: the PC, then each call found on the
      * stack (see stackwalk.ts), innermost first.
@@ -146,6 +153,13 @@ class DebugService {
         const tree = this.target.getDebugTree();
         if (!tree)
             throw new Error('this platform has no debug tree');
+        return (0, debugtree_1.treeChildren)(tree, path);
+    }
+    /** The signal tree's entries under `path` (names from earlier calls). */
+    signalTree(path) {
+        const tree = this.target.getSignals();
+        if (!tree)
+            throw new Error('this platform has no signals');
         return (0, debugtree_1.treeChildren)(tree, path);
     }
     /** One symbol with the bytes at it (the first byte if its size is unknown). */

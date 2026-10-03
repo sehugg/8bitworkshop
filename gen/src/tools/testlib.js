@@ -236,7 +236,7 @@ function workerResultToCompileResult(result) {
         };
     }
     if ('output' in result) {
-        return Object.assign({ success: true, output: result.output, params: result.params }, (0, workertypes_1.buildProducts)(result));
+        return Object.assign({ success: true, output: result.output, warnings: result.warnings, params: result.params }, (0, workertypes_1.buildProducts)(result));
     }
     return { success: false, errors: [{ line: 0, msg: 'Unknown result format' }] };
 }

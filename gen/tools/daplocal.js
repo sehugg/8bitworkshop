@@ -45,6 +45,7 @@ class LocalDebugBackend {
     async readMemory(...a) { return this.svc.readMemory(...a); }
     async writeMemory(...a) { return this.svc.writeMemory(...a); }
     async debugTree(...a) { return this.svc.debugTree(...a); }
+    async signalTree(...a) { return this.svc.signalTree(...a); }
     async symbols() { return this.svc.symbols(); }
     async disassemble(...a) { return this.svc.disassemble(...a); }
     async evaluate(...a) { return this.svc.evaluate(...a); }

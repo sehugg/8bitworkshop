@@ -189,6 +189,8 @@ class HDLModuleWASM {
         this.getFileData = null;
         this.optimize = false;
         this.maxEvalIterations = 100; // same as HDLModuleJS and Verilator
+        /** clock cycles run since power-up (tick2 iterations, and rising edges of tick) */
+        this.cycles = 0;
         this.traceBufferSize = 0xff000;
         this.randomizeOnReset = false;
         // create a new unique label
@@ -215,6 +217,7 @@ class HDLModuleWASM {
         this.resetStartTimeMsec = new Date().getTime() - 1;
         this.finished = false;
         this.stopped = false;
+        this.cycles = 0;
         this.clearMutableState();
         this.setInitialValues();
         this.instance.exports._ctor_var_reset(GLOBALOFS);
@@ -236,9 +239,12 @@ class HDLModuleWASM {
     }
     tick() {
         this.state.clk ^= 1;
+        if (this.state.clk)
+            this.cycles++;
         this.eval();
     }
     tick2(iters) {
+        this.cycles += iters;
         if (this.instance.exports.tick2(GLOBALOFS, iters)) {
             throw new hdlruntime_1.HDLError(null, `model did not converge on eval()`);
         }
@@ -246,10 +252,11 @@ class HDLModuleWASM {
     isFinished() { return this.finished; }
     isStopped() { return this.stopped; }
     saveState() {
-        return { o: this.data8.slice(0, this.statebytes) };
+        return { o: this.data8.slice(0, this.statebytes), c: this.cycles };
     }
     loadState(state) {
         this.data8.set(state.o);
+        this.cycles = state.c || 0;
     }
     // get tree of global variables for debugging
     getGlobals() {

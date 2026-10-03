@@ -1,7 +1,7 @@
 import { defineArgs, extraArgsFor, linkSymbolArgs, getPlatformToolConfig, SDCC_DEFAULT_VERSION } from "../../common/toolmeta";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
 import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, populateExtraFiles, anyTargetChanged, getWorkFileAsString, fixParamsWithDefines, applyAsmProjectParams } from "../builder";
-import { parseListing, parseSourceLines, msvcErrorMatcher } from "../listingutils";
+import { parseListing, parseSourceLines, msvcErrorMatcher, hasErrors } from "../listingutils";
 import { EmscriptenModule, emglobal, ensureFilesystem, ensureWasiFilesystem, execMain, loadNative, moduleInstFn, print_fn, setupFS, setupStdin } from "../wasmutils";
 import { runWASITool, checkExitCode, readWASIOutputString } from "../wasiutils";
 import { preprocessMCPP } from "./mcpp";
@@ -675,15 +675,10 @@ export async function compileSDCC(step: BuildStep): Promise<BuildStepResult> {
                 stdin: code,
                 populate: (fs) => populateFiles(step, fs),
             });
-            // 4.x warns more than 3.6.5 did (e.g. `int main(int argc)`), and
-            // WorkerError has no severity: only a failed run reports them
+            // 4.x warns more than 3.6.5 did (e.g. `int main(int argc)`)
             stderr.forEach(msvcErrorMatcher(errors));
-            if (!errno) {
-                errors.forEach((e) => console.log('sdcc warning:', e.path + ':' + e.line, e.msg));
-                errors = [];
-            }
             checkExitCode('sdcc', errno, stderr, errors);
-            if (errors.length) {
+            if (hasErrors(errors)) {
                 return { errors: errors };
             }
             asmout = readWASIOutputString(wasi, outpath);
@@ -705,7 +700,7 @@ export async function compileSDCC(step: BuildStep): Promise<BuildStepResult> {
             setupFS(FS, 'sdcc');
             execMain(step, SDCC, args);
             // TODO: preprocessor errors w/ correct file
-            if (errors.length /* && nwarnings < msvc_errors.length*/) {
+            if (hasErrors(errors)) {
                 return { errors: errors };
             }
             asmout = FS.readFile(outpath, { encoding: 'utf8' });
@@ -722,5 +717,6 @@ export async function compileSDCC(step: BuildStep): Promise<BuildStepResult> {
         path: outpath,
         args: [outpath],
         files: [outpath],
+        warnings: errors,
     };
 }

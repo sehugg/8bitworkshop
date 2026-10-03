@@ -123,7 +123,7 @@ async function runWASITool(tool, args, opts = {}) {
 }
 /** Report a failed tool run that printed no parseable error message. */
 function checkExitCode(tool, errno, stderr, errors) {
-    if (errno && !errors.length) {
+    if (errno && !(0, listingutils_1.hasErrors)(errors)) {
         errors.push({ line: 0, msg: tool + " exited with code " + errno + (stderr.length ? ": " + stderr.join('\n') : '') });
     }
 }

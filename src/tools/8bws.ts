@@ -46,8 +46,8 @@ const SHORT_FLAGS: { [short: string]: string } = {
 // Flags that never take a value, per command. Everything else consumes the
 // next argument unless that argument is another flag.
 const BOOLEAN_FLAGS: { [command: string]: string[] } = {
-  build: ['check', 'symbols', 'save'],
-  run: ['info'],
+  build: ['check', 'symbols', 'save', 'no-warnings'],
+  run: ['info', 'no-warnings'],
   'verify-replay': ['verbose'],
 };
 
@@ -142,6 +142,9 @@ async function compileSource(args: Args, source: string, platform: string): Prom
   if (!result.success) {
     fail('build', `${tool} failed on ${source}`, { errors: result.errors, internal: result.internal });
   }
+  if (result.warnings && result.warnings.length && !args['no-warnings']) {
+    for (const w of result.warnings) warn(`${w.path || source}:${w.line}: ${w.msg}`);
+  }
   return { rom: romBytes(result), symbolmap: result.symbolmap || {}, tool, platform, source, result };
 }
 
@@ -173,6 +176,7 @@ async function doBuild(args: Args, positional: string[]): Promise<void> {
     outputSize: built.rom ? built.rom.length : null,
     outputFile: outputFile || null,
   };
+  if (built.result.warnings?.length) data.warnings = built.result.warnings;
   if (args['symbols']) {
     if (built.result.symbolmap) data.symbolmap = built.result.symbolmap;
     if (built.result.segments) data.segments = built.result.segments;
@@ -563,6 +567,7 @@ function usage(error?: string): never {
           '--check': 'compile without writing anything',
           '--symbols': 'dump the symbol table and segments',
           '--save': 'save all intermediate build files to a temp dir',
+          '--no-warnings': 'don\'t print compiler warnings',
           '--define <N[=V]>': 'preprocessor define for the compiler (repeatable)',
           '--as-define <N[=V]>': 'symbol for the assembler (repeatable)',
           '--ld-define <N=INT>': 'linker symbol, integer expression (repeatable)',
@@ -579,6 +584,7 @@ function usage(error?: string): never {
           '--symbols <file>': 'load a .lbl/.sym file for symbolic addresses',
           '--bios <file>': 'load a BIOS image',
           '--info': 'dump debug info and disassembly when done',
+          '--no-warnings': 'don\'t print compiler warnings',
           '--memdump <a,b>': 'hexdump a hex address range',
         },
         'verify-replay options': {
