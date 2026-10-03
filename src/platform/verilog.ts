@@ -93,6 +93,8 @@ var VERILOG_KEYCODE_MAP = makeKeycodeMap([
 
 const TRACE_BUFFER_DWORDS = 0x40000;
 const CYCLES_PER_FILL = 20;
+// sound and controls a design can have besides video: what the CRT takes and gives
+const CRT_PORTS = ['spkr', 'switches', 'switches_p1', 'switches_p2', 'switches_gen', 'keycode', 'hpaddle', 'vpaddle'];
 const SHOW_INTERNAL_SIGNALS = false; // TODO: make this a config value
 
 // PLATFORM
@@ -194,6 +196,10 @@ var VerilogPlatform = function(mainElement, options) {
   scope : WaveformScope | null; // null when the host has no scope UI
   hasvideo : boolean;
   traceNow = 0;
+  // for hosts that stream the sound (see EmuCore.getAudioParams)
+  get audio() { return audio; }
+  /** the design declares sound or control ports (see usesCrt) */
+  crtPorts = false;
   /** a design with no video ran until its trace buffer was full */
   traceFull = false;
 
@@ -278,6 +284,14 @@ var VerilogPlatform = function(mainElement, options) {
     }
   }
   
+  /**
+   * True if the design uses what the CRT stands for: a picture, sound, or
+   * the controls (keys, switches, paddles). One that doesn't has only signals.
+   */
+  usesCrt() : boolean {
+    return this.hasvideo || this.crtPorts;
+  }
+
   isScopeVisible() {
     return this.scope != null && this.scope.isVisible();
   }
@@ -286,11 +300,19 @@ var VerilogPlatform = function(mainElement, options) {
   advance(novideo : boolean) : number {
     this.setGenInputs();
     if (!this.hasvideo) {
-      // no video: the scope is all there is to show, and it is what runs the
-      // design, until the trace buffer is full (as in the IDE, which pauses)
-      if (this.scope) this.scope.show();
-      if (!this.traceFull) this.traceFull = this.fillTraceBuffer(CYCLES_PER_FILL * trace_signals.length);
-      return cyclesPerFrame;
+      if (!this.usesCrt()) {
+        // nothing but signals: the scope is all there is to show, and it is
+        // what runs the design, until the trace buffer is full (as in the IDE,
+        // which pauses)
+        if (this.scope) this.scope.show();
+        if (!this.traceFull) this.traceFull = this.fillTraceBuffer(CYCLES_PER_FILL * trace_signals.length);
+        return cyclesPerFrame;
+      }
+      // sound or controls but no picture: run it like one with video
+      if (top.state.reset) {
+        top.tick2(100);
+        top.state.reset = 0;
+      }
     }
     var trace = this.isScopeVisible();
     this.updateVideoFrameCycles(cyclesPerFrame, true, trace);
@@ -613,6 +635,8 @@ var VerilogPlatform = function(mainElement, options) {
             });
           }
         }
+        // (not looked up in top.state: setGenInputs adds the controls there)
+        this.crtPorts = Object.keys(topmod.vardefs).some(k => CRT_PORTS.indexOf(topmod.vardefs[k].origName) >= 0);
         trace_signals = signals;
         if (!SHOW_INTERNAL_SIGNALS) {
           trace_signals = trace_signals.filter((v) => { return !v.label.startsWith("__V"); }); // remove __Vclklast etc

@@ -134,7 +134,7 @@ export function activate(ctx: vscode.ExtensionContext) {
   command('reset', () => emu?.started && emu.call('reset'));
   command('pause', () => emu?.started && emu.call('pause'));
   command('resume', () => emu?.started && emu.call('resume'));
-  command('stop', () => panel?.dispose());
+  command('stop', () => stopEmulator());
   command('downloadToolchains', () => prepareToolchains());
   command('mute', () => setMuted(true));
   command('unmute', () => setMuted(false));
@@ -510,7 +510,7 @@ function onProjectsChanged() {
   releaseHeldDiagnostics(false);
   clearOrphanDiagnostics();
   // a project that no longer exists can't keep running
-  if (running?.project && !scope.projectFor(running.main)) panel?.dispose();
+  if (running?.project && !scope.projectFor(running.main)) stopEmulator();
   updateStatus();
   vscode.workspace.textDocuments.forEach(assignLanguage);
 }
@@ -644,7 +644,58 @@ async function followActiveEditor() {
   await scope.setTargetChoice(project, 'follow');
 }
 
-/** Start `build` in the emulator panel. Returns false if it didn't start. */
+/** The emulator is running, with its screen or without (a program with only signals). */
+function emulatorOpen() {
+  return !!(panel || emuStatus);
+}
+
+/** End the program, closing its screen too. */
+function stopEmulator() {
+  if (panel) panel.dispose(); // which ends the program, in emulatorClosed
+  else emulatorClosed();
+}
+
+/** The program ended: forget it, and anything debugging it. */
+function emulatorClosed() {
+  if (debugging) vscode.debug.stopDebugging(debugging.session);
+  panel = undefined;
+  emuStatus = null;
+  running = undefined;
+  // the next run starts a new worker anyway
+  emu?.dispose();
+  emu = undefined;
+  views.clear();
+  setCapabilityContexts(null);
+  vscode.commands.executeCommand('setContext', '8bitworkshop.recordingVcd', false);
+  vscode.commands.executeCommand('setContext', '8bitworkshop.emuRunning', false);
+  vscode.commands.executeCommand('setContext', '8bitworkshop.emuOpen', false);
+}
+
+/** The emulator's screen: open it, or bring the open one forward for the new program. */
+function openPanel(title: string, platform: string) {
+  if (!panel) {
+    panel = new EmulatorPanel({
+      onKey: (key, code, flags) => { emu?.call('key', key, code, flags); },
+      onPaddle: (x, y, buttons) => { emu?.call('paddle', x, y, buttons); },
+      onControlsVisible: visible => context.globalState.update('controlsVisible', visible),
+      // don't burn CPU on a hidden screen
+      onVisible: visible => { emu?.call('setVisible', visible); },
+      onSeek: frame => { emu?.call('seekFrame', frame); },
+      // closing the emulator ends the program, and any session debugging it
+      onDispose: () => emulatorClosed(),
+    }, context.globalState.get<boolean>('controlsVisible', true));
+  } else {
+    panel.reveal();
+  }
+  panel.setTitle(`${title} (${platform})`);
+  panel.setMuted(muted);
+}
+
+/**
+ * Start `build` in the emulator panel. Returns false if it didn't start. A
+ * program with no video (a Verilog design with only signals) gets no panel:
+ * its Waveform view opens instead.
+ */
 async function startEmulator(target: Target, build: BuildOutcome, opts: { paused?: boolean } = {}): Promise<boolean> {
   // a plain Run replaces what the debugger was looking at
   if (debugging && !opts.paused) vscode.debug.stopDebugging(debugging.session);
@@ -655,44 +706,17 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
   emuStatus = null;
   views.clear();
   var worker = await getEmu(target.platform);
-  if (!panel) {
-    panel = new EmulatorPanel({
-      onKey: (key, code, flags) => { emu?.call('key', key, code, flags); },
-      onPaddle: (x, y, buttons) => { emu?.call('paddle', x, y, buttons); },
-      onControlsVisible: visible => context.globalState.update('controlsVisible', visible),
-      // don't burn CPU on a hidden screen
-      onVisible: visible => { emu?.call('setVisible', visible); },
-      onSeek: frame => { emu?.call('seekFrame', frame); },
-      onDispose: () => {
-        // closing the emulator ends the program, and any session debugging it
-        if (debugging) vscode.debug.stopDebugging(debugging.session);
-        panel = undefined;
-        emuStatus = null;
-        running = undefined;
-        // the next run starts a new worker anyway
-        emu?.dispose();
-        emu = undefined;
-        views.clear();
-        setCapabilityContexts(null);
-        vscode.commands.executeCommand('setContext', '8bitworkshop.recordingVcd', false);
-        vscode.commands.executeCommand('setContext', '8bitworkshop.emuRunning', false);
-        vscode.commands.executeCommand('setContext', '8bitworkshop.emuOpen', false);
-      },
-    }, context.globalState.get<boolean>('controlsVisible', true));
-    vscode.commands.executeCommand('setContext', '8bitworkshop.emuOpen', true);
-  } else {
-    panel.reveal();
-  }
   var title = describeTarget(target);
-  panel.setTitle(`${title} (${target.platform})`);
-  panel.setMuted(muted);
   try {
     emuStatus = await worker.call<EmuStatus>('start', target.platform, build.output, build.files, opts);
+    // (the worker's first frame comes after this reply, so the panel is up in time)
+    if (emuStatus.screen !== false || panel) openPanel(title, target.platform);
+    vscode.commands.executeCommand('setContext', '8bitworkshop.emuOpen', true);
     worker.call('setMuted', muted);
     worker.call('setViews', views.subscriptions());
     setCapabilityContexts(emuStatus);
     flushReveal();
-    panel.showStatus(emuStatus);
+    panel?.showStatus(emuStatus);
     running = target;
     runningBuild = build;
     output.appendLine(`Running ${title} on ${target.platform}`);
@@ -708,7 +732,7 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
 
 /** After a rebuild of what the emulator runs, reload it (per reloadOnBuild). */
 async function reloadEmulator(target: Target, reason: BuildReason, result: BuildOutcome) {
-  if (!panel || !emuStatus || !running || !result.output) return;
+  if (!emulatorOpen() || !emuStatus || !running || !result.output) return;
   if (running.main.toString() !== target.main.toString()) return;
   // the code under the debugger doesn't change beneath it; F5 again rebuilds
   if (debugging) return;
@@ -1106,7 +1130,7 @@ async function changePlatform() {
   await scope.updateProject(project, { platform: picked.id });
   vscode.window.showInformationMessage(`Now building for ${picked.name}.`);
   var target = currentTarget();
-  if (target) await buildAndMaybeRun(target, !!panel, 'command');
+  if (target) await buildAndMaybeRun(target, emulatorOpen(), 'command');
 }
 
 async function detectAgain(project: Project) {
@@ -1400,7 +1424,7 @@ async function openAndBuild(file: string | undefined, offerRun: boolean) {
   var target = project && targetIn(project, uri);
   if (!target) return;
   // with the emulator open, the new program just replaces what it runs
-  if (panel) return buildAndMaybeRun(target, false, 'command');
+  if (emulatorOpen()) return buildAndMaybeRun(target, false, 'command');
   var result = await runBuild(target, 'command');
   if (!offerRun || !result?.success) return;
   var answer = await vscode.window.showInformationMessage(

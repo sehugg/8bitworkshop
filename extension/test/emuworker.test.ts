@@ -79,6 +79,7 @@ describe('extension emuworker', function () {
   it('sends the Machine view its debug info only while it is showing', async function () {
     var s = await rpc.call<EmuStatus>('start', 'nes', rom('nes/shoot2.c.rom'));
     assert.ok(s.debugInfo, 'nes has debug info');
+    assert.strictEqual(s.screen, true, 'platforms with a screen say so');
     await waitForFrames(10);
     assert.equal(viewEvents.length, 0, 'nothing is sent to a hidden view');
     await rpc.call('setViews', ['machine']);
@@ -341,7 +342,8 @@ describe('extension emuworker', function () {
 
     it('asks the host to open the view for a design with no video, once', async function () {
       var built = await build(COUNTER);
-      await rpc.call('start', 'verilog', built.output, built.files);
+      var s = await rpc.call<EmuStatus>('start', 'verilog', built.output, built.files);
+      assert.strictEqual(s.screen, false, 'only signals, so no emulator screen');
       await waitForFrames(1).catch(() => { }); // no video: there may be no frames
       for (var i = 0; i < 100 && !reveals.length; i++) await new Promise(r => setTimeout(r, 20));
       assert.deepEqual(reveals, ['waveform']);
@@ -357,9 +359,42 @@ describe('extension emuworker', function () {
       assert.deepEqual(reveals, ['waveform'], 'asked once');
     });
 
+    it('keeps the screen for a design with sound or controls but no video', async function () {
+      var tone = await build([
+        'module top(clk, reset, spkr);',
+        '  input clk, reset;',
+        '  output spkr;',
+        '  reg [15:0] c;',
+        '  always @(posedge clk) c <= reset ? 0 : c + 1;',
+        '  assign spkr = c[8];',
+        'endmodule',
+        '',
+      ].join('\n'));
+      var s = await rpc.call<EmuStatus>('start', 'verilog', tone.output, tone.files);
+      assert.strictEqual(s.screen, true, 'sound needs the panel');
+      assert.ok(s.audio, 'and it makes sound');
+      await waitForAudio(3);
+      var keys = await build([
+        'module top(clk, reset, switches_p1, led);',
+        '  input clk, reset;',
+        '  input [7:0] switches_p1;',
+        '  output led;',
+        '  assign led = switches_p1[0];',
+        'endmodule',
+        '',
+      ].join('\n'));
+      await worker.terminate();
+      var other = new Worker(path.join(__dirname, '..', 'emuworker.js'), { workerData: { rootDir: ROOT } });
+      var rpc2 = new Rpc(other);
+      s = await rpc2.call<EmuStatus>('start', 'verilog', keys.output, keys.files);
+      assert.strictEqual(s.screen, true, 'controls need the panel');
+      await other.terminate();
+    });
+
     it('shows the last frame of a paused design when the view opens', async function () {
       var built = await build(WITH_VIDEO);
-      await rpc.call('start', 'verilog', built.output, built.files);
+      var s = await rpc.call<EmuStatus>('start', 'verilog', built.output, built.files);
+      assert.strictEqual(s.screen, true);
       await waitForFrames(10);
       await rpc.call('pause');
       viewEvents.length = 0;

@@ -432,10 +432,27 @@ export class EmuCore {
     return true;
   }
 
+  /**
+   * False if the platform says its program has no video: a verilog design
+   * with no vsync/hsync/rgb (known once loaded). Platforms with other kinds
+   * of output (text, serial) still count as having video.
+   */
+  get hasVideo(): boolean {
+    return (this.platform as any).hasvideo !== false;
+  }
+
+  /**
+   * True unless the program has nothing for a screen to show or take: a
+   * verilog design with no video, sound or controls, just signals.
+   */
+  get usesScreen(): boolean {
+    const p: any = this.platform;
+    return typeof p.usesCrt === 'function' ? p.usesCrt() : true;
+  }
+
   getVideo(): VideoOutput | null {
-    // verilog sets hasvideo on ROM load; a design with no vsync/hsync/rgb
-    // leaves the headless raster blank, which isn't a failure to draw
-    if ((this.platform as any).hasvideo === false) return null;
+    // the headless raster stays blank for a design with no video, which isn't a failure to draw
+    if (!this.hasVideo) return null;
     return this.captured?.() ?? this.video?.get() ?? null;
   }
 

@@ -16,7 +16,7 @@
   as it runs: zoom, move the cursor, switch hex/decimal, and click an input to
   change it. It shares its drawing and keys with the IDE's waveform pane.
   It records only while it is showing, so opening it while paused runs the
-  last frame again to fill it. A design with no video opens it by itself.
+  last frame again to fill it. A design with only signals (no video, sound or controls) opens no emulator tab, only this view.
 - **Record Signals to VCD...** writes a Verilog design's signal changes to a
   `.vcd` file as it runs, without holding them in memory, up to
   1 GB. `8bws run` has a

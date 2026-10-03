@@ -67,6 +67,8 @@ export interface EmuStatus {
   debugInfo?: boolean;
   /** the platform records signal traces (verilog), for the Waveform view */
   waveform?: boolean;
+  /** false for a program with nothing for the emulator screen: a Verilog design with only signals (no video, sound or controls) */
+  screen?: boolean;
   /** the program has signals that can be recorded as a VCD (startVcd) */
   vcd?: boolean;
 }
@@ -342,7 +344,7 @@ function status(): EmuStatus | null {
   const audio = target.getAudioParams();
   return {
     state: running ? 'running' : 'paused', platform: target.id, frame: target.frameCount,
-    controls, paddles: target.acceptsPaddles(), debugInfo: target.hasDebugInfo, waveform: target.hasWaveform, vcd: target.supportsVcd, audio: audio ? { sampleRate: audio.sampleRate } : undefined,
+    controls, paddles: target.acceptsPaddles(), debugInfo: target.hasDebugInfo, waveform: target.hasWaveform, screen: target.usesScreen, vcd: target.supportsVcd, audio: audio ? { sampleRate: audio.sampleRate } : undefined,
     timeline: service?.timeline() ?? undefined,
   };
 }
