@@ -1,5 +1,7 @@
 # Changelog
 
+## 0.1.2
+
 ## 0.1.1
 
 - The Verilog and Verilog (VGA) platforms now appear in New Project and Open
