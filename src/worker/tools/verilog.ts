@@ -6,7 +6,7 @@ import { Assembler } from "../assembler";
 import * as vxmlparser from '../../common/hdl/vxmlparser';
 import { EmscriptenModule, emglobal, execMain, getWASMMemory, loadNative, moduleInstFn, print_fn, setupFS } from "../wasmutils";
 import { getWorkFileAsString, BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, starttime, endtime, putWorkFile, anyTargetChanged, populateExtraFiles } from "../builder";
-import { makeErrorMatcher } from "../listingutils";
+import { makeErrorMatcher, hasErrors } from "../listingutils";
 
 function detectModuleName(code: string) {
     var m = /^\s*module\s+(\w+_top)\b/m.exec(code)
@@ -128,7 +128,13 @@ export function compileVerilator(step: BuildStep): BuildStepResult {
     if (staleFiles(step, [xmlPath])) {
         // TODO: %Error: Specified --top-module 'ALU' isn't at the top level, it's under another cell 'cpu'
         // TODO: ... Use "/* verilator lint_off BLKSEQ */" and lint_on around source to disable this message.
-        var match_fn = makeErrorMatcher(errors, /%(.+?): (.+?):(\d+)?[:]?\s*(.+)/i, 3, 4, step.path, 2);
+        var match_errs = makeErrorMatcher(errors, /%(.+?): (.+?):(\d+)?[:]?\s*(.+)/i, 3, 4, step.path, 2);
+        // verilator prefixes warnings with "%Warning-<TYPE>:"
+        var match_fn = (s: string) => {
+            var n = errors.length;
+            match_errs(s);
+            if (errors.length > n && /^%Warning/.test(s)) errors[n].severity = 'warning';
+        };
         var verilator_mod: EmscriptenModule = emglobal.verilator_bin({
             instantiateWasm: moduleInstFn('verilator_bin'),
             noInitialRun: true,
@@ -162,20 +168,23 @@ export function compileVerilator(step: BuildStep): BuildStepResult {
             var args = ["--cc", "-O3",
                 "-DEXT_INLINE_ASM", "-DTOPMOD__" + topmod, "-D__8BITWORKSHOP__",
                 "-Wall",
-                "-Wno-DECLFILENAME", "-Wno-UNUSED", "-Wno-EOFNEWLINE", "-Wno-PROCASSWIRE",
+                "-Wno-fatal", "-Wno-DECLFILENAME", "-Wno-UNUSED", "-Wno-EOFNEWLINE", "-Wno-PROCASSWIRE",
                 "--x-assign", "fast", "--noassert", "--pins-sc-biguint",
                 "--debug-check", // for XML output
                 "--top-module", topmod, step.path]
             execMain(step, verilator_mod, args);
         } catch (e) {
             console.log(e);
-            errors.push({ line: 0, msg: "Compiler internal error: " + e });
+            // exit(1) is just the symptom if verilator already reported errors
+            if (!hasErrors(errors)) {
+                errors.push({ line: 0, msg: "Compiler internal error: " + e });
+            }
         }
         endtime("compile");
         // remove boring errors
         errors = errors.filter(function (e) { return !/Exiting due to \d+/.exec(e.msg); }, errors);
         errors = errors.filter(function (e) { return !/Use ["][/][*]/.exec(e.msg); }, errors);
-        if (errors.length) {
+        if (hasErrors(errors)) {
             return { errors: errors };
         }
         starttime();
@@ -203,7 +212,7 @@ export function compileVerilator(step: BuildStep): BuildStepResult {
         }
         return {
             output: xmlParser,
-            errors: errors,
+            warnings: errors,
             listings: listings,
         };
     }

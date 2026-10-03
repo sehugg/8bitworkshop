@@ -12,6 +12,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Platform detection no longer confuses the Atari 8-bit targets: `atari.h` means the 800 (it is guarded by `__ATARI__`), `atari5200.h` means the 5200, and a folder named for a platform breaks a near-tie.
 - Emulators now run on a timeline: step back, seek, reverse run, `rbreak`, and deterministic replay with a replay-verification test that found determinism bugs in several platforms.
 - Step Over for C and assembly sources, a Breakpoints pane, and more breakpoint conditions.
+- Verilator warnings (width mismatches, etc.) no longer fail the build and show as warnings; a Verilator error no longer also reports "tool called exit(1)".
 - Call Stack view renamed Call Graph, with clocks and more detail per line.
 - Compiler warnings no longer fail a build or get lost: `WorkerError` has an optional `severity`, and a successful build returns `warnings`. cc65/ca65/ld65 and SDCC warnings show as gutter markers in the IDE (not in the error dialog), as warnings in the VS Code Problems panel, and on stderr from `8bws` (`--no-warnings` hides them). SDCC 3 warnings no longer fail the build.
 - `buildpresets` lists compiler warnings per preset, flags a rising warning count against `--baseline`, and fails builds with warnings unless `--no-strict` is given.

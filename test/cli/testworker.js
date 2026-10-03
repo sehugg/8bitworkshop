@@ -192,6 +192,13 @@ describe('Worker', function() {
     assert.ok(msg.warnings.length >= 1);
     assert.ok(msg.warnings.every(w => w.severity == 'warning' && w.line > 0));
   });
+  it('should return Verilator warnings on a successful build, marked as warnings', async function() {
+    var msg = await queryWorker({code:"module t_top(input clk, output reg [3:0] q);\n always @(posedge clk) q <= 5'd300;\nendmodule\n", platform:'verilog', tool:'verilator', path:'src.v', mainfile:true});
+    assert.ok(!(msg.errors && msg.errors.length));
+    assert.ok(msg.output);
+    assert.ok(msg.warnings.length >= 1);
+    assert.ok(msg.warnings.every(w => w.severity == 'warning' && w.line > 0));
+  });
   it('should NOT compile CC65 (link error)', function(done) {
     compile('cc65', 'extern void bad();\nint main() {\nbad();\nreturn 0;\n}', 'nes', done, 0, 0, 1, {ignoreErrorPath:true});
   });
