@@ -103,6 +103,8 @@ const SKIP_PLATFORMS = [
     'astrocade-arcade',
     'mcr',
     'vectrex',
+    'devel',
+    'devel-6502',
 ];
 
 // build these, but don't run them: the emulator needs a real browser

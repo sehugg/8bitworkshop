@@ -124,6 +124,30 @@ describe('8bws CLI', function () {
             assert.ok(r.success, r.error);
             assert.equal(r.data.frames, 10);
         });
+        it('should build cosmic.c with SDCC from a header-only wrapper', function () {
+            var out = path.join(os.tmpdir(), '8bws-cosmic-sdcc.bin');
+            cli('build', '-p', 'apple2', 'presets/apple2/cosmic-sdcc.c', '-o', out);
+            var bin = fs.readFileSync(out);
+            assert.equal(bin[0] | bin[1] << 8, 0x4000);           // //#tooldef ld code_start=0x4000
+            assert.equal(bin[2] | bin[3] << 8, bin.length - 4);
+            assert.ok(bin.length > 4000);                          // the whole game, not just the wrapper
+        });
+        ['hello', 'screen_ram', 'joymove', 'siegegame', 'sprite_collision'].forEach(function (name) {
+            it('should build the c64 ' + name + ' SDCC preset as a PRG', function () {
+                var out = path.join(os.tmpdir(), '8bws-c64-' + name + '-sdcc.prg');
+                cli('build', '-p', 'c64', 'presets/c64/' + name + '-sdcc.c', '-o', out);
+                var bin = fs.readFileSync(out);
+                assert.equal(bin[0] | bin[1] << 8, 0x801);        // load address, then 10 SYS 2061
+                assert.equal(bin[6], 0x9e);
+            });
+        });
+        it('should print the serial output of a devel-6502 program', function () {
+            var out = cli('run', '-p', 'devel-6502', 'presets/devel-6502/hello-sdcc.c', '-e', 'run 5; serial');
+            assert.ok(out.includes('Hello, SDCC 6502!\nagain\nagain\nagain'));
+        });
+        it('should reject serial on a platform without a serial port', function () {
+            cliFails('run', '-p', 'nes', 'presets/nes/hello.c', '-e', 'run 1; serial');
+        });
         it('should build and run a directory', function () {
             var dir = fs.mkdtempSync(path.join(os.tmpdir(), '8bws-dir-'));
             fs.copyFileSync('presets/nes/hello.c', path.join(dir, 'hello.c'));

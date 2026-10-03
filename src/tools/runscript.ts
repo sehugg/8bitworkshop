@@ -43,6 +43,7 @@ export const RUN_SCRIPT_HELP = [
   '  keydown KEY / keyup KEY     - raw key down/up events',
   '  mem START [LEN]             - hexdump memory (default 16 bytes)',
   '  screen [START] [COLS] [ROWS]- decode screen RAM to text (default $0400 40x25)',
+  '  serial                      - print what the program sent to its serial port (devel-6502)',
   '  pc [N]                      - print PC + disassembly of N instructions',
   '  info                        - platform/machine debug info',
   '  reset                       - reset the emulator',
@@ -485,6 +486,13 @@ export class RunScript {
     }
   }
 
+  cmdSerial() {
+    const text = this.target.getSerialOutput();
+    if (text == null) throw new Error(`'${this.target.id}' has no serial output`);
+    this.log(`serial output (${text.length} bytes):`);
+    this.out(text.endsWith('\n') ? text : text + '\n');
+  }
+
   cmdPC(tokens: string[]) {
     this.target.settle();
     const pc = this.target.getPC();
@@ -534,6 +542,7 @@ const COMMANDS: { [name: string]: Command } = {
   'keyup': RunScript.prototype.cmdKeyUp,
   'mem': RunScript.prototype.cmdMem,
   'screen': RunScript.prototype.cmdScreen,
+  'serial': RunScript.prototype.cmdSerial,
   'pc': RunScript.prototype.cmdPC,
   'info': RunScript.prototype.cmdInfo,
   'reset': RunScript.prototype.cmdReset,

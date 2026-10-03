@@ -245,6 +245,25 @@ describe('Worker', function() {
       done();
     }, 32768, 0, 0);
   });
+  it('should link SDCC mos6502 as a DOS 3.3 binary on apple2', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/apple2/hello-sdcc.c'));
+    compile('sdcc', csource, 'apple2', function(err, msg) {
+      var bin = msg.output;
+      assert.equal(bin[0] | bin[1] << 8, 0x803);            // load address
+      assert.equal(bin[2] | bin[3] << 8, bin.length - 4);   // length: what the loader checks
+      assert.ok(bin.length < 1024);                          // trimmed to the program
+      done();
+    }, 377, 0, 0);
+  });
+  it('should link SDCC mos6502 as a PRG with a BASIC stub on c64', function(done) {
+    var csource = ab2str(fs.readFileSync('presets/c64/hello-sdcc.c'));
+    compile('sdcc', csource, 'c64', function(err, msg) {
+      var bin = msg.output;
+      assert.deepEqual(Array.from(bin.slice(0, 12)), [1,8, 0x0b,8, 10,0, 0x9e, 0x32,0x30,0x36,0x31, 0]); // 10 SYS 2061
+      assert.ok(bin.length < 1024);                          // trimmed to the program
+      done();
+    }, 332, 0, 0);
+  });
   it('should compile oscar64 and return listings/symbols/segments', async function() {
     var msgs = [{code:'#include <stdio.h>\nint main() { printf("FOO"); return 0; }', platform:'c64', tool:'oscar64', path:'main.c', mainfile:true}];
     var result = await new Promise(function(resolve, reject) {

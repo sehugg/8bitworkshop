@@ -55,6 +55,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 ### Build tools
 
 - Many toolchains are now WASI builds: cc65 (pinned to 2021 6ac4aa4), DASM 2.20.17, acme, zmac, yasm and merlin32.
+- SDCC 4 mos6502 backend: C64 presets (`hello-sdcc.c`, `screen_ram-sdcc.c`, `joymove-sdcc.c`, `siegegame-sdcc.c`, `sprite_collision-sdcc.c`); `load_header` platform param wraps the image as a DOS 3.3 binary (apple2) or a PRG with a `SYS` stub (c64).
 - Updated batari BASIC; sdcc now parses `#symbol` directives and fixes lost link errors.
 - New build directives replace the legacy CFGFILE-style ones; build parameters no longer leak between builds.
 - `#pragma compile("...")` and oscar64 symbol/listing parsing.
@@ -64,7 +65,9 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - cc65 `a2.lo.s` (Apple II lo-res TGI) patched in `8bitworkshop-compilers/patches/cc65-apple2-lo-tgi.patch`: a stray `bpl :+` in `INSTALL` made `tgi_install(a2_lo_tgi)` crash on a non-enhanced Apple II.
 - Presets adjusted for the newer cc65: NES `chase` closes its zero-page `#pragma` region, C64 `side_scroller` uses an unsigned fixed-point constant, and the Atari vector presets no longer recurse into `main()`. `neslib.h` no longer redefines `NULL` if `stddef.h` already did.
 - SDCC: both 3.6.5 and 4.x are bundled; 3.6.5 is the default (several times faster to build) and `//#tooldef c sdcc=4` opts in to 4.x (the default is `SDCC_DEFAULT_VERSION` in `toolmeta.ts`). Programs without an `opt_code*` pragma now build with `--no-peep --nolospre --max-allocs-per-node 500`, including Game Boy, which previously always got the full optimizer. See *SDCC versions* in the build directives docs.
-- SDCC 4 mos6502 backend (experimental): a `-sdcc.c` file on `devel-6502` (see `presets/devel-6502/hello-sdcc.c`) builds with sdcc, `sdas6500` and `sdld6808`. Apple II and other 6502 platforms need their own crt0 and memory map.
+- SDCC 4 mos6502 backend (experimental): a `.sdcc` or `-sdcc.c` file on `devel-6502` or `apple2` builds with sdcc, `sdas6500` and `sdld6808` (see `hello-sdcc.c` in those presets). Apple II programs link as a DOS 3.3 binary at `$803`. `.sdcc` now selects SDCC on every Z80 and 6502 platform.
+- `//#tooldef ld code_start=ADDR` and `data_start=ADDR` move SDCC's code and RAM data. The Apple II preset `cosmic-sdcc.c` builds the Cosmic Impalas game with SDCC by including `cosmic.c`, which now has `__SDCC` alternatives for `conio` and inline assembly.
+- `devel-6502` runs headless in the `8bws` CLI, and the new `serial` run-script command prints what the program sent to its serial port.
 - Build is now only `esbuild` through `scripts/build.mjs`; code split into a headless `src/common/projectcore.ts` / `toolselect.ts`.
 - New `buildpresets` script that builds and runs every preset.
 

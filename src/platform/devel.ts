@@ -12,7 +12,26 @@ var DEVEL_6502_PRESETS = [
   {id:'hello-sdcc.c', name:'Hello World (SDCC C)'},
 ];
 
-class SerialInOutViewer {
+/** What the serial harness draws on: the TeleType viewer, or nothing (headless). */
+interface SerialViewer {
+  tty : { addtext(s: string, flags: number): void, newline(): void, clear(): void,
+          saveState(): any, loadState(state: any): void };
+  start(): void;
+  reset(): void;
+  saveState(): any;
+  loadState(state: any): void;
+}
+
+/** For the CLI and tests, which have no DOM: the output is kept by the harness. */
+class HeadlessSerialViewer implements SerialViewer {
+  tty = { addtext() {}, newline() {}, clear() {}, saveState() { return {}; }, loadState() {} };
+  start() {}
+  reset() {}
+  saveState() { return {}; }
+  loadState() {}
+}
+
+class SerialInOutViewer implements SerialViewer {
   div : HTMLElement;
   tty : TeleType;
   
@@ -48,7 +67,7 @@ function byteToASCII(b: number) : string {
 
 export class SerialTestHarness implements SerialIOInterface {
 
-  viewer : SerialInOutViewer;
+  viewer : SerialViewer;
   bufferedRead : boolean = true;
   cyclesPerByte = 1000000/(57600/8); // 138.88888 cycles
   maxOutputBytes = 4096;
@@ -117,11 +136,12 @@ export class SerialTestHarness implements SerialIOInterface {
 class Devel6502Platform extends Base6502MachinePlatform<Devel6502> implements Platform {
 
   serial : SerialTestHarness;
-  serview : SerialInOutViewer;
+  serview : SerialViewer;
 
   constructor(mainElement: HTMLElement) {
     super(mainElement);
-    this.serview = new SerialInOutViewer(mainElement);
+    // no element: running headless (the 8bws CLI)
+    this.serview = mainElement ? new SerialInOutViewer(mainElement) : new HeadlessSerialViewer();
   }
 
   async start() {
@@ -164,6 +184,9 @@ class Devel6502Platform extends Base6502MachinePlatform<Devel6502> implements Pl
     this.serview.loadState(state.serview);
     // TODO: reload tty UI
   }
+
+  /** Everything the program has sent to the serial port (for the CLI's `serial` command). */
+  getSerialOutput()     { return byteArrayToString(this.serial.outputBytes); }
 
   newMachine()          { return new Devel6502(); }
   getPresets()          { return DEVEL_6502_PRESETS; }

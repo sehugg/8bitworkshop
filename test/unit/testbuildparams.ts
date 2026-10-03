@@ -257,6 +257,16 @@ describe("explicit build directives (//#symbol, //#flag, //#tooldef)", function 
     assert.strictEqual(params.sdcc_version, 3);
   });
 
+  it("#tooldef ld code_start and data_start take addresses", function () {
+    const params: any = {};
+    applyDirectives("//#tooldef ld code_start=0x4000\n//#tooldef ld data_start=36864\n", params);
+    assert.strictEqual(params.code_start, 0x4000);
+    assert.strictEqual(params.data_start, 0x9000);
+    const dir = applyDirectives("//#tooldef ld code_start=nowhere\n//#tooldef ld data_start=0x10000\n", params);
+    assert.strictEqual(dir.errors.length, 2);
+    assert.strictEqual(params.code_start, 0x4000);
+  });
+
   it("#tooldef rejects unknown knobs", function () {
     const params = c64Params();
     const dir = applyDirectives("//#tooldef ld nonsense=1\n", params);

@@ -1,12 +1,17 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
+#ifdef __SDCC
+// SDCC has no cc65 headers, so use our own subset (see c64-sdcc.h)
+#include "c64-sdcc.h"
+#else
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <peekpoke.h>
 #include <string.h>
 #include <c64.h>
+#endif
 
 #ifdef __CC65__
 #include <conio.h>
@@ -16,7 +21,13 @@
 typedef uint8_t byte;	// 8-bit unsigned
 typedef int8_t sbyte;	// 8-bit signed
 typedef uint16_t word;	// 16-bit unsigned
+#ifdef __SDCC
+typedef uint8_t bool;
+#define false 0
+#define true 1
+#else
 typedef enum { false, true } bool; // boolean
+#endif
 
 #define COLS 40		// total # of columns
 #define ROWS 25		// total # of rows
@@ -127,13 +138,16 @@ char* get_screen_memory();
 char __fastcall__ poll_keyboard();
 #endif
 
-#ifndef __CC65__
+#if !defined(__CC65__) && !defined(__SDCC)
 inline void clrscr() {
     __asm__ volatile ("jsr $E544" : : : "a","x","y"); // regs clobbered
 }
 inline void waitvsync() {
   raster_wait(255);
 }
+#endif
+#ifdef __SDCC
+static void waitvsync(void) { raster_wait(255); }
 #endif
 
 // for use with set_irq()

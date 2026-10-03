@@ -421,6 +421,12 @@ export class EmuCore {
   get frameRate(): number { return this.video ? this.video.frameRate : 60; }
   saveState(): EmuState | null { return this.platform.saveState ? this.platform.saveState() : null; }
 
+  /** Text a platform's program has sent to a serial port, or null if it has none. */
+  getSerialOutput(): string | null {
+    const p: any = this.platform;
+    return typeof p.getSerialOutput === 'function' ? p.getSerialOutput() : null;
+  }
+
   getDebugInfo(): DebugSection[] {
     const state = this.saveState();
     const p: any = this.platform;

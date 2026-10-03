@@ -1,7 +1,7 @@
 import assert from "assert";
 import { describe, it } from "mocha";
-import { sdccTarget } from "../../src/worker/tools/sdcc";
-import { getToolForFilename_6502 } from "../../src/common/toolselect";
+import { sdccTarget, loadHeader } from "../../src/worker/tools/sdcc";
+import { getToolForFilename_6502, getToolForFilename_z80, getToolForFilename_apple2 } from "../../src/common/toolselect";
 
 describe("sdcc targets", function () {
 
@@ -25,4 +25,20 @@ describe("sdcc targets", function () {
     assert.strictEqual(getToolForFilename_6502('hello.c'), 'cc65');
   });
 
+  it("selects SDCC for .sdcc files", function () {
+    assert.strictEqual(getToolForFilename_6502('hello.sdcc'), 'sdcc');
+    assert.strictEqual(getToolForFilename_apple2('hello.sdcc'), 'sdcc');
+    assert.strictEqual(getToolForFilename_z80('skeleton.sdcc'), 'sdcc');
+  });
+
+
+  it("wraps linked images in a load header", function () {
+    const img = Uint8Array.of(1, 2, 3, 4, 5);
+    assert.deepStrictEqual(Array.from(loadHeader('dos33', img, 0x803, 3)), [3, 8, 3, 0, 1, 2, 3]);
+    // load address, link pointer, line 10, SYS 2061, then the code
+    assert.deepStrictEqual(Array.from(loadHeader('prg', img, 0x80d, 2)),
+      [1, 8, 0x0b, 8, 10, 0, 0x9e, 0x32, 0x30, 0x36, 0x31, 0, 0, 0, 1, 2]);
+    assert.throws(() => loadHeader('prg', img, 0x900, 2), /\$80d/);
+    assert.throws(() => loadHeader('bogus', img, 0, 0), /unknown load_header/);
+  });
 });

@@ -18,7 +18,23 @@ const RST_SDCC4 = [
   "    0000056F CD 40 00         [17] 1278 \tcall\t_inline_fn",
 ].join("\n");
 
+// the mos6502 backend: a tab and a space around the line number, [ 2] cycles
+const RST_MOS6502 = [
+  "                                    117 ;\thello.c: 17: void main(void) {",
+  "                                    118 ;\tgenLabel",
+  "    00000865                        126 _main:",
+  "                                    128 ;\thello.c: 18: putstr(message);",
+  "    00000865 A2 08            [ 2]  136 \tldx\t#>_message",
+  "    00000869 20 4E 08         [ 6]  138 \tjsr\t_putstr",
+].join("\n");
+
 describe("sdcc listings", function () {
+
+  it("maps mos6502 source comments", function () {
+    const l = parseRSTListing(RST_MOS6502, "hello");
+    assert.deepStrictEqual(l.lines.map((x) => [x.line, x.offset]), [[17, 0x865], [18, 0x865]]); // the function line maps to its label
+    assert.deepStrictEqual(l.asmlines.map((x) => x.offset), [0x865, 0x869]);
+  });
 
   it("maps SDCC 3.6.5 <stdin> source comments", function () {
     const l = parseRSTListing(RST_SDCC3, "skeleton");

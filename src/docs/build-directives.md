@@ -135,11 +135,13 @@ The supported parameters are:
 | --- | --- | --- |
 | `ld` | `cfgfile` | linker configuration file to use (e.g. for CC65's ld65) |
 | `ld` | `libargs` | comma-separated list of library/symbol arguments |
+| `ld` | `code_start`, `data_start` | where SDCC's linker places the code and the RAM data (e.g. `0x4000`) |
 | `c` | `sdcc` | SDCC version, `3` or `4` (see *SDCC versions* below) |
 
 ~~~c
 //#tooldef ld cfgfile=apple2-hgr2.cfg
 //#tooldef ld libargs=,nes.lib
+//#tooldef ld code_start=0x4000
 //#tooldef c sdcc=3
 ~~~
 

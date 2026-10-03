@@ -209,6 +209,53 @@ export function parseIHX(ihx: string, rom_start: number, rom_size: number, error
     return output;
 }
 
+/** End offset, within [rom_start, rom_start + rom_size), of the highest data record. */
+export function ihxExtent(ihx: string, rom_start: number, rom_size: number): number {
+    let end = 0, upper = 0;
+    for (const s of ihx.split("\n")) {
+        if (s[0] != ':') continue;
+        const arr = hexToArray(s, 1);
+        if (arr[3] == 0) {
+            const offset = upper + (arr[1] << 8) + arr[2] - rom_start;
+            if (offset >= 0 && offset + arr[0] <= rom_size) end = Math.max(end, offset + arr[0]);
+        } else if (arr[3] == 4) {
+            upper = ((arr[4] << 8) | arr[5]) << 16;
+        }
+    }
+    return end;
+}
+
+/**
+ * The `load_header` platform param: how a loadable file wraps the linked
+ * image (trimmed to the program's end, `length` bytes, linked at `start`).
+ *   dos33  Apple II binary: load address and length (2 bytes each, little
+ *          endian); the loader checks length == file size - 4
+ *   prg    Commodore PRG: load address $0801, then the BASIC line
+ *          `10 SYS <start>` that runs the program, which must be linked at
+ *          $080D (right after that stub)
+ */
+export function loadHeader(kind: string, image: Uint8Array, start: number, length: number): Uint8Array<ArrayBuffer> {
+    var header: number[];
+    switch (kind) {
+        case 'dos33':
+            header = [start & 0xff, start >> 8, length & 0xff, length >> 8];
+            break;
+        case 'prg': {
+            const sys = [...String(start)].map((c) => c.charCodeAt(0));
+            const end = 0x801 + 4 + 1 + sys.length + 1; // link, line number, SYS token, digits, NUL
+            header = [0x01, 0x08, end & 0xff, end >> 8, 0x0a, 0x00, 0x9e, ...sys, 0, 0, 0];
+            if (0x801 + header.length - 2 !== start) throw new Error(`load_header prg: code must start at $${(0x801 + header.length - 2).toString(16)}, not $${start.toString(16)}`);
+            break;
+        }
+        default:
+            throw new Error(`unknown load_header '${kind}'`);
+    }
+    const out = new Uint8Array(new ArrayBuffer(header.length + length));
+    out.set(header);
+    out.set(image.subarray(0, length), header.length);
+    return out;
+}
+
 function errorMatcherSDASZ80(path: string, errors: WorkerError[]) {
     //?ASxxxx-Error-<o> in line 1 of main.asm null
     //              <o> .org in REL area or directive / mnemonic error
@@ -432,6 +479,10 @@ async function linkSDLD(step: BuildStep, ld: 'sdldz80' | 'sdld6808') {
         if (errors.length) {
             return { errors: errors };
         }
+        if (params.load_header) {
+            const start = params.rom_start !== undefined ? params.rom_start : params.code_start;
+            binout = loadHeader(params.load_header, binout, start, ihxExtent(hexout, start, params.rom_size));
+        }
         // parse listings
         var listings: CodeListingMap = {};
         for (var fn of step.files) {
@@ -499,13 +550,14 @@ async function linkSDLD(step: BuildStep, ld: 'sdldz80' | 'sdld6808') {
  * source comments, source lines. `srcprefix` is the source file name without
  * its extension: SDCC 3.6.5 writes `;<stdin>:N:` comments, SDCC 4.x writes
  * `;file.c:N: <source>` (with mcpp's `//` path prefix), and 4.x addresses
- * have 8 hex digits instead of 4.
+ * have 8 hex digits instead of 4. The mos6502 backend writes `;\tfile.c: N: <source>`.
  */
 export function parseRSTListing(rstout: string, srcprefix: string) {
     //   0000 21 02 00      [10]   52 	ld	hl, #2
     var asmlines = parseListing(rstout, /^\s*([0-9A-F]{4,8})\s+([0-9A-F][0-9A-F r]*[0-9A-F])\s+\[([0-9 ]+)\]?\s+(\d+) (.*)/i, 4, 1, 2, 3);
     const name = srcprefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const srcre = new RegExp(`^\\s+\\d+ ;(?:<stdin>|/*${name}\\.[^:\\s]+):(\\d+):`, 'i');
+    // the mos6502 backend writes `;<tab>file.c: 17: source`, with a space after the colon
+    const srcre = new RegExp(`^\\s+\\d+ ;\\s*(?:<stdin>|/*${name}\\.[^:\\s]+):\\s*(\\d+):`, 'i');
     var srclines = parseSourceLines(rstout, srcre, /^\s*([0-9A-F]{4,8})/i);
     // TODO: you have to get rid of all source lines to get asm listing
     return {
@@ -597,9 +649,9 @@ export async function compileSDCC(step: BuildStep): Promise<BuildStepResult> {
         // if "#pragma opt_code" found do not disable optimziations
         if (!/^\s*#pragma\s+opt_code/m.exec(code)) {
             args.push.apply(args, [
-                '--max-allocs-per-node', '500',
                 '--no-peep',
-                '--nolospre'
+                '--nolospre',
+                '--max-allocs-per-node', '500',
             ]);
         }
         if (params.extra_compile_args) {

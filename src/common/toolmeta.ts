@@ -410,7 +410,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
 
   sdcc: {
     id: 'sdcc', name: 'SDCC', kind: 'compiler', arch: 'z80',
-    extensions: ['.c', '.h'],
+    extensions: ['.c', '.h', '.sdcc'],
     includeDirs: ['/share/sdcc/include', '/include'],
     editorStyle: 'text/x-csrc',
     helpURL: 'http://sdcc.sourceforge.net/doc/sdccman.pdf',

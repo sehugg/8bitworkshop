@@ -4,7 +4,7 @@ import {
   TOOL_META, getToolMeta, getToolMetaForFilename, getPreloadFSName, getSkeletonName,
   getIncludePatterns, getLinkPatterns, matchDependencyPatterns,
   getSystemIncludePatterns, SYSTEM_INCLUDE_PATTERNS, getSharedFileSystemName, getToolHelpURL,
-  getPlatformToolHelpURL
+  getPlatformToolHelpURL, SDCC_DEFAULT_VERSION
 } from "../../src/common/toolmeta";
 // Node-friendly worker entry point (re-exports TOOLS without Worker wiring)
 import { TOOLS } from "../../src/worker/workerlib";
@@ -51,12 +51,16 @@ describe('Tool metadata registry', function () {
     assert.strictEqual(getSharedFileSystemName('cc65', 'nes'), 'wasi:cc65-fs-nes.zip');
     assert.strictEqual(getSharedFileSystemName('cc65', 'c64'), 'wasi:cc65-fs-c64.zip');
     assert.strictEqual(getSharedFileSystemName('cc65', 'nonexistent'), undefined);
-    // SDCC 4.x (WASI zip) by default; 3.x-library platforms keep the 3.6.5 preloadFS
-    assert.strictEqual(getPreloadFSName('sdcc'), undefined);
-    assert.strictEqual(getSharedFileSystemName('sdcc', 'mw8080bw'), 'wasi:sdcc-fs.zip');
+    // the 'default' config leads with whichever SDCC the project defaults to
+    // (getSharedFileSystemName prefers preloadFS); platforms whose libraries
+    // were built by 3.x always keep the 3.6.5 preloadFS.
+    const defaultPreload = SDCC_DEFAULT_VERSION === 3 ? 'sdcc' : undefined;
+    const defaultShared = SDCC_DEFAULT_VERSION === 3 ? 'sdcc' : 'wasi:sdcc-fs.zip';
+    assert.strictEqual(getPreloadFSName('sdcc'), defaultPreload);
+    assert.strictEqual(getSharedFileSystemName('sdcc', 'mw8080bw'), defaultShared);
     assert.strictEqual(getPreloadFSName('sdcc', 'gb'), 'sdcc');
     assert.strictEqual(getPreloadFSName('sdcc', 'msx-libcv'), 'sdcc');
-    assert.strictEqual(getSharedFileSystemName('sdcc', 'msx'), 'wasi:sdcc-fs.zip');
+    assert.strictEqual(getSharedFileSystemName('sdcc', 'msx'), defaultShared);
     assert.strictEqual(getPreloadFSName('dasm'), undefined);
   });
 
