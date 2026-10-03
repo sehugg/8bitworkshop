@@ -68,6 +68,9 @@ function dropAbortHandlers(keep) {
  * to `rootDir`. Only the first call takes effect.
  */
 function installNodeMocks(rootDir = process.cwd()) {
+    // the binaryen shim (extension build) reads this when it is imported on the
+    // main thread, where workerData is unavailable (presetindex)
+    globalThis.__8bitworkshopAssetRoot = rootDir;
     if (mocksInstalled)
         return;
     mocksInstalled = true;

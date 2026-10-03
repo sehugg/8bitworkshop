@@ -52,6 +52,8 @@ multi-file projects, compiler/linker directives, and file extensions.
 See [Toolchains & Platforms](toolchains.md) for the full list of tools and
 the complete platform × extension → tool reference.
 
+CC65 was updated in 8bitworkshop 4.0 -- for more information see
+[cc65 Toolchain Upgrade](cc65-upgrade.md).
 
 ## Debugger
 

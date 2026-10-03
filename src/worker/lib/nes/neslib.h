@@ -297,7 +297,10 @@ void __fastcall__ nmi_set_callback(void (*callback)(void));
 #define NAMETABLE_C		0x2800
 #define NAMETABLE_D		0x2c00
 
-#define NULL			0
+// newer cc65 stddef.h defines NULL as ((void*)0); don't clash with it
+#ifndef NULL
+#define NULL			((void*)0)
+#endif
 #define TRUE			1
 #define FALSE			0
 

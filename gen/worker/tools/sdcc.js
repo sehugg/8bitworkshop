@@ -445,9 +445,9 @@ function compileSDCC(step) {
             //'--noloopreverse',
             '-o', outpath];
         // if "#pragma opt_code" found do not disable optimziations
-        if (!isGBZ80 && !/^\s*#pragma\s+opt_code/m.exec(code)) {
+        if (!/^\s*#pragma\s+opt_code/m.exec(code)) {
             args.push.apply(args, [
-                '--oldralloc',
+                '--max-allocs-per-node', '500',
                 '--no-peep',
                 '--nolospre'
             ]);

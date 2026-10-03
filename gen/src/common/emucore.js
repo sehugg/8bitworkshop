@@ -428,6 +428,10 @@ class EmuCore {
     }
     getVideo() {
         var _a, _b, _c, _d;
+        // verilog sets hasvideo on ROM load; a design with no vsync/hsync/rgb
+        // leaves the headless raster blank, which isn't a failure to draw
+        if (this.platform.hasvideo === false)
+            return null;
         return (_d = (_b = (_a = this.captured) === null || _a === void 0 ? void 0 : _a.call(this)) !== null && _b !== void 0 ? _b : (_c = this.video) === null || _c === void 0 ? void 0 : _c.get()) !== null && _d !== void 0 ? _d : null;
     }
     /** Audio the platform produces, or null if it has none. */

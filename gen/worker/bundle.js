@@ -7316,6 +7316,7 @@
 
   // src/worker/tools/cc65.ts
   var CC65_SHARE = "share/cc65";
+  var re_cc65_warning = /:\s*Warning:/;
   var wasiModules = {};
   async function runCC65Tool(step, tool, args, populate) {
     const fsname = getSharedFileSystemName("cc65", step.platform);
@@ -7452,7 +7453,7 @@
       var extra = defineArgs("ca65", step.params.define).concat(defineArgs("ca65", step.params.symbols && step.params.symbols.assembler)).concat(extraArgsFor("ca65", step.params.buildArgs));
       args.splice(args.length - 1, 0, ...extra);
       const { wasi, errno, stderr } = await runCC65Tool(step, "ca65", args, (fs) => populateFiles(step, fs));
-      stderr.forEach(makeErrorMatcher(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1));
+      stderr.filter((s) => !re_cc65_warning.test(s)).forEach(makeErrorMatcher(errors, /(.+?):(\d+): (.+)/, 2, 3, step.path, 1));
       checkExitCode("ca65", errno, stderr, errors);
       if (errors.length) {
         let listings = {};
@@ -7501,7 +7502,10 @@
           populateEntry(fs, params.cfgfile, store.getFileEntry(params.cfgfile), null);
         }
       });
-      for (let s2 of stderr) errors.push({ msg: s2, line: 0 });
+      for (let s2 of stderr) {
+        if (re_cc65_warning.test(s2)) continue;
+        errors.push({ msg: s2, line: 0 });
+      }
       checkExitCode("ld65", errno, stderr, errors);
       if (errors.length)
         return { errors };
@@ -7615,8 +7619,8 @@
       }
       args.push.apply(args, defineArgs("cc65", params.symbols && params.symbols.compiler));
       args.push.apply(args, extraArgsFor("cc65", params.buildArgs));
-      var customArgs = params.extra_compiler_args || ["-T", "-g", "-Oirs", "-Cl", "-W", "-pointer-sign,-no-effect"];
-      args = args.concat(customArgs, args);
+      var customArgs = params.extra_compiler_args || ["-T", "-g", "-Oirs", "-Cl", "-W", "-pointer-sign,-no-effect,-unreachable-code"];
+      args = args.concat(customArgs, ["--disable-opt", "OptLoadStore1"], args);
       args.push(step.path);
       const { wasi, errno, stderr } = await runCC65Tool(step, "cc65", args, (fs) => {
         populateFiles(step, fs, {
@@ -7630,7 +7634,7 @@
         });
         populateExtraFiles(step, fs, params.extra_compile_files);
       });
-      stderr.forEach(makeErrorMatcher(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
+      stderr.filter((s) => !re_cc65_warning.test(s)).forEach(makeErrorMatcher(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
       checkExitCode("cc65", errno, stderr, errors);
       if (errors.length) return { errors };
       putWorkFile(destpath, readWASIOutputString(wasi, destpath));
@@ -8440,9 +8444,10 @@ b${f[1]} == ${m[1]}`);
         "-o",
         outpath
       ];
-      if (!isGBZ80 && !/^\s*#pragma\s+opt_code/m.exec(code)) {
+      if (!/^\s*#pragma\s+opt_code/m.exec(code)) {
         args.push.apply(args, [
-          "--oldralloc",
+          "--max-allocs-per-node",
+          "500",
           "--no-peep",
           "--nolospre"
         ]);

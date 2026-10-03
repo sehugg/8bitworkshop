@@ -12,6 +12,7 @@ const APPLE2_PRESETS: Preset[] = [
   { id: 'keyboardtest.c', name: 'Keyboard Test' },
   { id: 'mandel.c', name: 'Mandelbrot' },
   { id: 'tgidemo.c', name: 'TGI Graphics Demo' },
+  { id: 'icepiano.c', name: 'Ice Piano (Hires Demo)' },
   { id: 'Eliza.c', name: 'Eliza' },
   { id: 'siegegame.c', name: 'Siege Game' },
   { id: 'cosmic.c', name: 'Cosmic Impalas' },

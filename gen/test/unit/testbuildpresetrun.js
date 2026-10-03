@@ -64,9 +64,14 @@ function fill(color, n = 100) {
         assert_1.default.strictEqual(s.color, BLUE);
     });
     (0, mocha_1.it)('flags a nearly single-color screen as solid', function () {
-        const px = fill(BLUE, 1000);
-        px[0] = RED; // one stray pixel out of 1000
+        const px = fill(BLUE, 10000);
+        px[0] = RED; // one stray pixel out of 10000, below the solid threshold
         assert_1.default.strictEqual((0, buildpresets_1.screenStats)(px).verdict, 'solid');
+    });
+    (0, mocha_1.it)('passes a screen with a few stray pixels (stars on a solid field)', function () {
+        const px = fill(BLUE, 1000);
+        px[0] = RED; // 0.1% off-color, above what the solid threshold allows
+        assert_1.default.strictEqual((0, buildpresets_1.screenStats)(px).verdict, 'ok');
     });
     (0, mocha_1.it)('passes a screen with a real background and foreground', function () {
         const px = fill(BLUE);

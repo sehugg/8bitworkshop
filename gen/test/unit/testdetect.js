@@ -77,6 +77,22 @@ function files(map) {
         var d = await (0, detect_1.detectProject)(files({ 'game.dasm': '  processor 6502\n  sta WSYNC\n  sta COLUBK\n' }));
         assert_1.default.strictEqual(d[0].platform, 'vcs');
     });
+    (0, mocha_1.it)('tells the Atari 8-bit family apart by header', async () => {
+        // atari.h is guarded by __ATARI__ (800); atari5200.h by __ATARI5200__
+        var d = await (0, detect_1.detectProject)(files({ 'game.c': '#include <atari.h>\nvoid main() {}\n' }));
+        assert_1.default.strictEqual(d[0].platform, 'atari8-800');
+        d = await (0, detect_1.detectProject)(files({ 'game.c': '#include <atari5200.h>\nvoid main() {}\n' }));
+        assert_1.default.strictEqual(d[0].platform, 'atari8-5200');
+    });
+    (0, mocha_1.it)('prefers the folder name over a shared Atari library header', async () => {
+        var map = {
+            'game.c': '#include <atari.h>\nvoid main() {}\n',
+            'a8lib.h': '#if defined(__ATARI5200__)\n#include <atari5200.h>\n#else\n#include <atari.h>\n#endif\n',
+        };
+        var d = await (0, detect_1.detectProject)({ files: Object.keys(map), read: (fn) => map[fn], platforms: PLATFORMS, dirName: 'atari8-800' });
+        assert_1.default.strictEqual(d[0].platform, 'atari8-800');
+        assert_1.default.ok((0, detect_1.isClearWinner)(d));
+    });
     (0, mocha_1.it)('says nothing about plain C', async () => {
         var d = await (0, detect_1.detectProject)(files({ 'util.c': 'int add(int a, int b) { return a + b; }\n', 'util.h': 'int add(int, int);\n' }));
         assert_1.default.ok(d.every(x => x.score < 0.5), JSON.stringify(d));

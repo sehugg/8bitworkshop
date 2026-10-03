@@ -97,8 +97,8 @@ const PLATFORM_SRC_DIR = 'src/platform';
 const DEFAULT_TIMEOUT = 120000;
 const DEFAULT_RUN_FRAMES = 300;
 // A frame this uniform after a few seconds almost always means nothing drew;
-// a real screen has a background plus text or sprites.
-const SOLID_FRACTION = 0.999;
+// a real screen has a background plus text or sprites (or stars).
+const SOLID_FRACTION = 0.9995;
 // skip these platforms, they aren't ready yet or otherwise broken
 const SKIP_PLATFORMS = [
     'vector-ataribw',
@@ -107,6 +107,9 @@ const SKIP_PLATFORMS = [
     'mcr',
     'vectrex',
 ];
+// build these, but don't run them: the emulator needs a real browser
+// (x86 is the v86 PC emulator, loaded as a page script)
+const NO_RUN_PLATFORMS = ['x86'];
 // Load every platform module so it registers itself in PLATFORMS. A couple of
 // them touch the DOM at import time and can't run here; they're reported
 // rather than hidden.
@@ -478,6 +481,9 @@ async function runPreset(result, preset, platform, opts = {}) {
     const started = Date.now();
     const frames = opts.frames || DEFAULT_RUN_FRAMES;
     const run = { ok: false, frames, verdict: 'error', ms: 0 };
+    if (NO_RUN_PLATFORMS.includes(platform)) {
+        return Object.assign(Object.assign({}, run), { ok: true, frames: 0, verdict: 'skipped' });
+    }
     const capture = opts.verbose ? null : captureOutput();
     let target = null;
     try {
@@ -632,6 +638,7 @@ function runStatus(run) {
         case 'ok': return green('run ok') + ' ' + dim(info);
         case 'halted': return dim('run halted') + ' ' + dim(info);
         case 'novideo': return dim('run: no video');
+        case 'skipped': return dim('run: skipped (needs browser)');
         case 'blank': return yellow(bold('run BLANK')) + ' ' + dim(info);
         case 'solid': return yellow(bold('run SOLID')) + ' ' + dim(info);
         default: return red(bold('run FAIL')) + ' ' + dim(info);
@@ -697,7 +704,7 @@ async function main() {
     const results = await buildAllPresets({
         presets, timeout, verbose, run, frames, pngDir, onResult: (r) => {
             var _a, _b;
-            const clean = !r.run || r.run.verdict === 'ok' || r.run.verdict === 'novideo' || r.run.verdict === 'halted';
+            const clean = !r.run || r.run.verdict === 'ok' || r.run.verdict === 'novideo' || r.run.verdict === 'skipped' || r.run.verdict === 'halted';
             if (quiet && r.ok && clean)
                 return;
             const status = r.ok ? green('ok  ') : red(bold('FAIL'));
@@ -741,7 +748,7 @@ async function main() {
     // what the builds did when loaded, separately from whether they built
     const ran = results.filter((r) => r.run);
     if (ran.length) {
-        const problems = ran.filter((r) => r.run.verdict !== 'ok' && r.run.verdict !== 'novideo' && r.run.verdict !== 'halted');
+        const problems = ran.filter((r) => r.run.verdict !== 'ok' && r.run.verdict !== 'novideo' && r.run.verdict !== 'skipped' && r.run.verdict !== 'halted');
         const tally2 = `${ran.length - problems.length}/${ran.length} presets run clean`;
         console.log('\n' + bold(problems.length ? yellow(tally2) : green(tally2)));
         if (problems.length) {

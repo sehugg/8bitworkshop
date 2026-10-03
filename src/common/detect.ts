@@ -65,7 +65,7 @@ const SYSTEM_HEADERS: { [header: string]: string[] } = {
   'cbm.h': ['c64', 'vic20'],
   'apple2.h': ['apple2'],
   'apple2enh.h': ['apple2'],
-  'atari.h': ['atari8-800', 'atari8-5200'],
+  'atari.h': ['atari8-800'],
   'atari5200.h': ['atari8-5200'],
   'atari7800.h': ['atari7800'],
   'pce.h': ['pce'],
@@ -292,7 +292,9 @@ export async function detectProject(input: DetectInput): Promise<Detection[]> {
 export function isClearWinner(detections: Detection[]): boolean {
   if (!detections.length || detections[0].score < 0.5) return false;
   var w = (d: Detection) => d.weight ?? d.score;
-  return detections.length == 1 || w(detections[0]) - w(detections[1]) >= 0.2;
+  // weights are rounded for display, so allow for the rounding error when the
+  // lead lands exactly on the threshold (e.g. a 0.2 folder-name hint)
+  return detections.length == 1 || w(detections[0]) - w(detections[1]) >= 0.2 - 1e-9;
 }
 
 /**

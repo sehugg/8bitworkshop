@@ -376,22 +376,23 @@ byte just_one_actor_left() {
 }
 
 void main() {
-  dvgclear();
-  dvgwrofs = 0x800; //write into the middle of VEC ROM (TODO)
-  make_cached_shapes();
-  create_obstacles(5);
-  new_player_ship();
-  while (!just_one_actor_left()) {
-    dvgreset();
-    control_player();
-    draw_and_update_actors();
-    CNTR();
-    HALT();
-    dvgstart();
-    remove_expired_actors();
-    frame++;
-    watchdog=0;
-//    while (vidframe == (frame & 0x3)) {}
+  for (;;) {
+    dvgclear();
+    dvgwrofs = 0x800; //write into the middle of VEC ROM (TODO)
+    make_cached_shapes();
+    create_obstacles(5);
+    new_player_ship();
+    while (!just_one_actor_left()) {
+      dvgreset();
+      control_player();
+      draw_and_update_actors();
+      CNTR();
+      HALT();
+      dvgstart();
+      remove_expired_actors();
+      frame++;
+      watchdog=0;
+  //    while (vidframe == (frame & 0x3)) {}
+    }
   }
-  main();
 }

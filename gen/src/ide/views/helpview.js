@@ -31,6 +31,7 @@ const breakpoints_md_1 = __importDefault(require("../../docs/breakpoints.md"));
 const asseteditor_md_1 = __importDefault(require("../../docs/asseteditor.md"));
 const managing_files_md_1 = __importDefault(require("../../docs/managing-files.md"));
 const build_directives_md_1 = __importDefault(require("../../docs/build-directives.md"));
+const cc65_upgrade_md_1 = __importDefault(require("../../docs/cc65-upgrade.md"));
 const toolchains_md_1 = __importDefault(require("../../docs/toolchains.md"));
 const asset_headers_md_1 = __importDefault(require("../../docs/asset-headers.md"));
 const embedding_ide_md_1 = __importDefault(require("../../docs/embedding-ide.md"));
@@ -54,6 +55,7 @@ exports.HELP_TOPICS = [
     { id: "asseteditor", title: "Asset Editor", html: asseteditor_md_1.default },
     { id: "managing-files", title: "Managing Files", html: managing_files_md_1.default },
     { id: "build-directives", title: "Build Directives", html: build_directives_md_1.default },
+    { id: "cc65-upgrade", title: "CC65 Upgrade", html: cc65_upgrade_md_1.default },
     { id: "toolchains", title: "Toolchains & Platforms", html: toolchains_md_1.default },
     { id: "asset-headers", title: "Asset Headers", html: asset_headers_md_1.default },
     { id: "embedding-ide", title: "Embedding the IDE", html: embedding_ide_md_1.default },

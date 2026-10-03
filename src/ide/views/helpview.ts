@@ -22,6 +22,7 @@ import breakpointsMd from "../../docs/breakpoints.md";
 import asseteditorMd from "../../docs/asseteditor.md";
 import managingFilesMd from "../../docs/managing-files.md";
 import buildDirectivesMd from "../../docs/build-directives.md";
+import cc65upgrade from "../../docs/cc65-upgrade.md";
 import toolchainsMd from "../../docs/toolchains.md";
 import assetHeadersMD from "../../docs/asset-headers.md";
 import embeddingIdeMd from "../../docs/embedding-ide.md";
@@ -57,6 +58,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   { id: "asseteditor", title: "Asset Editor", html: asseteditorMd },
   { id: "managing-files", title: "Managing Files", html: managingFilesMd },
   { id: "build-directives", title: "Build Directives", html: buildDirectivesMd },
+  { id: "cc65-upgrade", title: "CC65 Upgrade", html: cc65upgrade },
   { id: "toolchains", title: "Toolchains & Platforms", html: toolchainsMd },
   { id: "asset-headers", title: "Asset Headers", html: assetHeadersMD },
   { id: "embedding-ide", title: "Embedding the IDE", html: embeddingIdeMd },

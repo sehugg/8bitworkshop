@@ -42,7 +42,7 @@ const SYSTEM_HEADERS = {
     'cbm.h': ['c64', 'vic20'],
     'apple2.h': ['apple2'],
     'apple2enh.h': ['apple2'],
-    'atari.h': ['atari8-800', 'atari8-5200'],
+    'atari.h': ['atari8-800'],
     'atari5200.h': ['atari8-5200'],
     'atari7800.h': ['atari7800'],
     'pce.h': ['pce'],
@@ -283,7 +283,9 @@ function isClearWinner(detections) {
     if (!detections.length || detections[0].score < 0.5)
         return false;
     var w = (d) => { var _a; return (_a = d.weight) !== null && _a !== void 0 ? _a : d.score; };
-    return detections.length == 1 || w(detections[0]) - w(detections[1]) >= 0.2;
+    // weights are rounded for display, so allow for the rounding error when the
+    // lead lands exactly on the threshold (e.g. a 0.2 folder-name hint)
+    return detections.length == 1 || w(detections[0]) - w(detections[1]) >= 0.2 - 1e-9;
 }
 /**
  * Strong enough to bring up unasked, on opening a folder: a high score,

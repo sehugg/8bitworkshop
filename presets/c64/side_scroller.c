@@ -71,7 +71,7 @@ const char SPRITE_DATA[64*NUM_SPRITE_PATTERNS] = {
 #define OBSTACLE_INDEX 2
 
 #define CENTER_X 172		// sprite start X coord.
-#define FLOOR_Y (128 << 8)	// sprite start Y (fixed 8.8)
+#define FLOOR_Y (128u << 8)	// sprite start Y (fixed 8.8)
 #define JUMP_VELOCITY (-900)	// jump velocity (fixed 8.8)
 #define GRAVITY 32		// gravity (fixed 8.8)
 

@@ -49,7 +49,7 @@ async function launch(args = {}) {
         let frame = await c.where();
         assert_1.default.strictEqual(frame.source.path, `${ROOT}/game2.c`);
         assert_1.default.strictEqual(frame.line, 166);
-        assert_1.default.strictEqual(frame.name, '_draw_string+18');
+        assert_1.default.strictEqual(frame.name, '_draw_string+31');
         await c.request('next', { threadId: 1 });
         assert_1.default.strictEqual((await c.event('stopped')).reason, 'step');
         assert_1.default.strictEqual((await c.where()).line, 167);
@@ -57,7 +57,7 @@ async function launch(args = {}) {
         assert_1.default.strictEqual((await c.event('stopped')).reason, 'step');
         frame = await c.where();
         assert_1.default.strictEqual(frame.line, 166);
-        assert_1.default.strictEqual(frame.name, '_draw_string+18');
+        assert_1.default.strictEqual(frame.name, '_draw_string+31');
     });
     (0, mocha_1.it)('shows registers, memory and disassembly around the PC', async function () {
         const c = await launch();

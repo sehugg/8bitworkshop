@@ -1,7 +1,8 @@
 /*
 NOTE: The alternate Apple ][ ROM used by 8bitworkshop
-      is not compatible with the hi-res TGI driver.
-      So we use the lo-res driver here.
+      has no Applesoft routines, so the stock hi-res TGI driver
+      doesn't work. We use our own hi-res driver, a2hires.s.
+      apple2-hgr2.cfg keeps $2000-$5FFF free for the picture.
 */
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,6 +11,10 @@ NOTE: The alternate Apple ][ ROM used by 8bitworkshop
 #include <ctype.h>
 #include <modload.h>
 #include <tgi.h>
+#include "a2hires.h"
+//#link "a2hires.s"
+//#tooldef ld cfgfile=apple2-hgr2.cfg
+//#resource "apple2-hgr2.cfg"
 
 #ifndef DYN_DRV
 #  define DYN_DRV       0
@@ -189,7 +194,7 @@ int main (void)
     CheckError ("tgi_load_driver");
 #else
     /* Install the driver */
-    tgi_install (a2_lo_tgi);
+    tgi_install (a2hires_tgi);
     CheckError ("tgi_install");
 #endif
 

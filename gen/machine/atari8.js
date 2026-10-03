@@ -18,6 +18,7 @@ const atari8disk_1 = require("./atari8disk");
 const SIO_STUB_OFFSET = 0xa0; // $D5A0
 const SIO_HOOK_OFFSET = 0xf0; // $D5F0 - write here to call JS
 const SIO_STATUS_OFFSET = 0xf1; // $D5F1 - JS puts the SIO status here
+const XEX_HOOK_OFFSET = 0xf2; // $D5F2 - write here to load the next XEX chunks
 // lda $0300; cmp #$31; bcc notdisk; cmp #$40; bcs notdisk;
 // sta $D5F0; lda $D5F1; tay; rts; notdisk: jmp $E950
 const SIO_STUB = [
@@ -77,6 +78,9 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         this.cart_80 = false;
         this.cart_a0 = false;
         this.xexdata = null;
+        this.xexofs = 0;
+        this.xexstubofs = 0;
+        this.xexrunaddr = -1;
         this.disk = null;
         this.keyboard_active = true;
         this.d500 = new Uint8Array(0x100);
@@ -391,6 +395,9 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         else if (addr == SIO_HOOK_OFFSET) {
             this.handleSIO();
         }
+        else if (addr == XEX_HOOK_OFFSET && this.xexdata) {
+            this.loadXEXChunks(this.xexdata);
+        }
     }
     // Called from the patched SIO stub with the SIO parameter block in page 3.
     handleSIO() {
@@ -445,13 +452,28 @@ class Atari800 extends devices_1.BasicScanlineMachine {
         this.write(0x303, status);
         this.d500[SIO_STATUS_OFFSET] = status;
     }
+    // Load an XEX the way the OS binary loader does: chunks are copied in file
+    // order, and each INIT vector (\$2E2) is *called* before the next chunk is
+    // loaded. cc65's "system check" chunk at $2E00 is overwritten by the main
+    // program, so its INIT must run first. Since the CPU has to run the INIT
+    // code, we stop at each one, emit "JSR init; STA $D5F2" into the $D500 stub,
+    // and the write to $D5F2 loads the following chunks.
     loadXEX(rom) {
-        let ofs = 2;
+        this.xexdata = rom; // the $D5F2 hook continues from here
+        this.xexofs = 2;
+        this.xexstubofs = 0;
+        this.xexrunaddr = -1;
+        this.loadXEXChunks(rom);
+    }
+    loadXEXChunks(rom) {
         let stub = this.d500;
-        let stubofs = 0; // stub routine 
-        var runaddr = -1;
-        // load segments into RAM
+        let ofs = this.xexofs;
         while (ofs < rom.length) {
+            // a $FFFF header may precede any chunk
+            if (rom[ofs] == 0xff && rom[ofs + 1] == 0xff) {
+                ofs += 2;
+                continue;
+            }
             let start = rom[ofs + 0] + rom[ofs + 1] * 256;
             let end = rom[ofs + 2] + rom[ofs + 3] * 256;
             console.log('XEX', (0, util_1.hex)(ofs), (0, util_1.hex)(start), (0, util_1.hex)(end));
@@ -459,34 +481,38 @@ class Atari800 extends devices_1.BasicScanlineMachine {
             for (let i = start; i <= end; i++) {
                 this.ram[i] = rom[ofs++];
             }
+            if (ofs > rom.length)
+                throw new Error("Bad .XEX file format");
             if (start == 0x2e0 && end == 0x2e1) {
-                runaddr = this.ram[0x2e0] + this.ram[0x2e1] * 256;
-                console.log('XEX run', (0, util_1.hex)(runaddr));
+                this.xexrunaddr = this.ram[0x2e0] + this.ram[0x2e1] * 256;
+                console.log('XEX run', (0, util_1.hex)(this.xexrunaddr));
             }
             if (start == 0x2e2 && end == 0x2e3) {
                 var initaddr = this.ram[0x2e2] + this.ram[0x2e3] * 256;
                 console.log('XEX init', (0, util_1.hex)(initaddr));
-                stub[stubofs++] = 0x20;
-                stub[stubofs++] = initaddr & 0xff;
-                stub[stubofs++] = initaddr >> 8;
+                let so = this.xexstubofs;
+                stub.set([0x20, initaddr & 0xff, initaddr >> 8, // jsr init
+                    0x8d, XEX_HOOK_OFFSET, 0xd5], so); // sta $d5f2 (load more)
+                this.xexstubofs = so + 6;
+                this.xexofs = ofs;
+                this.run_address = 0xd500;
+                // set DOSVEC to 0xd500
+                this.ram[0xa] = 0x00;
+                this.ram[0xb] = 0xd5;
+                return;
             }
-            if (ofs > rom.length)
-                throw new Error("Bad .XEX file format");
         }
-        if (runaddr >= 0) {
-            // build stub routine at 0xd500
-            stub[stubofs++] = 0xa9; // lda #$a0
-            stub[stubofs++] = 0xa0;
-            stub[stubofs++] = 0x8d; // sta $d5ff (disable cart)
-            stub[stubofs++] = 0xff;
-            stub[stubofs++] = 0xd5;
-            stub[stubofs++] = 0x4c; // jmp runaddr
-            stub[stubofs++] = runaddr & 0xff;
-            stub[stubofs++] = runaddr >> 8;
+        this.xexofs = ofs;
+        if (this.xexrunaddr >= 0) {
+            let so = this.xexstubofs;
+            stub.set([0xa9, 0xa0, // lda #$a0
+                0x8d, 0xff, 0xd5, // sta $d5ff (disable cart)
+                0x4c, this.xexrunaddr & 0xff, this.xexrunaddr >> 8], so); // jmp runaddr
+            this.xexstubofs = so + 8;
+            this.run_address = 0xd500;
             // set DOSVEC to 0xd500
             this.ram[0xa] = 0x00;
             this.ram[0xb] = 0xd5;
-            this.run_address = 0xd500;
         }
     }
     initCartA() {

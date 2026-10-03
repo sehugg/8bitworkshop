@@ -401,6 +401,9 @@ export class EmuCore {
   }
 
   getVideo(): VideoOutput | null {
+    // verilog sets hasvideo on ROM load; a design with no vsync/hsync/rgb
+    // leaves the headless raster blank, which isn't a failure to draw
+    if ((this.platform as any).hasvideo === false) return null;
     return this.captured?.() ?? this.video?.get() ?? null;
   }
 

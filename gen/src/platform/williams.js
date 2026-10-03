@@ -288,19 +288,23 @@ var WilliamsPlatform = function (mainElement, proto, options) {
         };
         cpu = self.newCPU(membus, iobus);
         audio = new audio_1.MasterAudio();
-        worker = new Worker("./src/common/audio/z80worker.js");
-        workerchannel = new audio_1.WorkerSoundChannel(worker);
-        audio.master.addChannel(workerchannel);
+        // the sound board runs in a web worker; headless (node) has no sound
+        if (typeof Worker !== 'undefined') {
+            worker = new Worker("./src/common/audio/z80worker.js");
+            workerchannel = new audio_1.WorkerSoundChannel(worker);
+            audio.master.addChannel(workerchannel);
+        }
         let rotate = (options === null || options === void 0 ? void 0 : options.rotate) == null ? -90 : parseFloat(options.rotate);
         video = new emu_1.RasterVideo(mainElement, SCREEN_WIDTH, SCREEN_HEIGHT, { rotate });
         video.create();
-        $(video.canvas).click(function (e) {
-            var x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width());
-            var y = Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height());
-            var addr = (x >> 3) + (y * 32) + 0x400;
-            if (displayPCs)
-                console.log(x, y, (0, util_1.hex)(addr, 4), "PC", (0, util_1.hex)(displayPCs[addr], 4));
-        });
+        if (typeof $ !== 'undefined')
+            $(video.canvas).click(function (e) {
+                var x = Math.floor(e.offsetX * video.canvas.width / $(video.canvas).width());
+                var y = Math.floor(e.offsetY * video.canvas.height / $(video.canvas).height());
+                var addr = (x >> 3) + (y * 32) + 0x400;
+                if (displayPCs)
+                    console.log(x, y, (0, util_1.hex)(addr, 4), "PC", (0, util_1.hex)(displayPCs[addr], 4));
+            });
         var idata = video.getFrameData();
         poller = (0, emu_1.setKeyboardFromMap)(video, pia6821, KEYCODE_MAP);
         pixels = video.getFrameData();
@@ -341,7 +345,8 @@ var WilliamsPlatform = function (mainElement, proto, options) {
     this.loadSoundROM = function (data) {
         console.log("loading sound ROM " + data.length + " bytes");
         var soundrom = (0, emu_1.padBytes)(data, 0x4000);
-        worker.postMessage({ rom: soundrom });
+        if (worker)
+            worker.postMessage({ rom: soundrom });
     };
     this.loadROM = function (title, data) {
         if (data.length > 2) {
