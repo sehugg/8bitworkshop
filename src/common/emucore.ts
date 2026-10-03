@@ -39,6 +39,7 @@ import { disassembleF8 } from "./cpu/disasmF8";
 import { disassembleHuC6280 } from "./cpu/disasmHuC6280";
 import { CPU6809 } from "./cpu/6809";
 import * as emu from "./emu";
+import { VectorRaster, DEFAULT_VECTOR_SIZE } from "./vectorraster";
 
 export interface VideoOutput {
   pixels: Uint32Array;
@@ -98,7 +99,7 @@ export const DEFAULT_MAX_FRAMES = 1000;
  * Headless stand-ins for RasterVideo/VectorVideo/AnimationTimer. Platform
  * modules pick these up because Platform.start() reads them off the emu module.
  */
-function installHeadlessVideo() {
+function installHeadlessVideo(vectorSize: number) {
   // Platform.start() builds its video/timer by reading these classes off the
   // emu module, so we swap in headless stand-ins for the duration of start()
   // and put the real ones back afterwards. Leaving the stubs installed would
@@ -147,11 +148,24 @@ function installHeadlessVideo() {
     this.putImageData = function () { };
     this.style = {};
   };
-  const VectorVideo: any = function () {
+  // the first one is the screen, like RasterVideo; the platform draws in its own
+  // (w x h) coordinates and the raster is scaled so its long side is `vectorSize`
+  const VectorVideo: any = function (_el: any, w: number, h: number) {
+    const raster = new VectorRaster(w, h, vectorSize);
+    if (!pixels) {
+      params = { width: raster.width, height: raster.height };
+      pixels = raster.pixels;
+    }
+    this.width = w;
+    this.height = h;
+    this.persistenceAlpha = raster.persistenceAlpha;
     this.create = function () { this.drawops = 0; };
     this.setKeyboardEvents = setKeyboardEvents;
-    this.clear = function () { };
-    this.drawLine = function () { this.drawops++; };
+    this.clear = function () { raster.persistenceAlpha = this.persistenceAlpha; raster.clear(); };
+    this.drawLine = function (x1: number, y1: number, x2: number, y2: number, intensity: number, color: number) {
+      this.drawops++;
+      raster.drawLine(x1, y1, x2, y2, intensity, color);
+    };
   };
   const AnimationTimer: any = function (fps: number) {
     if (fps > 0) frameRate = fps;
@@ -187,6 +201,9 @@ export class EmuCore {
   private probe: ProbeAll | null = null;
   // frames run on a platform without a timeline
   private untimedFrames = 0;
+
+  /** pixels along the longer side of a vector platform's screen (set before start()) */
+  vectorSize = DEFAULT_VECTOR_SIZE;
 
   constructor(readonly id: string, readonly platform: Platform) {
   }
@@ -254,7 +271,7 @@ export class EmuCore {
   async start() {
     // start() is where platforms construct their video and timer, so install
     // the headless stand-ins just for that call, then restore the real classes.
-    const headless = installHeadlessVideo();
+    const headless = installHeadlessVideo(this.vectorSize);
     this.video = headless;
     try {
       await this.platform.start();

@@ -198,6 +198,11 @@ function config(uri?: vscode.Uri) {
   return vscode.workspace.getConfiguration(CONFIG, uri);
 }
 
+/** pixels along the longer side of a vector platform's screen */
+function vectorSize(): number {
+  return config().get<number>('vectorSize') || 512;
+}
+
 ////// toolchains
 
 /** A local copy (toolchainPath, or the repo in development), if there is one. */
@@ -432,7 +437,7 @@ async function runScriptHeadless(target: Target, build: BuildOutcome, script: st
       cancel = token.onCancellationRequested(() => reject(new Error('cancelled')));
     });
     var run = async () => {
-      await worker.call('start', target.platform, build.output, build.files, { paused: true });
+      await worker.call('start', target.platform, build.output, build.files, { paused: true, vectorSize: vectorSize() });
       var mainPath = path.posix.basename(target.main.path);
       return worker.call<ScriptResult>('script', script, { ...buildProducts(build), mainPath, paths: build.paths });
     };
@@ -708,7 +713,7 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
   var worker = await getEmu(target.platform);
   var title = describeTarget(target);
   try {
-    emuStatus = await worker.call<EmuStatus>('start', target.platform, build.output, build.files, opts);
+    emuStatus = await worker.call<EmuStatus>('start', target.platform, build.output, build.files, { ...opts, vectorSize: vectorSize() });
     // (the worker's first frame comes after this reply, so the panel is up in time)
     if (emuStatus.screen !== false || panel) openPanel(title, target.platform);
     vscode.commands.executeCommand('setContext', '8bitworkshop.emuOpen', true);

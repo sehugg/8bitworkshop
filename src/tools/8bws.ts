@@ -212,6 +212,8 @@ function looksLikeROM(file: string): boolean {
 
 async function openTarget(args: Args, platformId: string): Promise<EmuTarget> {
   const target = await loadPlatform(platformId);
+  const vectorSize = str(args, 'vector-size');
+  if (vectorSize) target.vectorSize = parseInt(vectorSize);
   await target.start();
   const bios = str(args, 'bios');
   if (bios && !target.loadBIOS(new Uint8Array(fs.readFileSync(bios)))) {
@@ -590,6 +592,7 @@ function usage(error?: string): never {
           '--png <file>': 'write a screenshot of the last frame',
           '--symbols <file>': 'load a .lbl/.sym file for symbolic addresses',
           '--bios <file>': 'load a BIOS image',
+          '--vector-size <px>': 'long side of a vector platform\'s screen (default 512)',
           '--info': 'dump debug info and disassembly when done',
           '--no-warnings': 'don\'t print compiler warnings',
           '--memdump <a,b>': 'hexdump a hex address range',

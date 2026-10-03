@@ -342,6 +342,14 @@
             ]
           }
         },
+        "8bitworkshop.vectorSize": {
+          "type": "number",
+          "default": 512,
+          "minimum": 128,
+          "maximum": 2048,
+          "scope": "window",
+          "markdownDescription": "Pixels along the longer side of the screen for vector platforms (`vector`, `vectrex`). Takes effect on the next run."
+        },
         "8bitworkshop.autoBuild": {
           "type": "string",
           "enum": [

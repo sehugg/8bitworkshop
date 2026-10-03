@@ -8,6 +8,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 
 ### Debugging and the `8bws` CLI
 
+- Vector platforms (`vector-*`, `vectrex`) render headlessly: a software rasterizer with phosphor fade draws their lines into the frame buffer, so `--png` and the VS Code emulator panel show them. The size is `--vector-size <px>` (long side, default 512), `EmuCore.vectorSize`, or the extension's `8bitworkshop.vectorSize`.
 - New `8bws` command-line tool (`npm run cli`) to build and run programs headlessly: `build`, `run`, `verify-replay`, `profile`, `detect`, `list-platforms`, `list-tools`; scripted emulator control; `--png`, `--json`, `--symbols`, `--memdump`, `--info`; platform and main file detected from a project directory.
 - Platform detection no longer confuses the Atari 8-bit targets: `atari.h` means the 800 (it is guarded by `__ATARI__`), `atari5200.h` means the 5200, and a folder named for a platform breaks a near-tie.
 - Emulators now run on a timeline: step back, seek, reverse run, `rbreak`, and deterministic replay with a replay-verification test that found determinism bugs in several platforms.

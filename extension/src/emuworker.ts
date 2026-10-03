@@ -108,6 +108,8 @@ export interface ScriptResult {
 export interface LoadOptions {
   /** load it stopped, as a debug session does until it is configured */
   paused?: boolean;
+  /** pixels along the longer side of a vector platform's screen */
+  vectorSize?: number;
 }
 
 /** DebugService methods the host may call through `debug`. */
@@ -198,6 +200,7 @@ const rpc: Rpc = new Rpc(parentPort, {
     stop();
     clearLastKeycodeMap();
     target = await loadPlatform(EMULATOR_FOR[platform] || platform);
+    if (opts.vectorSize) target.vectorSize = opts.vectorSize;
     await target.start();
     service = new DebugService(target, stopped);
     // machines build their keyboard handler as they start

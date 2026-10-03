@@ -5,6 +5,8 @@
 - The Verilog and Verilog (VGA) platforms now appear in New Project and Open
   Example.
 - Verilog syntax highlighting.
+- Vector platforms (Atari vector, Vectrex) show their video in the emulator panel. The
+  `8bitworkshop.vectorSize` setting sets its resolution (512 by default).
 - The mouse is a paddle in the emulator panel, for programs that read one
   (Verilog designs with `hpaddle`/`vpaddle` inputs, and platforms with paddles).
 - Reloading the window closes the emulator tab instead of restoring it blank.
