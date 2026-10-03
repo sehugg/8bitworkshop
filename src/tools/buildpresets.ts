@@ -15,6 +15,7 @@
 //   npm run buildpresets -- --json out.json  # machine-readable report
 //   npm run buildpresets -- --baseline test/presets-baseline.json
 //   npm run buildpresets -- --verbose        # let the tools print as they run
+//   npm run buildpresets -- --no-strict      # allow builds with compiler warnings
 //   npm run buildpresets -- --run            # run each build for 300 frames
 //   npm run buildpresets -- --run --png dir  # ... and save a screenshot each
 //
@@ -31,6 +32,7 @@
 //
 // With --baseline it exits nonzero when a preset that used to build stops
 // building (or a known-broken one starts building), so it can gate a commit.
+// A preset with compiler warnings fails unless --no-strict is given.
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -69,6 +71,7 @@ export interface PresetResult {
     size?: number;          // bytes of output, when it built
     ms: number;
     errors?: string[];
+    warnings?: string[];    // compiler warnings of a build that succeeded (errors, when strict)
     internal?: string;      // the tool crashed: the IDE would send an error report
     log?: string;           // what the tool printed, kept only when it failed
     run?: RunResult;        // present when built with --run
@@ -84,6 +87,7 @@ export interface PresetEntry {
 export interface BuildOptions {
     timeout?: number;       // ms before a wedged tool is given up on
     verbose?: boolean;      // let tools print as they run, even when they work
+    strict?: boolean;       // a build with warnings fails
     run?: boolean;          // load each build and run it
     frames?: number;        // frames to advance when running (default 300)
     pngDir?: string;        // directory to write a screenshot into, when running
@@ -574,7 +578,7 @@ export async function buildPreset(
         if (thrown) {
             errors = ["" + (thrown && thrown.message ? thrown.message : thrown)];
         } else if (!result.success) {
-            errors = (result.errors || []).map((e) => `${e.path || preset}:${e.line} ${e.msg}`);
+            errors = (result.errors || []).map((e) => `${e.severity === 'warning' ? 'warning: ' : ''}${e.path || preset}:${e.line} ${e.msg}`);
             if (!errors.length) errors = ['build failed'];
         } else {
             errors = [];
@@ -584,10 +588,18 @@ export async function buildPreset(
         await preloadOnce(needsFS[1], platform);
     }
 
+    const warnings = (result?.warnings || []).map((w) => `${w.path || preset}:${w.line} ${w.msg}`);
+    let strictFailure = false;
+    if (opts.strict && !errors.length && warnings.length) {
+        errors = warnings.map((w) => 'warning: ' + w);
+        strictFailure = true;
+    }
+
     const ms = Date.now() - started;
     const internal = result?.internal ? `${result.internal.tool}: ${result.internal.msg}` : undefined;
-    if (errors.length) return { preset, platform, tool, ok: false, ms, errors, internal, log: log || undefined };
+    if (errors.length) return { preset, platform, tool, ok: false, ms, errors, warnings: warnings.length ? warnings : undefined, internal, log: strictFailure ? undefined : log || undefined };
     const built: PresetResult = { preset, platform, tool, ok: true, size: outputSize(result), ms };
+    if (warnings.length) built.warnings = warnings;
     if (opts.run) built.run = await runPreset(result, preset, platform, opts);
     return built;
 }
@@ -653,8 +665,12 @@ function runStatus(run: RunResult): string {
 function compareToBaseline(results: PresetResult[], baselinePath: string): number {
     const baseline: PresetResult[] = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
     const was: { [preset: string]: boolean } = {};
-    for (const b of baseline) was[b.preset] = b.ok;
-    let broke = 0, fixed = 0, added = 0;
+    const wasWarnings: { [preset: string]: number } = {};
+    for (const b of baseline) {
+        was[b.preset] = b.ok;
+        wasWarnings[b.preset] = b.warnings ? b.warnings.length : 0;
+    }
+    let broke = 0, fixed = 0, added = 0, warned = 0;
     for (const r of results) {
         if (!(r.preset in was)) {
             console.log(`  ${yellow('NEW')}      ${r.preset} (${r.ok ? 'builds' : 'fails'})`);
@@ -667,13 +683,21 @@ function compareToBaseline(results: PresetResult[], baselinePath: string): numbe
             console.log(`  ${green('FIXED')}    ${r.preset}`);
             fixed++;
         }
+        // a build that still works but warns more than it used to
+        const nwarn = r.warnings ? r.warnings.length : 0;
+        if (r.preset in was && nwarn > wasWarnings[r.preset]) {
+            console.log(`  ${yellow('WARNINGS')} ${r.preset} (${wasWarnings[r.preset]} -> ${nwarn})`);
+            for (const w of r.warnings || []) console.log(`             ${yellow(w)}`);
+            warned++;
+        }
     }
     const seen = new Set(results.map((r) => r.preset));
     for (const b of baseline) {
         if (!seen.has(b.preset)) console.log(`  ${dim('MISSING')}  ${dim(b.preset)}`);
     }
     console.log(`\nvs baseline: ${broke ? red(broke + ' broke') : '0 broke'}, ` +
-        `${fixed ? green(fixed + ' fixed') : '0 fixed'}, ${added} new`);
+        `${fixed ? green(fixed + ' fixed') : '0 fixed'}, ${added} new` +
+        (warned ? `, ${yellow(warned + ' with more warnings')}` : ''));
     return broke;
 }
 
@@ -685,6 +709,7 @@ async function main() {
     const baseline = arg(argv, 'baseline');
     const quiet = argv.includes('--quiet');
     const verbose = argv.includes('--verbose');
+    const strict = !argv.includes('--no-strict');
     // asking for frames or a screenshot only makes sense while running
     const run = argv.includes('--run') || argv.includes('--frames') || argv.includes('--png');
     const frames = arg(argv, 'frames') ? parseInt(arg(argv, 'frames')) : undefined;
@@ -703,14 +728,16 @@ async function main() {
     }
     console.log(bold(`${run ? 'building and running' : 'building'} ${presets.length} presets...`));
     const results = await buildAllPresets({
-        presets, timeout, verbose, run, frames, pngDir, onResult: (r) => {
+        presets, timeout, verbose, strict, run, frames, pngDir, onResult: (r) => {
             const clean = !r.run || r.run.verdict === 'ok' || r.run.verdict === 'novideo' || r.run.verdict === 'skipped' || r.run.verdict === 'halted';
-            if (quiet && r.ok && clean) return;
+            if (quiet && r.ok && clean && !r.warnings) return;
             const status = r.ok ? green('ok  ') : red(bold('FAIL'));
             const size = r.size != null ? `${r.size} bytes` : '';
             const runText = r.run ? ' ' + runStatus(r.run) : '';
             console.log(`${status} ${r.preset} ${cyan(`[${r.tool}/${r.platform}]`)} ${dim(size)} ${dim(r.ms + 'ms')}${runText}`);
             for (const e of r.errors || []) console.log(`       ${yellow(e)}`);
+            // when strict the warnings are the errors, already listed
+            if (r.ok) for (const w of r.warnings || []) console.log(`       ${dim('warning: ' + w)}`);
             if (r.internal) console.log(`       ${red(bold('CRASH'))} ${red(r.internal)} ${dim('(the IDE would report this)')}`);
             if (r.run?.png) console.log(`       ${dim(r.run.png)}`);
             // only a failure gets the tool's / platform's own output
@@ -734,6 +761,11 @@ async function main() {
         }
         console.log('\nby tool: ' + Object.keys(byTool).sort()
             .map((t) => `${cyan(t)}=${byTool[t]}`).join(' '));
+    }
+    const warned = results.filter((r) => r.ok && r.warnings);
+    if (warned.length) {
+        const nwarn = warned.reduce((n, r) => n + r.warnings.length, 0);
+        console.log('\n' + yellow(`${nwarn} warning(s) in ${warned.length} preset(s)`) + dim(' (allowed by --no-strict)'));
     }
     const crashed = results.filter((r) => r.internal);
     if (crashed.length) {

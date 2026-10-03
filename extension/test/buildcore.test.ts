@@ -87,6 +87,22 @@ describe('extension buildcore', function () {
   });
 
   // Run builds first, so running the same file twice gets an unchanged build
+  it('reports warnings of a successful build, and again when unchanged', async function () {
+    var src = 'void main(void) {\n  const const int x = 3;\n  while (1) ;\n}\n';
+    var req = () => ({
+      platform: 'nes', mainPath: 'warn.c', mainText: src,
+      files: new ProjectFileProvider(project({ 'warn.c': src }), ROOT, 'nes'),
+    });
+    var first = await builder.build(req());
+    assert.ok(first.success, JSON.stringify(first.diagnostics));
+    assert.ok(first.diagnostics.length > 0);
+    assert.ok(first.diagnostics.every(d => d.severity === 'warning' && d.path === 'warn.c'), JSON.stringify(first.diagnostics));
+    assert.equal(first.diagnostics[0].line, 2);
+    var second = await builder.build(req());
+    assert.ok(second.unchanged);
+    assert.deepEqual(second.diagnostics, first.diagnostics);
+  });
+
   it('returns the previous output when nothing changed', async function () {
     var src = '#include "neslib.h"\nvoid main(void) { ppu_on_all(); while (1) ; }\n';
     var req = () => ({

@@ -82,12 +82,16 @@ function relative(uri: vscode.Uri): string {
   return vscode.workspace.asRelativePath(uri, false);
 }
 
-/** "Built ..." or the errors, one `file:line: message` each. */
+/** "Built ..." or the errors, one `file:line: message` each; warnings follow either. */
 export function describeBuild(t: ToolTarget, r: BuildOutcome): string {
   var what = `${relative(t.main)} with ${r.tool} for ${t.platform}`;
-  if (r.success) return `Built ${what}: ${r.output?.length ?? 0} bytes.`;
-  var lines = [`Build of ${what} failed with ${r.diagnostics.length} error(s):`];
-  for (var d of r.diagnostics) lines.push(`${relative(vscode.Uri.joinPath(t.main, '..', d.path))}:${d.line}: ${d.msg}`);
+  var nwarn = r.diagnostics.filter(d => d.severity === 'warning').length;
+  var nerr = r.diagnostics.length - nwarn;
+  var lines = [r.success ? `Built ${what}: ${r.output?.length ?? 0} bytes.` : `Build of ${what} failed with ${nerr} error(s):`];
+  if (r.success && nwarn) lines[0] += ` ${nwarn} warning(s):`;
+  for (var d of r.diagnostics) {
+    lines.push(`${relative(vscode.Uri.joinPath(t.main, '..', d.path))}:${d.line}: ${d.severity === 'warning' ? 'warning: ' : ''}${d.msg}`);
+  }
   return lines.join('\n');
 }
 

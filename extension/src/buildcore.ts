@@ -32,6 +32,8 @@ export interface BuildDiagnostic {
   /** 1-based line number (0 = no line) */
   line: number;
   msg: string;
+  /** a missing severity means 'error' */
+  severity?: 'error' | 'warning';
 }
 
 export interface BuildOutcome extends BuildProducts {
@@ -117,18 +119,22 @@ export class Builder {
         internal: { tool, platform: req.platform, ...toInternalError(e) },
       };
     }
+    var toPath = (err: WorkerError) => (err.path && filename2path[err.path]) || err.path || req.mainPath;
+    var toDiagnostic = (err: WorkerError): BuildDiagnostic =>
+      ({ path: toPath(err), line: err.line || 0, msg: err.msg, ...(err.severity && { severity: err.severity }) });
     if (!result || ('unchanged' in result && result.unchanged)) {
       // the worker skips unchanged builds, but Run still needs the output.
       // Keep the last success even after a failed build: reverting to the
       // source that built it makes the worker say unchanged again, and that
       // output is what Run (and the next unchanged build) must use.
-      return { ...this.last.get(key), success: true, tool, paths, files, diagnostics: [], unchanged: true };
+      // the warnings of the build that made the output still apply
+      var last = this.last.get(key);
+      return { ...last, success: true, tool, paths, files, diagnostics: last?.diagnostics ?? [], unchanged: true };
     }
     if ('errors' in result && result.errors && result.errors.length) {
-      var toPath = (err: WorkerError) => (err.path && filename2path[err.path]) || err.path || req.mainPath;
       return {
         success: false, tool, paths,
-        diagnostics: result.errors.map(err => ({ path: toPath(err), line: err.line || 0, msg: err.msg })),
+        diagnostics: result.errors.map(toDiagnostic),
         internal: result.internal,
       };
     }
@@ -137,7 +143,7 @@ export class Builder {
       // the receiver runs projectcore.processListings on them
       var r = result as any;
       var outcome: BuildOutcome = {
-        success: true, tool, paths, files, diagnostics: [],
+        success: true, tool, paths, files, diagnostics: (r.warnings || []).map(toDiagnostic),
         output: r.output, ...buildProducts(r),
       };
       this.last.set(key, outcome);

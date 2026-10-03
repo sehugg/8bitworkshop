@@ -13,7 +13,8 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Emulators now run on a timeline: step back, seek, reverse run, `rbreak`, and deterministic replay with a replay-verification test that found determinism bugs in several platforms.
 - Step Over for C and assembly sources, a Breakpoints pane, and more breakpoint conditions.
 - Call Stack view renamed Call Graph, with clocks and more detail per line.
-- cc65/ca65/ld65 warnings are still ignored on a successful build, but are now listed with the errors when a build fails.
+- Compiler warnings no longer fail a build or get lost: `WorkerError` has an optional `severity`, and a successful build returns `warnings`. cc65/ca65/ld65 and SDCC warnings show as gutter markers in the IDE (not in the error dialog), as warnings in the VS Code Problems panel, and on stderr from `8bws` (`--no-warnings` hides them). SDCC 3 warnings no longer fail the build.
+- `buildpresets` lists compiler warnings per preset, flags a rising warning count against `--baseline`, and fails builds with warnings unless `--no-strict` is given.
 - Reset clears the call graph; breakpoints are re-armed after a build.
 - Click the hex offset in the gutter to run to that line.
 - Waveform viewer for Verilog, with help and shortcuts.

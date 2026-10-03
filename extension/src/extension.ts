@@ -808,7 +808,9 @@ async function runBuild(target: Target, reason: BuildReason): Promise<BuildOutco
     releaseHeldDiagnostics();
     showDiagnostics(result, toUri);
     var size = result.output?.length ?? 0;
-    output.appendLine(`${mainPath}: built with ${result.tool} for ${target.platform}, ${size} bytes (${elapsed} ms)`);
+    var nwarn = result.diagnostics.length;
+    output.appendLine(`${mainPath}: built with ${result.tool} for ${target.platform}, ${size} bytes${nwarn ? `, ${nwarn} warning(s)` : ''} (${elapsed} ms)`);
+    for (var d of result.diagnostics) output.appendLine(`  ${d.path}:${d.line}: warning: ${d.msg}`);
     if (result.output && reason !== 'type') await exportRom(target, result.output);
   } else if (reason === 'type') {
     // half-typed code fails; hold the errors until the typing pauses
@@ -825,8 +827,9 @@ async function runBuild(target: Target, reason: BuildReason): Promise<BuildOutco
 }
 
 function logErrors(mainPath: string, result: BuildOutcome, elapsed: number) {
-  output.appendLine(`${mainPath}: ${result.diagnostics.length} error(s) from ${result.tool} (${elapsed} ms)`);
-  for (var d of result.diagnostics) output.appendLine(`  ${d.path}:${d.line}: ${d.msg}`);
+  var nerr = result.diagnostics.filter(d => d.severity !== 'warning').length;
+  output.appendLine(`${mainPath}: ${nerr} error(s) from ${result.tool} (${elapsed} ms)`);
+  for (var d of result.diagnostics) output.appendLine(`  ${d.path}:${d.line}: ${d.severity === 'warning' ? 'warning: ' : ''}${d.msg}`);
 }
 
 const HOLD_ERRORS_MS = 1000;
@@ -853,7 +856,8 @@ function showDiagnostics(result: BuildOutcome, toUri: (rel: string) => vscode.Ur
     if (!byFile.has(key)) byFile.set(key, { uri, diags: [] });
     var line = Math.max(0, d.line - 1);
     var range = new vscode.Range(line, 0, line, Number.MAX_SAFE_INTEGER);
-    var diag = new vscode.Diagnostic(range, d.msg, vscode.DiagnosticSeverity.Error);
+    var severity = d.severity === 'warning' ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Error;
+    var diag = new vscode.Diagnostic(range, d.msg, severity);
     diag.source = result.tool;
     byFile.get(key)!.diags.push(diag);
   }

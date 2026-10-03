@@ -50,6 +50,15 @@ describe('8bws CLI', function () {
             assert.ok(r.data.outputSize > 0);
             assert.equal(fs.statSync(out).size, r.data.outputSize);
         });
+        it('should report warnings of a successful build', function () {
+            var src = path.join(os.tmpdir(), '8bws-test-warn.c');
+            fs.writeFileSync(src, 'void main(void) {\n  const const int x = 3;\n  while (1) ;\n}\n');
+            var r = cliJSON('build', '--platform', 'nes', src, '--check');
+            assert.ok(r.success, r.error);
+            assert.equal(r.data.warnings.length, 1);
+            assert.equal(r.data.warnings[0].severity, 'warning');
+            assert.equal(r.data.warnings[0].line, 2);
+        });
         it('should check without writing output', function () {
             var r = cliJSON('build', '--platform', 'gb', 'presets/gb/hello.c', '--check');
             assert.ok(r.success, r.error);

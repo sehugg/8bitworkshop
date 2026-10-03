@@ -31,7 +31,7 @@ import { createIncludeLinkPlugin } from "./includedecorations";
 import { isMobileDevice, ProjectView } from "./baseviews";
 import { Shortcut } from "../shortcutbar";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
-import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, offset, statusMarkers } from "./gutter";
+import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, ErrorInfo, offset, statusMarkers } from "./gutter";
 import { currentPc, errorMessages, errorSpans, highlightLines, showValue, tracedLines } from "./visuals";
 
 // look ahead this many bytes when finding source lines for a PC
@@ -516,7 +516,7 @@ export class SourceEditor implements ProjectView {
     // TODO: move cursor to error line if offscreen?
     this.clearErrors();
     errors = errors.slice(0, MAX_ERRORS);
-    const newErrors = new Map<number, string>();
+    const newErrors = new Map<number, ErrorInfo>();
     const spans: { line: number, start: number, end: number }[] = [];
     for (var info of errors) {
       // only mark errors with this filename, or without any filename
@@ -524,7 +524,10 @@ export class SourceEditor implements ProjectView {
         var numLines = this.editor.state.doc.lines;
         var line = info.line;
         if (isNaN(line) || line < 1 || line > numLines) line = 1;
-        newErrors.set(line, info.msg);
+        // an error on the line wins over a warning
+        if (!(info.severity === 'warning' && newErrors.has(line))) {
+          newErrors.set(line, { msg: info.msg, warning: info.severity === 'warning' });
+        }
         // collect column-level spans
         if (info.start != null && info.end != null && info.end > info.start) {
           spans.push({ line, start: info.start, end: info.end });

@@ -172,6 +172,26 @@ describe('Worker', function() {
   it('should report CC65 warnings along with errors', function(done) {
     compile('cc65', 'int main() {\nconst const int x=1;\nreturn y;\n}', 'nes', done, 0, 0, 2);
   });
+  it('should return CC65 warnings on a successful build, marked as warnings', async function() {
+    var msg = await queryWorker({code:'#if defined(__8BITWORKSHOP__) && defined(__MAIN__)\nint main() {\nconst const int x=7;\nreturn x+2;\n}\n#endif', platform:'nes.mame', tool:'cc65', path:'src.cc65', mainfile:true});
+    assert.ok(!msg.errors);
+    assert.ok(msg.output.length > 0);
+    assert.ok(msg.warnings.length >= 1);
+    assert.ok(msg.warnings.every(w => w.severity == 'warning' && w.line > 0 && w.path));
+  });
+  it('should mark CC65 warnings and errors apart on a failed build', async function() {
+    var msg = await queryWorker({code:'int main() {\nconst const int x=1;\nreturn y;\n}', platform:'nes', tool:'cc65', path:'src.cc65', mainfile:true});
+    assert.ok(!msg.output);
+    assert.equal(msg.errors.filter(e => e.severity == 'warning').length, 1);
+    assert.equal(msg.errors.filter(e => e.severity != 'warning').length, 1);
+  });
+  it('should return SDCC 4 warnings on a successful build', async function() {
+    var msg = await queryWorker({code:'//#tooldef c sdcc=4\nvoid main(int argc) {\n}\n', platform:'mw8080bw', tool:'sdcc', path:'src.sdcc', mainfile:true});
+    assert.ok(!(msg.errors && msg.errors.length));
+    assert.ok(msg.output.length > 0);
+    assert.ok(msg.warnings.length >= 1);
+    assert.ok(msg.warnings.every(w => w.severity == 'warning' && w.line > 0));
+  });
   it('should NOT compile CC65 (link error)', function(done) {
     compile('cc65', 'extern void bad();\nint main() {\nbad();\nreturn 0;\n}', 'nes', done, 0, 0, 1, {ignoreErrorPath:true});
   });
