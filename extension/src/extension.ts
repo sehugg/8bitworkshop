@@ -44,8 +44,8 @@ let assets: AssetStore | undefined;
 let panel: EmulatorPanel | undefined;
 let emuStatus: EmuStatus | null = null;
 /** The debug views in the panel container; the worker feeds the ones showing. */
-const views = new DebugViews(ids => { if (emu?.started) emu.call('setViews', ids); },
-  (index, value) => { if (emu?.started) emu.call('setSignal', index, value); });
+const views = new DebugViews(ids => { if (emu?.started) emu.notify('setViews', ids); },
+  (index, value) => { if (emu?.started) emu.notify('setSignal', index, value); });
 
 /** A view the worker asked to open (a design with no video), once its view exists. */
 let pendingReveal: string | undefined;
@@ -131,15 +131,15 @@ export function activate(ctx: vscode.ExtensionContext) {
   command('detectProjects', () => detectProjects(true));
   command('addLaunchConfiguration', () => addLaunchConfiguration());
   command('projectMenu', () => projectMenu());
-  command('reset', () => emu?.started && emu.call('reset'));
-  command('pause', () => emu?.started && emu.call('pause'));
-  command('resume', () => emu?.started && emu.call('resume'));
+  command('reset', () => emu?.started && emu.notify('reset'));
+  command('pause', () => emu?.started && emu.notify('pause'));
+  command('resume', () => emu?.started && emu.notify('resume'));
   command('stop', () => stopEmulator());
   command('downloadToolchains', () => prepareToolchains());
   command('mute', () => setMuted(true));
   command('unmute', () => setMuted(false));
   command('recordVcd', () => recordVcd());
-  command('stopVcd', () => emu?.started && emu.call('stopVcd'));
+  command('stopVcd', () => emu?.started && emu.notify('stopVcd'));
   command('showMachine', () => vscode.commands.executeCommand('8bitworkshop.machine.focus'));
   ctx.subscriptions.push(...views.register(ctx.extensionUri));
   muted = ctx.globalState.get<boolean>('muted', false);
@@ -680,12 +680,12 @@ function emulatorClosed() {
 function openPanel(title: string, platform: string) {
   if (!panel) {
     panel = new EmulatorPanel({
-      onKey: (key, code, flags) => { emu?.call('key', key, code, flags); },
-      onPaddle: (x, y, buttons) => { emu?.call('paddle', x, y, buttons); },
+      onKey: (key, code, flags) => { emu?.notify('key', key, code, flags); },
+      onPaddle: (x, y, buttons) => { emu?.notify('paddle', x, y, buttons); },
       onControlsVisible: visible => context.globalState.update('controlsVisible', visible),
       // don't burn CPU on a hidden screen
-      onVisible: visible => { emu?.call('setVisible', visible); },
-      onSeek: frame => { emu?.call('seekFrame', frame); },
+      onVisible: visible => { emu?.notify('setVisible', visible); },
+      onSeek: frame => { emu?.notify('seekFrame', frame); },
       // closing the emulator ends the program, and any session debugging it
       onDispose: () => emulatorClosed(),
     }, context.globalState.get<boolean>('controlsVisible', true));
@@ -717,8 +717,8 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
     // (the worker's first frame comes after this reply, so the panel is up in time)
     if (emuStatus.screen !== false || panel) openPanel(title, target.platform);
     vscode.commands.executeCommand('setContext', '8bitworkshop.emuOpen', true);
-    worker.call('setMuted', muted);
-    worker.call('setViews', views.subscriptions());
+    worker.notify('setMuted', muted);
+    worker.notify('setViews', views.subscriptions());
     setCapabilityContexts(emuStatus);
     flushReveal();
     panel?.showStatus(emuStatus);
@@ -801,7 +801,7 @@ function setMuted(m: boolean) {
   muted = m;
   context.globalState.update('muted', m);
   panel?.setMuted(m);
-  if (emu?.started) emu.call('setMuted', m);
+  if (emu?.started) emu.notify('setMuted', m);
   vscode.commands.executeCommand('setContext', '8bitworkshop.muted', m);
 }
 

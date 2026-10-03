@@ -60,6 +60,13 @@ export class WorkerHandle {
     return this.get().call<T>(method, ...args);
   }
 
+  /** call() without waiting for the reply. Disposal mid-call is expected, not an error. */
+  notify(method: string, ...args: any[]) {
+    this.call(method, ...args).catch(e => {
+      if (!(e instanceof WorkerDisposedError)) this.log(`${this.script}: ${method}: ${e && e.message || e}`);
+    });
+  }
+
   on(name: string, fn: (data: any) => void) {
     this.listeners[name] = fn;
     this.rpc?.on(name, fn);

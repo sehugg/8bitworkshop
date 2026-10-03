@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.1 (unreleased)
+## 0.1.1
 
 - The Verilog and Verilog (VGA) platforms now appear in New Project and Open
   Example.
@@ -25,6 +25,7 @@
   matching `vcd FILE` / `vcd off` script command.
 - Infer symbol sizes from build output, instead of one byte per variable.
 - Removed Hex Editor extension integration, we'll come up with a better one.
+- Closing the emulator tab no longer reports "emuworker.js was stopped" as an error.
 - Removed the assetUrl setting.
 - Dialog, Inform 6, armips, YASM, arm-tcc and smlrc, which no extension
   platform uses, are no longer packed.
