@@ -1,12 +1,13 @@
 
 import * as assert from 'assert';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { Worker } from 'worker_threads';
 import { Rpc } from '../src/rpc';
 import { findRootDir } from '../src/projectinfo';
 import { Builder, ProjectFileProvider } from '../src/buildcore';
-import type { AudioChunk, EmuStatus, FrameEvent, ScriptResult, ViewEvent } from '../src/emuworker';
+import type { AudioChunk, EmuStatus, FrameEvent, ScriptResult, VcdEvent, ViewEvent } from '../src/emuworker';
 import { WorkerDebugBackend } from '../src/debugbackend';
 import { EmuDebugSession } from '../../src/tools/dapsession';
 import { DapClient } from '../../test/unit/dapclient';
@@ -27,6 +28,7 @@ describe('extension emuworker', function () {
   var statuses: EmuStatus[];
   var audios: AudioChunk[];
   var viewEvents: ViewEvent[];
+  var vcdEvents: VcdEvent[];
 
   beforeEach(function () {
     worker = new Worker(path.join(__dirname, '..', 'emuworker.js'), { workerData: { rootDir: ROOT } });
@@ -35,6 +37,8 @@ describe('extension emuworker', function () {
     statuses = [];
     audios = [];
     viewEvents = [];
+    vcdEvents = [];
+    rpc.on('vcd', v => vcdEvents.push(v));
     rpc.on('view', v => viewEvents.push(v));
     rpc.on('frame', f => frames.push(f));
     rpc.on('status', s => statuses.push(s));
@@ -243,6 +247,87 @@ describe('extension emuworker', function () {
       await new Promise(r => setTimeout(r, 200));
       assert.ok(!exited, 'worker exited');
       await rpc.call('status');
+    });
+  });
+
+  describe('verilog VCD recording', function () {
+    const MAIN = [
+      'module top(clk, reset, hsync, vsync, rgb);',
+      '  input clk, reset;',
+      '  output hsync, vsync;',
+      '  output [3:0] rgb;',
+      '  reg [7:0] n;',
+      '  always @(posedge clk) n <= reset ? 0 : n + 1;',
+      '  assign hsync = n[7];',
+      '  assign vsync = 0;',
+      '  assign rgb = n[3:0];',
+      'endmodule',
+      '',
+    ].join('\n');
+    var built: Awaited<ReturnType<Builder['build']>>;
+    var dir: string;
+
+    before(async function () {
+      var read = async (rel: string) => null;
+      built = await new Builder(ROOT).build({
+        platform: 'verilog', mainPath: 'main.v', mainText: MAIN,
+        files: new ProjectFileProvider(read, ROOT, 'verilog'),
+      });
+      assert.deepEqual(built.diagnostics, []);
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), '8bws-vcd-'));
+    });
+
+    async function waitForVcd(recording: boolean) {
+      for (var i = 0; i < 400 && !vcdEvents.some(e => e.recording === recording); i++) await new Promise(r => setTimeout(r, 20));
+      var ev = vcdEvents.find(e => e.recording === recording);
+      assert.ok(ev, 'no vcd event ' + JSON.stringify(vcdEvents));
+      return ev!;
+    }
+
+    it('records a number of frames to a file and stops by itself', async function () {
+      var s = await rpc.call<EmuStatus>('start', 'verilog', built.output, built.files);
+      assert.ok(s.vcd, 'verilog design has signals to record');
+      var file = path.join(dir, 'a.vcd');
+      await rpc.call('startVcd', file, 2);
+      var done = await waitForVcd(false);
+      assert.equal(done.file, file);
+      assert.ok(done.clocks! > 0 && done.bytes! > 0);
+      var text = fs.readFileSync(file, 'utf-8');
+      assert.equal(text.length, done.bytes);
+      assert.ok(text.startsWith('$version'));
+      assert.ok(/\$var wire 8 \S+ n \[7:0\] \$end/.test(text), text.slice(0, 400));
+      assert.ok(text.endsWith('#' + done.clocks + '\n'));
+      // the counter changes every clock
+      assert.ok(text.split('\n').filter(l => /^b\d+ /.test(l)).length > 1000);
+    });
+
+    it('stops when asked, and a hidden-length recording keeps going until then', async function () {
+      await rpc.call('start', 'verilog', built.output, built.files);
+      var file = path.join(dir, 'b.vcd');
+      await rpc.call('startVcd', file);
+      await new Promise(r => setTimeout(r, 300));
+      assert.ok(!vcdEvents.some(e => !e.recording), 'no length, so it runs on');
+      var ev = await rpc.call<VcdEvent>('stopVcd');
+      assert.equal(ev.file, file);
+      assert.ok(ev.clocks! > 0);
+      assert.equal(await rpc.call('stopVcd'), null);
+    });
+
+    it('ends itself at the size limit', async function () {
+      await rpc.call('start', 'verilog', built.output, built.files);
+      var file = path.join(dir, 'full.vcd');
+      await rpc.call('startVcd', file, 0, 100000);
+      var done = await waitForVcd(false);
+      assert.ok(done.full, JSON.stringify(done));
+      assert.ok(done.bytes! >= 100000 && done.bytes! < 300000, 'bytes ' + done.bytes);
+      assert.equal(fs.statSync(file).size, done.bytes);
+      assert.equal(await rpc.call('stopVcd'), null, 'already finished');
+    });
+
+    it('refuses platforms with no signals', async function () {
+      var s = await rpc.call<EmuStatus>('start', 'nes', rom('nes/shoot2.c.rom'));
+      assert.ok(!s.vcd);
+      await assert.rejects(rpc.call('startVcd', path.join(dir, 'c.vcd')), /no signals/);
     });
   });
 

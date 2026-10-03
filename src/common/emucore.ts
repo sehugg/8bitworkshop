@@ -27,6 +27,8 @@ import {
 } from "./baseplatform";
 import { ProbeAll, SampledAudioParams, TrapCondition } from "./devices";
 import { History } from "./history";
+import { VCDWriter } from "./vcd";
+import type { WaveformMeta } from "./waveform";
 import { createCore, isRewindable, PlatformFrameInput } from "./platformcore";
 import { compareTimestamps, Timestamp, timestamp } from "./timeline";
 import { FileData } from "./workertypes";
@@ -177,6 +179,10 @@ export class EmuCore {
   private recording: History | null = null;
   // the machine's state was changed from outside the recording
   private recordingStale = true;
+  /** the VCD recording in progress (see startVcd) */
+  private vcd: VCDWriter | null = null;
+  /** the clocks in a recording that stopped itself (full), until stopVcd collects them */
+  private vcdFinished = 0;
   private input: PlatformFrameInput | null = null;
   private probe: ProbeAll | null = null;
   // frames run on a platform without a timeline
@@ -284,6 +290,8 @@ export class EmuCore {
    * to see their errors.
    */
   async loadROM(data: Uint8Array | object, title = 'ROM') {
+    // a new design has other signals
+    this.stopVcd();
     await this.platform.loadROM(title, data);
     this.recordingStale = true;
   }
@@ -449,6 +457,56 @@ export class EmuCore {
   getSerialOutput(): string | null {
     const p: any = this.platform;
     return typeof p.getSerialOutput === 'function' ? p.getSerialOutput() : null;
+  }
+
+  /** True if the platform can record its signals as a VCD (HDL platforms, once loaded). */
+  get supportsVcd(): boolean {
+    const p: any = this.platform;
+    return typeof p.setTraceSink === 'function' && typeof p.getSignalMetadata === 'function'
+      && (p.getSignalMetadata() || []).length > 0;
+  }
+
+  /**
+   * Record every clock's signal changes as a VCD, handing the text to `write`
+   * in chunks as it goes (nothing is kept, so a recording can be as long as
+   * the disk allows). Recording slows the simulation. Stops any recording
+   * already going; returns false if the platform has no signals to record.
+   * If `isFull` is given it is asked before every clock, and the recording
+   * ends itself when it says so (see vcdRunning).
+   */
+  startVcd(write: (chunk: string) => void, isFull?: () => boolean): boolean {
+    this.stopVcd();
+    if (!this.supportsVcd) return false;
+    const p: any = this.platform;
+    const signals = (p.getSignalMetadata() as WaveformMeta[]).filter(s => s.name).map(s => ({ name: s.name!, len: s.len }));
+    const writer = new VCDWriter(signals, write);
+    this.vcdFinished = 0;
+    p.setTraceSink((state: any) => {
+      // between clocks, so the writer isn't in the middle of a write
+      if (isFull && isFull()) this.vcdFinished = this.finishVcd();
+      else writer.sample(state);
+    });
+    this.vcd = writer;
+    return true;
+  }
+
+  /** True while a VCD recording is going (it ends itself if its `isFull` says so). */
+  get vcdRunning(): boolean { return this.vcd != null; }
+
+  /** Finish the recording, if there is one. Returns the number of clocks it holds. */
+  stopVcd(): number {
+    if (this.vcd) return this.finishVcd();
+    const clocks = this.vcdFinished;
+    this.vcdFinished = 0;
+    return clocks;
+  }
+
+  private finishVcd(): number {
+    const writer = this.vcd!;
+    this.vcd = null;
+    (this.platform as any).setTraceSink(null);
+    writer.finish();
+    return writer.samples;
   }
 
   /** True if the platform has debug info text to show (see getDebugInfo). */

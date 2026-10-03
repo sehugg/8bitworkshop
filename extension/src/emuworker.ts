@@ -17,6 +17,7 @@ import type { StopEvent } from '../../src/common/debugcontroller';
 import type { DebugSection } from '../../src/common/emucore';
 import { BuildInfo, DebugService, TimelineInfo } from '../../src/tools/debugservice';
 import { RunScript } from '../../src/tools/runscript';
+import { openVcdFile, VcdFile } from '../../src/tools/vcdfile';
 import { buildDebugContext } from '../../src/common/debugcontroller';
 import { encode as encodePng } from 'fast-png';
 
@@ -62,6 +63,19 @@ export interface EmuStatus {
   timeline?: TimelineInfo;
   /** the platform has debug info text for the Machine view */
   debugInfo?: boolean;
+  /** the program has signals that can be recorded as a VCD (startVcd) */
+  vcd?: boolean;
+}
+
+/** A VCD recording started or ended (the 'vcd' event). */
+export interface VcdEvent {
+  recording: boolean;
+  file: string;
+  /** when it ended: the clocks it holds and the bytes written */
+  clocks?: number;
+  bytes?: number;
+  /** it stopped because the file reached its size limit */
+  full?: boolean;
 }
 
 /** What a debug view gets (see DebugViews in views.ts). */
@@ -94,6 +108,8 @@ const DEBUG_METHODS = new Set([
   'seekFrame', 'location', 'timeline', 'registers', 'readMemory', 'writeMemory', 'disassemble', 'evaluate',
   'debugTree', 'signalTree', 'symbols', 'callStack',
 ]);
+// the ones that replay frames the recording already has
+const REWIND_METHODS = new Set(['stepBack', 'reverseContinue', 'seekFrame']);
 // the ones that start the machine running toward a goal
 const FORWARD_METHODS = new Set(['continue', 'step']);
 
@@ -121,6 +137,8 @@ let muted = false;
 /** the views the host has showing: only these get data */
 let views = new Set<string>();
 let lastViewPush = 0;
+/** the VCD file being written, and the frame to stop at (if it has a length) */
+let vcdFile: { file: VcdFile, path: string, end: number | null } | null = null;
 
 /**
  * The headless stand-in for the platform's Web Audio sink: SampleAudio hands
@@ -162,16 +180,41 @@ const rpc: Rpc = new Rpc(parentPort, {
   },
   async loadROM(rom: any, files?: { [path: string]: FileData }, opts: LoadOptions = {}) {
     if (!target) throw new Error('emulator not started');
+    stopVcd();
     target.setFileData(files || {});
     await target.loadROM(rom);
     if (!opts.paused) resume();
     rpc.emit('audioReset', null);
     return status();
   },
+  /**
+   * Record the design's signals to `file` as a VCD, for `frames` frames (or
+   * until stopVcd or the file reaches `maxBytes`, by default 1 GB). It slows the simulation and
+   * writes ~3MB a frame for a VGA design (a quarter of that if `file` ends in
+   * .gz), so the host asks for a length.
+   */
+  startVcd(file: string, frames?: number, maxBytes?: number) {
+    if (!target) throw new Error('emulator not started');
+    if (!target.supportsVcd) throw new Error(`'${target.id}' has no signals to record`);
+    stopVcd();
+    const rec = { file: openVcdFile(file, maxBytes), path: file, end: frames ? target.frameCount + frames : null };
+    try {
+      target.startVcd(chunk => rec.file.write(chunk), () => rec.file.full);
+    } catch (e) {
+      rec.file.close();
+      throw e;
+    }
+    vcdFile = rec;
+    rpc.emit('vcd', { recording: true, file } as VcdEvent);
+  },
+  stopVcd() {
+    return stopVcd();
+  },
   /** Call a DebugService method; stops come back as 'stopped' events. */
   debug(method: string, ...args: any[]) {
     if (!service) throw new Error('emulator not started');
     if (!DEBUG_METHODS.has(method)) throw new Error(`no debug method '${method}'`);
+    if (REWIND_METHODS.has(method)) stopVcd();
     const result = (service as any)[method](...args);
     if (FORWARD_METHODS.has(method)) startRunning();
     return result;
@@ -191,6 +234,7 @@ const rpc: Rpc = new Rpc(parentPort, {
   /** Show a recorded frame, stopped there. */
   seekFrame(frame: number) {
     if (!service) return null;
+    stopVcd();
     service.seekFrame(frame);
     return status();
   },
@@ -259,7 +303,7 @@ function status(): EmuStatus | null {
   const audio = target.getAudioParams();
   return {
     state: running ? 'running' : 'paused', platform: target.id, frame: target.frameCount,
-    controls, paddles: target.acceptsPaddles(), debugInfo: target.hasDebugInfo, audio: audio ? { sampleRate: audio.sampleRate } : undefined,
+    controls, paddles: target.acceptsPaddles(), debugInfo: target.hasDebugInfo, vcd: target.supportsVcd, audio: audio ? { sampleRate: audio.sampleRate } : undefined,
     timeline: service?.timeline() ?? undefined,
   };
 }
@@ -311,9 +355,23 @@ function stopTimer() {
   timer = null;
 }
 
+/** Finish the VCD file, if one is being written. */
+function stopVcd(): VcdEvent | null {
+  const f = vcdFile;
+  if (!f) return null;
+  vcdFile = null;
+  // the writer's last chunk goes out before the file closes
+  const clocks = target ? target.stopVcd() : 0;
+  f.file.close();
+  const ev: VcdEvent = { recording: false, file: f.path, clocks, bytes: f.file.bytes, full: f.file.full };
+  rpc.emit('vcd', ev);
+  return ev;
+}
+
 function stop() {
   running = false;
   stopTimer();
+  stopVcd();
   rpc.emit('status', status());
   target = null;
   service = null;
@@ -351,6 +409,7 @@ function tick() {
     return;
   }
   if (!running) return;  // stopped during the frame
+  if (vcdFile && ((vcdFile.end != null && target.frameCount >= vcdFile.end) || !target.vcdRunning)) stopVcd();
   if (now - nextTime > interval * MAX_CATCHUP_FRAMES) nextTime = now;  // too far behind
   if (frames) sendFrame();
   timer = setTimeout(tick, Math.max(0, nextTime - performance.now()));

@@ -128,6 +128,7 @@ var VerilogPlatform = function(mainElement, options) {
   var trace_signals;
   var trace_buffer;
   var trace_index;
+  var trace_sink : ((state: {[name: string]: any}) => void) | null = null;
 
   // for virtual CRT
   var framex=0;
@@ -348,7 +349,7 @@ var VerilogPlatform = function(mainElement, options) {
     ncycles |= 0;
     var inspect = inspect_obj != null && inspect_sym != null;
     // use fast trace buffer-based update?
-    if (sync && !trace && !inspect && (top as HDLModuleTrace).trace != null && scanlineCycles > 0) {
+    if (sync && !trace && !inspect && !trace_sink && (top as HDLModuleTrace).trace != null && scanlineCycles > 0) {
       this.updateVideoFrameFast((top as any) as HDLModuleTrace);
       this.updateRecorder();
       return;
@@ -361,6 +362,7 @@ var VerilogPlatform = function(mainElement, options) {
         this.snapshotTrace();
         if (trace_index == trace0) trace = false; // kill trace when wraps around
       }
+      if (trace_sink) trace_sink(top.state);
       vidtick();
       if (framex++ < videoWidth) {
         if (framey < videoHeight) {
@@ -514,6 +516,10 @@ var VerilogPlatform = function(mainElement, options) {
     return (trace_index == 0);
   }
   
+  setTraceSink(sink: ((state: {[name: string]: any}) => void) | null) {
+    trace_sink = sink;
+  }
+
   getSignalMetadata() : WaveformMeta[] {
     return trace_signals;
   }

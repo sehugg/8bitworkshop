@@ -2,6 +2,8 @@
 // Signal traces that a platform (verilog) exposes to a waveform view.
 
 export interface WaveformMeta {
+  /** the key in the design's state, when it differs from the label (see vcd.ts) */
+  name? : string;
   label : string;
   len : number;
   input : boolean;

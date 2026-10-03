@@ -8,7 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { BuildOutcome } from './buildcore';
 import type { BuildArgs } from './buildworker';
-import type { AudioChunk, EmuStatus, ScriptResult } from './emuworker';
+import type { AudioChunk, EmuStatus, ScriptResult, VcdEvent } from './emuworker';
 import { WorkerHandle, WorkerDisposedError } from './engine';
 import { EmulatorPanel, VIEW_TYPE } from './emulatorpanel';
 import { DebugViews } from './views';
@@ -121,6 +121,8 @@ export function activate(ctx: vscode.ExtensionContext) {
   command('downloadToolchains', () => prepareToolchains());
   command('mute', () => setMuted(true));
   command('unmute', () => setMuted(false));
+  command('recordVcd', () => recordVcd());
+  command('stopVcd', () => emu?.started && emu.call('stopVcd'));
   command('showMachine', () => vscode.commands.executeCommand('8bitworkshop.machine.focus'));
   ctx.subscriptions.push(...views.register());
   muted = ctx.globalState.get<boolean>('muted', false);
@@ -313,10 +315,12 @@ async function getEmu(platform: string): Promise<WorkerHandle> {
     emu.on('audioReset', () => panel?.resetAudio());
     emu.on('stopped', e => debugging?.backend.handleStop(e));
     emu.on('view', ev => views.show(ev));
+    emu.on('vcd', (ev: VcdEvent) => vcdEvent(ev));
     emu.on('status', (s: EmuStatus | null) => {
       emuStatus = s;
       panel?.showStatus(s);
       vscode.commands.executeCommand('setContext', '8bitworkshop.hasDebugInfo', !!s?.debugInfo);
+      vscode.commands.executeCommand('setContext', '8bitworkshop.canRecordVcd', !!s?.vcd);
       vscode.commands.executeCommand('setContext', '8bitworkshop.emuRunning', s?.state === 'running');
       if (s?.state === 'halted') output.appendLine(`Emulator halted at frame ${s.frame}: ${s.message}`);
     });
@@ -628,6 +632,7 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
   // a plain Run replaces what the debugger was looking at
   if (debugging && !opts.paused) vscode.debug.stopDebugging(debugging.session);
   // each run gets a fresh worker: platforms keep global state (see emuworker)
+  if (emu?.started) await emu.call('stopVcd').catch(() => { });
   emu?.dispose();
   emu = undefined;
   emuStatus = null;
@@ -652,6 +657,8 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
         emu = undefined;
         views.clear();
         vscode.commands.executeCommand('setContext', '8bitworkshop.hasDebugInfo', false);
+        vscode.commands.executeCommand('setContext', '8bitworkshop.canRecordVcd', false);
+        vscode.commands.executeCommand('setContext', '8bitworkshop.recordingVcd', false);
         vscode.commands.executeCommand('setContext', '8bitworkshop.emuRunning', false);
         vscode.commands.executeCommand('setContext', '8bitworkshop.emuOpen', false);
       },
@@ -668,6 +675,7 @@ async function startEmulator(target: Target, build: BuildOutcome, opts: { paused
     worker.call('setMuted', muted);
     worker.call('setViews', views.subscriptions());
     vscode.commands.executeCommand('setContext', '8bitworkshop.hasDebugInfo', !!emuStatus?.debugInfo);
+    vscode.commands.executeCommand('setContext', '8bitworkshop.canRecordVcd', !!emuStatus?.vcd);
     panel.showStatus(emuStatus);
     running = target;
     runningBuild = build;
@@ -701,6 +709,46 @@ async function reloadEmulator(target: Target, reason: BuildReason, result: Build
       output.show(true);
     }
   }
+}
+
+/** Verilog designs: write the signals' changes for a few frames to a VCD file. */
+async function recordVcd() {
+  if (!emu?.started || !emuStatus?.vcd) {
+    vscode.window.showInformationMessage('Run a Verilog design first; only designs with signals can be recorded.');
+    return;
+  }
+  var dir = running ? vscode.Uri.joinPath(running.main, '..') : vscode.workspace.workspaceFolders?.[0]?.uri;
+  var base = running ? path.basename(running.main.path).replace(/\.[^.]*$/, '') : 'trace';
+  var file = await vscode.window.showSaveDialog({
+    defaultUri: dir && vscode.Uri.joinPath(dir, base + '.vcd'),
+    filters: { 'Value change dump': ['vcd', 'gz'] },
+    title: 'Record signals to a VCD file',
+  });
+  if (!file) return;
+  // a VGA design writes about 3 MB a frame, so it stops by itself
+  var answer = await vscode.window.showInputBox({
+    title: 'Frames to record',
+    prompt: 'A design with video writes about 3 MB per frame (a quarter of that if the file name ends in .gz), and runs more slowly while recording.',
+    value: '2',
+    validateInput: v => /^[1-9]\d*$/.test(v.trim()) ? undefined : 'Enter a whole number of frames',
+  });
+  if (!answer) return;
+  try {
+    await emu.call('startVcd', file.fsPath, Number(answer.trim()));
+  } catch (e) {
+    vscode.window.showErrorMessage(`Could not record: ${e && e.message || e}`);
+  }
+}
+
+function vcdEvent(ev: VcdEvent) {
+  vscode.commands.executeCommand('setContext', '8bitworkshop.recordingVcd', ev.recording);
+  if (ev.recording) return;
+  var limit = ev.full ? ', stopped at the 1 GB limit' : '';
+  output.appendLine(`Wrote ${ev.clocks} clocks to ${ev.file} (${mb(ev.bytes || 0)}${limit})`);
+  vscode.window.showInformationMessage(`Recorded ${ev.clocks} clocks (${mb(ev.bytes || 0)}) to ${path.basename(ev.file)}${limit}.`, 'Show in Folder')
+    .then(choice => {
+      if (choice) vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(ev.file));
+    });
 }
 
 /** Turn sound on or off everywhere (the webview gain and the worker's push). */

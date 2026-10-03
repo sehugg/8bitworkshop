@@ -18,6 +18,7 @@ import { fail, hasOutput, note, output, setJsonMode, setServerMode, warn } from 
 import { EmuTarget, loadPlatform } from './emutarget';
 import { RUN_SCRIPT_HELP, RunScript, parseNum } from './runscript';
 import { verifyReplay } from './verifyreplay';
+import { openVcdFile } from './vcdfile';
 import { buildDebugContext } from '../common/debugcontroller';
 import { buildProducts } from '../common/workertypes';
 import type { BuildInfo } from './debugservice';
@@ -317,7 +318,13 @@ async function doRun(args: Args, positional: string[]): Promise<void> {
   const symbolFile = str(args, 'symbols');
   if (symbolFile) script.addSymbols(parseSymbolFile(fs.readFileSync(symbolFile, 'utf8')));
   script.startTracing();
-  script.run(buildScript(args));
+  // `vcd FILE` writes as it goes, so a long recording doesn't sit in memory
+  script.openFile = openVcdFile;
+  try {
+    script.run(buildScript(args));
+  } finally {
+    script.finish();
+  }
 
   const video = target.getVideo();
   output({

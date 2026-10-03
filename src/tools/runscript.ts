@@ -49,6 +49,7 @@ export const RUN_SCRIPT_HELP = [
   '  info                        - platform/machine debug info',
   '  paddle X Y [BUTTONS]        - move the paddle to X,Y (0-255); BUTTONS is a list of 0/1, like 1 0 0',
   '  signals [PATH]              - HDL signals under PATH (modules separated by dots; default the top)',
+  '  vcd FILE [MAXMB] | vcd off  - record every clock\'s signal changes to a VCD file; .gz compresses; stops at MAXMB (default 1024, 0 = no limit); 8bws only',
   '  reset                       - reset the emulator',
   '  echo TEXT                   - print message',
   '(ADDR: number or symbol name; KEY: char, ENTER/SPACE/arrows/F1.., $hex;',
@@ -160,6 +161,12 @@ export class RunScript {
   symbols: SymbolMap = {};
   private addr2symbol: { [addr: number]: string } = {};
   private probe: ProbeRecorder | null = null;
+  /**
+   * Opens the file for `vcd FILE`. Only the CLI sets this: scripts that come
+   * from elsewhere (the debug console, language model tools) can't write files.
+   */
+  openFile?: (path: string, maxBytes?: number) => { write(chunk: string): void; close(): void; readonly full: boolean };
+  private vcdFile: { path: string, close(): void, full: boolean } | null = null;
 
   constructor(readonly target: EmuTarget, private out = write,
     readonly debug = new DebugController(target)) { }
@@ -184,6 +191,11 @@ export class RunScript {
     if (!this.target.connectProbe(rec)) return false;
     this.probe = rec;
     return true;
+  }
+
+  /** Finish what the script left open (a VCD recording). Call when it is done. */
+  finish() {
+    if (this.vcdFile) this.cmdVcd(['vcd', 'off']);
   }
 
   run(script: string) {
@@ -535,6 +547,28 @@ export class RunScript {
     for (const e of treeChildren(root, path)) this.out(`${e.name}${e.expandable ? '/' : ''} ${e.value}\n`);
   }
 
+  cmdVcd(tokens: string[]) {
+    if (tokens[1] === 'off' || tokens[1] === 'stop') {
+      const file = this.vcdFile;
+      if (!file) throw new Error('no VCD recording is on');
+      this.vcdFile = null;
+      const clocks = this.target.stopVcd();
+      file.close();
+      this.out(`wrote ${clocks} clocks to ${file.path}${file.full ? ' (stopped at the size limit)' : ''}\n`);
+      return;
+    }
+    if (!tokens[1]) throw new Error('usage: vcd FILE [MAXMB] | vcd off');
+    if (!this.openFile) throw new Error("'vcd' is not available here");
+    if (!this.target.supportsVcd) throw new Error(`'${this.target.id}' has no signals to record`);
+    this.finish();
+    // MAXMB: stop at about this size; 0 for no limit
+    const maxMB = tokens[2] != null ? parseFloat(tokens[2]) : NaN;
+    if (tokens[2] != null && !(maxMB >= 0)) throw new Error('usage: vcd FILE [MAXMB] | vcd off');
+    const file = this.openFile(tokens[1], isNaN(maxMB) ? undefined : maxMB * 1048576);
+    this.target.startVcd(chunk => file.write(chunk), () => file.full);
+    this.vcdFile = { path: tokens[1], close: () => file.close(), get full() { return file.full; } };
+  }
+
   cmdReset() { this.target.reset(); this.log('reset'); }
   cmdEcho(tokens: string[], line: string) { this.out(line.substring(tokens[0].length).trim() + '\n'); }
 }
@@ -566,6 +600,7 @@ const COMMANDS: { [name: string]: Command } = {
   'pc': RunScript.prototype.cmdPC,
   'info': RunScript.prototype.cmdInfo,
   'signals': RunScript.prototype.cmdSignals,
+  'vcd': RunScript.prototype.cmdVcd,
   'paddle': RunScript.prototype.cmdPaddle,
   'reset': RunScript.prototype.cmdReset,
   'back': RunScript.prototype.cmdBack,

@@ -272,6 +272,41 @@ describe('8bws CLI', function () {
         });
     });
 
+    describe('run --platform verilog: vcd', function () {
+        var dir;
+        before(function () { dir = fs.mkdtempSync(path.join(os.tmpdir(), '8bws-vcd-')); });
+        it('should stream signal changes to a VCD file, and gzip a .gz name', function () {
+            var plain = path.join(dir, 'a.vcd'), gz = path.join(dir, 'a.vcd.gz');
+            var out = cli('run', 'presets/verilog/ball_paddle.v', '-e', `run 1; vcd ${plain}; run 1; vcd off; vcd ${gz}; run 1; vcd off`);
+            assert.ok(/wrote \d+ clocks to .*a\.vcd\b/.test(out), out);
+            var text = fs.readFileSync(plain, 'utf8');
+            assert.ok(text.startsWith('$version'), text.slice(0, 80));
+            assert.ok(/\$var wire 9 \S+ hpos \[8:0\] \$end/.test(text));
+            assert.ok(/^#0\n\$dumpvars$/m.test(text));
+            var unzipped = require('zlib').gunzipSync(fs.readFileSync(gz)).toString('utf8');
+            assert.ok(unzipped.startsWith('$version'));
+            assert.ok(fs.statSync(gz).size < unzipped.length / 2, 'gzip shrinks it');
+        });
+        it('should close the file even if the script forgets `vcd off`', function () {
+            var f = path.join(dir, 'b.vcd');
+            cli('run', 'presets/verilog/ball_paddle.v', '-e', `vcd ${f}; run 1`);
+            assert.ok(/\n#\d+\n$/.test(fs.readFileSync(f, 'utf8')), 'ends with a final time stamp');
+        });
+        it('should stop at the size limit, between clocks', function () {
+            var f = path.join(dir, 'd.vcd');
+            var out = cli('run', 'presets/verilog/ball_paddle.v', '-e', `vcd ${f} 0.5; run 2; vcd off`);
+            assert.ok(/stopped at the size limit/.test(out), out);
+            var size = fs.statSync(f).size;
+            // about 2.7MB a frame, so the half megabyte is passed by a chunk or two, not by the two frames
+            assert.ok(size >= 0.5 * 1048576 && size < 0.7 * 1048576, 'size ' + size);
+            assert.ok(/\n#\d+\n$/.test(fs.readFileSync(f, 'utf8')), 'still ends cleanly');
+        });
+        it('should say so when the platform has no signals', function () {
+            var e = cliFails('run', '--platform', 'apple2', '-e', `vcd ${path.join(dir, 'c.vcd')}`, 'test/roms/apple2/cosmic.c.rom');
+            assert.ok(/no signals to record/.test(e.stdout + e.stderr), e.stdout + e.stderr);
+        });
+    });
+
     describe('run: emulator control', function () {
         // these all reach through the Platform to its Machine (common/devices.ts)
         it('should reject an unknown platform', function () {

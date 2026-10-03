@@ -196,6 +196,16 @@
         "command": "8bitworkshop.showMachine",
         "title": "Show Machine View",
         "category": "8bitworkshop"
+      },
+      {
+        "command": "8bitworkshop.recordVcd",
+        "title": "Record Signals to VCD...",
+        "category": "8bitworkshop"
+      },
+      {
+        "command": "8bitworkshop.stopVcd",
+        "title": "Stop Recording VCD",
+        "category": "8bitworkshop"
       }
     ],
     "viewsContainers": {
@@ -558,6 +568,14 @@
         {
           "command": "8bitworkshop.showMachine",
           "when": "8bitworkshop.hasDebugInfo"
+        },
+        {
+          "command": "8bitworkshop.recordVcd",
+          "when": "8bitworkshop.canRecordVcd && !8bitworkshop.recordingVcd"
+        },
+        {
+          "command": "8bitworkshop.stopVcd",
+          "when": "8bitworkshop.recordingVcd"
         }
       ]
     },

@@ -12,6 +12,10 @@
   under a stack frame named for the frame and clock cycle.
 - A Machine view in a new 8bitworkshop panel shows the platform's debug info,
   live while the program runs, for platforms that have it.
+- **Record Signals to VCD...** writes a Verilog design's signal changes to a
+  `.vcd` file as it runs, without holding them in memory, up to
+  1 GB. `8bws run` has a
+  matching `vcd FILE` / `vcd off` script command.
 - Infer symbol sizes from build output, instead of one byte per variable.
 - Removed Hex Editor extension integration, we'll come up with a better one.
 - Removed the assetUrl setting.
