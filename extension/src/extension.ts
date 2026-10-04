@@ -765,7 +765,7 @@ async function recordVcd() {
   var dir = running ? vscode.Uri.joinPath(running.main, '..') : vscode.workspace.workspaceFolders?.[0]?.uri;
   var base = running ? path.basename(running.main.path).replace(/\.[^.]*$/, '') : 'trace';
   var file = await vscode.window.showSaveDialog({
-    defaultUri: dir && vscode.Uri.joinPath(dir, base + '.vcd'),
+    defaultUri: dir && vscode.Uri.joinPath(dir, base + '.vcd.gz'),
     filters: { 'Value change dump': ['vcd', 'gz'] },
     title: 'Record signals to a VCD file',
   });
@@ -773,7 +773,7 @@ async function recordVcd() {
   // a VGA design writes about 3 MB a frame, so it stops by itself
   var answer = await vscode.window.showInputBox({
     title: 'Frames to record',
-    prompt: 'A design with video writes about 3 MB per frame (a quarter of that if the file name ends in .gz), and runs more slowly while recording.',
+    prompt: 'Enter the number of frames to record. A design with video emits about 1-5 MB per frame, and runs more slowly while recording.',
     value: '2',
     validateInput: v => /^[1-9]\d*$/.test(v.trim()) ? undefined : 'Enter a whole number of frames',
   });
