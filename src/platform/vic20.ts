@@ -84,4 +84,4 @@ abstract class VIC20MAMEPlatform extends BaseMAME6502Platform {
 
 PLATFORMS['vic20'] = VIC20WASMPlatform;
 PLATFORMS['vic20.wasm'] = VIC20WASMPlatform;
-PLATFORMS['vic20.mame'] = VIC20MAMEPlatform;
+PLATFORMS['vic20.mame'] = VIC20MAMEPlatform as any;

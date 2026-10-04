@@ -721,6 +721,6 @@ var DVGColorStateMachine = function(bus, video, bofs) {
 
 //
 
-PLATFORMS['vector-ataribw'] = AtariVectorPlatform;
-PLATFORMS['vector-ataricolor'] = AtariColorVectorPlatform;
-PLATFORMS['vector-z80color'] = Z80ColorVectorPlatform;
+PLATFORMS['vector-ataribw'] = AtariVectorPlatform as any;
+PLATFORMS['vector-ataricolor'] = AtariColorVectorPlatform as any;
+PLATFORMS['vector-z80color'] = Z80ColorVectorPlatform as any;

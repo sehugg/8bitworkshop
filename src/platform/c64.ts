@@ -126,4 +126,4 @@ abstract class C64MAMEPlatform extends BaseMAME6502Platform {
 
 PLATFORMS['c64'] = C64WASMPlatform;
 PLATFORMS['c64.wasm'] = C64WASMPlatform;
-PLATFORMS['c64.mame'] = C64MAMEPlatform;
+PLATFORMS['c64.mame'] = C64MAMEPlatform as any;

@@ -495,8 +495,8 @@ class NewWilliamsPlatform extends Base6809MachinePlatform<WilliamsMachine> imple
 }
 
 PLATFORMS['williams'] = NewWilliamsPlatform;
-PLATFORMS['williams.old'] = Williams6809Platform;
-PLATFORMS['williams-defender'] = WilliamsDefenderPlatform;
-PLATFORMS['williams-z80'] = WilliamsZ80Platform;
+PLATFORMS['williams.old'] = Williams6809Platform as any;
+PLATFORMS['williams-defender'] = WilliamsDefenderPlatform as any;
+PLATFORMS['williams-z80'] = WilliamsZ80Platform as any;
 
 // http://seanriddle.com/willhard.html

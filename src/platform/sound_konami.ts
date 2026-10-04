@@ -141,4 +141,4 @@ var KonamiSoundPlatform = function(mainElement) {
   }
 }
 
-PLATFORMS['sound_konami'] = KonamiSoundPlatform;
+PLATFORMS['sound_konami'] = KonamiSoundPlatform as any;
