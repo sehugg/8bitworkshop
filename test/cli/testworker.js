@@ -166,6 +166,13 @@ describe('Worker', function() {
   it('should compile CC65 with a warning (warnings are not errors)', function(done) {
     compile('cc65', '#if defined(__8BITWORKSHOP__) && defined(__MAIN__)\nint main() {\nconst const int x=1;\nreturn x+2;\n}\n#endif', 'nes.mame', done, 40976, 3, 0);
   });
+  it('should compile CC65 with a legacy neslib.h with "#define NULL 0"', function(done) {
+    var msg = {updates:[
+      {path:'neslib.h', data:'#define NULL 0\n'},
+      {path:'main.c', data:'#include <stddef.h>\n#include "neslib.h"\nint main() {\nchar* p = NULL;\nreturn p == NULL;\n}\n'}
+    ], buildsteps:[{path:'main.c', platform:'nes', tool:'cc65'}]};
+    doBuild([msg], done, 40976, undefined, 0);
+  });
   it('should NOT compile CC65 (compile error)', function(done) {
     compile('cc65', 'int main() {\nint x=1;\nprintf("%d",x);\nreturn x+2;\n}', 'nes', done, 0, 0, 1);
   });

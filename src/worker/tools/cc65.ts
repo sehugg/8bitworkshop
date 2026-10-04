@@ -307,6 +307,13 @@ export async function linkLD65(step: BuildStep): Promise<BuildStepResult> {
     }
 }
 
+// Older projects carry their own copy of neslib.h with "#define NULL 0", which
+// now clashes with the ((void*)0) from cc65's <stddef.h>. Guard it.
+const re_define_null = /^([ \t]*)#[ \t]*define[ \t]+NULL[ \t]+(?:0|0[uU]?[lL]?|\(\s*void\s*\*\s*\)\s*0|\(\(\s*void\s*\*\s*\)\s*0\s*\))[ \t]*(?=\r?$)/gm;
+export function fixLegacyNullDefine(code: string): string {
+    return code.replace(re_define_null, '$1#ifndef NULL\n$1#define NULL ((void*)0)\n$1#endif');
+}
+
 export async function compileCC65(step: BuildStep): Promise<BuildStepResult> {
     var params = step.params;
     var errors: WorkerError[] = [];
@@ -339,16 +346,15 @@ export async function compileCC65(step: BuildStep): Promise<BuildStepResult> {
         args = args.concat(customArgs, ['--disable-opt', 'OptLoadStore1'], args);
         args.push(step.path);
         const { wasi, errno, stderr } = await runCC65Tool(step, 'cc65', args, (fs) => {
-            populateFiles(step, fs, {
-                mainFilePath: step.path,
-                processFn: (path, code) => {
-                    if (typeof code === 'string') {
-                        code = processEmbedDirective(code);
-                    }
-                    return code;
+            const processFn = (path, code) => {
+                if (typeof code === 'string') {
+                    code = processEmbedDirective(code);
+                    if (/(^|\/)neslib\.h$/.test(path)) code = fixLegacyNullDefine(code);
                 }
-            });
-            populateExtraFiles(step, fs, params.extra_compile_files);
+                return code;
+            };
+            populateFiles(step, fs, { mainFilePath: step.path, processFn });
+            populateExtraFiles(step, fs, params.extra_compile_files, processFn);
         });
         stderr.forEach(makeErrorMatcher(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
         checkExitCode('cc65', errno, stderr, errors);
