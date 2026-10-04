@@ -405,6 +405,15 @@ describe('8bws CLI', function () {
         });
     });
 
+    describe('apple2 Mockingboard', function () {
+        it('builds and runs the music demo', function () {
+            this.timeout(60000);
+            var out = cli('run', '-p', 'apple2', 'presets/apple2/mockingboard.c', '-e', 'run 30; screen');
+            assert.ok(/MOCKINGBOARD DEMO/.test(out), out);
+            assert.ok(/ODE TO JOY/.test(out), out);
+        });
+    });
+
     describe('legacy aliases', function () {
         it('should accept compile, check and compilerun', function () {
             assert.equal(cliJSON('compile', '--platform', 'gb', 'presets/gb/hello.c', '--check').command, 'check');

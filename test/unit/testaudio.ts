@@ -86,9 +86,18 @@ class FakeAudioContext {
   createBiquadFilter() { return new FakeNode(); }
   createDynamicsCompressor() { return new FakeNode(); }
   createScriptProcessor(_len: number, _in: number, _out: number) { return this.scriptProcessor; }
-  resume() { }
-  suspend() { }
+  resume() { return Promise.resolve(); }
+  suspend() { return Promise.resolve(); }
   close() { }
+}
+
+// A context that starts suspended, the way the browser hands one back when it is
+// created before the first user gesture.
+class SuspendedAudioContext extends FakeAudioContext {
+  state = 'suspended';
+  resumes = 0;
+  suspend() { this.state = 'suspended'; return Promise.resolve(); }
+  resume() { this.resumes++; this.state = 'running'; return Promise.resolve(); }
 }
 
 const RING_BUFFER_SAMPLES = 2048;
@@ -113,6 +122,31 @@ function pullBlock(length = RING_BUFFER_SAMPLES): Float32Array {
   node.onaudioprocess.call(node, { outputBuffer: { getChannelData: () => out }, srcElement: node });
   return out;
 }
+
+describe('SampleAudio autoplay unlock', function () {
+  afterEach(function () {
+    setAudioStreamFactory(null);
+  });
+
+  it('resumes a context that was created suspended', async function () {
+    const prev = (global as any).window;
+    (global as any).window = { AudioContext: SuspendedAudioContext };
+    try {
+      const audio = new SampledAudio(44100);
+      audio.start();
+      const ctx = FakeAudioContext.last as SuspendedAudioContext;
+      // the suspend()/resume() cycle is async so it can't race
+      await new Promise((r) => setTimeout(r, 0));
+      assert.equal(ctx.resumes, 1);
+      assert.equal(ctx.state, 'running');
+      // a later start (e.g. platform.resume()) must not recreate the graph
+      audio.start();
+      assert.equal(ctx.resumes, 1);
+    } finally {
+      (global as any).window = prev;
+    }
+  });
+});
 
 describe('SampleAudio ring depth', function () {
   afterEach(function () {

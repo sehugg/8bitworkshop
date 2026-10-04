@@ -40,6 +40,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - File | New only lists extensions that have skeleton files.
 - "Share Playable Link" packs the game into the URL fragment instead of the query string, so it no longer hits the web server's ~8 KB request-line limit, and encodes it as URL-safe Base64 to avoid percent-encoding. Old `?r=` links still play.
 - Removed the Markdown/Showdown platform, the old `script` platform, Google Analytics, Sentry (replaced with a new error-reporting endpoint) and the HTTPS redirect.
+- Audio reliably unlocks under the browser autoplay policy: the emulator resumes its `AudioContext` on the first click/keypress anywhere on the page, not only when the emulator canvas gets focus.
 
 ### Asset editor
 

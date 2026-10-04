@@ -2,6 +2,7 @@
 import { Platform, BaseZ80Platform  } from "../common/baseplatform";
 import { PLATFORMS, RAM, newAddressDecoder, padBytes, noise, setKeyboardFromMap, AnimationTimer, RasterVideo, Keys, makeKeycodeMap } from "../common/emu";
 import { hex } from "../common/util";
+import { resumeAudioContext } from "../common/audio";
 
 // from TSS
 declare var MasterChannel, AudioLooper, PsgDeviceChannel;
@@ -134,6 +135,7 @@ var KonamiSoundPlatform = function(mainElement) {
   this.resume = function() {
     timer.start();
     audio.activate();
+    resumeAudioContext(audio.audioContext);
   }
   this.reset = function() {
     cpu.reset();
