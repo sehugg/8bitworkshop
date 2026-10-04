@@ -23,8 +23,8 @@ const SKIP_FAMILIES = ['MAME/Other', 'Interpreters'];
 // platforms we never offer in the extension, even if the menu lists them
 // TODO: vector-* need vector video in the webview, williams-z80 a headless
 // sound Worker (notes/PLAN.md, "platforms that don't run in the extension")
-const SKIP_PLATFORMS = ['x86', 'vectrex', 'exidy', 'arm32',
-  'vector-z80color', 'vector-ataricolor', 'williams-z80'];
+const SKIP_PLATFORMS = ['x86', 'vectrex', 'exidy', 'arm32', 'vic20',
+  'vector-z80color', 'vector-ataricolor', 'williams-z80', 'cpc'];
 
 const rootDir = path.resolve(process.argv[2] || path.join(__dirname, '../..'));
 const outFile = path.resolve(process.argv[3] || path.join(__dirname, 'presets.json'));
@@ -125,8 +125,8 @@ async function templatesFor(platform: string, plat: any): Promise<TemplateInfo[]
   var uses = new Map<string, number>();
   for (var t of templates) for (var f of t.files) uses.set(f, (uses.get(f) || 0) + 1);
   for (var t of templates) {
-    t.shared = t.files.filter(f => uses.get(f) > 1);
-    t.files = t.files.filter(f => uses.get(f) <= 1);
+    t.shared = t.files.filter(f => uses.get(f)! > 1);
+    t.files = t.files.filter(f => uses.get(f)! <= 1);
   }
   return templates;
 }

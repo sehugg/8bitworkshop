@@ -66,7 +66,7 @@ class Atari800Platform extends Base6502MachinePlatform<Atari800> {
     await super.start();
     this.machine.loadBIOS(bios);
   }
-  biosPath = 'res/altirra/kernel.rom';
+  biosPath = 'res/atari8/altirra/kernel.rom';
   async loadKernel() {
     var biosResponse = await fetch(this.biosPath);
     if (biosResponse.status == 200 || (biosResponse as any as Blob).size) {
@@ -85,7 +85,7 @@ class Atari5200Platform extends Atari800Platform {
   getPresets() { return Atari8_PRESETS; }
   newMachine() { return new Atari5200(); }
   getMemoryMap() { return Atari5200_MemoryMap; }
-  biosPath = 'res/altirra/superkernel.rom';
+  biosPath = 'res/atari8/altirra/superkernel.rom';
 }
 
 

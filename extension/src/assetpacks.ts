@@ -19,9 +19,12 @@ export const ASSET_DIRS = ['src/worker/wasm', 'src/worker/fs', 'src/worker/asmjs
  * platforms (Z-machine, MIPS, x86, ARM) the extension doesn't offer.
  */
 export const ASSET_EXCLUDE = new RegExp('^(' + [
-  'res/(altirra/.*\\.(lab|lst)|freedos722\\.img|seabios\\.bin|vgabios\\.bin)',
+  'res/atari8/altirra/.*\\.(lab|lst)',
+  'res/x86/.*',
+  'res/cpc/.*',
   'src/worker/wasm/(dialogc|armips|inform|yasm|arm-tcc|smlrc)\\.(js|wasm)',
   'src/worker/lib/arm32/.*',
+  'src/worker/lib/cpc/.*',
   'src/worker/fs/(dialog-fs\\.zip|arm32-fs\\.zip|fsinform\\.|fssmlrc\\.)[^/]*',
 ].join('|') + ')$');
 

@@ -247,13 +247,14 @@ distributable replacement images are included — see
 [`mame/roms/README.md`](mame/roms/README.md) for their provenance and
 licenses.
 
-To use your own firmware, add it to the project as a binary file named
+To use your own firmware in the IDE, add it to the project as a binary file named
 `<platform-id>.rom` (for example `apple2.rom`); the IDE loads it as the
 BIOS at startup. Only freely distributable firmware should be shared.
 
 * http://www.virtualdub.org/altirra.html (GPL-2)
 * https://github.com/MEGA65/open-roms (LGPL-3.0)
 * https://sourceforge.net/projects/cbios/ (BSD)
+* https://zxdesign.itch.io/opense (GPL-2)
 
 ### Related Projects
 

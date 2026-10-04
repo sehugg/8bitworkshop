@@ -803,7 +803,7 @@ class VectrexPlatform extends Base6809Platform {
   async start() {
     this.via = new VIA6522(this);
     this.alg = new VectrexAnalog(this);
-    var biosResponse = await fetch('res/vectrex.bios');
+    var biosResponse = await fetch('res/vectrex/vectrex.bios');
     if (!biosResponse.ok) throw new Error('could not load BIOS file');
     this.bios = padBytes(new Uint8Array(await biosResponse.arrayBuffer()), 0x2000);
     this.ram = new Uint8Array(0x400);

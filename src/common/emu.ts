@@ -1,4 +1,5 @@
 
+import { Platform } from "./baseplatform";
 import type { ControlHint } from "./controls";
 import { hex, clamp, lpad } from "./util";
 import { SourceLocation } from "./workertypes";
