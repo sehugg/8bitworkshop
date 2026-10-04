@@ -2,7 +2,7 @@
 import assert from "assert";
 import { describe } from "mocha";
 import { EmuHalt } from "../../src/common/emu"
-import { lzgmini, isProbablyBinary, hex } from "../../src/common/util";
+import { lzgmini, isProbablyBinary, hex, encodeBase64Url, decodeBase64Url } from "../../src/common/util";
 import { Tokenizer, TokenType } from "../../src/common/tokenizer";
 import { OPS_6502 } from "../../src/common/cpu/disasm6502";
 import { MOS6502 } from "../../src/common/cpu/MOS6502";
@@ -139,6 +139,28 @@ describe('string functions', function () {
     assert.ok(isProbablyBinary(null, [0xfe])); // invalid lead
     // control bytes are a soft signal; one form feed is fine in source
     assert.ok(!isProbablyBinary(null, new TextEncoder().encode("a\fb\n")));
+  });
+
+  it('Should round-trip URL-safe Base64', function () {
+    for (let len = 0; len <= 64; ++len) {
+      const data = new Uint8Array(len);
+      for (let i = 0; i < len; ++i) data[i] = (i * 37 + len * 11) & 0xff;
+      const enc = encodeBase64Url(data);
+      assert.ok(!/[+/=]/.test(enc), `output must be URL-safe: ${enc}`);
+      assert.deepStrictEqual(Array.from(decodeBase64Url(enc)), Array.from(data));
+    }
+  });
+
+  it('Should encode URL-safe Base64 like standard Base64 (modulo alphabet)', function () {
+    const data = new Uint8Array([0x00, 0x10, 0xff, 0xfe, 0xfb, 0x42, 0x01]);
+    const std = Buffer.from(data).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+    assert.strictEqual(encodeBase64Url(data), std);
+  });
+
+  it('Should decode legacy standard Base64 (old share links)', function () {
+    const data = new Uint8Array([0x01, 0x02, 0x03, 0x80, 0xfe, 0xff]);
+    const std = Buffer.from(data).toString('base64');
+    assert.deepStrictEqual(Array.from(decodeBase64Url(std)), Array.from(data));
   });
 });
 

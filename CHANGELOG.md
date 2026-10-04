@@ -38,6 +38,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Click `#include`/`#link` decorations to open the file; offer to import a GitHub repo given by `repo=` ("user/repo" or a tree URL).
 - Tool info dialog and generated toolchain docs; Help window with ID docs.
 - File | New only lists extensions that have skeleton files.
+- "Share Playable Link" packs the game into the URL fragment instead of the query string, so it no longer hits the web server's ~8 KB request-line limit, and encodes it as URL-safe Base64 to avoid percent-encoding. Old `?r=` links still play.
 - Removed the Markdown/Showdown platform, the old `script` platform, Google Analytics, Sentry (replaced with a new error-reporting endpoint) and the HTTPS redirect.
 
 ### Asset editor
