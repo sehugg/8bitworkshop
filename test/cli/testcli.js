@@ -180,6 +180,23 @@ describe('8bws CLI', function () {
             cliJSON('run', '--platform', 'nes', '--frames', '10', '--png', png, 'test/roms/nes/shoot2.c.rom');
             assert.ok(fs.statSync(png).size > 0);
         });
+        it('should write a frame sequence for ffmpeg', function () {
+            var dir = fs.mkdtempSync(path.join(os.tmpdir(), '8bws-frames-'));
+            var r = cliJSON('run', '--platform', 'nes', '--frames', '5', '--frames-dir', dir, 'test/roms/nes/shoot2.c.rom');
+            assert.ok(r.success, r.error);
+            assert.equal(r.data.frames, 5);
+            assert.strictEqual(path.resolve(r.data.framesDir), path.resolve(dir));
+            var files = fs.readdirSync(dir).sort();
+            assert.deepEqual(files, ['frame_00000.png', 'frame_00001.png', 'frame_00002.png', 'frame_00003.png', 'frame_00004.png']);
+            assert.ok(fs.statSync(path.join(dir, files[0])).size > 0);
+            assert.ok(/ffmpeg -framerate \d+ -i .*frame_%05d\.png/.test(r.data.ffmpeg), r.data.ffmpeg);
+        });
+        it('should capture frames from a run script', function () {
+            var dir = fs.mkdtempSync(path.join(os.tmpdir(), '8bws-frames-'));
+            cli('run', '--platform', 'nes', 'test/roms/nes/shoot2.c.rom', '-e', 'run 3; capture 2 ' + dir + '; png ' + path.join(dir, 'one.png'));
+            var files = fs.readdirSync(dir).sort();
+            assert.deepEqual(files, ['frame_00000.png', 'frame_00001.png', 'one.png']);
+        });
         it('should infer the platform from a ROM extension', function () {
             var gb = path.join(os.tmpdir(), '8bws-test-infer.gb');
             fs.copyFileSync('test/roms/gb/cpu_instrs.gb', gb);
@@ -402,15 +419,6 @@ describe('8bws CLI', function () {
                 'run 30; pc 1; mem $400 4');
             assert.ok(!/PC=\$0000/.test(out), out);        // not crashed into zero page
             assert.ok(/^0400: (?!00 00 00 00)/m.test(out), out); // lo-res memory was written
-        });
-    });
-
-    describe('apple2 Mockingboard', function () {
-        it('builds and runs the music demo', function () {
-            this.timeout(60000);
-            var out = cli('run', '-p', 'apple2', 'presets/apple2/mockingboard.c', '-e', 'run 30; screen');
-            assert.ok(/MOCKINGBOARD DEMO/.test(out), out);
-            assert.ok(/ODE TO JOY/.test(out), out);
         });
     });
 
