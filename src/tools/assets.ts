@@ -5,12 +5,24 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { createHash } from 'crypto';
 import { AssetManifest, PackInfo, readPack } from './assetpacks';
 
 /** Reports download progress: bytes so far of `total`. */
 /** The 8bitworkshop asset servers, tried in order. */
 export const ASSET_URLS = ['https://sehugg.github.io/8bitworkshop/vscode/', 'https://8bitworkshop.com/vscode/'];
+
+/**
+ * Where the 8bws command line keeps unpacked toolchains when
+ * $EIGHTBITWORKSHOP_TOOLCHAINS isn't set: the user's cache directory.
+ */
+export function defaultCacheDir(env: NodeJS.ProcessEnv = process.env, platform: string = process.platform, home: string = os.homedir()): string {
+  if (env.EIGHTBITWORKSHOP_TOOLCHAINS) return env.EIGHTBITWORKSHOP_TOOLCHAINS;
+  if (platform === 'win32') return path.join(env.LOCALAPPDATA || path.join(home, 'AppData', 'Local'), '8bitworkshop', 'Cache');
+  if (platform === 'darwin') return path.join(home, 'Library', 'Caches', '8bitworkshop');
+  return path.join(env.XDG_CACHE_HOME || path.join(home, '.cache'), '8bitworkshop');
+}
 
 export type ProgressFn = (pack: string, received: number, total: number) => void;
 

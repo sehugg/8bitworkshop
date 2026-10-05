@@ -7,8 +7,9 @@ import { createHash } from 'crypto';
 import { Worker } from 'worker_threads';
 import * as zlib from 'zlib';
 import { execFileSync } from 'child_process';
-import { AssetStore } from '../src/assets';
-import { needsSdcc4, AssetManifest, PackInfo, isUnreviewedFile, makePack, packForFile, packsForPlatform, readPack } from '../src/assetpacks';
+import { AssetStore, defaultCacheDir } from '../../src/tools/assets';
+import { EXCLUDED_PLATFORM_MODULES, UNSUPPORTED_PLATFORMS } from '../../src/tools/exclusions';
+import { needsSdcc4, AssetManifest, PackInfo, isUnreviewedFile, makePack, packForFile, packsForPlatform, readPack } from '../../src/tools/assetpacks';
 import { listPackFiles } from '../scripts/assetpack';
 import { findRootDir } from '../src/projectinfo';
 import { Rpc } from '../src/rpc';
@@ -124,6 +125,19 @@ describe('extension asset packs', function () {
     assert.equal(fs.readFileSync(path.join(dir, 'a/b.txt'), 'utf-8'), 'hello');
     assert.equal(fs.statSync(path.join(dir, 'c.bin')).size, 1000);
     fs.rmSync(dir, { recursive: true });
+  });
+});
+
+describe('8bws toolchain cache', function () {
+  it('defaults to the user cache directory, per OS', function () {
+    assert.equal(defaultCacheDir({}, 'linux', '/home/u'), path.join('/home/u', '.cache', '8bitworkshop'));
+    assert.equal(defaultCacheDir({ XDG_CACHE_HOME: '/x' }, 'linux', '/home/u'), path.join('/x', '8bitworkshop'));
+    assert.equal(defaultCacheDir({}, 'darwin', '/Users/u'), path.join('/Users/u', 'Library', 'Caches', '8bitworkshop'));
+    assert.equal(defaultCacheDir({ LOCALAPPDATA: 'C:\\L' }, 'win32', 'C:\\u'), path.join('C:\\L', '8bitworkshop', 'Cache'));
+  });
+
+  it('lets $EIGHTBITWORKSHOP_TOOLCHAINS override it', function () {
+    assert.equal(defaultCacheDir({ EIGHTBITWORKSHOP_TOOLCHAINS: '/t' }, 'darwin', '/Users/u'), '/t');
   });
 });
 
@@ -284,5 +298,113 @@ describe('extension toolchains from packs', function () {
     } finally {
       await worker.terminate();
     }
+  });
+});
+
+describe('8bws bundle with an empty cache', function () {
+  this.timeout(120000);
+  var cli = path.join(OUT, '8bws.js');
+  var home: string;
+  var work: string;
+
+  before(function () {
+    if (!fs.existsSync(path.join(OUT, 'assets.json')) || !fs.existsSync(cli)) return this.skip();
+    home = tmpdir();
+    work = tmpdir();
+    for (var f of ['presets/nes/hello.c', 'presets/verilog/ball_absolute.v', 'presets/verilog/hvsync_generator.v']) {
+      fs.copyFileSync(path.join(ROOT, f), path.join(work, path.basename(f)));
+    }
+  });
+
+  after(function () {
+    for (var d of [home, work]) if (d) fs.rmSync(d, { recursive: true, force: true });
+  });
+
+  function run(...args: string[]): string {
+    var env: NodeJS.ProcessEnv = { ...process.env, HOME: home, USERPROFILE: home, LOCALAPPDATA: home, XDG_CACHE_HOME: path.join(home, '.cache') };
+    delete env.EIGHTBITWORKSHOP_ROOT;
+    delete env.EIGHTBITWORKSHOP_TOOLCHAINS;
+    return execFileSync(process.execPath, [cli, ...args], { cwd: work, env, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+  }
+
+  function installed(): string[] {
+    var found: string[] = [];
+    (function walk(dir: string) {
+      for (var e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.name === '.packs') found.push(...fs.readdirSync(path.join(dir, e.name)).map(n => n.split('-')[0]));
+        else if (e.isDirectory() && dir.split(path.sep).length - home.split(path.sep).length < 4) walk(path.join(dir, e.name));
+      }
+    })(home);
+    return found.sort();
+  }
+
+  it('unpacks only the base pack for a NES build, into the user cache', function () {
+    run('build', '--check', 'hello.c');
+    assert.deepEqual(installed(), ['base']);
+  });
+
+  it('lists only the tools and platforms the packs can build', function () {
+    var tools: string[] = JSON.parse(run('list-tools', '--json')).data.tools;
+    assert.ok(tools.includes('cc65') && tools.includes('dasm'));
+    for (var t of ['dialog', 'armtcc', 'inform', 'nesasm', 'merlin32', 'xa', 'xasm6809']) assert.ok(!tools.includes(t), `${t} listed`);
+    var platforms = Object.keys(JSON.parse(run('list-platforms', '--json')).data.platforms);
+    assert.ok(platforms.includes('nes'));
+    for (var p of UNSUPPORTED_PLATFORMS) assert.ok(!platforms.includes(p), `${p} listed`);
+  });
+
+  it('refuses an unsupported platform up front, and leaves the emulator out of the bundle', function () {
+    assert.throws(() => run('build', '--check', '-p', 'x86', 'hello.c'), /isn't in this install/);
+    assert.ok(UNSUPPORTED_PLATFORMS.includes('vectrex'));
+    for (var id of EXCLUDED_PLATFORM_MODULES) {
+      assert.ok(!new RegExp(`^// \\.\\./.*src/platform/${id}\\.ts$`, 'm').test(fs.readFileSync(cli, 'utf-8')), `${id} compiled into the bundle`);
+    }
+  });
+
+  it('fetches the Verilog pack when a Verilog build needs it', function () {
+    run('build', '--check', '-p', 'verilog', 'ball_absolute.v');
+    assert.deepEqual(installed(), ['base', 'verilog']);
+  });
+});
+
+describe('8bws npm package', function () {
+  this.timeout(120000);
+  var dir: string;
+  var home: string;
+  var work: string;
+
+  before(function () {
+    if (!fs.existsSync(path.join(OUT, 'assets.json')) || !fs.existsSync(path.join(OUT, '8bws.js'))) return this.skip();
+    dir = path.join(tmpdir(), 'pkg');
+    home = tmpdir();
+    work = tmpdir();
+    execFileSync(process.execPath, [path.join(OUT, '..', 'scripts', 'stage-npm.mjs'), '--out', dir], { stdio: 'pipe' });
+    fs.copyFileSync(path.join(ROOT, 'presets/nes/hello.c'), path.join(work, 'hello.c'));
+  });
+
+  after(function () {
+    for (var d of [dir && path.dirname(dir), home, work]) if (d) fs.rmSync(d, { recursive: true, force: true });
+  });
+
+  it('has a package.json that matches the repo version, and a bin with a shebang', function () {
+    var pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
+    assert.equal(pkg.version, JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8')).version);
+    assert.deepEqual(pkg.bin, { '8bws': '8bws.js' });
+    assert.ok(fs.readFileSync(path.join(dir, '8bws.js'), 'utf-8').startsWith('#!/usr/bin/env node\n'));
+  });
+
+  it('stages the CLI, manifest and licenses, and lists exactly those to publish', function () {
+    var expected = ['8bws.js', 'LICENSE', 'README.md', 'THIRD-PARTY-NOTICES.md', 'assets.json', 'package.json'];
+    assert.deepEqual(fs.readdirSync(dir).sort(), expected);
+    var pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
+    assert.deepEqual([...pkg.files, 'package.json'].sort(), expected);
+  });
+
+  it('builds from an empty cache, fetching packs from $EIGHTBITWORKSHOP_ASSETS', function () {
+    var env: NodeJS.ProcessEnv = { ...process.env, HOME: home, USERPROFILE: home, LOCALAPPDATA: home, XDG_CACHE_HOME: path.join(home, '.cache'),
+      EIGHTBITWORKSHOP_ASSETS: path.join(OUT, 'assets') };
+    delete env.EIGHTBITWORKSHOP_ROOT;
+    delete env.EIGHTBITWORKSHOP_TOOLCHAINS;
+    var out = execFileSync(process.execPath, [path.join(dir, '8bws.js'), 'build', '--check', '--json', 'hello.c'], { cwd: work, env, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+    assert.equal(JSON.parse(out).data.platform, 'nes');
   });
 });

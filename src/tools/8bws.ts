@@ -25,7 +25,8 @@ import type { BuildInfo } from './debugservice';
 import { parseSymbolFile } from '../common/symbols/symbolfile';
 import { romBytes, type CompileResult } from './testlib';
 import { ROM_PLATFORMS } from '../common/detect';
-import { toolRoot } from './toolroot';
+import { ensureToolchains, toolRoot, toolchainProvidesTool, toolchainSupportsPlatform } from './toolroot';
+import { TOOL_META } from '../common/toolmeta';
 
 interface Args {
   [key: string]: string | true | string[];
@@ -134,6 +135,7 @@ async function compileSource(args: Args, source: string, platform: string): Prom
   if (!TOOLS[tool]) {
     fail('build', `Unknown tool: ${tool}. Use list-tools to see available tools.`);
   }
+  await ensureToolchains(platform, tool, fs.readFileSync(source, 'utf8'));
   await preload(tool, platform);
   const result = await compileSourceFile(tool, platform, source, undefined, buildOverrides(args));
   if (result.internal) {
@@ -568,11 +570,13 @@ async function doList(command: string): Promise<void> {
   const { initialize, listPlatforms, listTools, PLATFORM_PARAMS } = await import('./testlib');
   await initialize();
   if (command === 'list-tools') {
-    output({ success: true, command, data: { tools: listTools() } });
+    // an install made from packs leaves some toolchains out (see assetpacks.ts)
+    const tools = listTools().filter((t) => toolchainProvidesTool(t, TOOL_META[t]?.wasmModule));
+    output({ success: true, command, data: { tools } });
     return;
   }
   const platforms: { [key: string]: any } = {};
-  for (const p of listPlatforms()) platforms[p] = { arch: PLATFORM_PARAMS[p].arch || 'unknown' };
+  for (const p of listPlatforms().filter(toolchainSupportsPlatform)) platforms[p] = { arch: PLATFORM_PARAMS[p].arch || 'unknown' };
   output({ success: true, command, data: { platforms, count: Object.keys(platforms).length } });
 }
 

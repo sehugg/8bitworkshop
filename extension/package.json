@@ -659,6 +659,7 @@
     "assets": "node scripts/build.mjs && node out/assetpack.js --quality 9",
     "assets-quick": "node scripts/build.mjs && node out/assetpack.js --quality 8",
     "test": "npm run build && mocha --timeout 60000 out/test/*.test.js",
+    "npm-package": "npm run assets-quick && node scripts/stage-npm.mjs",
     "vscode:prepublish": "npm run build",
     "package": "npm run assets-quick && vsce package --no-dependencies",
     "package:release": "npm run assets && vsce package --no-dependencies",

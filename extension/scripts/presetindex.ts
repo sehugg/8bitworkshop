@@ -16,15 +16,8 @@ import { TOOL_META, getSkeletonName } from '../../src/common/toolmeta';
 import { getBasePlatform, getRootBasePlatform, isProbablyBinary } from '../../src/common/util';
 import { resolveDependencies } from '../../src/common/projectcore';
 import { headersFromPresets } from '../../src/common/detect';
+import { EXTENSION_SKIP_FAMILIES, EXTENSION_SKIP_PLATFORMS } from '../../src/tools/exclusions';
 import type { PresetIndex, TemplateInfo } from '../src/presettypes';
-
-// families from the IDE's platform menu that the extension can't run
-const SKIP_FAMILIES = ['MAME/Other', 'Interpreters'];
-// platforms we never offer in the extension, even if the menu lists them
-// TODO: vector-* need vector video in the webview, williams-z80 a headless
-// sound Worker (notes/PLAN.md, "platforms that don't run in the extension")
-const SKIP_PLATFORMS = ['x86', 'vectrex', 'exidy', 'arm32', 'vic20',
-  'vector-z80color', 'vector-ataricolor', 'williams-z80', 'cpc'];
 
 const rootDir = path.resolve(process.argv[2] || path.join(__dirname, '../..'));
 const outFile = path.resolve(process.argv[3] || path.join(__dirname, 'presets.json'));
@@ -136,8 +129,8 @@ async function main() {
   var index: PresetIndex = { version: 1, platforms: [], headers: {} };
   var listing: { [platform: string]: string[] } = {};
   for (var [family, id, name] of readPlatformMenu()) {
-    if (SKIP_FAMILIES.includes(family)) continue;
-    if (SKIP_PLATFORMS.includes(id)) continue;
+    if (EXTENSION_SKIP_FAMILIES.includes(family)) continue;
+    if (EXTENSION_SKIP_PLATFORMS.includes(id)) continue;
     var dir = getBasePlatform(id);
     if (!fs.existsSync(path.join(presetsDir, dir))) continue;
     try {

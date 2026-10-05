@@ -17,7 +17,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execFileSync } from 'child_process';
 import { createHash } from 'crypto';
-import { ASSET_DIRS, ASSET_EXCLUDE, AssetManifest, BROTLI_QUALITY, EXTRA_FILES, PACKS, PackName, isUnreviewedFile, makePack, packForFile } from '../src/assetpacks';
+import { ASSET_DIRS, ASSET_EXCLUDE, AssetManifest, BROTLI_QUALITY, EXTRA_FILES, PACKS, PackName, isUnreviewedFile, makePack, packForFile } from '../../src/tools/assetpacks';
 
 const args = process.argv.slice(2);
 const qi = args.indexOf('--quality');

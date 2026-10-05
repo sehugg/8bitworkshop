@@ -4,60 +4,15 @@
 
 import * as zlib from 'zlib';
 import { promisify } from 'util';
-import { SDCC_DEFAULT_VERSION } from '../../src/common/toolmeta';
-import { getBasePlatform } from '../../src/common/util';
-import { PLATFORM_PARAMS } from '../../src/worker/platforms';
+import { SDCC_DEFAULT_VERSION } from '../common/toolmeta';
+import { getBasePlatform } from '../common/util';
+import { PLATFORM_PARAMS } from '../worker/platforms';
+import { ASSET_EXCLUDE, UNREVIEWED_TOOLS } from './exclusions';
+
+export { ASSET_EXCLUDE, UNREVIEWED_TOOLS, UNSUPPORTED_PLATFORMS } from './exclusions';
 
 /** Repo directories the packs are made from (git-tracked files only). */
 export const ASSET_DIRS = ['src/worker/wasm', 'src/worker/fs', 'src/worker/asmjs', 'src/worker/lib', 'presets', 'res'];
-
-/**
- * Tracked files the extension never loads. res/: Altirra debug listings, and
- * the x86 BIOSes (x86 isn't offered in the extension). Everything else under
- * res/ (kernels, BIOSes, wasm cores) goes in the base pack. src/worker/: the
- * Dialog, Inform 6, armips, YASM, arm-tcc and smlrc toolchains, whose
- * platforms (Z-machine, MIPS, x86, ARM) the extension doesn't offer.
- */
-export const ASSET_EXCLUDE = new RegExp('^(' + [
-  'res/atari8/altirra/.*\\.(lab|lst)',
-  'res/x86/.*',
-  'res/cpc/.*',
-  'src/worker/wasm/(dialogc|armips|inform|yasm|arm-tcc|smlrc)\\.(js|wasm)',
-  'src/worker/lib/arm32/.*',
-  'src/worker/lib/cpc/.*',
-  'src/worker/fs/(dialog-fs\\.zip|arm32-fs\\.zip|fsinform\\.|fssmlrc\\.)[^/]*',
-].join('|') + ')$');
-
-/**
- * Toolchain components left out of the packs because their license has not
- * been cleared for redistribution. Review each license, then remove its entry
- * to ship the tool again.
- *
- * Only the packs are affected, so the VS Code bundle and the download servers
- * won't carry these files. A full checkout still works through
- * `8bitworkshop.toolchainPath`, and platforms that need an excluded tool fail
- * to build with a missing-file error until their license is cleared.
- *
- * Each key is a tool id (src/common/toolmeta.ts). Each pattern matches the
- * files that belong to it, under ASSET_DIRS or EXTRA_FILES.
- */
-export const UNREVIEWED_TOOLS: { [tool: string]: RegExp[] } = {
-  xa: [/^src\/worker\/wasm\/xa\.wasm$/],
-  nesasm: [/^src\/worker\/wasm\/nesasm\.(js|wasm)$/],
-  merlin32: [/^src\/worker\/wasm\/merlin32\.(js|wasm)$/],
-  xasm: [/^src\/worker\/asmjs\/xasm6809\.js$/],
-  // vasm has a license, but it only allows non-commercial redistribution
-  vasm: [/^src\/worker\/wasm\/vasmarm_std\.(js|wasm)$/],
-
-  // TODO: review these too. They are libraries/emulators or tools whose
-  // upstream we could not resolve, so their files are not mapped yet.
-  //   shiru       shiru's NES/Atari libraries        (presets, src/worker/lib)
-  //   libcv       ColecoVision/MSX/SMS library         (presets/*-libcv, src/worker/lib/*libcv*)
-  //   6809tools   built into cmoc, lwasm, lwlink       (assumed GPL-3.0; verify)
-  //   makewav     WAV tool, not shipped here
-  //   jsvecx      Vectrex emulator, excluded from the extension bundle
-  //               (src/platform/vectrex.ts, stubbed by scripts/build.mjs)
-};
 
 /** True if a pack file belongs to a tool whose license is not cleared. */
 export function isUnreviewedFile(file: string): boolean {
@@ -65,6 +20,11 @@ export function isUnreviewedFile(file: string): boolean {
     if (patterns.some(re => re.test(file))) return true;
   }
   return false;
+}
+
+/** True if the packs can carry this tracked file (not excluded, not unreviewed). */
+export function isPackable(file: string): boolean {
+  return !ASSET_EXCLUDE.test(file) && !isUnreviewedFile(file);
 }
 
 /** Files outside ASSET_DIRS that a pack also carries, from the repo root. */

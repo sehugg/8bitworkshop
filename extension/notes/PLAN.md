@@ -1455,7 +1455,7 @@ vicdual, williams, zx. Since then (2026-09-26), vcs and arm32 work too. These do
 
 **TODO: hidden until they run** (2026-09-29). `vector-z80color`,
 `vector-ataricolor` (no frames) and `williams-z80` (`Worker is not
-defined`) are in `SKIP_PLATFORMS` in `scripts/presetindex.ts`, so New
+defined`) are in `EXTENSION_SKIP_PLATFORMS` in `src/tools/exclusions.ts`, so New
 Project and Open Example don't offer them. Take each out of that list once
 the survey shows it producing frames.
 

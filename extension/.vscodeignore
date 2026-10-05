@@ -1,6 +1,6 @@
 # Ship only what the extension loads at runtime. All the toolchain packs are
 # bundled (out/assets, see out/assets.json). Any pack not listed here
-# downloads from the servers on first use (ASSET_URLS in src/assets.ts).
+# downloads from the servers on first use (ASSET_URLS in src/tools/assets.ts).
 **
 !package.json
 !telemetry.json

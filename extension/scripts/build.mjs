@@ -15,6 +15,15 @@ import path from 'path';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const watch = process.argv.includes('--watch');
+
+/** Evaluate a dependency-free TypeScript module (path relative to this script's directory) and return its exports. */
+function loadTs(file) {
+  const entry = path.resolve(path.dirname(fileURLToPath(import.meta.url)), file);
+  const out = esbuild.buildSync({ entryPoints: [entry], bundle: true, write: false, format: 'cjs', platform: 'node', logLevel: 'error' });
+  const mod = { exports: {} };
+  new Function('module', 'exports', out.outputFiles[0].text)(mod, mod.exports);
+  return mod.exports;
+}
 const tests = readdirSync(path.join(root, 'test'))
   .filter((f) => f.endsWith('.test.ts'))
   .map((f) => [`test/${f.slice(0, -3)}`, `test/${f}`]);
@@ -34,15 +43,17 @@ const jsdomNoSyncXHR = {
   },
 };
 
-// The extension never offers the Vectrex platform (see scripts/presetindex.ts),
-// and its emulator lives in src/platform/vectrex.ts. Replace that module with an
-// empty one so the emulator isn't compiled into emuworker.js; loading the
-// platform then fails with the usual "Platform 'vectrex' not found".
-const excludeVectrex = {
-  name: 'exclude-vectrex',
+// Emulators left out of the bundle (EXCLUDED_PLATFORM_MODULES in
+// src/tools/exclusions.ts, which holds every exclusion). Each platform module
+// is replaced with an empty one, so the emulator isn't compiled in; loading
+// the platform then fails with the usual "Platform '<id>' not found".
+const { EXCLUDED_PLATFORM_MODULES } = loadTs('../../src/tools/exclusions.ts');
+const excludePlatforms = {
+  name: 'exclude-platforms',
   setup(build) {
-    build.onResolve({ filter: /[\\/]vectrex$/ }, () => ({ path: 'vectrex', namespace: 'exclude-vectrex' }));
-    build.onLoad({ filter: /.*/, namespace: 'exclude-vectrex' }, () => ({ contents: 'module.exports = {};', loader: 'js' }));
+    const re = new RegExp('[\\\\/](' + EXCLUDED_PLATFORM_MODULES.join('|') + ')$');
+    build.onResolve({ filter: re }, (args) => ({ path: args.path, namespace: 'exclude-platforms' }));
+    build.onLoad({ filter: /.*/, namespace: 'exclude-platforms' }, () => ({ contents: 'module.exports = {};', loader: 'js' }));
   },
 };
 
@@ -69,7 +80,7 @@ const ctx = await esbuild.context({
   // canvas is jsdom's optional native renderer (nodemock stubs the 2D
   // context instead). The TextMate packages are for tests only.
   external: ['vscode', 'canvas', 'vscode-textmate', 'vscode-oniguruma'],
-  plugins: [jsdomNoSyncXHR, excludeVectrex],
+  plugins: [jsdomNoSyncXHR, excludePlatforms],
   // binaryen (Verilog only, 7MB) loads from the asset root: see binaryen.js
   alias: { binaryen: './src/binaryen.js' },
   logLevel: 'warning',

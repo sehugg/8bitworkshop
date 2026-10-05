@@ -23,11 +23,11 @@ import { Detection, classifyFinding, isBuildableSource } from '../../src/common/
 import { buildProducts } from '../../src/common/workertypes';
 import { TOOL_META } from '../../src/common/toolmeta';
 import { getToolForPlatform } from '../../src/common/toolselect';
-import { ASSET_URLS, AssetStore } from './assets';
+import { ASSET_URLS, AssetStore } from '../../src/tools/assets';
 import { projectReadme, writeLauncher } from './terminalcli';
 import type { PlatformInfo } from './presettypes';
 import { registerTools } from './lmtools';
-import { AssetManifest, packsForPlatform } from './assetpacks';
+import { AssetManifest, packsForPlatform } from '../../src/tools/assetpacks';
 import { ErrorTelemetry } from './telemetry';
 
 let context: vscode.ExtensionContext;
