@@ -12,7 +12,7 @@ import { EmuHalt } from "./emu";
 import { DEFAULT_MAX_FRAMES, EmuCore } from "./emucore";
 import { getListingForFile, processListings, stripLocalPath } from "./projectcore";
 import { Timestamp, timestamp, timestampsEqual } from "./timeline";
-import { getFilenameForPath, getFilenamePrefix } from "./util";
+import { getFilenameForPath, getFilenamePrefix, lastAtOrBefore } from "./util";
 import { BuildProducts, CodeListingMap, SourceFile, SourceLine, SourceLocation } from "./workertypes";
 
 export type StopReason = 'breakpoint' | 'step' | 'pause' | 'goto' | 'entry' | 'halt' | 'exception';
@@ -422,26 +422,6 @@ export function buildDebugContext(build: BuildInfo): DebugContext {
  * not to the end of the function before it.
  */
 function lineAt(sf: SourceFile, pc: number, fnStart: number | null): SourceLine | null {
-  const loc = sf.findLineForOffset(pc, PC_LINE_LOOKBEHIND);
-  if (!loc || fnStart == null || loc.offset >= fnStart) return loc;
-  const next = firstAtOrAfter(sf.sortedOffsets, fnStart);
-  return next != null && next - pc <= PC_LINE_LOOKBEHIND ? sf.offset2loc.get(next) : null;
+  return sf.findLineForOffset(pc, PC_LINE_LOOKBEHIND, fnStart);
 }
 
-function lastAtOrBefore(sorted: number[], x: number): number | null {
-  let lo = 0, hi = sorted.length - 1, best: number | null = null;
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    if (sorted[mid] <= x) { best = sorted[mid]; lo = mid + 1; } else hi = mid - 1;
-  }
-  return best;
-}
-
-function firstAtOrAfter(sorted: number[], x: number): number | null {
-  let lo = 0, hi = sorted.length - 1, best: number | null = null;
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    if (sorted[mid] >= x) { best = sorted[mid]; hi = mid - 1; } else lo = mid + 1;
-  }
-  return best;
-}

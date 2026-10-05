@@ -109,4 +109,39 @@ describe('findListingLocation', function () {
     assert.strictEqual(findListingLocation(0x100 + 5, ctx, 4), null);
   });
 
+  it('falls back to disassembly for library code past the end of a function', function () {
+    // main() ends at $865; _cgetc follows at $868 and has no source line.
+    // Without symbol boundaries the PC at $868 would wrongly match main's
+    // last line (only 3 bytes behind) instead of the disassembly.
+    const ctx = makeContext({
+      listings: {
+        'game.c.lst': { lines: [], sourcefile: makeFile([{ line: 15, offset: 0x865 }]) } as any,
+      },
+      symbolAddrs: [0x800, 0x840, 0x868],
+    });
+    assert.strictEqual(findListingLocation(0x868, ctx, LOOKAHEAD), null);
+    assert.strictEqual(findListingLocation(0x880, ctx, LOOKAHEAD), null);
+    // ...but the call site itself still maps to its source line
+    const call = findListingLocation(0x865, ctx, LOOKAHEAD);
+    assert.ok(call);
+    assert.strictEqual(call.line, 15);
+  });
+
+  it('maps a function prologue to that function\'s first listed line', function () {
+    // prev() ends at $800; main() starts at $840 with its first listed line at
+    // $845 (prologue unlisted). A PC in main's prologue must not show prev()'s line.
+    const ctx = makeContext({
+      listings: {
+        'game.c.lst': {
+          lines: [],
+          sourcefile: makeFile([{ line: 4, offset: 0x800 }, { line: 5, offset: 0x845 }]),
+        } as any,
+      },
+      symbolAddrs: [0x800, 0x840, 0x900],
+    });
+    const loc = findListingLocation(0x843, ctx, LOOKAHEAD);
+    assert.ok(loc);
+    assert.strictEqual(loc.line, 5);
+  });
+
 });

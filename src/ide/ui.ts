@@ -1253,6 +1253,7 @@ function findListingLocation(pc: number): { wndid: string, line: number } | null
     filename2path: current_project.filename2path,
     isWindow: (id) => projectWindows.isWindow(id),
     findWindowWithFilePrefix: (fn) => projectWindows.findWindowWithFilePrefix(fn),
+    symbolAddrs: platform.debugSymbols && platform.debugSymbols.symbolAddrs,
   }, PC_LINE_LOOKAHEAD);
 }
 
