@@ -26,14 +26,14 @@ the free replacements, not the chips those names refer to.
 The Atari images are byte-identical to the copies used by the native
 (non-MAME) emulator:
 
-* `a5200/5200.rom` = `res/altirra/superkernel.rom`
-* `a800xl.zip` → `co61598b.rom` = `res/altirra/kernelxl.rom`
+* `a5200/5200.rom` = `res/atari8/altirra/superkernel.rom`
+* `a800xl.zip` → `co61598b.rom` = `res/atari8/altirra/kernelxl.rom`
 
 ## Altirra license
 
 The AltirraOS and Altirra BASIC ROMs are Copyright © 2008-2020
 Avery Lee and are distributed under this notice (taken from the
-source listing, `res/altirra/*.lst`):
+source listing, `res/atari8/altirra/*.lst`):
 
 > Copying and distribution of this file, with or without modification,
 > are permitted in any medium without royalty provided the copyright

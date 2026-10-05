@@ -1,5 +1,6 @@
 import { DisasmLine, Platform, Preset, getToolForFilename_6502 } from "../common/baseplatform";
 import { Keys, PLATFORMS, RasterVideo } from "../common/emu";
+import { resumeAudioContext } from "../common/audio";
 
 const PCE_PRESETS = [
     { id: 'gfxtest.c', name: 'Graphics Test (tiles/sprites)' },
@@ -3135,12 +3136,15 @@ class PCE {
     }
 
     CreateAudioContext() {
-        this.WebAudioCtx = new window.AudioContext();
-        this.WebAudioJsNode = this.WebAudioCtx.createScriptProcessor(this.WebAudioBufferSize, 0, 2);
-        this.WebAudioJsNode.onaudioprocess = this.WebAudioFunction.bind(this);
-        this.WebAudioGainNode = this.WebAudioCtx.createGain();
-        this.WebAudioJsNode.connect(this.WebAudioGainNode);
-        this.WebAudioGainNode.connect(this.WebAudioCtx.destination);
+        if (this.WebAudioCtx == null) {
+            this.WebAudioCtx = new window.AudioContext();
+            this.WebAudioJsNode = this.WebAudioCtx.createScriptProcessor(this.WebAudioBufferSize, 0, 2);
+            this.WebAudioJsNode.onaudioprocess = this.WebAudioFunction.bind(this);
+            this.WebAudioGainNode = this.WebAudioCtx.createGain();
+            this.WebAudioJsNode.connect(this.WebAudioGainNode);
+            this.WebAudioGainNode.connect(this.WebAudioCtx.destination);
+        }
+        resumeAudioContext(this.WebAudioCtx);
     }
 
     SoundSet() {

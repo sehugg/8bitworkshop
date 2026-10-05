@@ -23,9 +23,6 @@ exports.AddressDecoder = AddressDecoder;
 exports.newAddressDecoder = newAddressDecoder;
 exports.getMousePos = getMousePos;
 const util_1 = require("./util");
-// Emulator classes
-// Most of this stuff helps emulators use the DOM
-// and do keyboard/mouse/gamepad/timer handling, etc.
 exports.PLATFORMS = {};
 var _random_state = 1;
 function noise() {

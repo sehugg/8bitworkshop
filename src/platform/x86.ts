@@ -106,13 +106,13 @@ class X86PCPlatform implements Platform {
             vga_memory_size: 1 * 1024 * 1024,
             screen_container: this.mainElement,
             bios: {
-                url: "./res/seabios.bin",
+                url: "./res/x86/seabios.bin",
             },
             vga_bios: {
-                url: "./res/vgabios.bin",
+                url: "./res/x86/vgabios.bin",
             },
             fda: {
-                url: "./res/freedos722.img",
+                url: "./res/x86/freedos722.img",
                 size: 737280,
             },
             autostart: true,

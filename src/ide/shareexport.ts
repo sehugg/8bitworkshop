@@ -1,5 +1,5 @@
 import { OutputSoundFile, TAPFile } from '../common/audio/CommodoreTape';
-import { byteArrayToString, compressLZG, getBasePlatform, getFilenameForPath, getFilenamePrefix, loadScript } from '../common/util';
+import { compressLZG, encodeBase64Url, getBasePlatform, getFilenameForPath, getFilenamePrefix, loadScript } from '../common/util';
 import { alertError, alertInfo, setWaitDialog, setWaitProgress } from './dialogs';
 import { getCurrentEditorFilename, getCurrentMainFilename, getCurrentOutput, getCurrentProject, getPlatformStore, getWorkerParams, platform, platform_id, projectWindows } from './ui';
 import { saveAs } from "file-saver";
@@ -20,22 +20,19 @@ export function _shareEmbedLink(e) {
         // TODO: Module is bad var name (conflicts with MAME)
         var lzgrom = compressLZG(window['Module'], Array.from(<Uint8Array>getCurrentOutput()));
         window['Module'] = null; // so we load it again next time
-        var lzgb64 = btoa(byteArrayToString(lzgrom));
-        var embed = {
-            p: platform_id,
-            //n: current_project.mainPath,
-            r: lzgb64
-        };
-        var linkqs = $.param(embed);
-        var fulllink = get8bitworkshopLink(linkqs, 'player.html');
+        // Pack the compressed ROM into the URL fragment so it never reaches the
+        // web server (avoids Apache's ~8190-byte LimitRequestLine), and use
+        // URL-safe Base64 so it needs no percent-encoding.
+        var lzgb64 = encodeBase64Url(lzgrom);
+        var linkqs = $.param({ p: platform_id });
+        var fulllink = get8bitworkshopLink(linkqs, 'player.html', 'r=' + lzgb64);
         var iframelink = '<iframe width=640 height=600 src="' + fulllink + '">';
         $("#embedLinkTextarea").text(fulllink);
         $("#embedIframeTextarea").text(iframelink);
         $("#embedLinkModal").modal('show');
         $("#embedAdviceWarnAll").hide();
         $("#embedAdviceWarnIE").hide();
-        if (fulllink.length >= 65536) $("#embedAdviceWarnAll").show();
-        else if (fulllink.length >= 5120) $("#embedAdviceWarnIE").show();
+        if (fulllink.length >= 65535) $("#embedAdviceWarnAll").show();
     });
     return true;
 }
@@ -49,12 +46,13 @@ function loadClipboardLibrary() {
     });
 }
 
-function get8bitworkshopLink(linkqs: string, fn: string) {
+function get8bitworkshopLink(linkqs: string, fn: string, hash?: string) {
     console.log(linkqs);
     var loc = window.location;
     var prefix = loc.pathname.replace('index.html', '');
     var protocol = (loc.host == '8bitworkshop.com') ? 'https:' : loc.protocol;
     var fulllink = protocol + '//' + loc.host + prefix + fn + '?' + linkqs;
+    if (hash) fulllink += '#' + hash;
     return fulllink;
 }
 

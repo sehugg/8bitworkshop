@@ -22989,6 +22989,14 @@ function getRootPlatform(platform) {
 function getRootBasePlatform(platform) {
   return getRootPlatform(getBasePlatform(platform));
 }
+var B64URL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+var B64URL_LOOKUP = (() => {
+  const lut = new Int16Array(128).fill(-1);
+  for (let i = 0; i < B64URL_CHARS.length; ++i) lut[B64URL_CHARS.charCodeAt(i)] = i;
+  lut[43] = 62;
+  lut[47] = 63;
+  return lut;
+})();
 function replaceAll(s, search, replace) {
   if (s == "") return "";
   if (search == "") return s;

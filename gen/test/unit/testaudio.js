@@ -89,9 +89,20 @@ class FakeAudioContext {
     createBiquadFilter() { return new FakeNode(); }
     createDynamicsCompressor() { return new FakeNode(); }
     createScriptProcessor(_len, _in, _out) { return this.scriptProcessor; }
-    resume() { }
-    suspend() { }
+    resume() { return Promise.resolve(); }
+    suspend() { return Promise.resolve(); }
     close() { }
+}
+// A context that starts suspended, the way the browser hands one back when it is
+// created before the first user gesture.
+class SuspendedAudioContext extends FakeAudioContext {
+    constructor() {
+        super(...arguments);
+        this.state = 'suspended';
+        this.resumes = 0;
+    }
+    suspend() { this.state = 'suspended'; return Promise.resolve(); }
+    resume() { this.resumes++; this.state = 'running'; return Promise.resolve(); }
 }
 const RING_BUFFER_SAMPLES = 2048;
 function withFakeAudio(fn) {
@@ -114,6 +125,30 @@ function pullBlock(length = RING_BUFFER_SAMPLES) {
     node.onaudioprocess.call(node, { outputBuffer: { getChannelData: () => out }, srcElement: node });
     return out;
 }
+(0, mocha_1.describe)('SampleAudio autoplay unlock', function () {
+    (0, mocha_1.afterEach)(function () {
+        (0, audio_1.setAudioStreamFactory)(null);
+    });
+    (0, mocha_1.it)('resumes a context that was created suspended', async function () {
+        const prev = global.window;
+        global.window = { AudioContext: SuspendedAudioContext };
+        try {
+            const audio = new audio_1.SampledAudio(44100);
+            audio.start();
+            const ctx = FakeAudioContext.last;
+            // the suspend()/resume() cycle is async so it can't race
+            await new Promise((r) => setTimeout(r, 0));
+            assert_1.default.equal(ctx.resumes, 1);
+            assert_1.default.equal(ctx.state, 'running');
+            // a later start (e.g. platform.resume()) must not recreate the graph
+            audio.start();
+            assert_1.default.equal(ctx.resumes, 1);
+        }
+        finally {
+            global.window = prev;
+        }
+    });
+});
 (0, mocha_1.describe)('SampleAudio ring depth', function () {
     (0, mocha_1.afterEach)(function () {
         (0, audio_1.setAudioStreamFactory)(null);

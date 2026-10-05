@@ -393,7 +393,7 @@ export function populateFiles(step: BuildStep, fs, options?: BuildOptions) {
   }
 }
 
-export function populateExtraFiles(step: BuildStep, fs, extrafiles) {
+export function populateExtraFiles(step: BuildStep, fs, extrafiles, processFn?: BuildOptions['processFn']) {
   if (extrafiles) {
     for (var i = 0; i < extrafiles.length; i++) {
       var xfn = extrafiles[i];
@@ -401,7 +401,9 @@ export function populateExtraFiles(step: BuildStep, fs, extrafiles) {
       // is this file cached?
       if (store.workfs[xfn]) {
         // may be the project's own file of that name, as text
-        fs.writeFile(xfn, store.workfs[xfn].data, { encoding: store.workfs[xfn].encoding });
+        var xdata = store.workfs[xfn].data;
+        if (processFn) xdata = processFn(xfn, xdata);
+        fs.writeFile(xfn, xdata, { encoding: store.workfs[xfn].encoding });
         continue;
       }
       var data = fetchLibraryFile(step.platform, xfn);

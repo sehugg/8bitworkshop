@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.assembleCA65 = assembleCA65;
 exports.linkLD65 = linkLD65;
+exports.fixLegacyNullDefine = fixLegacyNullDefine;
 exports.compileCC65 = compileCC65;
 const toolmeta_1 = require("../../common/toolmeta");
 const builder_1 = require("../builder");
@@ -315,6 +316,12 @@ async function linkLD65(step) {
         };
     }
 }
+// Older projects carry their own copy of neslib.h with "#define NULL 0", which
+// now clashes with the ((void*)0) from cc65's <stddef.h>. Guard it.
+const re_define_null = /^([ \t]*)#[ \t]*define[ \t]+NULL[ \t]+(?:0|0[uU]?[lL]?|\(\s*void\s*\*\s*\)\s*0|\(\(\s*void\s*\*\s*\)\s*0\s*\))[ \t]*(?=\r?$)/gm;
+function fixLegacyNullDefine(code) {
+    return code.replace(re_define_null, '$1#ifndef NULL\n$1#define NULL ((void*)0)\n$1#endif');
+}
 async function compileCC65(step) {
     var params = step.params;
     var errors = [];
@@ -347,16 +354,16 @@ async function compileCC65(step) {
         args = args.concat(customArgs, ['--disable-opt', 'OptLoadStore1'], args);
         args.push(step.path);
         const { wasi, errno, stderr } = await runCC65Tool(step, 'cc65', args, (fs) => {
-            (0, builder_1.populateFiles)(step, fs, {
-                mainFilePath: step.path,
-                processFn: (path, code) => {
-                    if (typeof code === 'string') {
-                        code = (0, builder_1.processEmbedDirective)(code);
-                    }
-                    return code;
+            const processFn = (path, code) => {
+                if (typeof code === 'string') {
+                    code = (0, builder_1.processEmbedDirective)(code);
+                    if (/(^|\/)neslib\.h$/.test(path))
+                        code = fixLegacyNullDefine(code);
                 }
-            });
-            (0, builder_1.populateExtraFiles)(step, fs, params.extra_compile_files);
+                return code;
+            };
+            (0, builder_1.populateFiles)(step, fs, { mainFilePath: step.path, processFn });
+            (0, builder_1.populateExtraFiles)(step, fs, params.extra_compile_files, processFn);
         });
         stderr.forEach((0, listingutils_1.makeErrorMatcher)(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
         (0, wasiutils_1.checkExitCode)('cc65', errno, stderr, errors);

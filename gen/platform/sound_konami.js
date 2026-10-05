@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
+const audio_1 = require("../common/audio");
 var KONAMISOUND_PRESETS = [];
 var KonamiSoundPlatform = function (mainElement) {
     this.__proto__ = new baseplatform_1.BaseZ80Platform();
@@ -124,6 +125,7 @@ var KonamiSoundPlatform = function (mainElement) {
     this.resume = function () {
         timer.start();
         audio.activate();
+        (0, audio_1.resumeAudioContext)(audio.audioContext);
     };
     this.reset = function () {
         cpu.reset();

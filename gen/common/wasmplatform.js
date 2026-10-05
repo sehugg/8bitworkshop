@@ -31,7 +31,7 @@ class BaseWASMMachine {
         return {};
     }
     async fetchWASM() {
-        var wasmResponse = await fetch('res/' + this.prefix + '.wasm');
+        var wasmResponse = await fetch('res/' + this.prefix + '/' + this.prefix + '.wasm');
         if (wasmResponse.status == 200 || wasmResponse.size) {
             var wasmBinary = await wasmResponse.arrayBuffer();
             var wasmCompiled = await WebAssembly.compile(wasmBinary);
@@ -47,7 +47,7 @@ class BaseWASMMachine {
         this.biosarr = new Uint8Array(this.exports.memory.buffer, this.biosptr, biosBinary.byteLength);
     }
     async fetchBIOS() {
-        var biosResponse = await fetch('res/' + this.prefix + '.bios');
+        var biosResponse = await fetch('res/' + this.prefix + '/' + this.prefix + '.bios');
         if (biosResponse.status == 200 || biosResponse.size) {
             var biosBinary = new Uint8Array(await biosResponse.arrayBuffer());
             this.allocateBIOS(biosBinary);

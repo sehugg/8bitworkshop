@@ -2,6 +2,8 @@ import { MOS6502, MOS6502State } from "../common/cpu/MOS6502";
 import { Bus, BasicScanlineMachine, SavesState, AcceptsBIOS, AcceptsPaddleInput } from "../common/devices";
 import { KeyFlags } from "../common/emu"; // TODO
 import { hex, lzgmini, stringToByteArray, RGBA, printFlags, arrayCompare } from "../common/util";
+import { MasterAudio, AY38910_Audio } from "../common/audio";
+import { VIA6522, VIA6522Host } from "./chips/via6522";
 
 interface AppleIIStateBase {
    ram: Uint8Array<ArrayBuffer>;
@@ -26,6 +28,7 @@ interface AppleIIState extends AppleIIStateBase, AppleIIControlsState {
 interface SlotDevice extends Bus {
    readROM(address: number): number;
    readConst(address: number): number;
+   writeROM?(address: number, value: number): void;
 }
 
 export class AppleII extends BasicScanlineMachine implements AcceptsBIOS, AcceptsPaddleInput {
@@ -68,6 +71,8 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS, Accept
    paddleLastTriggered = 0;
    // disk II
    slots: SlotDevice[] = new Array(8);
+   // Mockingboard sound card (slot 4, $C400)
+   mb: Mockingboard;
    // fake disk drive that loads program into RAM
    fakeDrive: SlotDevice = {
       readROM: (a) => {
@@ -129,6 +134,8 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS, Accept
       // that special case (in case it really is important for this
       // address to be an RTS).
       this.bios[0xD39A - (0x10000 - this.bios.length)] = 0x60;  // $d39a = RTS
+      this.mb = new Mockingboard(this.cpuFrequency);
+      this.slots[4] = this.mb;
    }
    saveState(): AppleIIState {
       // TODO: automagic
@@ -224,6 +231,7 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS, Accept
       this.auxRAMbank = 1;
       this.writeinhibit = true;
       this.ram.fill(0, 0x300, 0x400); // Clear soft-reset vector
+      this.mb && this.mb.reset();
       // (force hard reset)
       super.reset();
       this.skipboot();
@@ -343,6 +351,11 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS, Accept
          var slot = (address >> 4) & 0x0f;
          this.slots[slot - 8] && this.slots[slot - 8].write(address & 0xf, val);
          this.probe.logIOWrite(address, val);
+      } else if (address >= 0xc100 && address < 0xc800) {
+         var slot = (address >> 8) & 7;
+         var dev = this.slots[slot];
+         if (dev && dev.writeROM) dev.writeROM(address & 0xff, val);
+         this.probe.logIOWrite(address, val);
       } else if (address >= 0xd000 && !this.writeinhibit) {
          if (address >= 0xe000)
             this.ram[address] = val;
@@ -386,7 +399,19 @@ export class AppleII extends BasicScanlineMachine implements AcceptsBIOS, Accept
    }
    advanceCPU() {
       this.audio.feedSample(this.soundstate, 1);
+      if (this.mb) {
+         this.mb.step();
+         if (this.mb.irq()) this.cpu.IRQ();
+      }
       return super.advanceCPU();
+   }
+
+   startAudio() {
+      this.mb && this.mb.startAudio();
+   }
+
+   stopAudio() {
+      this.mb && this.mb.stopAudio();
    }
 
    setKeyInput(key: number, code: number, flags: number): void {
@@ -1503,4 +1528,182 @@ function nibblizeTrack(vol, trk, inn) {
    while (out_pos < TRACK_SIZE)
       out[out_pos++] = (0xff);
    return out;
+}
+
+// Apple II Mockingboard / Phasor "Mockingboard mode" sound card.
+//
+// A Mockingboard C has two sub-units, each a 6522 VIA driving one AY-3-8913
+// PSG. The card occupies a slot's 256-byte ROM/I/O window (conventionally slot
+// 4, so $C400): the first sub-unit is at $Cn00-$Cn7F, the second at
+// $Cn80-$CnFF. The AY is not directly bus-visible -- it hangs off the 6522
+// ports:
+//
+//   Port A = AY data/address bus
+//   Port B bit 0 = BC1, bit 1 = BDIR, bit 2 = /RESET (active low)
+//
+//   BC1/BDIR:  0/0 inactive   1/0 read   0/1 write   1/1 latch address
+//
+// The AY only accepts a bus function when it is currently inactive, so
+// software brackets each latch/write/read with an inactive write.
+// See AppleWin's Mockingboard.cpp for reference.
+
+const AY_INACTIVE = 0;
+const AY_READ = 1;
+const AY_WRITE = 2;
+const AY_LATCH = 3;
+
+class MockingboardUnit implements VIA6522Host {
+  via = new VIA6522(this);
+  ay: AY38910_Audio;
+  ayFunc = AY_INACTIVE;
+  addressLatched = false;
+
+  constructor(master: MasterAudio, clock: number) {
+    this.ay = new AY38910_Audio(master);
+    // AY is clocked from the Apple II CPU clock. TSS divides its clock by 32
+    // where a real AY divides by 16, so it wants twice the chip's clock.
+    this.ay.psg.setClock(clock * 2);
+  }
+
+  reset() {
+    this.via.reset();
+    this.ay.reset();
+    this.ayFunc = AY_INACTIVE;
+    this.addressLatched = false;
+  }
+
+  step() {
+    this.via.step0();
+    this.via.step1();
+  }
+
+  irq(): boolean {
+    return (this.via.ifr & 0x80) != 0;
+  }
+
+  read(offset: number, peek = false): number {
+    return this.via.read(offset & 0xf, peek);
+  }
+
+  write(offset: number, val: number): void {
+    this.via.write(offset & 0xf, val);
+  }
+
+  saveState() {
+    return {
+      via: this.via.saveState(),
+      ayFunc: this.ayFunc,
+      addressLatched: this.addressLatched,
+      ayRegs: this.ay.psg.register.slice(0),
+    };
+  }
+
+  loadState(s) {
+    this.via.loadState(s.via);
+    this.ayFunc = s.ayFunc;
+    this.addressLatched = s.addressLatched;
+    this.ay.psg.register.set(s.ayRegs);
+  }
+
+  // --- VIA6522Host ---
+
+  readPortB(): number {
+    return 0;
+  }
+
+  readPortA(): number | undefined {
+    if (this.ayFunc == AY_READ && this.addressLatched) {
+      return this.ay.readData();
+    }
+    return undefined;
+  }
+
+  writePortB(value: number): void {
+    if ((value & 0x04) == 0) {
+      /* /RESET asserted */
+      this.ay.reset();
+      this.ayFunc = AY_INACTIVE;
+      this.addressLatched = false;
+      return;
+    }
+    const func = value & 0x03;
+    if (this.ayFunc == AY_INACTIVE) {
+      switch (func) {
+        case AY_WRITE:
+          if (this.addressLatched)
+            this.ay.setData(this.via.ora);
+          break;
+        case AY_LATCH:
+          if (this.via.ora <= 0x0f) {
+            this.ay.selectRegister(this.via.ora);
+            this.addressLatched = true;
+          }
+          break;
+      }
+    }
+    this.ayFunc = func;
+  }
+
+  writePortA(value: number): void {
+  }
+}
+
+export class Mockingboard {
+  units: MockingboardUnit[] = [];
+  master = new MasterAudio();
+
+  constructor(clock: number) {
+    for (var i = 0; i < 2; i++) {
+      var unit = new MockingboardUnit(this.master, clock);
+      unit.reset();
+      this.units.push(unit);
+    }
+  }
+
+  private unit(offset: number): MockingboardUnit {
+    return this.units[(offset >> 7) & 1];
+  }
+
+  startAudio() { this.master.start(); }
+  stopAudio() { this.master.stop(); }
+
+  reset() {
+    for (var unit of this.units)
+      unit.reset();
+  }
+
+  step() {
+    for (var unit of this.units)
+      unit.step();
+  }
+
+  irq(): boolean {
+    return this.units.some((unit) => unit.irq());
+  }
+
+  // --- slot device (Bus + SlotDevice shape) ---
+
+  readROM(offset: number): number {
+    return this.unit(offset).read(offset);
+  }
+  readConst(offset: number): number {
+    return this.unit(offset).read(offset, true);
+  }
+  read(offset: number): number {
+    return this.unit(offset).read(offset);
+  }
+  write(offset: number, value: number): void {
+    this.unit(offset).write(offset, value);
+  }
+  writeROM(offset: number, value: number): void {
+    this.unit(offset).write(offset, value);
+  }
+
+  saveState() {
+    return this.units.map((unit) => unit.saveState());
+  }
+  loadState(s) {
+    for (var i = 0; i < this.units.length; i++)
+      if (s && s[i]) this.units[i].loadState(s[i]);
+  }
 }

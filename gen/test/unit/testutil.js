@@ -141,6 +141,26 @@ var NES_CONIO_ROM_LZG = [
         // control bytes are a soft signal; one form feed is fine in source
         assert_1.default.ok(!(0, util_1.isProbablyBinary)(null, new TextEncoder().encode("a\fb\n")));
     });
+    it('Should round-trip URL-safe Base64', function () {
+        for (let len = 0; len <= 64; ++len) {
+            const data = new Uint8Array(len);
+            for (let i = 0; i < len; ++i)
+                data[i] = (i * 37 + len * 11) & 0xff;
+            const enc = (0, util_1.encodeBase64Url)(data);
+            assert_1.default.ok(!/[+/=]/.test(enc), `output must be URL-safe: ${enc}`);
+            assert_1.default.deepStrictEqual(Array.from((0, util_1.decodeBase64Url)(enc)), Array.from(data));
+        }
+    });
+    it('Should encode URL-safe Base64 like standard Base64 (modulo alphabet)', function () {
+        const data = new Uint8Array([0x00, 0x10, 0xff, 0xfe, 0xfb, 0x42, 0x01]);
+        const std = Buffer.from(data).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+        assert_1.default.strictEqual((0, util_1.encodeBase64Url)(data), std);
+    });
+    it('Should decode legacy standard Base64 (old share links)', function () {
+        const data = new Uint8Array([0x01, 0x02, 0x03, 0x80, 0xfe, 0xff]);
+        const std = Buffer.from(data).toString('base64');
+        assert_1.default.deepStrictEqual(Array.from((0, util_1.decodeBase64Url)(std)), Array.from(data));
+    });
 });
 (0, mocha_1.describe)('EmuHalt', function () {
     it('Should detect emuhalt', function () {

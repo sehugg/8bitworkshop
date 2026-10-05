@@ -19,6 +19,7 @@ Object.defineProperty(exports, "EmuTarget", { enumerable: true, get: function ()
 Object.defineProperty(exports, "DEFAULT_MAX_FRAMES", { enumerable: true, get: function () { return emucore_2.DEFAULT_MAX_FRAMES; } });
 /** Load a platform module by ID (e.g. "nes", "c64.wasm", "atari8-5200"). */
 async function loadPlatform(platformId) {
+    await (0, toolroot_1.ensureToolchains)(platformId);
     installNodeMocks((0, toolroot_1.toolRoot)());
     // a headless host may load more than one platform (or the same one twice)
     // in a process; scripts kept global state, so evaluate them fresh each time

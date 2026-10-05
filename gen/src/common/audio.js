@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TssChannelAdapter = exports.SampledAudio = exports.SampleAudio = exports.AUDIO_CHUNK_SAMPLES = exports.WorkerSoundChannel = exports.POKEYDeviceChannel = exports.SN76489_Audio = exports.AY38910_Audio = exports.MasterAudio = void 0;
 exports.newPOKEYAudio = newPOKEYAudio;
 exports.setAudioStreamFactory = setAudioStreamFactory;
+exports.resumeAudioContext = resumeAudioContext;
 class MasterAudio {
     constructor() {
         this.master = new MasterChannel();
@@ -12,6 +13,8 @@ class MasterAudio {
             this.looper = new AudioLooper(512);
             this.looper.setChannel(this.master);
             this.looper.activate();
+            // AudioLooper makes its own AudioContext and never resumes it
+            resumeAudioContext(this.looper.audioContext);
         }
     }
     stop() {
@@ -341,6 +344,31 @@ function setAudioStreamFactory(factory) {
 }
 // samples per chunk; the same size the IDE's ScriptProcessor asks for
 exports.AUDIO_CHUNK_SAMPLES = 2048;
+// Browsers create an AudioContext suspended until a user gesture, and start()
+// runs at page load, before any gesture. So also resume on the first
+// interaction anywhere on the page (canvas focus alone is too narrow). resume()
+// must be called synchronously inside the handler for Safari/iOS to allow it.
+// Called on every start(), since stop() suspends the context.
+const audioUnlockEvents = ['pointerdown', 'touchend', 'mousedown', 'keydown', 'click'];
+const pendingUnlocks = new WeakSet();
+function resumeAudioContext(ctx) {
+    if (!ctx || ctx.state === 'running')
+        return;
+    ctx.resume().catch(() => { });
+    if (typeof document === 'undefined' || pendingUnlocks.has(ctx))
+        return;
+    pendingUnlocks.add(ctx);
+    const onGesture = () => {
+        ctx.resume().catch(() => { });
+        if (ctx.state === 'running') {
+            for (const ev of audioUnlockEvents)
+                document.removeEventListener(ev, onGesture, true);
+            pendingUnlocks.delete(ctx);
+        }
+    };
+    for (const ev of audioUnlockEvents)
+        document.addEventListener(ev, onGesture, true);
+}
 var SampleAudio = function (clockfreq) {
     var self = this;
     var sfrac, sinc, accum;
@@ -459,14 +487,14 @@ var SampleAudio = function (clockfreq) {
         }
         if (this.context) {
             // Chrome autoplay (https://goo.gl/7K7WLu)
-            if (this.context.state == 'suspended') {
-                this.context.resume();
-            }
+            resumeAudioContext(this.context);
             return; // already created
         }
         createContext(); // create it
         if (!this.context)
             return; // not created?
+        // the context starts suspended when created without a gesture
+        resumeAudioContext(this.context);
         sinc = this.sr * 1.0 / clockfreq;
         baseSinc = sinc;
         trim = 1;

@@ -363,7 +363,7 @@ function populateFiles(step, fs, options) {
         populateEntry(fs, path, exports.store.workfs[path], options);
     }
 }
-function populateExtraFiles(step, fs, extrafiles) {
+function populateExtraFiles(step, fs, extrafiles, processFn) {
     if (extrafiles) {
         for (var i = 0; i < extrafiles.length; i++) {
             var xfn = extrafiles[i];
@@ -371,7 +371,10 @@ function populateExtraFiles(step, fs, extrafiles) {
             // is this file cached?
             if (exports.store.workfs[xfn]) {
                 // may be the project's own file of that name, as text
-                fs.writeFile(xfn, exports.store.workfs[xfn].data, { encoding: exports.store.workfs[xfn].encoding });
+                var xdata = exports.store.workfs[xfn].data;
+                if (processFn)
+                    xdata = processFn(xfn, xdata);
+                fs.writeFile(xfn, xdata, { encoding: exports.store.workfs[xfn].encoding });
                 continue;
             }
             var data = fetchLibraryFile(step.platform, xfn);

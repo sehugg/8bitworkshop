@@ -2,7 +2,7 @@
 import { lzgmini } from "../common/util";
 import { PLATFORMS } from "../common/emu";
 import { Platform } from "../common/baseplatform";
-import { stringToByteArray, getWithBinary, loadScript, getRootBasePlatform } from "../common/util";
+import { getWithBinary, loadScript, getRootBasePlatform, decodeBase64Url, decodeQueryString } from "../common/util";
 import { StateRecorderImpl } from "../common/recorder";
 import { importPlatform } from "../platform/_index";
 import { saveAs } from "file-saver";
@@ -14,19 +14,12 @@ export var stateRecorder : StateRecorderImpl;
 // external libs (TODO)
 declare var ga, GIF;
 
-var _qs = (function (a) {
-    if (!a || a.length == 0)
-        return {};
-    var b = {};
-    for (var i = 0; i < a.length; ++i) {
-        var p = a[i].split('=', 2);
-        if (p.length == 1)
-            b[p[0]] = "";
-        else
-            b[p[0]] = decodeURIComponent(p[1].replace(/\+/g, " "));
-    }
-    return b;
-})(window.location.search.substr(1).split('&'));
+// Payload for the playable-link can be large, so it lives in the URL fragment
+// (which never reaches the web server); older links may still put it in the
+// query string, so parse both and let the fragment win.
+var _qs = decodeQueryString(window.location.search) as { [key: string]: string };
+var _hashqs = window.location.hash ? decodeQueryString(window.location.hash.substr(1)) as { [key: string]: string } : {};
+for (var _k in _hashqs) _qs[_k] = _hashqs[_k];
 
 // catch errors
 function installErrorHandler() {
@@ -155,8 +148,9 @@ async function startPlatform(qs) {
     }, 'arraybuffer');
     return true;
   } else if (lzgvar) {
-    // decompress from lzg
-    var lzgrom = stringToByteArray(atob(lzgvar));
+    // decompress from lzg; the payload is URL-safe Base64 (the decoder also
+    // accepts standard Base64, so pre-fragment links keep working)
+    var lzgrom = decodeBase64Url(lzgvar);
     rom = new lzgmini().decode(lzgrom);
   }
   addPageFocusHandlers();

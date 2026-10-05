@@ -58,6 +58,7 @@ const symbolfile_1 = require("../common/symbols/symbolfile");
 const testlib_1 = require("./testlib");
 const detect_1 = require("../common/detect");
 const toolroot_1 = require("./toolroot");
+const toolmeta_1 = require("../common/toolmeta");
 /** Options that may be repeated; each occurrence adds to a list. */
 const REPEATABLE_FLAGS = new Set([
     'define', 'as-define', 'ld-define', 'cflag', 'asflag', 'ldflag',
@@ -151,6 +152,7 @@ async function compileSource(args, source, platform) {
     if (!TOOLS[tool]) {
         (0, cliformat_1.fail)('build', `Unknown tool: ${tool}. Use list-tools to see available tools.`);
     }
+    await (0, toolroot_1.ensureToolchains)(platform, tool, fs.readFileSync(source, 'utf8'));
     await preload(tool, platform);
     const result = await compileSourceFile(tool, platform, source, undefined, buildOverrides(args));
     if (result.internal) {
@@ -244,13 +246,18 @@ async function openTarget(args, platformId) {
 }
 /** Turn the run flags into script commands, appended to any --script/-e text. */
 function buildScript(args) {
-    var _a, _b;
+    var _a, _b, _c;
     const parts = [];
-    if (args['frames'])
+    const frameDir = str(args, 'frames-dir');
+    // --frames-dir records frames instead of just advancing, so it goes last,
+    // after any --script/-e setup (e.g. `run 60` to reach the title screen)
+    if (args['frames'] && !frameDir)
         parts.push(`run ${(_a = str(args, 'frames')) !== null && _a !== void 0 ? _a : 1}`);
     const script = (_b = str(args, 'eval')) !== null && _b !== void 0 ? _b : str(args, 'script');
     if (script)
         parts.push(fs.existsSync(script) ? fs.readFileSync(script, 'utf8') : script);
+    if (frameDir)
+        parts.push(`capture ${(_c = str(args, 'frames')) !== null && _c !== void 0 ? _c : 60} ${frameDir}`);
     if (args['info'])
         parts.push('info');
     const memdump = str(args, 'memdump');
@@ -323,7 +330,7 @@ async function openProgram(command, args, input) {
     return { target, source: input, romFile, built, symbols, debugInfo };
 }
 async function doRun(args, positional) {
-    var _a, _b;
+    var _a, _b, _c;
     const input = positional[0];
     const { target, romFile, symbols, debugInfo } = await openProgram('run', args, input);
     const script = new runscript_1.RunScript(target);
@@ -336,6 +343,12 @@ async function doRun(args, positional) {
     script.startTracing();
     // `vcd FILE` writes as it goes, so a long recording doesn't sit in memory
     script.openFile = vcdfile_1.openVcdFile;
+    // `capture N DIR` / `png FILE`: encode each frame with the same PNG writer as --png
+    const { encode } = await Promise.resolve().then(() => __importStar(require('fast-png')));
+    script.writeFrame = (file, video) => {
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, encodePNG(encode, video));
+    };
     try {
         script.run(buildScript(args));
     }
@@ -343,6 +356,8 @@ async function doRun(args, positional) {
         script.finish();
     }
     const video = target.getVideo();
+    const frameDir = str(args, 'frames-dir');
+    const fps = parseInt((_a = str(args, 'fps')) !== null && _a !== void 0 ? _a : '') || target.frameRate;
     (0, cliformat_1.output)({
         success: true,
         command: 'run',
@@ -350,12 +365,25 @@ async function doRun(args, positional) {
             platform: target.id,
             rom: romFile,
             frames: target.frameCount,
-            width: (_a = video === null || video === void 0 ? void 0 : video.width) !== null && _a !== void 0 ? _a : null,
-            height: (_b = video === null || video === void 0 ? void 0 : video.height) !== null && _b !== void 0 ? _b : null,
+            width: (_b = video === null || video === void 0 ? void 0 : video.width) !== null && _b !== void 0 ? _b : null,
+            height: (_c = video === null || video === void 0 ? void 0 : video.height) !== null && _c !== void 0 ? _c : null,
             png: str(args, 'png') || null,
+            framesDir: frameDir || null,
+            fps: frameDir ? fps : null,
+            ffmpeg: frameDir
+                ? `ffmpeg -framerate ${fps} -i ${frameDir.replace(/[\\/]+$/, '')}/frame_%05d.png -pix_fmt yuv420p out.mp4`
+                : null,
         }
     });
     await writeScreenshot(video, str(args, 'png'));
+}
+/** Encode a frame as a 4-channel PNG (the pixel view is already RGBA bytes). */
+function encodePNG(encode, video) {
+    return encode({
+        width: video.width, height: video.height,
+        data: new Uint8Array(video.pixels.buffer, video.pixels.byteOffset, video.width * video.height * 4),
+        channels: 4,
+    });
 }
 async function writeScreenshot(video, pngFile) {
     if (!video)
@@ -364,10 +392,7 @@ async function writeScreenshot(video, pngFile) {
     if (!pngFile && !showInTerminal)
         return;
     const { encode } = await Promise.resolve().then(() => __importStar(require('fast-png')));
-    const png = encode({
-        width: video.width, height: video.height,
-        data: new Uint8Array(video.pixels.buffer), channels: 4
-    });
+    const png = encodePNG(encode, video);
     if (pngFile)
         fs.writeFileSync(pngFile, png);
     if (showInTerminal) {
@@ -566,11 +591,13 @@ async function doList(command) {
     const { initialize, listPlatforms, listTools, PLATFORM_PARAMS } = await Promise.resolve().then(() => __importStar(require('./testlib')));
     await initialize();
     if (command === 'list-tools') {
-        (0, cliformat_1.output)({ success: true, command, data: { tools: listTools() } });
+        // an install made from packs leaves some toolchains out (see assetpacks.ts)
+        const tools = listTools().filter((t) => { var _a; return (0, toolroot_1.toolchainProvidesTool)(t, (_a = toolmeta_1.TOOL_META[t]) === null || _a === void 0 ? void 0 : _a.wasmModule); });
+        (0, cliformat_1.output)({ success: true, command, data: { tools } });
         return;
     }
     const platforms = {};
-    for (const p of listPlatforms())
+    for (const p of listPlatforms().filter(toolroot_1.toolchainSupportsPlatform))
         platforms[p] = { arch: PLATFORM_PARAMS[p].arch || 'unknown' };
     (0, cliformat_1.output)({ success: true, command, data: { platforms, count: Object.keys(platforms).length } });
 }
@@ -611,6 +638,8 @@ function usage(error) {
                     '-e <commands>': 'inline run-script, e.g. -e "run 60; screen"',
                     '--script <file>': 'run-script file',
                     '--png <file>': 'write a screenshot of the last frame',
+                    '--frames-dir <dir>': 'write each frame as DIR/frame_NNNNN.png, for ffmpeg',
+                    '--fps <n>': 'frame rate for --frames-dir (default: the platform\'s)',
                     '--symbols <file>': 'load a .lbl/.sym file for symbolic addresses',
                     '--bios <file>': 'load a BIOS image',
                     '--vector-size <px>': 'long side of a vector platform\'s screen (default 512)',

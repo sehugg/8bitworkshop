@@ -572,6 +572,58 @@ export function setScriptLoader(loader:ScriptLoader) : ScriptLoader {
   return prev;
 }
 
+// URL-safe Base64 (RFC 4648 §5) helpers, used to pack binary blobs
+// (e.g. compressed ROMs) into shareable URLs. Unlike standard Base64, the
+// alphabet ('-' and '_' instead of '+' and '/'/no padding) is safe inside a
+// URL fragment, so it survives without percent-encoding.
+const B64URL_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+const B64URL_LOOKUP = (() => {
+  const lut = new Int16Array(128).fill(-1);
+  for (let i = 0; i < B64URL_CHARS.length; ++i) lut[B64URL_CHARS.charCodeAt(i)] = i;
+  // accept standard Base64 too, so old '?r=' links still decode
+  lut[0x2b] = 62; // '+'
+  lut[0x2f] = 63; // '/'
+  return lut;
+})();
+
+export function encodeBase64Url(data : Uint8Array) : string {
+  let out = '';
+  for (let i = 0; i < data.length; i += 3) {
+    const b0 = data[i];
+    out += B64URL_CHARS[b0 >> 2];
+    if (i + 1 < data.length) {
+      const b1 = data[i + 1];
+      out += B64URL_CHARS[((b0 & 3) << 4) | (b1 >> 4)];
+      if (i + 2 < data.length) {
+        const b2 = data[i + 2];
+        out += B64URL_CHARS[((b1 & 15) << 2) | (b2 >> 6)];
+        out += B64URL_CHARS[b2 & 63];
+      } else {
+        out += B64URL_CHARS[(b1 & 15) << 2];
+      }
+    } else {
+      out += B64URL_CHARS[(b0 & 3) << 4];
+    }
+  }
+  return out;
+}
+
+export function decodeBase64Url(s : string) : Uint8Array {
+  const out = new Uint8Array((s.length * 3) >> 2);
+  let bits = 0, nbits = 0, o = 0;
+  for (let i = 0; i < s.length; ++i) {
+    const v = B64URL_LOOKUP[s.charCodeAt(i)];
+    if (v < 0) continue; // skip padding/whitespace/unknown characters
+    bits = (bits << 6) | v;
+    nbits += 6;
+    if (nbits >= 8) {
+      nbits -= 8;
+      out[o++] = (bits >> nbits) & 0xff;
+    }
+  }
+  return out.subarray(0, o);
+}
+
 export function decodeQueryString(qs : string) : {} {
   if (qs.startsWith('?')) qs = qs.substr(1);
   var a = qs.split('&');

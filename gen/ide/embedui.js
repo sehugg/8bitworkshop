@@ -8,19 +8,13 @@ const util_2 = require("../common/util");
 const recorder_1 = require("../common/recorder");
 const _index_1 = require("../platform/_index");
 const file_saver_1 = require("file-saver");
-var _qs = (function (a) {
-    if (!a || a.length == 0)
-        return {};
-    var b = {};
-    for (var i = 0; i < a.length; ++i) {
-        var p = a[i].split('=', 2);
-        if (p.length == 1)
-            b[p[0]] = "";
-        else
-            b[p[0]] = decodeURIComponent(p[1].replace(/\+/g, " "));
-    }
-    return b;
-})(window.location.search.substr(1).split('&'));
+// Payload for the playable-link can be large, so it lives in the URL fragment
+// (which never reaches the web server); older links may still put it in the
+// query string, so parse both and let the fragment win.
+var _qs = (0, util_2.decodeQueryString)(window.location.search);
+var _hashqs = window.location.hash ? (0, util_2.decodeQueryString)(window.location.hash.substr(1)) : {};
+for (var _k in _hashqs)
+    _qs[_k] = _hashqs[_k];
 // catch errors
 function installErrorHandler() {
     if (typeof window.onerror == "object") {
@@ -145,8 +139,9 @@ async function startPlatform(qs) {
         return true;
     }
     else if (lzgvar) {
-        // decompress from lzg
-        var lzgrom = (0, util_2.stringToByteArray)(atob(lzgvar));
+        // decompress from lzg; the payload is URL-safe Base64 (the decoder also
+        // accepts standard Base64, so pre-fragment links keep working)
+        var lzgrom = (0, util_2.decodeBase64Url)(lzgvar);
         rom = new util_1.lzgmini().decode(lzgrom);
     }
     addPageFocusHandlers();

@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
+const audio_1 = require("../common/audio");
 const PCE_PRESETS = [
     { id: 'gfxtest.c', name: 'Graphics Test (tiles/sprites)' },
     { id: 'perftest.c', name: 'Graphics Pipeline Benchmark' },
@@ -2567,12 +2568,15 @@ class PCE {
         }
     }
     CreateAudioContext() {
-        this.WebAudioCtx = new window.AudioContext();
-        this.WebAudioJsNode = this.WebAudioCtx.createScriptProcessor(this.WebAudioBufferSize, 0, 2);
-        this.WebAudioJsNode.onaudioprocess = this.WebAudioFunction.bind(this);
-        this.WebAudioGainNode = this.WebAudioCtx.createGain();
-        this.WebAudioJsNode.connect(this.WebAudioGainNode);
-        this.WebAudioGainNode.connect(this.WebAudioCtx.destination);
+        if (this.WebAudioCtx == null) {
+            this.WebAudioCtx = new window.AudioContext();
+            this.WebAudioJsNode = this.WebAudioCtx.createScriptProcessor(this.WebAudioBufferSize, 0, 2);
+            this.WebAudioJsNode.onaudioprocess = this.WebAudioFunction.bind(this);
+            this.WebAudioGainNode = this.WebAudioCtx.createGain();
+            this.WebAudioJsNode.connect(this.WebAudioGainNode);
+            this.WebAudioGainNode.connect(this.WebAudioCtx.destination);
+        }
+        (0, audio_1.resumeAudioContext)(this.WebAudioCtx);
     }
     SoundSet() {
         let waveoutleft;

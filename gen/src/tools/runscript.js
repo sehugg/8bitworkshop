@@ -44,6 +44,9 @@ exports.RUN_SCRIPT_HELP = [
     'Inspection & input:',
     '  key KEY                     - press key (down, 3 frames, up)',
     '  keydown KEY / keyup KEY     - raw key down/up events',
+    '  png FILE                    - write the current frame as a PNG',
+    '  capture N DIR               - advance N frames, writing DIR/frame_NNNNN.png each',
+    '                                (a frame sequence for ffmpeg)',
     '  mem START [LEN]             - hexdump memory (default 16 bytes)',
     '  screen [START] [COLS] [ROWS]- decode screen RAM to text (default $0400 40x25)',
     '  serial                      - print what the program sent to its serial port (devel-6502)',
@@ -172,6 +175,8 @@ class RunScript {
         this.addr2symbol = {};
         this.probe = null;
         this.vcdFile = null;
+        // running count for the `capture` command's file names
+        this.frameIndex = 0;
     }
     addSymbols(symbols) {
         Object.assign(this.symbols, symbols);
@@ -567,6 +572,34 @@ class RunScript {
         for (const e of (0, debugtree_1.treeChildren)(root, path))
             this.out(`${e.name}${e.expandable ? '/' : ''} ${e.value}\n`);
     }
+    cmdPNG(tokens) {
+        if (!tokens[1])
+            throw new Error('usage: png FILE');
+        if (!this.writeFrame)
+            throw new Error("'png' is not available here");
+        const video = this.target.getVideo();
+        if (!video)
+            throw new Error(`'${this.target.id}' has no video to capture`);
+        this.writeFrame(tokens[1], video);
+        this.log(`wrote ${tokens[1]}`);
+    }
+    cmdCapture(tokens) {
+        const n = tokens[1] ? parseNum(tokens[1]) : 1;
+        const dir = tokens[2];
+        if (!dir)
+            throw new Error('usage: capture N DIR');
+        if (!this.writeFrame)
+            throw new Error("'capture' is not available here");
+        const base = dir.replace(/[\\/]+$/, '');
+        for (let i = 0; i < n; i++) {
+            this.advance(1);
+            const video = this.target.getVideo();
+            if (!video)
+                throw new Error(`'${this.target.id}' has no video to capture`);
+            this.writeFrame(`${base}/frame_${String(this.frameIndex++).padStart(5, '0')}.png`, video);
+        }
+        this.log(`wrote ${n} frame${n == 1 ? '' : 's'} to ${dir}`);
+    }
     cmdVcd(tokens) {
         if (tokens[1] === 'off' || tokens[1] === 'stop') {
             const file = this.vcdFile;
@@ -622,6 +655,8 @@ const COMMANDS = {
     'pc': RunScript.prototype.cmdPC,
     'info': RunScript.prototype.cmdInfo,
     'signals': RunScript.prototype.cmdSignals,
+    'png': RunScript.prototype.cmdPNG,
+    'capture': RunScript.prototype.cmdCapture,
     'vcd': RunScript.prototype.cmdVcd,
     'paddle': RunScript.prototype.cmdPaddle,
     'reset': RunScript.prototype.cmdReset,

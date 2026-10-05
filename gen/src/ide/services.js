@@ -4,7 +4,7 @@ exports.FirebaseProjectFilesystem = exports.GithubService = void 0;
 exports.getRepos = getRepos;
 exports.parseGithubURL = parseGithubURL;
 const util_1 = require("../common/util");
-const README_md_template = "$NAME\n=====\n\n[Open this project in 8bitworkshop](http://8bitworkshop.com/redir.html?platform=$PLATFORM&githubURL=$GITHUBURL&file=$MAINFILE).\n";
+const README_md_template = "$NAME\n=====\n\n[Open this project in 8bitworkshop](https://8bitworkshop.com/redir.html?platform=$PLATFORM&githubURL=$GITHUBURL&file=$MAINFILE).\n";
 function getRepos() {
     var repos = {};
     for (var i = 0; i < localStorage.length; i++) {

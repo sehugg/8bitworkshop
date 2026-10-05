@@ -23,6 +23,7 @@ const APPLE2_PRESETS = [
     { id: 'lz4fh.a', name: "LZ4FH Decompressor" },
     { id: 'deltamod.dasm', name: "Delta Modulation Audio" },
     { id: 'paddles.dasm', name: "Paddles/Joystick" },
+    { id: 'mockingboard.c', name: "Mockingboard Music" },
     //  {id:'zap.dasm', name:"ZAP!"},
     //  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
     { id: 'dos33bin.a', name: "DOS 3.3 Binary" },
@@ -92,6 +93,14 @@ class NewApple2Platform extends baseplatform_2.Base6502MachinePlatform {
         */
     }
     newMachine() { return new apple2_1.AppleII(); }
+    resume() {
+        super.resume();
+        this.machine && this.machine.startAudio();
+    }
+    pause() {
+        super.pause();
+        this.machine && this.machine.stopAudio();
+    }
     getPresets() { return APPLE2_PRESETS; }
     getDefaultExtensions() { return [...super.getDefaultExtensions(), ".lnk"]; }
     readAddress(a) { return this.machine.readConst(a); }

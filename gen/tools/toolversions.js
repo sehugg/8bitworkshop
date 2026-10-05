@@ -56,7 +56,11 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const child_process_1 = require("child_process");
 const toolmeta_1 = require("../common/toolmeta");
-const WASM_DIR = path.resolve(__dirname, '..', '..', 'src', 'worker', 'wasm');
+/** The wasm toolchain directory: the tool root when one is set (a pack cache), else this checkout. */
+function wasmDir() {
+    const root = process.env.EIGHTBITWORKSHOP_ROOT || path.resolve(__dirname, '..', '..');
+    return path.join(root, 'src', 'worker', 'wasm');
+}
 // parent kill-switch must exceed the child's self-reported deadline,
 // so a well-behaved child gets to file its own report
 const CHILD_PROBE_TIMEOUT_MS = 15000;
@@ -110,7 +114,7 @@ function childReport(status) {
 async function probeEmscripten(moduleName, argv) {
     // emscripten glue (.js) present -> load through it, inject the binary so
     // node's fetch() doesn't try to parse the file path as a URL
-    var gluePath = path.join(WASM_DIR, moduleName + '.js');
+    var gluePath = path.join(wasmDir(), moduleName + '.js');
     var factory = require(gluePath);
     // pass the callback IN the config: several glues (sdasz80, sdcc, ...)
     // compile & initialize synchronously inside the factory call, so the
@@ -121,8 +125,8 @@ async function probeEmscripten(moduleName, argv) {
         printErr: childCollect,
         noInitialRun: true,
         onRuntimeInitialized: () => { initialized = true; },
-        wasmBinary: fs.readFileSync(path.join(WASM_DIR, moduleName + '.wasm')),
-        locateFile: (f) => path.join(WASM_DIR, f),
+        wasmBinary: fs.readFileSync(path.join(wasmDir(), moduleName + '.wasm')),
+        locateFile: (f) => path.join(wasmDir(), f),
     });
     if (!initialized && !mod.calledRun) {
         await new Promise((resolve, reject) => {
@@ -143,7 +147,7 @@ async function probeWASI(moduleName, argv) {
     // raw WASI binary -> run it through the same shim the worker uses
     var { WASIRunner } = require('../common/wasi/wasishim');
     var runner = new WASIRunner();
-    runner.loadSync(fs.readFileSync(path.join(WASM_DIR, moduleName + '.wasm')));
+    runner.loadSync(fs.readFileSync(path.join(wasmDir(), moduleName + '.wasm')));
     runner.setArgs([moduleName, ...argv]);
     runner.addPreopenDirectory('.');
     try {
@@ -161,10 +165,10 @@ async function runProbe(moduleName, argv) {
     // (their own quit(), abort(), or an internal exit(0)) -- flush whatever
     // they printed before they took the process down
     process.on('exit', () => childReport('crash'));
-    if (!fs.existsSync(path.join(WASM_DIR, moduleName + '.wasm'))) {
+    if (!fs.existsSync(path.join(wasmDir(), moduleName + '.wasm'))) {
         return childFinish('missing');
     }
-    if (fs.existsSync(path.join(WASM_DIR, moduleName + '.js'))) {
+    if (fs.existsSync(path.join(wasmDir(), moduleName + '.js'))) {
         await probeEmscripten(moduleName, argv);
     }
     else {

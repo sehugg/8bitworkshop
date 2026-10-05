@@ -1,4 +1,5 @@
 
+import { Platform } from "./baseplatform";
 import type { ControlHint } from "./controls";
 import { hex, clamp, lpad } from "./util";
 import { SourceLocation } from "./workertypes";
@@ -7,7 +8,12 @@ import { SourceLocation } from "./workertypes";
 // Most of this stuff helps emulators use the DOM
 // and do keyboard/mouse/gamepad/timer handling, etc.
 
-export var PLATFORMS = {};
+// Constructor signature for a registered Platform class. Most platforms only
+// use mainElement; a few (e.g. MAME-based ones) read options as well. Legacy
+// function-style platforms are cast to this type when they register themselves.
+export type PlatformConstructor = new (mainElement: HTMLElement, options?: any) => Platform;
+
+export var PLATFORMS: { [id: string]: PlatformConstructor } = {};
 
 var _random_state = 1;
 

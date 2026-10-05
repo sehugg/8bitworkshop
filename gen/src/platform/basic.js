@@ -48,7 +48,7 @@ class BASICPlatform {
         this.tty.keephandler = false; // set handler each input
         this.tty.hideinput();
         this.tty.scrolldiv = parent;
-        this.tty.bell = new Audio('res/ttybell.mp3');
+        this.tty.bell = new Audio('res/common/ttybell.mp3');
         this.runtime.input = async (prompt, nargs) => {
             return new Promise((resolve, reject) => {
                 if (prompt != null) {

@@ -25,7 +25,8 @@ import type { BuildInfo } from './debugservice';
 import { parseSymbolFile } from '../common/symbols/symbolfile';
 import { romBytes, type CompileResult } from './testlib';
 import { ROM_PLATFORMS } from '../common/detect';
-import { toolRoot } from './toolroot';
+import { ensureToolchains, toolRoot, toolchainProvidesTool, toolchainSupportsPlatform } from './toolroot';
+import { TOOL_META } from '../common/toolmeta';
 
 interface Args {
   [key: string]: string | true | string[];
@@ -134,6 +135,7 @@ async function compileSource(args: Args, source: string, platform: string): Prom
   if (!TOOLS[tool]) {
     fail('build', `Unknown tool: ${tool}. Use list-tools to see available tools.`);
   }
+  await ensureToolchains(platform, tool, fs.readFileSync(source, 'utf8'));
   await preload(tool, platform);
   const result = await compileSourceFile(tool, platform, source, undefined, buildOverrides(args));
   if (result.internal) {
@@ -225,9 +227,13 @@ async function openTarget(args: Args, platformId: string): Promise<EmuTarget> {
 /** Turn the run flags into script commands, appended to any --script/-e text. */
 function buildScript(args: Args): string {
   const parts: string[] = [];
-  if (args['frames']) parts.push(`run ${str(args, 'frames') ?? 1}`);
+  const frameDir = str(args, 'frames-dir');
+  // --frames-dir records frames instead of just advancing, so it goes last,
+  // after any --script/-e setup (e.g. `run 60` to reach the title screen)
+  if (args['frames'] && !frameDir) parts.push(`run ${str(args, 'frames') ?? 1}`);
   const script = str(args, 'eval') ?? str(args, 'script');
   if (script) parts.push(fs.existsSync(script) ? fs.readFileSync(script, 'utf8') : script);
+  if (frameDir) parts.push(`capture ${str(args, 'frames') ?? 60} ${frameDir}`);
   if (args['info']) parts.push('info');
   const memdump = str(args, 'memdump');
   if (memdump) {
@@ -322,6 +328,12 @@ async function doRun(args: Args, positional: string[]): Promise<void> {
   script.startTracing();
   // `vcd FILE` writes as it goes, so a long recording doesn't sit in memory
   script.openFile = openVcdFile;
+  // `capture N DIR` / `png FILE`: encode each frame with the same PNG writer as --png
+  const { encode } = await import('fast-png');
+  script.writeFrame = (file, video) => {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, encodePNG(encode, video));
+  };
   try {
     script.run(buildScript(args));
   } finally {
@@ -329,6 +341,8 @@ async function doRun(args: Args, positional: string[]): Promise<void> {
   }
 
   const video = target.getVideo();
+  const frameDir = str(args, 'frames-dir');
+  const fps = parseInt(str(args, 'fps') ?? '') || target.frameRate;
   output({
     success: true,
     command: 'run',
@@ -339,9 +353,23 @@ async function doRun(args: Args, positional: string[]): Promise<void> {
       width: video?.width ?? null,
       height: video?.height ?? null,
       png: str(args, 'png') || null,
+      framesDir: frameDir || null,
+      fps: frameDir ? fps : null,
+      ffmpeg: frameDir
+        ? `ffmpeg -framerate ${fps} -i ${frameDir.replace(/[\\/]+$/, '')}/frame_%05d.png -pix_fmt yuv420p out.mp4`
+        : null,
     }
   });
   await writeScreenshot(video, str(args, 'png'));
+}
+
+/** Encode a frame as a 4-channel PNG (the pixel view is already RGBA bytes). */
+function encodePNG(encode: typeof import('fast-png').encode, video: NonNullable<ReturnType<EmuTarget['getVideo']>>): Uint8Array {
+  return encode({
+    width: video.width, height: video.height,
+    data: new Uint8Array(video.pixels.buffer, video.pixels.byteOffset, video.width * video.height * 4),
+    channels: 4,
+  });
 }
 
 async function writeScreenshot(video: ReturnType<EmuTarget['getVideo']>, pngFile?: string): Promise<void> {
@@ -349,10 +377,7 @@ async function writeScreenshot(video: ReturnType<EmuTarget['getVideo']>, pngFile
   const showInTerminal = process.stdout.isTTY;
   if (!pngFile && !showInTerminal) return;
   const { encode } = await import('fast-png');
-  const png = encode({
-    width: video.width, height: video.height,
-    data: new Uint8Array(video.pixels.buffer), channels: 4
-  });
+  const png = encodePNG(encode, video);
   if (pngFile) fs.writeFileSync(pngFile, png);
   if (showInTerminal) {
     const { displayImageInTerminal } = await import('./termimage');
@@ -545,11 +570,13 @@ async function doList(command: string): Promise<void> {
   const { initialize, listPlatforms, listTools, PLATFORM_PARAMS } = await import('./testlib');
   await initialize();
   if (command === 'list-tools') {
-    output({ success: true, command, data: { tools: listTools() } });
+    // an install made from packs leaves some toolchains out (see assetpacks.ts)
+    const tools = listTools().filter((t) => toolchainProvidesTool(t, TOOL_META[t]?.wasmModule));
+    output({ success: true, command, data: { tools } });
     return;
   }
   const platforms: { [key: string]: any } = {};
-  for (const p of listPlatforms()) platforms[p] = { arch: PLATFORM_PARAMS[p].arch || 'unknown' };
+  for (const p of listPlatforms().filter(toolchainSupportsPlatform)) platforms[p] = { arch: PLATFORM_PARAMS[p].arch || 'unknown' };
   output({ success: true, command, data: { platforms, count: Object.keys(platforms).length } });
 }
 
@@ -590,6 +617,8 @@ function usage(error?: string): never {
           '-e <commands>': 'inline run-script, e.g. -e "run 60; screen"',
           '--script <file>': 'run-script file',
           '--png <file>': 'write a screenshot of the last frame',
+          '--frames-dir <dir>': 'write each frame as DIR/frame_NNNNN.png, for ffmpeg',
+          '--fps <n>': 'frame rate for --frames-dir (default: the platform\'s)',
           '--symbols <file>': 'load a .lbl/.sym file for symbolic addresses',
           '--bios <file>': 'load a BIOS image',
           '--vector-size <px>': 'long side of a vector platform\'s screen (default 512)',

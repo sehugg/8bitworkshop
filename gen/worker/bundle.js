@@ -2478,6 +2478,14 @@
   function convertDataToUint8Array(data) {
     return typeof data === "string" ? stringToByteArray(data) : data;
   }
+  var B64URL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  var B64URL_LOOKUP = (() => {
+    const lut = new Int16Array(128).fill(-1);
+    for (let i = 0; i < B64URL_CHARS.length; ++i) lut[B64URL_CHARS.charCodeAt(i)] = i;
+    lut[43] = 62;
+    lut[47] = 63;
+    return lut;
+  })();
   var XMLParseError = class extends Error {
   };
   function escapeXML(s) {
@@ -7694,6 +7702,10 @@
       };
     }
   }
+  var re_define_null = /^([ \t]*)#[ \t]*define[ \t]+NULL[ \t]+(?:0|0[uU]?[lL]?|\(\s*void\s*\*\s*\)\s*0|\(\(\s*void\s*\*\s*\)\s*0\s*\))[ \t]*(?=\r?$)/gm;
+  function fixLegacyNullDefine(code) {
+    return code.replace(re_define_null, "$1#ifndef NULL\n$1#define NULL ((void*)0)\n$1#endif");
+  }
   async function compileCC65(step) {
     var params = step.params;
     var errors = [];
@@ -7721,16 +7733,15 @@
       args = args.concat(customArgs, ["--disable-opt", "OptLoadStore1"], args);
       args.push(step.path);
       const { wasi, errno, stderr } = await runCC65Tool(step, "cc65", args, (fs) => {
-        populateFiles(step, fs, {
-          mainFilePath: step.path,
-          processFn: (path, code) => {
-            if (typeof code === "string") {
-              code = processEmbedDirective(code);
-            }
-            return code;
+        const processFn = (path, code) => {
+          if (typeof code === "string") {
+            code = processEmbedDirective(code);
+            if (/(^|\/)neslib\.h$/.test(path)) code = fixLegacyNullDefine(code);
           }
-        });
-        populateExtraFiles(step, fs, params.extra_compile_files);
+          return code;
+        };
+        populateFiles(step, fs, { mainFilePath: step.path, processFn });
+        populateExtraFiles(step, fs, params.extra_compile_files, processFn);
       });
       stderr.forEach(makeErrorMatcher(errors, /(.*?):(\d+): (.+)/, 2, 3, step.path, 1));
       checkExitCode("cc65", errno, stderr, errors);
@@ -16006,13 +16017,15 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
       populateEntry(fs, path, store.workfs[path], options);
     }
   }
-  function populateExtraFiles(step, fs, extrafiles) {
+  function populateExtraFiles(step, fs, extrafiles, processFn) {
     if (extrafiles) {
       for (var i = 0; i < extrafiles.length; i++) {
         var xfn = extrafiles[i];
         makeParentDirs(fs, xfn);
         if (store.workfs[xfn]) {
-          fs.writeFile(xfn, store.workfs[xfn].data, { encoding: store.workfs[xfn].encoding });
+          var xdata = store.workfs[xfn].data;
+          if (processFn) xdata = processFn(xfn, xdata);
+          fs.writeFile(xfn, xdata, { encoding: store.workfs[xfn].encoding });
           continue;
         }
         var data = fetchLibraryFile(step.platform, xfn);

@@ -17,7 +17,7 @@ import { lookupSymbol } from '../common/symbols/symbolfile';
 import { formatTimestamp, timestamp, Timestamp } from '../common/timeline';
 import { DebugContext, DebugController, StopEvent, isCallInsn, isReturnInsn } from '../common/debugcontroller';
 import { hexdump, write } from './cliformat';
-import { DEFAULT_MAX_FRAMES, EmuTarget } from './emutarget';
+import { DEFAULT_MAX_FRAMES, EmuTarget, VideoOutput } from './emutarget';
 
 export const RUN_SCRIPT_HELP = [
   'Execution:',
@@ -42,6 +42,9 @@ export const RUN_SCRIPT_HELP = [
   'Inspection & input:',
   '  key KEY                     - press key (down, 3 frames, up)',
   '  keydown KEY / keyup KEY     - raw key down/up events',
+  '  png FILE                    - write the current frame as a PNG',
+  '  capture N DIR               - advance N frames, writing DIR/frame_NNNNN.png each',
+  '                                (a frame sequence for ffmpeg)',
   '  mem START [LEN]             - hexdump memory (default 16 bytes)',
   '  screen [START] [COLS] [ROWS]- decode screen RAM to text (default $0400 40x25)',
   '  serial                      - print what the program sent to its serial port (devel-6502)',
@@ -166,7 +169,14 @@ export class RunScript {
    * from elsewhere (the debug console, language model tools) can't write files.
    */
   openFile?: (path: string, maxBytes?: number) => { write(chunk: string): void; close(): void; readonly full: boolean };
+  /**
+   * Writes one screenshot to `file`. Only the CLI sets this: it owns the PNG
+   * encoder and the file system, and scripts from elsewhere can't write files.
+   */
+  writeFrame?: (file: string, video: VideoOutput) => void;
   private vcdFile: { path: string, close(): void, full: boolean } | null = null;
+  // running count for the `capture` command's file names
+  private frameIndex = 0;
 
   constructor(readonly target: EmuTarget, private out = write,
     readonly debug = new DebugController(target)) { }
@@ -547,6 +557,30 @@ export class RunScript {
     for (const e of treeChildren(root, path)) this.out(`${e.name}${e.expandable ? '/' : ''} ${e.value}\n`);
   }
 
+  cmdPNG(tokens: string[]) {
+    if (!tokens[1]) throw new Error('usage: png FILE');
+    if (!this.writeFrame) throw new Error("'png' is not available here");
+    const video = this.target.getVideo();
+    if (!video) throw new Error(`'${this.target.id}' has no video to capture`);
+    this.writeFrame(tokens[1], video);
+    this.log(`wrote ${tokens[1]}`);
+  }
+
+  cmdCapture(tokens: string[]) {
+    const n = tokens[1] ? parseNum(tokens[1]) : 1;
+    const dir = tokens[2];
+    if (!dir) throw new Error('usage: capture N DIR');
+    if (!this.writeFrame) throw new Error("'capture' is not available here");
+    const base = dir.replace(/[\\/]+$/, '');
+    for (let i = 0; i < n; i++) {
+      this.advance(1);
+      const video = this.target.getVideo();
+      if (!video) throw new Error(`'${this.target.id}' has no video to capture`);
+      this.writeFrame(`${base}/frame_${String(this.frameIndex++).padStart(5, '0')}.png`, video);
+    }
+    this.log(`wrote ${n} frame${n == 1 ? '' : 's'} to ${dir}`);
+  }
+
   cmdVcd(tokens: string[]) {
     if (tokens[1] === 'off' || tokens[1] === 'stop') {
       const file = this.vcdFile;
@@ -600,6 +634,8 @@ const COMMANDS: { [name: string]: Command } = {
   'pc': RunScript.prototype.cmdPC,
   'info': RunScript.prototype.cmdInfo,
   'signals': RunScript.prototype.cmdSignals,
+  'png': RunScript.prototype.cmdPNG,
+  'capture': RunScript.prototype.cmdCapture,
   'vcd': RunScript.prototype.cmdVcd,
   'paddle': RunScript.prototype.cmdPaddle,
   'reset': RunScript.prototype.cmdReset,

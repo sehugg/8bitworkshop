@@ -52,7 +52,7 @@ class Atari800Platform extends baseplatform_1.Base6502MachinePlatform {
         this.getToolForFilename = toolselect_1.getToolForFilename_atari8;
         this.showHelp = atari8_showHelp;
         this.getROMExtension = atari8_getROMExtension;
-        this.biosPath = 'res/altirra/kernel.rom';
+        this.biosPath = 'res/atari8/altirra/kernel.rom';
     }
     newMachine() { return new atari8_1.Atari800(); }
     getPresets() { return Atari800_PRESETS; }
@@ -82,7 +82,7 @@ class Atari800Platform extends baseplatform_1.Base6502MachinePlatform {
 class Atari5200Platform extends Atari800Platform {
     constructor() {
         super(...arguments);
-        this.biosPath = 'res/altirra/superkernel.rom';
+        this.biosPath = 'res/atari8/altirra/superkernel.rom';
     }
     getPresets() { return Atari8_PRESETS; }
     newMachine() { return new atari8_1.Atari5200(); }

@@ -6,7 +6,7 @@ import { EmuCore } from "../common/emucore";
 import { PLATFORMS } from "../common/emu";
 import { getRootBasePlatform } from "../common/util";
 import { importPlatform } from "../platform/_index";
-import { toolRoot } from "./toolroot";
+import { ensureToolchains, toolRoot } from "./toolroot";
 import { mockAudio, mockDOM, mockFetch, mockGlobals, mockScripts, resetScripts } from "./nodemock";
 
 export { EmuCore as EmuTarget, DEFAULT_MAX_FRAMES } from "../common/emucore";
@@ -15,6 +15,7 @@ type EmuTarget = EmuCore;
 
 /** Load a platform module by ID (e.g. "nes", "c64.wasm", "atari8-5200"). */
 export async function loadPlatform(platformId: string): Promise<EmuTarget> {
+  await ensureToolchains(platformId);
   installNodeMocks(toolRoot());
   // a headless host may load more than one platform (or the same one twice)
   // in a process; scripts kept global state, so evaluate them fresh each time

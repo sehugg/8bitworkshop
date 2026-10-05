@@ -10,6 +10,8 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 
 - Vector platforms (`vector-*`, `vectrex`) render headlessly: a software rasterizer with phosphor fade draws their lines into the frame buffer, so `--png` and the VS Code emulator panel show them. The size is `--vector-size <px>` (long side, default 512), `EmuCore.vectorSize`, or the extension's `8bitworkshop.vectorSize`.
 - New `8bws` command-line tool (`npm run cli`) to build and run programs headlessly: `build`, `run`, `verify-replay`, `profile`, `detect`, `list-platforms`, `list-tools`; scripted emulator control; `--png`, `--json`, `--symbols`, `--memdump`, `--info`; platform and main file detected from a project directory.
+- The `8bws` bundle can be published to npm (`npm run npm-package` in `extension/` stages it). It unpacks only the toolchain packs a command needs, into the user's cache directory (`EIGHTBITWORKSHOP_TOOLCHAINS` overrides it, `EIGHTBITWORKSHOP_ASSETS` names a pack mirror). The toolchain packs are split by family, so the base pack is 3.5MB and a NES build adds cc65 (8.7MB) while a Game Boy build adds SDCC (0.9MB).
+- `8bws run --frames-dir <dir>` records an animation for ffmpeg, writing every frame as `DIR/frame_NNNNN.png` (the run script adds `capture N DIR` and `png FILE`); `--fps` sets the nominal frame rate and the result includes the matching `ffmpeg` command.
 - Platform detection no longer confuses the Atari 8-bit targets: `atari.h` means the 800 (it is guarded by `__ATARI__`), `atari5200.h` means the 5200, and a folder named for a platform breaks a near-tie.
 - Emulators now run on a timeline: step back, seek, reverse run, `rbreak`, and deterministic replay with a replay-verification test that found determinism bugs in several platforms.
 - Step Over for C and assembly sources, a Breakpoints pane, and more breakpoint conditions.
@@ -38,7 +40,9 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Click `#include`/`#link` decorations to open the file; offer to import a GitHub repo given by `repo=` ("user/repo" or a tree URL).
 - Tool info dialog and generated toolchain docs; Help window with ID docs.
 - File | New only lists extensions that have skeleton files.
+- "Share Playable Link" packs the game into the URL fragment instead of the query string, so it no longer hits the web server's ~8 KB request-line limit, and encodes it as URL-safe Base64 to avoid percent-encoding. Old `?r=` links still play.
 - Removed the Markdown/Showdown platform, the old `script` platform, Google Analytics, Sentry (replaced with a new error-reporting endpoint) and the HTTPS redirect.
+- Audio reliably unlocks under the browser autoplay policy: the emulator resumes its `AudioContext` on the first click/keypress anywhere on the page, not only when the emulator canvas gets focus.
 
 ### Asset editor
 
@@ -72,7 +76,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - cc65/ca65/ld65 warnings no longer fail the build; only errors are reported (the WASI tools print non-fatal `Warning:` lines such as duplicate `const` qualifiers).
 - cc65 toolchain (cc65/ca65/ld65 WASI builds and the per-platform include/lib zips) updated from the 2021 build (`6ac4aa4`) to cc65 `d8a486a` (V2.19-3867, 2026-09-26). The compiler runs with `--disable-opt OptLoadStore1` (the new step drops stores after loads of the same address, which breaks hardware registers and inline asm) and `-unreachable-code`.
 - cc65 `a2.lo.s` (Apple II lo-res TGI) patched in `8bitworkshop-compilers/patches/cc65-apple2-lo-tgi.patch`: a stray `bpl :+` in `INSTALL` made `tgi_install(a2_lo_tgi)` crash on a non-enhanced Apple II.
-- Presets adjusted for the newer cc65: NES `chase` closes its zero-page `#pragma` region, C64 `side_scroller` uses an unsigned fixed-point constant, and the Atari vector presets no longer recurse into `main()`. `neslib.h` no longer redefines `NULL` if `stddef.h` already did.
+- Presets adjusted for the newer cc65: NES `chase` closes its zero-page `#pragma` region, C64 `side_scroller` uses an unsigned fixed-point constant, and the Atari vector presets no longer recurse into `main()`. `neslib.h` no longer redefines `NULL` if `stddef.h` already did. Older projects with their own header containing `#define NULL 0` still build: the cc65 step rewrites that line in a project's own `neslib.h` to a guarded `((void*)0)`.
 - SDCC: both 3.6.5 and 4.x are bundled; 3.6.5 is the default (several times faster to build) and `//#tooldef c sdcc=4` opts in to 4.x (the default is `SDCC_DEFAULT_VERSION` in `toolmeta.ts`). Programs without an `opt_code*` pragma now build with `--no-peep --nolospre --max-allocs-per-node 500`, including Game Boy, which previously always got the full optimizer. See *SDCC versions* in the build directives docs.
 - SDCC 4 mos6502 backend (experimental): a `.sdcc` or `-sdcc.c` file on `devel-6502` or `apple2` builds with sdcc, `sdas6500` and `sdld6808` (see `hello-sdcc.c` in those presets). Apple II programs link as a DOS 3.3 binary at `$803`. `.sdcc` now selects SDCC on every Z80 and 6502 platform.
 - `//#tooldef ld code_start=ADDR` and `data_start=ADDR` move SDCC's code and RAM data. The Apple II preset `cosmic-sdcc.c` builds the Cosmic Impalas game with SDCC by including `cosmic.c`, which now has `__SDCC` alternatives for `conio` and inline assembly.

@@ -24,6 +24,7 @@ const APPLE2_PRESETS: Preset[] = [
   { id: 'lz4fh.a', name: "LZ4FH Decompressor" },
   { id: 'deltamod.dasm', name: "Delta Modulation Audio" },
   { id: 'paddles.dasm', name: "Paddles/Joystick" },
+  { id: 'mockingboard.c', name: "Mockingboard Music" },
   //  {id:'zap.dasm', name:"ZAP!"},
   //  {id:'tb_6502.s', name:'Tom Bombem (assembler game)'},
   { id: 'dos33bin.a', name: "DOS 3.3 Binary" },
@@ -69,6 +70,14 @@ class Apple2MAMEPlatform extends BaseMAME6502Platform implements Platform {
 class NewApple2Platform extends Base6502MachinePlatform<AppleII> implements Platform {
 
   newMachine() { return new AppleII(); }
+  resume() {
+    super.resume();
+    this.machine && this.machine.startAudio();
+  }
+  pause() {
+    super.pause();
+    this.machine && this.machine.stopAudio();
+  }
   getPresets() { return APPLE2_PRESETS; }
   getDefaultExtensions() { return [...super.getDefaultExtensions(), ".lnk"]; }
   readAddress(a) { return this.machine.readConst(a); }

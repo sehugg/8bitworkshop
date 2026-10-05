@@ -64,10 +64,34 @@ export function mockAudio() {
     (NullPsgDeviceChannel as any).DEVICE_YM_2149 = 1;
     (NullPsgDeviceChannel as any).DEVICE_SN76489 = 2;
     class NullMasterChannel {
-        addChannel() { }
+        channels: any[] = [];
+        // AudioLooper.setChannel() configures whatever MasterChannel it is given,
+        // so the stand-in has to accept these even though it mixes nothing. Like
+        // the real MasterChannel, it forwards the config to its slave channels.
+        addChannel(channel: any) { return this.channels.push(channel); }
+        setBufferLength(length: number) { this.channels.forEach((c) => c.setBufferLength(length)); }
+        setSampleRate(rate: number) { this.channels.forEach((c) => c.setSampleRate(rate)); }
+    }
+    // MasterAudio wraps the real TSS AudioLooper, which needs a browser
+    // AudioContext. A platform's resume() starts audio, so breakpoint and
+    // other headless tests would otherwise throw; absorb the calls instead.
+    class NullAudioLooper {
+        channel: any = null;
+        audioContext: any = null;
+        constructor(_bufferSize?: number) { }
+        setChannel(channel: any) {
+            if (channel != null) {
+                channel.setBufferLength(1024);
+                channel.setSampleRate(44100);
+            }
+            this.channel = channel;
+        }
+        activate() { }
+        getSampleRate() { return 44100; }
     }
     global.MasterChannel = NullMasterChannel;
     global.PsgDeviceChannel = NullPsgDeviceChannel;
+    global.AudioLooper = NullAudioLooper;
 }
 
 /** Serve fetch() from the filesystem, relative to `rootDir`. */
