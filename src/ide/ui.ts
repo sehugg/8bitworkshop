@@ -12,7 +12,7 @@ import {
   arrayCompare, byteArrayToUTF8, decodeQueryString, getBasePlatform, getCookie, getFilenameForPath, getFilenamePrefix,
   getRootBasePlatform, getWithBinary, hex, highlightDifferences, isProbablyBinary, isProductionHost, loadScript, parseBool, stringToByteArray
 } from "../common/util";
-import { getSkeletonName, getPlatformToolHelpURL, getToolMeta, TOOL_META } from "../common/toolmeta";
+import { getSkeletonName, getPlatformToolHelpURL, getToolMeta, getToolVersionLabel, TOOL_META } from "../common/toolmeta";
 import { PLATFORM_PARAMS } from "../worker/platforms";
 import { hasErrors } from "../worker/listingutils";
 import { CodeListingMap, FileData, WorkerError, WorkerResult, isErrorResult } from "../common/workertypes";
@@ -1253,6 +1253,7 @@ function findListingLocation(pc: number): { wndid: string, line: number } | null
     filename2path: current_project.filename2path,
     isWindow: (id) => projectWindows.isWindow(id),
     findWindowWithFilePrefix: (fn) => projectWindows.findWindowWithFilePrefix(fn),
+    symbolAddrs: platform.debugSymbols && platform.debugSymbols.symbolAddrs,
   }, PC_LINE_LOOKAHEAD);
 }
 
@@ -1916,21 +1917,12 @@ function showContextHelp() {
 function openToolVersions() {
   const esc = (s: any) => String(s == null ? '' : s)
     .replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const addr = (v: number, size?: number) =>
-    '$' + hex(v, 4).toUpperCase() + (size != null ? '+$' + hex(size, 4).toUpperCase() : '');
 
   // ---- current platform summary (params + the tools it can reach) ----
   const params = PLATFORM_PARAMS[platform_id]
     || PLATFORM_PARAMS[getBasePlatform(platform_id)]
     || PLATFORM_PARAMS[getRootBasePlatform(platform_id)];
   const arch = (params && params.arch) || '—';
-  const mem: string[] = [];
-  if (params) {
-    if (params.rom_start != null) mem.push('rom ' + addr(params.rom_start, params.rom_size));
-    if (params.code_start != null) mem.push('code ' + addr(params.code_start, params.code_size));
-    if (params.data_start != null) mem.push('data ' + addr(params.data_start, params.data_size));
-    if (params.stack_end != null) mem.push('stack $' + hex(params.stack_end, 4).toUpperCase());
-  }
 
   // extension -> tool, using the platform's own selector. The universe is the
   // tools' declared extensions (plus dasm's implicit .a), so this matches the
@@ -1964,15 +1956,14 @@ function openToolVersions() {
   const platformTable = `
     <table class="help">
       <tr><th>Architecture</th><td>${esc(arch)}</td></tr>
-      <tr><th>Memory</th><td>${mem.length ? mem.join(' · ') : '—'}</td></tr>
-      ${params && params.cfgfile ? `<tr><th>Linker config</th><td>${esc(params.cfgfile)}</td></tr>` : ''}
-      ${params && params.libargs && params.libargs.length ? `<tr><th>Link libraries</th><td>${esc(params.libargs.join(' '))}</td></tr>` : ''}
+      ${params && params.cfgfile ? `<tr><th>Default config</th><td>${esc(params.cfgfile)}</td></tr>` : ''}
+      ${params && params.libargs && params.libargs.length ? `<tr><th>Default libraries</th><td>${esc(params.libargs.join(' '))}</td></tr>` : ''}
       ${params && params.define && params.define.length ? `<tr><th>Defines</th><td>${esc(params.define.join(' '))}</td></tr>` : ''}
     </table>`;
 
   const toolTable = order.map(tool => {
     let meta = getToolMeta(tool);
-    let version = (meta && meta.version) || '—';
+    let version = getToolVersionLabel(meta);
     let kind = (meta && meta.kind) || '—';
     let exts = toolExts[tool].length ? toolExts[tool].map(e => `<code>${esc(e)}</code>`).join(' ') : '—';
     let name = (meta && meta.name) || tool;
@@ -1994,7 +1985,7 @@ function openToolVersions() {
     <div class="dialog-scroll">
       <h5 class="dialog-title">${esc(platform_name)} <small>${esc(platform_id)}</small></h5>
       ${platformTable}
-      <h5 class="dialog-title">Tools on this platform</h5>
+      <h5 class="dialog-title">Tools for source files</h5>
       <table class="help">
         <tr><th>Tool</th><th>Kind</th><th>Version</th><th>Extensions</th></tr>
         ${toolTable}

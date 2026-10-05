@@ -72,6 +72,15 @@ const workerlib_1 = require("../../src/worker/workerlib");
         assert_1.default.strictEqual((0, toolmeta_1.getSkeletonName)('dasm'), 'dasm');
         assert_1.default.strictEqual((0, toolmeta_1.getSkeletonName)('remote:llvm-mos'), 'llvm-mos');
     });
+    (0, mocha_1.it)('getToolVersionLabel shows an alternate version when there is one', function () {
+        // both SDCC releases are selectable, so show both (default first)
+        let sdcc = toolmeta_1.SDCC_DEFAULT_VERSION === 3 ? '3.6.5 (default) / 4.6.0' : '4.6.0 (default) / 3.6.5';
+        assert_1.default.strictEqual((0, toolmeta_1.getToolVersionLabel)(toolmeta_1.TOOL_META['sdcc']), sdcc);
+        // single-version tools show just their version, unknown ones a dash
+        assert_1.default.strictEqual((0, toolmeta_1.getToolVersionLabel)(toolmeta_1.TOOL_META['dasm']), '2.20.17');
+        assert_1.default.strictEqual((0, toolmeta_1.getToolVersionLabel)(toolmeta_1.TOOL_META['basic']), '—');
+        assert_1.default.strictEqual((0, toolmeta_1.getToolVersionLabel)(undefined), '—');
+    });
     (0, mocha_1.it)('covers the previously-scattered editor styles and help URLs', function () {
         // spot-check ids that used to live in TOOL_TO_SOURCE_STYLE / TOOL_TO_HELPURL
         for (let id of ['dasm', 'acme', 'cc65', 'ca65', 'sdcc', 'cmoc', 'zmac',

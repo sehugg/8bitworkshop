@@ -26,7 +26,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Reset clears the call graph; breakpoints are re-armed after a build.
 - Click the hex offset in the gutter to run to that line.
 - Waveform viewer for Verilog, with help and shortcuts.
-- Faster line lookups in listings.
+- cc65/ca65 `.lst` listings map the PC to the correct listing line again (the parser had been numbering lines in the generated `.s` source rather than in the listing text the window shows); a `.s`/`.ca65` editor still follows its own source lines. Stepping into a library routine that has no listing now falls back to the Disassembler instead of staying on the caller's line.
 - Atari 8-bit: the XEX loader now calls each INIT vector before loading the next chunk (cc65's system-check chunk overlaps the main program), fixing a crash on startup of `tgidemo.c`.
 
 ### Editor and UI

@@ -7,6 +7,7 @@
  * Kept free of DOM / ui.ts dependencies so it can be unit tested.
  */
 
+import { lastAtOrBefore } from "../../common/util";
 import { CodeListingMap } from "../../common/workertypes";
 
 export interface ListingLocationContext {
@@ -15,6 +16,9 @@ export interface ListingLocationContext {
   // "known window id" (registered), not "currently open" -- see ProjectWindows.isWindow
   isWindow: (id: string) => boolean;
   findWindowWithFilePrefix: (filename: string) => string | null;
+  // sorted symbol addresses: a PC inside a library routine (which has no
+  // listing) must not fall back to the last line of the routine before it
+  symbolAddrs?: number[];
 }
 
 export interface ListingLocation {
@@ -29,6 +33,7 @@ export function findListingLocation(pc: number, ctx: ListingLocationContext, loo
   let bestscore = 256;
   let bestline = 0;
   const listings = ctx.listings;
+  const fnStart = ctx.symbolAddrs ? lastAtOrBefore(ctx.symbolAddrs, pc) : null;
   if (listings) {
     for (let lstfn in listings) {
       let lst = listings[lstfn];
@@ -38,18 +43,16 @@ export function findListingLocation(pc: number, ctx: ListingLocationContext, loo
       if (file == lst.sourcefile) wndid = ctx.findWindowWithFilePrefix(lstfn);
       // does this window exist?
       if (wndid && ctx.isWindow(wndid)) {
-        // find the source line at the PC or closely before it
-        let srcline1 = file && file.findLineForOffset(pc, lookahead);
+        // find the source line at the PC or closely before it. A null result
+        // (PC in a routine this listing doesn't cover) falls through to the
+        // disassembly view.
+        let srcline1 = file && file.findLineForOffset(pc, lookahead, fnStart);
         if (srcline1) {
-          // try to find the next line and bound the PC
-          let srcline2 = file.lines[srcline1.line + 1];
-          if (!srcline2 || pc < srcline2.offset) {
-            let score = pc - srcline1.offset;
-            if (score < bestscore) {
-              bestid = wndid;
-              bestscore = score;
-              bestline = srcline1.line;
-            }
+          let score = Math.abs(pc - srcline1.offset);
+          if (score < bestscore) {
+            bestid = wndid;
+            bestscore = score;
+            bestline = srcline1.line;
           }
         }
       }

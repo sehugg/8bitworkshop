@@ -351,7 +351,7 @@ function buildDebugContext(build) {
         symbolsizes: build.symbolsizes,
         getListingForFile: path => (0, projectcore_1.getListingForFile)(listings, path, build.mainPath),
         sourceAt(pc) {
-            const fnStart = lastAtOrBefore(symbolAddrs, pc);
+            const fnStart = (0, util_1.lastAtOrBefore)(symbolAddrs, pc);
             let best = null;
             let bestName = '';
             for (const name in listings) {
@@ -376,36 +376,6 @@ function buildDebugContext(build) {
  * not to the end of the function before it.
  */
 function lineAt(sf, pc, fnStart) {
-    const loc = sf.findLineForOffset(pc, PC_LINE_LOOKBEHIND);
-    if (!loc || fnStart == null || loc.offset >= fnStart)
-        return loc;
-    const next = firstAtOrAfter(sf.sortedOffsets, fnStart);
-    return next != null && next - pc <= PC_LINE_LOOKBEHIND ? sf.offset2loc.get(next) : null;
-}
-function lastAtOrBefore(sorted, x) {
-    let lo = 0, hi = sorted.length - 1, best = null;
-    while (lo <= hi) {
-        const mid = (lo + hi) >> 1;
-        if (sorted[mid] <= x) {
-            best = sorted[mid];
-            lo = mid + 1;
-        }
-        else
-            hi = mid - 1;
-    }
-    return best;
-}
-function firstAtOrAfter(sorted, x) {
-    let lo = 0, hi = sorted.length - 1, best = null;
-    while (lo <= hi) {
-        const mid = (lo + hi) >> 1;
-        if (sorted[mid] >= x) {
-            best = sorted[mid];
-            hi = mid - 1;
-        }
-        else
-            lo = mid + 1;
-    }
-    return best;
+    return sf.findLineForOffset(pc, PC_LINE_LOOKBEHIND, fnStart);
 }
 //# sourceMappingURL=debugcontroller.js.map

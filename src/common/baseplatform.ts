@@ -59,12 +59,14 @@ export class DebugSymbols {
   addr2symbol: AddrSymbolMap;	// address -> symbol
   debuginfo: {}; // extra platform-specific debug info
   symbolsizes?: SymbolMap; // symbol -> size in bytes, if known
+  symbolAddrs: number[]; // unique symbol addresses, sorted (function starts)
 
   constructor(symbolmap: SymbolMap, debuginfo: {}, symbolsizes?: SymbolMap) {
     this.symbolmap = symbolmap;
     this.debuginfo = debuginfo;
     this.symbolsizes = symbolsizes;
     this.addr2symbol = invertMap(symbolmap);
+    this.symbolAddrs = [...new Set(Object.values(symbolmap || {}))].sort((a, b) => a - b);
     //// TODO: shouldn't be necc.
     if (!this.addr2symbol[0x0]) this.addr2symbol[0x0] = '$00'; // needed for ...
     this.addr2symbol[0x10000] = '__END__'; // ... dump memory to work

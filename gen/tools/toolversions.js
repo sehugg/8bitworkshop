@@ -80,6 +80,22 @@ function extractVersion(output) {
     }
     return undefined;
 }
+/**
+ * True if two version strings match. A plain prefix match would hide a real
+ * mismatch ('1.1.1' vs '1.1.10'), so only accept the shorter string as a
+ * prefix when the next character is not a digit ('1.3.0' vs '1.3.0.47.gc9db').
+ */
+function prefixAgrees(short, long) {
+    if (!long.startsWith(short))
+        return false;
+    var next = long.charAt(short.length);
+    return next === '' || !/[0-9]/.test(next);
+}
+function versionAgrees(probe, stored) {
+    if (probe === stored)
+        return true;
+    return prefixAgrees(probe, stored) || prefixAgrees(stored, probe);
+}
 // argument sequences to try, in order: most tools answer --version; some
 // only print their banner when invoked with no args at all; old Unix tools
 // want -v. Stop as soon as one yields a version string.
@@ -276,8 +292,9 @@ async function main() {
     for (var r of results) {
         var label = r.ids.map((id) => toolmeta_1.TOOL_META[id].version != null ? id : id + '*').join(', ');
         var stored = r.ids.map((id) => toolmeta_1.TOOL_META[id].version).find((v) => v != null);
-        var agree = stored == null || r.version == null || r.version === stored
-            || stored.includes(r.version) || r.version.includes(stored);
+        var alts = r.ids.map((id) => toolmeta_1.TOOL_META[id].versionAlt).filter((v) => v != null);
+        var agree = stored == null || r.version == null || versionAgrees(r.version, stored)
+            || alts.some((a) => versionAgrees(r.version, a));
         if (!agree)
             mismatches++;
         console.log((r.version ? '' : '! ') +

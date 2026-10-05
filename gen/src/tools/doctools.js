@@ -170,7 +170,7 @@ function renderTools() {
     for (var id of ids) {
         var m = toolmeta_1.TOOL_META[id];
         var exts = (m.extensions || []).length ? m.extensions.map(e => '`' + e + '`').join(' ') : '—';
-        var version = m.version || '—';
+        var version = (0, toolmeta_1.getToolVersionLabel)(m);
         var toollink = m.helpURL ? `[${m.name}](${m.helpURL})` : m.name;
         lines.push(`| ${mdTool(m.id)} | ${toollink} | ${m.kind} | ${m.arch || '—'} | ${version} | ${exts} |`);
     }

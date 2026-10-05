@@ -49,6 +49,7 @@ exports.findIntegerFactors = findIntegerFactors;
 exports.coerceToArray = coerceToArray;
 exports.replaceAll = replaceAll;
 exports.isProductionHost = isProductionHost;
+exports.lastAtOrBefore = lastAtOrBefore;
 exports.getCookie = getCookie;
 function lpad(s, n) {
     s += ''; // convert to string
@@ -827,6 +828,20 @@ function replaceAll(s, search, replace) {
 }
 function isProductionHost() {
     return typeof window != 'undefined' && window.location.host.endsWith('8bitworkshop.com');
+}
+/** The greatest entry <= x in an ascending-sorted array, or null. */
+function lastAtOrBefore(sorted, x) {
+    let lo = 0, hi = sorted.length - 1, best = null;
+    while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (sorted[mid] <= x) {
+            best = sorted[mid];
+            lo = mid + 1;
+        }
+        else
+            hi = mid - 1;
+    }
+    return best;
 }
 function getCookie(name) {
     var nameEQ = name + "=";

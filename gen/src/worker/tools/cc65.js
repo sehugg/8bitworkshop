@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.parseCA65Listing = parseCA65Listing;
 exports.assembleCA65 = assembleCA65;
 exports.linkLD65 = linkLD65;
 exports.fixLegacyNullDefine = fixLegacyNullDefine;
@@ -43,7 +44,7 @@ async function runCC65Tool(step, tool, args, populate) {
 00B726  1  xx xx        IBSECSZ: .res 2
 00BA2F  1  2A 2B E8 2C   HEX "2A2BE82C2D2E2F303132F0F133343536"
 */
-function parseCA65Listing(asmfn, code, symbols, segments, params, dbg, listings) {
+function parseCA65Listing(asmfn, code, symbols, segments, params, dbg, listings, sourceLineNumbers = false) {
     var _a;
     var segofs = 0;
     var offset = 0;
@@ -53,10 +54,16 @@ function parseCA65Listing(asmfn, code, symbols, segments, params, dbg, listings)
     var segMatch = /[.]segment\s+"(\w+)"/i;
     var origlines = [];
     var lines = origlines;
+    // linenum counts lines in the listing text (what the .lst window shows);
+    // srclinenum counts lines in the ca65 source. They differ because the
+    // listing expands .macpack macros and repeats a data directive's bytes on
+    // continuation lines, neither of which is a line in the source file.
     var linenum = 0;
+    var srclinenum = 0;
     let curpath = asmfn || '';
     // TODO: only does .c functions, not all .s files
     for (var line of code.split(listingutils_1.re_crlf)) {
+        linenum++;
         var dbgm = dbgLineMatch.exec(line);
         if (dbgm && dbgm[1]) {
             var dbgtype = dbgm[4];
@@ -95,7 +102,7 @@ function parseCA65Listing(asmfn, code, symbols, segments, params, dbg, listings)
             let insns = ((_a = linem[4]) === null || _a === void 0 ? void 0 : _a.trim()) || '';
             // skip extra insns for macro expansions
             if (!(insns != '' && linem[5] == '')) {
-                linenum++;
+                srclinenum++;
             }
             if (linem[1]) {
                 var offset = parseInt(linem[1], 16);
@@ -104,7 +111,7 @@ function parseCA65Listing(asmfn, code, symbols, segments, params, dbg, listings)
                     if (!dbg) {
                         lines.push({
                             path: curpath,
-                            line: linenum,
+                            line: sourceLineNumbers ? srclinenum : linenum,
                             offset: offset + segofs,
                             insns: insns,
                             iscode: true // TODO: can't really tell unless we parse it
@@ -296,11 +303,17 @@ async function linkLD65(step) {
                     };
                 }
                 else {
+                    // asmlines index the listing text (the .lst window);
+                    // srclines are the C source lines from .dbg directives
                     var asmlines = parseCA65Listing(fn, lstout, symbolmap, segments, params, false);
                     var srclines = parseCA65Listing('', lstout, symbolmap, segments, params, true);
+                    // an assembly-only project has no C lines, so its .s editor
+                    // needs a second asm view indexed by source line instead
+                    var asmsrclines = srclines.length ? null :
+                        parseCA65Listing(fn, lstout, symbolmap, segments, params, false, null, true);
                     listings[fn] = {
-                        asmlines: srclines.length ? asmlines : null,
-                        lines: srclines.length ? srclines : asmlines,
+                        asmlines: asmlines.length ? asmlines : null,
+                        lines: srclines.length ? srclines : asmsrclines,
                         text: lstout
                     };
                 }

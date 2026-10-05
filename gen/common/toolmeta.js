@@ -32,6 +32,7 @@ exports.getToolMetaForFilename = getToolMetaForFilename;
 exports.getPlatformToolConfig = getPlatformToolConfig;
 exports.getPreloadFSName = getPreloadFSName;
 exports.getSkeletonName = getSkeletonName;
+exports.getToolVersionLabel = getToolVersionLabel;
 exports.getIncludePatterns = getIncludePatterns;
 exports.defineArgs = defineArgs;
 exports.linkSymbolArgs = linkSymbolArgs;
@@ -215,7 +216,7 @@ exports.TOOL_META = {
         editorStyle: '6502',
         helpURL: 'https://github.com/apple2accumulator/merlin32',
         wasmModule: 'merlin32',
-        version: '1.1.10',
+        version: '1.1.1',
         includePatterns: [...exports.SHARED_INCLUDE_PATTERNS, ...exports.USE_ASM_INCLUDE_PATTERNS],
         linkPatterns: exports.SHARED_LINK_PATTERNS,
     },
@@ -262,6 +263,7 @@ exports.TOOL_META = {
         helpURL: 'http://sdcc.sourceforge.net/doc/sdccman.pdf',
         wasmModule: 'sdcc4',
         version: exports.SDCC_DEFAULT_VERSION === 3 ? '3.6.5' : '4.6.0',
+        versionAlt: exports.SDCC_DEFAULT_VERSION === 3 ? '4.6.0' : '3.6.5',
         defineFlag: '-D', defineInline: true,
         platforms: SDCC_FS,
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
@@ -273,7 +275,7 @@ exports.TOOL_META = {
         includeDirs: ['/share/sdcc/include', '/include'],
         editorStyle: 'z80',
         wasmModule: 'sdasz80-4',
-        version: '02.00',
+        version: '05.50.4+',
         platforms: SDCC_FS,
         includePatterns: exports.SHARED_INCLUDE_PATTERNS,
         linkPatterns: exports.SHARED_LINK_PATTERNS,
@@ -292,7 +294,7 @@ exports.TOOL_META = {
         id: 'sdldz80', name: 'sdldz80', kind: 'linker', arch: 'z80',
         extensions: [],
         wasmModule: 'sdld4',
-        version: '03.00',
+        version: '05.50.4-',
         linkSymbolFlag: '-g', linkSymbolInline: false,
     },
     // SDCC 4.x mos6502 backend (compile with `-sdcc.c`); sdld6808 is the
@@ -301,14 +303,14 @@ exports.TOOL_META = {
         id: 'sdas6500', name: 'sdas6500', kind: 'assembler', arch: '6502',
         extensions: [],
         wasmModule: 'sdas6500',
-        version: '02.00',
+        version: '05.50.4+',
         platforms: SDCC_FS,
     },
     sdld6808: {
         id: 'sdld6808', name: 'sdld6808', kind: 'linker', arch: '6502',
         extensions: [],
         wasmModule: 'sdld4',
-        version: '03.00',
+        version: '05.50.4-',
         linkSymbolFlag: '-g', linkSymbolInline: false,
     },
     sccz80: {
@@ -715,6 +717,15 @@ function getPreloadFSName(tool, platform) {
 function getSkeletonName(tool) {
     let meta = getToolMeta(tool);
     return (meta && meta.skeleton) ? meta.skeleton : tool.replace(/^remote:/, '');
+}
+/**
+ * Version string for display, e.g. '3.6.5 (default) / 4.6.0' for SDCC or
+ * '—' when the tool has no recorded version.
+ */
+function getToolVersionLabel(meta) {
+    if (!meta || !meta.version)
+        return '—';
+    return meta.versionAlt ? meta.version + ' (default) / ' + meta.versionAlt : meta.version;
 }
 /**
  * Include patterns to use when scanning a source file for dependencies.

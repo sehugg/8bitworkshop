@@ -1239,6 +1239,7 @@ function findListingLocation(pc) {
         filename2path: exports.current_project.filename2path,
         isWindow: (id) => exports.projectWindows.isWindow(id),
         findWindowWithFilePrefix: (fn) => exports.projectWindows.findWindowWithFilePrefix(fn),
+        symbolAddrs: exports.platform.debugSymbols && exports.platform.debugSymbols.symbolAddrs,
     }, editors_1.PC_LINE_LOOKAHEAD);
 }
 // true while the active stop request is a breakpoint run (see armBreakpoints)
@@ -1913,23 +1914,11 @@ function showContextHelp() {
 function openToolVersions() {
     const esc = (s) => String(s == null ? '' : s)
         .replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const addr = (v, size) => '$' + (0, util_1.hex)(v, 4).toUpperCase() + (size != null ? '+$' + (0, util_1.hex)(size, 4).toUpperCase() : '');
     // ---- current platform summary (params + the tools it can reach) ----
     const params = platforms_1.PLATFORM_PARAMS[exports.platform_id]
         || platforms_1.PLATFORM_PARAMS[(0, util_1.getBasePlatform)(exports.platform_id)]
         || platforms_1.PLATFORM_PARAMS[(0, util_1.getRootBasePlatform)(exports.platform_id)];
     const arch = (params && params.arch) || '—';
-    const mem = [];
-    if (params) {
-        if (params.rom_start != null)
-            mem.push('rom ' + addr(params.rom_start, params.rom_size));
-        if (params.code_start != null)
-            mem.push('code ' + addr(params.code_start, params.code_size));
-        if (params.data_start != null)
-            mem.push('data ' + addr(params.data_start, params.data_size));
-        if (params.stack_end != null)
-            mem.push('stack $' + (0, util_1.hex)(params.stack_end, 4).toUpperCase());
-    }
     // extension -> tool, using the platform's own selector. The universe is the
     // tools' declared extensions (plus dasm's implicit .a), so this matches the
     // generated docs rather than just the new-file skeletons.
@@ -1969,14 +1958,13 @@ function openToolVersions() {
     const platformTable = `
     <table class="help">
       <tr><th>Architecture</th><td>${esc(arch)}</td></tr>
-      <tr><th>Memory</th><td>${mem.length ? mem.join(' · ') : '—'}</td></tr>
-      ${params && params.cfgfile ? `<tr><th>Linker config</th><td>${esc(params.cfgfile)}</td></tr>` : ''}
-      ${params && params.libargs && params.libargs.length ? `<tr><th>Link libraries</th><td>${esc(params.libargs.join(' '))}</td></tr>` : ''}
+      ${params && params.cfgfile ? `<tr><th>Default config</th><td>${esc(params.cfgfile)}</td></tr>` : ''}
+      ${params && params.libargs && params.libargs.length ? `<tr><th>Default libraries</th><td>${esc(params.libargs.join(' '))}</td></tr>` : ''}
       ${params && params.define && params.define.length ? `<tr><th>Defines</th><td>${esc(params.define.join(' '))}</td></tr>` : ''}
     </table>`;
     const toolTable = order.map(tool => {
         let meta = (0, toolmeta_1.getToolMeta)(tool);
-        let version = (meta && meta.version) || '—';
+        let version = (0, toolmeta_1.getToolVersionLabel)(meta);
         let kind = (meta && meta.kind) || '—';
         let exts = toolExts[tool].length ? toolExts[tool].map(e => `<code>${esc(e)}</code>`).join(' ') : '—';
         let name = (meta && meta.name) || tool;
@@ -1997,7 +1985,7 @@ function openToolVersions() {
     <div class="dialog-scroll">
       <h5 class="dialog-title">${esc(platform_name)} <small>${esc(exports.platform_id)}</small></h5>
       ${platformTable}
-      <h5 class="dialog-title">Tools on this platform</h5>
+      <h5 class="dialog-title">Tools for source files</h5>
       <table class="help">
         <tr><th>Tool</th><th>Kind</th><th>Version</th><th>Extensions</th></tr>
         ${toolTable}

@@ -42,6 +42,7 @@ class DebugSymbols {
         this.debuginfo = debuginfo;
         this.symbolsizes = symbolsizes;
         this.addr2symbol = (0, util_1.invertMap)(symbolmap);
+        this.symbolAddrs = [...new Set(Object.values(symbolmap || {}))].sort((a, b) => a - b);
         //// TODO: shouldn't be necc.
         if (!this.addr2symbol[0x0])
             this.addr2symbol[0x0] = '$00'; // needed for ...

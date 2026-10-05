@@ -2668,7 +2668,7 @@
       editorStyle: "6502",
       helpURL: "https://github.com/apple2accumulator/merlin32",
       wasmModule: "merlin32",
-      version: "1.1.10",
+      version: "1.1.1",
       includePatterns: [...SHARED_INCLUDE_PATTERNS, ...USE_ASM_INCLUDE_PATTERNS],
       linkPatterns: SHARED_LINK_PATTERNS
     },
@@ -2730,6 +2730,7 @@
       helpURL: "http://sdcc.sourceforge.net/doc/sdccman.pdf",
       wasmModule: "sdcc4",
       version: SDCC_DEFAULT_VERSION === 3 ? "3.6.5" : "4.6.0",
+      versionAlt: SDCC_DEFAULT_VERSION === 3 ? "4.6.0" : "3.6.5",
       defineFlag: "-D",
       defineInline: true,
       platforms: SDCC_FS,
@@ -2745,7 +2746,7 @@
       includeDirs: ["/share/sdcc/include", "/include"],
       editorStyle: "z80",
       wasmModule: "sdasz80-4",
-      version: "02.00",
+      version: "05.50.4+",
       platforms: SDCC_FS,
       includePatterns: SHARED_INCLUDE_PATTERNS,
       linkPatterns: SHARED_LINK_PATTERNS
@@ -2770,7 +2771,7 @@
       arch: "z80",
       extensions: [],
       wasmModule: "sdld4",
-      version: "03.00",
+      version: "05.50.4-",
       linkSymbolFlag: "-g",
       linkSymbolInline: false
     },
@@ -2783,7 +2784,7 @@
       arch: "6502",
       extensions: [],
       wasmModule: "sdas6500",
-      version: "02.00",
+      version: "05.50.4+",
       platforms: SDCC_FS
     },
     sdld6808: {
@@ -2793,7 +2794,7 @@
       arch: "6502",
       extensions: [],
       wasmModule: "sdld4",
-      version: "03.00",
+      version: "05.50.4-",
       linkSymbolFlag: "-g",
       linkSymbolInline: false
     },
@@ -7459,7 +7460,7 @@
       throw new Error("No cc65 filesystem for platform " + step.platform);
     return runWASITool(tool, args, { sharedFS: fsname.substring(5), populate });
   }
-  function parseCA65Listing(asmfn, code, symbols, segments, params, dbg, listings) {
+  function parseCA65Listing(asmfn, code, symbols, segments, params, dbg, listings, sourceLineNumbers = false) {
     var _a;
     var segofs = 0;
     var offset = 0;
@@ -7470,8 +7471,10 @@
     var origlines = [];
     var lines = origlines;
     var linenum = 0;
+    var srclinenum = 0;
     let curpath = asmfn || "";
     for (var line of code.split(re_crlf)) {
+      linenum++;
       var dbgm = dbgLineMatch.exec(line);
       if (dbgm && dbgm[1]) {
         var dbgtype = dbgm[4];
@@ -7505,7 +7508,7 @@
       if (topfile) {
         let insns = ((_a = linem[4]) == null ? void 0 : _a.trim()) || "";
         if (!(insns != "" && linem[5] == "")) {
-          linenum++;
+          srclinenum++;
         }
         if (linem[1]) {
           var offset = parseInt(linem[1], 16);
@@ -7513,7 +7516,7 @@
             if (!dbg) {
               lines.push({
                 path: curpath,
-                line: linenum,
+                line: sourceLineNumbers ? srclinenum : linenum,
                 offset: offset + segofs,
                 insns,
                 iscode: true
@@ -7683,9 +7686,10 @@
           } else {
             var asmlines = parseCA65Listing(fn, lstout, symbolmap, segments, params, false);
             var srclines = parseCA65Listing("", lstout, symbolmap, segments, params, true);
+            var asmsrclines = srclines.length ? null : parseCA65Listing(fn, lstout, symbolmap, segments, params, false, null, true);
             listings[fn] = {
-              asmlines: srclines.length ? asmlines : null,
-              lines: srclines.length ? srclines : asmlines,
+              asmlines: asmlines.length ? asmlines : null,
+              lines: srclines.length ? srclines : asmsrclines,
               text: lstout
             };
           }
