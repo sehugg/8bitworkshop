@@ -35,7 +35,6 @@ describe('extension asset packs', function () {
   it('puts the Verilog toolchain in its own pack', function () {
     assert.equal(packForFile('src/worker/wasm/verilator_bin.wasm'), 'verilog');
     assert.equal(packForFile('src/worker/fs/fsSilice.data'), 'verilog');
-    assert.equal(packForFile('src/worker/wasm/sdcc.wasm'), 'base');
     assert.equal(packForFile('presets/verilog/ball_absolute.v'), 'base');
     assert.deepEqual(packsForPlatform('verilog-vga'), ['base', 'verilog']);
     assert.deepEqual(packsForPlatform('nes'), ['base']);
@@ -46,20 +45,17 @@ describe('extension asset packs', function () {
     for (var f of ['src/worker/wasm/oscar64.wasm', 'src/worker/fs/cc7800-fs.zip']) {
       assert.equal(packForFile(f), 'extra', f);
     }
-    assert.equal(packForFile('src/worker/wasm/cc65.wasm'), 'base');
     assert.equal(packForFile('src/worker/wasm/cmoc.wasm'), 'base');
     var all = Object.values(listPackFiles(ROOT)).flat();
     assert.ok(!all.some(f => /^src\/worker\/.*(dialogc|armips|inform|yasm|dialog-fs|arm-tcc|smlrc|arm32)/.test(f)), 'unused toolchains are not packed');
     assert.equal(packForFile('src/worker/wasm/sdcc4.wasm'), 'extra');
     assert.equal(packForFile('src/worker/fs/sdcc-fs.zip'), 'extra');
-    assert.equal(packForFile('src/worker/wasm/sdcc.wasm'), 'base');
-    assert.equal(packForFile('src/worker/fs/fssdcc.data'), 'base');
     assert.deepEqual(packsForPlatform('c64', 'oscar64'), ['base', 'extra']);
     assert.deepEqual(packsForPlatform('verilog', 'cc2600'), ['base', 'verilog', 'extra']);
-    assert.deepEqual(packsForPlatform('nes', 'cc65'), ['base']);
+    assert.deepEqual(packsForPlatform('nes', 'cc65'), ['base', 'cc65']);
     // SDCC 4.x: by directive, or the 6502 backend; 3.x stays in base
-    assert.deepEqual(packsForPlatform('gb', 'sdcc', 'int x;'), ['base']);
-    assert.deepEqual(packsForPlatform('gb', 'sdcc', '//#tooldef c sdcc=4\nint x;'), ['base', 'extra']);
+    assert.deepEqual(packsForPlatform('gb', 'sdcc', 'int x;'), ['base', 'sdcc']);
+    assert.deepEqual(packsForPlatform('gb', 'sdcc', '//#tooldef c sdcc=4\nint x;'), ['base', 'sdcc', 'extra']);
     assert.ok(needsSdcc4('coleco', 'sdcc', '//#tooldef sdcc=4'));
     assert.ok(!needsSdcc4('coleco', 'sdcc', '//#tooldef c sdcc=3'));
     assert.ok(!needsSdcc4('coleco', 'cc65', '//#tooldef c sdcc=4'));
@@ -67,9 +63,29 @@ describe('extension asset packs', function () {
     assert.ok(!needsSdcc4('c64', 'cc65', 'int x;'));
   });
 
+  it('puts cc65 and SDCC 3.x in their own packs, with the tools that hand off to them', function () {
+    for (var f of ['src/worker/wasm/cc65.wasm', 'src/worker/wasm/ca65.wasm', 'src/worker/wasm/ld65.wasm', 'src/worker/fs/cc65-fs-nes.zip']) {
+      assert.equal(packForFile(f), 'cc65', f);
+    }
+    for (var f of ['src/worker/wasm/sdcc.wasm', 'src/worker/wasm/sdasgb.js', 'src/worker/wasm/sdldz80.wasm', 'src/worker/fs/fssdcc.data', 'src/worker/fs/fssdcc.js.metadata']) {
+      assert.equal(packForFile(f), 'sdcc', f);
+    }
+    // shared by 6809 and SDCC, so it stays in base
+    assert.equal(packForFile('src/worker/asmjs/mcpp.js'), 'base');
+    // fastbasic and ECS assemble with ca65
+    assert.deepEqual(packsForPlatform('atari8-800', 'fastbasic'), ['base', 'cc65']);
+    assert.deepEqual(packsForPlatform('nes', 'ecs'), ['base', 'cc65']);
+    assert.deepEqual(packsForPlatform('c64', 'ca65'), ['base', 'cc65']);
+    assert.deepEqual(packsForPlatform('zx', 'sdasz80'), ['base', 'sdcc']);
+    // no build tool, just an emulator
+    assert.deepEqual(packsForPlatform('nes'), ['base']);
+    assert.deepEqual(packsForPlatform('vcs', 'dasm'), ['base']);
+  });
+
   it('lists the tracked toolchain files, with symlinked directories copied', function () {
     var lists = listPackFiles(ROOT);
-    assert.ok(lists.base.includes('src/worker/wasm/cc65.wasm'));
+    assert.ok(lists.cc65.includes('src/worker/wasm/cc65.wasm'));
+    assert.ok(lists.sdcc.includes('src/worker/wasm/sdcc.wasm'));
     assert.ok(lists.base.includes('presets/nes/hello.c'));
     assert.ok(lists.base.some(f => f.startsWith('presets/msx-libcv/')), 'symlinked preset dir');
     assert.ok(!lists.base.includes('presets/msx-libcv'));
@@ -79,7 +95,7 @@ describe('extension asset packs', function () {
       'src/worker/wasm/verilator_bin.js', 'src/worker/wasm/verilator_bin.wasm',
     ]);
     assert.ok(lists.verilog.includes('node_modules/binaryen/index.js'));
-    for (var f of lists.base.concat(lists.verilog)) {
+    for (var f of Object.values(lists).flat()) {
       assert.ok(fs.statSync(path.join(ROOT, f)).isFile(), f);
       assert.ok(!f.endsWith('~'), `backup file ${f}`);
     }
@@ -91,7 +107,7 @@ describe('extension asset packs', function () {
     assert.ok(isUnreviewedFile('src/worker/asmjs/xasm6809.js'));
     assert.ok(!isUnreviewedFile('src/worker/wasm/cc65.wasm'));
     var lists = listPackFiles(ROOT);
-    for (var f of lists.base.concat(lists.verilog)) {
+    for (var f of Object.values(lists).flat()) {
       assert.ok(!isUnreviewedFile(f), `unreviewed file shipped: ${f}`);
     }
   });
@@ -252,7 +268,7 @@ describe('extension toolchains from packs', function () {
     var manifest: AssetManifest = JSON.parse(fs.readFileSync(manifestFile, 'utf-8'));
     cache = tmpdir();
     var store = new AssetStore(cache, manifest, [path.join(OUT, 'assets')]);
-    root = await store.ensure(["base", "verilog"]);
+    root = await store.ensure(["base", "cc65", "verilog"]);
   });
 
   after(function () {
@@ -327,7 +343,7 @@ describe('8bws bundle with an empty cache', function () {
     return execFileSync(process.execPath, [cli, ...args], { cwd: work, env, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
   }
 
-  function installed(): string[] {
+  function installed(home: string): string[] {
     var found: string[] = [];
     (function walk(dir: string) {
       for (var e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -338,9 +354,23 @@ describe('8bws bundle with an empty cache', function () {
     return found.sort();
   }
 
-  it('unpacks only the base pack for a NES build, into the user cache', function () {
+  it('unpacks only base and cc65 for a NES build, into the user cache', function () {
     run('build', '--check', 'hello.c');
-    assert.deepEqual(installed(), ['base']);
+    assert.deepEqual(installed(home), ['base', 'cc65']);
+  });
+
+  it('unpacks sdcc, not cc65, for a Game Boy build', function () {
+    var h = fs.mkdtempSync(path.join(os.tmpdir(), '8bws-gb-'));
+    try {
+      fs.copyFileSync(path.join(ROOT, 'presets/gb/clock.c'), path.join(work, 'clock.c'));
+      var env: NodeJS.ProcessEnv = { ...process.env, HOME: h, USERPROFILE: h, LOCALAPPDATA: h, XDG_CACHE_HOME: path.join(h, '.cache') };
+      delete env.EIGHTBITWORKSHOP_ROOT;
+      delete env.EIGHTBITWORKSHOP_TOOLCHAINS;
+      execFileSync(process.execPath, [cli, 'build', '--check', '-p', 'gb', 'clock.c'], { cwd: work, env, stdio: 'pipe' });
+      assert.deepEqual(installed(h), ['base', 'sdcc']);
+    } finally {
+      fs.rmSync(h, { recursive: true, force: true });
+    }
   });
 
   it('lists only the tools and platforms the packs can build', function () {
@@ -362,7 +392,7 @@ describe('8bws bundle with an empty cache', function () {
 
   it('fetches the Verilog pack when a Verilog build needs it', function () {
     run('build', '--check', '-p', 'verilog', 'ball_absolute.v');
-    assert.deepEqual(installed(), ['base', 'verilog']);
+    assert.deepEqual(installed(home), ['base', 'cc65', 'verilog']);
   });
 });
 

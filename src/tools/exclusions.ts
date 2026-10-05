@@ -73,11 +73,11 @@ export const EXCLUDED_PLATFORM_MODULES = ['vectrex'];
 
 /**
  * Platforms the packaged CLI can't build or run: x86 and ARM have no
- * toolchain in the packs (see ASSET_EXCLUDE), and the modules in
- * EXCLUDED_PLATFORM_MODULES have no emulator. The CLI reports them as
+ * toolchain in the packs, and CPC has no library or core (see ASSET_EXCLUDE);
+ * the modules in EXCLUDED_PLATFORM_MODULES have no emulator. The CLI reports them as
  * unavailable instead of failing partway.
  */
-export const UNSUPPORTED_PLATFORMS = ['x86', 'arm32', ...EXCLUDED_PLATFORM_MODULES];
+export const UNSUPPORTED_PLATFORMS = ['x86', 'arm32', 'cpc', ...EXCLUDED_PLATFORM_MODULES];
 
 // ---- 4. EXTENSION_UI ----
 

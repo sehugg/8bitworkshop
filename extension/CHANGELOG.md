@@ -2,9 +2,9 @@
 
 ## 0.1.2
 
-- `8bws` unpacks only the toolchains a command needs (the Verilog and extra
-  packs wait until a build or run uses them). Run outside VS Code, it keeps
-  them in the user cache directory.
+- `8bws` unpacks only the toolchains a command needs: cc65, SDCC, Verilog and
+  the lesser-used tools are separate packs that wait until a build uses them.
+  Run outside VS Code, it keeps them in the user cache directory.
 
 ## 0.1.1
 

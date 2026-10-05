@@ -63,17 +63,38 @@ const EXTRA_FILES_RE = new RegExp('^src/worker/(' + [
   'fs/(oscar64-fs|cc2600-fs|cc7800-fs|sdcc-fs)\\.zip',
 ].join('|') + ')');
 
-export type PackName = 'base' | 'verilog' | 'extra';
-export const PACKS: PackName[] = ['base', 'verilog', 'extra'];
+// cc65 and SDCC 3.x (SDCC 4.x is in extra) each serve a family of platforms,
+// so they get their own packs: a NES user never downloads SDCC, nor a Game Boy
+// user cc65's 10MB of per-target filesystems.
+const CC65_FILES_RE = /^src\/worker\/(wasm\/(cc65|ca65|ld65)\.(js|wasm)|fs\/cc65-fs-[^/]+\.zip)$/;
+const SDCC_FILES_RE = /^src\/worker\/(wasm\/(sdcc|sdasz80|sdasgb|sdldz80)\.(js|wasm)|fs\/fssdcc\.[^/]+)$/;
+
+/**
+ * Tool ids that need the cc65 pack: cc65 itself, and the tools that hand their
+ * output to ca65 (`nexttool` in src/worker/tools: fastbasic, ecs).
+ */
+export const CC65_TOOLS = ['cc65', 'ca65', 'ld65', 'fastbasic', 'ecs'];
+/** Tool ids whose files are in the sdcc pack (and the extra pack too, for 4.x). */
+export const SDCC_PACK_TOOLS = [...SDCC_TOOLS, 'sdldz80', 'sdld6808'];
+
+export type PackName = 'base' | 'cc65' | 'sdcc' | 'verilog' | 'extra';
+export const PACKS: PackName[] = ['base', 'cc65', 'sdcc', 'verilog', 'extra'];
 
 /** The pack a file under ASSET_DIRS belongs to. */
 export function packForFile(file: string): PackName {
-  return VERILOG_FILES.test(file) ? 'verilog' : EXTRA_FILES_RE.test(file) ? 'extra' : 'base';
+  return VERILOG_FILES.test(file) ? 'verilog' : EXTRA_FILES_RE.test(file) ? 'extra'
+    : CC65_FILES_RE.test(file) ? 'cc65' : SDCC_FILES_RE.test(file) ? 'sdcc' : 'base';
 }
 
-/** The packs a platform, and a build tool (tool id) on it, need to build and run. `source` is the main file's text. */
+/**
+ * The packs a platform, and a build tool (tool id) on it, need to build and
+ * run. `source` is the main file's text. With no tool (running a ROM), only
+ * what the emulator needs.
+ */
 export function packsForPlatform(platform?: string, tool?: string, source?: string): PackName[] {
   var packs: PackName[] = ['base'];
+  if (tool && CC65_TOOLS.includes(tool)) packs.push('cc65');
+  if (tool && SDCC_PACK_TOOLS.includes(tool)) packs.push('sdcc');
   if (platform && platform.startsWith('verilog')) packs.push('verilog');
   if ((tool && EXTRA_TOOLS.includes(tool)) || needsSdcc4(platform, tool, source)) packs.push('extra');
   return packs;
