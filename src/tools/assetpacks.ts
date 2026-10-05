@@ -63,10 +63,11 @@ const EXTRA_FILES_RE = new RegExp('^src/worker/(' + [
   'fs/(oscar64-fs|cc2600-fs|cc7800-fs|sdcc-fs)\\.zip',
 ].join('|') + ')');
 
-// cc65 and SDCC 3.x (SDCC 4.x is in extra) each serve a family of platforms,
+// cc65 (with fastbasic, which always assembles with ca65) and SDCC 3.x
+// (SDCC 4.x is in extra) each serve a family of platforms,
 // so they get their own packs: a NES user never downloads SDCC, nor a Game Boy
 // user cc65's 10MB of per-target filesystems.
-const CC65_FILES_RE = /^src\/worker\/(wasm\/(cc65|ca65|ld65)\.(js|wasm)|fs\/cc65-fs-[^/]+\.zip)$/;
+const CC65_FILES_RE = /^src\/worker\/(wasm\/(cc65|ca65|ld65|fastbasic-int|fastbasic-fp)\.(js|wasm)|fs\/cc65-fs-[^/]+\.zip)$/;
 const SDCC_FILES_RE = /^src\/worker\/(wasm\/(sdcc|sdasz80|sdasgb|sdldz80)\.(js|wasm)|fs\/fssdcc\.[^/]+)$/;
 
 /**

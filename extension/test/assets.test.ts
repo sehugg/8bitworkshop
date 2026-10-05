@@ -64,7 +64,9 @@ describe('extension asset packs', function () {
   });
 
   it('puts cc65 and SDCC 3.x in their own packs, with the tools that hand off to them', function () {
-    for (var f of ['src/worker/wasm/cc65.wasm', 'src/worker/wasm/ca65.wasm', 'src/worker/wasm/ld65.wasm', 'src/worker/fs/cc65-fs-nes.zip']) {
+    for (var f of ['src/worker/wasm/cc65.wasm', 'src/worker/wasm/ca65.wasm', 'src/worker/wasm/ld65.wasm', 'src/worker/fs/cc65-fs-nes.zip',
+      'src/worker/wasm/fastbasic-int.js', 'src/worker/wasm/fastbasic-int.wasm',
+      'src/worker/wasm/fastbasic-fp.js', 'src/worker/wasm/fastbasic-fp.wasm']) {
       assert.equal(packForFile(f), 'cc65', f);
     }
     for (var f of ['src/worker/wasm/sdcc.wasm', 'src/worker/wasm/sdasgb.js', 'src/worker/wasm/sdldz80.wasm', 'src/worker/fs/fssdcc.data', 'src/worker/fs/fssdcc.js.metadata']) {
