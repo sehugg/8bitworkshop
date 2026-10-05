@@ -4,7 +4,7 @@ import {
   TOOL_META, getToolMeta, getToolMetaForFilename, getPreloadFSName, getSkeletonName,
   getIncludePatterns, getLinkPatterns, matchDependencyPatterns,
   getSystemIncludePatterns, SYSTEM_INCLUDE_PATTERNS, getSharedFileSystemName, getToolHelpURL,
-  getPlatformToolHelpURL, SDCC_DEFAULT_VERSION
+  getPlatformToolHelpURL, getToolVersionLabel, SDCC_DEFAULT_VERSION
 } from "../../src/common/toolmeta";
 // Node-friendly worker entry point (re-exports TOOLS without Worker wiring)
 import { TOOLS } from "../../src/worker/workerlib";
@@ -77,6 +77,16 @@ describe('Tool metadata registry', function () {
   it('getSkeletonName defaults to the tool id', function () {
     assert.strictEqual(getSkeletonName('dasm'), 'dasm');
     assert.strictEqual(getSkeletonName('remote:llvm-mos'), 'llvm-mos');
+  });
+
+  it('getToolVersionLabel shows an alternate version when there is one', function () {
+    // both SDCC releases are selectable, so show both (default first)
+    let sdcc = SDCC_DEFAULT_VERSION === 3 ? '3.6.5 (default) / 4.6.0' : '4.6.0 (default) / 3.6.5';
+    assert.strictEqual(getToolVersionLabel(TOOL_META['sdcc']), sdcc);
+    // single-version tools show just their version, unknown ones a dash
+    assert.strictEqual(getToolVersionLabel(TOOL_META['dasm']), '2.20.17');
+    assert.strictEqual(getToolVersionLabel(TOOL_META['basic']), '—');
+    assert.strictEqual(getToolVersionLabel(undefined), '—');
   });
 
   it('covers the previously-scattered editor styles and help URLs', function () {

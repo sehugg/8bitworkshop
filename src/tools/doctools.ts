@@ -13,7 +13,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { TOOL_META, ToolMeta, getToolMeta } from '../common/toolmeta';
+import { TOOL_META, ToolMeta, getToolMeta, getToolVersionLabel } from '../common/toolmeta';
 import { PLATFORM_PARAMS } from '../worker/platforms';
 import { getToolForFilename } from './testlib';
 import { getBasePlatform, getRootBasePlatform } from '../common/util';
@@ -145,7 +145,7 @@ function renderTools(): string {
   for (var id of ids) {
     var m = TOOL_META[id];
     var exts = (m.extensions || []).length ? m.extensions.map(e => '`' + e + '`').join(' ') : '—';
-    var version = m.version || '—';
+    var version = getToolVersionLabel(m);
     var toollink = m.helpURL ? `[${m.name}](${m.helpURL})` : m.name;
     lines.push(`| ${mdTool(m.id)} | ${toollink} | ${m.kind} | ${m.arch || '—'} | ${version} | ${exts} |`);
   }

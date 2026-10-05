@@ -130,6 +130,9 @@ export interface ToolMeta {
   /** tool version string, as reported by the vendored wasm binary.
    *  Static per committed binary -- refresh with `npm run toolversions`. */
   version?: string;
+  /** alternate version also selectable at build time (e.g. SDCC 4.x via
+   *  `//#tooldef c sdcc=4`), shown next to `version` in the tool info. */
+  versionAlt?: string;
   /** regexes matching include directives, used for dependency parsing */
   includePatterns?: (RegExp | ToolIncludePattern)[];
   /** regexes matching link directives, used for dependency parsing */
@@ -363,7 +366,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     editorStyle: '6502',
     helpURL: 'https://github.com/apple2accumulator/merlin32',
     wasmModule: 'merlin32',
-    version: '1.1.10',
+    version: '1.1.1',
     includePatterns: [...SHARED_INCLUDE_PATTERNS, ...USE_ASM_INCLUDE_PATTERNS],
     linkPatterns: SHARED_LINK_PATTERNS,
   },
@@ -416,6 +419,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     helpURL: 'http://sdcc.sourceforge.net/doc/sdccman.pdf',
     wasmModule: 'sdcc4',
     version: SDCC_DEFAULT_VERSION === 3 ? '3.6.5' : '4.6.0',
+    versionAlt: SDCC_DEFAULT_VERSION === 3 ? '4.6.0' : '3.6.5',
     defineFlag: '-D', defineInline: true,
     platforms: SDCC_FS,
     includePatterns: SHARED_INCLUDE_PATTERNS,
@@ -428,7 +432,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     includeDirs: ['/share/sdcc/include', '/include'],
     editorStyle: 'z80',
     wasmModule: 'sdasz80-4',
-    version: '02.00',
+    version: '05.50.4+',
     platforms: SDCC_FS,
     includePatterns: SHARED_INCLUDE_PATTERNS,
     linkPatterns: SHARED_LINK_PATTERNS,
@@ -449,7 +453,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     id: 'sdldz80', name: 'sdldz80', kind: 'linker', arch: 'z80',
     extensions: [],
     wasmModule: 'sdld4',
-    version: '03.00',
+    version: '05.50.4-',
     linkSymbolFlag: '-g', linkSymbolInline: false,
   },
 
@@ -459,7 +463,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     id: 'sdas6500', name: 'sdas6500', kind: 'assembler', arch: '6502',
     extensions: [],
     wasmModule: 'sdas6500',
-    version: '02.00',
+    version: '05.50.4+',
     platforms: SDCC_FS,
   },
 
@@ -467,7 +471,7 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     id: 'sdld6808', name: 'sdld6808', kind: 'linker', arch: '6502',
     extensions: [],
     wasmModule: 'sdld4',
-    version: '03.00',
+    version: '05.50.4-',
     linkSymbolFlag: '-g', linkSymbolInline: false,
   },
 
@@ -908,6 +912,15 @@ export function getPreloadFSName(tool: string, platform?: string): string | unde
 export function getSkeletonName(tool: string): string {
   let meta = getToolMeta(tool);
   return (meta && meta.skeleton) ? meta.skeleton : tool.replace(/^remote:/, '');
+}
+
+/**
+ * Version string for display, e.g. '3.6.5 (default) / 4.6.0' for SDCC or
+ * '—' when the tool has no recorded version.
+ */
+export function getToolVersionLabel(meta?: ToolMeta): string {
+  if (!meta || !meta.version) return '—';
+  return meta.versionAlt ? meta.version + ' (default) / ' + meta.versionAlt : meta.version;
 }
 
 /**
