@@ -42,7 +42,6 @@ export const ASSET_EXCLUDE = new RegExp('^(' + [
  * files that belong to it, under ASSET_DIRS or EXTRA_FILES.
  */
 export const UNREVIEWED_TOOLS: { [tool: string]: RegExp[] } = {
-  xa: [/^src\/worker\/wasm\/xa\.wasm$/],
   nesasm: [/^src\/worker\/wasm\/nesasm\.(js|wasm)$/],
   merlin32: [/^src\/worker\/wasm\/merlin32\.(js|wasm)$/],
   xasm6809: [/^src\/worker\/asmjs\/xasm6809\.js$/],
@@ -51,12 +50,8 @@ export const UNREVIEWED_TOOLS: { [tool: string]: RegExp[] } = {
 
   // TODO: review these too. They are libraries/emulators or tools whose
   // upstream we could not resolve, so their files are not mapped yet.
-  //   shiru       shiru's NES/Atari libraries        (presets, src/worker/lib)
-  //   libcv       ColecoVision/MSX/SMS library         (presets/*-libcv, src/worker/lib/*libcv*)
-  //   6809tools   built into cmoc, lwasm, lwlink       (assumed GPL-3.0; verify)
+  //   shiru       shiru's NES/Atari libraries        (presets, src/worker/lib, assumed PD)
   //   makewav     WAV tool, not shipped here
-  //   jsvecx      Vectrex emulator, excluded from the extension bundle
-  //               (src/platform/vectrex.ts, stubbed by scripts/build.mjs)
 };
 
 // ---- 2. BUNDLE ----
