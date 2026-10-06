@@ -34,7 +34,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Editor moved from CodeMirror 5 to CodeMirror 6 with Lezer grammars for 6502, Z80, 6809, Verilog, BASIC, batari BASIC, FastBasic, Inform 6 and Wiz; new Cobalt and MBO themes and better indent handling.
 - Source search across the project and toolchain headers (F1 for help), with arrow-key navigation, plus symbol search without source.
 - Shortcut bar and keyboard shortcut help, F8 pause/resume, Cmd+Shift+G go to offset.
-- Settings menu with developer options (highlight whitespace, highlight executed lines, line numbers off by default).
+- Settings menu with developer options (highlight whitespace, highlight executed lines, line numbers off by default). "Highlight Executed Lines" draws a hot/cold heat map: lines run since the last update are colored by how often they have run (blue = cold, red = hot) and disappear once they stop executing.
 - Hash routing for windows, and per-page titles.
 - Mobile layout: tab bar instead of split panes, and a flex toolbar.
 - Click `#include`/`#link` decorations to open the file; offer to import a GitHub repo given by `repo=` ("user/repo" or a tree URL).

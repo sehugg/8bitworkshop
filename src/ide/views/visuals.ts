@@ -1,5 +1,6 @@
 
 import { errorMarkers } from "./gutter";
+import { TRACED_HEAT_LEVELS } from "./traceheat";
 
 import { SelectionRange, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, WidgetType } from "@codemirror/view";
@@ -263,12 +264,22 @@ export const highlightLines = {
   field: highlightLinesField,
 };
 
-// Highlight lines that were recently executed, per live trace data.
-const tracedLinesEffect = StateEffect.define<number[]>();
+// Highlight recently-executed lines, colored by execution frequency (hot/cold).
+// A line's level is 0 (coldest) .. TRACED_HEAT_LEVELS-1 (hottest).
+export interface TracedLine {
+  line: number;
+  level: number;
+}
 
-const tracedLineDecoration = Decoration.line({
-  attributes: { class: "cm-traced-line" }
-});
+const tracedLinesEffect = StateEffect.define<TracedLine[]>();
+
+// one line decoration per heat level
+const tracedLineDecorations = [];
+for (let i = 0; i < TRACED_HEAT_LEVELS; i++) {
+  tracedLineDecorations.push(Decoration.line({
+    attributes: { class: `cm-traced-line cm-traced-line-h${i}` }
+  }));
+}
 
 const tracedLinesField = StateField.define({
   create() { return Decoration.none },
@@ -278,10 +289,11 @@ const tracedLinesField = StateField.define({
     for (let e of tr.effects) {
       if (e.is(tracedLinesEffect)) {
         const ranges: any[] = [];
-        for (const lineNum of e.value) {
+        for (const { line: lineNum, level } of e.value) {
           try {
             const line = tr.state.doc.line(lineNum);
-            ranges.push(tracedLineDecoration.range(line.from));
+            const deco = tracedLineDecorations[Math.max(0, Math.min(TRACED_HEAT_LEVELS - 1, level | 0))];
+            ranges.push(deco.range(line.from));
           } catch {
             // Line doesn't exist, skip
           }
