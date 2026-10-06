@@ -1,9 +1,10 @@
 
 import assert from "assert";
+import * as fs from "fs";
 import { describe, it } from "mocha";
 import {
   scanTextForAssetFragments, resolveEmbedPath, validateAssetByteLength,
-  parseHexWords, validateAssetData
+  parseHexWords, validateAssetData, findNamedArray, validateCharpadFormat, renderCharpadMap
 } from "../../src/ide/pixeleditor";
 
 describe('Asset scanner', function () {
@@ -142,5 +143,53 @@ describe('validateAssetByteLength (for #embed binary files)', function () {
   it('should require at least 1 byte for a palette block', function () {
     assert.equal(validateAssetByteLength(4, { pal: "c64" }), null);
     assert.ok(validateAssetByteLength(0, { pal: "c64" }));
+  });
+});
+
+describe('C64 level2-data.c preset', function () {
+  it('should expose the multicolor charset as a valid bitmap asset', function () {
+    var src = fs.readFileSync('presets/c64/level2-data.c', 'utf8');
+    var frags = scanTextForAssetFragments(src, false);
+    assert.equal(frags.length, 2); // charset bitmap + charpad map
+    assert.equal(frags[0].error, undefined);
+    assert.equal(validateAssetData(src.substring(frags[0].start, frags[0].end), frags[0].fmt), null);
+  });
+});
+
+describe('CharPad tile maps', function () {
+  const src = () => fs.readFileSync('presets/c64/level2-data.c', 'utf8');
+
+  it('should find named arrays in C and asm source', function () {
+    assert.deepEqual(findNamedArray('const byte a[2] = { 0x01, 0x02 /* x */ };\nbyte b[1]={0x03};', 'b'), [3]);
+    assert.deepEqual(findNamedArray('a[2] = { // $99\n 0x01, 0x02 };', 'a'), [1, 2]);
+    assert.deepEqual(findNamedArray('.global _t\n_t:\n.byte $01,$02 ; $ff\n_u:\n.byte $09\n', 't'), [1, 2]);
+    assert.equal(findNamedArray('byte a[1]={1};', 'zzz'), null);
+  });
+
+  it('should accept lenient JSON keys containing digits', function () {
+    var frags = scanTextForAssetFragments('/*{w:1,mc1:2,name:"x_y"}*/\nbyte a[1]={0x01};', false);
+    assert.equal(frags[0].error, undefined);
+    assert.deepEqual(frags[0].fmt, { w: 1, mc1: 2, name: 'x_y' });
+  });
+
+  it('should validate the level2 map and resolve its source arrays', function () {
+    var frags = scanTextForAssetFragments(src(), false);
+    assert.equal(frags.length, 2);
+    var fmt = frags[1].fmt;
+    assert.equal(fmt.map, 'charpad');
+    assert.equal(validateAssetData(src().substring(frags[1].start, frags[1].end), fmt), null);
+    assert.equal(validateCharpadFormat(fmt, (n) => findNamedArray(src(), n)), null);
+    assert.ok(validateCharpadFormat(fmt, () => null));
+  });
+
+  it('should render a multicolor and a hires cell', function () {
+    var fmt: any = { w: 2, h: 1, tw: 1, th: 1, chars: 'c', tiles: 't', colors: 'k', bg: 11, mca: 5, mcb: 6 };
+    // char 0: row0 = 00 01 10 11 pixels; char 1: row0 = 10000001
+    var chars = [0x1b, 0, 0, 0, 0, 0, 0, 0, 0x81, 0, 0, 0, 0, 0, 0, 0];
+    var r = renderCharpadMap(fmt, [0, 1], chars, [0, 1], [8 | 2, 3]);
+    assert.equal(r.width, 16);
+    assert.equal(r.height, 8);
+    assert.deepEqual(Array.from(r.pixels.slice(0, 16)), [11, 11, 5, 5, 6, 6, 2, 2, 3, 11, 11, 11, 11, 11, 11, 3]);
+    assert.throws(() => renderCharpadMap(fmt, [0, 2], chars, [0, 1], [10, 3]), /out of range/);
   });
 });

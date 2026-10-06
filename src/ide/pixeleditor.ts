@@ -14,6 +14,7 @@ export interface EditorContext {
   setCurrentEditor(div: JQuery, editing: JQuery, node: PixNode): void;
   getPalettes(matchlen: number): SelectablePalette[];
   getTilemaps(matchlen: number): SelectableTilemap[];
+  getNamedArray?(name: string): number[] | null;
 }
 
 export type SelectablePalette = {
@@ -62,6 +63,7 @@ export type PixelEditorImageFormat = {
   xform?: string		// CSS transform
   art?: number		// artifact color, Apple II
   palname?: string	// preferred palette name (matches a palette header's `name`)
+  defpal?: string		// predefined palette to use when the project has none
   destfmt?: PixelEditorImageFormat
   // Pac-Man / Namco arcade: 8-byte vertical strips (4 rows × 8 cols),
   // 2bpp packed as bit y + bit (y+4), X/Y mirrored within each strip.
@@ -347,7 +349,11 @@ export function validateAssetData(datastr: string, fmt): string | null {
   if (fmt.comp == 'rletag') {
     words = Array.from(rle_unpack(new Uint8Array(words)));
   }
-  if (fmt.w > 0 && fmt.h > 0) {
+  if (fmt.map == 'charpad') {
+    // tile grid: one tile index per cell (w, h are in tiles, not pixels)
+    if (words.length != fmt.w * fmt.h)
+      return `Expected ${fmt.w * fmt.h} value(s), found ${words.length}`;
+  } else if (fmt.w > 0 && fmt.h > 0) {
     var required = computeRequiredWords(fmt);
     if (words.length != required) {
       return `Expected ${required} value(s), found ${words.length}`;
@@ -366,7 +372,10 @@ export function validateAssetByteLength(bytelen: number, fmt): string | null {
   if (fmt.comp == 'rletag') {
     return null; // can't statically determine compressed length
   }
-  if (fmt.w > 0 && fmt.h > 0) {
+  if (fmt.map == 'charpad') {
+    if (bytelen != fmt.w * fmt.h)
+      return `Expected ${fmt.w * fmt.h} byte(s), found ${bytelen}`;
+  } else if (fmt.w > 0 && fmt.h > 0) {
     var required = computeRequiredWords(fmt);
     if (bytelen != required) {
       return `Expected ${required} byte(s), found ${bytelen}`;
@@ -429,7 +438,7 @@ export function scanTextForAssetFragments(data: string, isVerilog: boolean): Ass
       result.push({ header: header, startline: startline, endline: endline, error: `Empty data block after asset header` });
     } else {
       try {
-        var jsontxt = m[1].replace(/([A-Za-z]+):/g, '"$1":'); // fix lenient JSON
+        var jsontxt = m[1].replace(/([A-Za-z_]\w*):/g, '"$1":'); // fix lenient JSON
         var json = JSON.parse(jsontxt);
         // C23 #embed "file.bin" -- data lives in a separate binary file, not inline
         var embedMatch = /#embed\s+"(.+?)"/.exec(data.substring(start, end));
@@ -926,6 +935,7 @@ export class Palettizer extends PixNode {
   context: EditorContext;
   paloptions: SelectablePalette[];
   palindex: number = 0;
+  defpal?: string;     // fmt.defpal: predefined palette used when none is in the project
   palname?: string;    // fmt.palname: preferred palette, chosen until the user picks one
   palselected: boolean = false; // true once the user chooses from the dropdown
 
@@ -940,6 +950,7 @@ export class Palettizer extends PixNode {
     else
       this.ncolors = 1 << ((fmt.bpp||1) * (fmt.np||1));
     this.palname = fmt.palname;
+    this.defpal = fmt.defpal;
   }
   updateLeft() {
     if (this.right) { this.rgbimgs = this.right.rgbimgs; } // TODO: check is for unit test, remove?
@@ -982,6 +993,9 @@ export class Palettizer extends PixNode {
         }
         newpalette = this.paloptions[this.palindex].palette;
       }
+    }
+    if (newpalette == null && this.defpal && PREDEF_PALETTES[this.defpal]) {
+      newpalette = convertPaletteFormat(PREDEF_PALETTES[this.defpal].map((_, i) => i), { pal: this.defpal });
     }
     if (newpalette == null) {
       if (this.ncolors <= 2)
@@ -1121,6 +1135,20 @@ export class MetaspriteCompositor extends Compositor {
   }
 }
 
+// Copies a tw x th indexed tile into a larger indexed image at (x0,y0).
+// Nonzero pixels get `coloradd` added (NES attribute palette select).
+function blitTile(dest: Uint8Array, stride: number, x0: number, y0: number,
+  tile: ArrayLike<number>, tw: number, th: number, coloradd: number = 0) {
+  var j = 0;
+  for (var y = 0; y < th; y++) {
+    var i = (y0 + y) * stride + x0;
+    for (var x = 0; x < tw; x++) {
+      var color = tile[j++];
+      dest[i++] = color && coloradd ? color + coloradd : color;
+    }
+  }
+}
+
 export class NESNametableConverter extends Compositor {
 
   cols: number;
@@ -1154,22 +1182,132 @@ export class NESNametableConverter extends Compositor {
         attraddr = (a & 0x2c00) | 0x3c0 | (a & 0x0C00) | ((a >> 4) & 0x38) | ((a >> 2) & 0x07);
         var attr = this.words[attraddr];
         var tag = name ^ (attr << 9) ^ 0x80000000;
-        var i = row * this.cols * 8 * 8 + col * 8;
-        var j = 0;
         var attrshift = (col & 2) + ((a & 0x40) >> 4);
         var coloradd = ((attr >> attrshift) & 3) << 2;
-        for (var y = 0; y < 8; y++) {
-          for (var x = 0; x < 8; x++) {
-            var color = t[j++];
-            if (color) color += coloradd;
-            idata[i++] = color;
-          }
-          i += this.cols * 8 - 8;
-        }
+        blitTile(idata, this.width, col * 8, row * 8, t, 8, 8, coloradd);
         a++;
       }
     }
     // TODO
+    return true;
+  }
+}
+
+// Finds the numbers in a named C array (`name[..] = {..}`) or asm label (`name:` or
+// `_name:` followed by .byte/hex lines, up to the next label) in source text.
+export function findNamedArray(text: string, name: string): number[] | null {
+  if (!/^\w+$/.test(name)) return null;
+  var m = new RegExp('\\b' + name + '\\s*\\[[^\\]]*\\]\\s*=\\s*\\{([^}]*)\\}').exec(text);
+  if (m) {
+    var body = m[1].replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+    return parseHexWords(convertToHexStatements(body));
+  }
+  var lm = new RegExp('^[ \\t]*_?' + name + ':', 'm').exec(text);
+  if (lm) {
+    var rest = text.substring(lm.index + lm[0].length);
+    var next = /^[ \t]*(?:[A-Za-z_.][\w.]*:|\.global)/m.exec(rest);
+    if (next) rest = rest.substring(0, next.index);
+    return parseHexWords(convertToHexStatements(rest.replace(/;.*$/gm, '')));
+  }
+  return null;
+}
+
+// Header for a CharPad-style map (C64 character graphics): a w x h grid of tile
+// indices; each tile is tw x th char indices; chars are 8x8 (hires) or 4x8 (multicolor).
+export type CharpadFormat = {
+  w: number, h: number		// map size, in tiles
+  tw: number, th: number		// tile size, in chars
+  chars: string			// name of the charset array (8 bytes/char)
+  tiles: string			// name of the tileset array (tw*th char indices/tile)
+  colors: string			// name of the colour array (one byte per tile, or per char)
+  colorby?: string		// "tile" (default) or "char"
+  mc?: number			// 0 = hires mode (default 1: multicolor, colour bit 3 selects)
+  bg?: number, mca?: number, mcb?: number	// screen and shared multicolor 1/2 colours
+};
+
+export function charpadSourceNames(fmt: CharpadFormat): string[] {
+  return [fmt.chars, fmt.tiles, fmt.colors];
+}
+
+export function validateCharpadFormat(fmt: CharpadFormat, lookup: (name: string) => number[] | null): string | null {
+  if (!(fmt.w > 0 && fmt.h > 0 && fmt.tw > 0 && fmt.th > 0))
+    return 'charpad map needs positive w, h, tw and th';
+  for (var name of charpadSourceNames(fmt)) {
+    if (!name) return 'charpad map needs "chars", "tiles" and "colors" array names';
+    if (!lookup(name)) return `Could not find array "${name}"`;
+  }
+  return null;
+}
+
+// Renders a CharPad map to one indexed image of C64 colour numbers (0-15).
+export function renderCharpadMap(fmt: CharpadFormat, map: UintArray, chars: UintArray,
+  tiles: UintArray, colors: UintArray): { width: number, height: number, pixels: Uint8Array } {
+  var multi = fmt.mc !== 0;
+  var bg = fmt.bg || 0, mca = fmt.mca || 0, mcb = fmt.mcb || 0;
+  var width = fmt.w * fmt.tw * 8;
+  var height = fmt.h * fmt.th * 8;
+  var pixels = new Uint8Array(width * height);
+  var chartile = new Uint8Array(64);
+  var tilechars = fmt.tw * fmt.th;
+  for (var row = 0; row < fmt.h; row++) {
+    for (var col = 0; col < fmt.w; col++) {
+      var t = map[row * fmt.w + col];
+      if (t === undefined || (t + 1) * tilechars > tiles.length)
+        throw Error(`Tile index ${t} out of range at map cell ${col},${row}`);
+      for (var k = 0; k < tilechars; k++) {
+        var c = tiles[t * tilechars + k];
+        if (c === undefined || (c + 1) * 8 > chars.length)
+          throw Error(`Char index ${c} out of range in tile ${t}`);
+        var colour = colors[fmt.colorby == 'char' ? c : t];
+        if (colour === undefined) throw Error(`No colour for ${fmt.colorby == 'char' ? 'char ' + c : 'tile ' + t}`);
+        var ismc = multi && (colour & 8) != 0;
+        var fg = multi ? colour & 7 : colour & 15;
+        for (var y = 0; y < 8; y++) {
+          var b = chars[c * 8 + y];
+          for (var x = 0; x < 8; x++) {
+            if (ismc) {
+              var v = (b >> (6 - (x & ~1))) & 3; // pixels are double wide
+              chartile[y * 8 + x] = v == 0 ? bg : v == 1 ? mca : v == 2 ? mcb : fg;
+            } else {
+              chartile[y * 8 + x] = (b >> (7 - x)) & 1 ? fg : bg;
+            }
+          }
+        }
+        blitTile(pixels, width, (col * fmt.tw + (k % fmt.tw)) * 8, (row * fmt.th + Math.floor(k / fmt.tw)) * 8, chartile, 8, 8);
+      }
+    }
+  }
+  return { width, height, pixels };
+}
+
+export class CharpadConverter extends PixNode {
+
+  fmt: CharpadFormat;
+  context: EditorContext;
+  images: Uint8Array[];
+  width: number;
+  height: number;
+
+  constructor(context: EditorContext, fmt: CharpadFormat) {
+    super();
+    this.context = context;
+    this.fmt = fmt;
+    this.width = fmt.w * fmt.tw * 8;
+    this.height = fmt.h * fmt.th * 8;
+  }
+  updateLeft() {
+    return false; // TODO: map editing
+  }
+  updateRight() {
+    var lookup = (name: string) => {
+      var arr = this.context.getNamedArray && this.context.getNamedArray(name);
+      if (!arr) throw Error(`Could not find array "${name}"`);
+      return arr;
+    };
+    // charset, tileset and colours are re-read each time so edits to them show up here
+    var r = renderCharpadMap(this.fmt, this.left.words, lookup(this.fmt.chars), lookup(this.fmt.tiles), lookup(this.fmt.colors));
+    if (this.images && equalArrays(this.images[0], r.pixels)) return false;
+    this.images = [r.pixels];
     return true;
   }
 }
