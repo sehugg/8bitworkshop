@@ -33,6 +33,7 @@ import { Shortcut } from "../shortcutbar";
 import { createTextTransformFilterEffect, textTransformFilterCompartment } from "./filters";
 import { breakpointMarkers, bytes, clock, currentPcMarker, errorMarkers, ErrorInfo, offset, statusMarkers } from "./gutter";
 import { currentPc, errorMessages, errorSpans, highlightLines, showValue, tracedLines } from "./visuals";
+import { computeHeatLevels } from "./traceheat";
 
 // look ahead this many bytes when finding source lines for a PC
 export const PC_LINE_LOOKAHEAD = 64;
@@ -123,6 +124,10 @@ export class SourceEditor implements ProjectView {
   currentDebugLine: SourceLocation;
   refreshDelayMsec = 300;
   probe: ProbeRecorder = null;
+  // Cumulative executed-line counts for this tracing session. Only lines
+  // executed in the last update are shown, but their color (hot/cold) comes
+  // from these totals so it stays stable from tick to tick.
+  tracedLineCounts = new Map<number, number>();
 
   createDiv(parent: HTMLElement) {
     var div = document.createElement('div');
@@ -174,6 +179,7 @@ export class SourceEditor implements ProjectView {
       this.probe = platform.startProbing();
       this.probe.singleFrame = false; // accumulate between our polls, we clear it ourselves
       this.probe.clear();
+      this.tracedLineCounts.clear();
     }
   }
 
@@ -182,6 +188,7 @@ export class SourceEditor implements ProjectView {
       platform.stopProbing();
       this.probe = null;
     }
+    this.tracedLineCounts.clear();
     this.editor.dispatch({ effects: tracedLines.effect.of([]) });
   }
 
@@ -719,17 +726,22 @@ export class SourceEditor implements ProjectView {
   updateTracedLines() {
     const p = this.probe;
     if (!p || !p.idx || !this.sourcefile) return;
-    const lines = new Set<number>();
+    // Accumulate per-line counts since tracing started, and remember which
+    // lines ran in this update (those are the only ones we'll highlight).
+    const activeLines = new Set<number>();
     for (let i = 0; i < p.idx; i++) {
       const word = p.buf[i];
       if ((word & 0xff000000) === ProbeFlags.EXECUTE) {
         const loc = this.sourcefile.findLineForOffset(word & 0xffff, PC_LINE_LOOKAHEAD);
-        if (loc) lines.add(loc.line);
+        if (loc) {
+          this.tracedLineCounts.set(loc.line, (this.tracedLineCounts.get(loc.line) || 0) + 1);
+          activeLines.add(loc.line);
+        }
       }
     }
     p.clear();
     this.editor.dispatch({
-      effects: tracedLines.effect.of(Array.from(lines)),
+      effects: tracedLines.effect.of(computeHeatLevels(this.tracedLineCounts, activeLines)),
     });
   }
 

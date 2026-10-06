@@ -17,8 +17,19 @@ export const editorTheme = EditorView.theme({
     ".highlight-lines": {
         backgroundColor: "#003399 !important",
     },
-    ".cm-traced-line": {
-        backgroundColor: "rgba(129, 123, 249, 0.15)",
+    // Executed-line heat map: cold (rarely run) -> hot (frequently run).
+    ".cm-traced-line": {},
+    ".cm-traced-line-h0": {
+        backgroundColor: "rgba(70, 120, 255, 0.18)",
+    },
+    ".cm-traced-line-h1": {
+        backgroundColor: "rgba(80, 210, 170, 0.20)",
+    },
+    ".cm-traced-line-h2": {
+        backgroundColor: "rgba(255, 200, 60, 0.22)",
+    },
+    ".cm-traced-line-h3": {
+        backgroundColor: "rgba(255, 70, 50, 0.28)",
     },
     ".cm-error-span": {
         textDecoration: "underline wavy red",

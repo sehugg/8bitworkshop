@@ -650,6 +650,10 @@ function hasSerialIO(arg) {
 class BaseMachinePlatform extends BaseDebugPlatform {
     constructor(mainElement) {
         super();
+        // The probe's singleFrame flag saved while runToVsync() holds a frame open,
+        // restored by pause() when the run stops (the run is timer-driven, so the
+        // stop happens after runToVsync() has returned).
+        this.probeSingleFrame = null;
         this.mainElement = mainElement;
     }
     reset() {
@@ -823,9 +827,24 @@ class BaseMachinePlatform extends BaseDebugPlatform {
         this.timer.stop();
         this.audio && this.audio.stop();
         this.poller && this.poller.stop();
+        // runToVsync() holds a frame open for the probe; put the probe's own
+        // setting back now that the run has stopped.
+        if (this.probeRecorder && this.probeSingleFrame != null) {
+            this.probeRecorder.singleFrame = this.probeSingleFrame;
+            this.probeSingleFrame = null;
+        }
     }
     // so probe views stick around TODO: must be a better way?
     runToVsync() {
+        // A single-frame step stops on the next frame boundary -- exactly where
+        // ProbeRecorder.logNewFrame() clears a singleFrame buffer -- which would
+        // leave the probe views blank. Clear here and hold the frame open until
+        // the run stops instead. pause() restores the saved setting.
+        if (this.probeRecorder) {
+            this.probeSingleFrame = this.probeRecorder.singleFrame;
+            this.probeRecorder.reset();
+            this.probeRecorder.singleFrame = false;
+        }
         this.restartDebugging();
         var flag = false;
         this.runEval(() => {

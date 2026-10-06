@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.tracedLines = exports.highlightLines = exports.errorSpans = exports.showValue = exports.currentPc = exports.errorMessages = void 0;
 const gutter_1 = require("./gutter");
+const traceheat_1 = require("./traceheat");
 const state_1 = require("@codemirror/state");
 const view_1 = require("@codemirror/view");
 // Highlight program counter line.
@@ -238,11 +239,14 @@ exports.highlightLines = {
     effect: highlightLinesEffect,
     field: highlightLinesField,
 };
-// Highlight lines that were recently executed, per live trace data.
 const tracedLinesEffect = state_1.StateEffect.define();
-const tracedLineDecoration = view_1.Decoration.line({
-    attributes: { class: "cm-traced-line" }
-});
+// one line decoration per heat level
+const tracedLineDecorations = [];
+for (let i = 0; i < traceheat_1.TRACED_HEAT_LEVELS; i++) {
+    tracedLineDecorations.push(view_1.Decoration.line({
+        attributes: { class: `cm-traced-line cm-traced-line-h${i}` }
+    }));
+}
 const tracedLinesField = state_1.StateField.define({
     create() { return view_1.Decoration.none; },
     update(decorations, tr) {
@@ -250,10 +254,11 @@ const tracedLinesField = state_1.StateField.define({
         for (let e of tr.effects) {
             if (e.is(tracedLinesEffect)) {
                 const ranges = [];
-                for (const lineNum of e.value) {
+                for (const { line: lineNum, level } of e.value) {
                     try {
                         const line = tr.state.doc.line(lineNum);
-                        ranges.push(tracedLineDecoration.range(line.from));
+                        const deco = tracedLineDecorations[Math.max(0, Math.min(traceheat_1.TRACED_HEAT_LEVELS - 1, level | 0))];
+                        ranges.push(deco.range(line.from));
                     }
                     catch (_a) {
                         // Line doesn't exist, skip

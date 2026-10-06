@@ -35,6 +35,7 @@ const baseviews_1 = require("./baseviews");
 const filters_1 = require("./filters");
 const gutter_1 = require("./gutter");
 const visuals_1 = require("./visuals");
+const traceheat_1 = require("./traceheat");
 // look ahead this many bytes when finding source lines for a PC
 exports.PC_LINE_LOOKAHEAD = 64;
 // Asset range tracking. Positions are automatically remapped through
@@ -108,6 +109,10 @@ class SourceEditor {
         this.dirtylisting = true;
         this.refreshDelayMsec = 300;
         this.probe = null;
+        // Cumulative executed-line counts for this tracing session. Only lines
+        // executed in the last update are shown, but their color (hot/cold) comes
+        // from these totals so it stays stable from tick to tick.
+        this.tracedLineCounts = new Map();
         this.path = path;
         this.mode = mode;
     }
@@ -161,6 +166,7 @@ class SourceEditor {
             this.probe = ui_1.platform.startProbing();
             this.probe.singleFrame = false; // accumulate between our polls, we clear it ourselves
             this.probe.clear();
+            this.tracedLineCounts.clear();
         }
     }
     stopTracing() {
@@ -168,6 +174,7 @@ class SourceEditor {
             ui_1.platform.stopProbing();
             this.probe = null;
         }
+        this.tracedLineCounts.clear();
         this.editor.dispatch({ effects: visuals_1.tracedLines.effect.of([]) });
     }
     setTracingEnabled(enabled) {
@@ -645,18 +652,22 @@ class SourceEditor {
         const p = this.probe;
         if (!p || !p.idx || !this.sourcefile)
             return;
-        const lines = new Set();
+        // Accumulate per-line counts since tracing started, and remember which
+        // lines ran in this update (those are the only ones we'll highlight).
+        const activeLines = new Set();
         for (let i = 0; i < p.idx; i++) {
             const word = p.buf[i];
             if ((word & 0xff000000) === probe_1.ProbeFlags.EXECUTE) {
                 const loc = this.sourcefile.findLineForOffset(word & 0xffff, exports.PC_LINE_LOOKAHEAD);
-                if (loc)
-                    lines.add(loc.line);
+                if (loc) {
+                    this.tracedLineCounts.set(loc.line, (this.tracedLineCounts.get(loc.line) || 0) + 1);
+                    activeLines.add(loc.line);
+                }
             }
         }
         p.clear();
         this.editor.dispatch({
-            effects: visuals_1.tracedLines.effect.of(Array.from(lines)),
+            effects: visuals_1.tracedLines.effect.of((0, traceheat_1.computeHeatLevels)(this.tracedLineCounts, activeLines)),
         });
     }
     getLine(line) {

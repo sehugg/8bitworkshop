@@ -294,6 +294,21 @@ class AssetEditorView {
         // add view objects
         palizer.addRight(new pixed.CharmapEditor(this, (0, baseviews_1.newDiv)(parentdiv), fmt));
     }
+    // tile indices -> indexed image (converter) -> RGBA -> map viewer
+    addTilemapEditor(parentdiv, firstnode, converter, palfmt, mapfmt) {
+        var node = firstnode.addRight(converter);
+        node = node.addRight(new pixed.Palettizer(this, palfmt));
+        node.addRight(new pixed.MapEditor(this, (0, baseviews_1.newDiv)(parentdiv), mapfmt));
+    }
+    // finds the contents of a named array declared in any text file of the project
+    getNamedArray(name) {
+        var result = null;
+        ui_1.current_project.iterateFiles((fileid, data) => {
+            if (!result && typeof data === 'string')
+                result = pixed.findNamedArray(data, name);
+        });
+        return result;
+    }
     addPaletteEditor(parentdiv, firstnode, palfmt) {
         // palette -> RGBA
         var pal2rgb = new pixed.PaletteFormatToRGB(palfmt);
@@ -386,7 +401,8 @@ class AssetEditorView {
                     }
                     else {
                         // validate data block size before creating editors
-                        const assetError = pixed.validateAssetData(data.substring(frag.start, frag.end), frag.fmt);
+                        const assetError = pixed.validateAssetData(data.substring(frag.start, frag.end), frag.fmt)
+                            || (frag.fmt.map == 'charpad' ? pixed.validateCharpadFormat(frag.fmt, (n) => this.getNamedArray(n)) : null);
                         if (assetError) {
                             $('<div class="asset_error_msg"/>').text(assetError).appendTo(block);
                             continue;
@@ -401,10 +417,16 @@ class AssetEditorView {
                     }
                     // is this a nes nametable?
                     if (frag.fmt.map == 'nesnt') {
-                        node = node.addRight(new pixed.NESNametableConverter(this));
-                        node = node.addRight(new pixed.Palettizer(this, { w: 8, h: 8, bpp: 4 }));
                         const fmt = { w: 8 * (frag.fmt.w || 32), h: 8 * (frag.fmt.h || 30), count: 1 }; // TODO: can't do custom sizes
-                        node = node.addRight(new pixed.MapEditor(this, (0, baseviews_1.newDiv)(block), fmt));
+                        this.addTilemapEditor(block, node, new pixed.NESNametableConverter(this), { w: 8, h: 8, bpp: 4 }, fmt);
+                        this.registerAsset("nametable", first, 2);
+                        nassets++;
+                    }
+                    // is this a CharPad (C64) map?
+                    else if (frag.fmt.map == 'charpad') {
+                        const cp = frag.fmt;
+                        const fmt = { w: cp.w * cp.tw * 8, h: cp.h * cp.th * 8, count: 1 };
+                        this.addTilemapEditor(block, node, new pixed.CharpadConverter(this, cp), { w: 8, h: 8, bpp: 4, defpal: 'c64' }, fmt);
                         this.registerAsset("nametable", first, 2);
                         nassets++;
                     }
