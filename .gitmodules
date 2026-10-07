@@ -1,15 +1,15 @@
 [submodule "javatari.js"]
 	path = javatari.js
-	url = https://github.com/sehugg/javatari.js
+	url = https://github.com/8bitworkshop/javatari.js
 [submodule "tss"]
 	path = tss
-	url = https://github.com/sehugg/tss
+	url = https://github.com/8bitworkshop/tss
 [submodule "gif.js"]
 	path = gif.js
-	url = https://github.com/sehugg/gif.js
+	url = https://github.com/8bitworkshop/gif.js
 [submodule "jsnes"]
 	path = jsnes
-	url = https://github.com/sehugg/jsnes
+	url = https://github.com/8bitworkshop/jsnes
 [submodule "nanoasm"]
 	path = nanoasm
-	url = https://github.com/sehugg/nanoasm
+	url = https://github.com/8bitworkshop/nanoasm

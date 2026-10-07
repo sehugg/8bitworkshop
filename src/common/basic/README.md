@@ -74,7 +74,7 @@ For INPUT commands, the runtime calls the `input()` method, which returns a Prom
 The IDE overriddes this method to show a text field to the user, and resolve the Promise when data is entered.
 The runtime might call multiple times until valid data is entered.
 
-The compiler and runtime are each about [1300 lines of TypeScript](https://github.com/sehugg/8bitworkshop/tree/master/src/common/basic),
+The compiler and runtime are each about [1300 lines of TypeScript](https://github.com/8bitworkshop/8bitworkshop/tree/master/src/common/basic),
 excluding the definitions of the BASIC dialects.
-It's tested with a [test suite](https://github.com/sehugg/nbs-ecma55-test)
+It's tested with a [test suite](https://github.com/8bitworkshop/nbs-ecma55-test)
 and with a [coverage-guided fuzzer](https://github.com/fuzzitdev/jsfuzz).

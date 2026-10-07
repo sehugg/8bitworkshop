@@ -305,4 +305,4 @@ New tools and features:
 - Removed "Share File as GitHub Gist" due to GitHub changes.
 
 See the README for credits, third-party emulators, compilers and libraries, and the
-[GitHub contributors graph](https://github.com/sehugg/8bitworkshop/graphs/contributors) for the full list.
+[GitHub contributors graph](https://github.com/8bitworkshop/8bitworkshop/graphs/contributors) for the full list.

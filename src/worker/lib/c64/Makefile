@@ -10,4 +10,4 @@
 all: openroms-compat.o
 
 openroms-compat.o: openroms-compat.s
-	ca65 -I /Users/sehugg/8bitworkshop-compilers/cc65/asminc openroms-compat.s
+	ca65 -I ~/8bitworkshop-compilers/cc65/asminc openroms-compat.s

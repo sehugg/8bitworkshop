@@ -115,13 +115,13 @@ and Open Example lists show which platforms have one.
 
 ## More
 
-- [Projects](https://github.com/sehugg/8bitworkshop/blob/master/extension/docs/projects.md)
-- [Building](https://github.com/sehugg/8bitworkshop/blob/master/extension/docs/building.md)
-- [The emulator](https://github.com/sehugg/8bitworkshop/blob/master/extension/docs/emulator.md)
-- [Platform detection](https://github.com/sehugg/8bitworkshop/blob/master/extension/docs/detection.md)
-- [Changelog](https://github.com/sehugg/8bitworkshop/blob/master/extension/CHANGELOG.md)
-- [Report a problem](https://github.com/sehugg/8bitworkshop/issues)
-- [Source code](https://github.com/sehugg/8bitworkshop)
+- [Projects](https://github.com/8bitworkshop/8bitworkshop/blob/master/extension/docs/projects.md)
+- [Building](https://github.com/8bitworkshop/8bitworkshop/blob/master/extension/docs/building.md)
+- [The emulator](https://github.com/8bitworkshop/8bitworkshop/blob/master/extension/docs/emulator.md)
+- [Platform detection](https://github.com/8bitworkshop/8bitworkshop/blob/master/extension/docs/detection.md)
+- [Changelog](https://github.com/8bitworkshop/8bitworkshop/blob/master/extension/CHANGELOG.md)
+- [Report a problem](https://github.com/8bitworkshop/8bitworkshop/issues)
+- [Source code](https://github.com/8bitworkshop/8bitworkshop)
 
 ## Error reports
 
@@ -145,7 +145,7 @@ tools, such as Copilot's agent mode, get **Build 8bitworkshop Program** and
 **Run 8bitworkshop Program**, which returns a screenshot. Agents in the
 terminal, such as Claude Code, use the `8bws` command, once you turn on
 `8bitworkshop.terminalCommand`. See
-[AI agents and the terminal](https://github.com/sehugg/8bitworkshop/blob/master/extension/docs/building.md#ai-agents).
+[AI agents and the terminal](https://github.com/8bitworkshop/8bitworkshop/blob/master/extension/docs/building.md#ai-agents).
 
 ## License
 

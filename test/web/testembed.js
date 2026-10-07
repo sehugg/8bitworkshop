@@ -56,7 +56,7 @@ exports['test embed IDE in iframe'] = function(browser) {
     .waitForElementVisible('.bootbox-alert')
 
   /* TODO
-  browser.url(IDEURL + "?embed=1&platform=nes&githubURL=https://github.com/sehugg/NES-ca65-example")
+  browser.url(IDEURL + "?embed=1&platform=nes&githubURL=https://github.com/8bitworkshop/NES-ca65-example")
     .waitForElementNotVisible('#compile_spinner', time=10000)
     .waitForElementNotVisible('#error_alert')
     .waitForElementVisible('#emuscreen')

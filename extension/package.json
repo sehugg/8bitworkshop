@@ -48,11 +48,11 @@
   "license": "GPL-3.0-only",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sehugg/8bitworkshop.git",
+    "url": "https://github.com/8bitworkshop/8bitworkshop.git",
     "directory": "extension"
   },
   "bugs": {
-    "url": "https://github.com/sehugg/8bitworkshop/issues"
+    "url": "https://github.com/8bitworkshop/8bitworkshop/issues"
   },
   "homepage": "https://8bitworkshop.com",
   "engines": {

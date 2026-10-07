@@ -55,7 +55,7 @@ describe('Github', function() {
   it('Should import from GitHub (default branch)', function(done) {
     var store = createNewPersistentStore('nes', function(store) {
       var gh = newGH(store, 'nes');
-      gh.importAndPull('https://github.com/sehugg/mdf2020-nes').then( (sess) => {
+      gh.importAndPull('https://github.com/8bitworkshop/mdf2020-nes').then( (sess) => {
         console.log(sess.paths);
         done();
       });
@@ -65,7 +65,7 @@ describe('Github', function() {
   it('Should import from GitHub (explicit branch)', function(done) {
     var store = createNewPersistentStore('nes', function(store) {
       var gh = newGH(store, 'nes');
-      gh.importAndPull('https://github.com/sehugg/mdf2020-nes/tree/main').then( (sess) => {
+      gh.importAndPull('https://github.com/8bitworkshop/mdf2020-nes/tree/main').then( (sess) => {
         console.log(sess.paths);
         done();
       });
