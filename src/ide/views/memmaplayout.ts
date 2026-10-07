@@ -3,7 +3,7 @@ import { Segment } from "../../common/workertypes";
 // Layout for the Memory Map view: native, linker and variable columns
 // aligned on a shared address axis.
 
-export type MemMapColumnId = 'native' | 'linker' | 'vars';
+export type MemMapColumnId = 'native' | 'linker' | 'modules' | 'vars';
 
 export interface MemMapBlock {
   name: string;
@@ -134,6 +134,43 @@ export function findLargeVariables(symbolmap: { [sym: string]: number }, segment
   return vars.slice(0, maxVars);
 }
 
+// Insert $1000-aligned boundaries into the memory-map row bounds so the map
+// can be striped every 4K, without changing the total height: each sub-row is
+// given a fraction of the parent row's height (and the parent's index).
+// Returns null when the address range is too large to stripe.
+export function stripeBounds(bounds: number[], stride = 0x1000,
+  maxStripes = 1024): { bounds: number[], weights: number[], parents: number[] } | null {
+  if (bounds.length < 2) return null;
+  const min = bounds[0], max = bounds[bounds.length - 1];
+  if ((max - min) / stride > maxStripes) return null;
+  const xb = bounds.slice();
+  for (let a = Math.ceil(min / stride) * stride; a < max; a += stride) {
+    let lo = 0, hi = xb.length;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (xb[mid] < a) lo = mid + 1; else hi = mid; }
+    if (xb[lo] !== a) xb.splice(lo, 0, a);
+  }
+  const weights: number[] = [];
+  const parents: number[] = [];
+  let pi = 0;
+  for (let i = 0; i + 1 < xb.length; i++) {
+    const a = xb[i], b = xb[i + 1];
+    while (bounds[pi + 1] <= a) pi++;
+    weights.push((b - a) / (bounds[pi + 1] - bounds[pi]));
+    parents.push(pi);
+  }
+  return { bounds: xb, weights, parents };
+}
+
+// Map a position on the vertical address axis (measured in row-height units)
+// to an address. Row i spans bounds[i]..bounds[i+1] with relative height heights[i].
+export function addressAtOffset(bounds: number[], heights: number[], y: number): number {
+  let i = 0;
+  while (i < heights.length - 1 && y >= heights[i]) { y -= heights[i]; i++; }
+  const frac = heights[i] > 0 ? Math.max(0, Math.min(1, y / heights[i])) : 0;
+  const a = bounds[i], b = bounds[i + 1];
+  return Math.min(Math.floor(a + (b - a) * frac), b - 1);
+}
+
 export function computeMemoryMapLayout(segments: Segment[], symbolmap?: { [sym: string]: number }, opts?: MemMapOptions,
   symbolsizes?: { [sym: string]: number }): MemMapLayout {
   segments = segments || [];
@@ -148,7 +185,16 @@ export function computeMemoryMapLayout(segments: Segment[], symbolmap?: { [sym: 
     const first = Math.min(...linker.map(b => b.start));
     columns.push(makeColumn('linker', 'Segments', fillGaps(linker, first, '', 'free'), maxLanes));
   }
-  const vars = findLargeVariables(symbolmap, segments, opts, symbolsizes);
+  // object files, where the linker reports them (alternating types so neighbors read apart)
+  const modules: MemMapBlock[] = [];
+  for (const seg of segments)
+    (seg.modules || []).forEach((m, i) =>
+      modules.push({ name: m.name, start: m.start, end: m.start + m.size, type: 'module' + (i & 1), lane: 0 }));
+  if (modules.length) {
+    columns.push(makeColumn('modules', 'Modules', modules, maxLanes));
+  }
+  // the Objects column is a fallback for tools that don't report modules
+  const vars = modules.length ? [] : findLargeVariables(symbolmap, segments, opts, symbolsizes);
   if (vars.length) {
     columns.push(makeColumn('vars', 'Objects', vars, maxLanes));
   }

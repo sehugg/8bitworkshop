@@ -753,6 +753,28 @@ div.markdown th {
   font-size: 10pt;
   min-width: 0;
 }
+.memmap .memmap-stripe {
+  pointer-events: none;
+}
+.memmap .memmap-stripe-odd {
+  background-color: rgba(255,255,255,0.06);
+}
+.memmap .memmap-scrub {
+  cursor: ns-resize;
+}
+.memmap-scrub-label {
+  position: fixed;
+  z-index: 20;
+  pointer-events: none;
+  background-color: #666;
+  color: #fff;
+  border: 1px solid #999;
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-family: "Andale Mono", "Menlo", "Lucida Console", monospace;
+  font-size: 11pt;
+  white-space: nowrap;
+}
 .segment.segment-unmapped {
   background-color: transparent;
   border-style: dashed;
@@ -764,6 +786,12 @@ div.markdown th {
 }
 .segment.segment-var {
   background-color: #eedd99;
+}
+.segment.segment-module0 {
+  background-color: #ddc8f0;
+}
+.segment.segment-module1 {
+  background-color: #c8b0e6;
 }
 .memmap-header {
   position: sticky;

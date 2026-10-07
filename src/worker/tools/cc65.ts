@@ -3,7 +3,7 @@ import { defineArgs, extraArgsFor, linkSymbolArgs, getSharedFileSystemName } fro
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
 import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, fixParamsWithDefines, applyAsmProjectParams, putWorkFile, populateExtraFiles, store, populateEntry, anyTargetChanged, processEmbedDirective } from "../builder";
 import { re_crlf, makeErrorMatcher, hasErrors } from "../listingutils";
-import { parseCC65DbgSizes } from "./cc65dbg";
+import { parseCC65DbgSizes, parseCC65ModuleRanges } from "./cc65dbg";
 import { wasiFSAdapter, runWASITool, checkExitCode, readWASIOutput, readWASIOutputString } from "../wasiutils";
 
 // the WASI builds look for their data under share/cc65 in the per-platform
@@ -275,6 +275,9 @@ export async function linkLD65(step: BuildStep): Promise<BuildStepResult> {
             if (s == 'Segment list:') parseseglist = true;
             if (s == '') parseseglist = false;
         }
+        // object files' slices of each segment, for the Memory Map's module column
+        let modules = parseCC65ModuleRanges(mapout, segments);
+        for (let seg of segments) if (modules[seg.name]) seg.modules = modules[seg.name];
         // build listings
         var listings: CodeListingMap = {};
         for (var fn of step.files) {

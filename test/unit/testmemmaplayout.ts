@@ -1,6 +1,6 @@
 import assert from "assert";
 import { describe, it } from "mocha";
-import { computeMemoryMapLayout, findLargeVariables } from "../../src/ide/views/memmaplayout";
+import { computeMemoryMapLayout, findLargeVariables, stripeBounds, addressAtOffset } from "../../src/ide/views/memmaplayout";
 import { Segment } from "../../src/common/workertypes";
 import { parseOscar64Map } from "../../src/worker/tools/oscar64parse";
 
@@ -110,5 +110,58 @@ describe('Memory map layout', function () {
     const { symbolmap, symbolsizes } = parseOscar64Map(map);
     assert.equal(symbolmap.xbuf, 0x0a32);
     assert.deepEqual(symbolsizes, { c1A: 1, ZeroStart: 0, xbuf: 40, sinustable: 256 });
+  });
+});
+
+describe('memory map stripe bounds', function () {
+  it('inserts $1000 boundaries and assigns height fractions', function () {
+    const s = stripeBounds([0x0000, 0x0800, 0x2000, 0x8000, 0x10000]);
+    assert.ok(s);
+    assert.deepStrictEqual(s.bounds, [
+      0x0000, 0x0800, 0x1000, 0x2000, 0x3000, 0x4000, 0x5000, 0x6000, 0x7000,
+      0x8000, 0x9000, 0xa000, 0xb000, 0xc000, 0xd000, 0xe000, 0xf000, 0x10000,
+    ]);
+    // every sub-row's weights within a parent sum to 1
+    const sums = new Map<number, number>();
+    for (let i = 0; i < s.parents.length; i++)
+      sums.set(s.parents[i], (sums.get(s.parents[i]) || 0) + s.weights[i]);
+    for (const sum of sums.values()) assert.ok(Math.abs(sum - 1) < 1e-9);
+  });
+  it('bails out on a huge address range', function () {
+    assert.strictEqual(stripeBounds([0, 0x10000000]), null);
+  });
+});
+
+describe('memory map address scrub', function () {
+  it('maps row offsets to addresses', function () {
+    const bounds = [0x0000, 0x1000, 0x2000];
+    const heights = [1, 3];
+    assert.strictEqual(addressAtOffset(bounds, heights, 0), 0x0000);
+    assert.strictEqual(addressAtOffset(bounds, heights, 0.5), 0x0800);
+    assert.strictEqual(addressAtOffset(bounds, heights, 1), 0x1000);
+    assert.strictEqual(addressAtOffset(bounds, heights, 2), 0x1555);
+    assert.strictEqual(addressAtOffset(bounds, heights, 4), 0x1fff);
+  });
+  it('clamps out-of-range offsets', function () {
+    const bounds = [0, 0x1000];
+    assert.strictEqual(addressAtOffset(bounds, [1], -5), 0);
+    assert.strictEqual(addressAtOffset(bounds, [1], 99), 0xfff);
+  });
+});
+
+describe('memory map modules column', function () {
+  it('adds a Modules column from segment modules', function () {
+    const layout = computeMemoryMapLayout([{ name: 'CODE', start: 0x200, size: 0x140, type: 'rom',
+      modules: [{ name: 'main', start: 0x200, size: 0x100 }, { name: 'util', start: 0x300, size: 0x40 }] }]);
+    const col = layout.columns.find(c => c.id == 'modules');
+    assert.deepStrictEqual(col.blocks.map(b => [b.name, b.start, b.end]), [['main', 0x200, 0x300], ['util', 0x300, 0x340]]);
+  });
+  it('shows Objects only when no modules are known', function () {
+    const syms = { _a: 0x200, _b: 0x300 };
+    const seg = { name: 'DATA', start: 0x200, size: 0x140, type: 'ram' };
+    const ids = (segs) => computeMemoryMapLayout(segs, syms, { minVarSize: 16 }).columns.map(c => c.id);
+    assert.ok(ids([seg]).includes('vars'));
+    const withmods = ids([{ ...seg, modules: [{ name: 'main', start: 0x200, size: 0x140 }] }]);
+    assert.ok(withmods.includes('modules') && !withmods.includes('vars'));
   });
 });

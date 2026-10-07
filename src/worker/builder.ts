@@ -315,6 +315,10 @@ export function getWorkFileAsString(path: string): string {
   return store.getFileAsString(path);
 }
 
+export function getWorkFileData(path: string): FileData {
+  return store.getFileData(path);
+}
+
 /** Create the directories above `path` (a/b/c.h -> a, a/b). */
 function makeParentDirs(fs, path: string) {
   var toks = path.split('/');

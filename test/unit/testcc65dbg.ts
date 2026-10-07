@@ -1,6 +1,6 @@
 import assert from "assert";
 import { describe, it } from "mocha";
-import { parseCC65DbgSizes } from "../../src/worker/tools/cc65dbg";
+import { parseCC65DbgSizes, parseCC65ModuleRanges } from "../../src/worker/tools/cc65dbg";
 
 const DBG = [
   'version\tmajor=2,minor=0',
@@ -64,5 +64,29 @@ describe('cc65 debug file', function () {
     assert.deepEqual(ignored, ['_chr_tiles']);
     assert.ok(!('_chr_tiles' in sizes));
     assert.equal(parseCC65DbgSizes(DBG).sizes._chr_tiles, 4096);
+  });
+});
+
+describe('parseCC65ModuleRanges', () => {
+  const MAP = [
+    'Modules list:', '-------------',
+    'hello.o:',
+    '    CODE              Offs=000000  Size=000043  Align=00001  Fill=0000',
+    '    RODATA            Offs=000000  Size=00000E  Align=00001  Fill=0000',
+    'share/cc65/lib/nes.lib(popa.o):',
+    '    CODE              Offs=000043  Size=00000C  Align=00001  Fill=0000',
+    'share/cc65/lib/nes.lib(sp-compat.o):',
+    'crt0.o:',
+    '    STARTUP           Offs=000000  Size=0004F4  Align=00001  Fill=0000',
+    '    CHARS             Offs=000000  Size=001000  Align=00001  Fill=0000',
+    '', '', 'Segment list:', '-------------',
+  ].join('\n');
+  it('maps modules to absolute segment ranges', () => {
+    const r = parseCC65ModuleRanges(MAP, [
+      { name: 'CODE', start: 0x8500 }, { name: 'RODATA', start: 0x85f1 }, { name: 'STARTUP', start: 0x8000 }]);
+    assert.deepStrictEqual(r.CODE, [{ name: 'hello', start: 0x8500, size: 0x43 }, { name: 'popa', start: 0x8543, size: 0xc }]);
+    assert.deepStrictEqual(r.RODATA, [{ name: 'hello', start: 0x85f1, size: 0xe }]);
+    assert.deepStrictEqual(r.STARTUP, [{ name: 'crt0', start: 0x8000, size: 0x4f4 }]);
+    assert.strictEqual(r.CHARS, undefined); // ignored segment
   });
 });

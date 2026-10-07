@@ -36,6 +36,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Shortcut bar and keyboard shortcut help, F8 pause/resume, Cmd+Shift+G go to offset.
 - Settings menu with developer options (highlight whitespace, highlight executed lines, line numbers off by default). "Highlight Executed Lines" draws a hot/cold heat map: lines run since the last update are colored by how often they have run (blue = cold, red = hot) and disappear once they stop executing.
 - Hash routing for windows, and per-page titles.
+- Memory Map stripes its background in alternating 4K bands (`$1000`), so it is easier to tell the address ranges apart. Hovering the address column shows the address (and symbol) under the cursor.
 - Mobile layout: tab bar instead of split panes, and a flex toolbar.
 - Click `#include`/`#link` decorations to open the file; offer to import a GitHub repo given by `repo=` ("user/repo" or a tree URL).
 - Tool info dialog and generated toolchain docs; Help window with ID docs.
@@ -69,6 +70,8 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 
 ### Build tools
 
+- Memory Map: a Modules column shows each object file's slice of every SDCC or cc65 segment (`Segment.modules`; SDCC from the `.rel` sizes in link order, with the remainder as `(libraries)`; cc65 from the ld65 map's module list, library members by name).
+- mcpp now also searches the project root for quoted includes, so a header in a subfolder can include `"gb/gb.h"` and other staged platform headers.
 - `//#symbol c NAME=VALUE` now reaches the mcpp preprocessor (SDCC, and the other tools that preprocess first), so `#ifdef`/`#ifndef` and array sizes see it in every C file of the project; before, only the compiler stage got the `-D`, after the source was already preprocessed.
 - Many toolchains are now WASI builds: cc65 (pinned to 2021 6ac4aa4), DASM 2.20.17, acme, zmac, yasm and merlin32.
 - SDCC 4 mos6502 backend: C64 presets (`hello-sdcc.c`, `screen_ram-sdcc.c`, `joymove-sdcc.c`, `siegegame-sdcc.c`, `sprite_collision-sdcc.c`, `fullscrollgame-sdcc.c`); `load_header` platform param wraps the image as a DOS 3.3 binary (apple2) or a PRG with a `SYS` stub (c64).
