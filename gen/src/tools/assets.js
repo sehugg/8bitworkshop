@@ -46,7 +46,7 @@ const crypto_1 = require("crypto");
 const assetpacks_1 = require("./assetpacks");
 /** Reports download progress: bytes so far of `total`. */
 /** The 8bitworkshop asset servers, tried in order. */
-exports.ASSET_URLS = ['https://sehugg.github.io/8bitworkshop/vscode/', 'https://8bitworkshop.com/vscode/'];
+exports.ASSET_URLS = ['https://8bitworkshop.github.io/8bitworkshop/vscode/', 'https://8bitworkshop.com/vscode/'];
 /**
  * Where the 8bws command line keeps unpacked toolchains when
  * $EIGHTBITWORKSHOP_TOOLCHAINS isn't set: the user's cache directory.

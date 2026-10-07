@@ -1,6 +1,6 @@
 # 8bitworkshop
 
-![Build Status](https://github.com/sehugg/8bitworkshop/actions/workflows/node.js.yml/badge.svg)
+![Build Status](https://github.com/8bitworkshop/8bitworkshop/actions/workflows/node.js.yml/badge.svg)
 
 8bitworkshop is a browser-based IDE for micro computers and consoles.
 It compiles or assembles your code as you type,
@@ -11,7 +11,7 @@ It bundles toolchains and emulators for dozens of platforms, including the
 Atari 2600/7800/8-bit, Commodore 64/VIC-20, NES, Game Boy, ColecoVision,
 MSX, ZX Spectrum, Amstrad CPC, PC Engine, Vectrex, Apple II, and a
 number of arcade boards. See
-[Toolchains & Platforms](https://sehugg.github.io/8bitworkshop/#help/toolchains)
+[Toolchains & Platforms](https://8bitworkshop.github.io/8bitworkshop/#help/toolchains)
 for the complete list.
 
 ![8bitworkshop IDE](https://8bitworkshop.com/images/ide_screenshot1.png)
@@ -22,7 +22,7 @@ Latest release:
 - https://8bitworkshop.com/redir.html
 
 Bleeding edge (built from HEAD):
-- https://sehugg.github.io/8bitworkshop/
+- https://8bitworkshop.github.io/8bitworkshop/
 - https://8bitworkshop.com/latest/ (same, redirects to GitHub)
 
 ## Features
@@ -149,7 +149,7 @@ Adapting third party sample code with permissive licenses and giving credit to t
 ## Credits
 
 8bitworkshop is created and maintained by
-[Steven E. Hugg](https://github.com/sehugg).
+[Steven E. Hugg](https://github.com/8bitworkshop).
 
 Major contributors:
 * [Fred Sauer](https://github.com/fredsa) - CodeMirror 6 editor migration, Apple II enhancements, and general IDE work.
@@ -162,13 +162,13 @@ builds on are credited in [Dependencies](#dependencies) and retain their
 own licenses (see [License](#license)).
 
 For the complete list of contributors, see the
-[GitHub contributors graph](https://github.com/sehugg/8bitworkshop/graphs/contributors).
+[GitHub contributors graph](https://github.com/8bitworkshop/8bitworkshop/graphs/contributors).
 
 ## License
 
 The original source code in this repository is Copyright © 2016-2026
-[Steven E. Hugg](https://github.com/sehugg) and is licensed under the
-[GPL-3.0](https://github.com/sehugg/8bitworkshop/blob/master/LICENSE).
+[Steven E. Hugg](https://github.com/8bitworkshop) and is licensed under the
+[GPL-3.0](https://github.com/8bitworkshop/8bitworkshop/blob/master/LICENSE).
 
 This project also bundles and links against third-party components,
 including emulators, compilers, and libraries. These components are
@@ -225,7 +225,7 @@ unless a different license is explicitly stated within the specific code sample.
 * https://github.com/mikeakohn/naken_asm (GPL-3)
 * https://github.com/yasm/yasm
 * https://github.com/mbitsnbites/vasm-mirror
-* https://github.com/sehugg/acme (GPL-2.0)
+* https://github.com/8bitworkshop/acme (GPL-2.0)
 
 ### Dev Kits / Libraries
 
@@ -234,9 +234,9 @@ unless a different license is explicitly stated within the specific code sample.
 * https://github.com/toyoshim/tss (BSD-3-Clause)
 * https://github.com/lronaldo/cpctelera (LGPL-3.0)
 * https://github.com/datajerk/c2t (BSD-3)
-* https://github.com/sehugg/6809tools (GPL-3)
+* https://github.com/8bitworkshop/6809tools (GPL-3)
 * https://github.com/mbitsnbites/liblzg (Zlib)
-* https://github.com/sehugg/makewav
+* https://github.com/8bitworkshop/makewav
 * https://github.com/Kingcom/armips (MIT)
 * https://github.com/dmsc/mkatr (GPL-2.0)
 
@@ -258,9 +258,9 @@ BIOS at startup. Only freely distributable firmware should be shared.
 
 ### Related Projects
 
-* https://github.com/sehugg/8bit-tools (CC0-1.0)
-* https://github.com/sehugg/awesome-8bitgamedev (Public Domain)
-* https://github.com/sehugg/8bitworkshop-compilers
+* https://github.com/8bitworkshop/8bit-tools (CC0-1.0)
+* https://github.com/8bitworkshop/awesome-8bitgamedev (Public Domain)
+* https://github.com/8bitworkshop/8bitworkshop-compilers
 
 ## Tool Server (experimental)
 

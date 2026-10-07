@@ -6,7 +6,7 @@
   "description": "8bitworkshop.com retro programming IDE",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sehugg/8bitworkshop.git"
+    "url": "git+https://github.com/8bitworkshop/8bitworkshop.git"
   },
   "license": "GPL-3.0",
   "bin": {
@@ -114,9 +114,9 @@
     "z80"
   ],
   "bugs": {
-    "url": "https://github.com/sehugg/8bitworkshop/issues"
+    "url": "https://github.com/8bitworkshop/8bitworkshop/issues"
   },
-  "homepage": "https://github.com/sehugg/8bitworkshop#readme",
+  "homepage": "https://github.com/8bitworkshop/8bitworkshop#readme",
   "build": {
     "appId": "com.8bitworkshop.ide",
     "icon": "meta/icons/8bitworkshop-icon-1024.png",
