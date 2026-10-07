@@ -49,6 +49,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Undo/redo for edits, including binary files, and reliable undo for palette changes.
 - Clickable decorations with start/end line numbers, header and error display, and `#asseteditor/file/line` links.
 - CharPad (C64) tile maps: a `/*{map:"charpad",w:16,h:16,tw:4,th:4,chars:"charset_data",tiles:"chartileset_data",colors:"chartileset_colour_data",bg:11,mca:0,mcb:1}*/` header on the map array renders the whole level (map → tiles → chars, multicolor or hires, per-tile or per-char colour) as a read-only preview, with the source arrays found by name in C or asm. `presets/c64/level2-data.c` is annotated. Header keys may now contain digits.
+- Generic tile maps: a `/*{map:"tilemap",w:156,h:66,attrs:"name"}*/` header renders a grid of tile indices with the project's 8x8 tiles as a read-only preview, with optional CGB-style palette/flip attributes. `presets/gb/large_map.c` now has Game Boy Color palettes and its `bigmap.h` is annotated. Named-array lookup handles 2D arrays.
 - NES nametables and CharPad maps share one tile-blit helper and one `addTilemapEditor` pipeline.
 - Canvas up to 800x1000, interleaved pixel data, Apple II artifact colors, SMS/GG palette layouts, a large color picker, cut/paste, and `#embed` support.
 

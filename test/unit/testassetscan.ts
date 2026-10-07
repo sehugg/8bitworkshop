@@ -4,7 +4,8 @@ import * as fs from "fs";
 import { describe, it } from "mocha";
 import {
   scanTextForAssetFragments, resolveEmbedPath, validateAssetByteLength,
-  parseHexWords, validateAssetData, findNamedArray, validateCharpadFormat, renderCharpadMap
+  parseHexWords, validateAssetData, findNamedArray, validateCharpadFormat, renderCharpadMap,
+  validateTilemapFormat, renderTilemap
 } from "../../src/ide/pixeleditor";
 
 describe('Asset scanner', function () {
@@ -191,5 +192,37 @@ describe('CharPad tile maps', function () {
     assert.equal(r.height, 8);
     assert.deepEqual(Array.from(r.pixels.slice(0, 16)), [11, 11, 5, 5, 6, 6, 2, 2, 3, 11, 11, 11, 11, 11, 11, 3]);
     assert.throws(() => renderCharpadMap(fmt, [0, 2], chars, [0, 1], [10, 3]), /out of range/);
+  });
+});
+
+describe('Generic tile maps', function () {
+  const src = () => fs.readFileSync('presets/gb/bigmap.h', 'utf8');
+
+  it('should find 2D named arrays', function () {
+    assert.deepEqual(findNamedArray('const unsigned char m[2][2] = {\n {0x01,0x02},\n {0x03,0x04},\n};', 'm'), [1, 2, 3, 4]);
+  });
+
+  it('should validate the Game Boy bigmap and its attribute array', function () {
+    var frags = scanTextForAssetFragments(src(), false);
+    var frag = frags.find((f) => f.fmt && f.fmt.map == 'tilemap');
+    assert.ok(frag);
+    assert.equal(frag.error, undefined);
+    assert.equal(validateAssetData(src().substring(frag.start, frag.end), frag.fmt), null);
+    assert.equal(validateTilemapFormat(frag.fmt, (n) => findNamedArray(src(), n)), null);
+    assert.ok(validateTilemapFormat(frag.fmt, () => null));
+    assert.ok(validateTilemapFormat({ w: 2, h: 2, attrs: 'a' }, () => [0]));
+  });
+
+  it('should render palette and flip attributes', function () {
+    var t0 = [1, 2, 3, 0, 0, 0, 0, 0].concat(new Array(56).fill(0)); // row 0 = 1,2,3,0...
+    var fmt = { w: 3, h: 1 };
+    var r = renderTilemap(fmt, [0, 0, 0], [0, 1, 0x20 | 0x40 | 2], [t0]);
+    assert.equal(r.width, 24);
+    assert.equal(r.height, 8);
+    assert.deepEqual(Array.from(r.pixels.slice(0, 4)), [1, 2, 3, 0]);
+    assert.deepEqual(Array.from(r.pixels.slice(8, 12)), [5, 6, 7, 0]); // palette 1: +4, zero stays 0
+    // X+Y flipped: the top row lands at the bottom, mirrored; palette 2: +8
+    assert.deepEqual(Array.from(r.pixels.slice(7 * 24 + 16, 7 * 24 + 24)), [0, 0, 0, 0, 0, 11, 10, 9]);
+    assert.throws(() => renderTilemap(fmt, [0, 1, 0], null, [t0]), /out of range/);
   });
 });
