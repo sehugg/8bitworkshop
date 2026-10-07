@@ -1,7 +1,7 @@
 
 import localforage from "localforage";
 import { Platform } from "../common/baseplatform";
-import { fetchWithBinary, getBasePlatform, isProbablyBinary } from "../common/util";
+import { bytesToFileData, fetchWithBinary, getBasePlatform } from "../common/util";
 import { FileProvider, buildWorkerMessage, getListingForFile, mergeSegments, processListings, resolveDependencies, stripLocalPath } from "../common/projectcore";
 import { BuildArgLists, BuildSymbolLists, CodeListing, CodeListingMap, Dependency, FileData, Segment, WorkerErrorResult, WorkerItemUpdate, WorkerMessage, WorkerOutputResult, WorkerResult, isErrorResult, isOutputResult } from "../common/workertypes";
 
@@ -17,7 +17,10 @@ export class WebPresetsFileSystem implements ProjectFilesystem {
     this.preset_id = getBasePlatform(platform_id); // remove .suffix from preset name
   }
   async getRemoteFile(path: string): Promise<FileData> {
-    return fetchWithBinary(path, isProbablyBinary(path) ? 'arraybuffer' : 'text');
+    // always fetch bytes, then sniff the content -- the extension alone can't
+    // tell a binary resource (e.g. .vgr3) from text
+    const data = await fetchWithBinary(path, 'arraybuffer');
+    return data instanceof Uint8Array ? bytesToFileData(path, data) : data;
   }
   async getFileData(path: string): Promise<FileData> {
     // found on remote fetch?

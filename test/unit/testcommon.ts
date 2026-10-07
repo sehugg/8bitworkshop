@@ -4,7 +4,7 @@ import { describe, it } from "mocha";
 import {
   lpad, rpad, byte2signed, getFilenameForPath, getFolderForPath,
   getFilenamePrefix, hex, tobin, toradix, arrayCompare, invertMap,
-  stringToByteArray, byteArrayToString, byteArrayToUTF8, removeBOM,
+  stringToByteArray, byteArrayToString, byteArrayToUTF8, bytesToFileData, removeBOM,
   isProbablyBinary, clamp, safeident, rgb2bgr, RGBA, findIntegerFactors,
   replaceAll, highlightDifferences, decodeQueryString, parseBool,
   safe_extend, printFlags, byteToASCII, coerceToArray
@@ -146,6 +146,17 @@ describe('Binary Detection', function () {
     assert.ok(isProbablyBinary('test.dat', [0]));
     assert.ok(!isProbablyBinary('test.c', [47, 47, 105, 102])); // "//if"
     assert.ok(isProbablyBinary(null, [0, 0, 0, 0])); // null bytes
+  });
+
+  it('bytesToFileData should sniff content, not just the extension', function () {
+    // unregistered extension with NUL bytes must stay binary, not become text
+    const bin = bytesToFileData('tune.vgr3', [0x56, 0x67, 0x6d, 0x20, 0x00, 0xb3]);
+    assert.ok(bin instanceof Uint8Array);
+    // otherwise it decodes to text
+    assert.strictEqual(bytesToFileData('hello.c', [104, 101, 108, 108, 111]), 'hello');
+    assert.strictEqual(bytesToFileData('hello.txt', new Uint8Array([0x68, 0xc3, 0xa9])), 'h\u00e9');
+    // known binary extension wins even if the bytes happen to be text
+    assert.ok(bytesToFileData('test.bin', [104, 105]) instanceof Uint8Array);
   });
 });
 
