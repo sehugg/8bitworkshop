@@ -69,6 +69,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 
 ### Build tools
 
+- `//#symbol c NAME=VALUE` now reaches the mcpp preprocessor (SDCC, and the other tools that preprocess first), so `#ifdef`/`#ifndef` and array sizes see it in every C file of the project; before, only the compiler stage got the `-D`, after the source was already preprocessed.
 - Many toolchains are now WASI builds: cc65 (pinned to 2021 6ac4aa4), DASM 2.20.17, acme, zmac, yasm and merlin32.
 - SDCC 4 mos6502 backend: C64 presets (`hello-sdcc.c`, `screen_ram-sdcc.c`, `joymove-sdcc.c`, `siegegame-sdcc.c`, `sprite_collision-sdcc.c`, `fullscrollgame-sdcc.c`); `load_header` platform param wraps the image as a DOS 3.3 binary (apple2) or a PRG with a `SYS` stub (c64).
 - C64 `fullscrollgame.c` now takes its level data from `level2-data.c` (the same data as `level2.s`, in C) so the SDCC build can link it; `scrolling2.c` uses plain C copies under SDCC.

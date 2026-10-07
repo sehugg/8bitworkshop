@@ -258,6 +258,16 @@ describe('Worker', function() {
   it('should NOT compile SDCC 4 for a 3.x-library platform', function(done) {
     compile('sdcc', '//#tooldef c sdcc=4\nvoid main() {\n}\n', 'coleco', done, 0, 0, 1, {ignoreErrorPath:true});
   });
+  it('should pass //#symbol c defines to the SDCC preprocessor', function(done) {
+    // the define must be visible to #if/#ifndef and array sizes, not just to the compiler stage
+    var code = '//#symbol c BUFSIZE=24\n#ifndef BUFSIZE\n#error BUFSIZE missing\n#endif\n' +
+      'char buf[BUFSIZE];\nvoid main() {\nbuf[BUFSIZE-1]=1;\n}\n';
+    compile('sdcc', code, 'mw8080bw', done, 8192, 0, 0);
+  });
+  it('should report an SDCC //#symbol c define as missing when not set', function(done) {
+    var code = '#ifndef BUFSIZE\n#error BUFSIZE missing\n#endif\nvoid main() {\n}\n';
+    compile('sdcc', code, 'mw8080bw', done, 0, 0, 1, {ignoreErrorPath:true});
+  });
   it('should compile SDCC w/ include', function(done) {
     compile('sdcc', '#include <string.h>\nvoid main() {\nstrlen(0);\n}\n', 'mw8080bw', done, 8192, sdccLines(2, 3), 0);
   });
