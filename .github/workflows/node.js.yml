@@ -11,6 +11,9 @@ on:
   # Testers can build an installable VSIX from any branch on demand.
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,9 +22,9 @@ jobs:
         node-version: [24.x]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
@@ -53,7 +56,7 @@ jobs:
     # Upload the VSIX as-is; it is already an archive, so GitHub need not zip it again.
     - name: Upload VS Code extension
       if: github.event_name != 'pull_request'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: 8bitworkshop-vscode-${{ steps.version.outputs.version }}-${{ github.run_number }}
         path: extension/8bitworkshop-vscode-*.vsix
@@ -62,7 +65,7 @@ jobs:
         retention-days: 30
     - name: Deploy
       if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-      uses: JamesIves/github-pages-deploy-action@v4.9.0
+      uses: JamesIves/github-pages-deploy-action@fa24774553152dd7873cd16ebd8d959b010c5445 # v4.9.0
       with:
         branch: gh-pages
         folder: tmp/dist
