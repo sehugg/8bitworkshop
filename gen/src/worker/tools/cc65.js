@@ -285,6 +285,11 @@ async function linkLD65(step) {
             if (s == '')
                 parseseglist = false;
         }
+        // object files' slices of each segment, for the Memory Map's module column
+        let modules = (0, cc65dbg_1.parseCC65ModuleRanges)(mapout, segments);
+        for (let seg of segments)
+            if (modules[seg.name])
+                seg.modules = modules[seg.name];
         // build listings
         var listings = {};
         for (var fn of step.files) {

@@ -275,6 +275,11 @@ class BinaryFileView {
 exports.BinaryFileView = BinaryFileView;
 ///
 class MemoryMapView {
+    constructor() {
+        this.scrubRows = null;
+        this.scrubOverlay = null;
+        this.scrubLabel = null;
+    }
     createDiv(parent) {
         this.maindiv = (0, baseviews_1.newDiv)(parent, 'vertical-scroll memmap');
         return this.maindiv[0];
@@ -309,11 +314,25 @@ class MemoryMapView {
         var bounds = layout.bounds;
         if (!bounds.length)
             return;
+        // add $1000-aligned rows (with borrowed heights) so we can stripe the map
+        var stripe = (0, memmaplayout_1.stripeBounds)(bounds);
+        var xbounds = stripe ? stripe.bounds : bounds;
         // columns: address, then one grid column per lane
         var cols = ['5em'];
         var colstart = 2;
         var header = $('<div class="memmap-header" style="grid-row:1;grid-column:1"/>').text('Address');
         this.maindiv.append(header);
+        if (stripe) {
+            // background stripes, painted before the segments so they sit behind them
+            for (var i = 0; i + 1 < xbounds.length; i++) {
+                var parity = Math.floor(xbounds[i] / 0x1000) % 2;
+                $('<div class="memmap-stripe"/>')
+                    .addClass(parity ? 'memmap-stripe-odd' : 'memmap-stripe-even')
+                    .css('grid-row', `${i + 2}`)
+                    .css('grid-column', '1 / -1')
+                    .appendTo(this.maindiv);
+            }
+        }
         for (var col of layout.columns) {
             for (var i = 0; i < col.lanes; i++)
                 cols.push('minmax(0,1fr)');
@@ -323,22 +342,62 @@ class MemoryMapView {
                 .css('grid-column', `${colstart} / span ${col.lanes}`)
                 .appendTo(this.maindiv);
             for (var block of col.blocks)
-                this.addBlock(block, col, colstart, bounds);
+                this.addBlock(block, col, colstart, xbounds);
             colstart += col.lanes;
         }
         // rows: header, then one row per address range
         var rows = ['auto'];
+        var rowHeights = [];
+        for (var i = 0; i + 1 < xbounds.length; i++) {
+            var size = xbounds[i + 1] - xbounds[i];
+            var h = Math.max(3.0, Math.log(size + 1)) * 0.5;
+            if (stripe) {
+                var parent = stripe.parents[i];
+                var psize = bounds[parent + 1] - bounds[parent];
+                h = Math.max(3.0, Math.log(psize + 1)) * 0.5 * stripe.weights[i];
+            }
+            rows.push(h + 'em');
+            rowHeights.push(h);
+        }
         for (var i = 0; i + 1 < bounds.length; i++) {
-            var size = bounds[i + 1] - bounds[i];
-            rows.push(Math.max(3.0, Math.log(size + 1)) * 0.5 + 'em');
             $('<div class="segment-offset"/>')
                 .text('$' + (0, util_1.hex)(bounds[i], 4))
-                .css('grid-row', `${i + 2}`)
+                .css('grid-row', `${xbounds.indexOf(bounds[i]) + 2}`)
                 .css('grid-column', '1')
                 .appendTo(this.maindiv);
         }
+        // hover the address column to read the address under the cursor
+        this.scrubRows = { bounds: xbounds, heights: rowHeights };
+        this.scrubOverlay = $('<div class="memmap-scrub"/>')
+            .css('grid-row', '2 / -1')
+            .css('grid-column', '1')
+            .on('mousemove', (e) => this.scrubTo(e))
+            .on('mouseleave', () => this.hideScrub())
+            .appendTo(this.maindiv);
         this.maindiv.css('grid-template-columns', cols.join(' '));
         this.maindiv.css('grid-template-rows', rows.join(' '));
+    }
+    scrubTo(e) {
+        if (!this.scrubRows || !this.scrubOverlay)
+            return;
+        var rect = this.scrubOverlay[0].getBoundingClientRect();
+        var bounds = this.scrubRows.bounds;
+        var heights = this.scrubRows.heights;
+        var total = 0;
+        for (var h of heights)
+            total += h;
+        // cursor position in "row height" units, then within a row in address units
+        var y = (e.clientY - rect.top) / rect.height * total;
+        var addr = (0, memmaplayout_1.addressAtOffset)(bounds, heights, y);
+        if (!this.scrubLabel)
+            this.scrubLabel = $('<div class="memmap-scrub-label"/>').appendTo(document.body);
+        this.scrubLabel.text('$' + (0, util_1.hex)(addr, 4))
+            .css({ left: (e.clientX + 12) + 'px', top: (e.clientY + 12) + 'px' })
+            .show();
+    }
+    hideScrub() {
+        if (this.scrubLabel)
+            this.scrubLabel.hide();
     }
 }
 exports.MemoryMapView = MemoryMapView;

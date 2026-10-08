@@ -36,6 +36,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Shortcut bar and keyboard shortcut help, F8 pause/resume, Cmd+Shift+G go to offset.
 - Settings menu with developer options (highlight whitespace, highlight executed lines, line numbers off by default). "Highlight Executed Lines" draws a hot/cold heat map: lines run since the last update are colored by how often they have run (blue = cold, red = hot) and disappear once they stop executing.
 - Hash routing for windows, and per-page titles.
+- Memory Map stripes its background in alternating 4K bands (`$1000`), so it is easier to tell the address ranges apart. Hovering the address column shows the address (and symbol) under the cursor.
 - Mobile layout: tab bar instead of split panes, and a flex toolbar.
 - Click `#include`/`#link` decorations to open the file; offer to import a GitHub repo given by `repo=` ("user/repo" or a tree URL).
 - Tool info dialog and generated toolchain docs; Help window with ID docs.
@@ -49,6 +50,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Undo/redo for edits, including binary files, and reliable undo for palette changes.
 - Clickable decorations with start/end line numbers, header and error display, and `#asseteditor/file/line` links.
 - CharPad (C64) tile maps: a `/*{map:"charpad",w:16,h:16,tw:4,th:4,chars:"charset_data",tiles:"chartileset_data",colors:"chartileset_colour_data",bg:11,mca:0,mcb:1}*/` header on the map array renders the whole level (map → tiles → chars, multicolor or hires, per-tile or per-char colour) as a read-only preview, with the source arrays found by name in C or asm. `presets/c64/level2-data.c` is annotated. Header keys may now contain digits.
+- Generic tile maps: a `/*{map:"tilemap",w:156,h:66,attrs:"name"}*/` header renders a grid of tile indices with the project's 8x8 tiles as a read-only preview, with optional CGB-style palette/flip attributes. `presets/gb/large_map.c` now has Game Boy Color palettes and its `bigmap.h` is annotated. Named-array lookup handles 2D arrays.
 - NES nametables and CharPad maps share one tile-blit helper and one `addTilemapEditor` pipeline.
 - Canvas up to 800x1000, interleaved pixel data, Apple II artifact colors, SMS/GG palette layouts, a large color picker, cut/paste, and `#embed` support.
 
@@ -68,6 +70,9 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 
 ### Build tools
 
+- Memory Map: a Modules column shows each object file's slice of every SDCC or cc65 segment (`Segment.modules`; SDCC from the `.rel` sizes in link order, with the remainder as `(libraries)`; cc65 from the ld65 map's module list, library members by name).
+- mcpp now also searches the project root for quoted includes, so a header in a subfolder can include `"gb/gb.h"` and other staged platform headers.
+- `//#symbol c NAME=VALUE` now reaches the mcpp preprocessor (SDCC, and the other tools that preprocess first), so `#ifdef`/`#ifndef` and array sizes see it in every C file of the project; before, only the compiler stage got the `-D`, after the source was already preprocessed.
 - Many toolchains are now WASI builds: cc65 (pinned to 2021 6ac4aa4), DASM 2.20.17, acme, zmac, yasm and merlin32.
 - SDCC 4 mos6502 backend: C64 presets (`hello-sdcc.c`, `screen_ram-sdcc.c`, `joymove-sdcc.c`, `siegegame-sdcc.c`, `sprite_collision-sdcc.c`, `fullscrollgame-sdcc.c`); `load_header` platform param wraps the image as a DOS 3.3 binary (apple2) or a PRG with a `SYS` stub (c64).
 - C64 `fullscrollgame.c` now takes its level data from `level2-data.c` (the same data as `level2.s`, in C) so the SDCC build can link it; `scrolling2.c` uses plain C copies under SDCC.

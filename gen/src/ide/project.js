@@ -14,7 +14,10 @@ class WebPresetsFileSystem {
         this.preset_id = (0, util_1.getBasePlatform)(platform_id); // remove .suffix from preset name
     }
     async getRemoteFile(path) {
-        return (0, util_1.fetchWithBinary)(path, (0, util_1.isProbablyBinary)(path) ? 'arraybuffer' : 'text');
+        // always fetch bytes, then sniff the content -- the extension alone can't
+        // tell a binary resource (e.g. .vgr3) from text
+        const data = await (0, util_1.fetchWithBinary)(path, 'arraybuffer');
+        return data instanceof Uint8Array ? (0, util_1.bytesToFileData)(path, data) : data;
     }
     async getFileData(path) {
         // found on remote fetch?

@@ -200,7 +200,8 @@ export type Segment = {
   size:number,
   last?:number,
   type?:string,
-  source?:'native'|'linker'
+  source?:'native'|'linker',
+  modules?:{name:string, start:number, size:number}[] // each object file's slice, in link order
 };
 
 export type WorkerResult = WorkerErrorResult | WorkerOutputResult<any> | WorkerUnchangedResult;

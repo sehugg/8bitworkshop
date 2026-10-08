@@ -344,12 +344,17 @@ function computeRequiredWords(fmt): number {
   return Math.max(wpimg * count, maxAddr + 1);
 }
 
+// "charpad" and "tilemap" blocks are grids of one tile index per cell
+function isTileGridMap(fmt): boolean {
+  return fmt.map == 'charpad' || fmt.map == 'tilemap';
+}
+
 export function validateAssetData(datastr: string, fmt): string | null {
   var words = parseHexWords(convertToHexStatements(datastr));
   if (fmt.comp == 'rletag') {
     words = Array.from(rle_unpack(new Uint8Array(words)));
   }
-  if (fmt.map == 'charpad') {
+  if (isTileGridMap(fmt)) {
     // tile grid: one tile index per cell (w, h are in tiles, not pixels)
     if (words.length != fmt.w * fmt.h)
       return `Expected ${fmt.w * fmt.h} value(s), found ${words.length}`;
@@ -372,7 +377,7 @@ export function validateAssetByteLength(bytelen: number, fmt): string | null {
   if (fmt.comp == 'rletag') {
     return null; // can't statically determine compressed length
   }
-  if (fmt.map == 'charpad') {
+  if (isTileGridMap(fmt)) {
     if (bytelen != fmt.w * fmt.h)
       return `Expected ${fmt.w * fmt.h} byte(s), found ${bytelen}`;
   } else if (fmt.w > 0 && fmt.h > 0) {
@@ -1089,6 +1094,7 @@ export abstract class Compositor extends PixNode {
   context: EditorContext;
   tileoptions: SelectableTilemap[];
   tileindex: number = 0;
+  minTiles: number = 256;	// only tile sources with at least this many tiles are used
 
   constructor(context: EditorContext) {
     super();
@@ -1097,7 +1103,7 @@ export abstract class Compositor extends PixNode {
   updateRefs(): boolean {
     var oldtilemap = this.tilemap;
     if (this.context != null) {
-      this.tileoptions = this.context.getTilemaps(256);
+      this.tileoptions = this.context.getTilemaps(this.minTiles);
       if (this.tileoptions && this.tileoptions.length > 0) {
         this.tilemap = this.tileoptions[this.tileindex].images;
       }
@@ -1193,14 +1199,96 @@ export class NESNametableConverter extends Compositor {
   }
 }
 
+// Header for a generic tile map: a w x h grid of tile indices into the project's
+// 8x8 tile bitmaps. An optional parallel `attrs` array (same size, CGB-style bytes)
+// holds each cell's palette number in bits 0-2 and X/Y flip in bits 5/6.
+export type TilemapFormat = {
+  w: number, h: number		// map size, in tiles
+  attrs?: string		// name of the attribute array
+};
+
+export function validateTilemapFormat(fmt: TilemapFormat, lookup: (name: string) => number[] | null): string | null {
+  if (!(fmt.w > 0 && fmt.h > 0)) return 'tilemap needs positive w and h';
+  if (fmt.attrs) {
+    var attrs = lookup(fmt.attrs);
+    if (!attrs) return `Could not find array "${fmt.attrs}"`;
+    if (attrs.length != fmt.w * fmt.h)
+      return `Attribute array "${fmt.attrs}" has ${attrs.length} value(s), expected ${fmt.w * fmt.h}`;
+  }
+  return null;
+}
+
+// Renders a tile map to one indexed image. Tiles are 8x8 indexed images; each cell's
+// palette number is added to its nonzero pixels as (palette * 4).
+export function renderTilemap(fmt: TilemapFormat, map: UintArray, attrs: UintArray | null,
+  tiles: ArrayLike<number>[]): { width: number, height: number, pixels: Uint8Array } {
+  var width = fmt.w * 8;
+  var height = fmt.h * 8;
+  var pixels = new Uint8Array(width * height);
+  var flipped = new Uint8Array(64);
+  for (var row = 0; row < fmt.h; row++) {
+    for (var col = 0; col < fmt.w; col++) {
+      var i = row * fmt.w + col;
+      var t = tiles[map[i]];
+      if (!t) throw Error(`Tile index ${map[i]} out of range at map cell ${col},${row}`);
+      var attr = attrs ? attrs[i] || 0 : 0;
+      if (attr & 0x60) {
+        for (var y = 0; y < 8; y++)
+          for (var x = 0; x < 8; x++)
+            flipped[y * 8 + x] = t[((attr & 0x40 ? 7 - y : y) << 3) + (attr & 0x20 ? 7 - x : x)];
+        t = flipped;
+      }
+      blitTile(pixels, width, col * 8, row * 8, t, 8, 8, (attr & 7) << 2);
+    }
+  }
+  return { width, height, pixels };
+}
+
+export class TilemapConverter extends Compositor {
+
+  fmt: TilemapFormat;
+  width: number;
+  height: number;
+
+  constructor(context: EditorContext, fmt: TilemapFormat) {
+    super(context);
+    this.fmt = fmt;
+    this.width = fmt.w * 8;
+    this.height = fmt.h * 8;
+  }
+  updateLeft() {
+    return false; // TODO: map editing
+  }
+  updateRight() {
+    var words = this.left.words;
+    var maxtile = 0;
+    for (var i = 0; i < words.length; i++) maxtile = Math.max(maxtile, words[i]);
+    this.minTiles = maxtile + 1;
+    this.updateRefs();
+    if (!this.tilemap) throw Error(`No tile bitmaps found with at least ${this.minTiles} tiles`);
+    // the attribute array is re-read each time so edits to it show up here
+    var attrs = this.fmt.attrs ? this.context.getNamedArray(this.fmt.attrs) : null;
+    var r = renderTilemap(this.fmt, words, attrs, this.tilemap);
+    if (this.images && equalArrays(this.images[0], r.pixels)) return false;
+    this.images = [r.pixels];
+    return true;
+  }
+}
+
 // Finds the numbers in a named C array (`name[..] = {..}`) or asm label (`name:` or
 // `_name:` followed by .byte/hex lines, up to the next label) in source text.
 export function findNamedArray(text: string, name: string): number[] | null {
   if (!/^\w+$/.test(name)) return null;
-  var m = new RegExp('\\b' + name + '\\s*\\[[^\\]]*\\]\\s*=\\s*\\{([^}]*)\\}').exec(text);
+  var m = new RegExp('\\b' + name + '\\s*(?:\\[[^\\]]*\\]\\s*)+=\\s*\\{').exec(text);
   if (m) {
-    var body = m[1].replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
-    return parseHexWords(convertToHexStatements(body));
+    // find the matching close brace, so 2D arrays ({{..},{..}}) work
+    var depth = 1, i = m.index + m[0].length;
+    for (; i < text.length && depth > 0; i++) {
+      if (text[i] == '{') depth++;
+      else if (text[i] == '}') depth--;
+    }
+    var body = text.substring(m.index + m[0].length, i - 1).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+    return parseHexWords(convertToHexStatements(body.replace(/[{}]/g, ' ')));
   }
   var lm = new RegExp('^[ \\t]*_?' + name + ':', 'm').exec(text);
   if (lm) {

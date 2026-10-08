@@ -100,3 +100,32 @@ export function parseCC65DbgSizes(dbg: string, ignoreSegments?: string[]): CC65D
     for (const name in sizes) if (!(sizes[name] > 0)) delete sizes[name];
     return { sizes, ignored };
 }
+
+/**
+ * Parses the "Modules list" of an ld65 map file into per-segment module
+ * slices for the Memory Map view. Each entry gives a segment contribution
+ * as "Offs=" within the segment; library members ("nes.lib(popa.o)") are
+ * shown by member name. Segments the caller doesn't know are skipped.
+ */
+export function parseCC65ModuleRanges(map: string, segments: { name: string, start: number }[]) {
+    const segstart = new Map(segments.map((s) => [s.name, s.start]));
+    const out: { [seg: string]: { name: string, start: number, size: number }[] } = {};
+    const re_seg = /^\s+(\w+)\s+Offs=([0-9A-F]+)\s+Size=([0-9A-F]+)/;
+    let mod = '';
+    let inlist = false;
+    for (const line of map.split('\n')) {
+        if (line.startsWith('Modules list:')) { inlist = true; continue; }
+        if (!inlist) continue;
+        if (line.startsWith('Segment list:')) break;
+        let m;
+        if (/^\S.*:$/.test(line)) {
+            const full = line.slice(0, -1);
+            mod = (/\(([^)]+)\)$/.exec(full)?.[1] ?? full.split('/').pop()).replace(/\.o$/, '');
+        } else if (mod && (m = re_seg.exec(line)) && segstart.has(m[1])) {
+            const size = parseInt(m[3], 16);
+            if (size > 0) (out[m[1]] ||= []).push({ name: mod, start: segstart.get(m[1]) + parseInt(m[2], 16), size });
+        }
+    }
+    for (const mods of Object.values(out)) mods.sort((a, b) => a.start - b.start);
+    return out;
+}

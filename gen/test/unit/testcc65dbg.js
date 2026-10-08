@@ -64,4 +64,28 @@ const DBG = [
         assert_1.default.equal((0, cc65dbg_1.parseCC65DbgSizes)(DBG).sizes._chr_tiles, 4096);
     });
 });
+(0, mocha_1.describe)('parseCC65ModuleRanges', () => {
+    const MAP = [
+        'Modules list:', '-------------',
+        'hello.o:',
+        '    CODE              Offs=000000  Size=000043  Align=00001  Fill=0000',
+        '    RODATA            Offs=000000  Size=00000E  Align=00001  Fill=0000',
+        'share/cc65/lib/nes.lib(popa.o):',
+        '    CODE              Offs=000043  Size=00000C  Align=00001  Fill=0000',
+        'share/cc65/lib/nes.lib(sp-compat.o):',
+        'crt0.o:',
+        '    STARTUP           Offs=000000  Size=0004F4  Align=00001  Fill=0000',
+        '    CHARS             Offs=000000  Size=001000  Align=00001  Fill=0000',
+        '', '', 'Segment list:', '-------------',
+    ].join('\n');
+    (0, mocha_1.it)('maps modules to absolute segment ranges', () => {
+        const r = (0, cc65dbg_1.parseCC65ModuleRanges)(MAP, [
+            { name: 'CODE', start: 0x8500 }, { name: 'RODATA', start: 0x85f1 }, { name: 'STARTUP', start: 0x8000 }
+        ]);
+        assert_1.default.deepStrictEqual(r.CODE, [{ name: 'hello', start: 0x8500, size: 0x43 }, { name: 'popa', start: 0x8543, size: 0xc }]);
+        assert_1.default.deepStrictEqual(r.RODATA, [{ name: 'hello', start: 0x85f1, size: 0xe }]);
+        assert_1.default.deepStrictEqual(r.STARTUP, [{ name: 'crt0', start: 0x8000, size: 0x4f4 }]);
+        assert_1.default.strictEqual(r.CHARS, undefined); // ignored segment
+    });
+});
 //# sourceMappingURL=testcc65dbg.js.map

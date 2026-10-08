@@ -4,7 +4,7 @@
  * Level maps match the NES nametables exactly (cropped to content).
  * Camera scrolls only when a level exceeds the 160×136 playfield.
  * Title bounce matches NES title_screen() physics.
- * Music/SFX from Coleco (NES FamiTone transcription).
+ * Music/SFX transcribed from the NES FamiTone data (presets/nes/chase/music.s).
  * Graphics from presets/nes/chase/tileset.chr
  * (regenerate with: python3 scripts/gen_chase_nes_gfx.py).
  *

@@ -106,4 +106,55 @@ const linker = [
         assert_1.default.deepEqual(symbolsizes, { c1A: 1, ZeroStart: 0, xbuf: 40, sinustable: 256 });
     });
 });
+(0, mocha_1.describe)('memory map stripe bounds', function () {
+    (0, mocha_1.it)('inserts $1000 boundaries and assigns height fractions', function () {
+        const s = (0, memmaplayout_1.stripeBounds)([0x0000, 0x0800, 0x2000, 0x8000, 0x10000]);
+        assert_1.default.ok(s);
+        assert_1.default.deepStrictEqual(s.bounds, [
+            0x0000, 0x0800, 0x1000, 0x2000, 0x3000, 0x4000, 0x5000, 0x6000, 0x7000,
+            0x8000, 0x9000, 0xa000, 0xb000, 0xc000, 0xd000, 0xe000, 0xf000, 0x10000,
+        ]);
+        // every sub-row's weights within a parent sum to 1
+        const sums = new Map();
+        for (let i = 0; i < s.parents.length; i++)
+            sums.set(s.parents[i], (sums.get(s.parents[i]) || 0) + s.weights[i]);
+        for (const sum of sums.values())
+            assert_1.default.ok(Math.abs(sum - 1) < 1e-9);
+    });
+    (0, mocha_1.it)('bails out on a huge address range', function () {
+        assert_1.default.strictEqual((0, memmaplayout_1.stripeBounds)([0, 0x10000000]), null);
+    });
+});
+(0, mocha_1.describe)('memory map address scrub', function () {
+    (0, mocha_1.it)('maps row offsets to addresses', function () {
+        const bounds = [0x0000, 0x1000, 0x2000];
+        const heights = [1, 3];
+        assert_1.default.strictEqual((0, memmaplayout_1.addressAtOffset)(bounds, heights, 0), 0x0000);
+        assert_1.default.strictEqual((0, memmaplayout_1.addressAtOffset)(bounds, heights, 0.5), 0x0800);
+        assert_1.default.strictEqual((0, memmaplayout_1.addressAtOffset)(bounds, heights, 1), 0x1000);
+        assert_1.default.strictEqual((0, memmaplayout_1.addressAtOffset)(bounds, heights, 2), 0x1555);
+        assert_1.default.strictEqual((0, memmaplayout_1.addressAtOffset)(bounds, heights, 4), 0x1fff);
+    });
+    (0, mocha_1.it)('clamps out-of-range offsets', function () {
+        const bounds = [0, 0x1000];
+        assert_1.default.strictEqual((0, memmaplayout_1.addressAtOffset)(bounds, [1], -5), 0);
+        assert_1.default.strictEqual((0, memmaplayout_1.addressAtOffset)(bounds, [1], 99), 0xfff);
+    });
+});
+(0, mocha_1.describe)('memory map modules column', function () {
+    (0, mocha_1.it)('adds a Modules column from segment modules', function () {
+        const layout = (0, memmaplayout_1.computeMemoryMapLayout)([{ name: 'CODE', start: 0x200, size: 0x140, type: 'rom',
+                modules: [{ name: 'main', start: 0x200, size: 0x100 }, { name: 'util', start: 0x300, size: 0x40 }] }]);
+        const col = layout.columns.find(c => c.id == 'modules');
+        assert_1.default.deepStrictEqual(col.blocks.map(b => [b.name, b.start, b.end]), [['main', 0x200, 0x300], ['util', 0x300, 0x340]]);
+    });
+    (0, mocha_1.it)('shows Objects only when no modules are known', function () {
+        const syms = { _a: 0x200, _b: 0x300 };
+        const seg = { name: 'DATA', start: 0x200, size: 0x140, type: 'ram' };
+        const ids = (segs) => (0, memmaplayout_1.computeMemoryMapLayout)(segs, syms, { minVarSize: 16 }).columns.map(c => c.id);
+        assert_1.default.ok(ids([seg]).includes('vars'));
+        const withmods = ids([Object.assign(Object.assign({}, seg), { modules: [{ name: 'main', start: 0x200, size: 0x140 }] })]);
+        assert_1.default.ok(withmods.includes('modules') && !withmods.includes('vars'));
+    });
+});
 //# sourceMappingURL=testmemmaplayout.js.map

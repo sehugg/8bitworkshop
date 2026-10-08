@@ -1,6 +1,6 @@
 import { defineArgs, extraArgsFor, linkSymbolArgs, getPlatformToolConfig, SDCC_DEFAULT_VERSION } from "../../common/toolmeta";
 import { CodeListingMap, WorkerError } from "../../common/workertypes";
-import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, populateExtraFiles, anyTargetChanged, getWorkFileAsString, fixParamsWithDefines, applyAsmProjectParams } from "../builder";
+import { BuildStep, BuildStepResult, gatherFiles, staleFiles, populateFiles, putWorkFile, populateExtraFiles, anyTargetChanged, getWorkFileAsString, getWorkFileData, fixParamsWithDefines, applyAsmProjectParams } from "../builder";
 import { parseListing, parseSourceLines, msvcErrorMatcher, hasErrors } from "../listingutils";
 import { EmscriptenModule, emglobal, ensureFilesystem, ensureWasiFilesystem, execMain, loadNative, moduleInstFn, print_fn, setupFS, setupStdin } from "../wasmutils";
 import { runWASITool, checkExitCode, readWASIOutputString } from "../wasiutils";
@@ -153,6 +153,34 @@ export function inferSymbolSizes(symbolmap: { [sym: string]: number }, segments:
         }
     }
     return sizes;
+}
+
+/**
+ * Each object file's slice of every area, in link order: the linker places a
+ * module's contribution to an area as one block right after the previous
+ * module's, so the starts are running sums from the area's start. Whatever
+ * the areas hold beyond the object files came from libraries (.lib modules
+ * are linked after the objects). Skips an area whose objects add up to more
+ * than it holds, so a wrong guess is never drawn.
+ */
+export function moduleRanges(objs: { name: string, rel: string }[], segments: { name: string, start: number, size: number }[]) {
+    const out: { [seg: string]: { name: string, start: number, size: number }[] } = {};
+    for (const seg of segments) {
+        const re = new RegExp(`^A _${seg.name} size ([0-9A-Fa-f]+) `, 'm');
+        let cur = seg.start;
+        const mods = [];
+        for (const obj of objs) {
+            const m = re.exec(obj.rel);
+            const size = m ? parseInt(m[1], 16) : 0;
+            if (size > 0) mods.push({ name: obj.name, start: cur, size });
+            cur += size;
+        }
+        if (!mods.length || cur > seg.start + seg.size) continue;
+        if (cur < seg.start + seg.size)
+            mods.push({ name: '(libraries)', start: cur, size: seg.start + seg.size - cur });
+        out[seg.name] = mods;
+    }
+    return out;
 }
 
 export function parseIHX(ihx: string, rom_start: number, rom_size: number, errors: WorkerError[], banking?: ROMBanking) {
@@ -520,6 +548,14 @@ async function linkSDLD(step: BuildStep, ld: 'sdldz80' | 'sdld6808') {
                 }
             }
         }
+        // object files in link order, for the Memory Map's module column
+        // (a library's own objects, like crt0, are stored as bytes)
+        let objs = objargs.filter((fn) => fn.endsWith('.rel')).map((fn) => {
+            let data = getWorkFileData(fn);
+            return { name: fn.replace(/\.rel$/, ''), rel: typeof data === 'string' ? data : new TextDecoder().decode(data) };
+        });
+        let modules = moduleRanges(objs, segments);
+        for (let seg of segments) if (modules[seg.name]) seg.modules = modules[seg.name];
         // gameboy: fix up header for the final ROM size, compute checksum
         if (step.params.arch === 'gbz80') {
             if (binout.length > 0x8000) {

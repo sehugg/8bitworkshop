@@ -195,4 +195,32 @@ const pixeleditor_1 = require("../../src/ide/pixeleditor");
         assert_1.default.throws(() => (0, pixeleditor_1.renderCharpadMap)(fmt, [0, 2], chars, [0, 1], [10, 3]), /out of range/);
     });
 });
+(0, mocha_1.describe)('Generic tile maps', function () {
+    const src = () => fs.readFileSync('presets/gb/bigmap.h', 'utf8');
+    (0, mocha_1.it)('should find 2D named arrays', function () {
+        assert_1.default.deepEqual((0, pixeleditor_1.findNamedArray)('const unsigned char m[2][2] = {\n {0x01,0x02},\n {0x03,0x04},\n};', 'm'), [1, 2, 3, 4]);
+    });
+    (0, mocha_1.it)('should validate the Game Boy bigmap and its attribute array', function () {
+        var frags = (0, pixeleditor_1.scanTextForAssetFragments)(src(), false);
+        var frag = frags.find((f) => f.fmt && f.fmt.map == 'tilemap');
+        assert_1.default.ok(frag);
+        assert_1.default.equal(frag.error, undefined);
+        assert_1.default.equal((0, pixeleditor_1.validateAssetData)(src().substring(frag.start, frag.end), frag.fmt), null);
+        assert_1.default.equal((0, pixeleditor_1.validateTilemapFormat)(frag.fmt, (n) => (0, pixeleditor_1.findNamedArray)(src(), n)), null);
+        assert_1.default.ok((0, pixeleditor_1.validateTilemapFormat)(frag.fmt, () => null));
+        assert_1.default.ok((0, pixeleditor_1.validateTilemapFormat)({ w: 2, h: 2, attrs: 'a' }, () => [0]));
+    });
+    (0, mocha_1.it)('should render palette and flip attributes', function () {
+        var t0 = [1, 2, 3, 0, 0, 0, 0, 0].concat(new Array(56).fill(0)); // row 0 = 1,2,3,0...
+        var fmt = { w: 3, h: 1 };
+        var r = (0, pixeleditor_1.renderTilemap)(fmt, [0, 0, 0], [0, 1, 0x20 | 0x40 | 2], [t0]);
+        assert_1.default.equal(r.width, 24);
+        assert_1.default.equal(r.height, 8);
+        assert_1.default.deepEqual(Array.from(r.pixels.slice(0, 4)), [1, 2, 3, 0]);
+        assert_1.default.deepEqual(Array.from(r.pixels.slice(8, 12)), [5, 6, 7, 0]); // palette 1: +4, zero stays 0
+        // X+Y flipped: the top row lands at the bottom, mirrored; palette 2: +8
+        assert_1.default.deepEqual(Array.from(r.pixels.slice(7 * 24 + 16, 7 * 24 + 24)), [0, 0, 0, 0, 0, 11, 10, 9]);
+        assert_1.default.throws(() => (0, pixeleditor_1.renderTilemap)(fmt, [0, 1, 0], null, [t0]), /out of range/);
+    });
+});
 //# sourceMappingURL=testassetscan.js.map

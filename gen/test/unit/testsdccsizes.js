@@ -20,4 +20,26 @@ const sdcc_1 = require("../../src/worker/tools/sdcc");
         assert_1.default.deepStrictEqual(sizes, { _a: 4, _alias: 4, _b: 0xc, _rom: 0x40 });
     });
 });
+(0, mocha_1.describe)('sdcc module ranges', function () {
+    const rel = (area, size) => `XH3\nA _${area} size ${size.toString(16)} flags 0 addr 0\n`;
+    const objs = [
+        { name: 'crt0', rel: rel('HOME', 0x10) },
+        { name: 'main', rel: rel('CODE', 0x100) + rel('DATA', 8) },
+        { name: 'util', rel: rel('CODE', 0x40) },
+    ];
+    (0, mocha_1.it)('places each object after the previous one in every area, and the rest to libraries', function () {
+        const mods = (0, sdcc_1.moduleRanges)(objs, [
+            { name: 'CODE', start: 0x200, size: 0x150 }, { name: 'HOME', start: 0x350, size: 0x30 }, { name: 'DATA', start: 0xc000, size: 8 }
+        ]);
+        assert_1.default.deepStrictEqual(mods.CODE, [
+            { name: 'main', start: 0x200, size: 0x100 }, { name: 'util', start: 0x300, size: 0x40 },
+            { name: '(libraries)', start: 0x340, size: 0x10 }
+        ]);
+        assert_1.default.deepStrictEqual(mods.HOME, [{ name: 'crt0', start: 0x350, size: 0x10 }, { name: '(libraries)', start: 0x360, size: 0x20 }]);
+        assert_1.default.deepStrictEqual(mods.DATA, [{ name: 'main', start: 0xc000, size: 8 }]);
+    });
+    (0, mocha_1.it)('skips an area the objects overfill', function () {
+        assert_1.default.deepStrictEqual((0, sdcc_1.moduleRanges)(objs, [{ name: 'CODE', start: 0x200, size: 0x100 }]), {});
+    });
+});
 //# sourceMappingURL=testsdccsizes.js.map

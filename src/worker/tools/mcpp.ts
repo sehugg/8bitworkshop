@@ -85,6 +85,9 @@ export function preprocessMCPP(step: BuildStep, filesys: string | MCPPIncludeSou
     let platform_def = (platform.toUpperCase() as any).replaceAll(/[^a-zA-Z0-9]/g, '_');
     args.unshift.apply(args, ["-D", `__PLATFORM_${platform_def}__`]);
     args.unshift(...extraArgs);
+    // //#symbol c NAME=VALUE: the compiler only sees preprocessed text, so the
+    // define has to reach mcpp for #ifdef/#ifndef (and array sizes) to see it
+    for (let d of step.params?.symbols?.compiler || []) args.unshift("-D", d);
     if (params.extra_preproc_args) {
         args.push.apply(args, params.extra_preproc_args);
     }
@@ -117,11 +120,11 @@ export function preprocessMCPP(step: BuildStep, filesys: string | MCPPIncludeSou
  * Returns an error result, or null on success.
  */
 export function prepareCompilerInput(step: BuildStep, tool: string, FS, params, args: string[]) {
+    fixParamsWithDefines(step.path, params); // before mcpp: //#symbol c reaches it
     var preproc = preprocessMCPP(step, null);
     if (preproc.errors) return { errors: preproc.errors };
     populateFiles(step, FS);
     FS.writeFile(step.path, preproc.code);
-    fixParamsWithDefines(step.path, params);
     if (params.extra_compile_args) {
         args.unshift.apply(args, params.extra_compile_args);
     }

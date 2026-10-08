@@ -184,8 +184,6 @@ void start_music(const byte* music) {
 
 void main(void)
 {
-    unsigned char s;
-
     clrscr();
     gotoxy(8, 4);
     cputs("MOCKINGBOARD DEMO");

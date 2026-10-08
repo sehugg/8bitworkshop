@@ -7,6 +7,7 @@
 //   sym   id=313,name="_attackers",...,val=0x34A,seg=2,type=lab
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseCC65DbgSizes = parseCC65DbgSizes;
+exports.parseCC65ModuleRanges = parseCC65ModuleRanges;
 function parseRecord(text) {
     const rec = {};
     const re = /(\w+)=("[^"]*"|[^,]*)/g;
@@ -113,5 +114,43 @@ function parseCC65DbgSizes(dbg, ignoreSegments) {
         if (!(sizes[name] > 0))
             delete sizes[name];
     return { sizes, ignored };
+}
+/**
+ * Parses the "Modules list" of an ld65 map file into per-segment module
+ * slices for the Memory Map view. Each entry gives a segment contribution
+ * as "Offs=" within the segment; library members ("nes.lib(popa.o)") are
+ * shown by member name. Segments the caller doesn't know are skipped.
+ */
+function parseCC65ModuleRanges(map, segments) {
+    var _a, _b;
+    var _c;
+    const segstart = new Map(segments.map((s) => [s.name, s.start]));
+    const out = {};
+    const re_seg = /^\s+(\w+)\s+Offs=([0-9A-F]+)\s+Size=([0-9A-F]+)/;
+    let mod = '';
+    let inlist = false;
+    for (const line of map.split('\n')) {
+        if (line.startsWith('Modules list:')) {
+            inlist = true;
+            continue;
+        }
+        if (!inlist)
+            continue;
+        if (line.startsWith('Segment list:'))
+            break;
+        let m;
+        if (/^\S.*:$/.test(line)) {
+            const full = line.slice(0, -1);
+            mod = ((_b = (_a = /\(([^)]+)\)$/.exec(full)) === null || _a === void 0 ? void 0 : _a[1]) !== null && _b !== void 0 ? _b : full.split('/').pop()).replace(/\.o$/, '');
+        }
+        else if (mod && (m = re_seg.exec(line)) && segstart.has(m[1])) {
+            const size = parseInt(m[3], 16);
+            if (size > 0)
+                (out[_c = m[1]] || (out[_c] = [])).push({ name: mod, start: segstart.get(m[1]) + parseInt(m[2], 16), size });
+        }
+    }
+    for (const mods of Object.values(out))
+        mods.sort((a, b) => a.start - b.start);
+    return out;
 }
 //# sourceMappingURL=cc65dbg.js.map

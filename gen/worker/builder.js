@@ -8,6 +8,7 @@ exports.starttime = starttime;
 exports.endtime = endtime;
 exports.putWorkFile = putWorkFile;
 exports.getWorkFileAsString = getWorkFileAsString;
+exports.getWorkFileData = getWorkFileData;
 exports.populateEntry = populateEntry;
 exports.gatherFiles = gatherFiles;
 exports.getPrefix = getPrefix;
@@ -284,6 +285,9 @@ function putWorkFile(path, data) {
 }
 function getWorkFileAsString(path) {
     return exports.store.getFileAsString(path);
+}
+function getWorkFileData(path) {
+    return exports.store.getFileData(path);
 }
 /** Create the directories above `path` (a/b/c.h -> a, a/b). */
 function makeParentDirs(fs, path) {

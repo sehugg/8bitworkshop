@@ -9,7 +9,7 @@ import { PLATFORM_CONTROLS } from "../common/controls";
 import { installHDLHost } from "./hdlhost";
 import { StateRecorderImpl } from "../common/recorder";
 import {
-  arrayCompare, byteArrayToUTF8, decodeQueryString, getBasePlatform, getCookie, getFilenameForPath, getFilenamePrefix,
+  arrayCompare, byteArrayToUTF8, bytesToFileData, decodeQueryString, getBasePlatform, getCookie, getFilenameForPath, getFilenamePrefix,
   getRootBasePlatform, getWithBinary, hex, highlightDifferences, isProbablyBinary, isProductionHost, loadScript, parseBool, stringToByteArray
 } from "../common/util";
 import { getSkeletonName, getPlatformToolHelpURL, getToolMeta, getToolVersionLabel, TOOL_META } from "../common/toolmeta";
@@ -742,11 +742,9 @@ async function getLocalFilesystem(repoid: string): Promise<ProjectFilesystem> {
       console.log('getFileData', path);
       let fileHandle = await dirHandle.getFileHandle(path, { create: false });
       let file = await fileHandle.getFile();
-      let contents = await (isProbablyBinary(path) ? file.arrayBuffer() : file.text());
-      if (contents instanceof ArrayBuffer) {
-        return new Uint8Array(contents);
-      }
-      return contents;
+      // always read bytes, then sniff the content -- the extension alone can't
+      // tell a binary resource (e.g. .vgr3) from text
+      return bytesToFileData(path, new Uint8Array(await file.arrayBuffer()));
     },
     setFileData: async (path, data) => {
       lastWriteTime[path] = Date.now();

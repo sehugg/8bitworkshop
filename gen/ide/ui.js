@@ -731,11 +731,9 @@ async function getLocalFilesystem(repoid) {
             console.log('getFileData', path);
             let fileHandle = await dirHandle.getFileHandle(path, { create: false });
             let file = await fileHandle.getFile();
-            let contents = await ((0, util_1.isProbablyBinary)(path) ? file.arrayBuffer() : file.text());
-            if (contents instanceof ArrayBuffer) {
-                return new Uint8Array(contents);
-            }
-            return contents;
+            // always read bytes, then sniff the content -- the extension alone can't
+            // tell a binary resource (e.g. .vgr3) from text
+            return (0, util_1.bytesToFileData)(path, new Uint8Array(await file.arrayBuffer()));
         },
         setFileData: async (path, data) => {
             lastWriteTime[path] = Date.now();

@@ -4,6 +4,7 @@ exports.sdccTarget = sdccTarget;
 exports.bankedAreaArgs = bankedAreaArgs;
 exports.objectsDefineArea = objectsDefineArea;
 exports.inferSymbolSizes = inferSymbolSizes;
+exports.moduleRanges = moduleRanges;
 exports.parseIHX = parseIHX;
 exports.ihxExtent = ihxExtent;
 exports.loadHeader = loadHeader;
@@ -147,6 +148,35 @@ function inferSymbolSizes(symbolmap, segments) {
         }
     }
     return sizes;
+}
+/**
+ * Each object file's slice of every area, in link order: the linker places a
+ * module's contribution to an area as one block right after the previous
+ * module's, so the starts are running sums from the area's start. Whatever
+ * the areas hold beyond the object files came from libraries (.lib modules
+ * are linked after the objects). Skips an area whose objects add up to more
+ * than it holds, so a wrong guess is never drawn.
+ */
+function moduleRanges(objs, segments) {
+    const out = {};
+    for (const seg of segments) {
+        const re = new RegExp(`^A _${seg.name} size ([0-9A-Fa-f]+) `, 'm');
+        let cur = seg.start;
+        const mods = [];
+        for (const obj of objs) {
+            const m = re.exec(obj.rel);
+            const size = m ? parseInt(m[1], 16) : 0;
+            if (size > 0)
+                mods.push({ name: obj.name, start: cur, size });
+            cur += size;
+        }
+        if (!mods.length || cur > seg.start + seg.size)
+            continue;
+        if (cur < seg.start + seg.size)
+            mods.push({ name: '(libraries)', start: cur, size: seg.start + seg.size - cur });
+        out[seg.name] = mods;
+    }
+    return out;
 }
 function parseIHX(ihx, rom_start, rom_size, errors, banking) {
     var output = new Uint8Array(new ArrayBuffer(rom_size));
@@ -523,6 +553,16 @@ async function linkSDLD(step, ld) {
                 }
             }
         }
+        // object files in link order, for the Memory Map's module column
+        // (a library's own objects, like crt0, are stored as bytes)
+        let objs = objargs.filter((fn) => fn.endsWith('.rel')).map((fn) => {
+            let data = (0, builder_1.getWorkFileData)(fn);
+            return { name: fn.replace(/\.rel$/, ''), rel: typeof data === 'string' ? data : new TextDecoder().decode(data) };
+        });
+        let modules = moduleRanges(objs, segments);
+        for (let seg of segments)
+            if (modules[seg.name])
+                seg.modules = modules[seg.name];
         // gameboy: fix up header for the final ROM size, compute checksum
         if (step.params.arch === 'gbz80') {
             if (binout.length > 0x8000) {

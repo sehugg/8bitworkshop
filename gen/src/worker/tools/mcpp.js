@@ -39,6 +39,7 @@ function copyWASIIncludes(FS, src) {
  * package mounted at /share, or gives headers to copy into /share/include.
  */
 function preprocessMCPP(step, filesys, extraArgs = []) {
+    var _a, _b;
     (0, wasmutils_1.load)("mcpp");
     var platform = step.platform;
     var params = platforms_1.PLATFORM_PARAMS[platform] || platforms_1.PLATFORM_PARAMS[(0, util_1.getBasePlatform)(platform)];
@@ -84,6 +85,10 @@ function preprocessMCPP(step, filesys, extraArgs = []) {
     let platform_def = platform.toUpperCase().replaceAll(/[^a-zA-Z0-9]/g, '_');
     args.unshift.apply(args, ["-D", `__PLATFORM_${platform_def}__`]);
     args.unshift(...extraArgs);
+    // //#symbol c NAME=VALUE: the compiler only sees preprocessed text, so the
+    // define has to reach mcpp for #ifdef/#ifndef (and array sizes) to see it
+    for (let d of ((_b = (_a = step.params) === null || _a === void 0 ? void 0 : _a.symbols) === null || _b === void 0 ? void 0 : _b.compiler) || [])
+        args.unshift("-D", d);
     if (params.extra_preproc_args) {
         args.push.apply(args, params.extra_preproc_args);
     }
@@ -116,12 +121,12 @@ function preprocessMCPP(step, filesys, extraArgs = []) {
  * Returns an error result, or null on success.
  */
 function prepareCompilerInput(step, tool, FS, params, args) {
+    (0, builder_1.fixParamsWithDefines)(step.path, params); // before mcpp: //#symbol c reaches it
     var preproc = preprocessMCPP(step, null);
     if (preproc.errors)
         return { errors: preproc.errors };
     (0, builder_1.populateFiles)(step, FS);
     FS.writeFile(step.path, preproc.code);
-    (0, builder_1.fixParamsWithDefines)(step.path, params);
     if (params.extra_compile_args) {
         args.unshift.apply(args, params.extra_compile_args);
     }

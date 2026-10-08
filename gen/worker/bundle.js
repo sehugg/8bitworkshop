@@ -2466,6 +2466,7 @@
     }
     return str;
   }
+  var utf8Decoder = typeof TextDecoder !== "undefined" ? new TextDecoder("utf-8") : null;
   function getBasePlatform(platform) {
     return platform.split(".")[0];
   }
@@ -7449,6 +7450,32 @@
     for (const name in sizes) if (!(sizes[name] > 0)) delete sizes[name];
     return { sizes, ignored };
   }
+  function parseCC65ModuleRanges(map, segments) {
+    var _a, _b, _c;
+    const segstart = new Map(segments.map((s) => [s.name, s.start]));
+    const out = {};
+    const re_seg = /^\s+(\w+)\s+Offs=([0-9A-F]+)\s+Size=([0-9A-F]+)/;
+    let mod = "";
+    let inlist = false;
+    for (const line of map.split("\n")) {
+      if (line.startsWith("Modules list:")) {
+        inlist = true;
+        continue;
+      }
+      if (!inlist) continue;
+      if (line.startsWith("Segment list:")) break;
+      let m;
+      if (/^\S.*:$/.test(line)) {
+        const full = line.slice(0, -1);
+        mod = ((_b = (_a = /\(([^)]+)\)$/.exec(full)) == null ? void 0 : _a[1]) != null ? _b : full.split("/").pop()).replace(/\.o$/, "");
+      } else if (mod && (m = re_seg.exec(line)) && segstart.has(m[1])) {
+        const size = parseInt(m[3], 16);
+        if (size > 0) (out[_c = m[1]] || (out[_c] = [])).push({ name: mod, start: segstart.get(m[1]) + parseInt(m[2], 16), size });
+      }
+    }
+    for (const mods of Object.values(out)) mods.sort((a, b) => a.start - b.start);
+    return out;
+  }
 
   // src/worker/tools/cc65.ts
   var CC65_SHARE = "share/cc65";
@@ -7669,6 +7696,8 @@
         if (s2 == "Segment list:") parseseglist = true;
         if (s2 == "") parseseglist = false;
       }
+      let modules = parseCC65ModuleRanges(mapout, segments);
+      for (let seg of segments) if (modules[seg.name]) seg.modules = modules[seg.name];
       var listings = {};
       for (var fn of step.files) {
         if (fn.endsWith(".lst")) {
@@ -8134,6 +8163,7 @@
     }
   }
   function preprocessMCPP(step, filesys, extraArgs = []) {
+    var _a, _b;
     load("mcpp");
     var platform = step.platform;
     var params = PLATFORM_PARAMS[platform] || PLATFORM_PARAMS[getBasePlatform(platform)];
@@ -8179,6 +8209,7 @@
     let platform_def = platform.toUpperCase().replaceAll(/[^a-zA-Z0-9]/g, "_");
     args.unshift.apply(args, ["-D", `__PLATFORM_${platform_def}__`]);
     args.unshift(...extraArgs);
+    for (let d of ((_b = (_a = step.params) == null ? void 0 : _a.symbols) == null ? void 0 : _b.compiler) || []) args.unshift("-D", d);
     if (params.extra_preproc_args) {
       args.push.apply(args, params.extra_preproc_args);
     }
@@ -8201,11 +8232,11 @@
     return { code: iout };
   }
   function prepareCompilerInput(step, tool, FS, params, args) {
+    fixParamsWithDefines(step.path, params);
     var preproc = preprocessMCPP(step, null);
     if (preproc.errors) return { errors: preproc.errors };
     populateFiles(step, FS);
     FS.writeFile(step.path, preproc.code);
-    fixParamsWithDefines(step.path, params);
     if (params.extra_compile_args) {
       args.unshift.apply(args, params.extra_compile_args);
     }
@@ -8311,6 +8342,25 @@
       }
     }
     return sizes;
+  }
+  function moduleRanges(objs, segments) {
+    const out = {};
+    for (const seg of segments) {
+      const re = new RegExp(`^A _${seg.name} size ([0-9A-Fa-f]+) `, "m");
+      let cur = seg.start;
+      const mods = [];
+      for (const obj of objs) {
+        const m = re.exec(obj.rel);
+        const size = m ? parseInt(m[1], 16) : 0;
+        if (size > 0) mods.push({ name: obj.name, start: cur, size });
+        cur += size;
+      }
+      if (!mods.length || cur > seg.start + seg.size) continue;
+      if (cur < seg.start + seg.size)
+        mods.push({ name: "(libraries)", start: cur, size: seg.start + seg.size - cur });
+      out[seg.name] = mods;
+    }
+    return out;
   }
   function parseIHX(ihx, rom_start, rom_size, errors, banking) {
     var output = new Uint8Array(new ArrayBuffer(rom_size));
@@ -8622,6 +8672,12 @@
           }
         }
       }
+      let objs = objargs.filter((fn2) => fn2.endsWith(".rel")).map((fn2) => {
+        let data = getWorkFileData(fn2);
+        return { name: fn2.replace(/\.rel$/, ""), rel: typeof data === "string" ? data : new TextDecoder().decode(data) };
+      });
+      let modules = moduleRanges(objs, segments);
+      for (let seg of segments) if (modules[seg.name]) seg.modules = modules[seg.name];
       if (step.params.arch === "gbz80") {
         if (binout.length > 32768) {
           binout[328] = Math.log2(binout.length / 32768);
@@ -15953,6 +16009,9 @@ ${this.scopeSymbol(name)} = ${name}::__Start`;
   }
   function getWorkFileAsString(path) {
     return store.getFileAsString(path);
+  }
+  function getWorkFileData(path) {
+    return store.getFileData(path);
   }
   function makeParentDirs(fs, path) {
     var toks = path.split("/");

@@ -36,6 +36,7 @@ exports.isArray = isArray;
 exports.isTypedArray = isTypedArray;
 exports.convertDataToUint8Array = convertDataToUint8Array;
 exports.convertDataToString = convertDataToString;
+exports.bytesToFileData = bytesToFileData;
 exports.byteToASCII = byteToASCII;
 exports.loadScript = loadScript;
 exports.setScriptLoader = setScriptLoader;
@@ -304,24 +305,31 @@ function byteArrayToString(data) {
     }
     return str;
 }
+// Shared decoder; decode() is stateless with the default non-streaming mode,
+// so one instance can be reused. Falls back to a hand-rolled decoder below.
+const utf8Decoder = (typeof TextDecoder !== 'undefined') ? new TextDecoder('utf-8') : null;
 function byteArrayToUTF8(data) {
+    const bytes = data instanceof Uint8Array ? data : Uint8Array.from(data);
+    if (utf8Decoder) {
+        return utf8Decoder.decode(bytes);
+    }
     var str = "";
     var charLUT = new Array();
     for (var i = 0; i < 128; ++i)
         charLUT[i] = String.fromCharCode(i);
     var c;
-    var len = data.length;
+    var len = bytes.length;
     for (var i = 0; i < len;) {
-        c = data[i++];
+        c = bytes[i++];
         if (c < 128) {
             str += charLUT[c];
         }
         else {
             if ((c >= 192) && (c < 224)) {
-                c = ((c & 31) << 6) | (data[i++] & 63);
+                c = ((c & 31) << 6) | (bytes[i++] & 63);
             }
             else {
-                c = ((c & 15) << 12) | ((data[i] & 63) << 6) | (data[i + 1] & 63);
+                c = ((c & 15) << 12) | ((bytes[i] & 63) << 6) | (bytes[i + 1] & 63);
                 i += 2;
                 if (c == 0xfeff)
                     continue; // ignore BOM
@@ -338,7 +346,7 @@ function removeBOM(s) {
     return s;
 }
 // File extensions that are always treated as binary, regardless of content.
-const BINARY_EXTS = ['.CHR', '.BIN', '.DAT', '.PAL', '.NAM', '.RLE', '.LZ4', '.LZH', '.LZSA', '.NSF'];
+const BINARY_EXTS = ['.CHR', '.BIN', '.DAT', '.PAL', '.NAM', '.RLE', '.LZ4', '.LZH', '.LZSA', '.NSF', '.VGR3'];
 /**
  * Strict RFC 3629 UTF-8 validation. Unlike decoding with replacement, this
  * rejects truncated sequences, overlong encodings, surrogate halves and code
@@ -571,6 +579,16 @@ function convertDataToUint8Array(data) {
 }
 function convertDataToString(data) {
     return (data instanceof Uint8Array) ? byteArrayToUTF8(data) : data;
+}
+/**
+ * Pick the FileData representation for raw file bytes: a Uint8Array for
+ * binary data, or a UTF-8 string for text. Sniffs the content, not just the
+ * extension, so binary resources with unregistered extensions (e.g. .vgr3)
+ * aren't silently corrupted by UTF-8 decoding.
+ */
+function bytesToFileData(path, data) {
+    const bytes = data instanceof Uint8Array ? data : Uint8Array.from(data);
+    return isProbablyBinary(path, bytes) ? bytes : byteArrayToUTF8(bytes);
 }
 function byteToASCII(b) {
     if (b < 32)

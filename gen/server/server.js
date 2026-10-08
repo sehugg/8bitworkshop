@@ -22980,6 +22980,7 @@ function getFilenamePrefix(s) {
   var pos = s.lastIndexOf(".");
   return pos > 0 ? s.substr(0, pos) : s;
 }
+var utf8Decoder = typeof TextDecoder !== "undefined" ? new TextDecoder("utf-8") : null;
 function getBasePlatform(platform) {
   return platform.split(".")[0];
 }

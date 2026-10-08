@@ -58,7 +58,7 @@ class DiskPresetsFileSystem {
         const fp = path.join('presets', this.dir, p);
         if (!fs.existsSync(fp) || !fs.statSync(fp).isFile())
             return null;
-        return (0, util_1.isProbablyBinary)(p) ? new Uint8Array(fs.readFileSync(fp)) : fs.readFileSync(fp, 'utf-8');
+        return (0, util_1.bytesToFileData)(p, new Uint8Array(fs.readFileSync(fp)));
     }
     async setFileData(p, data) { }
     onFileSystemUpdate(cb) { }
@@ -74,12 +74,24 @@ async function ideMessage(e, mainPath) {
     await proj.sendBuild();
     return msgs.find((m) => m.buildsteps);
 }
+// text stays readable in diffs; binary is reduced to length + FNV-1a so a
+// text/binary mismatch or a corrupted decode shows up without dumping bytes
+function dataFingerprint(d) {
+    if (typeof d === 'string')
+        return d;
+    let h = 2166136261;
+    for (let i = 0; i < d.length; i++) {
+        h ^= d[i];
+        h = Math.imul(h, 16777619);
+    }
+    return `bin:${d.length}:${(h >>> 0).toString(16)}`;
+}
 // reduce a message to what the worker acts on
 function normalize(msg) {
     if (!msg)
         return null;
     return {
-        updates: msg.updates.map((u) => u.path),
+        updates: msg.updates.map((u) => ({ path: u.path, data: dataFingerprint(u.data) })),
         buildsteps: msg.buildsteps,
     };
 }
@@ -101,7 +113,7 @@ function normalize(msg) {
                 diffs.push(`${e.preset}: ${err}`);
                 continue;
             }
-            const dups = ide.updates.filter((p, i) => ide.updates.indexOf(p) != i);
+            const dups = ide.updates.filter((u, i) => ide.updates.findIndex((o) => o.path === u.path) != i).map((u) => u.path);
             if (dups.length)
                 diffs.push(`${e.preset}: sent twice: ${dups}`);
             try {

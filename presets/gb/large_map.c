@@ -11,9 +11,12 @@ way to scroll a map larger than the hardware tile map.
 Notes on the port:
 - The original uses DEVICE_SCREEN_* macros from gbdk/platform.h;
   on GB those are just the 20x18 visible area inside a 32x32 map.
-- There is no CGB attribute plane here, so the attribute submap
-  calls become no-ops.
-- The map/tile data lives in bigmap.h (generated with png2asset).
+- On a Game Boy Color the per-tile palette numbers come from a
+  second map, bigmap_map_attributes, which is poked into VRAM bank 1
+  alongside the tile indices. On a plain DMG the attributes are skipped.
+- The map/tile data lives in bigmap.h (generated with png2asset
+  -use_map_attributes -noflip, so the attributes are palette-only and
+  the tiles still look right on DMG).
 */
 
 #include <stdint.h>
@@ -35,9 +38,6 @@ Notes on the port:
 #define camera_max_x ((bigmap_mapWidth - DEVICE_SCREEN_WIDTH) * 8)
 
 #define WRAP_SCROLL_Y(y) ((y) % (DEVICE_SCREEN_BUFFER_HEIGHT * 8))
-
-// one-byte-per-tile map, so no attributes to set on DMG
-#define set_submap_attributes(x, y, w, h, map, map_w)
 
 #define MIN(A,B) ((A)<(B)?(A):(B))
 
@@ -71,6 +71,12 @@ inline uint8_t update_row_bottom(uint8_t map_pos_y) {
 // first row as the base pointer.
 void set_submap_rows(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
   set_bkg_submap(x, y, w, h, bigmap_map[0], bigmap_mapWidth);
+  // attributes live in VRAM bank 1, which only exists on CGB
+  if (_cpu == CGB_TYPE) {
+    VBK_REG = 1;
+    set_bkg_submap(x, y, w, h, bigmap_map_attributes[0], bigmap_mapWidth);
+    VBK_REG = 0;
+  }
 }
 
 void set_camera(void)

@@ -118,7 +118,7 @@ everything else falls back to a sensible default.
 | `art` | `false` | Apple II HGR artifact-color mode |
 | `palname` | — | Preferred palette name for preview |
 | `comp` | — | `"rletag"` = RLE-compressed block |
-| `map` | — | `"nesnt"` = NES nametable, not a bitmap |
+| `map` | — | `"nesnt"` = NES nametable, `"charpad"` = C64 CharPad map, `"tilemap"` = generic tile map; not a bitmap |
 | `pacstrip` | — | Pac-Man/Namco vertical-strip layout |
 | `xform` | — | CSS transform. Parsed and stored but currently inert |
 
@@ -379,6 +379,32 @@ CHR data, with a map editor instead of a pixel editor. Usually paired with
 /*{w:32,h:30,bpp:8,comp:"rletag",map:"nesnt"}*/
 ```
 Currently, these asset blocks are view-only.
+
+### `map:"tilemap"`
+
+The block is a `w`×`h` grid of tile indices (one value per cell, `w`/`h` in
+**tiles**), drawn with the project's 8×8 tile bitmaps and shown as a
+read-only preview. Any tile bitmap block with at least as many tiles as the
+highest index in the map is used. An optional `attrs` names a parallel array
+of the same size holding CGB-style attribute bytes: bits 0-2 are the palette
+number (colors are offset by 4 × palette, so the preview needs a palette
+with enough entries), bit 5 flips X and bit 6 flips Y. Arrays are found by
+name in the project, and may be 2D (`map[66][156]`).
+
+```c
+/*{w:156,h:66,map:"tilemap",attrs:"bigmap_map_attributes"}*/
+const unsigned char bigmap_map[66][156] = { ... };
+```
+
+See `presets/gb/bigmap.h`.
+
+### `map:"charpad"`
+
+A C64 CharPad map: `w`×`h` tile indices, each tile `tw`×`th` chars. `chars`,
+`tiles` and `colors` name the charset, tileset and colour arrays; `colorby`
+is `"tile"` (default) or `"char"`, `mc:0` selects hires, and `bg`, `mca`,
+`mcb` are the screen and shared multicolor colors.
+See `presets/c64/level2-data.c`. Currently view-only.
 
 ### `pacstrip:1`
 

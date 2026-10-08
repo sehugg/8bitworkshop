@@ -389,7 +389,8 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
           } else {
             // validate data block size before creating editors
             const assetError = pixed.validateAssetData(data.substring(frag.start, frag.end), frag.fmt)
-              || (frag.fmt.map == 'charpad' ? pixed.validateCharpadFormat(frag.fmt, (n) => this.getNamedArray(n)) : null);
+              || (frag.fmt.map == 'charpad' ? pixed.validateCharpadFormat(frag.fmt, (n) => this.getNamedArray(n))
+                : frag.fmt.map == 'tilemap' ? pixed.validateTilemapFormat(frag.fmt, (n) => this.getNamedArray(n)) : null);
             if (assetError) {
               $('<div class="asset_error_msg"/>').text(assetError).appendTo(block);
               continue;
@@ -414,6 +415,14 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
             const cp = frag.fmt as pixed.CharpadFormat;
             const fmt = { w: cp.w * cp.tw * 8, h: cp.h * cp.th * 8, count: 1 };
             this.addTilemapEditor(block, node, new pixed.CharpadConverter(this, cp), { w: 8, h: 8, bpp: 4, defpal: 'c64' }, fmt);
+            this.registerAsset("nametable", first, 2);
+            nassets++;
+          }
+          // is this a generic tile map?
+          else if (frag.fmt.map == 'tilemap') {
+            const tm = frag.fmt as pixed.TilemapFormat;
+            const fmt = { w: tm.w * 8, h: tm.h * 8, count: 1 };
+            this.addTilemapEditor(block, node, new pixed.TilemapConverter(this, tm), { w: 8, h: 8, bpp: 4 }, fmt);
             this.registerAsset("nametable", first, 2);
             nassets++;
           }

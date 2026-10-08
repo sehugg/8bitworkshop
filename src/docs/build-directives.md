@@ -97,6 +97,13 @@ and linker symbols take an integer expression:
 //#symbol ld NES_MAPPER=4
 ~~~
 
+A compiler define set in the main file applies to every C file in the
+project, so a library can size its storage from a macro the game sets
+(`//#symbol MAX_ENTITIES=24`, with an `#ifndef` default in the library
+header). A linker symbol is only a link-time value: it can supply a
+count read at run time but cannot size a C array, and SDCC needs a
+leading underscore (`//#symbol ld _LIMIT=24` for `extern char LIMIT`).
+
 A linker symbol defined by a source file replaces (rather than
 duplicates) a symbol of the same name that the platform already defines,
 so `//#symbol ld NES_MAPPER=...` can select a different mapper without

@@ -127,6 +127,16 @@ const util_1 = require("../../src/common/util");
         assert_1.default.ok(!(0, util_1.isProbablyBinary)('test.c', [47, 47, 105, 102])); // "//if"
         assert_1.default.ok((0, util_1.isProbablyBinary)(null, [0, 0, 0, 0])); // null bytes
     });
+    (0, mocha_1.it)('bytesToFileData should sniff content, not just the extension', function () {
+        // unregistered extension with NUL bytes must stay binary, not become text
+        const bin = (0, util_1.bytesToFileData)('tune.vgr3', [0x56, 0x67, 0x6d, 0x20, 0x00, 0xb3]);
+        assert_1.default.ok(bin instanceof Uint8Array);
+        // otherwise it decodes to text
+        assert_1.default.strictEqual((0, util_1.bytesToFileData)('hello.c', [104, 101, 108, 108, 111]), 'hello');
+        assert_1.default.strictEqual((0, util_1.bytesToFileData)('hello.txt', new Uint8Array([0x68, 0xc3, 0xa9])), 'h\u00e9');
+        // known binary extension wins even if the bytes happen to be text
+        assert_1.default.ok((0, util_1.bytesToFileData)('test.bin', [104, 105]) instanceof Uint8Array);
+    });
 });
 (0, mocha_1.describe)('Color Functions', function () {
     (0, mocha_1.it)('rgb2bgr should swap red and blue channels', function () {
