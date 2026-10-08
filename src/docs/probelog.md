@@ -3,7 +3,8 @@
 The Probe Log is a chronological text view of CPU and memory activity
 for a frame. It is available on platforms that implement `startProbing`.
 
-Each line describes one clock tick:
+Each line describes a recorded event (blank clock ticks between events are
+collapsed):
 
 ```
 (row, col)  <disassembled instruction>  <operations...>

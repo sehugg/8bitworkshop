@@ -2,7 +2,7 @@ import assert from "assert";
 import { describe, it } from "mocha";
 import { Z80 } from "../../src/common/cpu/ZilogZ80";
 import { BasicHeadlessMachine } from "../../src/common/devices";
-import { ProbeRecorder } from "../../src/common/probe";
+import { ProbeRecorder, compactProbeLines } from "../../src/common/probe";
 import { PacmanMachine } from "../../src/machine/pacman";
 
 function makeBus(mem: Uint8Array) {
@@ -95,6 +95,18 @@ describe('Probing does not reset Z80 machines', function () {
 
     m.connectProbe(null);
     assert.strictEqual(m.saveState().c.PC, 5);
+  });
+});
+
+describe('Probe log line compaction', function () {
+  it('should drop empty clock ticks and keep tick order', function () {
+    const byClk = { 4: 'a', 0: 'b', 7: 'c' };
+    assert.deepStrictEqual(compactProbeLines(byClk), ['b', 'a', 'c']);
+  });
+  it('should keep each recorded tick exactly once', function () {
+    const byClk: { [clk: number]: number } = {};
+    for (let i = 0; i < 10; i += 3) byClk[i] = i;
+    assert.deepStrictEqual(compactProbeLines(byClk), [0, 3, 6, 9]);
   });
 });
 

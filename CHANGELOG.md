@@ -13,6 +13,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - cc65/ca65 `.lst` listings map the PC to the correct listing line again; a `.s`/`.ca65` editor still follows its own source lines. Stepping into a library routine that has no listing now falls back to the Disassembler instead of staying on the caller's line.
 - Reset clears the call graph; breakpoints are re-armed after a build.
 - Click the hex offset in the gutter to run to that line.
+- Probe Log no longer shows a blank line for every clock tick with no event; only recorded events get a line, so instructions and their bus accesses stay together.
 - Compiler warnings no longer fail a build or get lost. cc65/ca65/ld65 and SDCC warnings show as gutter markers in the IDE (not in the error dialog), as warnings in the VS Code Problems panel, and on stderr from `8bws` (`--no-warnings` hides them).
 - Emulators now run on a timeline (CLI and extension only for now): step back, seek, reverse run, `rbreak`, and deterministic replay with a replay-verification test that found determinism bugs in several platforms.
 
