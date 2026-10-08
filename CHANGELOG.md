@@ -6,44 +6,42 @@
 
 See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 
-### Debugging and the `8bws` CLI
+### Debugging
 
-- Vector platforms (`vector-*`, `vectrex`) render headlessly: a software rasterizer with phosphor fade draws their lines into the frame buffer, so `--png` and the VS Code emulator panel show them. The size is `--vector-size <px>` (long side, default 512), `EmuCore.vectorSize`, or the extension's `8bitworkshop.vectorSize`.
-- New `8bws` command-line tool (`npm run cli`) to build and run programs headlessly: `build`, `run`, `verify-replay`, `profile`, `detect`, `list-platforms`, `list-tools`; scripted emulator control; `--png`, `--json`, `--symbols`, `--memdump`, `--info`; platform and main file detected from a project directory.
-- The `8bws` bundle can be published to npm (`npm run npm-package` in `extension/` stages it). It unpacks only the toolchain packs a command needs, into the user's cache directory (`EIGHTBITWORKSHOP_TOOLCHAINS` overrides it, `EIGHTBITWORKSHOP_ASSETS` names a pack mirror). The toolchain packs are split by family, so the base pack is 3.5MB and a NES build adds cc65 (8.7MB) while a Game Boy build adds SDCC (0.9MB).
-- `8bws run --frames-dir <dir>` records an animation for ffmpeg, writing every frame as `DIR/frame_NNNNN.png` (the run script adds `capture N DIR` and `png FILE`); `--fps` sets the nominal frame rate and the result includes the matching `ffmpeg` command.
-- Platform detection no longer confuses the Atari 8-bit targets: `atari.h` means the 800 (it is guarded by `__ATARI__`), `atari5200.h` means the 5200, and a folder named for a platform breaks a near-tie.
-- Emulators now run on a timeline: step back, seek, reverse run, `rbreak`, and deterministic replay with a replay-verification test that found determinism bugs in several platforms.
 - Step Over for C and assembly sources, a Breakpoints pane, and more breakpoint conditions.
-- `8bws run` script `paddle X Y [BUTTONS]` moves the paddle on platforms and Verilog designs that have one.
-- `8bws run` script `vcd FILE [MAXMB]` / `vcd off` records a Verilog design's signal changes to a VCD file as it runs, streamed so the recording's length isn't limited by memory (a `.gz` name compresses it; about 3 MB per frame of a design with video, 4x less gzipped), stopping at 1 GB unless told otherwise.
-- The waveform view's state, keys and drawing moved to `src/common/waveformcore.ts`, shared by the IDE pane and the VS Code Waveform view (a webview in the 8bitworkshop panel).
-- Debug adapter: Verilog designs get a Signals scope (nested by module), and the `8bws` run script a `signals` command.
-- Verilator warnings (width mismatches, etc.) no longer fail the build and show as warnings; a Verilator error no longer also reports "tool called exit(1)".
 - Call Stack view renamed Call Graph, with clocks and more detail per line.
-- Compiler warnings no longer fail a build or get lost: `WorkerError` has an optional `severity`, and a successful build returns `warnings`. cc65/ca65/ld65 and SDCC warnings show as gutter markers in the IDE (not in the error dialog), as warnings in the VS Code Problems panel, and on stderr from `8bws` (`--no-warnings` hides them). SDCC 3 warnings no longer fail the build.
-- `buildpresets` lists compiler warnings per preset, flags a rising warning count against `--baseline`, and fails builds with warnings unless `--no-strict` is given.
+- cc65/ca65 `.lst` listings map the PC to the correct listing line again; a `.s`/`.ca65` editor still follows its own source lines. Stepping into a library routine that has no listing now falls back to the Disassembler instead of staying on the caller's line.
 - Reset clears the call graph; breakpoints are re-armed after a build.
 - Click the hex offset in the gutter to run to that line.
-- Waveform viewer for Verilog, with help and shortcuts.
-- cc65/ca65 `.lst` listings map the PC to the correct listing line again (the parser had been numbering lines in the generated `.s` source rather than in the listing text the window shows); a `.s`/`.ca65` editor still follows its own source lines. Stepping into a library routine that has no listing now falls back to the Disassembler instead of staying on the caller's line.
-- Atari 8-bit: the XEX loader now calls each INIT vector before loading the next chunk (cc65's system-check chunk overlaps the main program), fixing a crash on startup of `tgidemo.c`.
+- Compiler warnings no longer fail a build or get lost. cc65/ca65/ld65 and SDCC warnings show as gutter markers in the IDE (not in the error dialog), as warnings in the VS Code Problems panel, and on stderr from `8bws` (`--no-warnings` hides them).
+- Emulators now run on a timeline (CLI and extension only for now): step back, seek, reverse run, `rbreak`, and deterministic replay with a replay-verification test that found determinism bugs in several platforms.
+
+### `8bws` CLI
+
+- New `8bws` command-line tool (`npm run cli`) to build and run programs headlessly: `build`, `run`, `verify-replay`, `profile`, `detect`, `list-platforms`, `list-tools`; scripted emulator control; `--png`, `--json`, `--symbols`, `--memdump`, `--info`; platform and main file detected from a project directory.
+- `8bws run --frames-dir <dir>` records an animation for ffmpeg, writing every frame as `DIR/frame_NNNNN.png` (the run script adds `capture N DIR` and `png FILE`); `--fps` sets the nominal frame rate and the result includes the matching `ffmpeg` command.
+- `8bws run` script `paddle X Y [BUTTONS]` moves the paddle on platforms and Verilog designs that have one.
+- `8bws run` script `vcd FILE [MAXMB]` / `vcd off` records a Verilog design's signal changes to a VCD file as it runs, streamed so the recording's length isn't limited by memory (a `.gz` name compresses it; about 3 MB per frame of a design with video, 4x less gzipped), stopping at 1 GB unless told otherwise.
+- Vector platforms (`vector-*`, `vectrex`) render headlessly: a software rasterizer with phosphor fade draws their lines into the frame buffer, so `--png` and the VS Code emulator panel show them. The size is `--vector-size <px>` (long side, default 512), `EmuCore.vectorSize`, or the extension's `8bitworkshop.vectorSize`.
+- `buildpresets` lists compiler warnings per preset, flags a rising warning count against `--baseline`, and fails builds with warnings unless `--no-strict` is given.
+- The `8bws` bundle can be published to npm (`npm run npm-package` in `extension/` stages it). It unpacks only the toolchain packs a command needs, into the user's cache directory (`EIGHTBITWORKSHOP_TOOLCHAINS` overrides it, `EIGHTBITWORKSHOP_ASSETS` names a pack mirror).
 
 ### Editor and UI
 
 - Editor moved from CodeMirror 5 to CodeMirror 6 with Lezer grammars for 6502, Z80, 6809, Verilog, BASIC, batari BASIC, FastBasic, Inform 6 and Wiz; new Cobalt and MBO themes and better indent handling.
 - Source search across the project and toolchain headers (F1 for help), with arrow-key navigation, plus symbol search without source.
 - Shortcut bar and keyboard shortcut help, F8 pause/resume, Cmd+Shift+G go to offset.
-- Settings menu with developer options (highlight whitespace, highlight executed lines, line numbers off by default). "Highlight Executed Lines" draws a hot/cold heat map: lines run since the last update are colored by how often they have run (blue = cold, red = hot) and disappear once they stop executing.
+- Settings menu with developer options (highlight whitespace, highlight executed lines, line numbers off by default).
 - Hash routing for windows, and per-page titles.
-- Memory Map stripes its background in alternating 4K bands (`$1000`), so it is easier to tell the address ranges apart. Hovering the address column shows the address (and symbol) under the cursor.
 - Mobile layout: tab bar instead of split panes, and a flex toolbar.
 - Click `#include`/`#link` decorations to open the file; offer to import a GitHub repo given by `repo=` ("user/repo" or a tree URL).
 - Tool info dialog and generated toolchain docs; Help window with ID docs.
 - File | New only lists extensions that have skeleton files.
 - "Share Playable Link" packs the game into the URL fragment instead of the query string, so it no longer hits the web server's ~8 KB request-line limit, and encodes it as URL-safe Base64 to avoid percent-encoding. Old `?r=` links still play.
 - Removed the Markdown/Showdown platform, the old `script` platform, Google Analytics, Sentry (replaced with a new error-reporting endpoint) and the HTTPS redirect.
+- "Highlight Executed Lines" draws a hot/cold heat map: lines run since the last update are colored by how often they have run (blue = cold, red = hot) and disappear once they stop executing.
 - Audio reliably unlocks under the browser autoplay policy: the emulator resumes its `AudioContext` on the first click/keypress anywhere on the page, not only when the emulator canvas gets focus.
+- Memory Map: a Modules column shows each object file's slice of every SDCC or cc65 segment (`Segment.modules`; SDCC from the `.rel` sizes in link order, with the remainder as `(libraries)`; cc65 from the ld65 map's module list, library members by name).
 
 ### Asset editor
 
@@ -57,7 +55,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 ### Platforms
 
 - **Game Boy**: native emulator with GBC double speed, RTC and banking; C via a partial gbdk-2020 header set; presets ported from GBDK, plus Chase and Paku Paku; ghosting on the LCD.
-- **Atari 8-bit**: `.atr` disk images, 5th player, ANTIC and POKEY fixes, a8lib common library, scrolling and libdemo examples, oscar64 support.
+- **Atari 8-bit**: `.atr` disk images, 5th player, ANTIC and POKEY fixes, a8lib common library, scrolling and libdemo examples, oscar64 support. The XEX loader now calls each INIT vector before loading the next chunk (cc65's system-check chunk overlaps the main program), fixing a crash on startup of `tgidemo.c`.
 - **Atari 2600**: a Javatari-derived `vcs.jt4` machine that also runs headlessly; updated `vcs.h`/`macro.h`.
 - **Apple II**: paddle/joystick and SW0-2 support, dynamic origin, DOS 3.3 and AppleSingle samples. New self-contained hi-res TGI driver (`a2hires.s`, 280x192, 8 colors, no ROM calls) used by the TGI demos.
 - **NES**: updated jsnes and a fix for a write bug.
@@ -66,29 +64,19 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - PC Engine Chase example; BASIC uppercase-only dialect fixes; 6502 KIL instructions halt the emulator.
 - C64: openroms-compatible cc65 `_cgetc`/`PLOT` overrides.
 - Verilog: fixed a non-convergence bug on settle and a shift-state bug on digit keys.
-- `.xa` assembler and the Dialog interactive-fiction compiler added.
 
 ### Build tools
 
-- Memory Map: a Modules column shows each object file's slice of every SDCC or cc65 segment (`Segment.modules`; SDCC from the `.rel` sizes in link order, with the remainder as `(libraries)`; cc65 from the ld65 map's module list, library members by name).
-- mcpp now also searches the project root for quoted includes, so a header in a subfolder can include `"gb/gb.h"` and other staged platform headers.
-- `//#symbol c NAME=VALUE` now reaches the mcpp preprocessor (SDCC, and the other tools that preprocess first), so `#ifdef`/`#ifndef` and array sizes see it in every C file of the project; before, only the compiler stage got the `-D`, after the source was already preprocessed.
 - Many toolchains are now WASI builds: cc65 (pinned to 2021 6ac4aa4), DASM 2.20.17, acme, zmac, yasm and merlin32.
-- SDCC 4 mos6502 backend: C64 presets (`hello-sdcc.c`, `screen_ram-sdcc.c`, `joymove-sdcc.c`, `siegegame-sdcc.c`, `sprite_collision-sdcc.c`, `fullscrollgame-sdcc.c`); `load_header` platform param wraps the image as a DOS 3.3 binary (apple2) or a PRG with a `SYS` stub (c64).
-- C64 `fullscrollgame.c` now takes its level data from `level2-data.c` (the same data as `level2.s`, in C) so the SDCC build can link it; `scrolling2.c` uses plain C copies under SDCC.
-- Updated batari BASIC; sdcc now parses `#symbol` directives and fixes lost link errors.
-- New build directives replace the legacy CFGFILE-style ones; build parameters no longer leak between builds.
-- `#pragma compile("...")` and oscar64 symbol/listing parsing.
 - Tool metadata centralized in `src/common/toolmeta.ts`; `npm run toolversions` checks tool versions.
-- cc65/ca65/ld65 warnings no longer fail the build; only errors are reported (the WASI tools print non-fatal `Warning:` lines such as duplicate `const` qualifiers).
-- cc65 toolchain (cc65/ca65/ld65 WASI builds and the per-platform include/lib zips) updated from the 2021 build (`6ac4aa4`) to cc65 `d8a486a` (V2.19-3867, 2026-09-26). The compiler runs with `--disable-opt OptLoadStore1` (the new step drops stores after loads of the same address, which breaks hardware registers and inline asm) and `-unreachable-code`.
-- cc65 `a2.lo.s` (Apple II lo-res TGI) patched in `8bitworkshop-compilers/patches/cc65-apple2-lo-tgi.patch`: a stray `bpl :+` in `INSTALL` made `tgi_install(a2_lo_tgi)` crash on a non-enhanced Apple II.
-- Presets adjusted for the newer cc65: NES `chase` closes its zero-page `#pragma` region, C64 `side_scroller` uses an unsigned fixed-point constant, and the Atari vector presets no longer recurse into `main()`. `neslib.h` no longer redefines `NULL` if `stddef.h` already did. Older projects with their own header containing `#define NULL 0` still build: the cc65 step rewrites that line in a project's own `neslib.h` to a guarded `((void*)0)`.
-- SDCC: both 3.6.5 and 4.x are bundled; 3.6.5 is the default (several times faster to build) and `//#tooldef c sdcc=4` opts in to 4.x (the default is `SDCC_DEFAULT_VERSION` in `toolmeta.ts`). Programs without an `opt_code*` pragma now build with `--no-peep --nolospre --max-allocs-per-node 500`, including Game Boy, which previously always got the full optimizer. See *SDCC versions* in the build directives docs.
-- SDCC 4 mos6502 backend (experimental): a `.sdcc` or `-sdcc.c` file on `devel-6502` or `apple2` builds with sdcc, `sdas6500` and `sdld6808` (see `hello-sdcc.c` in those presets). Apple II programs link as a DOS 3.3 binary at `$803`. `.sdcc` now selects SDCC on every Z80 and 6502 platform.
-- `//#tooldef ld code_start=ADDR` and `data_start=ADDR` move SDCC's code and RAM data. The Apple II preset `cosmic-sdcc.c` builds the Cosmic Impalas game with SDCC by including `cosmic.c`, which now has `__SDCC` alternatives for `conio` and inline assembly.
-- `devel-6502` runs headless in the `8bws` CLI, and the new `serial` run-script command prints what the program sent to its serial port.
+- New build directives replace the legacy CFGFILE-style ones; build parameters no longer leak between builds. See *Build Directives* in help.
+- Warnings no longer fail the build; only errors are reported.
+- cc65 toolchain updated to cc65 `d8a486a` (V2.19-3867, 2026-09-26). Presets adjusted for the newer cc65.
+- SDCC: both 3.6.5 and 4.x are bundled; 3.6.5 is the (much faster) default and `//#tooldef c sdcc=4` opts in to 4.x. Examples for C64 and Apple II. See *SDCC versions* in the build directives docs.
+- `//#tooldef ld code_start=ADDR` and `data_start=ADDR` move SDCC's code and RAM data.
+- mcpp now also searches the project root for quoted includes, so a header in a subfolder can include `"gb/gb.h"` and other staged platform headers.
 - Build is now only `esbuild` through `scripts/build.mjs`; code split into a headless `src/common/projectcore.ts` / `toolselect.ts`.
+- `.xa` assembler and the Dialog interactive-fiction compiler added.
 - New `buildpresets` script that builds and runs every preset.
 
 ## 3.12.1 (2025-11-06)
