@@ -3,7 +3,7 @@
 
 //var IDEURL = 'https://8bitworkshop.com/dev/';
 var IDEURL = 'http://localhost:8000/'
-var REPO = 'sehugg/happy2020'
+var REPO = '8bitworkshop/happy2020'
 var PLATFORM = 'astrocade'
 var FILE = 'happy2020.c'
 var PRESETFILE = 'hello.c'
