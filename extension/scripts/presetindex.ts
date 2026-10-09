@@ -17,7 +17,7 @@ import { getBasePlatform, getRootBasePlatform, isProbablyBinary } from '../../sr
 import { resolveDependencies } from '../../src/common/projectcore';
 import { headersFromPresets } from '../../src/common/detect';
 import { EXTENSION_SKIP_FAMILIES, EXTENSION_SKIP_PLATFORMS } from '../../src/tools/exclusions';
-import type { PresetIndex, TemplateInfo } from '../src/presettypes';
+import type { PresetIndex, TemplateInfo } from '../../src/tools/presettypes';
 
 const rootDir = path.resolve(process.argv[2] || path.join(__dirname, '../..'));
 const outFile = path.resolve(process.argv[3] || path.join(__dirname, 'presets.json'));

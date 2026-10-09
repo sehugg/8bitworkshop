@@ -444,7 +444,7 @@ describe('8bws npm package', function () {
   });
 
   it('stages the CLI, manifest and licenses, and lists exactly those to publish', function () {
-    var expected = ['8bws.js', 'LICENSE', 'README.md', 'THIRD-PARTY-NOTICES.md', 'assets.json', 'package.json'];
+    var expected = ['8bws.js', 'LICENSE', 'README.md', 'THIRD-PARTY-NOTICES.md', 'assets.json', 'package.json', 'presets.json'];
     assert.deepEqual(fs.readdirSync(dir).sort(), expected);
     var pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
     assert.deepEqual([...pkg.files, 'package.json'].sort(), expected);
@@ -457,5 +457,19 @@ describe('8bws npm package', function () {
     delete env.EIGHTBITWORKSHOP_TOOLCHAINS;
     var out = execFileSync(process.execPath, [path.join(dir, '8bws.js'), 'build', '--check', '--json', 'hello.c'], { cwd: work, env, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
     assert.equal(JSON.parse(out).data.platform, 'nes');
+  });
+
+  it('lists presets and copies one that then builds', function () {
+    var env: NodeJS.ProcessEnv = { ...process.env, HOME: home, USERPROFILE: home, LOCALAPPDATA: home, XDG_CACHE_HOME: path.join(home, '.cache'),
+      EIGHTBITWORKSHOP_ASSETS: path.join(OUT, 'assets') };
+    delete env.EIGHTBITWORKSHOP_ROOT;
+    delete env.EIGHTBITWORKSHOP_TOOLCHAINS;
+    var cli = (cwd: string, ...args: string[]) => JSON.parse(execFileSync(process.execPath, [path.join(dir, '8bws.js'), ...args, '--json'], { cwd, env, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] })).data;
+    assert.ok(cli(work, 'presets').platforms.some((p: any) => p.id === 'nes'));
+    assert.ok(cli(work, 'presets', 'nes').templates.some((t: any) => t.id === 'aputest.c'));
+    var made = cli(work, 'new', 'nes/aputest.c', 'game');
+    assert.equal(made.main, 'aputest.c');
+    assert.ok(fs.existsSync(path.join(work, 'game', 'aputest.c')));
+    assert.equal(cli(path.join(work, 'game'), 'build', '--check', '-p', 'nes', 'aputest.c').platform, 'nes');
   });
 });

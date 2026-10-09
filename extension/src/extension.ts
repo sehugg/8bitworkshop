@@ -25,7 +25,7 @@ import { TOOL_META } from '../../src/common/toolmeta';
 import { getToolForPlatform } from '../../src/common/toolselect';
 import { assetServers, AssetStore } from '../../src/tools/assets';
 import { projectReadme, writeLauncher } from './terminalcli';
-import type { PlatformInfo } from './presettypes';
+import type { PlatformInfo } from '../../src/tools/presettypes';
 import { registerTools } from './lmtools';
 import { AssetManifest, packsForPlatform } from '../../src/tools/assetpacks';
 import { ErrorTelemetry } from './telemetry';

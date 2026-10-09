@@ -12,6 +12,16 @@ npx {{package}} run hello.c --frames 60 --png screen.png
 npx {{package}} help                          # every command and option
 ```
 
+Start from an example:
+
+```sh
+npx {{package}} presets nes                 # list the NES examples
+npx {{package}} new nes/aputest.c mygame    # copy it, and the files only it uses, into mygame/
+```
+
+`new --libs` also copies the library files that other examples share (a build
+finds them in the toolchains otherwise), and `--force` overwrites.
+
 Add `--json` for machine-readable output. Requires Node 20 or later.
 
 ## Toolchains

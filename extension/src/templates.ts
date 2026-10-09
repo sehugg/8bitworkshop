@@ -4,7 +4,8 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { PlatformInfo, PresetIndex, TemplateInfo } from './presettypes';
+import type { PlatformInfo, PresetIndex, TemplateInfo } from '../../src/tools/presettypes';
+import { templateFiles } from '../../src/tools/presets';
 import { Book, bookFor } from '../../src/common/books';
 
 export const PRESET_SCHEME = '8bws-preset';
@@ -188,8 +189,7 @@ export class Templates {
    * file's URI, or undefined if the user cancelled.
    */
   async copy(platform: PlatformInfo, t: TemplateInfo, dir: vscode.Uri, withLibraries: boolean): Promise<vscode.Uri | undefined> {
-    var files: [string, string][] = [[t.id, t.saveAs || t.id]];
-    for (var f of t.files.concat(withLibraries ? t.shared : [])) files.push([f, f]);
+    var files = templateFiles(t, withLibraries);
     await vscode.workspace.fs.createDirectory(dir);
     var overwriteAll = false;
     for (var [from, to] of files) {
