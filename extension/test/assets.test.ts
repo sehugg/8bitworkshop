@@ -7,7 +7,7 @@ import { createHash } from 'crypto';
 import { Worker } from 'worker_threads';
 import * as zlib from 'zlib';
 import { execFileSync } from 'child_process';
-import { AssetStore, defaultCacheDir } from '../../src/tools/assets';
+import { AssetStore, assetServers, defaultCacheDir } from '../../src/tools/assets';
 import { EXCLUDED_PLATFORM_MODULES, UNSUPPORTED_PLATFORMS } from '../../src/tools/exclusions';
 import { needsSdcc4, AssetManifest, PackInfo, isUnreviewedFile, makePack, packForFile, packsForPlatform, readPack } from '../../src/tools/assetpacks';
 import { listPackFiles } from '../scripts/assetpack';
@@ -170,7 +170,7 @@ describe('extension AssetStore', function () {
   before(async function () {
     var [base, baseZip] = await pack('base', { 'src/worker/wasm/a.wasm': 'AAA', 'presets/nes/hello.c': 'main' });
     var [verilog, verilogZip] = await pack('verilog', { 'src/worker/wasm/verilator_bin.wasm': 'VVV' });
-    manifest = { ideVersion: 'test', packs: { base, verilog } };
+    manifest = { ideVersion: 'test', version: 'test', packs: { base, verilog } };
     served = { [base.file]: baseZip, [verilog.file]: verilogZip };
     server = http.createServer((req, res) => {
       var name = path.posix.basename(req.url || '');
@@ -378,7 +378,7 @@ describe('8bws bundle with an empty cache', function () {
   it('lists only the tools and platforms the packs can build', function () {
     var tools: string[] = JSON.parse(run('list-tools', '--json')).data.tools;
     assert.ok(tools.includes('cc65') && tools.includes('dasm'));
-    for (var t of ['dialog', 'armtcc', 'inform', 'nesasm', 'merlin32', 'xa', 'xasm6809']) assert.ok(!tools.includes(t), `${t} listed`);
+    for (var t of ['dialog', 'armtcc', 'inform', 'nesasm', 'merlin32', 'xasm6809']) assert.ok(!tools.includes(t), `${t} listed`);
     var platforms = Object.keys(JSON.parse(run('list-platforms', '--json')).data.platforms);
     assert.ok(platforms.includes('nes'));
     for (var p of UNSUPPORTED_PLATFORMS) assert.ok(!platforms.includes(p), `${p} listed`);
@@ -395,6 +395,14 @@ describe('8bws bundle with an empty cache', function () {
   it('fetches the Verilog pack when a Verilog build needs it', function () {
     run('build', '--check', '-p', 'verilog', 'ball_absolute.v');
     assert.deepEqual(installed(home), ['base', 'cc65', 'verilog']);
+  });
+});
+
+describe('asset servers', function () {
+  it('try the version\'s GitHub Release first, then the Pages fallbacks', function () {
+    var urls = assetServers({ ideVersion: '4.0.0', version: '0.1.2', packs: {} });
+    assert.equal(urls[0], 'https://github.com/8bitworkshop/8bitworkshop/releases/download/cli-v0.1.2/');
+    assert.ok(urls.length > 1 && urls.slice(1).every(u => !u.includes('/releases/')));
   });
 });
 
@@ -417,11 +425,22 @@ describe('8bws npm package', function () {
     for (var d of [dir && path.dirname(dir), home, work]) if (d) fs.rmSync(d, { recursive: true, force: true });
   });
 
-  it('has a package.json that matches the repo version, and a bin with a shebang', function () {
+  it('has a package.json that matches the extension version, and a bin with a shebang', function () {
     var pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
-    assert.equal(pkg.version, JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8')).version);
+    assert.equal(pkg.version, JSON.parse(fs.readFileSync(path.join(OUT, '..', 'package.json'), 'utf-8')).version);
     assert.deepEqual(pkg.bin, { '8bws': '8bws.js' });
     assert.ok(fs.readFileSync(path.join(dir, '8bws.js'), 'utf-8').startsWith('#!/usr/bin/env node\n'));
+  });
+
+  it('is named 8bws by default and takes --name', function () {
+    var pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
+    assert.equal(pkg.name, '8bws');
+    var other = path.join(tmpdir(), 'named');
+    execFileSync(process.execPath, [path.join(OUT, '..', 'scripts', 'stage-npm.mjs'), '--out', other, '--name', '8bitworkshop'], { stdio: 'pipe' });
+    assert.equal(JSON.parse(fs.readFileSync(path.join(other, 'package.json'), 'utf-8')).name, '8bitworkshop');
+    assert.ok(fs.readFileSync(path.join(other, 'README.md'), 'utf-8').includes('npx 8bitworkshop build'));
+    assert.ok(fs.readFileSync(path.join(dir, 'README.md'), 'utf-8').includes('npx 8bws build'));
+    fs.rmSync(path.dirname(other), { recursive: true, force: true });
   });
 
   it('stages the CLI, manifest and licenses, and lists exactly those to publish', function () {

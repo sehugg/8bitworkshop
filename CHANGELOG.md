@@ -20,6 +20,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 ### `8bws` CLI
 
 - New `8bws` command-line tool (`npm run cli`) to build and run programs headlessly: `build`, `run`, `verify-replay`, `profile`, `detect`, `list-platforms`, `list-tools`; scripted emulator control; `--png`, `--json`, `--symbols`, `--memdump`, `--info`; platform and main file detected from a project directory.
+- `8bws` is packaged for npm (`npm run npm-package` in `extension/`; named `8bws` until `8bitworkshop` is available). It downloads toolchain packs on first use, from the version's GitHub Release first; pushing a `cli-v<version>` tag publishes it; its version follows the extension's (`.github/workflows/release-cli.yml`).
 - `8bws run --frames-dir <dir>` records an animation for ffmpeg, writing every frame as `DIR/frame_NNNNN.png` (the run script adds `capture N DIR` and `png FILE`); `--fps` sets the nominal frame rate and the result includes the matching `ffmpeg` command.
 - `8bws run` script `paddle X Y [BUTTONS]` moves the paddle on platforms and Verilog designs that have one.
 - `8bws run` script `vcd FILE [MAXMB]` / `vcd off` records a Verilog design's signal changes to a VCD file as it runs, streamed so the recording's length isn't limited by memory (a `.gz` name compresses it; about 3 MB per frame of a design with video, 4x less gzipped), stopping at 1 GB unless told otherwise.

@@ -57,7 +57,8 @@ function expandLink(root: string, rel: string, tracked: string[]): string[] {
 async function main() {
   var lists = listPackFiles(rootDir);
   var ideVersion = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf-8')).version;
-  var manifest: AssetManifest = { ideVersion, packs: {} };
+  var version = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf-8')).version;
+  var manifest: AssetManifest = { ideVersion, version, packs: {} };
   fs.mkdirSync(outDir, { recursive: true });
   // compress the packs in parallel (zlib runs on the thread pool)
   await Promise.all(PACKS.map(async pack => {

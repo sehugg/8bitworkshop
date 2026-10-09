@@ -6,10 +6,10 @@ many more, with the same compilers, assemblers and emulators as
 [8bitworkshop.com](https://8bitworkshop.com).
 
 ```sh
-npx 8bitworkshop build --check hello.c        # compile only
-npx 8bitworkshop build hello.c -o hello.nes   # platform is detected
-npx 8bitworkshop run hello.c --frames 60 --png screen.png
-npx 8bitworkshop help                          # every command and option
+npx {{package}} build --check hello.c        # compile only
+npx {{package}} build hello.c -o hello.nes   # platform is detected
+npx {{package}} run hello.c --frames 60 --png screen.png
+npx {{package}} help                          # every command and option
 ```
 
 Add `--json` for machine-readable output. Requires Node 20 or later.

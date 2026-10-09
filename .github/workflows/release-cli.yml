@@ -1,0 +1,109 @@
+# Publishes the 8bws command line to npm. Push a tag cli-v<version> (the
+# extension/package.json version, which the npm package shares) to run it:
+#
+#   1. build the packs and stage the npm package
+#   2. upload the packs and assets.json to the GitHub Release for the tag
+#   3. install the packed tarball in an empty dir and build from the Release
+#   4. npm publish --provenance
+#
+# Upload comes before publish, or a published version would point at 404s.
+# The packs are built once per tag (their hashes change with every build).
+# TODO: pin softprops/action-gh-release and download-artifact to commit SHAs
+# like node.js.yml does.
+# Needs the `npm` environment with secret NPM_TOKEN, and its required reviewers.
+name: Release 8bws CLI
+
+on:
+  push:
+    tags: ['cli-v*']
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: 24.x
+        cache: 'npm'
+    - name: Check the tag matches package.json
+      id: version
+      run: |
+        version=$(node -p 'require("./extension/package.json").version')
+        if [ "refs/tags/cli-v$version" != "$GITHUB_REF" ]; then
+          echo "tag $GITHUB_REF does not match extension/package.json version $version" >&2
+          exit 1
+        fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+    - run: git submodule init
+    - run: git submodule update
+    - run: npm ci --no-audit --legacy-peer-deps
+    - run: npm run build --if-present
+    - run: npm ci --no-audit --legacy-peer-deps --prefix extension
+    - run: npm run typecheck --prefix extension
+    - run: npm test --prefix extension
+    # quality 9 packs; 'npm-package' also builds out/8bws.js and out/assets.json
+    - run: npm run npm-package --prefix extension
+    - name: Pack the tarball
+      run: npm pack --pack-destination "$RUNNER_TEMP/npm" ./extension/out/npm
+    - name: Upload packs to the GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          extension/out/assets/*.tar.br
+          extension/out/assets.json
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: npm-package
+        path: ${{ runner.temp }}/npm/*.tgz
+        if-no-files-found: error
+
+  # Install the tarball as a user would, with only the Release to fetch packs from.
+  smoke-test:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: 20.x
+    - uses: actions/download-artifact@v4
+      with:
+        name: npm-package
+        path: pkg
+    - name: Build and run from the Release
+      run: |
+        mkdir smoke && cd smoke
+        npm init -y >/dev/null
+        npm install ../pkg/*.tgz
+        cat > hello.c <<'EOC'
+        #include <stdint.h>
+        void main(void) { while (1) ; }
+        EOC
+        npx 8bws build --check -p nes hello.c
+        npx 8bws run -p nes hello.c --frames 20
+      env:
+        XDG_CACHE_HOME: ${{ runner.temp }}/cache
+
+  publish:
+    needs: [package, smoke-test]
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write   # provenance
+    steps:
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: 24.x
+        registry-url: https://registry.npmjs.org
+    - uses: actions/download-artifact@v4
+      with:
+        name: npm-package
+        path: pkg
+    - run: npm publish pkg/*.tgz --access public --provenance
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

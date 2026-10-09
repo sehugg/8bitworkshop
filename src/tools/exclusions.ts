@@ -12,8 +12,8 @@
 // ---- 1. PACKS ----
 
 /**
- * Tracked files the extension never loads. res/: Altirra debug listings, and
- * the x86 BIOSes (x86 isn't offered in the extension). Everything else under
+ * Tracked files the extension never loads. res/: Altirra debug listings, the
+ * x86 BIOSes (x86 isn't offered in the extension), CPC and VIC-20 (not offered). Everything else under
  * res/ (kernels, BIOSes, wasm cores) goes in the base pack. src/worker/: the
  * Dialog, Inform 6, armips, YASM, arm-tcc and smlrc toolchains, whose
  * platforms (Z-machine, MIPS, x86, ARM) the extension doesn't offer.
@@ -22,9 +22,12 @@ export const ASSET_EXCLUDE = new RegExp('^(' + [
   'res/atari8/altirra/.*\\.(lab|lst)',
   'res/x86/.*',
   'res/cpc/.*',
+  'res/vic20/.*',
+  'presets/vic20/.*',
   'src/worker/wasm/(dialogc|armips|inform|yasm|arm-tcc|smlrc)\\.(js|wasm)',
   'src/worker/lib/arm32/.*',
   'src/worker/lib/cpc/.*',
+  'src/worker/fs/cc65-fs-vic20\\.zip',
   'src/worker/fs/(dialog-fs\\.zip|arm32-fs\\.zip|fsinform\\.|fssmlrc\\.)[^/]*',
 ].join('|') + ')$');
 
@@ -68,11 +71,12 @@ export const EXCLUDED_PLATFORM_MODULES = ['vectrex'];
 
 /**
  * Platforms the packaged CLI can't build or run: x86 and ARM have no
- * toolchain in the packs, and CPC has no library or core (see ASSET_EXCLUDE);
+ * toolchain in the packs, CPC has no library or core, and VIC-20 has no BIOS or
+ * core (the open-roms BIOS isn't tracked; see ASSET_EXCLUDE);
  * the modules in EXCLUDED_PLATFORM_MODULES have no emulator. The CLI reports them as
  * unavailable instead of failing partway.
  */
-export const UNSUPPORTED_PLATFORMS = ['x86', 'arm32', 'cpc', ...EXCLUDED_PLATFORM_MODULES];
+export const UNSUPPORTED_PLATFORMS = ['x86', 'arm32', 'cpc', 'vic20', ...EXCLUDED_PLATFORM_MODULES];
 
 // ---- 4. EXTENSION_UI ----
 

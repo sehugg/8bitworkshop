@@ -14,6 +14,21 @@ import { AssetManifest, PackInfo, readPack } from './assetpacks';
 export const ASSET_URLS = ['https://8bitworkshop.github.io/8bitworkshop/vscode/', 'https://8bitworkshop.com/vscode/'];
 
 /**
+ * The GitHub Release that holds the packs for a package `version` (the
+ * extension's, which the npm package shares; tag cli-v<version>).
+ * Releases are permanent, so a pinned npm version keeps working after the
+ * Pages deploy replaces its files.
+ */
+export function releaseAssetUrl(version: string): string {
+  return `https://github.com/8bitworkshop/8bitworkshop/releases/download/cli-v${version}/`;
+}
+
+/** Asset servers for a manifest: its Release first, then the Pages fallbacks. */
+export function assetServers(manifest: AssetManifest): string[] {
+  return [releaseAssetUrl(manifest.version), ...ASSET_URLS];
+}
+
+/**
  * Where the 8bws command line keeps unpacked toolchains when
  * $EIGHTBITWORKSHOP_TOOLCHAINS isn't set: the user's cache directory.
  */

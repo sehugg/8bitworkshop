@@ -23,7 +23,7 @@ import { Detection, classifyFinding, isBuildableSource } from '../../src/common/
 import { buildProducts } from '../../src/common/workertypes';
 import { TOOL_META } from '../../src/common/toolmeta';
 import { getToolForPlatform } from '../../src/common/toolselect';
-import { ASSET_URLS, AssetStore } from '../../src/tools/assets';
+import { assetServers, AssetStore } from '../../src/tools/assets';
 import { projectReadme, writeLauncher } from './terminalcli';
 import type { PlatformInfo } from './presettypes';
 import { registerTools } from './lmtools';
@@ -247,7 +247,7 @@ function getAssets(): AssetStore {
     // 8bitworkshop servers (for packs not bundled).
     var urls: string[] = [];
     if (Object.keys(manifest.packs).some(p => hasBundledPack(manifest, p))) urls.push(bundledAssetsDir());
-    urls.push(...ASSET_URLS);
+    urls.push(...assetServers(manifest));
     assets = new AssetStore(toolchainCacheDir(), manifest,
       urls, msg => output.appendLine(msg));
   }

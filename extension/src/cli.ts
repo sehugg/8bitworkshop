@@ -7,7 +7,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { ASSET_URLS, AssetStore, defaultCacheDir } from '../../src/tools/assets';
+import { assetServers, AssetStore, defaultCacheDir } from '../../src/tools/assets';
 import { AssetManifest, isPackable, packsForPlatform } from '../../src/tools/assetpacks';
 import { UNREVIEWED_TOOLS, UNSUPPORTED_PLATFORMS } from '../../src/tools/exclusions';
 import { setToolchainHost } from '../../src/tools/toolroot';
@@ -16,7 +16,7 @@ import { getRootBasePlatform } from '../../src/common/util';
 /** The asset store: the packs next to this file (the extension), then the servers. */
 function openStore(): AssetStore {
   var manifest: AssetManifest = JSON.parse(fs.readFileSync(path.join(__dirname, 'assets.json'), 'utf-8'));
-  var urls = ASSET_URLS.slice();
+  var urls = assetServers(manifest);
   var bundled = path.join(__dirname, 'assets');
   if (fs.existsSync(bundled)) urls.unshift(bundled);
   // a mirror, or a directory of packs for offline use

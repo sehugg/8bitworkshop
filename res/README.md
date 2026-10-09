@@ -20,8 +20,8 @@ res/common/                  files shared by platforms
 | `common/` | `src/platform/basic.ts` |
 
 The browser IDE serves this directory as static files; the VS Code extension
-ships it in the base asset pack. Everything except the Altirra debug listings
-and the x86 images is included (see `extension/src/assetpacks.ts`).
+ships it in the base asset pack. Everything except the Altirra debug listings,
+the x86 images and the CPC and VIC-20 files is included (see `src/tools/exclusions.ts`).
 
 ## Provenance
 
