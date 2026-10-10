@@ -1,6 +1,6 @@
 import DOMPurify = require("dompurify");
 import { ProjectView, newDiv } from "./baseviews";
-import { setDocsProvider } from "../search/docssource";
+import { firstSentence, htmlToText, setDocsProvider } from "../search/docssource";
 
 // Help docs are Markdown files under src/docs. The esbuild plugin in
 // build/md-loader.mjs renders each import to an HTML string at build time;
@@ -108,6 +108,18 @@ const VIEW_HELP: { [viewId: string]: string } = {
 export function helpTopicForView(viewId: string, isEditor: boolean): string {
   if (isEditor) return "editor";
   return (viewId && VIEW_HELP[viewId]) || "index";
+}
+
+// One-line, docs-derived description for a tool window, used as the sidebar
+// link's hover tooltip. Returns undefined for anything that isn't a tool
+// window (source files, listings, headers) so those stay tooltip-free.
+export function helpDescriptionForView(viewId: string): string | undefined {
+  const topic = viewId && VIEW_HELP[viewId] && HELP_BY_ID[VIEW_HELP[viewId]];
+  if (!topic) return undefined;
+  // Drop the page's own <h1> heading; the sidebar already shows the title, so
+  // the tooltip should start at the intro prose that follows it.
+  const body = topic.html.replace(/^\s*<h1\b[^>]*>[\s\S]*?<\/h1>/i, " ");
+  return firstSentence(htmlToText(body));
 }
 
 // Turn relative Markdown links ("foo.md") into internal help routes

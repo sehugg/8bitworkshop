@@ -74,6 +74,7 @@ const BOOLEAN_FLAGS = {
     build: ['check', 'symbols', 'save', 'no-warnings'],
     run: ['info', 'no-warnings'],
     'verify-replay': ['verbose'],
+    new: ['libs', 'force'],
 };
 const ALIASES = {
     compile: 'build',
@@ -522,6 +523,52 @@ async function doDetect(positional) {
     (0, cliformat_1.output)({ success: true, command: 'detect', data: { input, clear: isClearWinner(detections), detections: detections.slice(0, 8) } });
 }
 ////////////////////////////////////////////////////////////////////////
+// presets
+async function openPresetIndex() {
+    const { findPresetIndex, readPresetIndex } = await Promise.resolve().then(() => __importStar(require('./presets')));
+    const file = findPresetIndex((0, toolroot_1.toolRoot)(), __dirname);
+    if (!file)
+        throw new Error('No examples index (presets.json). In a checkout, run `npm run build` in extension/.');
+    return readPresetIndex(file, (tool) => { var _a; return (0, toolroot_1.toolchainProvidesTool)(tool, (_a = toolmeta_1.TOOL_META[tool]) === null || _a === void 0 ? void 0 : _a.wasmModule); });
+}
+/** List the platforms with examples, or the examples for one platform. */
+async function doPresets(positional) {
+    const index = await openPresetIndex();
+    if (!positional[0]) {
+        const platforms = index.platforms.map((p) => ({ id: p.id, name: p.name, family: p.family, count: p.templates.length }));
+        (0, cliformat_1.output)({ success: true, command: 'presets', data: { platforms } });
+        return;
+    }
+    const platform = index.platforms.find((p) => p.id === positional[0].toLowerCase());
+    if (!platform)
+        (0, cliformat_1.fail)('presets', `No platform '${positional[0]}'. Run 8bws presets for the list.`);
+    const templates = platform.templates.map((t) => ({ id: t.id, name: t.name, category: t.category, tool: t.tool,
+        saveAs: t.saveAs, files: t.files, shared: t.shared }));
+    (0, cliformat_1.output)({ success: true, command: 'presets', data: { platform: platform.id, name: platform.name, templates } });
+}
+/** Copy an example, with the files it needs, into a directory to start from. */
+async function doNew(args, positional) {
+    if (!positional[0])
+        (0, cliformat_1.fail)('new', 'Usage: 8bws new <platform>/<preset> [dir] [--libs] [--force]. Run 8bws presets to list them.');
+    const { copyTemplate, findTemplate } = await Promise.resolve().then(() => __importStar(require('./presets')));
+    const { platform, template } = findTemplate(await openPresetIndex(), positional[0]);
+    const presets = presetsDir();
+    if (!presets)
+        (0, cliformat_1.fail)('new', 'No presets directory in the toolchains.');
+    const stem = path.basename(template.id).replace(/\.[^.]*$/, '');
+    const dir = positional[1] || (stem === 'skeleton' ? `${platform.id}-project` : stem);
+    const files = copyTemplate(presets, platform, template, dir, { libraries: !!args['libs'], force: !!args['force'] });
+    (0, cliformat_1.output)({
+        success: true, command: 'new',
+        data: {
+            preset: `${platform.id}/${template.id}`, platform: platform.id, dir, main: files[0], files,
+            // libraries other examples use too: a build finds them in the toolchains unless copied
+            libraries: args['libs'] ? [] : template.shared,
+            build: `cd ${dir} && 8bws build -p ${platform.id} ${files[0]}`,
+        },
+    });
+}
+////////////////////////////////////////////////////////////////////////
 // determinism
 /**
  * Serve the Debug Adapter Protocol on stdin/stdout. A launch request names
@@ -610,6 +657,8 @@ function usage(error) {
             commands: {
                 'build': 'compile a source file or folder to a ROM',
                 'run': 'run a ROM -- or a source file or folder, built first',
+                'presets': 'list the examples: all platforms, or those of one (8bws presets nes)',
+                'new': 'copy an example and the files it needs into a directory to start from (8bws new nes/hello.c [dir])',
                 'detect': 'guess the platform and main file of a source file or directory',
                 'dap': 'serve the Debug Adapter Protocol on stdin/stdout, for editors',
                 'verify-replay': 'record a run with random key input, replay it, and check every frame matches',
@@ -646,6 +695,10 @@ function usage(error) {
                     '--info': 'dump debug info and disassembly when done',
                     '--no-warnings': 'don\'t print compiler warnings',
                     '--memdump <a,b>': 'hexdump a hex address range',
+                },
+                'new options': {
+                    '--libs': 'also copy the library files other examples share (default: builds find them in the toolchains)',
+                    '--force': 'overwrite files already in the directory',
                 },
                 'verify-replay options': {
                     '-p, --platform <id>': 'platform emulator',
@@ -686,6 +739,12 @@ async function main() {
                 break;
             case 'detect':
                 await doDetect(positional);
+                break;
+            case 'presets':
+                await doPresets(positional);
+                break;
+            case 'new':
+                await doNew(args, positional);
                 break;
             case 'verify-replay':
                 await doVerifyReplay(args, positional);

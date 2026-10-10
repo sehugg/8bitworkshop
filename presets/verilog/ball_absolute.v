@@ -6,7 +6,7 @@ A bouncing ball using absolute coordinates.
 
 Note: This module uses different clock domains
 and thus may be unstable on a FPGA.
-See: https://github.com/sehugg/8bitworkshop/issues/23
+See: https://github.com/8bitworkshop/8bitworkshop/issues/23
 */
 
 module ball_absolute_top(clk, reset, hsync, vsync, rgb);
@@ -18,16 +18,16 @@ module ball_absolute_top(clk, reset, hsync, vsync, rgb);
   wire display_on;
   wire [8:0] hpos;
   wire [8:0] vpos;
-  
+
   reg [8:0] ball_hpos;	// ball current X position
   reg [8:0] ball_vpos;	// ball current Y position
-  
+
   reg [8:0] ball_horiz_move;	// ball current X velocity
   reg [8:0] ball_vert_move;	// ball current Y velocity
-  
+
   localparam ball_horiz_initial = 128;	// ball initial X position
   localparam ball_vert_initial = 128;	// ball initial Y position
-  
+
   localparam BALL_SIZE = 4;		// ball size (in pixels)
 
   // video sync generator
@@ -40,7 +40,7 @@ module ball_absolute_top(clk, reset, hsync, vsync, rgb);
     .hpos(hpos),
     .vpos(vpos)
   );
-  
+
   // update horizontal timer
   always @(posedge vsync or posedge reset)
   begin
@@ -66,7 +66,7 @@ module ball_absolute_top(clk, reset, hsync, vsync, rgb);
   begin
     ball_horiz_move <= reset ? -2 : -ball_horiz_move;
   end
-  
+
   // offset of ball position from video beam
   wire [8:0] ball_hdiff = hpos - ball_hpos;
   wire [8:0] ball_vdiff = vpos - ball_vpos;

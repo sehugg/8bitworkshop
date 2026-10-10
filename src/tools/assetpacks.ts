@@ -115,6 +115,8 @@ export interface PackInfo {
 export interface AssetManifest {
   /** the IDE version the assets come from (the repo's package.json) */
   ideVersion: string;
+  /** the extension/npm package version that published these packs; names the GitHub Release */
+  version: string;
   packs: { [pack: string]: PackInfo };
 }
 

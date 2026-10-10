@@ -16,6 +16,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DocsSource = void 0;
 exports.setDocsProvider = setDocsProvider;
 exports.htmlToText = htmlToText;
+exports.firstSentence = firstSentence;
 exports.extractDocRecords = extractDocRecords;
 const symbolindex_1 = require("./symbolindex");
 let docsProvider = () => [];

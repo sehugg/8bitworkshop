@@ -4,7 +4,7 @@ import { getMousePos } from "../../common/emu";
 import { getVisibleEditorLineHeight } from "../../common/vtextscroller";
 import { VirtualTextLine } from "../../common/vtextscroller";
 import { VirtualTextScroller } from "../../common/vtextscroller";
-import { ProbeFlags, ProbeRecorder } from "../../common/probe";
+import { ProbeFlags, ProbeRecorder, compactProbeLines } from "../../common/probe";
 import { hex, lpad, rpad, getFilenameForPath } from "../../common/util";
 import { VirtualList } from "../../common/vlist";
 import { computeMemoryMapLayout, stripeBounds, addressAtOffset, MemMapBlock, MemMapColumn } from "./memmaplayout";
@@ -832,6 +832,7 @@ export class ProbeLogView extends ProbeViewBaseBase {
   maindiv: HTMLElement;
   recreateOnResize = true;
   dumplines;
+  lines;
 
   createDiv(parent: HTMLElement) {
     this.vlist = new VirtualTextScroller(parent);
@@ -841,7 +842,7 @@ export class ProbeLogView extends ProbeViewBaseBase {
   getMemoryLineAt(row: number): VirtualTextLine {
     var s: string = "";
     var c: string = "seg_data";
-    var line = this.dumplines && this.dumplines[row];
+    var line = this.lines && this.lines[row];
     if (line != null) {
       var xtra: string = line.info.join(", ");
       s = "(" + lpad(line.row, 4) + ", " + lpad(line.col, 4) + ")  " + rpad(line.asm || "", 20) + xtra;
@@ -877,6 +878,9 @@ export class ProbeLogView extends ProbeViewBaseBase {
           break;
       }
     });
+    // drop the empty rows between events, so the list has no blank lines
+    this.lines = compactProbeLines(this.dumplines);
+    this.vlist.setRowCount(this.lines.length);
     this.vlist.refresh();
   }
 }

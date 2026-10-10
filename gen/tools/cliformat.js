@@ -105,6 +105,8 @@ const FORMATTERS = {
     'list-tools': formatList('tools', 'Available tools'),
     'list-platforms': formatPlatforms,
     detect: formatDetect,
+    presets: formatPresets,
+    new: formatNew,
 };
 function formatHelp(data) {
     console.log(`\n${exports.c.bold}Usage:${exports.c.reset} 8bws <command> [options] <file>\n`);
@@ -209,6 +211,33 @@ function formatDetect(data) {
     }
     if (!data.clear)
         console.log(`  ${exports.c.yellow}no clear winner; pass --platform${exports.c.reset}`);
+}
+function formatPresets(data) {
+    if (data.platforms) {
+        console.log(`\n${exports.c.bold}Platforms with examples${exports.c.reset} ${exports.c.dim}(${data.platforms.length}; 8bws presets <platform> lists them)${exports.c.reset}\n`);
+        for (const p of data.platforms)
+            console.log(`  ${exports.c.green}${p.id.padEnd(22)}${exports.c.reset}${p.name.padEnd(30)}${exports.c.dim}${p.count}${exports.c.reset}`);
+        console.log();
+        return;
+    }
+    console.log(`\n${exports.c.bold}${data.name}${exports.c.reset} ${exports.c.dim}(8bws new ${data.platform}/<file> [dir])${exports.c.reset}`);
+    let category = '';
+    for (const t of data.templates) {
+        if (t.category !== category)
+            console.log(`\n  ${exports.c.bold}${exports.c.magenta}${category = t.category}${exports.c.reset}`);
+        console.log(`    ${exports.c.green}${t.id.padEnd(26)}${exports.c.reset}${exports.c.dim}${t.name}${exports.c.reset}`);
+    }
+    console.log();
+}
+function formatNew(data) {
+    var _a;
+    field('Preset', data.preset, exports.c.green);
+    field('Directory', data.dir, exports.c.cyan);
+    for (const f of data.files)
+        console.log(`  ${exports.c.dim}●${exports.c.reset} ${f}`);
+    if ((_a = data.libraries) === null || _a === void 0 ? void 0 : _a.length)
+        console.log(`  ${exports.c.dim}shared, not copied (add --libs): ${data.libraries.join(', ')}${exports.c.reset}`);
+    console.log(`\n  ${exports.c.dim}next:${exports.c.reset} ${data.build}`);
 }
 function formatGeneric(data) {
     for (const [key, value] of Object.entries(data)) {

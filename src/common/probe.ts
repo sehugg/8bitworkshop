@@ -22,6 +22,11 @@ export enum ProbeFlags {
   FRAME		  = 0x7f000000,
 }
 
+export function compactProbeLines<T>(byClk: { [clk: number]: T }): T[] {
+  // Integer-like keys enumerate in ascending order, so this is the tick order.
+  return Object.keys(byClk).map((k) => byClk[k]);
+}
+
 class ProbeFrame {
   data : Uint32Array;
   len : number;

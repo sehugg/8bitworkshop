@@ -333,6 +333,11 @@ function refreshWindowList() {
             separate = false;
         }
         let { li, a } = newDropdownListItem(id, name);
+        // Tool windows get a one-line docs-derived tooltip; source files/listings
+        // don't (helpDescriptionForView returns undefined for them).
+        const desc = (0, helpview_1.helpDescriptionForView)(id);
+        if (desc)
+            a.setAttribute("title", desc);
         ul.append(li);
         if (createfn) {
             var onopen = (id, wnd) => {

@@ -870,7 +870,7 @@ class ProbeLogView extends ProbeViewBaseBase {
     getMemoryLineAt(row) {
         var s = "";
         var c = "seg_data";
-        var line = this.dumplines && this.dumplines[row];
+        var line = this.lines && this.lines[row];
         if (line != null) {
             var xtra = line.info.join(", ");
             s = "(" + (0, util_1.lpad)(line.row, 4) + ", " + (0, util_1.lpad)(line.col, 4) + ")  " + (0, util_1.rpad)(line.asm || "", 20) + xtra;
@@ -909,6 +909,9 @@ class ProbeLogView extends ProbeViewBaseBase {
                     break;
             }
         });
+        // drop the empty rows between events, so the list has no blank lines
+        this.lines = (0, probe_1.compactProbeLines)(this.dumplines);
+        this.vlist.setRowCount(this.lines.length);
         this.vlist.refresh();
     }
 }

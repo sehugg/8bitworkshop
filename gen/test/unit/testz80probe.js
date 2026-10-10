@@ -89,6 +89,18 @@ class TestZ80Machine extends devices_1.BasicHeadlessMachine {
         assert_1.default.strictEqual(m.saveState().c.PC, 5);
     });
 });
+(0, mocha_1.describe)('Probe log line compaction', function () {
+    (0, mocha_1.it)('should drop empty clock ticks and keep tick order', function () {
+        const byClk = { 4: 'a', 0: 'b', 7: 'c' };
+        assert_1.default.deepStrictEqual((0, probe_1.compactProbeLines)(byClk), ['b', 'a', 'c']);
+    });
+    (0, mocha_1.it)('should keep each recorded tick exactly once', function () {
+        const byClk = {};
+        for (let i = 0; i < 10; i += 3)
+            byClk[i] = i;
+        assert_1.default.deepStrictEqual((0, probe_1.compactProbeLines)(byClk), [0, 3, 6, 9]);
+    });
+});
 (0, mocha_1.describe)('Pacman probing', function () {
     (0, mocha_1.it)('should not reset and should record data when the probe is toggled', function () {
         const m = new pacman_1.PacmanMachine();

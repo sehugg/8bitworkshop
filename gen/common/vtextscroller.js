@@ -28,6 +28,16 @@ class VirtualTextScroller {
         });
         $(this.maindiv).append(this.memorylist.container);
     }
+    // Change the number of rows (e.g. after the data shrank or grew), keeping
+    // the scrollbar in proportion. Existing visible rows are updated by refresh().
+    setRowCount(n) {
+        if (!this.memorylist || this.memorylist.totalRows === n)
+            return;
+        this.memorylist.totalRows = n;
+        var scroller = this.memorylist.container.firstChild;
+        if (scroller)
+            scroller.style.height = (n * this.memorylist.itemHeight) + 'px';
+    }
     // TODO: refactor with elsewhere
     refresh() {
         if (this.memorylist) {

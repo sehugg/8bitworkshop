@@ -34,7 +34,7 @@ import { AssetEditorView } from "./views/asseteditor";
 import { isMobileDevice } from "./views/baseviews";
 import { AddressHeatMapView, BinaryFileView, BreakpointsView, MemoryMapView, MemoryView, ProbeLogView, ProbeSymbolView, RasterStackMapView, ScanlineIOView, VRAMMemoryView } from "./views/debugviews";
 import { DisassemblerView, HeaderView, ListingView, PC_LINE_LOOKAHEAD, SourceEditor, setUppercaseOnly } from "./views/editors";
-import { HELP_TOPICS, HelpView, helpTopicForView } from "./views/helpview";
+import { HELP_TOPICS, HelpView, helpDescriptionForView, helpTopicForView } from "./views/helpview";
 import { elementHelpTopicForFocus } from "./helptopics";
 import { CallGraphView, DebugBrowserView } from "./views/treeviews";
 import { ProjectWindows } from "./windows";
@@ -330,6 +330,10 @@ function refreshWindowList() {
       separate = false;
     }
     let { li, a } = newDropdownListItem(id, name);
+    // Tool windows get a one-line docs-derived tooltip; source files/listings
+    // don't (helpDescriptionForView returns undefined for them).
+    const desc = helpDescriptionForView(id);
+    if (desc) a.setAttribute("title", desc);
     ul.append(li);
     if (createfn) {
       var onopen = (id, wnd) => {

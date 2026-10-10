@@ -38,6 +38,8 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AssetStore = exports.ASSET_URLS = void 0;
+exports.releaseAssetUrl = releaseAssetUrl;
+exports.assetServers = assetServers;
 exports.defaultCacheDir = defaultCacheDir;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
@@ -47,6 +49,19 @@ const assetpacks_1 = require("./assetpacks");
 /** Reports download progress: bytes so far of `total`. */
 /** The 8bitworkshop asset servers, tried in order. */
 exports.ASSET_URLS = ['https://8bitworkshop.github.io/8bitworkshop/vscode/', 'https://8bitworkshop.com/vscode/'];
+/**
+ * The GitHub Release that holds the packs for a package `version` (the
+ * extension's, which the npm package shares; tag cli-v<version>).
+ * Releases are permanent, so a pinned npm version keeps working after the
+ * Pages deploy replaces its files.
+ */
+function releaseAssetUrl(version) {
+    return `https://github.com/8bitworkshop/8bitworkshop/releases/download/cli-v${version}/`;
+}
+/** Asset servers for a manifest: its Release first, then the Pages fallbacks. */
+function assetServers(manifest) {
+    return [releaseAssetUrl(manifest.version), ...exports.ASSET_URLS];
+}
 /**
  * Where the 8bws command line keeps unpacked toolchains when
  * $EIGHTBITWORKSHOP_TOOLCHAINS isn't set: the user's cache directory.

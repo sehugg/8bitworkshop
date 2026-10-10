@@ -7,6 +7,7 @@ exports.HelpView = exports.HELP_TOPICS = void 0;
 exports.resolveHelpId = resolveHelpId;
 exports.getHelpTopic = getHelpTopic;
 exports.helpTopicForView = helpTopicForView;
+exports.helpDescriptionForView = helpDescriptionForView;
 exports.renderHelpBody = renderHelpBody;
 const DOMPurify = require("dompurify");
 const baseviews_1 = require("./baseviews");
@@ -105,6 +106,18 @@ function helpTopicForView(viewId, isEditor) {
     if (isEditor)
         return "editor";
     return (viewId && VIEW_HELP[viewId]) || "index";
+}
+// One-line, docs-derived description for a tool window, used as the sidebar
+// link's hover tooltip. Returns undefined for anything that isn't a tool
+// window (source files, listings, headers) so those stay tooltip-free.
+function helpDescriptionForView(viewId) {
+    const topic = viewId && VIEW_HELP[viewId] && HELP_BY_ID[VIEW_HELP[viewId]];
+    if (!topic)
+        return undefined;
+    // Drop the page's own <h1> heading; the sidebar already shows the title, so
+    // the tooltip should start at the intro prose that follows it.
+    const body = topic.html.replace(/^\s*<h1\b[^>]*>[\s\S]*?<\/h1>/i, " ");
+    return (0, docssource_1.firstSentence)((0, docssource_1.htmlToText)(body));
 }
 // Turn relative Markdown links ("foo.md") into internal help routes
 // ("#help/foo") so clicks stay in the IDE. Absolute links open in a new tab.

@@ -57,7 +57,7 @@ export function htmlToText(html: string): string {
 }
 
 /** First sentence (or a leading snippet) of some prose. */
-function firstSentence(text: string, max = 180): string | undefined {
+export function firstSentence(text: string, max = 180): string | undefined {
   const t = text.trim();
   if (!t) return undefined;
   const head = t.slice(0, max);

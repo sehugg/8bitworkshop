@@ -131,9 +131,10 @@ export function _publishProjectToGithub(e) {
         }).then((_sess) => {
             sess = _sess;
             setWaitProgress(0.5);
-            //repo_id = qs.repo = sess.repopath;
-            return pushChangesToGithub('initial import from 8bitworkshop.com');
-        }).then(() => {
+            // repo_id isn't bound yet, so pass the new repo's URL explicitly
+            return pushChangesToGithub('initial import from 8bitworkshop.com', sess.url);
+        }).then((pushed) => {
+            if (!pushed) { setWaitDialog(false); return; } // push failed or was cancelled
             importProjectFromGithub(sess.url, false);
         }).catch((e) => {
             setWaitDialog(false);
@@ -202,8 +203,8 @@ function confirmCommit(sess): Promise<GHSession> {
     });
 }
 
-async function pushChangesToGithub(message: string) {
-    var ghurl = getBoundGithubURL();
+async function pushChangesToGithub(message: string, ghurl?: string) {
+    ghurl = ghurl || getBoundGithubURL();
     if (!ghurl) return;
     // build file list for push
     var files = [];

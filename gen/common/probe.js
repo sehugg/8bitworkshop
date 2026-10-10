@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProbeRecorder = exports.ProbeFlags = void 0;
+exports.compactProbeLines = compactProbeLines;
 var ProbeFlags;
 (function (ProbeFlags) {
     ProbeFlags[ProbeFlags["CLOCKS"] = 0] = "CLOCKS";
@@ -22,6 +23,10 @@ var ProbeFlags;
     ProbeFlags[ProbeFlags["SCANLINE"] = 2113929216] = "SCANLINE";
     ProbeFlags[ProbeFlags["FRAME"] = 2130706432] = "FRAME";
 })(ProbeFlags || (exports.ProbeFlags = ProbeFlags = {}));
+function compactProbeLines(byClk) {
+    // Integer-like keys enumerate in ascending order, so this is the tick order.
+    return Object.keys(byClk).map((k) => byClk[k]);
+}
 class ProbeFrame {
 }
 class ProbeRecorder {

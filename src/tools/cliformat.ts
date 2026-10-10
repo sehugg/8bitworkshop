@@ -111,6 +111,8 @@ const FORMATTERS: { [command: string]: (data: any) => void } = {
   'list-tools': formatList('tools', 'Available tools'),
   'list-platforms': formatPlatforms,
   detect: formatDetect,
+  presets: formatPresets,
+  new: formatNew,
 };
 
 function formatHelp(data: any): void {
@@ -210,6 +212,30 @@ function formatDetect(data: any): void {
     }
   }
   if (!data.clear) console.log(`  ${c.yellow}no clear winner; pass --platform${c.reset}`);
+}
+
+function formatPresets(data: any): void {
+  if (data.platforms) {
+    console.log(`\n${c.bold}Platforms with examples${c.reset} ${c.dim}(${data.platforms.length}; 8bws presets <platform> lists them)${c.reset}\n`);
+    for (const p of data.platforms) console.log(`  ${c.green}${p.id.padEnd(22)}${c.reset}${p.name.padEnd(30)}${c.dim}${p.count}${c.reset}`);
+    console.log();
+    return;
+  }
+  console.log(`\n${c.bold}${data.name}${c.reset} ${c.dim}(8bws new ${data.platform}/<file> [dir])${c.reset}`);
+  let category = '';
+  for (const t of data.templates) {
+    if (t.category !== category) console.log(`\n  ${c.bold}${c.magenta}${category = t.category}${c.reset}`);
+    console.log(`    ${c.green}${t.id.padEnd(26)}${c.reset}${c.dim}${t.name}${c.reset}`);
+  }
+  console.log();
+}
+
+function formatNew(data: any): void {
+  field('Preset', data.preset, c.green);
+  field('Directory', data.dir, c.cyan);
+  for (const f of data.files) console.log(`  ${c.dim}●${c.reset} ${f}`);
+  if (data.libraries?.length) console.log(`  ${c.dim}shared, not copied (add --libs): ${data.libraries.join(', ')}${c.reset}`);
+  console.log(`\n  ${c.dim}next:${c.reset} ${data.build}`);
 }
 
 function formatGeneric(data: any): void {
