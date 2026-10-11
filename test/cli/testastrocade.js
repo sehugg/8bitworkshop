@@ -119,4 +119,76 @@ describe('Bally Astrocade', function () {
       assert.equal(8, mach.advanceCPU(), 'arcade=' + arcade); // LD (HL),A = 7 + 1 wait
     }
   });
+  // the arcade ROM image is flat: $0000-$3FFF and $8000-$BFFF map straight through
+  it('should map a flat arcade ROM image', function () {
+    var mach = new astrocade.BallyAstrocade(true);
+    var rom = new Uint8Array(0xc000);
+    rom[0x0123] = 0x55;
+    rom[0x8123] = 0x77;
+    rom[0xbfff] = 0x99;
+    mach.loadROM(rom);
+    assert.equal(0x55, mach.m.membus.read(0x0123));
+    assert.equal(0x77, mach.m.membus.read(0x8123));
+    assert.equal(0x99, mach.m.membus.read(0xbfff));
+  });
+
+  // port $78+n: 0/1 source, 2 mode, 3 skip, 4 dest high, 5 width, 6 height (starts the blit)
+  it('should run pattern board blits through the memory bus', function () {
+    var mach = new astrocade.BallyAstrocade(true);
+    mach.loadROM(new Uint8Array(0xc000));
+    var out = (port, v) => mach.m.iobus.write(port, v);
+    mach.write(0xd100, 0xaa); // static RAM, must survive
+    for (var i = 0; i < 8; i++) mach.write(0x4000 + i, 0xff);
+    mach.write(0xd12b, 0x00); // source byte
+    out(0x7a, 0x20);          // mode: dest++, source fixed
+    out(0x78, 0x2b); out(0x79, 0xd1);
+    out(0x7b, 0x00);         // skip
+    out(0x7c, 0x40);         // dest high
+    out(0x7b, 0x01);
+    out(0x7d, 0x03);         // 4 bytes wide
+    out(0x7e, 0x00);         // 1 row
+    for (var i = 0; i < 4; i++) assert.equal(0, mach.read(0x4000 + i), 'cleared ' + i);
+    assert.equal(0xff, mach.read(0x4004));
+    // height is rows - 1: two rows of two bytes, 'skip' bytes apart
+    mach.write(0x4101, 0xff); mach.write(0x4102, 0xff); mach.write(0x4181, 0xff); mach.write(0x4200, 0xff);
+    out(0x7a, 0x20);
+    out(0x7b, 0x00); out(0x7c, 0x41); // dest $4100
+    out(0x7b, 0x80);                  // skip
+    out(0x7d, 0x01);
+    out(0x7e, 0x01);
+    assert.equal(0, mach.read(0x4100));
+    assert.equal(0, mach.read(0x4101));
+    assert.equal(0xff, mach.read(0x4102));
+    assert.equal(0, mach.read(0x4180));
+    assert.equal(0, mach.read(0x4181));
+    assert.equal(0xff, mach.read(0x4200), 'no third row');
+    assert.equal(0xaa, mach.read(0xd100));
+  });
+
+  // arcade horizontal drive is wired to the lightpen interrupt (INMOD bit 1 or 4)
+  it('should fire the arcade lightpen interrupt every line when enabled', function () {
+    for (var arcade of [false, true]) {
+      var mach = new astrocade.BallyAstrocade(arcade);
+      mach.connectVideo(new Uint32Array(320 * 262));
+      var n = 0;
+      var cpu = mach.cpu;
+      var orig = cpu.interrupt;
+      cpu.interrupt = function (data) { n++; mach.m.lastvec = data; };
+      mach.m.iobus.write(0x0d, 0xc4);
+      mach.m.iobus.write(0x0e, 0x18);
+      mach.m.iobus.write(0x0f, 0xff); // line interrupt never matches a visible line
+      for (var sl = 0; sl < 10; sl++) mach.m.drawScanline(sl);
+      assert.equal(arcade ? 10 : 0, n, 'arcade=' + arcade);
+      if (arcade) assert.equal(0xc0, mach.m.lastvec);
+      cpu.interrupt = orig;
+    }
+  });
+
+  // arcade screens are upright unless a vertical-monitor game asks (?options=rotate%3D-90)
+  it('should only rotate the arcade screen when asked', function () {
+    var mach = new astrocade.BallyAstrocade(true);
+    assert.equal(0, mach.getVideoParams().rotate);
+    mach.rotate = -90;
+    assert.equal(-90, mach.getVideoParams().rotate);
+  });
 });

@@ -33,7 +33,8 @@ void render_sprite(const byte* src, byte x, byte y, byte op) {
   byte w = *src++;	// get width from 1st byte of sprite
   byte h = *src++;	// get height from 2nd byte of sprite
   byte* dest = &vmagic[y][x>>2];// destination address
-  hw_magic = M_SHIFT(x) | op;	// set magic register
+  // M_ERASE is not a real hardware mode (it's the rotate bit); erase by writing zeros
+  hw_magic = (op == M_ERASE) ? M_MOVE : M_SHIFT(x) | op;	// set magic register
   // y clipping off bottom
   if (y+h >= VHEIGHT) {
     if (y >= VHEIGHT) return;
