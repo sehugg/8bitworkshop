@@ -20,7 +20,7 @@ export function extractSymbols(
     const lineNo = i + 1;
 
     // Function/method definitions
-    const funcMatch = line.match(/(?:function|func|def|proc)\s+(\w+)/i);
+    const funcMatch = line.match(/(?:function|func|fn|def|proc)\s+(\w+)/i);
     if (funcMatch) {
       records.push({
         id: `${filename}:${lineNo}:${funcMatch[1]}`,

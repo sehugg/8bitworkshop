@@ -21,6 +21,7 @@ export function getToolForFilename_6502(fn: string): string {
   if (fn.endsWith(".bb")) return "bataribasic";
   if (fn.endsWith(".acme")) return "acme";
   if (fn.endsWith(".xa")) return "xa";
+  if (fn.endsWith(".rs")) return "urust";
   if (fn.endsWith(".wiz")) return "wiz";
   if (fn.endsWith(".ecs")) return "ecs";
   if (fn.endsWith(".cpp")) return "oscar64";
@@ -58,6 +59,7 @@ export function getToolForFilename_arm32(fn: string): string {
 
 ////// per platform
 
+// TODO: merge with getToolForFilename_6502?
 export function getToolForFilename_vcs(fn: string): string {
   if (fn.endsWith(".cc2600")) return "cc2600";
   if (fn.endsWith("-llvm.c")) return "remote:llvm-mos";
@@ -69,6 +71,7 @@ export function getToolForFilename_vcs(fn: string): string {
   if (fn.endsWith(".c")) return "cc65";
   //if (fn.endsWith(".h")) return "cc65";
   if (fn.endsWith(".ecs")) return "ecs";
+  if (fn.endsWith(".rs")) return "urust";
   return "dasm";
 }
 

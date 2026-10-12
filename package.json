@@ -15,6 +15,7 @@
   "dependencies": {
     "@codemirror/commands": "^6.10.2",
     "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/lang-rust": "^6.0.2",
     "@codemirror/view": "^6.39.14",
     "@fazelstudio/codemirror-lang-c": "^0.1.0",
     "@leeoniya/ufuzzy": "^1.0.19",
