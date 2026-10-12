@@ -14,6 +14,7 @@ import { basic, basicStreamParser } from "./lang-basic";
 import { fastBasic, fastBasicStreamParser } from "./lang-fastbasic";
 import { batariBasic, batariBasicStreamParser } from "./lang-bataribasic";
 import { markdown } from "@codemirror/lang-markdown";
+import { rust } from "@codemirror/lang-rust";
 
 export type SymbolKind =
   | 'func' | 'macro' | 'type' | 'struct' | 'enum' | 'var'
@@ -47,6 +48,10 @@ export interface ParserRegistryEntry {
 export const parserRegistry: Record<string, ParserRegistryEntry> = {
   'text/x-csrc': {
     language: lang_c.c(),
+    parser: null // Lezer-based, extracted via lrextract.ts
+  },
+  rust: {
+    language: rust(),
     parser: null // Lezer-based, extracted via lrextract.ts
   },
   '6502': {

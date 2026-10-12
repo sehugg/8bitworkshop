@@ -17,6 +17,7 @@ import * as cc2600 from './tools/cc2600'
 import * as bataribasic from './tools/bataribasic'
 import * as oscar64 from './tools/oscar64'
 import * as xa from './tools/xa'
+import * as urust from './tools/urust'
 import * as dialog from './tools/dialog'
 
 
@@ -63,5 +64,6 @@ export const TOOLS = {
   'armtcclink': arm.linkARMTCC,
   'oscar64': oscar64.compileOscar64,
   'xa': xa.assembleXA,
+  'urust': urust.compileUrust,
   'dialog': dialog.compileDialog,
 }

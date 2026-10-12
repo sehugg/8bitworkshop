@@ -333,6 +333,49 @@ describe('Worker', function() {
     assert.ok(result.segments && result.segments.length > 0, 'no segments');
   });
 
+  async function buildOne(msg) {
+    return new Promise(function(resolve, reject) {
+      global.postMessage = function(m) { if (!m.unchanged) resolve(m); };
+      (async function() {
+        await global.onmessage({data:{reset:true}});
+        await global.onmessage({data:msg});
+      })().catch(reject);
+    });
+  }
+
+  it('should compile urust and return source ranges, symbols and segments', async function() {
+    var code = 'use rs8::reset;\n\nstatic mut OUT: u8 = 0;\n\nfn double(x: u8) -> u8 {\n    x.wrapping_add(x)\n}\n\n#[reset]\nfn main() {\n    unsafe { OUT = double(21); }\n}\n';
+    var result = await buildOne({code:code, platform:'devel-6502', tool:'urust', path:'main.rs', mainfile:true});
+    assert.ok(!result.errors || result.errors.length === 0, JSON.stringify(result.errors));
+    assert.ok(result.output instanceof Uint8Array && result.output.length > 0);
+    var lines = result.listings['main.rs'].lines;
+    var l = lines.find(function(x) { return x.line === 6; });
+    assert.ok(l, 'no code for line 6');
+    assert.equal(l.func, 'double');
+    assert.equal(l.start, 4);
+    assert.equal(l.path, 'main.rs');
+    assert.ok(result.symbolmap['double'] > 0 && result.symbolsizes['double'] > 0);
+    assert.ok(result.segments.some(function(g) { return g.type === 'ram'; }));
+  });
+
+  it('should report urust errors with line and column', async function() {
+    var code = 'use rs8::reset;\n#[reset]\nfn main() {\n    let x: u8 = "hi";\n}\n';
+    var result = await buildOne({code:code, platform:'devel-6502', tool:'urust', path:'main.rs', mainfile:true});
+    assert.ok(result.errors && result.errors.length > 0);
+    assert.equal(result.errors[0].line, 4);
+    assert.equal(result.errors[0].path, 'main.rs');
+    assert.ok(result.errors[0].start >= 0 && result.errors[0].end > result.errors[0].start);
+  });
+
+  it('should pass include_bytes! files to urust', async function() {
+    var code = 'use rs8::reset;\nstatic ART: [u8; 3] = *include_bytes!("art.bin");\nstatic mut OUT: u8 = 0;\n#[reset]\nfn main() {\n    unsafe { OUT = ART[1]; }\n}\n';
+    var msg = {updates:[{path:'main.rs', data:code}, {path:'art.bin', data:new Uint8Array([7,8,9])}],
+               buildsteps:[{path:'main.rs', platform:'devel-6502', tool:'urust', mainfile:true, files:['main.rs','art.bin']}]};
+    var result = await buildOne(msg);
+    assert.ok(!result.errors || result.errors.length === 0, JSON.stringify(result.errors));
+    assert.ok(result.symbolmap['ART'] > 0);
+  });
+
   it('should compile oscar64 for atari8 into an XEX image', async function() {
     var msgs = [{code:'#include <stdio.h>\n#include <conio.h>\nint main() { clrscr(); printf("FOO"); return 0; }', platform:'atari8-800', tool:'oscar64', path:'main.c', mainfile:true}];
     var result = await new Promise(function(resolve, reject) {

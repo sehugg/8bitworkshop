@@ -250,6 +250,21 @@ export const DIALOG_INCLUDE_PATTERNS: RegExp[] = [
   /^\s*%%\s*#include\s+"(.+?)"/gm,
 ];
 
+// urust: include_bytes!("file") and include_str!("file"); the path is relative
+// to the including source file, like the other tools' include directives.
+// `mod foo;` pulls in foo.rs (or foo/mod.rs) beside the including file, the
+// way rustc resolves a module, so those files ride along as includes. `use
+// foo::...;` only names a module `mod` already declared; it is still scanned
+// so the editor can link it, but built-ins (rs8) and path keywords are left
+// out. urust loads modules itself -- no separate link step is involved.
+const URUST_MOD_PATTERN = /^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*;/gm;
+export const URUST_INCLUDE_PATTERNS: (RegExp | ToolIncludePattern)[] = [
+  /\binclude_(?:bytes|str)!\s*\(\s*"(.+?)"\s*\)/g,
+  { re: URUST_MOD_PATTERN, suffix: '.rs' },
+  { re: URUST_MOD_PATTERN, suffix: '/mod.rs' },
+  { re: /^\s*(?:pub(?:\([^)]*\))?\s+)?use\s+(?!self\b|super\b|crate\b|rs8\b)([A-Za-z_][A-Za-z0-9_]*)\s*::/gm, suffix: '.rs' },
+];
+
 //// preload filesystem names per tool/platform (was TOOL_PRELOADFS)
 
 /**
@@ -746,6 +761,17 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     wasiFSZip: 'dialog-fs.zip',
     includeDirs: ['/'],
     includePatterns: DIALOG_INCLUDE_PATTERNS,
+  },
+
+  // Rust subset for 8-bit CPUs (github.com/sehugg/urust); one WASI binary
+  // builds for devel-6502, nes, c64, atari8 and vcs
+  urust: {
+    id: 'urust', name: 'urust', kind: 'compiler', arch: '6502',
+    extensions: ['.rs'],
+    editorStyle: 'rust',
+    wasmModule: 'urust',
+    version: '0.0.1',
+    includePatterns: URUST_INCLUDE_PATTERNS,
   },
 
   // ---- verilog / HDL ----
