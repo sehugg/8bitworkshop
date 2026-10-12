@@ -6,6 +6,7 @@ const devices_1 = require("../common/devices");
 const emu_1 = require("../common/emu");
 const audio_1 = require("../common/audio");
 const util_1 = require("../common/util");
+const SC01_CLOCK = 720000;
 // http://metopal.com/projects/ballybook/doku.php
 // TODO: fix keys, more controllers, vibrato/noise, border color
 // http://atariage.com/forums/topic/251416-programming-the-bally-arcadeastrocade/
@@ -176,7 +177,8 @@ const _BallyAstrocade = function (arcade) {
             }
             else {
                 // fill buffer
-                rotdata[rotcount & 3] = v;
+                rotdata[rotcount++ & 3] = v;
+                return; // the first four writes only fill the buffer
             }
             rotcount++;
         }
@@ -208,13 +210,13 @@ const _BallyAstrocade = function (arcade) {
                 icpt |= 0x4;
             if ((oldv & 0x03) && (v & 0x03))
                 icpt |= 0x8;
-            // apply op
+            // apply op (OR wins if both are set)
             if (magicop & 0x10)
                 v |= oldv;
-            if (magicop & 0x20)
-                v ^= oldv; // TODO: what if both?
-            // upper 4 bits persist, lower are just since last write
-            intst = (intst & 0xf0) | icpt | (icpt << 4);
+            else
+                v ^= oldv;
+            // lower 4 bits accumulate until INTST is read, upper are just this write
+            intst = (intst & 0x0f) | icpt | (icpt << 4);
         }
         // commit write to ram/screen
         ramwrite(a, v);
@@ -239,7 +241,7 @@ const _BallyAstrocade = function (arcade) {
         let m_pattern_skip = patboard[3];
         let m_pattern_dest = (patdest & 0xff) | (patboard[4] << 8);
         let m_pattern_width = patboard[5];
-        let m_pattern_height = patboard[6] + 1;
+        let m_pattern_height = patboard[6]; // rows - 1; the loop below runs until it goes negative
         let curwidth;
         let u13ff = 0;
         let cycles = 0;
@@ -280,7 +282,7 @@ const _BallyAstrocade = function (arcade) {
                     busdata = 0;
                 }
                 else {
-                    busdata = membus.read(m_pattern_source);
+                    busdata = membus.read(busaddr & 0xffff);
                 }
                 if ((m_pattern_mode & 0x01) === 0) {
                     incrementSource();
@@ -290,7 +292,7 @@ const _BallyAstrocade = function (arcade) {
                 }
                 // Write Phase
                 busaddr = (m_pattern_mode & 0x01) !== 0 ? m_pattern_source : m_pattern_dest;
-                ramwrite(busaddr, busdata);
+                membus.write(busaddr & 0xffff, busdata); // through the bus, like MAME's space.write_byte
                 if ((m_pattern_mode & 0x01) === 0) {
                     incrementDest();
                 }
@@ -322,6 +324,13 @@ const _BallyAstrocade = function (arcade) {
             cpu.retryInterrupts = !(inmod & 0x4);
             this.probe && this.probe.logInterrupt(infbk);
             cpu.interrupt(infbk);
+        }
+        else if (arcade && (inmod & 0x12)) {
+            // arcade boards wire horizontal drive to the lightpen interrupt, so it
+            // fires every line when enabled (INMOD bit 1 or 4); bit 0 is the mode
+            cpu.retryInterrupts = !(inmod & 0x1);
+            this.probe && this.probe.logInterrupt(infbk & 0xf0);
+            cpu.interrupt(infbk & 0xf0);
         }
         // refresh this line in frame buffer?
         if (sl < sheight && refreshlines > 0) {
@@ -364,7 +373,7 @@ const _BallyAstrocade = function (arcade) {
                     [0x4000, 0x7fff, 0x3fff, function (a) { screenwait(); return ram[a]; }], // screen RAM
                     [0xd000, 0xdfff, 0x0fff, function (a) { return ram[a + 0x4000]; }], // static RAM (own board, no wait states)
                     [0x0000, 0x3fff, 0x3fff, function (a) { return rom ? rom[a] : 0; }], // ROM
-                    [0x8000, 0xbfff, 0x3fff, function (a) { return rom ? rom[a + 0x4000] : 0; }], // ROM
+                    [0x8000, 0xbfff, 0x3fff, function (a) { return rom ? rom[a + 0x8000] : 0; }], // ROM
                 ]),
                 write: (0, emu_1.newAddressDecoder)([
                     [0x4000, 0x7fff, 0x3fff, ramwrite],
@@ -375,12 +384,26 @@ const _BallyAstrocade = function (arcade) {
         }
         iobus = {
             read: function (addr) {
+                var hi = (addr >> 8) & 0xff;
                 addr &= 0x1f;
                 var rtn;
                 switch (addr) {
                     case 8:
                         rtn = intst;
                         intst = 0;
+                        break;
+                    case 0x12:
+                        rtn = inputs[addr];
+                        // Gorf/Wizard of Wor: Votrax request line on bit 7
+                        if (machine.sc01 && machine.sc01.ready)
+                            rtn |= 0x80;
+                        break;
+                    case 0x17:
+                        // a read cycle on the sound chip's SO7 latches the high address byte
+                        // (Gorf's IN A,(C) with B = phoneme) into the Votrax
+                        if (machine.sc01)
+                            machine.speechOut(hi);
+                        rtn = inputs[addr];
                         break;
                     default:
                         rtn = inputs[addr];
@@ -396,14 +419,14 @@ const _BallyAstrocade = function (arcade) {
                 }
                 addr &= 0xff;
                 // pattern board
-                if (addr > 0x78 && addr < 0x80) {
+                if (addr >= 0x78 && addr < 0x7f) {
                     patboard[addr & 7] = val;
-                    if (addr == 0x72) {
+                    if (addr == 0x7a) {
                         patdest = 0;
-                    }
-                    if (addr == 0x74) {
+                    } // mode write clears dest low byte
+                    if (addr == 0x7c) {
                         patdest = (patdest + patboard[3]) & 0xff;
-                    }
+                    } // dest high write adds skip
                     if (addr == 0x7e) {
                         xfer_patboard();
                     }
@@ -428,8 +451,11 @@ const _BallyAstrocade = function (arcade) {
                         refreshall();
                         break;
                     case 0xa: // VERBL (vertical blank)
-                        verbl = arcade ? val : val >> 1;
-                        refreshall();
+                        // the arcade board always shows its full 204-line raster (Gorf writes 0 here)
+                        if (!arcade) {
+                            verbl = val >> 1;
+                            refreshall();
+                        }
                         break;
                     case 0xb: // OTIR (set palette)
                         var c = cpu.saveState();
@@ -593,6 +619,9 @@ class BallyAstrocade extends devices_1.BasicScanlineMachine {
     constructor(arcade) {
         super();
         this.cpuFrequency = 1789000;
+        this.sc01Cycles = 0; // fractional master clock cycles carried between scanlines
+        this.speechCount = 0; // phonemes strobed, for the debug view
+        this.rotate = 0; // display rotation in degrees (arcade; Gorf's monitor is on its side: -90)
         this.arcade = arcade;
         this.cpu = new ZilogZ80_1.Z80();
         this.psg = new AstrocadeAudio(new audio_1.MasterAudio());
@@ -605,7 +634,7 @@ class BallyAstrocade extends devices_1.BasicScanlineMachine {
         this.sampleRate = 60 * this.numTotalScanlines * oversample;
         this.audioadapter = new audio_1.TssChannelAdapter(this.psg.psg, oversample, this.sampleRate);
         this.handler = (0, emu_1.newKeyboardHandler)(this.inputs, ASTROCADE_KEYCODE_MAP);
-        this.defaultROMSize = arcade ? 0xb000 : 0x2000;
+        this.defaultROMSize = arcade ? 0xc000 : 0x2000;
         this.ram = new Uint8Array(arcade ? 0x5000 : 0x1000);
         this.numVisibleScanlines = arcade ? 204 : 102;
         this.canvasWidth = arcade ? 320 : 160;
@@ -615,6 +644,19 @@ class BallyAstrocade extends devices_1.BasicScanlineMachine {
         this.m = new _BallyAstrocade(arcade);
         this.m.init(this, this.cpu, this.ram, this.inputs, this.psg);
         if (arcade) {
+            /*
+            this.speech = new Votrax_Audio(this.psg.master);
+            const host : SC01Host = {
+              phonemeMsec: (code) => this.speech.phonemeDuration(code),
+              speak: (code, msec, scale) => this.speech.speak(code, msec, {
+                pitch: SC01_PITCH[code >> 6] * scale,
+                formantScale: scale,
+              }),
+              inflectionChanged: () => {},
+              readyChanged: () => {},
+            };
+            this.sc01 = new SC01(host);
+            */
             this.inputs[0x10] = 0xff; // switches (active low)
             this.inputs[0x11] = 0xff; // switches (active low)
             this.inputs[0x12] = 0x00;
@@ -654,6 +696,20 @@ class BallyAstrocade extends devices_1.BasicScanlineMachine {
     }
     startScanline() {
         this.audio && this.audioadapter.generate(this.audio);
+        if (this.sc01) {
+            this.sc01Cycles += this.sc01.clock / (60 * this.numTotalScanlines);
+            const n = this.sc01Cycles | 0;
+            this.sc01Cycles -= n;
+            this.sc01.step(n);
+        }
+    }
+    // the data a program put on SO7 (MAME votrax_speech_w): bit 7 clear raises the
+    // inflection, bit 6 picks the 782 kHz clock instead of 756 kHz
+    speechOut(data) {
+        const sc = this.sc01;
+        sc.clock = (data & 0x40) ? 782000 : 756000;
+        this.speechCount++;
+        sc.load(data & 0x3f, (data & 0x80) ? 0 : 2);
     }
     drawScanline() {
         var sl = this.scanline;
@@ -685,21 +741,43 @@ class BallyAstrocade extends devices_1.BasicScanlineMachine {
         this.reset();
     }
     reset() {
+        var _a;
         super.reset();
         this.m.reset();
+        if (this.sc01) {
+            this.sc01.clock = SC01_CLOCK;
+            this.sc01.reset();
+            this.sc01Cycles = 0;
+            (_a = this.speech) === null || _a === void 0 ? void 0 : _a.stop();
+        }
     }
     loadState(state) {
         this.m.loadState(state);
+        if (this.sc01 && state.sc01) {
+            this.sc01.loadState(state.sc01);
+            this.sc01Cycles = state.sc01Cycles || 0;
+            this.sc01.clock = state.sc01Clock || SC01_CLOCK;
+        }
     }
     saveState() {
-        return this.m.saveState();
+        var s = this.m.saveState();
+        if (this.sc01) {
+            s.sc01 = this.sc01.saveState();
+            s.sc01Cycles = this.sc01Cycles;
+            s.sc01Clock = this.sc01.clock;
+        }
+        return s;
     }
     getDebugCategories() {
         return ['CPU', 'Stack', 'Astro'];
     }
     getDebugInfo(category, state) {
         switch (category) {
-            case 'Astro': return this.m.toLongString(state);
+            case 'Astro':
+                var s = this.m.toLongString(state);
+                if (this.sc01)
+                    s += "\n  SC-01: " + this.speechCount + " phonemes, " + (this.sc01.ready ? "ready" : "busy");
+                return s;
         }
     }
     getRasterCanvasPosition() {
@@ -707,7 +785,7 @@ class BallyAstrocade extends devices_1.BasicScanlineMachine {
     }
     getVideoParams() {
         if (this.arcade) {
-            return { width: 320, height: 204, rotate: 180 };
+            return { width: 320, height: 204, rotate: this.rotate };
         }
         else {
             return { width: 160, height: 102 };

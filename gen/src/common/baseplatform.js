@@ -648,13 +648,14 @@ function hasSerialIO(arg) {
     return typeof arg.connectSerialIO === 'function';
 }
 class BaseMachinePlatform extends BaseDebugPlatform {
-    constructor(mainElement) {
+    constructor(mainElement, options) {
         super();
         // The probe's singleFrame flag saved while runToVsync() holds a frame open,
         // restored by pause() when the run stops (the run is timer-driven, so the
         // stop happens after runToVsync() has returned).
         this.probeSingleFrame = null;
         this.mainElement = mainElement;
+        this.options = options || {};
     }
     reset() {
         this.machine.reset();

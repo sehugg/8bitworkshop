@@ -814,6 +814,7 @@ export function hasSerialIO(arg: any): arg is HasSerialIO {
 export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPlatform implements Platform {
   machine: T;
   mainElement: HTMLElement;
+  options: any; // URL options (?options=key%3Dvalue), if any
   timer: AnimationTimer;
   video: RasterVideo;
   audio: SampledAudio;
@@ -834,9 +835,10 @@ export abstract class BaseMachinePlatform<T extends Machine> extends BaseDebugPl
   abstract getDefaultExtensions(): string[];
   abstract getPresets(): Preset[];
 
-  constructor(mainElement: HTMLElement) {
+  constructor(mainElement: HTMLElement, options?: any) {
     super();
     this.mainElement = mainElement;
+    this.options = options || {};
   }
 
   reset() {

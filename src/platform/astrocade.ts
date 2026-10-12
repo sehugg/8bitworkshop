@@ -54,7 +54,12 @@ class BallyAstrocadeBIOSPlatform extends BallyAstrocadePlatform implements Platf
 
 class BallyArcadePlatform extends BallyAstrocadePlatform implements Platform {
 
-  newMachine()          { return new BallyAstrocade(true); }
+  // ?options=rotate%3D-90 turns the screen for vertical-monitor games like Gorf
+  newMachine() {
+    const m = new BallyAstrocade(true);
+    if (this.options.rotate != null) m.rotate = parseFloat(this.options.rotate) || 0;
+    return m;
+  }
   getPresets()          { return ASTROCADE_ARCADE_PRESETS; }
 
   getMemoryMap = function() { return { main:[

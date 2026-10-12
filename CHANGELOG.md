@@ -67,6 +67,8 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - PC Engine Chase example; BASIC uppercase-only dialect fixes; 6502 KIL instructions halt the emulator.
 - C64: openroms-compatible cc65 `_cgetc`/`PLOT` overrides.
 - Verilog: fixed a non-convergence bug on settle and a shift-state bug on digit keys.
+- Astrocade fixes. Astrocade arcade (`astrocade-arcade`) closer to running Gorf.
+- Vertical-monitor games can turn the screen with `?options=rotate%3D-90`.
 
 ### Build tools
 
