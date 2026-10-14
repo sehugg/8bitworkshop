@@ -107,6 +107,5 @@ export function urustDebugToResult(dbg: UrustDebug, paths: string[]): UrustDebug
 export function urustPlatformName(platform: string): string | undefined {
     const root = platform.split(/[.-]/)[0];
     if (platform === 'devel-6502' || root === 'devel') return 'devel-6502';
-    if (['nes', 'c64', 'atari8', 'vcs'].includes(root)) return root;
-    return undefined;
+    return root;
 }

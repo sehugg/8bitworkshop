@@ -344,7 +344,7 @@ describe('Worker', function() {
   }
 
   it('should compile urust and return source ranges, symbols and segments', async function() {
-    var code = 'use rs8::reset;\n\nstatic mut OUT: u8 = 0;\n\nfn double(x: u8) -> u8 {\n    x.wrapping_add(x)\n}\n\n#[reset]\nfn main() {\n    unsafe { OUT = double(21); }\n}\n';
+    var code = 'use rs8::reset;\n\nstatic mut OUT: u8 = 0;\n\n#[no_cross(256)] fn double(x: u8) -> u8 {\n    x.wrapping_add(x)\n}\n\n#[reset]\nfn main() {\n    unsafe { OUT = double(21); }\n}\n';
     var result = await buildOne({code:code, platform:'devel-6502', tool:'urust', path:'main.rs', mainfile:true});
     assert.ok(!result.errors || result.errors.length === 0, JSON.stringify(result.errors));
     assert.ok(result.output instanceof Uint8Array && result.output.length > 0);

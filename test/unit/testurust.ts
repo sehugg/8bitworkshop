@@ -1,6 +1,8 @@
 import assert from "assert";
+import * as fs from "fs";
+import JSZip from "jszip";
 import { describe, it } from "mocha";
-import { getIncludePatterns, matchDependencyPatterns } from "../../src/common/toolmeta";
+import { getIncludeDirs, getIncludePatterns, getSharedFileSystemName, matchDependencyPatterns } from "../../src/common/toolmeta";
 import { getToolForPlatform } from "../../src/common/toolselect";
 import {
   parseUrustDiagnostics, urustDebugToResult, urustPlatformName, UrustDebug
@@ -24,9 +26,26 @@ describe('urust tool', function () {
       'use audio::{music_play, SND_COIN};\nuse bcd::bcd_add;\nuse rs8::reset;\n';
     const deps = matchDependencyPatterns(src, getIncludePatterns('urust'));
     // `mod` names the file (foo.rs or foo/mod.rs); `use` is scanned for editor
-    // links but skips the built-in rs8 module
+    // links but skips the bare rs8 items (they live in the compiler)
     assert.deepStrictEqual(deps,
       ['audio.rs', 'bcd.rs', 'audio/mod.rs', 'bcd/mod.rs', 'audio.rs', 'bcd.rs']);
+  });
+
+  it('links rs8 register modules to the bundled sources', function () {
+    const src = 'use rs8::nes::*;\nuse rs8::io;\nuse rs8::{reg, reset};\n';
+    const deps = matchDependencyPatterns(src, getIncludePatterns('urust'));
+    // one file per register module; bare items (reg/reset) have no file
+    assert.deepStrictEqual(deps, ['nes.rs', 'io.rs']);
+  });
+
+  it('exposes the rs8 sources as a WASI filesystem for the editor', async function () {
+    assert.strictEqual(getSharedFileSystemName('urust', 'devel-6502'), 'wasi:urust-fs.zip');
+    assert.deepStrictEqual(getIncludeDirs('urust', 'devel-6502'), ['/rs8']);
+    // /rs8/<module>.rs has to resolve for every module the include pattern links
+    const zip = await JSZip.loadAsync(fs.readFileSync('src/worker/fs/urust-fs.zip'));
+    for (const f of ['lib.rs', 'atari8.rs', 'c64.rs', 'conio.rs', 'io.rs', 'nes.rs', 'rand.rs', 'vcs.rs']) {
+      assert.ok(zip.file('rs8/' + f), 'missing rs8/' + f);
+    }
   });
 
   it('maps platform ids to urust platforms', function () {

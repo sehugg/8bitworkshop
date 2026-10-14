@@ -255,13 +255,19 @@ export const DIALOG_INCLUDE_PATTERNS: RegExp[] = [
 // `mod foo;` pulls in foo.rs (or foo/mod.rs) beside the including file, the
 // way rustc resolves a module, so those files ride along as includes. `use
 // foo::...;` only names a module `mod` already declared; it is still scanned
-// so the editor can link it, but built-ins (rs8) and path keywords are left
-// out. urust loads modules itself -- no separate link step is involved.
+// so the editor can link it. The rs8 register modules resolve to the sources
+// shipped in urust-fs.zip (see the tool's includeDirs): urust splices them in
+// from its .wasm, so they're copied out again for the editor to read; path
+// keywords (self/super/crate) stay out. urust loads modules itself -- no
+// separate link step is involved.
 const URUST_MOD_PATTERN = /^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*;/gm;
+// the modules in crates/rs8/src (and the io shim) that urust bundles
+const URUST_RS8_MODULE_PATTERN = /\brs8::(atari8|c64|conio|io|nes|rand|vcs)\b/g;
 export const URUST_INCLUDE_PATTERNS: (RegExp | ToolIncludePattern)[] = [
   /\binclude_(?:bytes|str)!\s*\(\s*"(.+?)"\s*\)/g,
   { re: URUST_MOD_PATTERN, suffix: '.rs' },
   { re: URUST_MOD_PATTERN, suffix: '/mod.rs' },
+  { re: URUST_RS8_MODULE_PATTERN, suffix: '.rs' },
   { re: /^\s*(?:pub(?:\([^)]*\))?\s+)?use\s+(?!self\b|super\b|crate\b|rs8\b)([A-Za-z_][A-Za-z0-9_]*)\s*::/gm, suffix: '.rs' },
 ];
 
@@ -771,6 +777,10 @@ export const TOOL_META: { [id: string]: ToolMeta } = {
     editorStyle: 'rust',
     wasmModule: 'urust',
     version: '0.0.1',
+    // the compiler embeds the rs8 sources; ship them as a WASI filesystem so
+    // the editor can open them (view-only -- the build uses the embedded ones)
+    wasiFSZip: 'urust-fs.zip',
+    includeDirs: ['/rs8'],
     includePatterns: URUST_INCLUDE_PATTERNS,
   },
 
