@@ -3,7 +3,8 @@ import { describe, it } from "mocha";
 import { rust } from "@codemirror/lang-rust";
 import { syntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
-import { TOOL_META, getToolMetaForFilename } from "../../src/common/toolmeta";
+import { TOOL_META, URUST_INCLUDE_PATTERNS, getToolMetaForFilename } from "../../src/common/toolmeta";
+import { findIncludeLinks } from "../../src/ide/views/includedecorations";
 import { extractSymbols } from "../../src/common/symbols";
 
 describe('Rust editor support', function () {
@@ -20,6 +21,19 @@ describe('Rust editor support', function () {
     for (const expected of ['FunctionItem', 'LetDeclaration', 'LoopExpression', 'LineComment']) {
       assert.ok(names.includes(expected), `expected ${expected} in ${names.join(' ')}`);
     }
+  });
+
+  it('shows one include badge per mod line, preferring the file that exists', function () {
+    const doc = EditorState.create({ doc: 'mod audio;\nmod bcd;\n' }).doc;
+    const ranges = [{ from: 0, to: doc.length }];
+    // both foo.rs and foo/mod.rs patterns match each mod line; keep one badge
+    assert.deepStrictEqual(
+      findIncludeLinks(doc, ranges, URUST_INCLUDE_PATTERNS).map(l => l.filename),
+      ['audio.rs', 'bcd.rs']);
+    // if only the subdirectory form exists, link to that one
+    assert.deepStrictEqual(
+      findIncludeLinks(doc, ranges, URUST_INCLUDE_PATTERNS, fn => fn === 'audio/mod.rs').map(l => l.filename),
+      ['audio/mod.rs', 'bcd.rs']);
   });
 
   it('extracts Rust fn declarations as symbols', function () {

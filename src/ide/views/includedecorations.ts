@@ -1,3 +1,4 @@
+import { EditorState, Text } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
 import { ToolIncludePattern } from "../../common/toolmeta";
 
@@ -26,12 +27,31 @@ class IncludeLinkWidget extends WidgetType {
   ignoreEvent() { return false; }
 }
 
-function buildIncludeLinkDecorations(view: EditorView, patterns: (RegExp | ToolIncludePattern)[], handleClick: (filename: string, system: boolean) => void): DecorationSet {
-  const widgets: any[] = [];
-  const doc = view.state.doc;
-  const seen = new Set<string>(); // dedupe (line number, filename)
-  for (let { from, to } of view.visibleRanges) {
-    const text = view.state.sliceDoc(from, to);
+/** One include badge: the document position to draw it at (end of its line). */
+export interface IncludeLink {
+  pos: number;
+  filename: string;
+  system: boolean;
+}
+
+/**
+ * Find the include badges for the given document ranges. A single directive
+ * can match several patterns -- urust's `mod foo;` resolves to both foo.rs
+ * and foo/mod.rs -- and gets one badge, not one per pattern, so `mod` lines
+ * no longer show two arrows. When `resolveFile` is given, the candidate it
+ * names is preferred, so the badge links to the file that exists. Pure: no
+ * editor or DOM needed.
+ */
+export function findIncludeLinks(
+  doc: Text,
+  ranges: readonly { from: number, to: number }[],
+  patterns: (RegExp | ToolIncludePattern)[],
+  resolveFile?: (filename: string) => boolean,
+): IncludeLink[] {
+  // group matches by the directive that produced them: line number + match offset
+  const groups = new Map<string, { line: number, candidates: { filename: string, system: boolean }[] }>();
+  for (let { from, to } of ranges) {
+    const text = doc.sliceString(from, to);
     for (let pat of patterns) {
       const p: ToolIncludePattern = pat instanceof RegExp ? { re: pat } : pat;
       p.re.lastIndex = 0; // patterns are shared and global, so rewind first
@@ -42,29 +62,53 @@ function buildIncludeLinkDecorations(view: EditorView, patterns: (RegExp | ToolI
         // apply any implicit extension (e.g. wiz `import "nes"` -> "nes.wiz"),
         // same as matchDependencyPatterns() does for build deps
         const filename = p.suffix ? matched + p.suffix : matched;
-        // place widget at end of the line containing the match
         const matchEnd = Math.min(from + m.index + m[0].length, doc.length);
         const line = doc.lineAt(matchEnd);
-        const key = line.number + ':' + filename;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        widgets.push(
-          Decoration.widget({
-            widget: new IncludeLinkWidget(filename, !!p.system, handleClick),
-            side: 1,
-          }).range(line.to)
-        );
+        const key = line.number + ':' + (from + m.index);
+        let group = groups.get(key);
+        if (!group) {
+          group = { line: line.number, candidates: [] };
+          groups.set(key, group);
+        }
+        group.candidates.push({ filename, system: !!p.system });
       }
     }
   }
+  const links: IncludeLink[] = [];
+  for (let group of groups.values()) {
+    let chosen = group.candidates[0];
+    if (resolveFile) {
+      chosen = group.candidates.find(c => resolveFile(c.filename)) || chosen;
+    }
+    links.push({ pos: doc.line(group.line).to, filename: chosen.filename, system: chosen.system });
+  }
+  return links;
+}
+
+function buildIncludeLinkDecorations(
+  state: EditorState,
+  ranges: readonly { from: number, to: number }[],
+  patterns: (RegExp | ToolIncludePattern)[],
+  handleClick: (filename: string, system: boolean) => void,
+  resolveFile?: (filename: string) => boolean,
+): DecorationSet {
+  const widgets = findIncludeLinks(state.doc, ranges, patterns, resolveFile).map(link =>
+    Decoration.widget({
+      widget: new IncludeLinkWidget(link.filename, link.system, handleClick),
+      side: 1,
+    }).range(link.pos));
   return Decoration.set(widgets, true);
 }
 
-export function createIncludeLinkPlugin(getPatterns: () => (RegExp | ToolIncludePattern)[], onClick: (filename: string, system: boolean) => void) {
+export function createIncludeLinkPlugin(
+  getPatterns: () => (RegExp | ToolIncludePattern)[],
+  onClick: (filename: string, system: boolean) => void,
+  resolveFile?: (filename: string) => boolean,
+) {
   function build(view: EditorView): DecorationSet {
     const patterns = getPatterns();
     if (!patterns || !patterns.length) return Decoration.none;
-    return buildIncludeLinkDecorations(view, patterns, onClick);
+    return buildIncludeLinkDecorations(view.state, view.visibleRanges, patterns, onClick, resolveFile);
   }
   return ViewPlugin.fromClass(class {
     decorations: DecorationSet;

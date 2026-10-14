@@ -41,6 +41,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 
 - Editor moved from CodeMirror 5 to CodeMirror 6 with Lezer grammars for 6502, Z80, 6809, Verilog, BASIC, batari BASIC, FastBasic, Inform 6 and Wiz; new Cobalt and MBO themes and better indent handling.
 - Rust syntax highlighting for `.rs` files, via `@codemirror/lang-rust`; the urust toolchain now claims the `rust` editor style instead of falling back to C.
+- A `mod foo;` line shows one include-link arrow instead of two (it had linked to both `foo.rs` and `foo/mod.rs`); the arrow now points at whichever file exists.
 - Source search across the project and toolchain headers (F1 for help), with arrow-key navigation, plus symbol search without source.
 - Shortcut bar and keyboard shortcut help, F8 pause/resume, Cmd+Shift+G go to offset.
 - Settings menu with developer options (highlight whitespace, highlight executed lines, line numbers off by default).
