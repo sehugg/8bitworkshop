@@ -364,6 +364,9 @@ export class SourceEditor implements ProjectView {
             // filesystem via the read-only viewer
             openHeaderFile(filename);
           },
+          // one directive can offer several candidates (`mod foo;` -> foo.rs
+          // or foo/mod.rs); link to whichever file exists
+          (filename: string) => resolveIncludeFile(filename) != null,
         ),
 
         textTransformFilterCompartment.of([]),
