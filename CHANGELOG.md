@@ -45,6 +45,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - "Highlight Executed Lines" draws a hot/cold heat map: lines run since the last update are colored by how often they have run (blue = cold, red = hot) and disappear once they stop executing.
 - Audio reliably unlocks under the browser autoplay policy: the emulator resumes its `AudioContext` on the first click/keypress anywhere on the page, not only when the emulator canvas gets focus.
 - Memory Map: a Modules column shows each object file's slice of every SDCC or cc65 segment (`Segment.modules`; SDCC from the `.rel` sizes in link order, with the remainder as `(libraries)`; cc65 from the ld65 map's module list, library members by name).
+- Memory Browser: a symbol label covers only its reported size, and an unsized symbol stops at its segment boundary instead of running into the next segment.
 
 ### Asset editor
 

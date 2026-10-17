@@ -8,6 +8,7 @@ import { ProbeFlags, ProbeRecorder, compactProbeLines } from "../../common/probe
 import { hex, lpad, rpad, getFilenameForPath } from "../../common/util";
 import { VirtualList } from "../../common/vlist";
 import { computeMemoryMapLayout, stripeBounds, addressAtOffset, MemMapBlock, MemMapColumn } from "./memmaplayout";
+import { computeDumpLines } from "../../common/symbols/dumplines";
 import { current_project, getWorkerParams, lastDebugState, openLocationForPC, platform, projectWindows, runToPC, setupBreakpoint } from "../ui";
 import { bpStore, resolveBreakpoints, ResolvedBreakpoint } from "../breakpoints";
 import { newDiv, ProjectView } from "./baseviews";
@@ -42,11 +43,12 @@ export class MemoryView implements ProjectView {
   gotoRow = -1; // row highlighted by the Go To Address prompt
 
   showMemoryWindow(workspace: HTMLElement, parent: HTMLElement) {
+    const dumplines = this.getDumpLines();
     this.memorylist = new VirtualList({
       w: $(workspace).width(),
       h: $(workspace).height(),
       itemHeight: getVisibleEditorLineHeight(),
-      totalRows: this.totalRows,
+      totalRows: Math.max(this.totalRows, dumplines ? dumplines.length : 0),
       generatorFn: (row: number) => {
         var s = this.getMemoryLineAt(row);
         var linediv = document.createElement("div");
@@ -158,27 +160,14 @@ export class MemoryView implements ProjectView {
   getDumpLines() {
     var addr2sym = (platform.debugSymbols && platform.debugSymbols.addr2symbol) || {};
     if (this.dumplines == null) {
-      this.dumplines = [];
-      var ofs = 0;
-      var sym;
+      // normalize the symbol lookup for the current address bank
+      var symmap = {};
       for (const _nextofs of Object.keys(addr2sym)) {
         var nextofs = parseInt(_nextofs); // convert from string (stupid JS)
-        var nextsym = addr2sym[nextofs | this.hibits];
-        if (sym) {
-          // ignore certain symbols
-          if (ignoreSymbol(sym)) {
-            sym = '';
-          }
-          while (ofs < nextofs && this.dumplines.length < 0x10000) {
-            var ofs2 = (ofs + 16) & 0xffff0;
-            if (ofs2 > nextofs) ofs2 = nextofs;
-            //if (ofs < 1000) console.log(ofs, ofs2, nextofs, sym);
-            this.dumplines.push({ a: ofs, l: ofs2 - ofs, s: sym });
-            ofs = ofs2;
-          }
-        }
-        sym = nextsym;
+        symmap[nextofs] = addr2sym[nextofs | this.hibits];
       }
+      this.dumplines = computeDumpLines(symmap, platform.debugSymbols?.symbolsizes,
+        current_project && current_project.segments, ignoreSymbol);
     }
     return this.dumplines;
   }
