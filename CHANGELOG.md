@@ -36,6 +36,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Rust syntax highlighting for `.rs` files, via `@codemirror/lang-rust`; the urust toolchain now claims the `rust` editor style instead of falling back to C.
 - A `mod foo;` line shows one include-link arrow instead of two (it had linked to both `foo.rs` and `foo/mod.rs`); the arrow now points at whichever file exists.
 - Rust `use rs8::nes::…` (and the other register modules) opens the module source: urust embeds them in its `.wasm`, so they ship again as `urust-fs.zip` for the editor to read.
+- The Asset Editor understands Rust arrays: a `/*{…}*/` or `//{…}` header in a `.rs` file describes the `[u8; N] = [ … ]` literal that follows (the closing `]` ends the block, so the `;` in the type annotation is no longer mistaken for the end). Rust arrays are also found by name for tilemap/charpad lookups.
 - Source search across the project and toolchain headers (F1 for help), with arrow-key navigation, plus symbol search without source.
 - Shortcut bar and keyboard shortcut help, F8 pause/resume, Cmd+Shift+G go to offset.
 - Settings menu with developer options (highlight whitespace, highlight executed lines, line numbers off by default).

@@ -25,6 +25,7 @@ which depends on the language:
 | C / C++ | `/*{w:8,h:8}*/` | `;` |
 | Assembly | `;;{w:8,h:8};;` | `;;` |
 | Verilog | `/*{w:8,h:8}*/` | `end` |
+| Rust (`.rs`) | `/*{w:8,h:8}*/` or `//{w:8,h:8}` | the array's closing `]` |
 
 **Each number needs a radix prefix.**
 It recognizes `0xNN`, `$NN`, `#$NN`, `%0101`, `0b0101`, `8'hNN`, `8'b0101`,
@@ -48,6 +49,18 @@ PlayerGfx:
        hex ff7e3c18
 ;;
 ```
+
+```rust
+// {w:8,h:8,bpp:1,count:2,brev:1}
+static TILES: [u8; 16] = [
+  0xff,0x81,0x81,0x81,0x81,0x81,0x81,0xff,
+  0x18,0x3c,0x7e,0xff,0xff,0x7e,0x3c,0x18,
+];
+```
+
+In a `.rs` file the header may be a `/*…*/` comment or a `//…` line
+comment. The data block is the array literal after the `=`; its closing
+`]` ends the block, so the `;` inside a type like `[u8; 16]` is harmless.
 
 The JSON parser isn't strict, so you don't have to "quote" keys --
 `w:8` and `"w":8` mean the same thing.
@@ -77,8 +90,9 @@ const char sprite[] = {
 ### Overlapping arrays
 
 The scanner decides where a data block ends from how the header starts,
-not from the language of the file. A `/*{…}*/` header always ends at the
-next `;`. A `;;{…};;` header always ends at the next `;;`.
+not from the language of the file. In C, a `/*{…}*/` header always ends at
+the next `;`; in assembly a `;;{…};;` header always ends at the next `;;`;
+in Rust it ends at the array literal's closing `]`.
 
 So in an assembly file you can't stack two `;;` headers — the second one
 looks like the end of the first. But you *can* drop a `/*{…}*/` header in

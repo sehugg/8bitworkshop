@@ -16,10 +16,14 @@ import {
 
 const PRESETS_DIR = path.join(process.cwd(), 'presets');
 
-const TEXT_EXTENSIONS = new Set(['.c', '.h', '.a', '.s', '.asm', '.dasm', '.v', '.inc', '.cfg', '.mac']);
+const TEXT_EXTENSIONS = new Set(['.c', '.h', '.a', '.s', '.asm', '.dasm', '.v', '.inc', '.cfg', '.mac', '.rs']);
 
 function isVerilogFile(relpath: string): boolean {
   return relpath.includes('verilog') || relpath.endsWith('.v');
+}
+
+function isRustFile(relpath: string): boolean {
+  return relpath.endsWith('.rs');
 }
 
 function* walkFiles(dir: string): Generator<string> {
@@ -51,7 +55,7 @@ function scanAllPresets(): ScannedFragment[] {
     }
     // skip binary files that slipped through the extension filter
     if (/\0/.test(data.slice(0, 2000))) continue;
-    for (const frag of scanTextForAssetFragments(data, isVerilogFile(relpath))) {
+    for (const frag of scanTextForAssetFragments(data, isVerilogFile(relpath), isRustFile(relpath))) {
       result.push({ relpath, frag });
     }
   }

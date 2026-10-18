@@ -412,18 +412,66 @@ function getLineNumber(data: string, offset: number): number {
   return line;
 }
 
+// Returns the index of the ']' matching the '[' at `open`, skipping over line/block
+// comments and string literals. Returns -1 if unmatched.
+export function findMatchingBracket(text: string, open: number): number {
+  if (open < 0 || text[open] !== '[') return -1;
+  var depth = 0;
+  for (var i = open; i < text.length; i++) {
+    var c = text[i];
+    if (c === '/' && text[i + 1] === '/') {
+      var nl = text.indexOf('\n', i);
+      if (nl < 0) return -1;
+      i = nl;
+    } else if (c === '/' && text[i + 1] === '*') {
+      var bc = text.indexOf('*/', i + 2);
+      if (bc < 0) return -1;
+      i = bc + 1;
+    } else if (c === '"') {
+      for (i++; i < text.length && text[i] !== '"'; i++) {
+        if (text[i] === '\\') i++;
+      }
+    } else if (c === '[') {
+      depth++;
+    } else if (c === ']') {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+// Finds the end of a Rust array literal (the matching ']') that follows the
+// assignment '=' after `start`. Anchoring on '=' skips the type annotation
+// `[u8; N]`, whose ';' would otherwise fool the C-style "close at next ;" rule.
+function findRustDataEnd(data: string, start: number): number {
+  var eq = data.indexOf('=', start);
+  if (eq < 0) return -1;
+  var open = data.indexOf('[', eq);
+  if (open < 0) return -1;
+  return findMatchingBracket(data, open);
+}
+
 // Scans source text for "/*{json}*/" or ";;{json};;" asset headers followed by a data
-// block closed by the next ';' (C), ';;' (asm), or "end" (verilog). Pure/testable: no
-// DOM or project dependencies -- platform-specific closing delimiter is supplied by caller.
-export function scanTextForAssetFragments(data: string, isVerilog: boolean): AssetFragment[] {
-  var re1 = /[/;][*;]([{].+[}])[*;][/;]/g;
+// block closed by the next ';' (C), ';;' (asm), "end" (verilog), or the matching ']'
+// of the array literal (Rust). Pure/testable: no DOM or project dependencies -- the
+// language-specific closing delimiter is supplied by the caller.
+export function scanTextForAssetFragments(data: string, isVerilog: boolean, isRust: boolean = false): AssetFragment[] {
+  // Rust accepts /*{json}*/ and //{json} (or ///{json}); the latter has no closing
+  // comment delimiter, so it runs to end of line.
+  var re1 = isRust
+    ? /\/\*(\{[^\n]+?\})\*\/|\/\/\/?[ \t]*(\{[^\n]+?\})/g
+    : /[/;][*;]([{].+[}])[*;][/;]/g;
   var result: AssetFragment[] = [];
   var m;
   while (m = re1.exec(data)) {
+    var jsonstr = m[1] || m[2];
     var start = m.index + m[0].length;
     var end;
     if (isVerilog) {
       end = data.indexOf("end", start);
+    } else if (isRust) {
+      end = findRustDataEnd(data, start);
     } else if (m[0].startsWith(';;')) {
       end = data.indexOf(';;', start);
       if (end == data.indexOf(';;{', start)) {
@@ -437,13 +485,13 @@ export function scanTextForAssetFragments(data: string, isVerilog: boolean): Ass
     var header = m[0];
     var endline = end >= 0 ? getLineNumber(data, end) : '???';
     if (end < 0) {
-      var closingDelim = isVerilog ? '"end"' : m[0].startsWith(';;') ? '";;"' : '";"';
+      var closingDelim = isVerilog ? '"end"' : isRust ? '"]"' : m[0].startsWith(';;') ? '";;"' : '";"';
       result.push({ header: header, startline: startline, endline: endline, error: `No closing ${closingDelim} found after asset header` });
     } else if (end <= start) {
       result.push({ header: header, startline: startline, endline: endline, error: `Empty data block after asset header` });
     } else {
       try {
-        var jsontxt = m[1].replace(/([A-Za-z_]\w*):/g, '"$1":'); // fix lenient JSON
+        var jsontxt = jsonstr.replace(/([A-Za-z_]\w*):/g, '"$1":'); // fix lenient JSON
         var json = JSON.parse(jsontxt);
         // C23 #embed "file.bin" -- data lives in a separate binary file, not inline
         var embedMatch = /#embed\s+"(.+?)"/.exec(data.substring(start, end));
@@ -1289,6 +1337,15 @@ export function findNamedArray(text: string, name: string): number[] | null {
     }
     var body = text.substring(m.index + m[0].length, i - 1).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
     return parseHexWords(convertToHexStatements(body.replace(/[{}]/g, ' ')));
+  }
+  // Rust array: `name: [T; N] = [ ... ]` / `const name = [ ... ]` (also `&[ ... ]`)
+  var rm = new RegExp('\\b' + name + '\\s*(?::\\s*[^=\\n]*)?=\\s*&?\\s*\\[').exec(text);
+  if (rm) {
+    var ropen = rm.index + rm[0].length - 1; // index of the array literal '['
+    var rclose = findMatchingBracket(text, ropen);
+    if (rclose < 0) return null;
+    var rbody = text.substring(ropen + 1, rclose).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+    return parseHexWords(convertToHexStatements(rbody));
   }
   var lm = new RegExp('^[ \\t]*_?' + name + ':', 'm').exec(text);
   if (lm) {
