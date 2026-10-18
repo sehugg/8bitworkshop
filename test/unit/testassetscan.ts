@@ -195,6 +195,70 @@ describe('CharPad tile maps', function () {
   });
 });
 
+describe('Rust array assets', function () {
+
+  it('should scan a /*{...}*/ header before a typed array literal', function () {
+    var src = '/*{w:8,h:8,bpp:1,count:1,brev:1}*/\n' +
+      'static TILE: [u8; 8] = [\n' +
+      '  0xff,0x81,0x81,0x81,0x81,0x81,0x81,0xff,\n' +
+      '];\n';
+    var frags = scanTextForAssetFragments(src, false, true);
+    assert.equal(frags.length, 1);
+    assert.equal(frags[0].error, undefined);
+    assert.deepEqual(frags[0].fmt, { w: 8, h: 8, bpp: 1, count: 1, brev: 1 });
+    // the block ends at the literal's ']', not the ';' inside [u8; 8]
+    assert.equal(src[frags[0].end], ']');
+    assert.equal(validateAssetData(src.substring(frags[0].start, frags[0].end), frags[0].fmt), null);
+  });
+
+  it('should scan a //{...} line-comment header', function () {
+    var src = '//{pal:"c64"}\nstatic PAL: [u8; 4] = [0x00,0x01,0x02,0x03];\n';
+    var frags = scanTextForAssetFragments(src, false, true);
+    assert.equal(frags.length, 1);
+    assert.equal(frags[0].error, undefined);
+    assert.deepEqual(frags[0].fmt, { pal: "c64" });
+    assert.equal(src[frags[0].end], ']');
+  });
+
+  it('should scan multiple typed arrays in one file', function () {
+    var src = '/*{w:8,h:8,bpp:1,count:1,brev:1}*/\n' +
+      'static A: [u8; 8] = [0xff,0x81,0x81,0x81,0x81,0x81,0x81,0xff];\n' +
+      '/*{w:8,h:8,bpp:1,count:1,brev:1}*/\n' +
+      'static B: [u8; 8] = [0x18,0x3c,0x7e,0xff,0xff,0x7e,0x3c,0x18];\n';
+    var frags = scanTextForAssetFragments(src, false, true);
+    assert.equal(frags.length, 2);
+    assert.equal(src[frags[0].end], ']');
+    assert.equal(src[frags[1].end], ']');
+    assert.equal(validateAssetData(src.substring(frags[1].start, frags[1].end), frags[1].fmt), null);
+  });
+
+  it('should ignore comments when matching array brackets', function () {
+    var src = '/*{w:8,h:8,bpp:1,count:1,brev:1}*/\n' +
+      'static TILE: [u8; 8] = [\n' +
+      '  0xff, // not the end ]\n' +
+      '  0x81,0x81,0x81,0x81,0x81,0x81,0xff,\n' +
+      '];\n';
+    var frags = scanTextForAssetFragments(src, false, true);
+    assert.equal(frags.length, 1);
+    assert.equal(src[frags[0].end], ']');
+    assert.equal(validateAssetData(src.substring(frags[0].start, frags[0].end), frags[0].fmt), null);
+  });
+
+  it('should report a missing closing bracket in Rust', function () {
+    var src = '/*{w:8,h:8}*/\nstatic TILE: [u8; 8] = [0xff,\n';
+    var frags = scanTextForAssetFragments(src, false, true);
+    assert.equal(frags.length, 1);
+    assert.ok(/No closing/.test(frags[0].error));
+  });
+
+  it('should find named Rust arrays (1D, 2D and reference)', function () {
+    assert.deepEqual(findNamedArray('const CHARS: [u8; 2] = [0x01, 0x02];', 'CHARS'), [1, 2]);
+    assert.deepEqual(findNamedArray('static MAP: [[u8; 2]; 2] = [[0x01,0x02],[0x03,0x04]];', 'MAP'), [1, 2, 3, 4]);
+    assert.deepEqual(findNamedArray('let x = [0x0a, 0x0b];', 'x'), [10, 11]);
+  });
+
+});
+
 describe('Generic tile maps', function () {
   const src = () => fs.readFileSync('presets/gb/bigmap.h', 'utf8');
 

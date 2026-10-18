@@ -169,7 +169,7 @@ export class AssetEditorView implements ProjectView, pixed.EditorContext {
     // scan file for assets
     // /*{json}*/ or ;;{json};;
     // TODO: put before ident, look for = {
-    var frags = pixed.scanTextForAssetFragments(data, platform_id.includes('verilog'));
+    var frags = pixed.scanTextForAssetFragments(data, platform_id.includes('verilog'), id.endsWith('.rs'));
     var result = frags.map((frag) => ({ fileid: id, ...frag }));
     // look for DEF_METASPRITE_2x2(playerRStand, 0xd8, 0)
     // TODO: this feature was never implemented, it would require a totally new type of editor and stuff
