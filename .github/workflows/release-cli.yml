@@ -56,6 +56,7 @@ jobs:
         files: |
           extension/out/assets/*.tar.br
           extension/out/assets.json
+          extension/THIRD-PARTY-NOTICES.md
     - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: npm-package
@@ -83,8 +84,8 @@ jobs:
         #include <stdint.h>
         void main(void) { while (1) ; }
         EOC
-        npx 8bws build --check -p nes hello.c
-        npx 8bws run -p nes hello.c --frames 20
+        npx @8bws/8bws build --check -p nes hello.c
+        npx @8bws/8bws run -p nes hello.c --frames 20
       env:
         XDG_CACHE_HOME: ${{ runner.temp }}/cache
 

@@ -238,6 +238,9 @@ const noticesPath = noticesArg >= 0
     ? args[noticesArg + 1] : 'extension/THIRD-PARTY-NOTICES.md')
   : null;
 
+// Upstream repos + pinned revisions for the Sources section (checked in).
+const sourcesPath = path.resolve(root, 'scripts/tool-sources.json');
+
 const LICENSE_NAMES = [
   'LICENSE', 'LICENSE.txt', 'LICENSE.md', 'LICENSE.TXT', 'LICENCE', 'LICENCE.txt',
   'license', 'license.txt', 'license.md', 'License', 'License.txt', 'license.txt',
@@ -379,7 +382,7 @@ const MANUAL = {
 const EXTRA_COMPONENTS = {
   Firmware: [{
     name: 'ColecoVision minbios',
-    url: 'https://github.com/sehugg/8bitworkshop/blob/master/meta/romsrc/coleco/minbios.asm',
+    url: 'https://github.com/8bitworkshop/8bitworkshop/blob/master/meta/romsrc/coleco/minbios.asm',
     license: null,
     text: 'An 8 KB minimal ColecoVision BIOS assembled from minbios.asm, included with '
       + '8bitworkshop. Licensed CC0.',
@@ -403,9 +406,18 @@ async function githubLicenseText(url) {
   return (cache[key] = text ? { id, text } : null);
 }
 
-/** Resolve the full text of each license id, using every local source first. */
+/** Resolve the full text of each license id; LICENSES/*.txt wins, then local checkouts. */
 async function resolveLicenseTexts(ids, local) {
-  const texts = new Map(local);
+  const texts = new Map();
+  // The tracked LICENSES/*.txt copies win, so regeneration doesn't depend on
+  // which submodules happen to be checked out.
+  for (const id of ids) {
+    const f = path.join(root, 'LICENSES', `${id}.txt`);
+    if (fs.existsSync(f)) {
+      texts.set(id, { text: fs.readFileSync(f, 'utf8').trim() + '\n', source: path.relative(root, f) });
+    }
+  }
+  for (const [id, v] of local) if (!texts.has(id)) texts.set(id, v);
   // Some ids are not a document; explain them in a sentence instead.
   if (!texts.has('LicenseRef-Public-Domain')) {
     texts.set('LicenseRef-Public-Domain', {
@@ -443,6 +455,26 @@ async function resolveLicenseTexts(ids, local) {
     }
   }
   return texts;
+}
+
+/** Tool id -> version strings from src/common/toolmeta.ts (the registry). */
+function readToolVersions() {
+  const text = fs.readFileSync(path.join(root, 'src/common/toolmeta.ts'), 'utf8');
+  const start = text.indexOf('export const TOOL_META');
+  const versions = {};
+  if (start < 0) return versions;
+  let cur = null;
+  for (const line of text.slice(start).split('\n')) {
+    let m;
+    if ((m = line.match(/^  ([A-Za-z0-9_]+): \{/))) { cur = m[1]; continue; }
+    if (!cur) continue;
+    if (/^\};/.test(line)) { cur = null; continue; }
+    if (m = line.match(/^\s+version(Alt)?: (.+?),?\s*$/)) {
+      const found = [...m[2].matchAll(/'([^']*)'/g)].map(x => x[1]);
+      if (found.length) versions[cur] = [...new Set([...(versions[cur] || []), ...found])];
+    }
+  }
+  return versions;
 }
 
 async function generateNotices() {
@@ -503,7 +535,7 @@ async function generateNotices() {
 
   const out = [];
   out.push('# Third-Party Notices', '');
-  out.push('8bitworkshop for VS Code includes the third-party components listed below.');
+  out.push('8bitworkshop and its `8bws` command line include the third-party components listed below.');
   out.push('The original 8bitworkshop code is licensed under GPL-3.0 (see `LICENSE`).');
   out.push('The components remain under their own licenses; the texts follow.');
   out.push('');
@@ -522,6 +554,34 @@ async function generateNotices() {
       const license = dep.license || (dep.custom ? 'custom (see Other notices)' : 'license not declared (see source)');
       out.push(`- **${nameFor(dep.url)}** — ${license} — <${dep.url}>`);
     }
+    out.push('');
+  }
+
+  // Sources: upstream repo + pinned revision, versions from TOOL_META.
+  let sources = null;
+  try { sources = JSON.parse(fs.readFileSync(sourcesPath, 'utf8')); } catch { /* no table */ }
+  if (sources?.sources?.length) {
+    const versions = readToolVersions();
+    const short = (c) => String(c || '').slice(0, 12);
+    out.push('## Sources', '');
+    out.push('The source revisions the toolchain binaries in this package were built from. The');
+    out.push(`full build tree is <${sources.compilers.url}> at \`${short(sources.compilers.commit)}\`.`);
+    out.push('');
+    for (const src of sources.sources) {
+      const ids = src.tools || [];
+      const key = src.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const primary = ids.find(id => id.toLowerCase() === key) || (ids.length === 1 ? ids[0] : null);
+      const pairs = ids.filter(id => versions[id]).map(id => `${id} ${versions[id].join('/')}`);
+      const ver = primary && versions[primary]?.length ? ` ${versions[primary].join(' / ')}`
+        : (pairs.length ? ` (${pairs.join(', ')})` : '');
+      const commit = src.commit ? ` \`@${short(src.commit)}\`` : '';
+      const note = src.note ? ` (${src.note})` : '';
+      out.push(`- **${src.name}**${ver} — <${src.url}>${commit}${note}`);
+    }
+    out.push('');
+    out.push('The Corresponding Source for the GPL-licensed components in this package is available');
+    out.push('at the locations above, or from 8bitworkshop on request, for at least three years from');
+    out.push('the date of distribution: <https://github.com/8bitworkshop/8bitworkshop/issues>.');
     out.push('');
   }
 

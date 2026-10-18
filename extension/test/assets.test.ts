@@ -432,14 +432,14 @@ describe('8bws npm package', function () {
     assert.ok(fs.readFileSync(path.join(dir, '8bws.js'), 'utf-8').startsWith('#!/usr/bin/env node\n'));
   });
 
-  it('is named 8bws by default and takes --name', function () {
+  it('is scoped @8bws/8bws by default and takes --name', function () {
     var pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
-    assert.equal(pkg.name, '8bws');
+    assert.equal(pkg.name, '@8bws/8bws');
     var other = path.join(tmpdir(), 'named');
-    execFileSync(process.execPath, [path.join(OUT, '..', 'scripts', 'stage-npm.mjs'), '--out', other, '--name', '8bitworkshop'], { stdio: 'pipe' });
-    assert.equal(JSON.parse(fs.readFileSync(path.join(other, 'package.json'), 'utf-8')).name, '8bitworkshop');
-    assert.ok(fs.readFileSync(path.join(other, 'README.md'), 'utf-8').includes('npx 8bitworkshop build'));
-    assert.ok(fs.readFileSync(path.join(dir, 'README.md'), 'utf-8').includes('npx 8bws build'));
+    execFileSync(process.execPath, [path.join(OUT, '..', 'scripts', 'stage-npm.mjs'), '--out', other, '--name', '@acme/tool'], { stdio: 'pipe' });
+    assert.equal(JSON.parse(fs.readFileSync(path.join(other, 'package.json'), 'utf-8')).name, '@acme/tool');
+    assert.ok(fs.readFileSync(path.join(other, 'README.md'), 'utf-8').includes('npx @acme/tool build'));
+    assert.ok(fs.readFileSync(path.join(dir, 'README.md'), 'utf-8').includes('npx @8bws/8bws build'));
     fs.rmSync(path.dirname(other), { recursive: true, force: true });
   });
 

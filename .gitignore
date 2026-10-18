@@ -12,5 +12,5 @@ config.js
 chromedriver.log
 nightwatch.conf.js
 /src/docs/toolchains.md
-LICENSES/
 .vscode
+scripts/.url-license-cache.json

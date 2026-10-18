@@ -6,8 +6,8 @@
 //
 //   node scripts/stage-npm.mjs [--out DIR] [--name PACKAGE]
 //
-// The package is named `8bws` until the `8bitworkshop` name is ours; pass
-// --name 8bitworkshop (or set NPM_PACKAGE_NAME) to publish under that.
+// The package is scoped `@8bws/8bws`; pass --name PACKAGE (or set
+// NPM_PACKAGE_NAME) to stage it under a different name.
 //   cd out/npm && npm pack
 import { chmodSync, copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -17,7 +17,7 @@ const ext = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outIdx = process.argv.indexOf('--out');
 const out = path.resolve(outIdx > 0 ? process.argv[outIdx + 1] : path.join(ext, 'out', 'npm'));
 const nameIdx = process.argv.indexOf('--name');
-const name = nameIdx > 0 ? process.argv[nameIdx + 1] : process.env.NPM_PACKAGE_NAME || '8bws';
+const name = nameIdx > 0 ? process.argv[nameIdx + 1] : process.env.NPM_PACKAGE_NAME || '@8bws/8bws';
 const rootPkg = JSON.parse(readFileSync(path.join(ext, '..', 'package.json'), 'utf-8'));
 const manifest = JSON.parse(readFileSync(path.join(ext, 'out', 'assets.json'), 'utf-8'));
 const extPkg = JSON.parse(readFileSync(path.join(ext, 'package.json'), 'utf-8'));

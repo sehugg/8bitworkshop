@@ -1,0 +1,38 @@
+{
+  "_comment": "Upstream source repositories and pinned revisions for the toolchains in the packs. scripts/url-licenses.mjs --notices renders this as the Sources section of extension/THIRD-PARTY-NOTICES.md (GPLv3 section 6 corresponding source). Versions come from src/common/toolmeta.ts, not this file. Regenerate the pins from ~/8bitworkshop-compilers with `git submodule status` when the toolchains are rebuilt.",
+  "compilers": {
+    "url": "https://github.com/8bitworkshop/8bitworkshop-compilers",
+    "commit": "b5c38a4ca090434e1ee2304e8b2b0dee0ffa9c2f"
+  },
+  "sources": [
+    { "name": "6809tools", "url": "https://github.com/8bitworkshop/6809tools", "commit": "1ff9f4cf012fd0d06053d0f554ba03278efd054d", "tools": ["lwasm", "lwlink", "cmoc"] },
+    { "name": "Silice", "url": "https://github.com/8bitworkshop/Silice", "commit": "70e27f839b99184055472a1e568cb01c3d51948f", "tools": ["silice"] },
+    { "name": "SmallerC", "url": "https://github.com/alexfru/SmallerC", "commit": "177650342af56c873155817e48d3385672931b90", "tools": ["smlrc"], "note": "not included in the packs" },
+    { "name": "acme", "url": "https://github.com/8bitworkshop/acme", "commit": "6cdfbae536eb834ee65304be7ab622be90b0b265", "tools": ["acme"] },
+    { "name": "armips", "url": "https://github.com/Kingcom/armips", "commit": "4616b009959a8675eb2c9af66470b30c4083dffb", "tools": ["armips"], "note": "not included in the packs" },
+    { "name": "batari-Basic", "url": "https://github.com/batari-Basic/batari-Basic", "tools": ["bataribasic"] },
+    { "name": "c2t", "url": "https://github.com/datajerk/c2t", "commit": "fd80c0c7b1ec04b5e6fdff6a342f91f76bd3de65" },
+    { "name": "cc2600", "url": "https://github.com/steux/cc2600", "commit": "e6912ca04ac7d5d85408a346ab408754adcb94ca", "tools": ["cc2600"] },
+    { "name": "cc65", "url": "https://github.com/cc65/cc65", "commit": "d8a486acdef93ea1ba432a6a35b96cf1b797bda5", "tools": ["cc65", "ca65", "ld65"] },
+    { "name": "cc7800", "url": "https://github.com/steux/cc7800", "commit": "5fcb48f70fe5a5d4a81be6675e1b1af1e1eb94e4", "tools": ["cc7800"] },
+    { "name": "dasm", "url": "https://github.com/dasm-assembler/dasm", "commit": "c361b8201320e66c2452c58b248030b34be38495", "tools": ["dasm"] },
+    { "name": "fastbasic", "url": "https://github.com/dmsc/fastbasic", "commit": "ea943fdf5aa4a78a29be87f5416ab93fbf739ba4", "tools": ["fastbasic"] },
+    { "name": "liblzg", "url": "https://github.com/mbitsnbites/liblzg", "commit": "182b56cb36843720f38eff2ec30db1deac4e85bd" },
+    { "name": "makewav", "url": "https://github.com/8bitworkshop/makewav", "commit": "019fae5b111170be7b079cba834ec34f1d57a941" },
+    { "name": "mcpp", "url": "https://github.com/ned14/mcpp", "commit": "4787481564c5be03306be32483fab020ec93e409" },
+    { "name": "merlin32", "url": "https://github.com/apple2accumulator/merlin32", "commit": "042d6fdbd55cbf760f30fae4689fce01e0ae186a", "tools": ["merlin32"], "note": "not included in the packs" },
+    { "name": "mkatr", "url": "https://github.com/dmsc/mkatr", "commit": "767b3c24571a7936f5ebf3f41b2746338d48410a" },
+    { "name": "naken_asm", "url": "https://github.com/mikeakohn/naken_asm", "commit": "e50bbbd001e1d580520d8b4b47888c2cfb3823b8", "tools": ["naken"] },
+    { "name": "nesasm", "url": "https://github.com/camsaul/nesasm", "commit": "229033a4b76466b447ad47704808a4d03c493cee", "tools": ["nesasm"], "note": "not included in the packs" },
+    { "name": "nesfab", "url": "https://github.com/8bitworkshop/nesfab", "commit": "5c9b90573e5d198213b83f910de8622dcd11dfc6" },
+    { "name": "neslib", "url": "https://github.com/8bitworkshop/neslib", "commit": "b72852d668654cab51b1da7c363fdc1edb7f5e80" },
+    { "name": "oscar64", "url": "https://github.com/8bitworkshop/oscar64", "commit": "860057987f3c850b8c0e5acf44e16af1dca57490", "tools": ["oscar64"] },
+    { "name": "sdcc", "url": "https://git.code.sf.net/p/sdcc/git-mirror", "commit": "d79ee7d5127f2a7f4c7c3337e1c541c0e4e7cd72", "tools": ["sdcc", "sdasz80", "sdasgb", "sdldz80", "sdas6500", "sdld6808"] },
+    { "name": "sdcc (3.x)", "url": "https://github.com/8bitworkshop/sdcc", "commit": "d95265a49ece04881ad9963ec006c3bbe30491fc", "tools": ["sdcc"], "note": "SDCC 3.x, selected with //#tooldef c sdcc=3" },
+    { "name": "vasm", "url": "https://github.com/mbitsnbites/vasm-mirror", "commit": "a77dd70055cc887e320d67f2cab12f19199133a7", "tools": ["vasmarm"], "note": "not included in the packs" },
+    { "name": "verilator", "url": "https://github.com/8bitworkshop/verilator", "commit": "746c7ea8f786e1183f15c28727cbc0c44e9b556e", "tools": ["verilator"] },
+    { "name": "wiz", "url": "https://github.com/wiz-lang/wiz", "commit": "5a8ea1ce15953d6ed9d222a54a31cb6447c79121", "tools": ["wiz"] },
+    { "name": "yasm", "url": "https://github.com/yasm/yasm", "commit": "9defefae9fbcb6958cddbfa778c1ea8605da8b8b", "tools": ["yasm"], "note": "not included in the packs" },
+    { "name": "zmac", "url": "https://github.com/8bitworkshop/zmac", "commit": "8265d62d9c73e7a5f9117ed9e127f2c826b62539", "tools": ["zmac"] }
+  ]
+}
