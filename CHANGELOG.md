@@ -20,7 +20,8 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 ### `8bws` CLI
 
 - New `8bws` command-line tool (`npm run cli`) to build and run programs headlessly: `build`, `run`, `verify-replay`, `profile`, `detect`, `list-platforms`, `list-tools`; scripted emulator control; `--png`, `--json`, `--symbols`, `--memdump`, `--info`; platform and main file detected from a project directory.
-- `8bws` is packaged for npm (`npm run npm-package` in `extension/`; named `8bws` until `8bitworkshop` is available). It downloads toolchain packs on first use, from the version's GitHub Release first; pushing a `cli-v<version>` tag publishes it; its version follows the extension's (`.github/workflows/release-cli.yml`).
+- `8bws` is packaged for npm as `@8bws/8bws` (`npm run npm-package` in `extension/`). It downloads toolchain packs on first use, from the version's GitHub Release first; pushing a `cli-v<version>` tag publishes it; its version follows the extension's (`.github/workflows/release-cli.yml`).
+- `THIRD-PARTY-NOTICES.md` has a Sources section: each toolchain's upstream repository and pinned revision, with versions from `TOOL_META` and a GPLv3 source offer. Regenerate with `npm run notices` (pins are checked in at `scripts/tool-sources.json`); the GitHub Release publishes the notices alongside the packs.
 - `8bws presets [platform]` lists the examples and `8bws new <platform>/<preset> [dir]` copies one, with the files only it uses, into a directory to start from (`--libs` adds the shared libraries, `--force` overwrites). The npm package ships `presets.json` for them.
 - `8bws run --frames-dir <dir>` records an animation for ffmpeg, writing every frame as `DIR/frame_NNNNN.png` (the run script adds `capture N DIR` and `png FILE`); `--fps` sets the nominal frame rate and the result includes the matching `ffmpeg` command.
 - `8bws run` script `paddle X Y [BUTTONS]` moves the paddle on platforms and Verilog designs that have one.
@@ -45,6 +46,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - "Highlight Executed Lines" draws a hot/cold heat map: lines run since the last update are colored by how often they have run (blue = cold, red = hot) and disappear once they stop executing.
 - Audio reliably unlocks under the browser autoplay policy: the emulator resumes its `AudioContext` on the first click/keypress anywhere on the page, not only when the emulator canvas gets focus.
 - Memory Map: a Modules column shows each object file's slice of every SDCC or cc65 segment (`Segment.modules`; SDCC from the `.rel` sizes in link order, with the remainder as `(libraries)`; cc65 from the ld65 map's module list, library members by name).
+- Memory Browser: a symbol label covers only its reported size, and an unsized symbol stops at its segment boundary instead of running into the next segment.
 
 ### Asset editor
 

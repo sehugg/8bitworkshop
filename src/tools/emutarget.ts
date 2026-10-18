@@ -14,7 +14,7 @@ export type { VideoOutput, DebugSection } from "../common/emucore";
 type EmuTarget = EmuCore;
 
 /** Load a platform module by ID (e.g. "nes", "c64.wasm", "atari8-5200"). */
-export async function loadPlatform(platformId: string): Promise<EmuTarget> {
+export async function loadPlatform(platformId: string, options?: any): Promise<EmuTarget> {
   await ensureToolchains(platformId);
   installNodeMocks(toolRoot());
   // a headless host may load more than one platform (or the same one twice)
@@ -31,7 +31,7 @@ export async function loadPlatform(platformId: string): Promise<EmuTarget> {
   if (!PlatformClass) {
     throw new Error(`Platform '${platformId}' not found. Available: ${Object.keys(PLATFORMS).sort().join(', ')}`);
   }
-  return new EmuCore(platformId, new PlatformClass(null));
+  return new EmuCore(platformId, new PlatformClass(null, options));
 }
 
 let mocksInstalled = false;

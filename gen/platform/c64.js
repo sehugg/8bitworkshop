@@ -70,7 +70,21 @@ const C64_MEMORY_MAP = { main: [
     ] };
 // WASM C64 platform
 class C64WASMPlatform extends baseplatform_1.Base6502MachinePlatform {
-    newMachine() { return new c64_1.C64_WASMMachine('c64'); }
+    // ?options=joyport=1|2|both|auto picks which joystick port(s) the
+    // keyboard-joystick keys feed (default auto: both until port 2 is detected)
+    newMachine() {
+        const m = new c64_1.C64_WASMMachine('c64');
+        const jp = String(this.options.joyport || '').toLowerCase();
+        if (jp == '1')
+            m.setJoystickPort(c64_1.C64_JOYPORT_1);
+        else if (jp == '2')
+            m.setJoystickPort(c64_1.C64_JOYPORT_2);
+        else if (jp == 'both')
+            m.setJoystickPort(c64_1.C64_JOYPORT_BOTH);
+        else if (jp == 'auto')
+            m.setJoystickPort(c64_1.C64_JOYPORT_AUTO);
+        return m;
+    }
     getPresets() { return C64_PRESETS; }
     readAddress(a) { return this.machine.readConst(a); }
     getMemoryMap() { return C64_MEMORY_MAP; }

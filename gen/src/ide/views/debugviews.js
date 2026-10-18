@@ -9,6 +9,7 @@ const probe_1 = require("../../common/probe");
 const util_1 = require("../../common/util");
 const vlist_1 = require("../../common/vlist");
 const memmaplayout_1 = require("./memmaplayout");
+const dumplines_1 = require("../../common/symbols/dumplines");
 const ui_1 = require("../ui");
 const breakpoints_1 = require("../breakpoints");
 const baseviews_1 = require("./baseviews");
@@ -35,11 +36,12 @@ class MemoryView {
         return this.maindiv = div;
     }
     showMemoryWindow(workspace, parent) {
+        const dumplines = this.getDumpLines();
         this.memorylist = new vlist_1.VirtualList({
             w: $(workspace).width(),
             h: $(workspace).height(),
             itemHeight: (0, vtextscroller_1.getVisibleEditorLineHeight)(),
-            totalRows: this.totalRows,
+            totalRows: Math.max(this.totalRows, dumplines ? dumplines.length : 0),
             generatorFn: (row) => {
                 var s = this.getMemoryLineAt(row);
                 var linediv = document.createElement("div");
@@ -151,30 +153,16 @@ class MemoryView {
     }
     // TODO: addr2symbol for ca65; and make it work without symbols
     getDumpLines() {
+        var _a;
         var addr2sym = (ui_1.platform.debugSymbols && ui_1.platform.debugSymbols.addr2symbol) || {};
         if (this.dumplines == null) {
-            this.dumplines = [];
-            var ofs = 0;
-            var sym;
+            // normalize the symbol lookup for the current address bank
+            var symmap = {};
             for (const _nextofs of Object.keys(addr2sym)) {
                 var nextofs = parseInt(_nextofs); // convert from string (stupid JS)
-                var nextsym = addr2sym[nextofs | this.hibits];
-                if (sym) {
-                    // ignore certain symbols
-                    if (ignoreSymbol(sym)) {
-                        sym = '';
-                    }
-                    while (ofs < nextofs && this.dumplines.length < 0x10000) {
-                        var ofs2 = (ofs + 16) & 0xffff0;
-                        if (ofs2 > nextofs)
-                            ofs2 = nextofs;
-                        //if (ofs < 1000) console.log(ofs, ofs2, nextofs, sym);
-                        this.dumplines.push({ a: ofs, l: ofs2 - ofs, s: sym });
-                        ofs = ofs2;
-                    }
-                }
-                sym = nextsym;
+                symmap[nextofs] = addr2sym[nextofs | this.hibits];
             }
+            this.dumplines = (0, dumplines_1.computeDumpLines)(symmap, (_a = ui_1.platform.debugSymbols) === null || _a === void 0 ? void 0 : _a.symbolsizes, ui_1.current_project && ui_1.current_project.segments, ignoreSymbol);
         }
         return this.dumplines;
     }

@@ -49,6 +49,7 @@ export const RUN_SCRIPT_HELP = [
   '  screen [START] [COLS] [ROWS]- decode screen RAM to text (default $0400 40x25)',
   '  serial                      - print what the program sent to its serial port (devel-6502)',
   '  pc [N]                      - print PC + disassembly of N instructions',
+  '  analyze                     - run the CPU timing analyzer from the reset vector',
   '  info                        - platform/machine debug info',
   '  paddle X Y [BUTTONS]        - move the paddle to X,Y (0-255); BUTTONS is a list of 0/1, like 1 0 0',
   '  signals [PATH]              - HDL signals under PATH (modules separated by dots; default the top)',
@@ -526,6 +527,22 @@ export class RunScript {
     this.disasmBlock(pc, tokens[1] ? parseNum(tokens[1]) : 8);
   }
 
+  cmdAnalyze(tokens: string[]) {
+    this.target.settle();
+    const platform: any = this.target.platform;
+    if (!platform.newCodeAnalyzer) throw new Error(`'${this.target.id}' has no CPU timing analyzer`);
+    const origin = platform.getOriginPC ? platform.getOriginPC() : 0;
+    this.log(`origin=$${hex(origin, 4)}`);
+    const analyzer = platform.newCodeAnalyzer();
+    analyzer.showLoopTimingForPC(0);
+    const pcs = Object.keys(analyzer.pc2clockrange).map(k => parseInt(k)).sort((a, b) => a - b);
+    this.out(`${pcs.length} PC(s) analyzed (MAX_CLOCKS=${analyzer.MAX_CLOCKS}):\n`);
+    for (const pc of pcs) {
+      const r = analyzer.pc2clockrange[pc];
+      this.out(`  $${hex(pc, 4)}  ${r.minclocks}-${r.maxclocks}\n`);
+    }
+  }
+
   cmdInfo() {
     this.target.settle();
     const sections = this.target.getDebugInfo();
@@ -632,6 +649,7 @@ const COMMANDS: { [name: string]: Command } = {
   'screen': RunScript.prototype.cmdScreen,
   'serial': RunScript.prototype.cmdSerial,
   'pc': RunScript.prototype.cmdPC,
+  'analyze': RunScript.prototype.cmdAnalyze,
   'info': RunScript.prototype.cmdInfo,
   'signals': RunScript.prototype.cmdSignals,
   'png': RunScript.prototype.cmdPNG,

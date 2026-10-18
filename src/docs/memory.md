@@ -12,6 +12,8 @@ The dump is laid out 16 bytes per row:
 - Each row begins with the address of its first byte.
 - Rows are color-coded by the memory segment they fall into, using the
   same segment data as the [Memory Map](memmap.md).
+- A symbol labels only its own bytes when the toolchain reports a size;
+  otherwise it labels up to the next symbol or the end of its segment.
 - When the window opens it scrolls to the program's data segment.
 
 ## Navigating

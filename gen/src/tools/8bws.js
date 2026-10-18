@@ -62,6 +62,7 @@ const toolmeta_1 = require("../common/toolmeta");
 /** Options that may be repeated; each occurrence adds to a list. */
 const REPEATABLE_FLAGS = new Set([
     'define', 'as-define', 'ld-define', 'cflag', 'asflag', 'ldflag',
+    'option',
 ]);
 /** Extensions always treated as ROMs, even if the contents look like text. */
 const ROM_EXTS = new Set(['.rom', '.bin', ...Object.keys(detect_1.ROM_PLATFORMS)]);
@@ -234,7 +235,7 @@ function looksLikeROM(file) {
     return (0, util_1.isProbablyBinary)(file, fs.readFileSync(file));
 }
 async function openTarget(args, platformId) {
-    const target = await (0, emutarget_1.loadPlatform)(platformId);
+    const target = await (0, emutarget_1.loadPlatform)(platformId, parsePlatformOptions(args));
     const vectorSize = str(args, 'vector-size');
     if (vectorSize)
         target.vectorSize = parseInt(vectorSize);
@@ -244,6 +245,18 @@ async function openTarget(args, platformId) {
         (0, cliformat_1.fail)('run', `'${target.id}' does not accept a BIOS image`);
     }
     return target;
+}
+/** Turn repeated --option key=value flags into a platform options object. */
+function parsePlatformOptions(args) {
+    var _a;
+    const options = {};
+    for (const kv of (_a = list(args, 'option')) !== null && _a !== void 0 ? _a : []) {
+        const i = kv.indexOf('=');
+        if (i <= 0)
+            (0, cliformat_1.fail)('run', `bad --option '${kv}' (expected key=value)`);
+        options[kv.substring(0, i)] = kv.substring(i + 1);
+    }
+    return options;
 }
 /** Turn the run flags into script commands, appended to any --script/-e text. */
 function buildScript(args) {
@@ -695,6 +708,7 @@ function usage(error) {
                     '--info': 'dump debug info and disassembly when done',
                     '--no-warnings': 'don\'t print compiler warnings',
                     '--memdump <a,b>': 'hexdump a hex address range',
+                    '--option <k=v>': 'pass a platform option, e.g. --option joyport=1 (repeatable)',
                 },
                 'new options': {
                     '--libs': 'also copy the library files other examples share (default: builds find them in the toolchains)',

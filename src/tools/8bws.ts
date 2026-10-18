@@ -35,6 +35,7 @@ interface Args {
 /** Options that may be repeated; each occurrence adds to a list. */
 const REPEATABLE_FLAGS = new Set([
   'define', 'as-define', 'ld-define', 'cflag', 'asflag', 'ldflag',
+  'option',
 ]);
 
 
@@ -214,7 +215,7 @@ function looksLikeROM(file: string): boolean {
 }
 
 async function openTarget(args: Args, platformId: string): Promise<EmuTarget> {
-  const target = await loadPlatform(platformId);
+  const target = await loadPlatform(platformId, parsePlatformOptions(args));
   const vectorSize = str(args, 'vector-size');
   if (vectorSize) target.vectorSize = parseInt(vectorSize);
   await target.start();
@@ -223,6 +224,17 @@ async function openTarget(args: Args, platformId: string): Promise<EmuTarget> {
     fail('run', `'${target.id}' does not accept a BIOS image`);
   }
   return target;
+}
+
+/** Turn repeated --option key=value flags into a platform options object. */
+function parsePlatformOptions(args: Args): any {
+  const options: any = {};
+  for (const kv of list(args, 'option') ?? []) {
+    const i = kv.indexOf('=');
+    if (i <= 0) fail('run', `bad --option '${kv}' (expected key=value)`);
+    options[kv.substring(0, i)] = kv.substring(i + 1);
+  }
+  return options;
 }
 
 /** Turn the run flags into script commands, appended to any --script/-e text. */
@@ -674,6 +686,7 @@ function usage(error?: string): never {
           '--info': 'dump debug info and disassembly when done',
           '--no-warnings': 'don\'t print compiler warnings',
           '--memdump <a,b>': 'hexdump a hex address range',
+          '--option <k=v>': 'pass a platform option, e.g. --option joyport=1 (repeatable)',
         },
         'new options': {
           '--libs': 'also copy the library files other examples share (default: builds find them in the toolchains)',

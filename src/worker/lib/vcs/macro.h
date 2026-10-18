@@ -17,7 +17,7 @@ VERSION_MACRO         = 111
 
 
 ; Latest Revisions...
-; 1.11  01/FEB/2026     - added macros ALIGN_PAGE, BYTE_COUNT, CHECK_PAGE, TIMER_SETUP 
+; 1.11  01/FEB/2026     - added macros ALIGN_PAGE, BYTE_COUNT, CHECK_PAGE, TIMER_SETUP
 ;                         and TIMER_WAIT
 ; 1.10  09/MAY/2022     - ("nop 0") should be changed to "nop VSYNC", to ensure that
 ;                         the instruction will access a "safe" memory location even
@@ -35,13 +35,13 @@ VERSION_MACRO         = 111
 ;
 ; 1.02  14/JUN/2003     - VERTICAL_SYNC macro added
 ;                         (standardised macro for vertical synch code)
-; 1.01  22/MAR/2003     - SLEEP macro added. 
+; 1.01  22/MAR/2003     - SLEEP macro added.
 ;                       - NO_ILLEGAL_OPCODES switch implemented
 ; 1.0	22/MAR/2003		Initial release
 
-; Note: Some of these macros use illegal opcodes.  To disable illegal opcode usage, 
+; Note: Some of these macros use illegal opcodes.  To disable illegal opcode usage,
 ;   define the symbol NO_ILLEGAL_OPCODES (-DNO_ILLEGAL_OPCODES=1 on command-line).
-;   If you do not allow illegal opcode usage, you must include this file 
+;   If you do not allow illegal opcode usage, you must include this file
 ;   *after* including VCS.H (as the non-illegal opcodes access hardware
 ;   registers and require them to be defined first).
 
@@ -82,7 +82,7 @@ VERSION_MACRO         = 111
                     ENDIF
 .CYCLES             SET .CYCLES - 3
                 ENDIF
-            
+
                 REPEAT .CYCLES / 2
                     nop
                 REPEND
@@ -116,8 +116,8 @@ VERSION_MACRO         = 111
             MAC CLEAN_START
                 sei
                 cld
-            
-                IFNCONST NO_ILLEGAL_OPCODES
+
+                IFCONST UNSTABLE_OPCODES
                     lxa #0
                 ELSE
                     ldx #0
@@ -164,7 +164,7 @@ VERSION_MACRO         = 111
 ;
 ; eg: BOUNDARY 5    ; position at byte #5 in page
 
-.FREE_BYTES SET 0   
+.FREE_BYTES SET 0
     MAC BOUNDARY
         REPEAT 256
             IF <. % {1} = 0

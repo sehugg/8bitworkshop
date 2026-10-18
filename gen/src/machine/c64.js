@@ -1,9 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.C64_WASMMachine = void 0;
+exports.C64_WASMMachine = exports.C64_JOYPORT_BOTH = exports.C64_JOYPORT_2 = exports.C64_JOYPORT_1 = exports.C64_JOYPORT_AUTO = void 0;
 const emu_1 = require("../common/emu");
 const util_1 = require("../common/util");
 const wasmplatform_1 = require("../common/wasmplatform");
+// joystick port routing: which CIA1 port(s) the keyboard-joystick keys feed.
+// port 1 = CIA1 PRB (shared with the keyboard rows), port 2 = CIA1 PRA.
+exports.C64_JOYPORT_AUTO = 0; // deliver to both ports until the program shows it reads port 2
+exports.C64_JOYPORT_1 = 1; // port 1 only
+exports.C64_JOYPORT_2 = 2; // port 2 only
+exports.C64_JOYPORT_BOTH = 3; // deliver to both ports
 class C64_WASMMachine extends wasmplatform_1.BaseWASMMachine {
     constructor() {
         super(...arguments);
@@ -11,8 +17,11 @@ class C64_WASMMachine extends wasmplatform_1.BaseWASMMachine {
         this.cpuCyclesPerLine = 63;
         this.joymask0 = 0;
         this.joymask1 = 0;
+        this.joystickPort = exports.C64_JOYPORT_AUTO;
+        this.joystickDetected = false; // auto mode: seen CIA1 PRA set to input -> the program reads joystick port 2
         this.lightpen_x = 0;
         this.lightpen_y = 0;
+        this.cia1ofs = -1;
     }
     loadBIOS(srcArray) {
         super.loadBIOS(srcArray);
@@ -97,8 +106,54 @@ class C64_WASMMachine extends wasmplatform_1.BaseWASMMachine {
         clocks = super.advanceFrameClock(trap, clocks);
         if (probing)
             this.copyProbeData();
+        this.pollJoystickPort();
         //console.log(clocks, this.getRasterY());
         return clocks;
+    }
+    getCIA1Offset() {
+        // the debug state offsets are stable, so cache the CIA-1 struct offset
+        // (statearr mirrors the sys struct, but only after machine_save_state())
+        if (this.cia1ofs < 0)
+            this.cia1ofs = this.getDebugStateOffset(1);
+        return this.cia1ofs;
+    }
+    // A program that reads joystick port 2 has to configure CIA1 PRA bits 0-4 as
+    // inputs first (the KERNAL keeps DDRA all-output for keyboard scanning), so
+    // PRA input direction is a reliable signal that the program is a port-2 user.
+    // Peek at the live CIA-1 state each frame; once seen, deliver the keyboard
+    // joystick to port 2 only, so port 1 stays clean for keyboard scanning.
+    pollJoystickPort() {
+        if (this.joystickPort != exports.C64_JOYPORT_AUTO || this.joystickDetected)
+            return;
+        // m6526_port_t is {reg, ddr, inp, pins}, so pa.ddr is at cia1+1.
+        // the view is cached, but re-created if the WASM memory grew and
+        // detached the buffer it was created over
+        var buf = this.exports.memory.buffer;
+        var view = this.cia1view;
+        if (view == null || view.buffer !== buf) {
+            view = this.cia1view = new Uint8Array(buf, this.sys + this.getCIA1Offset() + 1, 1);
+        }
+        if ((view[0] & 0x1f) == 0) {
+            this.joystickDetected = true;
+            this.deliverJoystick();
+        }
+    }
+    setJoystickPort(port) {
+        this.joystickPort = port;
+        this.deliverJoystick();
+    }
+    // route the keyboard-joystick masks to the selected port(s)
+    deliverJoystick() {
+        if (!this.exports)
+            return; // setJoystickPort() can be called before the WASM loads
+        var m0 = this.joymask0, m1 = this.joymask1;
+        if (this.joystickPort == exports.C64_JOYPORT_1)
+            m1 = 0;
+        else if (this.joystickPort == exports.C64_JOYPORT_2)
+            m0 = 0;
+        else if (this.joystickPort == exports.C64_JOYPORT_AUTO && this.joystickDetected)
+            m0 = 0;
+        this.exports.c64_joystick(this.sys, m0, m1);
     }
     getCPUState() {
         this.exports.machine_save_cpu_state(this.sys, this.cpustateptr);
@@ -141,6 +196,7 @@ class C64_WASMMachine extends wasmplatform_1.BaseWASMMachine {
             // so it has to be saved explicitly or it leaks across a rewind
             joymask0: this.joymask0,
             joymask1: this.joymask1,
+            joystickDetected: this.joystickDetected,
         };
     }
     loadState(state) {
@@ -148,7 +204,8 @@ class C64_WASMMachine extends wasmplatform_1.BaseWASMMachine {
         this.exports.machine_load_state(this.sys, this.stateptr);
         this.joymask0 = state.joymask0 | 0;
         this.joymask1 = state.joymask1 | 0;
-        this.exports.c64_joystick(this.sys, this.joymask0, this.joymask1);
+        this.joystickDetected = !!state.joystickDetected;
+        this.deliverJoystick();
     }
     getVideoParams() {
         return { width: 392, height: 272, overscan: true, videoFrequency: 50, aspect: 392 / 272 * 0.9365 };
@@ -274,7 +331,7 @@ class C64_WASMMachine extends wasmplatform_1.BaseWASMMachine {
             this.joymask0 &= ~mask;
             this.joymask1 &= ~mask2;
         }
-        this.exports.c64_joystick(this.sys, this.joymask0, this.joymask1);
+        this.deliverJoystick();
     }
     getRasterX() {
         return this.statearr[0xf4];

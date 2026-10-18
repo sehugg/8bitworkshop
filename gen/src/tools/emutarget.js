@@ -18,7 +18,7 @@ var emucore_2 = require("../common/emucore");
 Object.defineProperty(exports, "EmuTarget", { enumerable: true, get: function () { return emucore_2.EmuCore; } });
 Object.defineProperty(exports, "DEFAULT_MAX_FRAMES", { enumerable: true, get: function () { return emucore_2.DEFAULT_MAX_FRAMES; } });
 /** Load a platform module by ID (e.g. "nes", "c64.wasm", "atari8-5200"). */
-async function loadPlatform(platformId) {
+async function loadPlatform(platformId, options) {
     await (0, toolroot_1.ensureToolchains)(platformId);
     installNodeMocks((0, toolroot_1.toolRoot)());
     // a headless host may load more than one platform (or the same one twice)
@@ -35,7 +35,7 @@ async function loadPlatform(platformId) {
     if (!PlatformClass) {
         throw new Error(`Platform '${platformId}' not found. Available: ${Object.keys(emu_1.PLATFORMS).sort().join(', ')}`);
     }
-    return new emucore_1.EmuCore(platformId, new PlatformClass(null));
+    return new emucore_1.EmuCore(platformId, new PlatformClass(null, options));
 }
 let mocksInstalled = false;
 /**
