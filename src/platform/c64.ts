@@ -1,5 +1,5 @@
 
-import { C64_WASMMachine } from "../machine/c64";
+import { C64_WASMMachine, C64_JOYPORT_AUTO, C64_JOYPORT_1, C64_JOYPORT_2, C64_JOYPORT_BOTH } from "../machine/c64";
 import { Platform, Base6502MachinePlatform, getToolForFilename_6502, getOpcodeMetadata_6502, Preset } from "../common/baseplatform";
 import { PLATFORMS } from "../common/emu";
 import { BaseMAME6502Platform } from "../common/mameplatform";
@@ -73,7 +73,17 @@ const C64_MEMORY_MAP = { main:[
 // WASM C64 platform
 class C64WASMPlatform extends Base6502MachinePlatform<C64_WASMMachine> implements Platform {
 
-  newMachine()          { return new C64_WASMMachine('c64'); }
+  // ?options=joyport=1|2|both|auto picks which joystick port(s) the
+  // keyboard-joystick keys feed (default auto: both until port 2 is detected)
+  newMachine()          {
+    const m = new C64_WASMMachine('c64');
+    const jp = String(this.options.joyport || '').toLowerCase();
+    if (jp == '1') m.setJoystickPort(C64_JOYPORT_1);
+    else if (jp == '2') m.setJoystickPort(C64_JOYPORT_2);
+    else if (jp == 'both') m.setJoystickPort(C64_JOYPORT_BOTH);
+    else if (jp == 'auto') m.setJoystickPort(C64_JOYPORT_AUTO);
+    return m;
+  }
 
   getPresets()          { return C64_PRESETS; }
   readAddress(a)        { return this.machine.readConst(a); }
