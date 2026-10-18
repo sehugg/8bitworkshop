@@ -83,6 +83,7 @@ _music_tick:
 ; Timer ran out, so fetch next note
 @NextData:
         jsr	next_music_byte
+        cmp     #0
         bmi	@LoadDuration
 ; < $80, play next note
         ldx	CurChannel	; next channel
