@@ -440,9 +440,9 @@ export class WASIRunner {
                 } else return WASIErrors.INVAL;
             }
         } else {
-            if (file == null) return WASIErrors.NOSYS;
+            if (file == null) return WASIErrors.NOENT;
             if (o_flags & FDOpenFlags.DIRECTORY) { // check type
-                if (file.type !== FDType.DIRECTORY) return WASIErrors.NOSYS;
+                if (file.type !== FDType.DIRECTORY) return WASIErrors.NOTDIR;
             }
             if (o_flags & FDOpenFlags.EXCL) return WASIErrors.INVAL; // already exists
             if (o_flags & FDOpenFlags.TRUNC) { // truncate
