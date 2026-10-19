@@ -27,8 +27,9 @@ export function compileUrust(step: BuildStep): BuildStepResult {
     wasi.initSync(wasiModule);
     populateWASIFiles(wasi, step);
     const args = ['urust', 'build', step.path, '--platform', platform, '--emit', 'bin', '-o', binpath,
-        '-Ob', '-fno-bounds-checks',
+        '-O1', '-fno-bounds-checks',
         '-Wall',
+        '--auto-mod',
         '--debug-out', dbgpath, '--error-format', 'json'];
     args.push.apply(args, extraArgsFor('urust', step.params && step.params.buildArgs));
     wasi.setArgs(args);

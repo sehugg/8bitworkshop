@@ -1,5 +1,5 @@
 import assert from "assert";
-import { WASIRunner, WASIMemoryFilesystem, WASIErrors, normalizeWASIPath } from "../../src/common/wasi/wasishim";
+import { WASIRunner, WASIMemoryFilesystem, WASIErrors, FDOpenFlags, normalizeWASIPath } from "../../src/common/wasi/wasishim";
 import * as fs from "fs";
 import { loadWASIFilesystemZip, unzipWASIFilesystem } from "../../src/worker/wasiutils";
 import { parseOscar64Listing, parseOscar64Lbl, parseOscar64Map } from "../../src/worker/tools/oscar64parse";
@@ -167,6 +167,12 @@ describe('WASIMemoryFilesystem path handling', function () {
         assert.strictEqual(normalizeWASIPath('/root/../root/a.asm'), '/root/a.asm');
         assert.strictEqual(normalizeWASIPath('.'), '.');
         assert.strictEqual(normalizeWASIPath('/'), '/');
+    });
+    it('reports a missing file as NOENT, not NOSYS', function () {
+        const wasi = new WASIRunner();
+        assert.strictEqual(wasi.openFile('./missing.bin', 0), WASIErrors.NOENT);
+        wasi.fs.putFile('./plain.bin', 'x');
+        assert.strictEqual(wasi.openFile('./plain.bin', FDOpenFlags.DIRECTORY), WASIErrors.NOTDIR);
     });
     it('finds files written with a different leading ./ depth', function () {
         const fsys = new WASIMemoryFilesystem();

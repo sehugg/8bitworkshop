@@ -54,7 +54,7 @@ describe('urust tool', function () {
     assert.strictEqual(urustPlatformName('c64'), 'c64');
     assert.strictEqual(urustPlatformName('atari8-800xl'), 'atari8');
     assert.strictEqual(urustPlatformName('vcs'), 'vcs');
-    assert.strictEqual(urustPlatformName('apple2'), undefined);
+    assert.strictEqual(urustPlatformName('apple2'), 'apple2');
   });
 
   it('parses JSON diagnostics; end column only on a single line', function () {
