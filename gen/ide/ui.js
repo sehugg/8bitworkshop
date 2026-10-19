@@ -63,6 +63,7 @@ const baseplatform_1 = require("../common/baseplatform");
 const emu_1 = require("../common/emu");
 const books_1 = require("../common/books");
 const controls_1 = require("../common/controls");
+const audio_1 = require("../common/audio");
 const hdlhost_1 = require("./hdlhost");
 const recorder_1 = require("../common/recorder");
 const util_1 = require("../common/util");
@@ -2322,7 +2323,29 @@ function renderControls(div) {
     }
     return div.children().length > 0;
 }
+function showAudioHint() {
+    const hint = $("#emuaudiohint");
+    if (!hint.length)
+        return;
+    let wasBlocked = false;
+    const update = () => {
+        if ((0, audio_1.isAudioBlocked)()) {
+            wasBlocked = true;
+            hint.show();
+        }
+        else {
+            hint.hide();
+            if (wasBlocked)
+                unsubscribe();
+        }
+    };
+    // AudioContext.resume() is async, so wait for the context to actually start
+    // instead of hiding on the click that asked it to.
+    const unsubscribe = (0, audio_1.onAudioStateChange)(update);
+    update();
+}
 function showInstructions() {
+    showAudioHint();
     var div = $("#emucontrols");
     if (!renderControls(div))
         return;

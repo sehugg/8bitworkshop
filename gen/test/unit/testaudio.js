@@ -104,6 +104,33 @@ class SuspendedAudioContext extends FakeAudioContext {
     suspend() { this.state = 'suspended'; return Promise.resolve(); }
     resume() { this.resumes++; this.state = 'running'; return Promise.resolve(); }
 }
+// Like a real context: resume() takes a moment, then fires statechange. Used to
+// check that the UI hint waits for Web Audio to actually start.
+class GestureAudioContext extends FakeAudioContext {
+    constructor() {
+        super(...arguments);
+        this.state = 'suspended';
+        this.stateListeners = [];
+    }
+    addEventListener(type, listener) {
+        if (type === 'statechange')
+            this.stateListeners.push(listener);
+    }
+    resume() {
+        return Promise.resolve().then(() => {
+            this.state = 'running';
+            for (const listener of this.stateListeners)
+                listener();
+        });
+    }
+    suspend() {
+        return Promise.resolve().then(() => {
+            this.state = 'suspended';
+            for (const listener of this.stateListeners)
+                listener();
+        });
+    }
+}
 const RING_BUFFER_SAMPLES = 2048;
 function withFakeAudio(fn) {
     const prev = global.window;
@@ -147,6 +174,26 @@ function pullBlock(length = RING_BUFFER_SAMPLES) {
         finally {
             global.window = prev;
         }
+    });
+    (0, mocha_1.it)('reports a context as blocked until its resume() resolves', async function () {
+        const ctx = new GestureAudioContext();
+        let changes = 0;
+        const unsubscribe = (0, audio_1.onAudioStateChange)(() => changes++);
+        (0, audio_1.resumeAudioContext)(ctx);
+        assert_1.default.equal((0, audio_1.isAudioBlocked)(), true);
+        await new Promise((r) => setTimeout(r, 0));
+        assert_1.default.equal(ctx.state, 'running');
+        assert_1.default.equal((0, audio_1.isAudioBlocked)(), false);
+        assert_1.default.ok(changes >= 2, 'expected registration and unlock notifications');
+        unsubscribe();
+    });
+    (0, mocha_1.it)('does not treat a context the IDE suspends as blocked', async function () {
+        const ctx = new GestureAudioContext();
+        (0, audio_1.resumeAudioContext)(ctx);
+        await new Promise((r) => setTimeout(r, 0));
+        assert_1.default.equal((0, audio_1.isAudioBlocked)(), false);
+        await ctx.suspend();
+        assert_1.default.equal((0, audio_1.isAudioBlocked)(), false);
     });
 });
 (0, mocha_1.describe)('SampleAudio ring depth', function () {

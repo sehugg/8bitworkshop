@@ -44,7 +44,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - "Share Playable Link" packs the game into the URL fragment instead of the query string, so it no longer hits the web server's ~8 KB request-line limit, and encodes it as URL-safe Base64 to avoid percent-encoding. Old `?r=` links still play.
 - Removed the Markdown/Showdown platform, the old `script` platform, Google Analytics, Sentry (replaced with a new error-reporting endpoint) and the HTTPS redirect.
 - "Highlight Executed Lines" draws a hot/cold heat map: lines run since the last update are colored by how often they have run (blue = cold, red = hot) and disappear once they stop executing.
-- Audio reliably unlocks under the browser autoplay policy: the emulator resumes its `AudioContext` on the first click/keypress anywhere on the page, not only when the emulator canvas gets focus.
+- Audio reliably unlocks under the browser autoplay policy: the emulator resumes its `AudioContext` on the first click/keypress anywhere on the page, not only when the emulator canvas gets focus. A hint under the emulator screen says so until it is unlocked.
 - Memory Map: a Modules column shows each object file's slice of every SDCC or cc65 segment (`Segment.modules`; SDCC from the `.rel` sizes in link order, with the remainder as `(libraries)`; cc65 from the ld65 map's module list, library members by name).
 - Memory Browser: a symbol label covers only its reported size, and an unsized symbol stops at its segment boundary instead of running into the next segment.
 
