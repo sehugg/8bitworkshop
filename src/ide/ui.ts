@@ -6,6 +6,7 @@ import { BaseDebugPlatform, DebugEvalCondition, DebugSymbols, EmuState, isDebugg
 import { EmuHalt, PLATFORMS, setHaltHandler } from "../common/emu";
 import { BOOKS, bookFor } from "../common/books";
 import { PLATFORM_CONTROLS } from "../common/controls";
+import { isAudioBlocked, onAudioStateChange } from "../common/audio";
 import { installHDLHost } from "./hdlhost";
 import { StateRecorderImpl } from "../common/recorder";
 import {
@@ -2323,7 +2324,27 @@ function renderControls(div: JQuery) {
   return div.children().length > 0;
 }
 
+function showAudioHint() {
+  const hint = $("#emuaudiohint");
+  if (!hint.length) return;
+  let wasBlocked = false;
+  const update = () => {
+    if (isAudioBlocked()) {
+      wasBlocked = true;
+      hint.show();
+    } else {
+      hint.hide();
+      if (wasBlocked) unsubscribe();
+    }
+  };
+  // AudioContext.resume() is async, so wait for the context to actually start
+  // instead of hiding on the click that asked it to.
+  const unsubscribe = onAudioStateChange(update);
+  update();
+}
+
 function showInstructions() {
+  showAudioHint();
   var div = $("#emucontrols");
   if (!renderControls(div)) return;
   if (platform_id.endsWith(".mame")) div.show(); // TODO: MAME seems to eat the focus() event

@@ -1029,6 +1029,12 @@ div.asset_toolbar {
   margin-top: auto;
   margin-bottom: 2em;
 }
+.audio-hint {
+  color: #ccc;
+  margin-top: 0.5em;
+  margin-left: 1em;
+  margin-right: 1em;
+}
 .control-key {
   border: 2px solid rgba(0,0,0,0.2);
   border-radius: 0.6em;

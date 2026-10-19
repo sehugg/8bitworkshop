@@ -398,17 +398,88 @@ export const AUDIO_CHUNK_SAMPLES = 2048;
 // must be called synchronously inside the handler for Safari/iOS to allow it.
 // Called on every start(), since stop() suspends the context.
 const audioUnlockEvents = ['pointerdown', 'touchend', 'mousedown', 'keydown', 'click'];
-const pendingUnlocks = new WeakSet<AudioContext>();
+const pendingUnlocks = new WeakSet<AudioContext>();   // waiting for the first user gesture
+const unlockListeners = new WeakSet<AudioContext>();  // document gesture handlers installed
+
+// Every AudioContext the IDE starts is registered here so the UI can tell
+// whether Web Audio is still waiting for the user gesture that owns the page.
+// Browsers keep one suspended until then, and resume() resolves asynchronously,
+// so notify listeners on registration, state changes and resume completion.
+const audioContexts = new Set<AudioContext>();
+const audioStateListeners = new Set<() => void>();
+
+function notifyAudioState() {
+  for (const listener of Array.from(audioStateListeners)) listener();
+}
+
+function markAudioUnlocked(ctx: AudioContext) {
+  pendingUnlocks.delete(ctx);
+  notifyAudioState();
+}
+
+function trackAudioContext(ctx: AudioContext) {
+  if (audioContexts.has(ctx)) return;
+  audioContexts.add(ctx);
+  if (typeof ctx.addEventListener === 'function') {
+    ctx.addEventListener('statechange', () => {
+      if (ctx.state === 'running') {
+        pendingUnlocks.delete(ctx);
+      } else if (ctx.state === 'closed') {
+        // a closed context can never be resumed, so stop counting it as blocked
+        audioContexts.delete(ctx);
+        pendingUnlocks.delete(ctx);
+      }
+      notifyAudioState();
+    });
+  }
+  notifyAudioState();
+}
+
+/**
+ * True while an AudioContext is waiting for the user gesture that unlocks
+ * Web Audio. A context the IDE suspends itself (pause, tab blur) is not blocked;
+ * it comes back without a gesture.
+ */
+export function isAudioBlocked(): boolean {
+  for (const ctx of audioContexts) {
+    if (ctx.state !== 'running' && pendingUnlocks.has(ctx)) return true;
+  }
+  return false;
+}
+
+/** Subscribe to AudioContext creation and state changes. Returns an unsubscribe fn. */
+export function onAudioStateChange(listener: () => void): () => void {
+  audioStateListeners.add(listener);
+  return () => { audioStateListeners.delete(listener); };
+}
+
+function resumeTrackedContext(ctx: AudioContext) {
+  const resumed = ctx.resume();
+  if (resumed && typeof resumed.then === 'function') {
+    resumed.then(() => {
+      if (ctx.state === 'running') markAudioUnlocked(ctx);
+      else notifyAudioState();
+    }, () => {});
+  }
+}
+
 export function resumeAudioContext(ctx: AudioContext) {
-  if (!ctx || ctx.state === 'running') return;
-  ctx.resume().catch(() => {});
-  if (typeof document === 'undefined' || pendingUnlocks.has(ctx)) return;
+  if (!ctx || ctx.state === 'closed') return;
+  trackAudioContext(ctx);
+  if (ctx.state === 'running') {
+    pendingUnlocks.delete(ctx);
+    return;
+  }
   pendingUnlocks.add(ctx);
+  notifyAudioState(); // show the click hint even if resume() stays suspended
+  resumeTrackedContext(ctx);
+  if (typeof document === 'undefined' || unlockListeners.has(ctx)) return;
+  unlockListeners.add(ctx);
   const onGesture = () => {
-    ctx.resume().catch(() => {});
+    resumeTrackedContext(ctx);
     if (ctx.state === 'running') {
       for (const ev of audioUnlockEvents) document.removeEventListener(ev, onGesture, true);
-      pendingUnlocks.delete(ctx);
+      unlockListeners.delete(ctx);
     }
   };
   for (const ev of audioUnlockEvents) document.addEventListener(ev, onGesture, true);

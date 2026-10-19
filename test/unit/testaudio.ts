@@ -1,6 +1,6 @@
 import assert from "assert";
 import { describe, it, afterEach } from "mocha";
-import { AUDIO_CHUNK_SAMPLES, AudioStream, SampledAudio, setAudioStreamFactory } from "../../src/common/audio";
+import { AUDIO_CHUNK_SAMPLES, AudioStream, SampledAudio, isAudioBlocked, onAudioStateChange, resumeAudioContext, setAudioStreamFactory } from "../../src/common/audio";
 
 // A stand-in for the extension's worker-side stream (see extension/emuworker.ts).
 class TestStream implements AudioStream {
@@ -100,6 +100,28 @@ class SuspendedAudioContext extends FakeAudioContext {
   resume() { this.resumes++; this.state = 'running'; return Promise.resolve(); }
 }
 
+// Like a real context: resume() takes a moment, then fires statechange. Used to
+// check that the UI hint waits for Web Audio to actually start.
+class GestureAudioContext extends FakeAudioContext {
+  state = 'suspended';
+  stateListeners: (() => void)[] = [];
+  addEventListener(type: string, listener: () => void) {
+    if (type === 'statechange') this.stateListeners.push(listener);
+  }
+  resume() {
+    return Promise.resolve().then(() => {
+      this.state = 'running';
+      for (const listener of this.stateListeners) listener();
+    });
+  }
+  suspend() {
+    return Promise.resolve().then(() => {
+      this.state = 'suspended';
+      for (const listener of this.stateListeners) listener();
+    });
+  }
+}
+
 const RING_BUFFER_SAMPLES = 2048;
 
 function withFakeAudio(fn: () => void | Promise<void>) {
@@ -145,6 +167,28 @@ describe('SampleAudio autoplay unlock', function () {
     } finally {
       (global as any).window = prev;
     }
+  });
+
+  it('reports a context as blocked until its resume() resolves', async function () {
+    const ctx = new GestureAudioContext();
+    let changes = 0;
+    const unsubscribe = onAudioStateChange(() => changes++);
+    resumeAudioContext(ctx as any);
+    assert.equal(isAudioBlocked(), true);
+    await new Promise((r) => setTimeout(r, 0));
+    assert.equal(ctx.state, 'running');
+    assert.equal(isAudioBlocked(), false);
+    assert.ok(changes >= 2, 'expected registration and unlock notifications');
+    unsubscribe();
+  });
+
+  it('does not treat a context the IDE suspends as blocked', async function () {
+    const ctx = new GestureAudioContext();
+    resumeAudioContext(ctx as any);
+    await new Promise((r) => setTimeout(r, 0));
+    assert.equal(isAudioBlocked(), false);
+    await ctx.suspend();
+    assert.equal(isAudioBlocked(), false);
   });
 });
 
