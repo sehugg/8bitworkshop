@@ -21,12 +21,12 @@ export function getToolForFilename_6502(fn: string): string {
   if (fn.endsWith(".bb")) return "bataribasic";
   if (fn.endsWith(".acme")) return "acme";
   if (fn.endsWith(".xa")) return "xa";
-  if (fn.endsWith(".rs")) return "urust";
   if (fn.endsWith(".wiz")) return "wiz";
   if (fn.endsWith(".ecs")) return "ecs";
   if (fn.endsWith(".cpp")) return "oscar64";
   if (fn.endsWith(".cc")) return "oscar64";
   if (fn.endsWith(".o64")) return "oscar64";
+  if (fn.endsWith(".rs")) return "urust";
   return "dasm"; // .a
 }
 
@@ -39,6 +39,7 @@ export function getToolForFilename_z80(fn: string): string {
   if (fn.endsWith(".scc")) return "sccz80";
   if (fn.endsWith(".z")) return "zmac";
   if (fn.endsWith(".wiz")) return "wiz";
+  if (fn.endsWith(".rs")) return "urust";
   return "zmac";
 }
 

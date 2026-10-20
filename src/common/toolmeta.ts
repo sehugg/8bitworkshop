@@ -171,9 +171,14 @@ export interface ToolMeta {
 //// shared dependency-parsing patterns (from src/ide/project.ts)
 
 // C / most assemblers: [.#%]?include|incbin|embed "file", //#resource "file"
+// The resource form is also useful to tools whose own include syntax has no
+// way to name a non-source file (e.g. urust's custom board TOML).
+export const SHARED_RESOURCE_PATTERNS: RegExp[] = [
+  /^\s*([;']|[/][/])#(resource)\s+"(.+?)"/gm,
+];
 export const SHARED_INCLUDE_PATTERNS: RegExp[] = [
   /^\s*[.#%]?(include|incbin|embed)\s+"(.+?)"/gmi,
-  /^\s*([;']|[/][/])#(resource)\s+"(.+?)"/gm,
+  ...SHARED_RESOURCE_PATTERNS,
 ];
 
 // dasm accepts include/incbin file names without quotes as well as quoted
@@ -265,6 +270,7 @@ const URUST_MOD_PATTERN = /^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0
 const URUST_RS8_MODULE_PATTERN = /\brs8::(atari8|c64|conio|io|nes|rand|vcs)\b/g;
 export const URUST_INCLUDE_PATTERNS: (RegExp | ToolIncludePattern)[] = [
   /\binclude_(?:bytes|str)!\s*\(\s*"(.+?)"\s*\)/g,
+  ...SHARED_RESOURCE_PATTERNS,
   { re: URUST_MOD_PATTERN, suffix: '.rs' },
   { re: URUST_MOD_PATTERN, suffix: '/mod.rs' },
   { re: URUST_RS8_MODULE_PATTERN, suffix: '.rs' },

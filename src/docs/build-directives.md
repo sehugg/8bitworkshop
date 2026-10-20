@@ -128,6 +128,14 @@ Passes arguments straight to one tool phase, with no interpretation:
 Arguments may be quoted with single or double quotes when they contain
 spaces. This is an escape hatch that the build system cannot validate.
 
+If a flag names a file (for example urust's custom board), also list that
+file as a resource so the IDE and CLI copy it into the build filesystem:
+
+~~~rust
+//#resource "vicdual.toml"
+//#flag c --board vicdual.toml
+~~~
+
 ### `//#tooldef` — set a typed build parameter
 
 Sets a named build parameter that the build system understands:
