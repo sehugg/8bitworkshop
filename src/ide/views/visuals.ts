@@ -33,12 +33,19 @@ const currentPcLineField = StateField.define({
 
 // Error message widget to show below error lines
 class ErrorMessageWidget extends WidgetType {
-  constructor(readonly message: string) { super() }
+  constructor(readonly message: string, readonly warning?: boolean) { super() }
 
   toDOM() {
     let div = document.createElement("div");
     div.textContent = this.message;
-    div.style.cssText = `
+    div.style.cssText = this.warning ? `
+      color: #ffcc44;
+      background-color: #332900;
+      padding: 4px 8px;
+      margin: 2px 0;
+      border-left: 3px solid #ffcc44;
+      font-family: monospace;
+    ` : `
       color: #ff6666;
       background-color: #330000;
       padding: 4px 8px;
@@ -49,6 +56,8 @@ class ErrorMessageWidget extends WidgetType {
     return div;
   }
 }
+
+interface ErrorMessageInfo { msg: string, warning?: boolean }
 
 // State field to manage error message decorations (supports multiple messages)
 const errorMessageField = StateField.define<DecorationSet>({
@@ -67,12 +76,13 @@ const errorMessageField = StateField.define<DecorationSet>({
           const widgets: any[] = [];
 
           // Collect existing decorations
-          const existingMessages = new Map<number, string>();
+          const existingMessages = new Map<number, ErrorMessageInfo>();
           decorations.between(0, tr.state.doc.length, (from, to, value) => {
             try {
               const lineNum = tr.state.doc.lineAt(to).number;
               if (value.spec.widget instanceof ErrorMessageWidget) {
-                existingMessages.set(lineNum, (value.spec.widget as ErrorMessageWidget).message);
+                const widget = value.spec.widget as ErrorMessageWidget;
+                existingMessages.set(lineNum, { msg: widget.message, warning: widget.warning });
               }
             } catch { }
           });
@@ -85,7 +95,7 @@ const errorMessageField = StateField.define<DecorationSet>({
             existingMessages.delete(e.value.line);
           } else {
             // Add the new message
-            existingMessages.set(e.value.line, e.value.msg);
+            existingMessages.set(e.value.line, { msg: e.value.msg, warning: e.value.warning });
           }
 
           // Build sorted decorations
@@ -93,9 +103,10 @@ const errorMessageField = StateField.define<DecorationSet>({
           sortedLines.forEach(lineNum => {
             try {
               const line = tr.state.doc.line(lineNum);
+              const info = existingMessages.get(lineNum)!;
               widgets.push(
                 Decoration.widget({
-                  widget: new ErrorMessageWidget(existingMessages.get(lineNum)!),
+                  widget: new ErrorMessageWidget(info.msg, info.warning),
                   block: true,
                   side: 1
                 }).range(line.to)
@@ -159,11 +170,15 @@ const showValueDecorationField = StateField.define({
   provide: f => EditorView.decorations.from(f),
 });
 
-// Error span decorations for inline column-range highlighting
-const errorSpansEffect = StateEffect.define<{ line: number, start: number, end: number }[] | null>();
+// Error/warning span decorations for inline column-range highlighting
+const errorSpansEffect = StateEffect.define<{ line: number, start: number, end: number, warning?: boolean }[] | null>();
 
 const errorSpanDecoration = Decoration.mark({
   attributes: { class: "cm-error-span" }
+});
+
+const warningSpanDecoration = Decoration.mark({
+  attributes: { class: "cm-warning-span" }
 });
 
 const errorSpansField = StateField.define({
@@ -183,7 +198,7 @@ const errorSpansField = StateField.define({
             const to = line.from + span.end;
             // Clamp to line boundaries
             if (from >= line.from && to <= line.to && from < to) {
-              ranges.push(errorSpanDecoration.range(from, to));
+              ranges.push((span.warning ? warningSpanDecoration : errorSpanDecoration).range(from, to));
             }
           } catch {
             // Line doesn't exist, skip

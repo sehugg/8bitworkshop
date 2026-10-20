@@ -17,7 +17,7 @@ const setErrors = StateEffect.define<Map<number, ErrorInfo>>();
 const setCurrentPc = StateEffect.define<number | null>();
 const runToLineEffect = StateEffect.define<number>();
 
-const showErrorMessage = StateEffect.define<{ line: number, msg: string, toggle?: boolean } | null>();
+const showErrorMessage = StateEffect.define<{ line: number, msg: string, warning?: boolean, toggle?: boolean } | null>();
 
 const offsetField = StateField.define<RangeSet<GutterMarker>>({
     create() { return RangeSet.empty; },
@@ -273,13 +273,15 @@ const statusGutter = gutter({
             if (errorMarkers.size > 0) {
                 const pos = line.from;
                 let msg = "";
+                let warning = false;
                 errorMarkers.between(pos, pos, (from, to, marker: ErrorMarker) => {
                     msg = marker.msg;
+                    warning = marker.warning === true;
                 });
                 if (msg) {
                     const lineNum = view.state.doc.lineAt(line.from).number;
                     view.dispatch({
-                        effects: showErrorMessage.of({ line: lineNum, msg, toggle: true })
+                        effects: showErrorMessage.of({ line: lineNum, msg, warning, toggle: true })
                     });
                 }
             } else if (canUseBreakpoints()) {
