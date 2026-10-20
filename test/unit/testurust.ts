@@ -21,6 +21,11 @@ describe('urust tool', function () {
     assert.deepStrictEqual(deps, ['art/a.bin', 't.txt', 'x']);
   });
 
+  it('scans //#resource files as dependencies', function () {
+    const src = '//#resource "vicdual.toml"\n//#flag c --board vicdual.toml\nfn main() {}\n';
+    assert.deepStrictEqual(matchDependencyPatterns(src, getIncludePatterns('urust')), ['vicdual.toml']);
+  });
+
   it('scans mod/use as module dependencies', function () {
     const src = 'mod audio;\npub mod bcd;\n' +
       'use audio::{music_play, SND_COIN};\nuse bcd::bcd_add;\nuse rs8::reset;\n';

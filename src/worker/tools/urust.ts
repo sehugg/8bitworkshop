@@ -26,12 +26,16 @@ export function compileUrust(step: BuildStep): BuildStepResult {
     const wasi = new WASIRunner();
     wasi.initSync(wasiModule);
     populateWASIFiles(wasi, step);
-    const args = ['urust', 'build', step.path, '--platform', platform, '--emit', 'bin', '-o', binpath,
+    let args = ['urust', 'build', step.path, '--emit', 'bin', '-o', binpath,
         '-O1', '-fno-bounds-checks',
         '-Wall',
         '--auto-mod',
         '--debug-out', dbgpath, '--error-format', 'json'];
     args.push.apply(args, extraArgsFor('urust', step.params && step.params.buildArgs));
+    // TODO: put board in toolmeta?
+    if (!args.includes('--board') && !args.includes('--platform')) {
+        args.push.apply(args, ['--platform', platform]);
+    }
     wasi.setArgs(args);
     const trapped: WorkerError[] = [];
     runWASI(wasi, trapped);
