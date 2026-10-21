@@ -25,6 +25,8 @@ describe('detect', () => {
   it('reads the README badge', async () => {
     var badge = parseReadmeBadge('Game\n\n[Open](http://8bitworkshop.com/redir.html?platform=vcs&githubURL=x&file=game.dasm).\n');
     assert.deepStrictEqual(badge, { platform: 'vcs', mainFile: 'game.dasm' });
+    var latest = parseReadmeBadge('Game\n\n[Open](https://8bitworkshop.com/latest/?platform=vcs&githubURL=x&file=game.dasm).\n');
+    assert.deepStrictEqual(latest, { platform: 'vcs', mainFile: 'game.dasm' });
     var d = await detectProject(files({ 'README.md': '[x](https://8bitworkshop.com/?platform=nes&file=main.c)', 'main.c': '' }));
     assert.strictEqual(d[0].platform, 'nes');
     assert.strictEqual(d[0].mainFile, 'main.c');

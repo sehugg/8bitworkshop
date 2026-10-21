@@ -49,6 +49,10 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Memory Map: a Modules column shows each object file's slice of every SDCC or cc65 segment (`Segment.modules`; SDCC from the `.rel` sizes in link order, with the remainder as `(libraries)`; cc65 from the ld65 map's module list, library members by name).
 - Memory Browser: a symbol label covers only its reported size, and an unsized symbol stops at its segment boundary instead of running into the next segment.
 
+### Website
+
+- Links that open the IDE now point at `https://8bitworkshop.com/latest/`, which the server proxies to the newest build: the badge in a published project's README, the README the VS Code extension writes for a new project, the platform links on the website, and the embedding docs. Old `redir.html` links still work.
+
 ### Asset editor
 
 - Undo/redo for edits, including binary files, and reliable undo for palette changes.

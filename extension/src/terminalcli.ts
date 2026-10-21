@@ -4,6 +4,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { ideLink } from '../../src/common/links';
 
 export interface LauncherOptions {
   /** VS Code's executable; ELECTRON_RUN_AS_NODE makes it plain Node */
@@ -63,7 +64,7 @@ export function writeLauncher(binDir: string, opts: LauncherOptions, platform: s
 export function projectReadme(name: string, platform: { id: string, name: string, romext?: string }, mainFile: string): string {
   var base = path.basename(mainFile, path.extname(mainFile));
   var rom = base + (platform.romext || '.bin');
-  var link = `https://8bitworkshop.com/redir.html?platform=${encodeURIComponent(platform.id)}&file=${encodeURIComponent(mainFile)}`;
+  var link = ideLink({ platform: platform.id, file: mainFile });
   return `# ${name}
 
 A ${platform.name} program made with [8bitworkshop](${link}).

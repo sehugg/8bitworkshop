@@ -107,6 +107,16 @@ describe('8bws CLI', function () {
             assert.strictEqual(r.data.platform, 'nes');
             assert.ok(r.data.source.endsWith(path.join('src', 'hello.c')), r.data.source);
         });
+        it('should read a README badge that links to /latest/', function () {
+            var dir = fs.mkdtempSync(path.join(os.tmpdir(), '8bws-dir-'));
+            fs.mkdirSync(path.join(dir, 'src'));
+            fs.copyFileSync('presets/nes/hello.c', path.join(dir, 'src', 'hello.c'));
+            fs.writeFileSync(path.join(dir, 'README.md'), '[x](https://8bitworkshop.com/latest/?platform=nes&githubURL=x&file=hello.c)\n');
+            var r = cliJSON('build', '--check', dir);
+            assert.ok(r.success, r.error);
+            assert.strictEqual(r.data.platform, 'nes');
+            assert.ok(r.data.source.endsWith(path.join('src', 'hello.c')), r.data.source);
+        });
     });
 
     describe('detect', function () {

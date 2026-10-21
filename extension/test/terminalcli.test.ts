@@ -44,4 +44,9 @@ describe('terminalcli', () => {
     assert.ok(readme.includes('8bws build game.c -o game.nes'));
     assert.ok(projectReadme('x', { id: 'c64', name: 'C64' }, 'a.c').includes('-o a.bin'));
   });
+
+  it('links to the IDE at /latest/', () => {
+    var readme = projectReadme('my-game', { id: 'nes', name: 'NES', romext: '.nes' }, 'game.c');
+    assert.ok(readme.includes('https://8bitworkshop.com/latest/?platform=nes&file=game.c'), readme);
+  });
 });
