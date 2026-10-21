@@ -7,9 +7,9 @@
  *   npm run release -- minor --push
  *   npm run release -- 4.1.0 --push
  *
- * Runs the type check and test suite first (skip with --no-tests) and refuses
- * to run on a dirty (tracked) tree. `--dry-run` prints the plan and stops
- * before anything is written.
+ * Runs the type check, the test suite and the compiler compatibility check
+ * first (skip with --no-tests) and refuses to run on a dirty (tracked) tree.
+ * `--dry-run` prints the plan and stops before anything is written.
  *
  * The tag is what CI and the distro build see. The web site is deployed from
  * the `release` branch, so to publish:
@@ -81,8 +81,11 @@ if (!skipTests) {
   try {
     run('npm', ['run', 'tslint']);
     run('npm', ['test']);
+    // the examples of an older release still have to build with the
+    // compilers we ship now
+    run('npm', ['run', 'compatcheck', '--', '--baseline', 'test/compat/3.12.1.json']);
   } catch {
-    fail('typecheck or tests failed; nothing was bumped');
+    fail('typecheck, tests or the compatibility check failed; nothing was bumped');
   }
 }
 

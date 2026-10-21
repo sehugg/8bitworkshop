@@ -1,0 +1,2600 @@
+[
+ {
+  "preset": "apple2/sieve.c",
+  "platform": "apple2",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "apple2/keyboardtest.c",
+  "platform": "apple2",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": false,
+  "errors": [
+   "keyboardtest.c:1 Error: Invalid input character with code EF",
+   "keyboardtest.c:1 Error: Invalid input character with code BB",
+   "keyboardtest.c:1 Error: Invalid input character with code BF"
+  ]
+ },
+ {
+  "preset": "apple2/mandel.c",
+  "platform": "apple2",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "apple2/tgidemo.c",
+  "platform": "apple2",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "apple2/Eliza.c",
+  "platform": "apple2",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "apple2/siegegame.c",
+  "platform": "apple2",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "apple2/cosmic.c",
+  "platform": "apple2",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "apple2/farmhouse.c",
+  "platform": "apple2",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "apple2/yum.c",
+  "platform": "apple2",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "apple2/lz4test.c",
+  "platform": "apple2",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "apple2/hgrtest.a",
+  "platform": "apple2",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "apple2/conway.a",
+  "platform": "apple2",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "apple2/lz4fh.a",
+  "platform": "apple2",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "apple2/deltamod.dasm",
+  "platform": "apple2",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "arm32/vidfill.c",
+  "platform": "arm32",
+  "tool": "armtcc",
+  "ok": true
+ },
+ {
+  "preset": "astrocade/01-helloworlds.asm",
+  "platform": "astrocade",
+  "tool": "zmac",
+  "toolVersion": "28jul2018",
+  "ok": true
+ },
+ {
+  "preset": "astrocade/02-telephone.asm",
+  "platform": "astrocade",
+  "tool": "zmac",
+  "toolVersion": "28jul2018",
+  "ok": true
+ },
+ {
+  "preset": "astrocade/03-horcbpal.asm",
+  "platform": "astrocade",
+  "tool": "zmac",
+  "toolVersion": "28jul2018",
+  "ok": true
+ },
+ {
+  "preset": "astrocade/hello.c",
+  "platform": "astrocade",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "astrocade/lines.c",
+  "platform": "astrocade",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "astrocade/sprites.c",
+  "platform": "astrocade",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "astrocade/vsync.c",
+  "platform": "astrocade",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "astrocade/fastsprites.c",
+  "platform": "astrocade",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "astrocade/music.c",
+  "platform": "astrocade",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "astrocade/rotate.c",
+  "platform": "astrocade",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "astrocade/rainbow.c",
+  "platform": "astrocade",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "astrocade/cosmic.c",
+  "platform": "astrocade",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "astrocade/racing.c",
+  "platform": "astrocade",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "astrocade-bios/bios.c",
+  "platform": "astrocade-bios",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "atari7800/sprites.dasm",
+  "platform": "atari7800",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "atari7800/wsync.c",
+  "platform": "atari7800",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "atari7800/sprites.c",
+  "platform": "atari7800",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "atari7800/scroll.c",
+  "platform": "atari7800",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "atari7800/test_conio.c78",
+  "platform": "atari7800",
+  "tool": "cc7800",
+  "toolVersion": "0.2.28",
+  "ok": true
+ },
+ {
+  "preset": "atari7800/example_small_sprites.c78",
+  "platform": "atari7800",
+  "tool": "cc7800",
+  "toolVersion": "0.2.28",
+  "ok": true
+ },
+ {
+  "preset": "atari7800/example_vertical_scrolling.c78",
+  "platform": "atari7800",
+  "tool": "cc7800",
+  "toolVersion": "0.2.28",
+  "ok": true
+ },
+ {
+  "preset": "atari8-800/testmusic.c",
+  "platform": "atari8-800",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "atari8-800/sieve.bas",
+  "platform": "atari8-800",
+  "tool": "fastbasic",
+  "toolVersion": "4.4",
+  "ok": true
+ },
+ {
+  "preset": "atari8-800/pmtest.bas",
+  "platform": "atari8-800",
+  "tool": "fastbasic",
+  "toolVersion": "4.4",
+  "ok": true
+ },
+ {
+  "preset": "atari8-800/dli.bas",
+  "platform": "atari8-800",
+  "tool": "fastbasic",
+  "toolVersion": "4.4",
+  "ok": true
+ },
+ {
+  "preset": "atari8-800/joyas.bas",
+  "platform": "atari8-800",
+  "tool": "fastbasic",
+  "toolVersion": "4.4",
+  "ok": true
+ },
+ {
+  "preset": "atari8-800/hello.dasm",
+  "platform": "atari8-800",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "atari8-800/hellopm.dasm",
+  "platform": "atari8-800",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "atari8-800/helloconio.c",
+  "platform": "atari8-800",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "atari8-800/siegegame.c",
+  "platform": "atari8-800",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "atari8-800/hellodlist.c",
+  "platform": "atari8-800",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "atari8-5200/hello.dasm",
+  "platform": "atari8-5200",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "atari8-5200/hellopm.dasm",
+  "platform": "atari8-5200",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "atari8-5200/helloconio.c",
+  "platform": "atari8-5200",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "atari8-5200/siegegame.c",
+  "platform": "atari8-5200",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "atari8-5200/hellodlist.c",
+  "platform": "atari8-5200",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "basic/hello.bas",
+  "platform": "basic",
+  "tool": "basic",
+  "ok": true
+ },
+ {
+  "preset": "basic/tutorial.bas",
+  "platform": "basic",
+  "tool": "basic",
+  "ok": true
+ },
+ {
+  "preset": "basic/sieve.bas",
+  "platform": "basic",
+  "tool": "basic",
+  "ok": true
+ },
+ {
+  "preset": "basic/mortgage.bas",
+  "platform": "basic",
+  "tool": "basic",
+  "ok": true
+ },
+ {
+  "preset": "basic/23match.bas",
+  "platform": "basic",
+  "tool": "basic",
+  "ok": true
+ },
+ {
+  "preset": "basic/craps.bas",
+  "platform": "basic",
+  "tool": "basic",
+  "ok": true
+ },
+ {
+  "preset": "basic/lander.bas",
+  "platform": "basic",
+  "tool": "basic",
+  "ok": true
+ },
+ {
+  "preset": "basic/hamurabi.bas",
+  "platform": "basic",
+  "tool": "basic",
+  "ok": true
+ },
+ {
+  "preset": "basic/wumpus.bas",
+  "platform": "basic",
+  "tool": "basic",
+  "ok": true
+ },
+ {
+  "preset": "basic/startrader.bas",
+  "platform": "basic",
+  "tool": "basic",
+  "ok": true
+ },
+ {
+  "preset": "basic/haunted.bas",
+  "platform": "basic",
+  "tool": "basic",
+  "ok": true
+ },
+ {
+  "preset": "c64/helloc.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/screen_ram.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/siegegame.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/joymove.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/sprite_collision.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/scroll1.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/test_setirq.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/test_display_list.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/scrolling_text.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/side_scroller.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true,
+  "warnings": [
+   "side_scroller.c:146 Signed integer constant overflow",
+   "side_scroller.c:162 Signed integer constant overflow",
+   "side_scroller.c:171 Signed integer constant overflow",
+   "side_scroller.c:172 Signed integer constant overflow"
+  ]
+ },
+ {
+  "preset": "c64/scroll2.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/scroll3.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/scroll4.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/scroll5.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/fullscrollgame.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/test_multiplex.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/test_multispritelib.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/mcbitmap.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/testlz4.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/musicplayer.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/siddemo.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/digisound.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/climber.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/test_border_sprites.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/sprite_stretch.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/linecrunch.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/fld.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/plasma.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/23matches.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/tgidemo.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/upandaway.c",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/hello.dasm",
+  "platform": "c64",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "c64/hello.acme",
+  "platform": "c64",
+  "tool": "acme",
+  "toolVersion": "0.97.1",
+  "ok": true
+ },
+ {
+  "preset": "c64/hello.wiz",
+  "platform": "c64",
+  "tool": "wiz",
+  "toolVersion": "0.1.2",
+  "ok": false,
+  "errors": [
+   "hello.wiz:3 error: could not open module \"c64.wiz\""
+  ]
+ },
+ {
+  "preset": "coleco/text.c",
+  "platform": "coleco",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "coleco/hello.c",
+  "platform": "coleco",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "coleco/text32.c",
+  "platform": "coleco",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "coleco/stars.c",
+  "platform": "coleco",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "coleco/cursorsmooth.c",
+  "platform": "coleco",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "coleco/simplemusic.c",
+  "platform": "coleco",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "coleco/musicplayer.c",
+  "platform": "coleco",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "coleco/mode2bitmap.c",
+  "platform": "coleco",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "coleco/mode2compressed.c",
+  "platform": "coleco",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "coleco/lines.c",
+  "platform": "coleco",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "coleco/multicolor.c",
+  "platform": "coleco",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "coleco/siegegame.c",
+  "platform": "coleco",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "coleco/shoot.c",
+  "platform": "coleco",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "coleco/climber.c",
+  "platform": "coleco",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "cpc/hello.asm",
+  "platform": "cpc.464",
+  "tool": "zmac",
+  "toolVersion": "28jul2018",
+  "ok": true
+ },
+ {
+  "preset": "cpc/easy_stdio_boxes.c",
+  "platform": "cpc.464",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "cpc/easy_mode_strings.c",
+  "platform": "cpc.464",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "cpc/easy_random.c",
+  "platform": "cpc.464",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "cpc/easy_sprites.c",
+  "platform": "cpc.464",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "cpc/medium_scrolling.c",
+  "platform": "cpc.464",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "cpc/siegegame.c",
+  "platform": "cpc.464",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "cpc/music.c",
+  "platform": "cpc.464",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "exidy/minimal.c",
+  "platform": "exidy",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "galaxian-scramble/gfxtest.c",
+  "platform": "galaxian-scramble",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "galaxian-scramble/shoot2.c",
+  "platform": "galaxian-scramble",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "gb/hello.sgb",
+  "platform": "gb",
+  "tool": "sdasgb",
+  "ok": true
+ },
+ {
+  "preset": "msx/helloworld.asm",
+  "platform": "msx",
+  "tool": "zmac",
+  "toolVersion": "28jul2018",
+  "ok": true
+ },
+ {
+  "preset": "msx/redbook_kbd.asm",
+  "platform": "msx",
+  "tool": "zmac",
+  "toolVersion": "28jul2018",
+  "ok": true
+ },
+ {
+  "preset": "msx/siegegame.c",
+  "platform": "msx",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx/eliza.c",
+  "platform": "msx",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx/hello.wiz",
+  "platform": "msx",
+  "tool": "wiz",
+  "toolVersion": "0.1.2",
+  "ok": true
+ },
+ {
+  "preset": "msx-libcv/text.c",
+  "platform": "msx-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx-libcv/hello.c",
+  "platform": "msx-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx-libcv/text32.c",
+  "platform": "msx-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx-libcv/stars.c",
+  "platform": "msx-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx-libcv/cursorsmooth.c",
+  "platform": "msx-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx-libcv/simplemusic.c",
+  "platform": "msx-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx-libcv/musicplayer.c",
+  "platform": "msx-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx-libcv/mode2bitmap.c",
+  "platform": "msx-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx-libcv/mode2compressed.c",
+  "platform": "msx-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx-libcv/lines.c",
+  "platform": "msx-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx-libcv/multicolor.c",
+  "platform": "msx-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx-libcv/siegegame.c",
+  "platform": "msx-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx-libcv/shoot.c",
+  "platform": "msx-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx-libcv/climber.c",
+  "platform": "msx-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "mw8080bw/gfxtest.c",
+  "platform": "mw8080bw",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "mw8080bw/shifter.c",
+  "platform": "mw8080bw",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "mw8080bw/game2.c",
+  "platform": "mw8080bw",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "nes/hello.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/attributes.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/scroll.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/sprites.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/metasprites.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/flicker.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/metacursor.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/vrambuffer.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/statusbar.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/siegegame.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/tint.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/rletitle.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/aputest.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/music.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/horizscroll.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/monobitmap.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/fami.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/shoot2.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/climber.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/bankswitch.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/irq.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/ex0.dasm",
+  "platform": "nes",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "nes/ex1.dasm",
+  "platform": "nes",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "nes/ex2.dasm",
+  "platform": "nes",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "nes/ex3.dasm",
+  "platform": "nes",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "nes/ex4.dasm",
+  "platform": "nes",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "nes/musicdemo.dasm",
+  "platform": "nes",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "nes/xyscroll.dasm",
+  "platform": "nes",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "nes/road.dasm",
+  "platform": "nes",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "nes/chase/game.c",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": false,
+  "errors": [
+   "warning: nes/chase/game.c:0 neslib2.cfg:8: Warning: Segment ‘ZEROPAGE’ overflows memory area ‘ZP’ by 144 bytes",
+   "nes/chase/game.c:0 ld65: Error: Cannot generate most of the files due to memory area overflow "
+  ]
+ },
+ {
+  "preset": "nes/hello.wiz",
+  "platform": "nes",
+  "tool": "wiz",
+  "toolVersion": "0.1.2",
+  "ok": true
+ },
+ {
+  "preset": "pce/test_conio.c",
+  "platform": "pce",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "pce/siegegame.c",
+  "platform": "pce",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "pce/hello.wiz",
+  "platform": "pce",
+  "tool": "wiz",
+  "toolVersion": "0.1.2",
+  "ok": true
+ },
+ {
+  "preset": "sms-sg1000-libcv/text.c",
+  "platform": "sms-sg1000-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-sg1000-libcv/hello.c",
+  "platform": "sms-sg1000-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-sg1000-libcv/text32.c",
+  "platform": "sms-sg1000-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-sg1000-libcv/stars.c",
+  "platform": "sms-sg1000-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": false,
+  "errors": [
+   "sms-sg1000-libcv/stars.c:0 Undefined Global '_font_bitmap_0' referenced by module 'common'"
+  ]
+ },
+ {
+  "preset": "sms-sg1000-libcv/cursorsmooth.c",
+  "platform": "sms-sg1000-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-sg1000-libcv/simplemusic.c",
+  "platform": "sms-sg1000-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-sg1000-libcv/musicplayer.c",
+  "platform": "sms-sg1000-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-sg1000-libcv/mode2bitmap.c",
+  "platform": "sms-sg1000-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-sg1000-libcv/mode2compressed.c",
+  "platform": "sms-sg1000-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-sg1000-libcv/lines.c",
+  "platform": "sms-sg1000-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-sg1000-libcv/multicolor.c",
+  "platform": "sms-sg1000-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-sg1000-libcv/siegegame.c",
+  "platform": "sms-sg1000-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-sg1000-libcv/shoot.c",
+  "platform": "sms-sg1000-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-sg1000-libcv/climber.c",
+  "platform": "sms-sg1000-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-sms-libcv/mode4test.c",
+  "platform": "sms-sms-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-sms-libcv/climber.c",
+  "platform": "sms-sms-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-gg-libcv/mode4test.c",
+  "platform": "sms-gg-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sms-gg-libcv/climber.c",
+  "platform": "sms-gg-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "sound_williams-z80/swave.c",
+  "platform": "sound_williams-z80",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/hello.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/vsync.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/playfield.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/sprite.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/colorsprites.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/timing2.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/missiles.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/sethorizpos.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/piatimer.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/controls.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/complexscene.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/complexscene2.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/scoreboard.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/collisions.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/bitmap.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/brickgame.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/bigsprite.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/tinyfonts2.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/score6.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/retrigger.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/multisprite3.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/procgen1.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/lines.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/musicplayer.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/road.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/bankswitching.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/wavetable.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/pal.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/examples/fracpitch.a",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vcs/bb/helloworld.bas",
+  "platform": "vcs",
+  "tool": "bataribasic",
+  "ok": true
+ },
+ {
+  "preset": "vcs/bb/draw.bas",
+  "platform": "vcs",
+  "tool": "bataribasic",
+  "ok": true
+ },
+ {
+  "preset": "vcs/bb/sample.bas",
+  "platform": "vcs",
+  "tool": "bataribasic",
+  "ok": true
+ },
+ {
+  "preset": "vcs/bb/FIFA1977.bas",
+  "platform": "vcs",
+  "tool": "bataribasic",
+  "ok": true
+ },
+ {
+  "preset": "vcs/bb/duck_chase.bas",
+  "platform": "vcs",
+  "tool": "bataribasic",
+  "ok": false,
+  "errors": [
+   "duck_chase.bas:323 Error: invalid operator: goto"
+  ]
+ },
+ {
+  "preset": "vcs/wiz/finalduck.wiz",
+  "platform": "vcs",
+  "tool": "wiz",
+  "toolVersion": "0.1.2",
+  "ok": true
+ },
+ {
+  "preset": "vcs/vcslib/demo_vcslib.c",
+  "platform": "vcs",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "vcs/helloworld.cc2600",
+  "platform": "vcs",
+  "tool": "cc2600",
+  "toolVersion": "0.4.5",
+  "ok": true
+ },
+ {
+  "preset": "vector-ataricolor/font.c",
+  "platform": "vector-ataricolor",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "vector-ataricolor/threed.c",
+  "platform": "vector-ataricolor",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "vector-ataricolor/game.c",
+  "platform": "vector-ataricolor",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": false,
+  "errors": [
+   "game.c:396 Error: 'main' must not be called recursively"
+  ]
+ },
+ {
+  "preset": "vector-ataricolor/music.c",
+  "platform": "vector-ataricolor",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "vector-z80color/font.c",
+  "platform": "vector-z80color",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "vector-z80color/threed.c",
+  "platform": "vector-z80color",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "vector-z80color/game.c",
+  "platform": "vector-z80color",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "vector-z80color/music.c",
+  "platform": "vector-z80color",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "vectrex/hello.xasm",
+  "platform": "vectrex",
+  "tool": "xasm6809",
+  "ok": true
+ },
+ {
+  "preset": "vectrex/hello.c",
+  "platform": "vectrex",
+  "tool": "cmoc",
+  "toolVersion": "0.1.67",
+  "ok": true
+ },
+ {
+  "preset": "vectrex/joystick.c",
+  "platform": "vectrex",
+  "tool": "cmoc",
+  "toolVersion": "0.1.67",
+  "ok": true
+ },
+ {
+  "preset": "vectrex/threed.c",
+  "platform": "vectrex",
+  "tool": "cmoc",
+  "toolVersion": "0.1.67",
+  "ok": true
+ },
+ {
+  "preset": "verilog/clock_divider.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/binary_counter.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/hvsync_generator.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/test_hvsync.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/7segment.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/digits10.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/scoreboard.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/ball_absolute.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/ball_slip_counter.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/ball_paddle.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/chardisplay.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/switches.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/paddles.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/sprite_bitmap.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/sprite_renderer.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/racing_game.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/sprite_rotation.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/tank.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/sound_generator.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/lfsr.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/starfield.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/alu.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/cpu8.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/racing_game_cpu.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/framebuffer.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/tile_renderer.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/sprite_scanline_renderer.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/cpu16.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/cpu_platform.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/test2.asm",
+  "platform": "verilog",
+  "tool": "jsasm",
+  "ok": true
+ },
+ {
+  "preset": "verilog/cpu6502.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/femtorv32.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/framebuffer_riscv.v",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog/test_pattern.ice",
+  "platform": "verilog",
+  "tool": "silice",
+  "toolVersion": "0.1",
+  "ok": true
+ },
+ {
+  "preset": "verilog/copperbars.ice",
+  "platform": "verilog",
+  "tool": "silice",
+  "toolVersion": "0.1",
+  "ok": true
+ },
+ {
+  "preset": "verilog/rototexture.ice",
+  "platform": "verilog",
+  "tool": "silice",
+  "toolVersion": "0.1",
+  "ok": true
+ },
+ {
+  "preset": "verilog-vga/hvsync_generator.v",
+  "platform": "verilog-vga",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog-vga/test_hvsync.v",
+  "platform": "verilog-vga",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog-vga/chardisplay.v",
+  "platform": "verilog-vga",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog-vga/starfield.v",
+  "platform": "verilog-vga",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "verilog-vga/ball_paddle.v",
+  "platform": "verilog-vga",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "vic20/hellocart.dasm",
+  "platform": "vic20",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vicdual/minimal.c",
+  "platform": "vicdual",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "vicdual/hello.c",
+  "platform": "vicdual",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "vicdual/gfxtest.c",
+  "platform": "vicdual",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "vicdual/soundtest.c",
+  "platform": "vicdual",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "vicdual/snake1.c",
+  "platform": "vicdual",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "vicdual/snake2.c",
+  "platform": "vicdual",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "vicdual/music.c",
+  "platform": "vicdual",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "williams/gfxtest.c",
+  "platform": "williams",
+  "tool": "cmoc",
+  "toolVersion": "0.1.67",
+  "ok": true
+ },
+ {
+  "preset": "williams/sprites.c",
+  "platform": "williams",
+  "tool": "cmoc",
+  "toolVersion": "0.1.67",
+  "ok": true
+ },
+ {
+  "preset": "williams/game1.c",
+  "platform": "williams",
+  "tool": "cmoc",
+  "toolVersion": "0.1.67",
+  "ok": true
+ },
+ {
+  "preset": "williams/bitmap_rle.c",
+  "platform": "williams",
+  "tool": "cmoc",
+  "toolVersion": "0.1.67",
+  "ok": true
+ },
+ {
+  "preset": "x86/hello.asm",
+  "platform": "x86",
+  "tool": "yasm",
+  "toolVersion": "1.3.0",
+  "ok": true
+ },
+ {
+  "preset": "x86/mandelg.asm",
+  "platform": "x86",
+  "tool": "yasm",
+  "toolVersion": "1.3.0",
+  "ok": true
+ },
+ {
+  "preset": "x86/snake.c",
+  "platform": "x86",
+  "tool": "smlrc",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/hello.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/house01.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/house02.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/house03.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/house04.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/house05.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/house06.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/house07.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/alice.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/aloneice.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/adventureland.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/toyshop.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/ruins1.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/ruins2.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/ruins3.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/balances.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/museum.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/advent.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/ztrek.inf",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ },
+ {
+  "preset": "zx/hello.asm",
+  "platform": "zx",
+  "tool": "zmac",
+  "toolVersion": "28jul2018",
+  "ok": true
+ },
+ {
+  "preset": "zx/bios.c",
+  "platform": "zx",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "zx/cosmic.c",
+  "platform": "zx",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "apple2/skeleton.cc65",
+  "platform": "apple2",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "apple2/skeleton.dasm",
+  "platform": "apple2",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "arm32/skeleton.armtcc",
+  "platform": "arm32",
+  "tool": "armtcc",
+  "ok": true
+ },
+ {
+  "preset": "astrocade/skeleton.sdcc",
+  "platform": "astrocade",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "astrocade/skeleton.zmac",
+  "platform": "astrocade",
+  "tool": "zmac",
+  "toolVersion": "28jul2018",
+  "ok": true
+ },
+ {
+  "preset": "atari7800/skeleton.cc65",
+  "platform": "atari7800",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "atari7800/skeleton.cc7800",
+  "platform": "atari7800",
+  "tool": "cc7800",
+  "toolVersion": "0.2.28",
+  "ok": true
+ },
+ {
+  "preset": "atari8-5200/skeleton.cc65",
+  "platform": "atari8-5200",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "atari8-5200/skeleton.dasm",
+  "platform": "atari8-5200",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "atari8-800/skeleton.cc65",
+  "platform": "atari8-800",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "atari8-800/skeleton.dasm",
+  "platform": "atari8-800",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "atari8-800/skeleton.fastbasic",
+  "platform": "atari8-800",
+  "tool": "fastbasic",
+  "toolVersion": "4.4",
+  "ok": true
+ },
+ {
+  "preset": "basic/skeleton.basic",
+  "platform": "basic",
+  "tool": "basic",
+  "ok": true
+ },
+ {
+  "preset": "c64/skeleton.acme",
+  "platform": "c64",
+  "tool": "acme",
+  "toolVersion": "0.97.1",
+  "ok": true
+ },
+ {
+  "preset": "c64/skeleton.cc65",
+  "platform": "c64",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "c64/skeleton.dasm",
+  "platform": "c64",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "coleco/skeleton.sdcc",
+  "platform": "coleco",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "cpc/skeleton.sdcc",
+  "platform": "cpc.464",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "galaxian-scramble/skeleton.sdcc",
+  "platform": "galaxian-scramble",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx/skeleton.sdcc",
+  "platform": "msx",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "msx/skeleton.zmac",
+  "platform": "msx",
+  "tool": "zmac",
+  "toolVersion": "28jul2018",
+  "ok": true
+ },
+ {
+  "preset": "msx-libcv/skeleton.sdcc",
+  "platform": "msx-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "mw8080bw/skeleton.sdcc",
+  "platform": "mw8080bw",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "nes/skeleton.ca65",
+  "platform": "nes",
+  "tool": "ca65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/skeleton.cc65",
+  "platform": "nes",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "nes/skeleton.dasm",
+  "platform": "nes",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "nes/skeleton.nesasm",
+  "platform": "nes",
+  "tool": "nesasm",
+  "toolVersion": "3.1",
+  "ok": true
+ },
+ {
+  "preset": "pce/skeleton.cc65",
+  "platform": "pce",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "sms-sg1000-libcv/skeleton.sdcc",
+  "platform": "sms-sg1000-libcv",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": false,
+  "errors": [
+   "sms-sg1000-libcv/skeleton.sdcc:0 Undefined Global '_font_bitmap_0' referenced by module 'common'"
+  ]
+ },
+ {
+  "preset": "sound_williams-z80/skeleton.sdcc",
+  "platform": "sound_williams-z80",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "vcs/skeleton.bataribasic",
+  "platform": "vcs",
+  "tool": "bataribasic",
+  "ok": true
+ },
+ {
+  "preset": "vcs/skeleton.ca65",
+  "platform": "vcs",
+  "tool": "ca65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "vcs/skeleton.cc65",
+  "platform": "vcs",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "vcs/skeleton.dasm",
+  "platform": "vcs",
+  "tool": "dasm",
+  "toolVersion": "2.20.17",
+  "ok": true
+ },
+ {
+  "preset": "vector-ataricolor/skeleton.cc65",
+  "platform": "vector-ataricolor",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": false,
+  "errors": [
+   "skeleton.c:20 Error: 'main' must not be called recursively"
+  ]
+ },
+ {
+  "preset": "vector-z80color/skeleton.sdcc",
+  "platform": "vector-z80color",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "vectrex/skeleton.cmoc",
+  "platform": "vectrex",
+  "tool": "cmoc",
+  "toolVersion": "0.1.67",
+  "ok": true
+ },
+ {
+  "preset": "vectrex/skeleton.xasm6809",
+  "platform": "vectrex",
+  "tool": "xasm6809",
+  "ok": true
+ },
+ {
+  "preset": "verilog/skeleton.silice",
+  "platform": "verilog",
+  "tool": "silice",
+  "toolVersion": "0.1",
+  "ok": true
+ },
+ {
+  "preset": "verilog/skeleton.verilator",
+  "platform": "verilog",
+  "tool": "verilator",
+  "toolVersion": "4.205",
+  "ok": true
+ },
+ {
+  "preset": "vic20/skeleton.cc65",
+  "platform": "vic20",
+  "tool": "cc65",
+  "toolVersion": "2.19",
+  "ok": true
+ },
+ {
+  "preset": "vicdual/skeleton.sdcc",
+  "platform": "vicdual",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "williams/skeleton.cmoc",
+  "platform": "williams",
+  "tool": "cmoc",
+  "toolVersion": "0.1.67",
+  "ok": true
+ },
+ {
+  "preset": "williams-z80/skeleton.sdcc",
+  "platform": "williams-z80",
+  "tool": "sdcc",
+  "toolVersion": "3.6.5",
+  "ok": true
+ },
+ {
+  "preset": "x86/skeleton.yasm",
+  "platform": "x86",
+  "tool": "yasm",
+  "toolVersion": "1.3.0",
+  "ok": true
+ },
+ {
+  "preset": "zmachine/skeleton.inform6",
+  "platform": "zmachine",
+  "tool": "inform6",
+  "toolVersion": "6.34",
+  "ok": true
+ }
+]

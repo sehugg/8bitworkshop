@@ -28,6 +28,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - `8bws run` script `vcd FILE [MAXMB]` / `vcd off` records a Verilog design's signal changes to a VCD file as it runs, streamed so the recording's length isn't limited by memory (a `.gz` name compresses it; about 3 MB per frame of a design with video, 4x less gzipped), stopping at 1 GB unless told otherwise.
 - Vector platforms (`vector-*`, `vectrex`) render headlessly: a software rasterizer with phosphor fade draws their lines into the frame buffer, so `--png` and the VS Code emulator panel show them. The size is `--vector-size <px>` (long side, default 512), `EmuCore.vectorSize`, or the extension's `8bitworkshop.vectorSize`.
 - `buildpresets` lists compiler warnings per preset, flags a rising warning count against `--baseline`, and fails builds with warnings unless `--no-strict` is given.
+- `compatcheck` builds the examples of an older release (3.12.1) with the toolchain we ship now, so a compiler that stops accepting old code shows up before it ships. It checks the release out in a temporary worktree, and `--baseline` fails when an example that used to build stops building; the release script runs it.
 - The `8bws` bundle can be published to npm (`npm run npm-package` in `extension/` stages it). It unpacks only the toolchain packs a command needs, into the user's cache directory (`EIGHTBITWORKSHOP_TOOLCHAINS` overrides it, `EIGHTBITWORKSHOP_ASSETS` names a pack mirror).
 
 ### Editor and UI

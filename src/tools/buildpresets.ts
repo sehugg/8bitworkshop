@@ -91,6 +91,7 @@ export interface BuildOptions {
     run?: boolean;          // load each build and run it
     frames?: number;        // frames to advance when running (default 300)
     pngDir?: string;        // directory to write a screenshot into, when running
+    presetsDir?: string;    // where the preset files live (default 'presets')
 }
 
 const DEFAULT_TIMEOUT = 120000;
@@ -148,7 +149,7 @@ function toolForPreset(relpath: string, platform: string): string | null {
 
 // skeleton.<name> -> the tool that template belongs to. The name is usually
 // the tool id, but a tool can override it (getSkeletonName).
-function toolsBySkeletonName(): { [name: string]: string } {
+export function toolsBySkeletonName(): { [name: string]: string } {
     const map: { [name: string]: string } = {};
     for (const tool of Object.keys(TOOLS)) {
         const name = getSkeletonName(tool);
@@ -160,7 +161,7 @@ function toolsBySkeletonName(): { [name: string]: string } {
 
 // The IDE loads a skeleton into a file the user names, so it has to be built
 // under a name the tool will accept -- cmoc, for one, refuses skeleton.cmoc.
-function skeletonBuildName(tool: string, skelname: string): string {
+export function skeletonBuildName(tool: string, skelname: string): string {
     const meta = getToolMeta(tool);
     const ext = meta && meta.extensions && meta.extensions[0];
     return 'skeleton' + (ext || '.' + skelname);
@@ -538,6 +539,12 @@ export async function runPreset(
     return run;
 }
 
+// A preset path is relative to the presets dir, unless it is absolute -- the
+// compatibility sweep builds files that live in another tree.
+function presetFile(presetsDir: string, preset: string): string {
+    return path.isAbsolute(preset) ? preset : path.join(presetsDir, preset);
+}
+
 export async function buildPreset(
     preset: string, platform: string, tool: string, opts: BuildOptions & { buildAs?: string } = {}
 ): Promise<PresetResult> {
@@ -563,7 +570,7 @@ export async function buildPreset(
             });
             await preloadOnce(tool, platform);
             result = await Promise.race([
-                compileSourceFile(tool, platform, path.join(PRESETS_DIR, preset), opts.buildAs),
+                compileSourceFile(tool, platform, presetFile(opts.presetsDir || PRESETS_DIR, preset), opts.buildAs),
                 exited,
                 expired,
             ]);
@@ -662,7 +669,7 @@ function runStatus(run: RunResult): string {
     }
 }
 
-function compareToBaseline(results: PresetResult[], baselinePath: string): number {
+export function compareToBaseline(results: PresetResult[], baselinePath: string): number {
     const baseline: PresetResult[] = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
     const was: { [preset: string]: boolean } = {};
     const wasWarnings: { [preset: string]: number } = {};
