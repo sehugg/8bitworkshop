@@ -5,7 +5,8 @@ name: Node.js CI
 
 on:
   push:
-    branches: [ master ]
+    # master runs CI; release is what gets deployed to GitHub Pages.
+    branches: [ master, release ]
   pull_request:
     branches: [ master ]
   # Testers can build an installable VSIX from any branch on demand.
@@ -63,8 +64,9 @@ jobs:
         archive: false
         if-no-files-found: error
         retention-days: 30
+    # Publish only from the periodic release branch, never from master/HEAD.
     - name: Deploy
-      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/release'
       uses: JamesIves/github-pages-deploy-action@fa24774553152dd7873cd16ebd8d959b010c5445 # v4.9.0
       with:
         branch: gh-pages

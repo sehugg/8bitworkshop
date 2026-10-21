@@ -85,6 +85,8 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Build is now only `esbuild` through `scripts/build.mjs`; code split into a headless `src/common/projectcore.ts` / `toolselect.ts`.
 - `.xa` assembler and the Dialog interactive-fiction compiler added.
 - New `buildpresets` script that builds and runs every preset.
+- `npm run release -- patch` bumps the app version, moves the changelog's unreleased notes under the new version, commits, and tags `v<version>`; add `--push` to push the tag.
+- The web site is deployed to GitHub Pages from the `release` branch instead of `master`, so a release can be staged and published separately from ongoing work.
 
 ## 3.12.1 (2025-11-06)
 
