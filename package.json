@@ -105,6 +105,7 @@
     "buildpresets": "NODE_PATH=$(pwd) node gen/tools/buildpresets.js",
     "toolversions": "node gen/tools/toolversions.js",
     "notices": "node scripts/url-licenses.mjs --notices --write",
+    "release": "node scripts/release.mjs",
     "doctools": "node gen/tools/doctools.js",
     "mkdoc": "typedoc --out web/jsdoc src/common/"
   },
