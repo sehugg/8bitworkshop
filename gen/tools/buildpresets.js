@@ -78,12 +78,15 @@ var __rest = (this && this.__rest) || function (s, e) {
     return t;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.toolsBySkeletonName = toolsBySkeletonName;
+exports.skeletonBuildName = skeletonBuildName;
 exports.libraryCollisions = libraryCollisions;
 exports.listPresets = listPresets;
 exports.screenStats = screenStats;
 exports.runPreset = runPreset;
 exports.buildPreset = buildPreset;
 exports.buildAllPresets = buildAllPresets;
+exports.compareToBaseline = compareToBaseline;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const util = __importStar(require("util"));
@@ -541,6 +544,11 @@ async function runPreset(result, preset, platform, opts = {}) {
     run.ms = Date.now() - started;
     return run;
 }
+// A preset path is relative to the presets dir, unless it is absolute -- the
+// compatibility sweep builds files that live in another tree.
+function presetFile(presetsDir, preset) {
+    return path.isAbsolute(preset) ? preset : path.join(presetsDir, preset);
+}
 async function buildPreset(preset, platform, tool, opts = {}) {
     const started = Date.now();
     const timeout = opts.timeout || DEFAULT_TIMEOUT;
@@ -563,7 +571,7 @@ async function buildPreset(preset, platform, tool, opts = {}) {
             });
             await preloadOnce(tool, platform);
             result = await Promise.race([
-                (0, testlib_1.compileSourceFile)(tool, platform, path.join(PRESETS_DIR, preset), opts.buildAs),
+                (0, testlib_1.compileSourceFile)(tool, platform, presetFile(opts.presetsDir || PRESETS_DIR, preset), opts.buildAs),
                 exited,
                 expired,
             ]);

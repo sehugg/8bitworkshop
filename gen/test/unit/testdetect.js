@@ -60,6 +60,8 @@ function files(map) {
     (0, mocha_1.it)('reads the README badge', async () => {
         var badge = (0, detect_1.parseReadmeBadge)('Game\n\n[Open](http://8bitworkshop.com/redir.html?platform=vcs&githubURL=x&file=game.dasm).\n');
         assert_1.default.deepStrictEqual(badge, { platform: 'vcs', mainFile: 'game.dasm' });
+        var latest = (0, detect_1.parseReadmeBadge)('Game\n\n[Open](https://8bitworkshop.com/latest/?platform=vcs&githubURL=x&file=game.dasm).\n');
+        assert_1.default.deepStrictEqual(latest, { platform: 'vcs', mainFile: 'game.dasm' });
         var d = await (0, detect_1.detectProject)(files({ 'README.md': '[x](https://8bitworkshop.com/?platform=nes&file=main.c)', 'main.c': '' }));
         assert_1.default.strictEqual(d[0].platform, 'nes');
         assert_1.default.strictEqual(d[0].mainFile, 'main.c');

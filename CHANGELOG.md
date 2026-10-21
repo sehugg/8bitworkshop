@@ -28,6 +28,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - `8bws run` script `vcd FILE [MAXMB]` / `vcd off` records a Verilog design's signal changes to a VCD file as it runs, streamed so the recording's length isn't limited by memory (a `.gz` name compresses it; about 3 MB per frame of a design with video, 4x less gzipped), stopping at 1 GB unless told otherwise.
 - Vector platforms (`vector-*`, `vectrex`) render headlessly: a software rasterizer with phosphor fade draws their lines into the frame buffer, so `--png` and the VS Code emulator panel show them. The size is `--vector-size <px>` (long side, default 512), `EmuCore.vectorSize`, or the extension's `8bitworkshop.vectorSize`.
 - `buildpresets` lists compiler warnings per preset, flags a rising warning count against `--baseline`, and fails builds with warnings unless `--no-strict` is given.
+- `compatcheck` builds the examples of an older release (3.12.1) with the toolchain we ship now, so a compiler that stops accepting old code shows up before it ships. It checks the release out in a temporary worktree, and `--baseline` fails when an example that used to build stops building; the release script runs it.
 - The `8bws` bundle can be published to npm (`npm run npm-package` in `extension/` stages it). It unpacks only the toolchain packs a command needs, into the user's cache directory (`EIGHTBITWORKSHOP_TOOLCHAINS` overrides it, `EIGHTBITWORKSHOP_ASSETS` names a pack mirror).
 
 ### Editor and UI
@@ -47,6 +48,10 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Audio reliably unlocks under the browser autoplay policy: the emulator resumes its `AudioContext` on the first click/keypress anywhere on the page, not only when the emulator canvas gets focus. A hint under the emulator screen says so until it is unlocked.
 - Memory Map: a Modules column shows each object file's slice of every SDCC or cc65 segment (`Segment.modules`; SDCC from the `.rel` sizes in link order, with the remainder as `(libraries)`; cc65 from the ld65 map's module list, library members by name).
 - Memory Browser: a symbol label covers only its reported size, and an unsized symbol stops at its segment boundary instead of running into the next segment.
+
+### Website
+
+- Links that open the IDE now point at `https://8bitworkshop.com/latest/`, which the server proxies to the newest build: the badge in a published project's README, the README the VS Code extension writes for a new project, the platform links on the website, and the embedding docs. Old `redir.html` links still work.
 
 ### Asset editor
 

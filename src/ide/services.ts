@@ -1,4 +1,5 @@
 
+import { githubReadme } from "../common/links";
 import { byteArrayToString, byteArrayToUTF8, isProbablyBinary, stringToByteArray } from "../common/util";
 import { FileData } from "../common/workertypes";
 import { CodeProject, ProjectFilesystem } from "./project";
@@ -29,8 +30,6 @@ export interface GHSession extends GHRepoMetadata {
   commit?: any;		// after commit()
   paths?: string[];
 }
-
-const README_md_template = "$NAME\n=====\n\n[Open this project in 8bitworkshop](https://8bitworkshop.com/redir.html?platform=$PLATFORM&githubURL=$GITHUBURL&file=$MAINFILE).\n";
 
 export function getRepos(): { [key: string]: GHRepoMetadata } {
   var repos = {};
@@ -293,11 +292,7 @@ export class GithubService {
       .then((_repo) => {
         repo = _repo;
         // create README.md
-        var s = README_md_template;
-        s = s.replace(/\$NAME/g, encodeURIComponent(reponame));
-        s = s.replace(/\$PLATFORM/g, encodeURIComponent(platform_id));
-        s = s.replace(/\$GITHUBURL/g, encodeURIComponent(repo.htmlUrl));
-        s = s.replace(/\$MAINFILE/g, encodeURIComponent(mainPath));
+        var s = githubReadme(reponame, platform_id, repo.htmlUrl, mainPath);
         var config = {
           message: '8bitworkshop: updated metadata in README.md',
           content: btoa(s)

@@ -3,8 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FirebaseProjectFilesystem = exports.GithubService = void 0;
 exports.getRepos = getRepos;
 exports.parseGithubURL = parseGithubURL;
+const links_1 = require("../common/links");
 const util_1 = require("../common/util");
-const README_md_template = "$NAME\n=====\n\n[Open this project in 8bitworkshop](https://8bitworkshop.com/redir.html?platform=$PLATFORM&githubURL=$GITHUBURL&file=$MAINFILE).\n";
 function getRepos() {
     var repos = {};
     for (var i = 0; i < localStorage.length; i++) {
@@ -256,11 +256,7 @@ class GithubService {
             .then((_repo) => {
             repo = _repo;
             // create README.md
-            var s = README_md_template;
-            s = s.replace(/\$NAME/g, encodeURIComponent(reponame));
-            s = s.replace(/\$PLATFORM/g, encodeURIComponent(platform_id));
-            s = s.replace(/\$GITHUBURL/g, encodeURIComponent(repo.htmlUrl));
-            s = s.replace(/\$MAINFILE/g, encodeURIComponent(mainPath));
+            var s = (0, links_1.githubReadme)(reponame, platform_id, repo.htmlUrl, mainPath);
             var config = {
                 message: '8bitworkshop: updated metadata in README.md',
                 content: btoa(s)

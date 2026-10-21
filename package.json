@@ -102,6 +102,7 @@
     "fuzzhdl": "jsfuzz -r binaryen gen/common/hdl/fuzz.js ~/verilator/corpus/ --versifier false",
     "cli": "node gen/tools/8bws.js",
     "buildpresets": "NODE_PATH=$(pwd) node gen/tools/buildpresets.js",
+    "compatcheck": "NODE_PATH=$(pwd) node gen/tools/compatcheck.js",
     "toolversions": "node gen/tools/toolversions.js",
     "notices": "node scripts/url-licenses.mjs --notices --write",
     "release": "node scripts/release.mjs",

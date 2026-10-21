@@ -3,7 +3,7 @@
 You can embed the IDE using an IFRAME element:
 
 ```html
-<iframe src="https://8bitworkshop.com/redir.html?embed=1&..."></iframe>
+<iframe src="https://8bitworkshop.com/latest/?embed=1&..."></iframe>
 ```
 
 Query-string parameters:
@@ -24,6 +24,6 @@ Example using Bootstrap's `embed-responsive` class:
 ```html
 <div class="embed-responsive embed-responsive-16by9">
   <iframe class="embed-responsive-item" loading="lazy"
-    src="https://8bitworkshop.com/redir.html?embed=1&platform=nes&highlight=&file0_name=testembed.dasm&file0_data=..."></iframe>
+    src="https://8bitworkshop.com/latest/?embed=1&platform=nes&highlight=&file0_name=testembed.dasm&file0_data=..."></iframe>
 </div>
 ```
