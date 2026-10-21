@@ -269,13 +269,15 @@ const statusGutter = (0, view_1.gutter)({
             if (errorMarkers.size > 0) {
                 const pos = line.from;
                 let msg = "";
+                let warning = false;
                 errorMarkers.between(pos, pos, (from, to, marker) => {
                     msg = marker.msg;
+                    warning = marker.warning === true;
                 });
                 if (msg) {
                     const lineNum = view.state.doc.lineAt(line.from).number;
                     view.dispatch({
-                        effects: showErrorMessage.of({ line: lineNum, msg, toggle: true })
+                        effects: showErrorMessage.of({ line: lineNum, msg, warning, toggle: true })
                     });
                 }
             }

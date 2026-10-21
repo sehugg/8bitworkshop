@@ -37,6 +37,10 @@ exports.editorTheme = view_1.EditorView.theme({
         textDecoration: "underline wavy red",
         backgroundColor: "rgba(255, 0, 0, 0.15)",
     },
+    ".cm-warning-span": {
+        textDecoration: "underline wavy #ffcc44",
+        backgroundColor: "rgba(255, 204, 68, 0.15)",
+    },
     ".gutter-offset .cm-gutterElement": {
         paddingRight: "0.25em",
     },

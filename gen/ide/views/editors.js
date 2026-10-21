@@ -475,7 +475,7 @@ class SourceEditor {
                 }
                 // collect column-level spans
                 if (info.start != null && info.end != null && info.end > info.start) {
-                    spans.push({ line, start: info.start, end: info.end });
+                    spans.push({ line, start: info.start, end: info.end, warning: info.severity === 'warning' });
                 }
             }
         }

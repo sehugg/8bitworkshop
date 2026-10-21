@@ -524,7 +524,7 @@ export class SourceEditor implements ProjectView {
     this.clearErrors();
     errors = errors.slice(0, MAX_ERRORS);
     const newErrors = new Map<number, ErrorInfo>();
-    const spans: { line: number, start: number, end: number }[] = [];
+    const spans: { line: number, start: number, end: number, warning?: boolean }[] = [];
     for (var info of errors) {
       // only mark errors with this filename, or without any filename
       if (!info.path || this.path.endsWith(info.path)) {
@@ -537,7 +537,7 @@ export class SourceEditor implements ProjectView {
         }
         // collect column-level spans
         if (info.start != null && info.end != null && info.end > info.start) {
-          spans.push({ line, start: info.start, end: info.end });
+          spans.push({ line, start: info.start, end: info.end, warning: info.severity === 'warning' });
         }
       }
     }

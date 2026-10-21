@@ -14,7 +14,7 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Reset clears the call graph; breakpoints are re-armed after a build.
 - Click the hex offset in the gutter to run to that line.
 - Probe Log no longer shows a blank line for every clock tick with no event; only recorded events get a line, so instructions and their bus accesses stay together.
-- Compiler warnings no longer fail a build or get lost. cc65/ca65/ld65 and SDCC warnings show as gutter markers in the IDE (not in the error dialog), as warnings in the VS Code Problems panel, and on stderr from `8bws` (`--no-warnings` hides them).
+- Compiler warnings no longer fail a build or get lost. cc65/ca65/ld65 and SDCC warnings show as yellow gutter markers and yellow squiggles on the source line in the IDE (not in the error dialog), as warnings in the VS Code Problems panel, and on stderr from `8bws` (`--no-warnings` hides them).
 - Emulators now run on a timeline (CLI and extension only for now): step back, seek, reverse run, `rbreak`, and deterministic replay with a replay-verification test that found determinism bugs in several platforms.
 
 ### `8bws` CLI
@@ -85,6 +85,8 @@ See [extension/CHANGELOG.md](extension/CHANGELOG.md).
 - Build is now only `esbuild` through `scripts/build.mjs`; code split into a headless `src/common/projectcore.ts` / `toolselect.ts`.
 - `.xa` assembler and the Dialog interactive-fiction compiler added.
 - New `buildpresets` script that builds and runs every preset.
+- `npm run release -- patch` bumps the app version, moves the changelog's unreleased notes under the new version, commits, and tags `v<version>`; add `--push` to push the tag.
+- The web site is deployed to GitHub Pages from the `release` branch instead of `master`, so a release can be staged and published separately from ongoing work.
 
 ## 3.12.1 (2025-11-06)
 
