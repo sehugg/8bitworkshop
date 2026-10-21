@@ -50,7 +50,24 @@
 
     "firefox": {
       "desiredCapabilities": {
-        "browserName": "firefox"
+        "browserName": "firefox",
+        "moz:firefoxOptions": {
+          "args": ["-headless"],
+          "prefs": {
+            "browser.shell.checkDefaultBrowser": false,
+            "browser.startup.homepage_override.mstone": "ignore",
+            "toolkit.telemetry.enabled": false,
+            "datareporting.policy.dataSubmissionEnabled": false,
+            "app.update.enabled": false,
+            "extensions.update.enabled": false,
+            "services.settings.server": "",
+            "browser.safebrowsing.malware.enabled": false,
+            "browser.safebrowsing.phishing.enabled": false,
+            "network.captive-portal-service.enabled": false,
+            "network.connectivity-service.enabled": false,
+            "network.proxy.type": 0
+          }
+        }
       },
       "webdriver": {
         "start_process": true,

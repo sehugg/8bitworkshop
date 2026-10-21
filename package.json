@@ -65,13 +65,18 @@
     "typescript-formatter": "^7.2.2"
   },
   "optionalDependencies": {
-    "chromedriver": "^154.0.0",
+    "chromedriver": "^155.0.0",
+    "geckodriver": "^8.0.0",
     "heapdump": "^0.3.15",
     "jsfuzz": "^1.0.14",
     "nightwatch": "^3.12.2"
   },
   "peerDependencies": {
     "quickjs-wasi": "^2.2.0"
+  },
+  "config": {
+    "_comment": "let the chromedriver installer match the locally installed Chrome",
+    "detect_chromedriver_version": true
   },
   "overrides": {
     "fetch-vcr": {
@@ -97,7 +102,9 @@
     "test-verilog": "NODE_PATH=$(pwd) mocha --timeout 60000 test/verilog/testverilog.js",
     "test-extension": "cd extension && npm run assets-quick && npm run test",
     "test-web-quick": "nightwatch -e chrome test/web/testembed.js",
+    "test-web-firefox": "nightwatch -e firefox test/web/testembed.js",
     "test-web-all": "nightwatch -e chrome test/web",
+    "test-web-all-firefox": "nightwatch -e firefox test/web",
     "fuzzbasic": "jsfuzz gen/common/basic/fuzz.js ~/basic/corpus/ --versifier false",
     "fuzzhdl": "jsfuzz -r binaryen gen/common/hdl/fuzz.js ~/verilator/corpus/ --versifier false",
     "cli": "node gen/tools/8bws.js",

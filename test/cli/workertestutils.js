@@ -27,23 +27,43 @@ global.importScripts = function(path) {
   includeInThisContext('gen/worker/'+path);
 }
 
-function Blob(blob) {
-  this.size = blob.length;
-  this.length = blob.length;
-  this.slice = function(a,b) {
-    var data = blob.slice(a,b);
-    var b = new Blob(data);
-    //console.log(a, b, data.length, data.slice(0,64));
-    //console.log(new Error().stack);
+// like the browser's Blob: takes a binary string, an ArrayBuffer, a
+// Uint8Array, or an array of those
+function toBytes(parts) {
+  if (typeof parts == 'string') {
+    var b = new Uint8Array(parts.length);
+    for (var i = 0; i < parts.length; i++) b[i] = parts.charCodeAt(i) & 0xff;
     return b;
   }
-  this.arrayBuffer = this.asArrayBuffer = function() {
-    var buf = new ArrayBuffer(blob.length);
-    var arr = new Uint8Array(buf);
-    for (var i=0; i<blob.length; i++)
-      arr[i] = blob[i].charCodeAt(0);
-    return arr;
+  if (parts instanceof Uint8Array) return parts;
+  if (parts instanceof ArrayBuffer) return new Uint8Array(parts);
+  if (Array.isArray(parts)) {
+    var chunks = parts.map(toBytes);
+    var total = 0;
+    for (var c of chunks) total += c.length;
+    var out = new Uint8Array(total);
+    var off = 0;
+    for (var c of chunks) { out.set(c, off); off += c.length; }
+    return out;
   }
+  return new Uint8Array(0);
+}
+
+function Blob(parts) {
+  var bytes = toBytes(parts);
+  this.size = bytes.length;
+  this.length = bytes.length;
+  this.slice = function(a,b) {
+    return new Blob(bytes.slice(a,b));
+  }
+  this.arrayBuffer = this.asArrayBuffer = function() {
+    return bytes.slice();
+  }
+}
+
+// the worker code asks for a Blob through this (see wasmutils.makeBlob)
+global.makeBlob = function(bytes) {
+  return new Blob(bytes);
 }
 
 global.XMLHttpRequest = function() {
@@ -57,7 +77,7 @@ global.XMLHttpRequest = function() {
             this.response = new Blob(data);
         } else if (this.responseType == 'arraybuffer') {
             var data = fs.readFileSync('src/worker/'+b, {encoding:'binary'});
-            this.response = new Blob(data).asArrayBuffer();
+            this.response = toBytes(data).buffer;
         }
         this.status = this.response ? 200 : 404;
         //console.log(':::xml',this.response.length);

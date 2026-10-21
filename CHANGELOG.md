@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Editor and UI
+
+- The IDE now works in Firefox: a synchronous XHR with a `responseType` hangs in Firefox when the response is 1MB or more, so the build worker hung forever on platforms with a big toolchain package (Game Boy, Atari 8-bit, Apple II, ...). The worker now fetches those packages as ArrayBuffers. A worker that dies no longer leaves the IDE spinning: the error is shown and the build stops.
+
 ## [4.0.0] - 2026-10-21
 
 ### Visual Studio Code extension (preview)

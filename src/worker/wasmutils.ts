@@ -118,13 +118,42 @@ export var fsMeta = {};
 var fsBlob = {};
 var wasmBlob = {};
 
+/**
+ * Wrap binary data in a Blob.
+ *
+ * We fetch filesystem packages as ArrayBuffers instead of Blobs: Firefox
+ * hangs on a synchronous XHR with responseType='blob' when the response is
+ * 1MB or more, and every toolchain package we ship is that big. Chrome is
+ * happy either way, so this keeps both browsers working.
+ *
+ * The Node test environment (workerlib.ts) has its own Blob shim, and
+ * installs a factory for it in emglobal.
+ */
+export function makeBlob(data: ArrayBuffer | Uint8Array): any {
+  var bytes: Uint8Array<ArrayBuffer>;
+  if (data instanceof Uint8Array) {
+    bytes = new Uint8Array(data.buffer as ArrayBuffer, data.byteOffset, data.byteLength);
+  } else {
+    bytes = new Uint8Array(data);
+  }
+  var factory = (emglobal as any).makeBlob;
+  if (typeof factory == 'function') return factory(bytes);
+  return new Blob([bytes]);
+}
+
+/** Size in bytes of a loaded filesystem package's data (0 if not loaded). */
+export function getFilesystemSize(name: string): number {
+  var blob = fsBlob[name];
+  return blob ? blob.size : 0;
+}
+
 // load filesystems for CC65 and others asynchronously
 export function loadFilesystem(name: string) {
   var xhr = new XMLHttpRequest();
-  xhr.responseType = 'blob';
+  xhr.responseType = 'arraybuffer';
   xhr.open("GET", PWORKER + "fs/fs" + name + ".data", false);  // synchronous request
   xhr.send(null);
-  fsBlob[name] = xhr.response;
+  fsBlob[name] = makeBlob(xhr.response);
   xhr = new XMLHttpRequest();
   xhr.responseType = 'json';
   xhr.open("GET", PWORKER + "fs/fs" + name + ".js.metadata", false);  // synchronous request

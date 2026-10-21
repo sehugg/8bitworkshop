@@ -3,14 +3,16 @@ import { WASIRunner, WASIMemoryFilesystem } from "../common/wasi/wasishim";
 import { WorkerError } from "../common/workertypes";
 import { BuildStep, store } from "./builder";
 import { hasErrors, re_crlf } from "./listingutils";
-import { ensureWasiFilesystem, loadWASMBinary } from "./wasmutils";
+import { ensureWasiFilesystem, loadWASMBinary, makeBlob } from "./wasmutils";
 
 export function loadBlobSync(path: string) {
     var xhr = new XMLHttpRequest();
-    xhr.responseType = 'blob';
+    // arraybuffer, not blob: Firefox hangs on a synchronous XHR with
+    // responseType='blob' for responses of 1MB or more (see wasmutils.makeBlob)
+    xhr.responseType = 'arraybuffer';
     xhr.open("GET", path, false);  // synchronous request
     xhr.send(null);
-    return xhr.response;
+    return makeBlob(xhr.response);
 }
 
 export async function unzipWASIFilesystem(zipdata: any, rootPath: string = "./") {

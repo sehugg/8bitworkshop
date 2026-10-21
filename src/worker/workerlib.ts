@@ -15,27 +15,47 @@ export { store, builder };
 export { PLATFORM_PARAMS } from "./platforms";
 export { TOOLS } from "./workertools";
 
+type BlobPart = string | ArrayBuffer | Uint8Array | ArrayBufferView;
+
 class Blob {
-  private data: string;
+  private bytes: Uint8Array;
   size: number;
   length: number;
-  constructor(data: string) {
-    this.data = data;
-    this.size = data.length;
-    this.length = data.length;
+  constructor(parts: BlobPart | BlobPart[]) {
+    var list = Array.isArray(parts) ? parts : [parts];
+    var chunks: Uint8Array[] = [];
+    var total = 0;
+    for (var p of list) {
+      var b: Uint8Array;
+      if (typeof p == 'string') {
+        // a binary string: one byte per character
+        b = new Uint8Array(p.length);
+        for (var i = 0; i < p.length; i++) b[i] = p.charCodeAt(i) & 0xff;
+      } else if (ArrayBuffer.isView(p)) {
+        b = new Uint8Array(p.buffer, p.byteOffset, p.byteLength);
+      } else {
+        b = new Uint8Array(p);
+      }
+      chunks.push(b);
+      total += b.length;
+    }
+    this.bytes = new Uint8Array(total);
+    var off = 0;
+    for (var c of chunks) {
+      this.bytes.set(c, off);
+      off += c.length;
+    }
+    this.size = total;
+    this.length = total;
   }
-  slice(a: number, b: number): Blob {
-    return new Blob(this.data.slice(a, b));
+  slice(a?: number, b?: number): Blob {
+    return new Blob(this.bytes.slice(a, b));
   }
   arrayBuffer(): Uint8Array {
     return this.asArrayBuffer();
   }
   asArrayBuffer(): Uint8Array {
-    var buf = new ArrayBuffer(this.data.length);
-    var arr = new Uint8Array(buf);
-    for (var i = 0; i < this.data.length; i++)
-      arr[i] = this.data.charCodeAt(i);
-    return arr;
+    return this.bytes.slice();
   }
 }
 
@@ -113,6 +133,9 @@ export function setupNodeEnvironment(rootDir: string = process.cwd()) {
     };
     this.send = function () { };
   };
+
+  // Blob factory for the worker code (see wasmutils.makeBlob)
+  emglobal.makeBlob = (bytes: Uint8Array) => new Blob(bytes);
 
   // FileReaderSync shim
   emglobal.FileReaderSync = function () {

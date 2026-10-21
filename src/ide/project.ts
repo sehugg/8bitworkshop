@@ -139,6 +139,17 @@ export class CodeProject {
       this.receiveWorkerMessage(e.data);
     };
 
+    worker.onerror = (e) => {
+      // The worker died (a toolchain that would not load, say). Report it
+      // instead of waiting forever for a build result that never arrives.
+      console.error('worker error', e.message || e);
+      this.pendingWorkerMessages = 0;
+      this.isCompiling = false;
+      if (this.callbackBuildStatus) this.callbackBuildStatus(false);
+      var msg = e.message || 'Worker error';
+      this.callbackBuildResult?.({ errors: [{ line: 0, msg: msg }] });
+    };
+
     filesystem.onFileSystemUpdate(async (path: string) => {
       if (path in this.filedata) {
         var data = await this.filesystem.getFileData(path);
