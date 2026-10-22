@@ -74,7 +74,7 @@ describe('VIC-20 video', function () {
             target.advanceFrame();
         }
         video = target.getVideo();
-        var px = video.pixels;
+        px = video.pixels;
         color = function (x, y) { return px[y * video.width + x]; };
         // the text window is 22 columns (176 pixels) wide and centered, so
         // there are 28 pixels of border color on either side. The pixels
