@@ -15,7 +15,9 @@ export class VIC20_WASMMachine extends BaseWASMMachine implements Machine, Probe
 
   numTotalScanlines = 312;
   cpuCyclesPerLine = 71;
-  videoOffsetBytes = -24 * 4;
+  // the VIC-I draws its 22x23 character window centered in the frame,
+  // so no video offset is needed
+  videoOffsetBytes = 0;
 
   prgstart : number;
   joymask0 = 0;
@@ -27,6 +29,22 @@ export class VIC20_WASMMachine extends BaseWASMMachine implements Machine, Probe
     super.loadBIOS(srcArray);
   }
   async fetchBIOS() {
+    // use the real VIC-20 ROM set (BASIC, character ROM and KERNAL) if it is
+    // available, otherwise fall back to a tiny stub BIOS that only knows how
+    // to start an autostart cartridge
+    try {
+      const resp = await fetch('res/vic20/vic20.bios');
+      if (resp.status == 200) {
+        const bios = new Uint8Array(await resp.arrayBuffer());
+        if (bios.length == 0x5000) {
+          this.allocateBIOS(bios);
+          this.loadBIOS(bios);
+          return;
+        }
+      }
+    } catch (e) {
+      // no ROM set available, use the stub BIOS below
+    }
     let bios = new Uint8Array(20480);
     bios.set(DEFAULT_BIOS, bios.length - DEFAULT_BIOS.length);
     this.allocateBIOS(bios);

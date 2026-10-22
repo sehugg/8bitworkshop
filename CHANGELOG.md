@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Emulators
+
+- **VIC-20**: the text window is drawn correctly now. The VIC-I emulated the VIC-II's display window registers, so the 22 column window was placed at a garbage offset: the first character column was clipped in half and the screen was shifted 24 pixels to the right. The VIC-I window is fixed at 22x23 characters and centered in the picture; its vertical position still comes from the ROM (the "upper border" register), so NTSC and PAL ROMs both work.
+
 ### Editor and UI
 
 - The IDE now works in Firefox: a synchronous XHR with a `responseType` hangs in Firefox when the response is 1MB or more, so the build worker hung forever on platforms with a big toolchain package (Game Boy, Atari 8-bit, Apple II, ...). The worker now fetches those packages as ArrayBuffers. A worker that dies no longer leaves the IDE spinning: the error is shown and the build stops.
