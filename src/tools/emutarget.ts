@@ -37,25 +37,35 @@ export async function loadPlatform(platformId: string, options?: any): Promise<E
 let mocksInstalled = false;
 
 /**
- * The process-level unhandledRejection listeners currently installed. Capture
- * this before importing a platform (see dropAbortHandlers).
+ * The process-level events an Emscripten runtime hooks to abort the host: an
+ * unhandled rejection makes it abort, and its uncaughtException handler
+ * rethrows anything that is not one of its own runtime errors, which node
+ * turns into exit code 7. Both take the host down with them, so they are
+ * dropped when a platform module is loaded.
  */
-export function captureRejectionListeners(): Set<Function> {
-  return new Set(process.listeners('unhandledRejection'));
+const RUNTIME_EVENTS = ['unhandledRejection', 'uncaughtException'] as const;
+
+/** The process-level listeners currently installed, for the events above. */
+export function captureRejectionListeners(): Map<string, Set<Function>> {
+  const snapshot = new Map<string, Set<Function>>();
+  for (const event of RUNTIME_EVENTS) snapshot.set(event, new Set(process.listeners(event as any)));
+  return snapshot;
 }
 
 /**
- * Drop process-level unhandledRejection handlers added since `keep` was
- * captured. Emscripten runtimes (binaryen, imported by the verilog platform)
- * register one that aborts the host, so a stray async rejection from an
- * emulator would otherwise kill the process or worker thread. A host that
- * wants to collect the rejections installs its own listener before capturing;
- * otherwise a logging one is left so Node doesn't fall back to its default
- * throw.
+ * Drop process-level handlers added since `keep` was captured. Emscripten
+ * runtimes (binaryen, imported by the verilog platform) register one that
+ * aborts the host, so a stray async rejection from an emulator would
+ * otherwise kill the process or worker thread. A host that wants to collect
+ * the rejections installs its own listener before capturing; otherwise a
+ * logging one is left so Node doesn't fall back to its default throw.
  */
-export function dropAbortHandlers(keep: Set<Function>) {
-  for (const listener of process.listeners('unhandledRejection')) {
-    if (!keep.has(listener)) process.removeListener('unhandledRejection', listener);
+export function dropAbortHandlers(keep: Map<string, Set<Function>>) {
+  for (const event of RUNTIME_EVENTS) {
+    const before = keep.get(event);
+    for (const listener of process.listeners(event as any)) {
+      if (!before || !before.has(listener)) process.removeListener(event as any, listener);
+    }
   }
   if (process.listenerCount('unhandledRejection') === 0) {
     process.on('unhandledRejection', (reason) => console.error('unhandled rejection:', reason));

@@ -4,6 +4,14 @@ var assert = require('assert');
 var fs = require('fs');
 var vm = require('vm');
 
+// The Emscripten glue that runs the tools adds process handlers that abort
+// the host on an unhandled rejection and rethrow uncaught exceptions, which
+// node turns into exit code 7. A mocha worker that dies that way takes the
+// whole test file with it, and the failure that caused it is never reported.
+// The host owns these events: ignore the handlers the glue adds.
+var gluehandlers = require('../../gen/worker/gluehandlers.js');
+gluehandlers.ignoreGlueProcessHandlers();
+
 var worker = {};
 
 //process.exit = function() { console.log("arggh you can't exit when i pass noExitRuntime! lol process.exit() go brrr") }
@@ -24,7 +32,9 @@ global.includeInThisContext = function(path) {
 };
 
 global.importScripts = function(path) {
-  includeInThisContext('gen/worker/'+path);
+  var full = 'gen/worker/' + path;
+  gluehandlers.noteGlueScript(full);
+  includeInThisContext(full);
 }
 
 // like the browser's Blob: takes a binary string, an ArrayBuffer, a

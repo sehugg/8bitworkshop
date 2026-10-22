@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Builds and tools
+
+- The WASM builds of the compilers no longer take the host down with them. Their Emscripten runtime aborts the process on an unhandled rejection and rethrows uncaught exceptions, which node turns into exit code 7 with no message. The `8bws` CLI and the VS Code extension ignore those handlers now, so a stray error is reported instead of killing the process.
+
 ### Emulators
 
 - **VIC-20**: the text window is drawn correctly now. The VIC-I emulated the VIC-II's display window registers, so the 22 column window was placed at a garbage offset: the first character column was clipped in half and the screen was shifted 24 pixels to the right. The VIC-I window is fixed at 22x23 characters and centered in the picture; its vertical position still comes from the ROM (the "upper border" register), so NTSC and PAL ROMs both work.

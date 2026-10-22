@@ -48,56 +48,85 @@ async function queryWorker(msg) {
   });
 }
 
+// check a build result against what the test expects
+function checkResult(msg, msgs, outlen, nlines, nerrors, options) {
+  if (msg.unchanged) return;
+  if (msg.errors && msg.errors.length) {
+    for (var err of msg.errors) {
+      console.log(err);
+      assert.ok(err.line >= 0);
+      if (options && !options.ignoreErrorPath) {
+        assert.equal(msgs[0].path, err.path);
+      }
+      assert.ok(err.msg);
+    }
+    if (nerrors != msg.errors.length) console.log(msg);
+    assert.equal(nerrors, msg.errors.length);
+  } else {
+    assert.equal(nerrors||0, 0);
+    if (msg.output.stmts) { // AST for BASIC
+      assert.equal(msg.output.stmts.length, outlen);
+    } else {
+      assert.equal(msg.output.code?msg.output.code.length:msg.output.length, outlen);
+      assert.ok(msg.output.code || msg.output instanceof Uint8Array);
+    }
+    if (nlines) {
+      if (typeof nlines === 'number')
+        nlines = [nlines];
+      //console.log(msg.listings, nlines);
+      var i = 0;
+      var lstkeys = Object.keys(msg.listings);
+      lstkeys.sort();
+      for (var key of lstkeys) {
+        var listing = msg.listings[key];
+        assert.equal(listing.lines.length, nlines[i++]);
+      }
+    }
+  }
+}
+
 async function doBuild(msgs, callback, outlen, nlines, nerrors, options) {
     var msgcount = msgs.length;
+    var reported = false;
+    // report the result to mocha exactly once, whether the build passed or
+    // one of the assertions below failed
+    var finish = function(err, msg) {
+      if (reported) return;
+      reported = true;
+      callback(err, msg);
+    };
     global.postMessage = function(msg) {
-      if (!msg.unchanged) {
-        if (msg.errors && msg.errors.length) {
-          for (var err of msg.errors) {
-            console.log(err);
-            assert.ok(err.line >= 0);
-            if (options && !options.ignoreErrorPath) {
-              assert.equal(msgs[0].path, err.path);
-            }
-            assert.ok(err.msg);
-          }
-          if (nerrors != msg.errors.length) console.log(msg);
-          assert.equal(nerrors, msg.errors.length);
-        } else {
-          assert.equal(nerrors||0, 0);
-          if (msg.output.stmts) { // AST for BASIC
-            assert.equal(msg.output.stmts.length, outlen);
-          } else {
-            assert.equal(msg.output.code?msg.output.code.length:msg.output.length, outlen);
-            assert.ok(msg.output.code || msg.output instanceof Uint8Array);
-          }
-          if (nlines) {
-            if (typeof nlines === 'number')
-              nlines = [nlines];
-            //console.log(msg.listings, nlines);
-            var i = 0;
-            var lstkeys = Object.keys(msg.listings);
-            lstkeys.sort();
-            for (var key of lstkeys) {
-              var listing = msg.listings[key];
-              assert.equal(listing.lines.length, nlines[i++]);
-            }
-          }
-        }
+      if (reported) return;
+      try {
+        checkResult(msg, msgs, outlen, nlines, nerrors, options);
+      } catch (e) {
+        // an assertion failed: hand it to mocha. Left alone it would travel
+        // out as an unhandled rejection, which the Emscripten glue turns into
+        // a process abort, and the worker would die without reporting it.
+        finish(e);
+        return;
       }
       if (--msgcount == 0) {
-        callback(null, msg);
+        finish(null, msg);
         //heapdump.writeSnapshot();
       } else
         console.log(msgcount + ' msgs left');
     };
-    await global.onmessage({data:{reset:true}});
-    for (var i=0; i<msgs.length; i++) {
-      await global.onmessage({data:msgs[i]});
-    } 
+    try {
+      await global.onmessage({data:{reset:true}});
+      for (var i=0; i<msgs.length; i++) {
+        await global.onmessage({data:msgs[i]});
+      }
+    } catch (e) {
+      // the worker reported the failure as an error result; if the test has
+      // not been told about it yet, tell it now
+      finish(e);
+    }
 }
 
 describe('Worker', function() {
+  // these tests compile a lot of code; a loaded CI runner can be slow
+  this.timeout(180000);
   it('should list shared files in filesystem package', async function() {
     var msg = await queryWorker({preload_fs:'wasi:cc65-fs-nes.zip', listshared:'/share/cc65/include', updates:[], buildsteps:[], qid:123});
     assert.ok(Array.isArray(msg.output));
@@ -207,7 +236,9 @@ describe('Worker', function() {
     assert.ok(msg.warnings.every(w => w.severity == 'warning' && w.line > 0));
   });
   it('should NOT compile CC65 (link error)', function(done) {
-    compile('cc65', 'extern void bad();\nint main() {\nbad();\nreturn 0;\n}', 'nes', done, 0, 0, 1, {ignoreErrorPath:true});
+    // two diagnostics: the assembler warns about the unresolved symbol, the
+    // linker reports the error
+    compile('cc65', 'extern void bad();\nint main() {\nbad();\nreturn 0;\n}', 'nes', done, 0, 0, 2, {ignoreErrorPath:true});
   });
   it('should NOT compile CC65 (preproc error)', function(done) {
     compile('cc65', '#include "NOSUCH.file"\n', 'nes', done, 0, 0, 1, {ignoreErrorPath:true});
@@ -275,6 +306,7 @@ describe('Worker', function() {
     var {Devel6502} = require('../../gen/machine/devel.js');
     var csource = ab2str(fs.readFileSync('presets/devel-6502/hello-sdcc.c'));
     compile('sdcc', csource, 'devel-6502', function(err, msg) {
+      if (err) return done(err);
       var rom = msg.output;
       assert.equal(rom[0x7ffa] | rom[0x7ffb] << 8, 0x8000); // vectors -> crt0
       assert.ok(msg.symbolmap._main >= 0x8000);
@@ -295,6 +327,7 @@ describe('Worker', function() {
   it('should link SDCC mos6502 as a DOS 3.3 binary on apple2', function(done) {
     var csource = ab2str(fs.readFileSync('presets/apple2/hello-sdcc.c'));
     compile('sdcc', csource, 'apple2', function(err, msg) {
+      if (err) return done(err);
       var bin = msg.output;
       assert.equal(bin[0] | bin[1] << 8, 0x803);            // load address
       assert.equal(bin[2] | bin[3] << 8, bin.length - 4);   // length: what the loader checks
@@ -305,6 +338,7 @@ describe('Worker', function() {
   it('should link SDCC mos6502 as a PRG with a BASIC stub on c64', function(done) {
     var csource = ab2str(fs.readFileSync('presets/c64/hello-sdcc.c'));
     compile('sdcc', csource, 'c64', function(err, msg) {
+      if (err) return done(err);
       var bin = msg.output;
       assert.deepEqual(Array.from(bin.slice(0, 12)), [1,8, 0x0b,8, 10,0, 0x9e, 0x32,0x30,0x36,0x31, 0]); // 10 SYS 2061
       assert.ok(bin.length < 1024);                          // trimmed to the program
@@ -343,7 +377,12 @@ describe('Worker', function() {
     });
   }
 
+  // the urust compiler is a WASM build that is not in the repository yet, so
+  // the tests that need it are skipped until it is
+  var haveUrust = fs.existsSync('src/worker/wasm/urust.wasm');
+
   it('should compile urust and return source ranges, symbols and segments', async function() {
+    if (!haveUrust) return this.skip();
     var code = 'use rs8::reset;\n\nstatic mut OUT: u8 = 0;\n\n#[no_cross(256)] fn double(x: u8) -> u8 {\n    x.wrapping_add(x)\n}\n\n#[reset]\nfn main() {\n    unsafe { OUT = double(21); }\n}\n';
     var result = await buildOne({code:code, platform:'devel-6502', tool:'urust', path:'main.rs', mainfile:true});
     assert.ok(!result.errors || result.errors.length === 0, JSON.stringify(result.errors));
@@ -359,6 +398,7 @@ describe('Worker', function() {
   });
 
   it('should report urust errors with line and column', async function() {
+    if (!haveUrust) return this.skip();
     var code = 'use rs8::reset;\n#[reset]\nfn main() {\n    let x: u8 = "hi";\n}\n';
     var result = await buildOne({code:code, platform:'devel-6502', tool:'urust', path:'main.rs', mainfile:true});
     assert.ok(result.errors && result.errors.length > 0);
@@ -368,6 +408,7 @@ describe('Worker', function() {
   });
 
   it('should pass include_bytes! files to urust', async function() {
+    if (!haveUrust) return this.skip();
     var code = 'use rs8::reset;\nstatic ART: [u8; 3] = *include_bytes!("art.bin");\nstatic mut OUT: u8 = 0;\n#[reset]\nfn main() {\n    unsafe { OUT = ART[1]; }\n}\n';
     var msg = {updates:[{path:'main.rs', data:code}, {path:'art.bin', data:new Uint8Array([7,8,9])}],
                buildsteps:[{path:'main.rs', platform:'devel-6502', tool:'urust', mainfile:true, files:['main.rs','art.bin']}]};
@@ -604,6 +645,7 @@ describe('Worker', function() {
     var csource = ab2str(fs.readFileSync('presets/basic/wumpus.bas'));
     var msgs = [{code:csource, platform:"basic", tool:"basic", path:'wumpus.bas'}];
     var done2 = function(err, msg) {
+      if (err) return done(err);
       var ast = msg.output;
       assert.ok(ast);
       done(err, msg);

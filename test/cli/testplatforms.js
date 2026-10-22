@@ -253,8 +253,12 @@ describe('Platform Replay', () => {
     assert.equal(platform.saveState().kbdlatch, 0x20); // strobe cleared
   });
 
-  it('Should run > 120 secs', async () => {
-    var platform = await testPlatform('apple2', 'mandel.c.rom', 122*60, (platform, frameno) => {
+  it('Should run > 60 secs', async function () {
+    // 61 seconds of emulated time: enough to fill the recorder (3000 frames)
+    // and wrap it, which is what the replay bookkeeping is about. A loaded
+    // machine (the parallel test run) needs more than the default timeout.
+    this.timeout(300000);
+    var platform = await testPlatform('apple2', 'mandel.c.rom', 61*60, (platform, frameno) => {
     });
   });
 
