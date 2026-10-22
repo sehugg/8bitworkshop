@@ -421,7 +421,11 @@ describe('Platform Replay', () => {
     assert.ok(booted, "ATR boot code did not run");
   });
 
-  it('Should run atari5200', async () => {
+  it('Should run atari5200', async function () {
+    // 1200 frames of the acid test suite: close to a minute of emulated
+    // time, so a loaded machine (the parallel test run) needs more than the
+    // default timeout.
+    this.timeout(300000);
     await testPlatform('atari8-5200', 'acid5200.rom', 1200, (platform, frameno) => {
       if (frameno == 1199) {
         for (let j=0; j<1024; j+=40) {

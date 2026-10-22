@@ -1,9 +1,11 @@
 import assert from "assert";
 import * as fs from "fs";
+import * as path from "path";
 import JSZip from "jszip";
 import { describe, it } from "mocha";
 import { getIncludeDirs, getIncludePatterns, getSharedFileSystemName, matchDependencyPatterns } from "../../src/common/toolmeta";
 import { getToolForPlatform } from "../../src/common/toolselect";
+import { toolRoot } from "../../src/tools/toolroot";
 import {
   parseUrustDiagnostics, urustDebugToResult, urustPlatformName, UrustDebug
 } from "../../src/worker/tools/urustparse";
@@ -43,11 +45,17 @@ describe('urust tool', function () {
     assert.deepStrictEqual(deps, ['nes.rs', 'io.rs']);
   });
 
-  it('exposes the rs8 sources as a WASI filesystem for the editor', async function () {
+  it('exposes the rs8 sources as a WASI filesystem for the editor', function () {
     assert.strictEqual(getSharedFileSystemName('urust', 'devel-6502'), 'wasi:urust-fs.zip');
     assert.deepStrictEqual(getIncludeDirs('urust', 'devel-6502'), ['/rs8']);
+  });
+
+  it('ships the rs8 module sources in the WASI filesystem package', async function () {
+    // the package is built outside the repo, so it may not be here
+    const zipfile = path.resolve(toolRoot(), 'src/worker/fs/urust-fs.zip');
+    if (!fs.existsSync(zipfile)) return this.skip();
     // /rs8/<module>.rs has to resolve for every module the include pattern links
-    const zip = await JSZip.loadAsync(fs.readFileSync('src/worker/fs/urust-fs.zip'));
+    const zip = await JSZip.loadAsync(fs.readFileSync(zipfile));
     for (const f of ['lib.rs', 'atari8.rs', 'c64.rs', 'conio.rs', 'io.rs', 'nes.rs', 'rand.rs', 'vcs.rs']) {
       assert.ok(zip.file('rs8/' + f), 'missing rs8/' + f);
     }
