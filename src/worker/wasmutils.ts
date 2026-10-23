@@ -24,6 +24,12 @@ export const emglobal: any = ENVIRONMENT_IS_NODE ? global : ENVIRONMENT_IS_WORKE
 
 // simple CommonJS module loader
 // TODO: relative paths for dependencies
+//
+// Use emglobal.exports rather than the module's own `exports` binding: Emscripten
+// glue loaded by importScripts writes to the global `exports`, and tsc compiles
+// this file as a CommonJS module, whose `exports` is a different object. (In a
+// test worker that loaded the unbundled modules first, the old code reassigned
+// that binding here and later require('path') calls failed.)
 if (!emglobal['require']) {
   emglobal['require'] = (modpath: string) => {
     if (modpath.endsWith('.js')) modpath = modpath.slice(-3);
@@ -31,11 +37,11 @@ if (!emglobal['require']) {
     var hasNamespace = emglobal[modname] != null;
     console.log('@@@ require', modname, modpath, hasNamespace);
     if (!hasNamespace) {
-      exports = {};
+      emglobal.exports = {};
       importScripts(`${modpath}.js`);
     }
     if (emglobal[modname] == null) {
-      emglobal[modname] = exports; // TODO: always put in global scope?
+      emglobal[modname] = emglobal.exports; // TODO: always put in global scope?
     }
     return emglobal[modname]; // TODO
   }

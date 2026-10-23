@@ -1,6 +1,12 @@
 
 var assert = require('assert');
 var fs = require('fs');
+// Mocha's parallel mode can reuse a process that already loaded the unbundled
+// worker modules (gen/test/unit/testtoolmeta.js imports workerlib), so the
+// bundle finds emglobal.require installed by gen/worker/wasmutils.js and keeps
+// it. Load it first here too: the loader must survive a module that exports
+// through global `exports`, which the old code did not.
+require('../../gen/worker/wasmutils.js');
 var wtu = require('./workertestutils.js');
 //var heapdump = require('heapdump');
 
