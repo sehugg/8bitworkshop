@@ -47,6 +47,7 @@ import { findListingLocation as findListingLocationPure } from "./search/listing
 import DOMPurify = require("dompurify");
 
 // external libs (TODO)
+declare var __BUILD_ID__: string; // defined by scripts/build.mjs
 declare var Tour;
 declare var $: JQueryStatic; // use browser jquery
 
@@ -132,7 +133,10 @@ export function getWorkerParams() {
 
 function newWorker(): Worker {
   // TODO: return new Worker("https://8bitworkshop.com.s3-website-us-east-1.amazonaws.com/dev/gen/worker/bundle.js");
-  return new Worker("./gen/worker/bundle.js");
+  // The build id in the query string makes Firefox refetch the bundle after a
+  // rebuild (hard reload doesn't cover workers); the worker reuses it for its
+  // own fetches via cacheBust().
+  return new Worker("./gen/worker/bundle.js" + (typeof __BUILD_ID__ != 'undefined' ? '?v=' + __BUILD_ID__ : ''));
 }
 
 const hasLocalStorage: boolean = function () {

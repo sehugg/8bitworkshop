@@ -13,6 +13,7 @@
 ### Editor and UI
 
 - The IDE now works in Firefox: a synchronous XHR with a `responseType` hangs in Firefox when the response is 1MB or more, so the build worker hung forever on platforms with a big toolchain package (Game Boy, Atari 8-bit, Apple II, ...). The worker now fetches those packages as ArrayBuffers. A worker that dies no longer leaves the IDE spinning: the error is shown and the build stops.
+- Firefox no longer serves a stale build worker or toolchain package after an update: its hard reload (cmd+shift+r) doesn't revalidate requests made from a worker. The IDE now puts a build id in the worker URL, and the worker passes it on to every package and library it fetches.
 
 ## [4.0.0] - 2026-10-21
 

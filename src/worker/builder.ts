@@ -10,6 +10,16 @@ import { TOOLS } from "./workertools";
 const PSRC = "../../src/";
 export const PWORKER = PSRC + "worker/";
 
+/**
+ * Append the worker's own query string (the IDE's build id, see newWorker()
+ * in ide/ui.ts) to a URL the worker fetches. Firefox's hard reload does not
+ * revalidate requests made from a worker, so without this a stale bundle or
+ * toolchain package survives cmd+shift+r. Empty in node tests.
+ */
+export function cacheBust(url: string): string {
+  return url + ((typeof location != 'undefined' && location.search) || '');
+}
+
 export type FileData = string | Uint8Array;
 
 export type FileEntry = {
@@ -423,7 +433,7 @@ export function populateExtraFiles(step: BuildStep, fs, extrafiles, processFn?: 
 export function fetchLibraryFile(platform: string, name: string): Uint8Array | null {
   var xhr = new XMLHttpRequest();
   xhr.responseType = 'arraybuffer';
-  xhr.open("GET", PWORKER + "lib/" + getBasePlatform(platform) + "/" + name, false);  // synchronous request
+  xhr.open("GET", cacheBust(PWORKER + "lib/" + getBasePlatform(platform) + "/" + name), false);  // synchronous request
   xhr.send(null);
   return xhr.response && xhr.status == 200 ? new Uint8Array(xhr.response) : null;
 }

@@ -2,7 +2,7 @@
 // WebAssembly module cache
 // for Emscripten-compiled functions
 
-import { BuildStep, PWORKER, endtime, starttime, putWorkFile, anyTargetChanged } from "./builder";
+import { BuildStep, PWORKER, cacheBust, endtime, starttime, putWorkFile, anyTargetChanged } from "./builder";
 
 /// <reference types="emscripten" />
 export interface EmscriptenModule {
@@ -151,12 +151,12 @@ export function getFilesystemSize(name: string): number {
 export function loadFilesystem(name: string) {
   var xhr = new XMLHttpRequest();
   xhr.responseType = 'arraybuffer';
-  xhr.open("GET", PWORKER + "fs/fs" + name + ".data", false);  // synchronous request
+  xhr.open("GET", cacheBust(PWORKER + "fs/fs" + name + ".data"), false);  // synchronous request
   xhr.send(null);
   fsBlob[name] = makeBlob(xhr.response);
   xhr = new XMLHttpRequest();
   xhr.responseType = 'json';
-  xhr.open("GET", PWORKER + "fs/fs" + name + ".js.metadata", false);  // synchronous request
+  xhr.open("GET", cacheBust(PWORKER + "fs/fs" + name + ".js.metadata"), false);  // synchronous request
   xhr.send(null);
   fsMeta[name] = xhr.response;
   console.log("Loaded " + name + " filesystem", fsMeta[name].files.length, 'files', fsBlob[name].size, 'bytes');
@@ -165,7 +165,7 @@ export function loadFilesystem(name: string) {
 var loaded = {};
 export function load(modulename: string, debug?: boolean) {
   if (!loaded[modulename]) {
-    importScripts(PWORKER + 'asmjs/' + modulename + (debug ? "." + debug + ".js" : ".js"));
+    importScripts(cacheBust(PWORKER + 'asmjs/' + modulename + (debug ? "." + debug + ".js" : ".js")));
     loaded[modulename] = 1;
   }
 }
@@ -173,7 +173,7 @@ export function loadWASMBinary(modulename: string) {
   if (!loaded[modulename]) {
     var xhr = new XMLHttpRequest();
     xhr.responseType = 'arraybuffer';
-    xhr.open("GET", PWORKER + "wasm/" + modulename + ".wasm", false);  // synchronous request
+    xhr.open("GET", cacheBust(PWORKER + "wasm/" + modulename + ".wasm"), false);  // synchronous request
     xhr.send(null);
     if (xhr.response) {
       wasmBlob[modulename] = new Uint8Array(xhr.response);
@@ -187,7 +187,7 @@ export function loadWASMBinary(modulename: string) {
 }
 export function loadWASM(modulename: string, debug?: boolean) {
   if (!loaded[modulename]) {
-    importScripts(PWORKER + "wasm/" + modulename + (debug ? "." + debug + ".js" : ".js"));
+    importScripts(cacheBust(PWORKER + "wasm/" + modulename + (debug ? "." + debug + ".js" : ".js")));
     loadWASMBinary(modulename);
   }
 }

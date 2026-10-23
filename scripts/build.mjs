@@ -12,6 +12,9 @@
 import esbuild from 'esbuild';
 import mdPlugin from './md-loader.mjs';
 
+// identifies this build; the IDE puts it in the worker URL to defeat stale caches
+const define = { __BUILD_ID__: JSON.stringify(Date.now().toString(36)) };
+
 const configs = {
   worker: {
     entryPoints: ['src/worker/workermain.ts'],
@@ -54,6 +57,7 @@ for (const name of targets) {
   }
   const ctx = await esbuild.context({
     ...config,
+    define,
     plugins: [mdPlugin],
   });
   if (watch) {
