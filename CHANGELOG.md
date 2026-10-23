@@ -10,6 +10,7 @@
 
 ### Emulators
 
+- **VIC-20**: the Debug Info panel shows the machine's chips like the C64's does: a VIA pane with both 6522s (ports, timers, interrupt flags) and a VIC pane with the VIC-I raster position, screen and character memory addresses, colors and register dump. The ZP/Stack pane read from the wrong offset of the machine state and showed unrelated bytes; it now shows the zero page and stack.
 - **C64, VIC-20 and the other WASM machines**: a BIOS loaded after the machine started (a project's `<platform>.rom`, or `8bws run --bios`) was ignored, because the machine had already copied its ROMs. Loading one now rebuilds and resets the machine.
 - **VIC-20**: the text window is drawn correctly now. The VIC-I emulated the VIC-II's display window registers, so the 22 column window was placed at a garbage offset: the first character column was clipped in half and the screen was shifted 24 pixels to the right. The VIC-I window is fixed at 22x23 characters and centered in the picture; its vertical position still comes from the ROM (the "upper border" register), so NTSC and PAL ROMs both work.
 

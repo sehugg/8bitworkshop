@@ -93,3 +93,32 @@ describe('VIC-20 video', function () {
         assert.equal(color(100, 210), CYAN, 'below the text window');
     });
 });
+
+describe('VIC-20 debug info', function () {
+    it('should show the VIA and VIC-I state of the cartridge', async function () {
+        this.timeout(60000);
+        var target = await loadPlatform('vic20');
+        await target.start();
+        await target.loadROM(new Uint8Array(CART), 'cart.bin');
+        for (var i = 0; i < 60; i++) target.advanceFrame();
+        var info = {};
+        for (var section of target.getDebugInfo()) info[section.category] = section.text;
+        assert.ok(info['CPU'], 'CPU');
+        assert.ok(info['ZPRAM'], 'ZPRAM');
+        assert.ok(info['VIA'], 'VIA');
+        assert.ok(info['VIC'], 'VIC');
+        // the cartridge programs $900F/$9001/$9005/$9002
+        assert.ok(info['VIC'].indexOf('Screen: $1E00') >= 0, info['VIC']);
+        assert.ok(info['VIC'].indexOf('Char: ROM $8000') >= 0, info['VIC']);
+        assert.ok(info['VIC'].indexOf('Border 3  Background 1') >= 0, info['VIC']);
+        assert.ok(info['VIC'].indexOf('$9000: 00 19 96 00 00 F0') >= 0, info['VIC']);
+        assert.ok(info['VIA'].indexOf('VIA 1 ($9110)') >= 0, info['VIA']);
+        assert.ok(info['VIA'].indexOf('VIA 2 ($9120)') >= 0, info['VIA']);
+        // the ZP/stack pane reads the machine's zero page and stack, not
+        // some other offset into the machine state
+        var state = target.saveState();
+        for (var a = 0; a < 0x200; a++) {
+            assert.equal(state.ram[a], target.read(a), 'RAM $' + a.toString(16));
+        }
+    });
+});

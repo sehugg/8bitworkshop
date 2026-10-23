@@ -27,6 +27,12 @@ const VIA_SIZE = 56;
 // and pointers are 32 bits in WASM32, so regs[16] starts at byte 17.
 const VIC_REGS = 17;
 
+// indexes into the machine's machine_get_debug_pointer()
+const DEBUG_VIA1 = 1;
+const DEBUG_VIA2 = 2;
+const DEBUG_VIC = 3;
+const DEBUG_RAM0 = 5;
+
 export class VIC20_WASMMachine extends BaseWASMMachine implements Machine, Probeable {
 
   numTotalScanlines = 312;
@@ -163,10 +169,10 @@ export class VIC20_WASMMachine extends BaseWASMMachine implements Machine, Probe
     this.exports.machine_save_state(this.sys, this.stateptr);
     // the debug panes want the chip registers at the moment of the save, so
     // they travel in the state instead of being read from the live machine
-    let ram0 = this.getDebugStateOffset(5);
-    let via1 = this.getDebugStateOffset(1);
-    let via2 = this.getDebugStateOffset(2);
-    let vic = this.getDebugStateOffset(3) + VIC_REGS;
+    let ram0 = this.getDebugStateOffset(DEBUG_RAM0);
+    let via1 = this.getDebugStateOffset(DEBUG_VIA1);
+    let via2 = this.getDebugStateOffset(DEBUG_VIA2);
+    let vic = this.getDebugStateOffset(DEBUG_VIC) + VIC_REGS;
     return {
       c:this.getCPUState(),
       state:this.statearr.slice(0),
