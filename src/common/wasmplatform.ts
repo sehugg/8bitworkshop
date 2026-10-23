@@ -124,9 +124,16 @@ export abstract class BaseWASMMachine {
     console.log('load rom', rom.length, 'bytes');
     this.reset(); // TODO?
   }
-  // TODO: can't load after machine_init
   loadBIOS(srcArray: Uint8Array) {
     this.biosarr.set(srcArray);
+    // machine_init copied the ROMs out of biosarr, so a BIOS loaded after
+    // that has to build a new machine (the old one is leaked)
+    if (this.sys) this.recreateMachine();
+  }
+  recreateMachine() {
+    this.sys = this.exports.machine_init(this.biosptr);
+    if (this.pixel_dest != null) this.connectVideo(this.pixel_dest); // pixel buffer moved
+    this.reset(); // also reloads the ROM, if any
   }
   reset() {
     this.exports.machine_reset(this.sys);

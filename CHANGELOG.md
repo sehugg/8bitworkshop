@@ -4,11 +4,13 @@
 
 ### Builds and tools
 
+- The worker's CommonJS require shim kept the exports of a module it loaded in the shim module's own `exports` binding. In a mocha parallel worker that had loaded the unbundled Node modules first, the bundle reused that shim; loading one module then made `require('path')` throw, so the `inform6` test failed. The shim now keeps those exports on the worker global.
 - CI builds again: the `chips` submodule was registered with the relative URL `./chips`, which git resolves against the superproject's remote (`github.com/8bitworkshop/8bitworkshop/chips`, a 404), so every `git submodule update` failed while cloning it. It now points at `https://github.com/8bitworkshop/chips`, and a unit test rejects relative submodule URLs.
 - The WASM builds of the compilers no longer take the host down with them. Their Emscripten runtime aborts the process on an unhandled rejection and rethrows uncaught exceptions, which node turns into exit code 7 with no message. The `8bws` CLI and the VS Code extension ignore those handlers now, so a stray error is reported instead of killing the process.
 
 ### Emulators
 
+- **C64, VIC-20 and the other WASM machines**: a BIOS loaded after the machine started (a project's `<platform>.rom`, or `8bws run --bios`) was ignored, because the machine had already copied its ROMs. Loading one now rebuilds and resets the machine.
 - **VIC-20**: the text window is drawn correctly now. The VIC-I emulated the VIC-II's display window registers, so the 22 column window was placed at a garbage offset: the first character column was clipped in half and the screen was shifted 24 pixels to the right. The VIC-I window is fixed at 22x23 characters and centered in the picture; its vertical position still comes from the ROM (the "upper border" register), so NTSC and PAL ROMs both work.
 
 ### Editor and UI

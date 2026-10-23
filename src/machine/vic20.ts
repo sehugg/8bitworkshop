@@ -25,9 +25,6 @@ export class VIC20_WASMMachine extends BaseWASMMachine implements Machine, Probe
 
   getBIOSLength() { return 0x5000 };
 
-  loadBIOS(srcArray: Uint8Array) {
-    super.loadBIOS(srcArray);
-  }
   async fetchBIOS() {
     // use the real VIC-20 ROM set (BASIC, character ROM and KERNAL) if it is
     // available, otherwise fall back to a tiny stub BIOS that only knows how

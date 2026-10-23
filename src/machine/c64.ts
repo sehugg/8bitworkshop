@@ -38,8 +38,9 @@ export class C64_WASMMachine extends BaseWASMMachine
   cia1ofs = -1;
   cia1view: Uint8Array; // view over the live CIA-1 struct in WASM memory
 
-  loadBIOS(srcArray: Uint8Array) {
-    super.loadBIOS(srcArray);
+  recreateMachine() {
+    this.cia1view = null; // pointed into the old machine
+    super.recreateMachine();
   }
   reset() {
     super.reset();
