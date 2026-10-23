@@ -125,6 +125,11 @@ export abstract class BaseWASMMachine {
     this.reset(); // TODO?
   }
   loadBIOS(srcArray: Uint8Array) {
+    // the machine's ROM layout is fixed, so a bigger image can't work;
+    // TypedArray.set() would only throw a cryptic "source array is too long"
+    if (srcArray.length > this.biosarr.length) {
+      throw new Error(`BIOS too large: ${srcArray.length} bytes, but this machine's BIOS is only ${this.biosarr.length} bytes`);
+    }
     this.biosarr.set(srcArray);
     // machine_init copied the ROMs out of biosarr, so a BIOS loaded after
     // that has to build a new machine (the old one is leaked)

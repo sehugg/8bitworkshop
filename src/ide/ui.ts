@@ -1086,7 +1086,15 @@ async function loadBIOSFromProject() {
     var biosdata = await store.getItem(biospath);
     if (biosdata instanceof Uint8Array) {
       console.log('loading BIOS', biospath, biosdata.length + " bytes")
-      platform.loadBIOS(biospath, biosdata);
+      try {
+        platform.loadBIOS(biospath, biosdata);
+      } catch (e) {
+        // A bad BIOS file must not lock us out of the IDE (and its file manager):
+        // the platform keeps running with its built-in BIOS, so we warn and go on.
+        console.log(e);
+        alertError(`Could not load BIOS file "${biospath}": ${e.message || e + ''}<br><br>` +
+          'The emulator will use its built-in BIOS. Delete or rename the file to fix this.');
+      }
     } else {
       console.log('BIOS file must be binary')
     }

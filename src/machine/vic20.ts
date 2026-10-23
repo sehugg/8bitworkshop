@@ -7,9 +7,25 @@
 
 import { Machine } from "../common/baseplatform";
 import { Probeable, TrapCondition } from "../common/devices";
-import { KeyFlags } from "../common/emu";
-import { hex } from "../common/util";
+import { KeyFlags, dumpRAM } from "../common/emu";
+import { hex, lpad } from "../common/util";
 import { BaseWASMMachine } from "../common/wasmplatform";
+
+// Offsets of the registers in the C structs that machine_get_debug_pointer()
+// returns, for the debug panes. The chips structs only hold integers, so the
+// offsets are the same in every WASM build of the machine.
+const VIA_PA = 0x00;  // m6522_port_t { inpr, outr, ddr, pins }
+const VIA_PB = 0x0a;
+const VIA_T1 = 0x14;  // m6522_timer_t { latch, counter, ... }
+const VIA_T2 = 0x1c;
+const VIA_IER = 0x24; // m6522_int_t { ier, ifr, pip }
+const VIA_IFR = 0x25;
+const VIA_ACR = 0x28;
+const VIA_PCR = 0x29;
+const VIA_SIZE = 56;
+// m6561_t starts with { uint64 pins, fetch_cb, user_data, bool debug_vis },
+// and pointers are 32 bits in WASM32, so regs[16] starts at byte 17.
+const VIC_REGS = 17;
 
 export class VIC20_WASMMachine extends BaseWASMMachine implements Machine, Probeable {
 
@@ -139,12 +155,25 @@ export class VIC20_WASMMachine extends BaseWASMMachine implements Machine, Probe
       o:this.readConst(pc),
     }
   }
+  getDebugStateOffset(index: number) {
+    var p = this.exports.machine_get_debug_pointer(this.sys, index);
+    return p - this.sys;
+  }
   saveState() {
     this.exports.machine_save_state(this.sys, this.stateptr);
+    // the debug panes want the chip registers at the moment of the save, so
+    // they travel in the state instead of being read from the live machine
+    let ram0 = this.getDebugStateOffset(5);
+    let via1 = this.getDebugStateOffset(1);
+    let via2 = this.getDebugStateOffset(2);
+    let vic = this.getDebugStateOffset(3) + VIC_REGS;
     return {
       c:this.getCPUState(),
       state:this.statearr.slice(0),
-      ram:this.statearr.slice(18640, 18640+0x200), // ZP and stack (TODO)
+      ram:this.statearr.slice(ram0, ram0+0x200), // ZP and stack
+      via1:this.statearr.slice(via1, via1+VIA_SIZE),
+      via2:this.statearr.slice(via2, via2+VIA_SIZE),
+      vic:this.statearr.slice(vic, vic+16),
       // the joystick mask lives on this object, not in the WASM state blob,
       // so it has to be saved explicitly or it leaks across a rewind
       joymask0: this.joymask0,
@@ -160,6 +189,54 @@ export class VIC20_WASMMachine extends BaseWASMMachine implements Machine, Probe
   }
   getVideoParams() {
    return {width:232, height:272, overscan:true, videoFrequency:50, aspect:1.5};
+  }
+  getDebugCategories() {
+    return ['CPU','ZPRAM','Stack','VIA','VIC'];
+  }
+  // translate an address as the VIC-I sees it (14 bits, its own memory map)
+  // into the CPU address of the same memory, or "ROM" for the character ROM
+  vicAddressToCPU(addr: number) {
+    if (addr < 0x2000) return 'ROM $' + hex(0x8000 + (addr & 0xfff), 4);
+    return '$' + hex((addr - 0x2000) & 0xffff, 4);
+  }
+  // format one VIA, in the style of the C64's CIA pane
+  viaToString(name: string, m: Uint8Array) {
+    let t1 = m[VIA_T1+2] + m[VIA_T1+3]*256;
+    let t2 = m[VIA_T2+2] + m[VIA_T2+3]*256;
+    let s = `${name}\n`;
+    s += ` A: Out ${hex(m[VIA_PA+1])}  In ${hex(m[VIA_PA+0])}  DDR ${hex(m[VIA_PA+2])}`;
+    s += `   T1 ${hex(t1, 4)}\n`;
+    s += ` B: Out ${hex(m[VIA_PB+1])}  In ${hex(m[VIA_PB+0])}  DDR ${hex(m[VIA_PB+2])}`;
+    s += `   T2 ${hex(t2, 4)}\n`;
+    s += ` ACR ${hex(m[VIA_ACR])}  PCR ${hex(m[VIA_PCR])}`;
+    s += `  IER ${hex(m[VIA_IER])}  IFR ${hex(m[VIA_IFR])}\n`;
+    return s;
+  }
+  getDebugInfo(category: string, state: any) {
+    switch (category) {
+      case 'VIA': {
+        let s = '';
+        s += this.viaToString('VIA 1 ($9110)  joystick, cassette, NMI', state.via1);
+        s += this.viaToString('VIA 2 ($9120)  keyboard, cassette, IRQ', state.via2);
+        return s;
+      }
+      case 'VIC': {
+        let m = state.vic;
+        // screen memory is at A13..A9 from $9005 bits 4-7 and $9002 bit 7
+        // (A8 must be 0, the screen needs a 512 byte page)
+        let screen = ((m[5] & 0xf0) << 6) | ((m[2] & 0x80) << 2);
+        // character memory is the $9005 low nibble, in 1K steps
+        let charmem = (m[5] & 0x0f) << 10;
+        let s = 'Mode: TEXT\n';
+        s += `Raster: ${lpad(this.getRasterY(), 3)}`;
+        s += `   Border ${m[15] & 7}  Background ${(m[15]>>4) & 0xf}  Aux ${(m[14]>>4) & 0xf}`;
+        s += `  Volume ${m[14] & 0xf}\n`;
+        s += `Screen: ${this.vicAddressToCPU(screen)}   `;
+        s += `Char: ${this.vicAddressToCPU(charmem)}\n`;
+        s += dumpRAM(m, 0x9000, 16);
+        return s;
+      }
+    }
   }
   setKeyInput(key: number, code: number, flags: number): void {
     // TODO: handle shifted keys
