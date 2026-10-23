@@ -4,6 +4,7 @@
 
 ### Builds and tools
 
+- CI builds again: the `chips` submodule was registered with the relative URL `./chips`, which git resolves against the superproject's remote (`github.com/8bitworkshop/8bitworkshop/chips`, a 404), so every `git submodule update` failed while cloning it. It now points at `https://github.com/8bitworkshop/chips`, and a unit test rejects relative submodule URLs.
 - The WASM builds of the compilers no longer take the host down with them. Their Emscripten runtime aborts the process on an unhandled rejection and rethrows uncaught exceptions, which node turns into exit code 7 with no message. The `8bws` CLI and the VS Code extension ignore those handlers now, so a stray error is reported instead of killing the process.
 
 ### Emulators

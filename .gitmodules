@@ -15,4 +15,4 @@
 	url = https://github.com/8bitworkshop/nanoasm
 [submodule "chips"]
 	path = chips
-	url = ./chips
+	url = https://github.com/8bitworkshop/chips
