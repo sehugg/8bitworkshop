@@ -160,6 +160,26 @@ describe('8bws CLI', function () {
                 assert.equal(bin[6], 0x9e);
             });
         });
+        it('should not let c64 joystick 2 ghost the cursor keys into joystick 1', function () {
+            // CIA1 PA drives the keyboard scan lines and joystick 2.  A low
+            // joystick line must not make the KERNAL scan an extra line: the
+            // cursor keys the IDE presses are on that line, and their column
+            // 2 is PB2, joystick 1 LEFT.  The program reads port 1 with DDRA
+            // all output, as the KERNAL leaves it.
+            var src = path.join(os.tmpdir(), '8bws-c64-joy1.c');
+            fs.writeFileSync(src, [
+                'void main(void) {',
+                '  __asm__("sei");',
+                '  *(unsigned char*)0xdc02 = 0xff;',
+                '  *(unsigned char*)0xdc00 = 0xff;',
+                '  *(unsigned char*)0xdc03 = 0x00;',
+                '  for (;;) *(unsigned char*)0x0400 = (~*(unsigned char*)0xdc01) & 0x1f;',
+                '}',
+            ].join('\n'));
+            var out = cli('run', '-p', 'c64', src, '-e', 'run 300; keydown RIGHT; run 10; keydown UP; run 10; mem 0x0400 1');
+            // UP (01) and RIGHT (08); no phantom LEFT (04)
+            assert.ok(/^0400: 09\b/m.test(out), out);
+        });
         it('should print the serial output of a devel-6502 program', function () {
             var out = cli('run', '-p', 'devel-6502', 'presets/devel-6502/hello-sdcc.c', '-e', 'run 5; serial');
             assert.ok(out.includes('Hello, SDCC 6502!\nagain\nagain\nagain'));
