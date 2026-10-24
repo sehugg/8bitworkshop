@@ -415,7 +415,8 @@ describe('Worker', function() {
 
   it('should pass include_bytes! files to urust', async function() {
     if (!haveUrust) return this.skip();
-    var code = 'use rs8::reset;\nstatic ART: [u8; 3] = *include_bytes!("art.bin");\nstatic mut OUT: u8 = 0;\n#[reset]\nfn main() {\n    unsafe { OUT = ART[1]; }\n}\n';
+    // #[keep] stops the optimizer from dropping ART along with the never-read OUT
+    var code = 'use rs8::reset;\n#[keep] static ART: [u8; 3] = *include_bytes!("art.bin");\nstatic mut OUT: u8 = 0;\n#[reset]\nfn main() {\n    unsafe { OUT = ART[1]; }\n}\n';
     var msg = {updates:[{path:'main.rs', data:code}, {path:'art.bin', data:new Uint8Array([7,8,9])}],
                buildsteps:[{path:'main.rs', platform:'devel-6502', tool:'urust', mainfile:true, files:['main.rs','art.bin']}]};
     var result = await buildOne(msg);
